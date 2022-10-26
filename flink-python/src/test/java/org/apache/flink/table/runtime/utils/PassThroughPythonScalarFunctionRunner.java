@@ -18,20 +18,22 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.util.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
 /**
  * A {@link PassThroughPythonScalarFunctionRunner} runner that just return the input elements as the
@@ -48,14 +50,12 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonFuncti
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-            Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer) {
         super(
                 taskName,
                 environmentManager,
                 functionUrn,
                 userDefinedFunctions,
-                jobOptions,
                 flinkMetricContainer,
                 null,
                 null,
@@ -78,7 +78,10 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonFuncti
     @Override
     public void flush() throws Exception {
         super.flush();
-        resultBuffer.addAll(buffer);
+        resultBuffer.addAll(
+                buffer.stream()
+                        .map(b -> Tuple2.of(OUTPUT_COLLECTION_ID, b))
+                        .collect(Collectors.toList()));
         buffer.clear();
     }
 

@@ -26,8 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-jdbc</artifactId>
@@ -36,7 +35,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<postgres.version>42.2.10</postgres.version>
+		<postgres.version>42.5.0</postgres.version>
 		<oracle.version>19.3.0.0</oracle.version>
 	</properties>
 
@@ -66,6 +65,14 @@ under the License.
 			<groupId>com.oracle.database.jdbc</groupId>
 			<artifactId>ojdbc8</artifactId>
 			<version>${oracle.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- SQL Server -->
+		<dependency>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>mssql-jdbc</artifactId>
+			<version>10.2.1.jre8</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -106,6 +113,13 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -113,12 +127,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -134,7 +142,7 @@ under the License.
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
-			<version>8.0.27</version>
+			<version>8.0.29</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -158,6 +166,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- MS SQL test -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>mssqlserver</artifactId>
+			<version>1.17.3</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- H2 tests -->
 		<dependency>
 			<groupId>com.h2database</groupId>
@@ -177,15 +193,6 @@ under the License.
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!-- Disable jvm process reuse to test driver class loading issues -->
-					<reuseForks>false</reuseForks>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>

@@ -371,7 +371,7 @@ public class ConfigurationUtils {
     }
 
     @SuppressWarnings("unchecked")
-    static <E extends Enum<?>> E convertToEnum(Object o, Class<E> clazz) {
+    public static <E extends Enum<?>> E convertToEnum(Object o, Class<E> clazz) {
         if (o.getClass().equals(clazz)) {
             return (E) o;
         }

@@ -28,28 +28,24 @@ import java.util
 import java.util.Collections
 
 /**
-  * A [[FlinkTableFunction]] is an implementation of  [[org.apache.calcite.schema.TableFunction]].
-  * It is also an abstraction and instance holder of Table Function in Flink's Table API & SQL.
-  * We can create different kinds of [[FlinkTableFunction]] for different usages.
-  *
-  * @param tableFunction The Table Function instance
-  */
-abstract class FlinkTableFunction(
-    tableFunction: functions.TableFunction[_])
-  extends TableFunction {
+ * A [[FlinkTableFunction]] is an implementation of [[org.apache.calcite.schema.TableFunction]]. It
+ * is also an abstraction and instance holder of Table Function in Flink's Table API & SQL. We can
+ * create different kinds of [[FlinkTableFunction]] for different usages.
+ *
+ * @param tableFunction
+ *   The Table Function instance
+ */
+abstract class FlinkTableFunction(tableFunction: functions.TableFunction[_]) extends TableFunction {
 
-  override def getElementType(arguments: util.List[AnyRef]): Type = classOf[Array[Object]]
+  override def getElementType(arguments: util.List[_]): Type = classOf[Array[Object]]
 
   // we do never use the FunctionParameters, so return an empty list
   override def getParameters: util.List[FunctionParameter] = Collections.emptyList()
   // we do never use the getRowType, so return null
-  override def getRowType(
-      typeFactory: RelDataTypeFactory,
-      arguments: util.List[AnyRef]): RelDataType = null
+  override def getRowType(typeFactory: RelDataTypeFactory, arguments: util.List[_]): RelDataType =
+    null
 
-  /**
-    * Returns the Type for usage, i.e. code generation.
-    */
+  /** Returns the Type for usage, i.e. code generation. */
   def getExternalResultType(
       tableFunction: functions.TableFunction[_],
       arguments: Array[AnyRef],

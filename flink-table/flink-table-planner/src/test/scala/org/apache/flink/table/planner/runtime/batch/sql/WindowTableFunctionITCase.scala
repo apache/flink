@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
@@ -33,8 +32,12 @@ class WindowTableFunctionITCase extends BatchTestBase {
   @Before
   override def before(): Unit = {
     super.before()
-    registerCollection("Table3WithTimestamp", data3WithTimestamp, type3WithTimestamp,
-      "a, b, c, ts", nullablesOfData3WithTimestamp)
+    registerCollection(
+      "Table3WithTimestamp",
+      data3WithTimestamp,
+      type3WithTimestamp,
+      "a, b, c, ts",
+      nullablesOfData3WithTimestamp)
   }
 
   @Test
@@ -45,111 +48,197 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |FROM TABLE(TUMBLE(TABLE Table3WithTimestamp, DESCRIPTOR(ts), INTERVAL '3' SECOND))
         |""".stripMargin,
       Seq(
-        row(2, 2, "Hello",
+        row(
+          2,
+          2,
+          "Hello",
           localDateTime("1970-01-01 00:00:02"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:03"),
-          localDateTime("1970-01-01 00:00:02.999")),
-        row(1, 1, "Hi",
+          localDateTime("1970-01-01 00:00:02.999")
+        ),
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:03"),
-          localDateTime("1970-01-01 00:00:02.999")),
-        row(3, 2, "Hello world",
+          localDateTime("1970-01-01 00:00:02.999")
+        ),
+        row(
+          3,
+          2,
+          "Hello world",
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(4, 3, "Hello world, how are you?",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          4,
+          3,
+          "Hello world, how are you?",
           localDateTime("1970-01-01 00:00:04"),
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(5, 3, "I am fine.",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          5,
+          3,
+          "I am fine.",
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(6, 3, "Luke Skywalker",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          6,
+          3,
+          "Luke Skywalker",
           localDateTime("1970-01-01 00:00:06"),
           localDateTime("1970-01-01 00:00:06"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(7, 4, "Comment#1",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          7,
+          4,
+          "Comment#1",
           localDateTime("1970-01-01 00:00:07"),
           localDateTime("1970-01-01 00:00:06"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(8, 4, "Comment#2",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          8,
+          4,
+          "Comment#2",
           localDateTime("1970-01-01 00:00:08"),
           localDateTime("1970-01-01 00:00:06"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:12"),
-          localDateTime("1970-01-01 00:00:11.999")),
-        row(10, 4L, "Comment#4",
+          localDateTime("1970-01-01 00:00:11.999")
+        ),
+        row(
+          10,
+          4L,
+          "Comment#4",
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:12"),
-          localDateTime("1970-01-01 00:00:11.999")),
-        row(11, 5, "Comment#5",
+          localDateTime("1970-01-01 00:00:11.999")
+        ),
+        row(
+          11,
+          5,
+          "Comment#5",
           localDateTime("1970-01-01 00:00:11"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:12"),
-          localDateTime("1970-01-01 00:00:11.999")),
-        row(12, 5, "Comment#6",
+          localDateTime("1970-01-01 00:00:11.999")
+        ),
+        row(
+          12,
+          5,
+          "Comment#6",
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(13, 5, "Comment#7",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          13,
+          5,
+          "Comment#7",
           localDateTime("1970-01-01 00:00:13"),
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(15, 5, "Comment#9",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          15,
+          5,
+          "Comment#9",
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(14, 5, "Comment#8",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          14,
+          5,
+          "Comment#8",
           localDateTime("1970-01-01 00:00:14"),
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(16, 6, "Comment#10",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          16,
+          6,
+          "Comment#10",
           localDateTime("1970-01-01 00:00:16"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(17, 6, "Comment#11",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          17,
+          6,
+          "Comment#11",
           localDateTime("1970-01-01 00:00:17"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:21"),
-          localDateTime("1970-01-01 00:00:20.999")),
-        row(19, 6, "Comment#13",
+          localDateTime("1970-01-01 00:00:20.999")
+        ),
+        row(
+          19,
+          6,
+          "Comment#13",
           localDateTime("1970-01-01 00:00:19"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:21"),
-          localDateTime("1970-01-01 00:00:20.999")),
-        row(20, 6, "Comment#14",
+          localDateTime("1970-01-01 00:00:20.999")
+        ),
+        row(
+          20,
+          6,
+          "Comment#14",
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:21"),
-          localDateTime("1970-01-01 00:00:20.999")),
-        row(21, 6, "Comment#15",
+          localDateTime("1970-01-01 00:00:20.999")
+        ),
+        row(
+          21,
+          6,
+          "Comment#15",
           localDateTime("1970-01-01 00:00:21"),
           localDateTime("1970-01-01 00:00:21"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999"))))
+          localDateTime("1970-01-01 00:00:23.999")
+        )
+      )
+    )
   }
 
   @Test
@@ -165,197 +254,350 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |    INTERVAL '9' SECOND))
         |""".stripMargin,
       Seq(
-        row(1, 1, "Hi",
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1969-12-31 23:59:55"),
           localDateTime("1970-01-01 00:00:04"),
-          localDateTime("1970-01-01 00:00:03.999")),
-        row(1, 1, "Hi",
+          localDateTime("1970-01-01 00:00:03.999")
+        ),
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(2, 2, "Hello",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          2,
+          2,
+          "Hello",
           localDateTime("1970-01-01 00:00:02"),
           localDateTime("1969-12-31 23:59:55"),
           localDateTime("1970-01-01 00:00:04"),
-          localDateTime("1970-01-01 00:00:03.999")),
-        row(2, 2, "Hello",
+          localDateTime("1970-01-01 00:00:03.999")
+        ),
+        row(
+          2,
+          2,
+          "Hello",
           localDateTime("1970-01-01 00:00:02"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(3, 2, "Hello world",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          3,
+          2,
+          "Hello world",
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1969-12-31 23:59:55"),
           localDateTime("1970-01-01 00:00:04"),
-          localDateTime("1970-01-01 00:00:03.999")),
-        row(3, 2, "Hello world",
+          localDateTime("1970-01-01 00:00:03.999")
+        ),
+        row(
+          3,
+          2,
+          "Hello world",
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(4, 3, "Hello world, how are you?",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          4,
+          3,
+          "Hello world, how are you?",
           localDateTime("1970-01-01 00:00:04"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(5, 3, "I am fine.",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          5,
+          3,
+          "I am fine.",
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(5, 3, "I am fine.",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          5,
+          3,
+          "I am fine.",
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(6, 3, "Luke Skywalker",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          6,
+          3,
+          "Luke Skywalker",
           localDateTime("1970-01-01 00:00:06"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(6, 3, "Luke Skywalker",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          6,
+          3,
+          "Luke Skywalker",
           localDateTime("1970-01-01 00:00:06"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(7, 4, "Comment#1",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          7,
+          4,
+          "Comment#1",
           localDateTime("1970-01-01 00:00:07"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(7, 4, "Comment#1",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          7,
+          4,
+          "Comment#1",
           localDateTime("1970-01-01 00:00:07"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(8, 4, "Comment#2",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          8,
+          4,
+          "Comment#2",
           localDateTime("1970-01-01 00:00:08"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(8, 4, "Comment#2",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          8,
+          4,
+          "Comment#2",
           localDateTime("1970-01-01 00:00:08"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(10, 4, "Comment#4",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          10,
+          4,
+          "Comment#4",
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(10, 4, "Comment#4",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          10,
+          4,
+          "Comment#4",
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(11, 5, "Comment#5",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          11,
+          5,
+          "Comment#5",
           localDateTime("1970-01-01 00:00:11"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(11, 5, "Comment#5",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          11,
+          5,
+          "Comment#5",
           localDateTime("1970-01-01 00:00:11"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(12, 5, "Comment#6",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          12,
+          5,
+          "Comment#6",
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(12, 5, "Comment#6",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          12,
+          5,
+          "Comment#6",
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(13, 5, "Comment#7",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          13,
+          5,
+          "Comment#7",
           localDateTime("1970-01-01 00:00:13"),
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:14"),
-          localDateTime("1970-01-01 00:00:13.999")),
-        row(13, 5, "Comment#7",
+          localDateTime("1970-01-01 00:00:13.999")
+        ),
+        row(
+          13,
+          5,
+          "Comment#7",
           localDateTime("1970-01-01 00:00:13"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(14, 5, "Comment#8",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          14,
+          5,
+          "Comment#8",
           localDateTime("1970-01-01 00:00:14"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(15, 5, "Comment#9",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          15,
+          5,
+          "Comment#9",
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(15, 5, "Comment#9",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          15,
+          5,
+          "Comment#9",
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(16, 6, "Comment#10",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          16,
+          6,
+          "Comment#10",
           localDateTime("1970-01-01 00:00:16"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(16, 6, "Comment#10",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          16,
+          6,
+          "Comment#10",
           localDateTime("1970-01-01 00:00:16"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(17, 6, "Comment#11",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          17,
+          6,
+          "Comment#11",
           localDateTime("1970-01-01 00:00:17"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(17, 6, "Comment#11",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          17,
+          6,
+          "Comment#11",
           localDateTime("1970-01-01 00:00:17"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:19"),
-          localDateTime("1970-01-01 00:00:18.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:18.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(19, 6, "Comment#13",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          19,
+          6,
+          "Comment#13",
           localDateTime("1970-01-01 00:00:19"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(20, 6, "Comment#14",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          20,
+          6,
+          "Comment#14",
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(20, 6, "Comment#14",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          20,
+          6,
+          "Comment#14",
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:29"),
-          localDateTime("1970-01-01 00:00:28.999")),
-        row(21, 6, "Comment#15",
+          localDateTime("1970-01-01 00:00:28.999")
+        ),
+        row(
+          21,
+          6,
+          "Comment#15",
           localDateTime("1970-01-01 00:00:21"),
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(21, 6, "Comment#15",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          21,
+          6,
+          "Comment#15",
           localDateTime("1970-01-01 00:00:21"),
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:29"),
-          localDateTime("1970-01-01 00:00:28.999"))
-      ))
+          localDateTime("1970-01-01 00:00:28.999")
+        )
+      )
+    )
   }
 
   @Test
@@ -371,226 +613,404 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |    INTERVAL '9' SECOND))
         |""".stripMargin,
       Seq(
-        row(1, 1, "Hi",
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:03"),
-          localDateTime("1970-01-01 00:00:02.999")),
-        row(1, 1, "Hi",
+          localDateTime("1970-01-01 00:00:02.999")
+        ),
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(1, 1, "Hi",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(2, 2, "Hello",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          2,
+          2,
+          "Hello",
           localDateTime("1970-01-01 00:00:02"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:03"),
-          localDateTime("1970-01-01 00:00:02.999")),
-        row(2, 2, "Hello",
+          localDateTime("1970-01-01 00:00:02.999")
+        ),
+        row(
+          2,
+          2,
+          "Hello",
           localDateTime("1970-01-01 00:00:02"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(2, 2, "Hello",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          2,
+          2,
+          "Hello",
           localDateTime("1970-01-01 00:00:02"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(3, 2, "Hello world",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          3,
+          2,
+          "Hello world",
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(3, 2, "Hello world",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          3,
+          2,
+          "Hello world",
           localDateTime("1970-01-01 00:00:03"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(4, 3, "Hello world, how are you?",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          4,
+          3,
+          "Hello world, how are you?",
           localDateTime("1970-01-01 00:00:04"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(4, 3, "Hello world, how are you?",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          4,
+          3,
+          "Hello world, how are you?",
           localDateTime("1970-01-01 00:00:04"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(5, 3, "I am fine.",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          5,
+          3,
+          "I am fine.",
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(5, 3, "I am fine.",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          5,
+          3,
+          "I am fine.",
           localDateTime("1970-01-01 00:00:05"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(6, 3, "Luke Skywalker",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          6,
+          3,
+          "Luke Skywalker",
           localDateTime("1970-01-01 00:00:06"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(7, 4, "Comment#1",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          7,
+          4,
+          "Comment#1",
           localDateTime("1970-01-01 00:00:07"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(8, 4, "Comment#2",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          8,
+          4,
+          "Comment#2",
           localDateTime("1970-01-01 00:00:08"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:12"),
-          localDateTime("1970-01-01 00:00:11.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:11.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(10, 4, "Comment#4",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          10,
+          4,
+          "Comment#4",
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:12"),
-          localDateTime("1970-01-01 00:00:11.999")),
-        row(10, 4, "Comment#4",
+          localDateTime("1970-01-01 00:00:11.999")
+        ),
+        row(
+          10,
+          4,
+          "Comment#4",
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(10, 4, "Comment#4",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          10,
+          4,
+          "Comment#4",
           localDateTime("1970-01-01 00:00:10"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(11, 5, "Comment#5",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          11,
+          5,
+          "Comment#5",
           localDateTime("1970-01-01 00:00:11"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:12"),
-          localDateTime("1970-01-01 00:00:11.999")),
-        row(11, 5, "Comment#5",
+          localDateTime("1970-01-01 00:00:11.999")
+        ),
+        row(
+          11,
+          5,
+          "Comment#5",
           localDateTime("1970-01-01 00:00:11"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(11, 5, "Comment#5",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          11,
+          5,
+          "Comment#5",
           localDateTime("1970-01-01 00:00:11"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(12, 5, "Comment#6",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          12,
+          5,
+          "Comment#6",
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(12, 5, "Comment#6",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          12,
+          5,
+          "Comment#6",
           localDateTime("1970-01-01 00:00:12"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(13, 5, "Comment#7",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          13,
+          5,
+          "Comment#7",
           localDateTime("1970-01-01 00:00:13"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(13, 5, "Comment#7",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          13,
+          5,
+          "Comment#7",
           localDateTime("1970-01-01 00:00:13"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(14, 5, "Comment#8",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          14,
+          5,
+          "Comment#8",
           localDateTime("1970-01-01 00:00:14"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(14, 5, "Comment#8",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          14,
+          5,
+          "Comment#8",
           localDateTime("1970-01-01 00:00:14"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(15, 5, "Comment#9",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          15,
+          5,
+          "Comment#9",
           localDateTime("1970-01-01 00:00:15"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(16, 6, "Comment#10",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          16,
+          6,
+          "Comment#10",
           localDateTime("1970-01-01 00:00:16"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(17, 6, "Comment#11",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          17,
+          6,
+          "Comment#11",
           localDateTime("1970-01-01 00:00:17"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:21"),
-          localDateTime("1970-01-01 00:00:20.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:20.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:27"),
-          localDateTime("1970-01-01 00:00:26.999")),
-        row(19, 6, "Comment#13",
+          localDateTime("1970-01-01 00:00:26.999")
+        ),
+        row(
+          19,
+          6,
+          "Comment#13",
           localDateTime("1970-01-01 00:00:19"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:21"),
-          localDateTime("1970-01-01 00:00:20.999")),
-        row(19, 6, "Comment#13",
+          localDateTime("1970-01-01 00:00:20.999")
+        ),
+        row(
+          19,
+          6,
+          "Comment#13",
           localDateTime("1970-01-01 00:00:19"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(19, 6, "Comment#13",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          19,
+          6,
+          "Comment#13",
           localDateTime("1970-01-01 00:00:19"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:27"),
-          localDateTime("1970-01-01 00:00:26.999")),
-        row(20, 6, "Comment#14",
+          localDateTime("1970-01-01 00:00:26.999")
+        ),
+        row(
+          20,
+          6,
+          "Comment#14",
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:21"),
-          localDateTime("1970-01-01 00:00:20.999")),
-        row(20, 6, "Comment#14",
+          localDateTime("1970-01-01 00:00:20.999")
+        ),
+        row(
+          20,
+          6,
+          "Comment#14",
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(20, 6, "Comment#14",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          20,
+          6,
+          "Comment#14",
           localDateTime("1970-01-01 00:00:20"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:27"),
-          localDateTime("1970-01-01 00:00:26.999")),
-        row(21, 6, "Comment#15",
+          localDateTime("1970-01-01 00:00:26.999")
+        ),
+        row(
+          21,
+          6,
+          "Comment#15",
           localDateTime("1970-01-01 00:00:21"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(21, 6, "Comment#15",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          21,
+          6,
+          "Comment#15",
           localDateTime("1970-01-01 00:00:21"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:27"),
-          localDateTime("1970-01-01 00:00:26.999"))))
+          localDateTime("1970-01-01 00:00:26.999")
+        )
+      )
+    )
   }
 
   @Test
@@ -624,7 +1044,8 @@ class WindowTableFunctionITCase extends BatchTestBase {
         row(5, 65, localDateTime("1970-01-01 00:00:10.0")),
         row(6, 111, localDateTime("1970-01-01 00:00:15.0")),
         row(6, 41, localDateTime("1970-01-01 00:00:20.0")),
-        row(6, 51, localDateTime("1970-01-01 00:00:10.0")))
+        row(6, 51, localDateTime("1970-01-01 00:00:10.0"))
+      )
     )
   }
 
@@ -652,38 +1073,103 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |GROUP BY window_start, window_end, window_time, b
         |""".stripMargin,
       Seq(
-        row(1, 1, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
+        row(
+          1,
+          1,
+          localDateTime("1969-12-31 23:59:55.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
           localDateTime("1970-01-01 00:00:04.999")),
-        row(1, 1, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        row(
+          1,
+          1,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
           localDateTime("1970-01-01 00:00:09.999")),
-        row(2, 2, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
+        row(
+          2,
+          2,
+          localDateTime("1969-12-31 23:59:55.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
           localDateTime("1970-01-01 00:00:04.999")),
-        row(2, 2, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        row(
+          2,
+          2,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
           localDateTime("1970-01-01 00:00:09.999")),
-        row(3, 1, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
+        row(
+          3,
+          1,
+          localDateTime("1969-12-31 23:59:55.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
           localDateTime("1970-01-01 00:00:04.999")),
-        row(3, 2, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
+        row(
+          3,
+          2,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
           localDateTime("1970-01-01 00:00:14.999")),
-        row(3, 3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        row(
+          3,
+          3,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
           localDateTime("1970-01-01 00:00:09.999")),
-        row(4, 1, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
+        row(
+          4,
+          1,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
           localDateTime("1970-01-01 00:00:19.999")),
-        row(4, 3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        row(
+          4,
+          3,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
           localDateTime("1970-01-01 00:00:09.999")),
-        row(4, 4, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
+        row(
+          4,
+          4,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
           localDateTime("1970-01-01 00:00:14.999")),
-        row(5, 1, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:25.0"),
+        row(
+          5,
+          1,
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:25.0"),
           localDateTime("1970-01-01 00:00:24.999")),
-        row(5, 4, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
+        row(
+          5,
+          4,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
           localDateTime("1970-01-01 00:00:14.999")),
-        row(5, 5, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
+        row(
+          5,
+          5,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
           localDateTime("1970-01-01 00:00:19.999")),
-        row(6, 2, localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:30.0"),
+        row(
+          6,
+          2,
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:30.0"),
           localDateTime("1970-01-01 00:00:29.999")),
-        row(6, 4, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
+        row(
+          6,
+          4,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
           localDateTime("1970-01-01 00:00:19.999")),
-        row(6, 6, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:25.0"),
-          localDateTime("1970-01-01 00:00:24.999")))
+        row(
+          6,
+          6,
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:25.0"),
+          localDateTime("1970-01-01 00:00:24.999"))
+      )
     )
   }
 
@@ -734,7 +1220,8 @@ class WindowTableFunctionITCase extends BatchTestBase {
           3,
           null,
           null,
-          null))
+          null)
+      )
     )
   }
 
@@ -756,50 +1243,88 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |WHERE rownum <= 1
         |""".stripMargin,
       Seq(
-        row(1, 1, "Hi",
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:03"),
-          localDateTime("1970-01-01 00:00:02.999")),
-        row(1, 1, "Hi",
+          localDateTime("1970-01-01 00:00:02.999")
+        ),
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:06"),
-          localDateTime("1970-01-01 00:00:05.999")),
-        row(1, 1, "Hi",
+          localDateTime("1970-01-01 00:00:05.999")
+        ),
+        row(
+          1,
+          1,
+          "Hi",
           localDateTime("1970-01-01 00:00:01"),
           localDateTime("1970-01-01 00:00:00"),
           localDateTime("1970-01-01 00:00:09"),
-          localDateTime("1970-01-01 00:00:08.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:08.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:12"),
-          localDateTime("1970-01-01 00:00:11.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:11.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:15"),
-          localDateTime("1970-01-01 00:00:14.999")),
-        row(9, 4, "Comment#3",
+          localDateTime("1970-01-01 00:00:14.999")
+        ),
+        row(
+          9,
+          4,
+          "Comment#3",
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:09"),
           localDateTime("1970-01-01 00:00:18"),
-          localDateTime("1970-01-01 00:00:17.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:17.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:21"),
-          localDateTime("1970-01-01 00:00:20.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:20.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:24"),
-          localDateTime("1970-01-01 00:00:23.999")),
-        row(18, 6, "Comment#12",
+          localDateTime("1970-01-01 00:00:23.999")
+        ),
+        row(
+          18,
+          6,
+          "Comment#12",
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:18"),
           localDateTime("1970-01-01 00:00:27"),
-          localDateTime("1970-01-01 00:00:26.999"))))
+          localDateTime("1970-01-01 00:00:26.999")
+        )
+      )
+    )
   }
 }

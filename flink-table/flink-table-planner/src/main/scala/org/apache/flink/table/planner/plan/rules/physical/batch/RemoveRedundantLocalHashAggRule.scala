@@ -15,25 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHashAggregate, BatchPhysicalLocalHashAggregate}
 
-import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.RelNode
 
 /**
  * There maybe exist a subTree like localHashAggregate -> globalHashAggregate which the middle
  * shuffle is removed. The rule could remove redundant localHashAggregate node.
  */
-class RemoveRedundantLocalHashAggRule extends RelOptRule(
-  operand(classOf[BatchPhysicalHashAggregate],
-    operand(classOf[BatchPhysicalLocalHashAggregate],
-      operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any))),
-  "RemoveRedundantLocalHashAggRule") {
+class RemoveRedundantLocalHashAggRule
+  extends RelOptRule(
+    operand(
+      classOf[BatchPhysicalHashAggregate],
+      operand(
+        classOf[BatchPhysicalLocalHashAggregate],
+        operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any))),
+    "RemoveRedundantLocalHashAggRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val globalAgg: BatchPhysicalHashAggregate = call.rel(0)

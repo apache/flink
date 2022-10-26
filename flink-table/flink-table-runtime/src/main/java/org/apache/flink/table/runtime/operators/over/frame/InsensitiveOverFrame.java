@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 
 /**
  * The insensitive window frame calculates the statements which shouldn't care the window frame, for
- * example RANK/DENSE_RANK/PERCENT_RANK/CUME_DIST/ROW_NUMBER.
+ * example RANK/DENSE_RANK/PERCENT_RANK/NTILE/ROW_NUMBER.
  */
 public class InsensitiveOverFrame implements OverWindowFrame {
 
@@ -49,6 +49,7 @@ public class InsensitiveOverFrame implements OverWindowFrame {
 
     @Override
     public void prepare(ResettableExternalBuffer rows) throws Exception {
+        processor.setWindowSize(rows.size());
         // reset the accumulator value
         processor.setAccumulators(processor.createAccumulators());
     }

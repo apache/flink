@@ -60,6 +60,30 @@ public class HistoryServerOptions {
                                             + " that are no longer present `%s`.",
                                     HISTORY_SERVER_ARCHIVE_DIRS.key()));
 
+    /**
+     * Pattern of the log URL of TaskManager. The HistoryServer will generate actual URLs from it.
+     */
+    public static final ConfigOption<String> HISTORY_SERVER_TASKMANAGER_LOG_URL_PATTERN =
+            key("historyserver.log.taskmanager.url-pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Pattern of the log URL of TaskManager. The HistoryServer will generate actual URLs from it,"
+                                    + " with replacing the special placeholders, `<jobid>` and `<tmid>`, to the id of job"
+                                    + " and TaskManager respectively. Only http / https schemes are supported.");
+
+    /**
+     * Pattern of the log URL of JobManager. The HistoryServer will generate actual URLs from it.
+     */
+    public static final ConfigOption<String> HISTORY_SERVER_JOBMANAGER_LOG_URL_PATTERN =
+            key("historyserver.log.jobmanager.url-pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Pattern of the log URL of JobManager. The HistoryServer will generate actual URLs from it,"
+                                    + " with replacing the special placeholders, `<jobid>`, to the id of job."
+                                    + " Only http / https schemes are supported.");
+
     /** The local directory used by the HistoryServer web-frontend. */
     public static final ConfigOption<String> HISTORY_SERVER_WEB_DIR =
             key("historyserver.web.tmpdir")

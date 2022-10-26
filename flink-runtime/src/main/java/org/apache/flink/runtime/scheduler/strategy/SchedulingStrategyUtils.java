@@ -18,63 +18,23 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.scheduler.DeploymentOption;
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.IterableUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Utils for {@link SchedulingStrategy}. */
 class SchedulingStrategyUtils {
 
-    static Set<ExecutionVertexID> getAllVertexIdsFromTopology(final SchedulingTopology topology) {
-        return IterableUtils.toStream(topology.getVertices())
-                .map(SchedulingExecutionVertex::getId)
-                .collect(Collectors.toSet());
-    }
-
-    static Set<SchedulingExecutionVertex> getVerticesFromIds(
-            final SchedulingTopology topology, final Set<ExecutionVertexID> vertexIds) {
-
-        return vertexIds.stream().map(topology::getVertex).collect(Collectors.toSet());
-    }
-
-    static List<ExecutionVertexDeploymentOption>
-            createExecutionVertexDeploymentOptionsInTopologicalOrder(
-                    final SchedulingTopology topology,
-                    final Set<ExecutionVertexID> verticesToDeploy,
-                    final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
+    static List<ExecutionVertexID> sortExecutionVerticesInTopologicalOrder(
+            final SchedulingTopology topology, final Set<ExecutionVertexID> verticesToDeploy) {
 
         return IterableUtils.toStream(topology.getVertices())
                 .map(SchedulingExecutionVertex::getId)
                 .filter(verticesToDeploy::contains)
-                .map(
-                        executionVertexID ->
-                                new ExecutionVertexDeploymentOption(
-                                        executionVertexID,
-                                        deploymentOptionRetriever.apply(executionVertexID)))
                 .collect(Collectors.toList());
-    }
-
-    static List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
-            final Collection<ExecutionVertexID> verticesToDeploy,
-            final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
-
-        final List<ExecutionVertexDeploymentOption> deploymentOptions =
-                new ArrayList<>(verticesToDeploy.size());
-        for (ExecutionVertexID executionVertexId : verticesToDeploy) {
-            final ExecutionVertexDeploymentOption deploymentOption =
-                    new ExecutionVertexDeploymentOption(
-                            executionVertexId, deploymentOptionRetriever.apply(executionVertexId));
-            deploymentOptions.add(deploymentOption);
-        }
-        return deploymentOptions;
     }
 
     static List<SchedulingPipelinedRegion> sortPipelinedRegionsInTopologicalOrder(

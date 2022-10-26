@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.connector.source.ScanTableSource
@@ -30,9 +29,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 
-/**
-  * Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchPhysicalTableSourceScan]].
-  */
+/** Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchPhysicalTableSourceScan]]. */
 class BatchPhysicalTableSourceScanRule
   extends ConverterRule(
     classOf[FlinkLogicalTableSourceScan],

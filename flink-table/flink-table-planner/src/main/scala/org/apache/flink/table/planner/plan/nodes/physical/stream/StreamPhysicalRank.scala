@@ -19,10 +19,11 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecRank
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.rank._
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -34,10 +35,7 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-
-/**
- * Stream physical RelNode for [[Rank]].
- */
+/** Stream physical RelNode for [[Rank]]. */
 class StreamPhysicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -48,7 +46,7 @@ class StreamPhysicalRank(
     rankRange: RankRange,
     rankNumberType: RelDataTypeField,
     outputRankNumber: Boolean,
-    rankStrategy: RankProcessStrategy)
+    val rankStrategy: RankProcessStrategy)
   extends Rank(
     cluster,
     traitSet,
@@ -106,6 +104,7 @@ class StreamPhysicalRank(
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val fieldCollations = orderKey.getFieldCollations
     new StreamExecRank(
+      unwrapTableConfig(this),
       rankType,
       new PartitionSpec(partitionKey.toArray),
       SortUtil.getSortSpec(fieldCollations),
@@ -115,7 +114,6 @@ class StreamPhysicalRank(
       generateUpdateBefore,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

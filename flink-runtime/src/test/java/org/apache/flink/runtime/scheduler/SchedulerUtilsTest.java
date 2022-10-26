@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -78,7 +79,8 @@ public class SchedulerUtilsTest extends TestLogger {
                         new StandaloneCheckpointRecoveryFactory(),
                         Executors.directExecutor(),
                         log,
-                        new JobID());
+                        new JobID(),
+                        RestoreMode.CLAIM);
 
         assertEquals(
                 maxNumberOfCheckpointsToRetain,
@@ -104,7 +106,8 @@ public class SchedulerUtilsTest extends TestLogger {
                         recoveryFactory,
                         Executors.directExecutor(),
                         log,
-                        new JobID());
+                        new JobID(),
+                        RestoreMode.CLAIM);
 
         SharedStateRegistry sharedStateRegistry = checkpointStore.getSharedStateRegistry();
 
@@ -122,12 +125,14 @@ public class SchedulerUtilsTest extends TestLogger {
                     JobID jobId,
                     int maxNumberOfCheckpointsToRetain,
                     SharedStateRegistryFactory sharedStateRegistryFactory,
-                    Executor ioExecutor) {
+                    Executor ioExecutor,
+                    RestoreMode restoreMode) {
                 List<CompletedCheckpoint> checkpoints = singletonList(checkpoint);
                 return new EmbeddedCompletedCheckpointStore(
                         maxNumberOfCheckpointsToRetain,
                         checkpoints,
-                        sharedStateRegistryFactory.create(ioExecutor, checkpoints));
+                        sharedStateRegistryFactory.create(
+                                ioExecutor, checkpoints, RestoreMode.DEFAULT));
             }
 
             @Override

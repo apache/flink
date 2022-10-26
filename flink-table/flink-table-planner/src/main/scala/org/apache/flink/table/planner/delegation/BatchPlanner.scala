@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
@@ -30,7 +29,7 @@ import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
-import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, DynamicFilteringDependencyProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor, ResetTransformationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -43,15 +42,23 @@ import org.apache.calcite.sql.SqlExplainLevel
 import java.util
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 class BatchPlanner(
     executor: Executor,
     tableConfig: TableConfig,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
-    catalogManager: CatalogManager)
-  extends PlannerBase(executor, tableConfig, moduleManager, functionCatalog, catalogManager,
-    isStreamingMode = false) {
+    catalogManager: CatalogManager,
+    classLoader: ClassLoader)
+  extends PlannerBase(
+    executor,
+    tableConfig,
+    moduleManager,
+    functionCatalog,
+    catalogManager,
+    isStreamingMode = false,
+    classLoader) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(
@@ -67,11 +74,14 @@ class BatchPlanner(
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())
     // multiple input creation
-    if (getTableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+    if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
     processors.add(new ForwardHashExchangeProcessor)
+    if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
+      processors.add(new DynamicFilteringDependencyProcessor)
+      processors.add(new ResetTransformationProcessor)
+    }
     processors
   }
 
@@ -82,24 +92,26 @@ class BatchPlanner(
     val transformations = execGraph.getRootNodes.map {
       case node: BatchExecNode[_] => node.translateToPlan(planner)
       case _ =>
-        throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
+        throw new TableException(
+          "Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
     }
     afterTranslation()
-    transformations
+    transformations ++ planner.extraTransformations
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
-    val sb = new StringBuilder
+    val sb = new mutable.StringBuilder
     sb.append("== Abstract Syntax Tree ==")
     sb.append(System.lineSeparator)
-    sinkRelNodes.foreach { sink =>
-      // use EXPPLAN_ATTRIBUTES to make the ast result more readable
-      // and to keep the previous behavior
-      sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
-      sb.append(System.lineSeparator)
+    sinkRelNodes.foreach {
+      sink =>
+        // use EXPPLAN_ATTRIBUTES to make the ast result more readable
+        // and to keep the previous behavior
+        sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
+        sb.append(System.lineSeparator)
     }
 
     sb.append("== Optimized Physical Plan ==")
@@ -109,9 +121,10 @@ class BatchPlanner(
     } else {
       SqlExplainLevel.EXPPLAN_ATTRIBUTES
     }
-    optimizedRelNodes.foreach { rel =>
-      sb.append(FlinkRelOptUtil.toString(rel, explainLevel))
-      sb.append(System.lineSeparator)
+    optimizedRelNodes.foreach {
+      rel =>
+        sb.append(FlinkRelOptUtil.toString(rel, explainLevel))
+        sb.append(System.lineSeparator)
     }
 
     sb.append("== Optimized Execution Plan ==")
@@ -131,7 +144,13 @@ class BatchPlanner(
   private def createDummyPlanner(): BatchPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new BatchPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
+    new BatchPlanner(
+      executor,
+      tableConfig,
+      moduleManager,
+      functionCatalog,
+      catalogManager,
+      classLoader)
   }
 
   override def loadPlan(planReference: PlanReference): InternalPlan = {
@@ -139,8 +158,7 @@ class BatchPlanner(
       "The compiled plan feature is not supported in batch mode.")
   }
 
-  override def compilePlan(
-     modifyOperations: util.List[ModifyOperation]): InternalPlan =
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): InternalPlan =
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
 
@@ -154,7 +172,7 @@ class BatchPlanner(
 
   override def beforeTranslation(): Unit = {
     super.beforeTranslation()
-    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+    val runtimeMode = getTableConfig.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
@@ -30,14 +29,14 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
   @Test
   def testPandasEventTimeTumblingGroupWindowOverTime(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
 
     val resultTable = sourceTable
-      .window(Tumble over 5.millis on 'rowtime as 'w)
+      .window(Tumble.over(5.millis).on('rowtime).as('w))
       .groupBy('w, 'b)
-      .select('b, 'w.start,'w.end, func('a, 'c))
+      .select('b, 'w.start, 'w.end, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
   }
@@ -45,12 +44,12 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testPandasEventTimeTumblingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
 
     val resultTable = sourceTable
-      .window(Tumble over 2.rows on 'rowtime as 'w)
+      .window(Tumble.over(2.rows).on('rowtime).as('w))
       .groupBy('w, 'b)
       .select('b, func('a, 'c))
 
@@ -60,14 +59,14 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
   @Test
   def testPandasEventTimeSlidingGroupWindowOverTime(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
 
     val resultTable = sourceTable
-      .window(Slide over 5.millis every 2.millis on 'rowtime as 'w)
+      .window(Slide.over(5.millis).every(2.millis).on('rowtime).as('w))
       .groupBy('w, 'b)
-      .select('b, 'w.start,'w.end, func('a, 'c))
+      .select('b, 'w.start, 'w.end, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
   }
@@ -75,12 +74,12 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testPandasEventTimeSlidingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
 
     val resultTable = sourceTable
-      .window(Slide over 5.rows every 2.rows on 'rowtime as 'w)
+      .window(Slide.over(5.rows).every(2.rows).on('rowtime).as('w))
       .groupBy('w, 'b)
       .select('b, func('a, 'c))
 
@@ -90,14 +89,14 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
   @Test
   def testPandasGroupWindowAggregateWithoutKeys(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
 
     val resultTable = sourceTable
-      .window(Slide over 5.millis every 2.millis on 'rowtime as 'w)
+      .window(Slide.over(5.millis).every(2.millis).on('rowtime).as('w))
       .groupBy('w)
-      .select('w.start,'w.end, func('a, 'c))
+      .select('w.start, 'w.end, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
   }
@@ -105,14 +104,14 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testGeneralEventTimeTumblingGroupWindowOverTime(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new TestPythonAggregateFunction
 
     val resultTable = sourceTable
-      .window(Tumble over 5.millis on 'rowtime as 'w)
+      .window(Tumble.over(5.millis).on('rowtime).as('w))
       .groupBy('w, 'b)
-      .select('b, 'w.start,'w.end, func('a, 'c))
+      .select('b, 'w.start, 'w.end, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
   }

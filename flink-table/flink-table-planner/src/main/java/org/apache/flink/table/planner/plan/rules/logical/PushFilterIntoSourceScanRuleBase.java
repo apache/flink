@@ -28,11 +28,11 @@ import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -58,10 +58,8 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
     @Override
     public boolean matches(RelOptRuleCall call) {
         TableConfig tableConfig = ShortcutUtils.unwrapContext(call.getPlanner()).getTableConfig();
-        return tableConfig
-                .getConfiguration()
-                .getBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED);
+        return tableConfig.get(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED);
     }
 
     protected List<RexNode> convertExpressionToRexNode(
@@ -113,14 +111,10 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                 convertExpressionToRexNode(result.getAcceptedFilters(), relBuilder);
         FilterPushDownSpec filterPushDownSpec = new FilterPushDownSpec(acceptedPredicates);
 
-        // record size after applyFilters for update statistics
-        int updatedPredicatesSize = result.getRemainingFilters().size();
-        // set the newStatistic newTableSource and sourceAbilitySpecs
         TableSourceTable newTableSourceTable =
                 oldTableSourceTable.copy(
                         newTableSource,
-                        getNewFlinkStatistic(
-                                oldTableSourceTable, originPredicatesSize, updatedPredicatesSize),
+                        oldTableSourceTable.getStatistic(),
                         new SourceAbilitySpec[] {filterPushDownSpec});
 
         return new Tuple2<>(result, newTableSourceTable);
@@ -136,7 +130,8 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                         inputNames,
                         context.getFunctionCatalog(),
                         context.getCatalogManager(),
-                        TimeZone.getTimeZone(context.getTableConfig().getLocalTimeZone()));
+                        TimeZone.getTimeZone(
+                                TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
 
         return RexNodeExtractor.extractConjunctiveConditions(
                 filterExpression, maxCnfNodeCount, rexBuilder, converter);
@@ -154,24 +149,5 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                 && tableSourceTable.tableSource() instanceof SupportsFilterPushDown
                 && Arrays.stream(tableSourceTable.abilitySpecs())
                         .noneMatch(spec -> spec instanceof FilterPushDownSpec);
-    }
-
-    protected FlinkStatistic getNewFlinkStatistic(
-            TableSourceTable tableSourceTable,
-            int originPredicatesSize,
-            int updatedPredicatesSize) {
-        FlinkStatistic oldStatistic = tableSourceTable.getStatistic();
-        FlinkStatistic newStatistic;
-        if (originPredicatesSize == updatedPredicatesSize) {
-            // Keep all Statistics if no predicates can be pushed down
-            newStatistic = oldStatistic;
-        } else if (oldStatistic == FlinkStatistic.UNKNOWN()) {
-            newStatistic = oldStatistic;
-        } else {
-            // Remove tableStats after predicates pushed down
-            newStatistic =
-                    FlinkStatistic.builder().statistic(oldStatistic).tableStats(null).build();
-        }
-        return newStatistic;
     }
 }

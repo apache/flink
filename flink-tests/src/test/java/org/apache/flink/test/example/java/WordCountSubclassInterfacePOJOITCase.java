@@ -30,6 +30,8 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** WordCount with subclass and interface example. */
 @SuppressWarnings("serial")
 public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBase

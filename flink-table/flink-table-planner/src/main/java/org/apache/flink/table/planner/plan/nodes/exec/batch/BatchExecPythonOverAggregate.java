@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -69,6 +70,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
     private final List<Integer> aggWindowIndex;
 
     public BatchExecPythonOverAggregate(
+            ReadableConfig tableConfig,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -76,6 +78,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecPythonOverAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecPythonOverAggregate.class, tableConfig),
                 overSpec,
                 inputProperty,
                 outputType,
@@ -150,7 +153,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             }
         }
         Configuration pythonConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
+                CommonPythonUtil.extractPythonConfiguration(
+                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
@@ -158,8 +162,10 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         isRangeWindows,
                         pythonConfig,
-                        config);
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
+                        config,
+                        planner.getFlinkContext().getClassLoader());
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
+                pythonConfig, planner.getFlinkContext().getClassLoader())) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;
@@ -171,7 +177,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             RowType outputRowType,
             boolean[] isRangeWindows,
             Configuration pythonConfig,
-            ExecNodeConfig config) {
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
         Tuple2<int[], PythonFunctionInfo[]> aggCallInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(
                         aggCalls.toArray(new AggregateCall[0]));
@@ -180,6 +187,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonOverWindowAggregateFunctionOperator(
                         config,
+                        classLoader,
                         pythonConfig,
                         inputRowType,
                         outputRowType,
@@ -198,6 +206,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonOverWindowAggregateFunctionOperator(
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Configuration pythonConfig,
             RowType inputRowType,
             RowType outputRowType,
@@ -206,7 +215,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             PythonFunctionInfo[] pythonFunctionInfos) {
         Class<?> clazz =
                 CommonPythonUtil.loadClass(
-                        ARROW_PYTHON_OVER_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
+                        ARROW_PYTHON_OVER_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME, classLoader);
 
         RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
         RowType udfOutputType =
@@ -250,13 +259,13 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                             sortSpec.getFieldIndices()[0],
                             sortSpec.getAscendingOrders()[0],
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     "UdafInputProjection",
                                     inputRowType,
                                     udfInputType,
                                     udafInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     "GroupKey",
                                     inputRowType,
                                     (RowType)
@@ -264,7 +273,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                                                     .project(inputRowType),
                                     partitionSpec.getFieldIndices()),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     "GroupSet",
                                     inputRowType,
                                     (RowType)

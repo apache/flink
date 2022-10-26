@@ -22,9 +22,8 @@
   [ngModel]="dump"
   [nzEditorOption]="editorOptions"
 ></nz-code-editor>
-<flink-refresh-download
-  [compactMode]="true"
-  [downloadHref]="'jobmanager' + '/thread-dump'"
-  [downloadName]="'jobmanager_thread_dump'"
+<flink-addon-compact
+  [downloadHref]="downloadUrl"
+  [downloadName]="downloadName"
   (reload)="reload()"
-></flink-refresh-download>
+></flink-addon-compact>

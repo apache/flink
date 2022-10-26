@@ -35,32 +35,39 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
-public class AdaptiveBatchSchedulerTest extends TestLogger {
+class AdaptiveBatchSchedulerTest {
 
     private static final int SOURCE_PARALLELISM_1 = 6;
     private static final int SOURCE_PARALLELISM_2 = 4;
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private static final ComponentMainThreadExecutor mainThreadExecutor =
             ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
     @Test
-    public void testAdaptiveBatchScheduler() throws Exception {
+    void testAdaptiveBatchScheduler() throws Exception {
         JobGraph jobGraph = createJobGraph(false);
         Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
         JobVertex source1 = jobVertexIterator.next();
@@ -73,22 +80,22 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
         final ExecutionJobVertex sinkExecutionJobVertex = graph.getJobVertex(sink.getID());
 
         scheduler.startScheduling();
-        assertThat(sinkExecutionJobVertex.getParallelism(), is(-1));
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
 
         // trigger source1 finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source1);
-        assertThat(sinkExecutionJobVertex.getParallelism(), is(-1));
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
 
         // trigger source2 finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source2);
-        assertThat(sinkExecutionJobVertex.getParallelism(), is(10));
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(10);
 
         // check that the jobGraph is updated
-        assertThat(sink.getParallelism(), is(10));
+        assertThat(sink.getParallelism()).isEqualTo(10);
     }
 
     @Test
-    public void testDecideParallelismForForwardTarget() throws Exception {
+    void testDecideParallelismForForwardTarget() throws Exception {
         JobGraph jobGraph = createJobGraph(true);
         Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
         JobVertex source1 = jobVertexIterator.next();
@@ -101,18 +108,18 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
         final ExecutionJobVertex sinkExecutionJobVertex = graph.getJobVertex(sink.getID());
 
         scheduler.startScheduling();
-        assertThat(sinkExecutionJobVertex.getParallelism(), is(-1));
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
 
         // trigger source1 finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source1);
-        assertThat(sinkExecutionJobVertex.getParallelism(), is(-1));
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
 
         // trigger source2 finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source2);
-        assertThat(sinkExecutionJobVertex.getParallelism(), is(SOURCE_PARALLELISM_1));
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(SOURCE_PARALLELISM_1);
 
         // check that the jobGraph is updated
-        assertThat(sink.getParallelism(), is(SOURCE_PARALLELISM_1));
+        assertThat(sink.getParallelism()).isEqualTo(SOURCE_PARALLELISM_1);
     }
 
     /** Transit the state of all executions. */
@@ -125,7 +132,7 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
                             state,
                             null,
                             null,
-                            new IOMetrics(0, 0, 0, 0)));
+                            new IOMetrics(0, 0, 0, 0, 0, 0, 0)));
         }
     }
 
@@ -159,7 +166,7 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
         sink.connectNewDataSetAsInput(
                 source2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
         if (withForwardEdge) {
-            source1.getProducedDataSets().get(0).getConsumer().setForward(true);
+            source1.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
         }
         return new JobGraph(new JobID(), "test job", source1, source2, sink);
     }
@@ -169,13 +176,10 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
         configuration.set(
                 JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
 
-        final AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder schedulerBuilder =
-                (AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder)
-                        new AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder(
-                                        jobGraph, mainThreadExecutor)
-                                .setJobMasterConfiguration(configuration);
-        schedulerBuilder.setVertexParallelismDecider((ignored) -> 10);
-
-        return schedulerBuilder.build();
+        return new DefaultSchedulerBuilder(
+                        jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                .setJobMasterConfiguration(configuration)
+                .setVertexParallelismDecider((ignored) -> 10)
+                .buildAdaptiveBatchJobScheduler();
     }
 }

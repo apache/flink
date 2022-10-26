@@ -35,6 +35,8 @@ the same semantics as a failure-free execution.
 See [Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) for how to enable and
 configure checkpoints for your program.
 
+To understand the differences between checkpoints and [savepoints]({{< ref "docs/ops/state/savepoints" >}}) see [checkpoints vs. savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}).
+
 ## Checkpoint Storage
 
 When checkpointing is enabled, managed state is persisted to ensure consistent recovery in case of failures.
@@ -156,12 +158,6 @@ env.getCheckpointConfig().setCheckpointStorage(
   new FileSystemCheckpointStorage("hdfs:///checkpoints-data/", FILE_SIZE_THESHOLD));
 ```
 
-### Difference to Savepoints
-
-Checkpoints have a few differences from [savepoints]({{< ref "docs/ops/state/savepoints" >}}). They
-- use a state backend specific (low-level) data format, may be incremental. (starting from Flink 1.15 savepoints can also use the backend [native]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) format.)
-- do not support Flink specific features like rescaling.
-
 ### Resuming from a retained checkpoint
 
 A job may be resumed from a checkpoint just as from a savepoint
@@ -174,7 +170,5 @@ above).
 ```shell
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
 ```
-
-
 
 {{< top >}}

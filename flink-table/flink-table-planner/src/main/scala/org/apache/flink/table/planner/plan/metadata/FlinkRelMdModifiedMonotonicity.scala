@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.connector.source.ScanTableSource
+import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
@@ -29,24 +29,24 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCo
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
-import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.{RelCollation, RelFieldCollation, RelNode}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rel.{RelCollation, RelFieldCollation, RelNode}
 import org.apache.calcite.rex.{RexCall, RexCallBinding, RexInputRef, RexNode}
+import org.apache.calcite.sql.{SqlKind, SqlOperatorBinding}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlMinMaxAggFunction, SqlSumAggFunction, SqlSumEmptyIsZeroAggFunction}
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
-import org.apache.calcite.sql.{SqlKind, SqlOperatorBinding}
 import org.apache.calcite.util.Util
 
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 import java.util.Collections
+
 import scala.collection.JavaConversions._
 
 /**
@@ -82,7 +82,6 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(CONSTANT))
     }
   }
-
 
   def getRelModifiedMonotonicity(rel: Project, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getProjectMonotonicity(rel.getProjects, rel.getInput, mq)
@@ -127,7 +126,9 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
               val inputIndex = getInputFieldIndex(c.getOperands.get(0), indexInProject)
               // collations of stream node are empty currently.
               val binding = RexCallBinding.create(
-                input.getCluster.getTypeFactory, c, Collections.emptyList[RelCollation])
+                input.getCluster.getTypeFactory,
+                c,
+                Collections.emptyList[RelCollation])
               val udfMonotonicity = getUdfMonotonicity(ssf, binding)
               val inputMono = if (inputIndex > -1) {
                 inputFieldMonotonicities(inputIndex)
@@ -147,8 +148,9 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     }
 
     // copy child mono
-    projects.zipWithIndex.foreach { case (expr, idx) =>
-      getInputFieldIndex(expr, idx)
+    projects.zipWithIndex.foreach {
+      case (expr, idx) =>
+        getInputFieldIndex(expr, idx)
     }
     new RelModifiedMonotonicity(fieldMonotonicities)
   }
@@ -182,11 +184,12 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       currentMonotonicity.fieldMonotonicities(fieldCount - 1) = CONSTANT
     }
     // 3. time attribute field is increasing
-    (0 until fieldCount).foreach(e => {
-      if (FlinkTypeFactory.isTimeIndicatorType(rel.getRowType.getFieldList.get(e).getType)) {
-        inputMonotonicity.fieldMonotonicities(e) = INCREASING
-      }
-    })
+    (0 until fieldCount).foreach(
+      e => {
+        if (FlinkTypeFactory.isTimeIndicatorType(rel.getRowType.getFieldList.get(e).getType)) {
+          inputMonotonicity.fieldMonotonicities(e) = INCREASING
+        }
+      })
     val fieldCollations = rel.orderKey.getFieldCollations
     if (fieldCollations.nonEmpty) {
       // 4. process the first collation field, we can only deduce the first collation field
@@ -196,9 +199,11 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       val fieldMonotonicity = inputMonotonicity.fieldMonotonicities(firstCollation.getFieldIndex)
       val result = fieldMonotonicity match {
         case SqlMonotonicity.INCREASING | SqlMonotonicity.CONSTANT
-          if firstCollation.direction == RelFieldCollation.Direction.DESCENDING => INCREASING
+            if firstCollation.direction == RelFieldCollation.Direction.DESCENDING =>
+          INCREASING
         case SqlMonotonicity.DECREASING | SqlMonotonicity.CONSTANT
-          if firstCollation.direction == RelFieldCollation.Direction.ASCENDING => DECREASING
+            if firstCollation.direction == RelFieldCollation.Direction.ASCENDING =>
+          DECREASING
         case _ => NOT_MONOTONIC
       }
       currentMonotonicity.fieldMonotonicities(firstCollation.getFieldIndex) = result
@@ -264,7 +269,10 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(rel: Aggregate, mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    getRelModifiedMonotonicityOnAggregate(rel.getInput, mq, rel.getAggCallList.toList,
+    getRelModifiedMonotonicityOnAggregate(
+      rel.getInput,
+      mq,
+      rel.getAggCallList.toList,
       rel.getGroupSet.toArray)
   }
 
@@ -279,9 +287,13 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: TableAggregate, mq: RelMetadataQuery): RelModifiedMonotonicity = {
+      rel: TableAggregate,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getRelModifiedMonotonicityOnTableAggregate(
-      rel.getInput, rel.getGroupSet.toArray, rel.getRowType.getFieldCount, mq)
+      rel.getInput,
+      rel.getGroupSet.toArray,
+      rel.getRowType.getFieldCount,
+      mq)
   }
 
   def getRelModifiedMonotonicity(
@@ -298,7 +310,10 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       rel: StreamPhysicalGroupTableAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getRelModifiedMonotonicityOnTableAggregate(
-      rel.getInput, rel.grouping, rel.getRowType.getFieldCount, mq)
+      rel.getInput,
+      rel.grouping,
+      rel.getRowType.getFieldCount,
+      mq)
   }
 
   def getRelModifiedMonotonicity(
@@ -318,8 +333,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getRelModifiedMonotonicity(
       rel: StreamPhysicalIncrementalGroupAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    getRelModifiedMonotonicityOnAggregate(
-      rel.getInput, mq, rel.finalAggCalls.toList, rel.finalAggGrouping)
+    getRelModifiedMonotonicityOnAggregate(rel.getInput, mq, rel.aggCalls.toList, rel.grouping)
   }
 
   def getRelModifiedMonotonicity(
@@ -364,8 +378,10 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val inputMonotonicity = fmq.getRelModifiedMonotonicity(input)
 
     // if group by an update field or group by a field mono is null, just return null
-    if (inputMonotonicity == null ||
-        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (
+      inputMonotonicity == null ||
+      grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)
+    ) {
       return null
     }
 
@@ -385,8 +401,10 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val inputMonotonicity = fmq.getRelModifiedMonotonicity(input)
 
     // if group by a update field or group by a field mono is null, just return null
-    if (inputMonotonicity == null ||
-        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (
+      inputMonotonicity == null ||
+      grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)
+    ) {
       return null
     }
 
@@ -396,26 +414,30 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       Array.fill(groupCnt)(CONSTANT) ++ Array.fill(aggCallList.size)(NOT_MONOTONIC)
 
     // get original monotonicity ignore input
-    aggCallList.zipWithIndex.foreach { case (aggCall, idx) =>
-      val aggCallMonotonicity = getMonotonicityOnAggCall(aggCall, fmq, input)
-      fieldMonotonicities(idx + groupCnt) = aggCallMonotonicity
+    aggCallList.zipWithIndex.foreach {
+      case (aggCall, idx) =>
+        val aggCallMonotonicity = getMonotonicityOnAggCall(aggCall, fmq, input)
+        fieldMonotonicities(idx + groupCnt) = aggCallMonotonicity
     }
 
     // need to re-calculate monotonicity if child contains update
     if (containsUpdate(fmq, input)) {
-      aggCallList.zipWithIndex.foreach { case (aggCall, idx) =>
-        val index = groupCnt + idx
-        if (aggCall.getArgList.size() > 1) {
-          fieldMonotonicities(index) = NOT_MONOTONIC
-        } else if (aggCall.getArgList.size() == 1) {
-          val childMono = inputMonotonicity.fieldMonotonicities(aggCall.getArgList.head)
-          val currentMono = fieldMonotonicities(index)
-          if (childMono != currentMono &&
-              !aggCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
-            // count will Increasing even child is NOT_MONOTONIC
+      aggCallList.zipWithIndex.foreach {
+        case (aggCall, idx) =>
+          val index = groupCnt + idx
+          if (aggCall.getArgList.size() > 1) {
             fieldMonotonicities(index) = NOT_MONOTONIC
+          } else if (aggCall.getArgList.size() == 1) {
+            val childMono = inputMonotonicity.fieldMonotonicities(aggCall.getArgList.head)
+            val currentMono = fieldMonotonicities(index)
+            if (
+              childMono != currentMono &&
+              !aggCall.getAggregation.isInstanceOf[SqlCountAggFunction]
+            ) {
+              // count will Increasing even child is NOT_MONOTONIC
+              fieldMonotonicities(index) = NOT_MONOTONIC
+            }
           }
-        }
       }
     }
     new RelModifiedMonotonicity(fieldMonotonicities)
@@ -428,14 +450,15 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     aggCall.getAggregation match {
       case _: SqlCountAggFunction => INCREASING
-      case minMax: SqlMinMaxAggFunction => minMax.kind match {
-        case SqlKind.MAX => INCREASING
-        case SqlKind.MIN => DECREASING
-        case _ => NOT_MONOTONIC
-      }
+      case minMax: SqlMinMaxAggFunction =>
+        minMax.kind match {
+          case SqlKind.MAX => INCREASING
+          case SqlKind.MIN => DECREASING
+          case _ => NOT_MONOTONIC
+        }
       case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction =>
-        val valueInterval = fmq.getFilteredColumnInterval(
-          input, aggCall.getArgList.head, aggCall.filterArg)
+        val valueInterval =
+          fmq.getFilteredColumnInterval(input, aggCall.getArgList.head, aggCall.filterArg)
         if (valueInterval == null) {
           NOT_MONOTONIC
         } else {
@@ -559,8 +582,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getRelModifiedMonotonicity(rel: RelNode, mq: RelMetadataQuery): RelModifiedMonotonicity = null
 
   /**
-   * Utility to create a RelModifiedMonotonicity which all fields is modified constant which
-   * means all the field's value will not be modified.
+   * Utility to create a RelModifiedMonotonicity which all fields is modified constant which means
+   * all the field's value will not be modified.
    */
   def constants(fieldCount: Int): RelModifiedMonotonicity = {
     new RelModifiedMonotonicity(Array.fill(fieldCount)(CONSTANT))
@@ -570,9 +593,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     new RelModifiedMonotonicity(Array.fill(fieldCount)(NOT_MONOTONIC))
   }
 
-  /**
-   * These operator won't generate update itself
-   */
+  /** These operator won't generate update itself */
   def getMonotonicity(
       input: RelNode,
       mq: RelMetadataQuery,
@@ -627,7 +648,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       case b: JByte => b.compareTo(0.toByte)
       case dec: JBigDecimal => dec.compareTo(JBigDecimal.ZERO)
       case _: Date | _: Time | _: Timestamp | _: String =>
-        //not interested here, just return negative
+        // not interested here, just return negative
         -1
       case _ =>
         // other numeric types
@@ -642,6 +663,7 @@ object FlinkRelMdModifiedMonotonicity {
   private val INSTANCE = new FlinkRelMdModifiedMonotonicity
 
   val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    FlinkMetadata.ModifiedMonotonicity.METHOD, INSTANCE)
+    FlinkMetadata.ModifiedMonotonicity.METHOD,
+    INSTANCE)
 
 }

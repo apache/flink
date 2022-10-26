@@ -18,6 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
@@ -55,16 +57,10 @@ public class SqlAlterViewProperties extends SqlAlterView {
         writer.keyword("SET");
         SqlWriter.Frame withFrame = writer.startList("(", ")");
         for (SqlNode property : propertyList) {
-            printIndent(writer);
+            SqlUnparseUtils.printIndent(writer);
             property.unparse(writer, leftPrec, rightPrec);
         }
         writer.newlineAndIndent();
         writer.endList(withFrame);
-    }
-
-    protected void printIndent(SqlWriter writer) {
-        writer.sep(",", false);
-        writer.newlineAndIndent();
-        writer.print("  ");
     }
 }

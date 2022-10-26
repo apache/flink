@@ -18,14 +18,18 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -84,7 +88,11 @@ public class StateChangelogStorageLoader {
 
     @Nullable
     public static StateChangelogStorage<?> load(
-            Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException {
+            JobID jobID,
+            Configuration configuration,
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
+            throws IOException {
         final String identifier =
                 configuration
                         .getString(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE)
@@ -96,7 +104,28 @@ public class StateChangelogStorageLoader {
             return null;
         } else {
             LOG.info("Creating a changelog storage with name '{}'.", identifier);
-            return factory.createStorage(configuration, metricGroup);
+            return factory.createStorage(jobID, configuration, metricGroup, localRecoveryConfig);
+        }
+    }
+
+    @Nonnull
+    public static StateChangelogStorageView<?> loadFromStateHandle(
+            Configuration configuration, ChangelogStateHandle changelogStateHandle)
+            throws IOException {
+        StateChangelogStorageFactory factory =
+                STATE_CHANGELOG_STORAGE_FACTORIES.get(changelogStateHandle.getStorageIdentifier());
+        if (factory == null) {
+            throw new FlinkRuntimeException(
+                    String.format(
+                            "Cannot find a factory for changelog storage with name '%s' to restore from '%s'.",
+                            changelogStateHandle.getStorageIdentifier(),
+                            changelogStateHandle.getClass().getSimpleName()));
+        } else {
+            LOG.info(
+                    "Creating a changelog storage with name '{}' to restore from '{}'.",
+                    changelogStateHandle.getStorageIdentifier(),
+                    changelogStateHandle.getClass().getSimpleName());
+            return factory.createStorageView(configuration);
         }
     }
 }

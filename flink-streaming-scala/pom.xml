@@ -24,8 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
@@ -101,7 +100,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests</artifactId>
+			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -133,6 +132,23 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
 			</plugin>
 
 			<!-- Scala Compiler -->
@@ -238,18 +254,8 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
 			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
-
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
+				<groupId>io.github.zentol.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
 					<parameter>
@@ -265,14 +271,6 @@ under the License.
 						</excludes>
 					</parameter>
 				</configuration>
-				<executions>
-					<execution>
-						<phase>verify</phase>
-						<goals>
-							<goal>cmp</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- Generate the test-jar -->

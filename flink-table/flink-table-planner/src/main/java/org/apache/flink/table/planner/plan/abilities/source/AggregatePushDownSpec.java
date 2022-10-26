@@ -108,7 +108,7 @@ public final class AggregatePushDownSpec extends SourceAbilitySpecBase {
                         .collect(Collectors.joining(","));
 
         List<AggregateExpression> aggregateExpressions =
-                buildAggregateExpressions(inputType, aggregateCalls);
+                buildAggregateExpressions(context, inputType, aggregateCalls);
         String aggFunctionsStr =
                 aggregateExpressions.stream()
                         .map(AggregateExpression::asSummaryString)
@@ -131,7 +131,7 @@ public final class AggregatePushDownSpec extends SourceAbilitySpecBase {
         assert context.isBatchMode() && groupingSets.size() == 1;
 
         List<AggregateExpression> aggregateExpressions =
-                buildAggregateExpressions(inputType, aggregateCalls);
+                buildAggregateExpressions(context, inputType, aggregateCalls);
 
         if (tableSource instanceof SupportsAggregatePushDown) {
             DataType producedDataType = TypeConversions.fromLogicalToDataType(producedType);
@@ -146,10 +146,14 @@ public final class AggregatePushDownSpec extends SourceAbilitySpecBase {
     }
 
     private static List<AggregateExpression> buildAggregateExpressions(
-            RowType inputType, List<AggregateCall> aggregateCalls) {
+            SourceAbilityContext context, RowType inputType, List<AggregateCall> aggregateCalls) {
         AggregateInfoList aggInfoList =
                 AggregateUtil.transformToBatchAggregateInfoList(
-                        inputType, JavaScalaConversionUtil.toScala(aggregateCalls), null, null);
+                        context.getTypeFactory(),
+                        inputType,
+                        JavaScalaConversionUtil.toScala(aggregateCalls),
+                        null,
+                        null);
         if (aggInfoList.aggInfos().length == 0) {
             // no agg function need to be pushed down
             return Collections.emptyList();

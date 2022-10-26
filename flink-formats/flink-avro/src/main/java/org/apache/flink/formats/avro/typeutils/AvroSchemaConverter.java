@@ -296,14 +296,14 @@ public class AvroSchemaConverter {
     /**
      * Converts Flink SQL {@link LogicalType} (can be nested) into an Avro schema.
      *
-     * <p>Use "record" as the type name.
+     * <p>Use "org.apache.flink.avro.generated.record" as the type name.
      *
      * @param schema the schema type, usually it should be the top level record type, e.g. not a
      *     nested type
      * @return Avro's {@link Schema} matching this logical type.
      */
     public static Schema convertToSchema(LogicalType schema) {
-        return convertToSchema(schema, "record");
+        return convertToSchema(schema, "org.apache.flink.avro.generated.record");
     }
 
     /**

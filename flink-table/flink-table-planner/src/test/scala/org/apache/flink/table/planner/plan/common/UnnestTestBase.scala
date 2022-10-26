@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -27,9 +26,7 @@ import org.junit.Test
 
 import java.sql.Timestamp
 
-/**
-  * Test for UNNEST queries.
-  */
+/** Test for UNNEST queries. */
 abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
 
   protected val util: TableTestUtil = getTableTestUtil
@@ -98,10 +95,9 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
 
   @Test
   def testCrossWithUnnestForMap(): Unit = {
-    util.addTableSource("MyTable",
-      Array[TypeInformation[_]](Types.INT,
-        Types.LONG,
-        Types.MAP(Types.STRING, Types.STRING)),
+    util.addTableSource(
+      "MyTable",
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.MAP(Types.STRING, Types.STRING)),
       Array("a", "b", "c"))
     verifyPlan("SELECT a, b, v FROM MyTable CROSS JOIN UNNEST(c) as f(k, v)")
   }
@@ -123,6 +119,23 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   def testUnnestObjectArrayWithoutAlias(): Unit = {
     util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
     verifyPlan("SELECT a, b, A._1, A._2 FROM MyTable, UNNEST(MyTable.b) AS A where A._1 > 1")
+  }
+
+  @Test
+  def testUnnestWithNestedFilter(): Unit = {
+    util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
+    val sqlQuery =
+      """
+        |SELECT * FROM (
+        |   SELECT a, b1, b2 FROM
+        |       (SELECT a, b FROM MyTable) T
+        |       CROSS JOIN
+        |       UNNEST(T.b) AS S(b1, b2)
+        |       WHERE S.b1 >= 12
+        |   ) tmp
+        |WHERE b2 <> 'Hello'
+    """.stripMargin
+    verifyPlan(sqlQuery)
   }
 
   private def verifyPlan(sql: String): Unit = {

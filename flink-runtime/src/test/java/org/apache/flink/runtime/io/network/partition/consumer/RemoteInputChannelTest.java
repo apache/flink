@@ -57,12 +57,15 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -80,6 +83,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -116,6 +120,9 @@ import static org.mockito.Mockito.when;
 
 /** Tests for the {@link RemoteInputChannel}. */
 public class RemoteInputChannelTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final long CHECKPOINT_ID = 1L;
     private static final CheckpointOptions UNALIGNED =
@@ -1797,7 +1804,7 @@ public class RemoteInputChannelTest {
         final Task task =
                 new TestTaskBuilder(shuffleEnvironment)
                         .setPartitionProducerStateChecker(partitionProducerStateChecker)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final SingleInputGate inputGate =
                 new SingleInputGateBuilder().setPartitionProducerStateProvider(task).build();
 

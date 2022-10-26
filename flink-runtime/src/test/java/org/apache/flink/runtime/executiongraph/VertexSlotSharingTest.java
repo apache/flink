@@ -24,12 +24,16 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -39,6 +43,9 @@ import static org.junit.Assert.fail;
 
 /** Tests creating and initializing {@link SlotSharingGroup}. */
 public class VertexSlotSharingTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /**
      * Test setup: - v1 is isolated, no slot sharing. - v2 and v3 (not connected) share slots. - v4
@@ -84,7 +91,7 @@ public class VertexSlotSharingTest {
                     TestingDefaultExecutionGraphBuilder.newBuilder()
                             .setVertexParallelismStore(
                                     SchedulerBase.computeVertexParallelismStore(vertices))
-                            .build();
+                            .build(EXECUTOR_RESOURCE.getExecutor());
             eg.attachJobGraph(vertices);
 
             // verify that the vertices are all in the same slot sharing group

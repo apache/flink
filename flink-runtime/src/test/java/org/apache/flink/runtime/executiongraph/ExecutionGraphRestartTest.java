@@ -40,19 +40,24 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.is;
@@ -64,6 +69,10 @@ import static org.junit.Assert.assertThat;
 public class ExecutionGraphRestartTest extends TestLogger {
 
     private static final int NUM_TASKS = 31;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final ComponentMainThreadExecutor mainThreadExecutor =
             ComponentMainThreadExecutorServiceAdapter.forMainThread();
@@ -99,7 +108,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
                             "Task", NUM_TASKS + numTasksExceedSlotPool, NoOpInvokable.class);
             JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(graph, mainThreadExecutor)
+                    new DefaultSchedulerBuilder(
+                                    graph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .build();
@@ -127,7 +137,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
                             "Task", NUM_TASKS + numTasksExceedSlotPool, NoOpInvokable.class);
             JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(graph, mainThreadExecutor)
+                    new DefaultSchedulerBuilder(
+                                    graph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .build();
@@ -149,7 +160,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
         // We want to manually control the restart and delay
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
+                    new DefaultSchedulerBuilder(
+                                    createJobGraph(),
+                                    mainThreadExecutor,
+                                    EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
@@ -189,7 +203,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testCancelWhileFailing() throws Exception {
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
+                    new DefaultSchedulerBuilder(
+                                    createJobGraph(),
+                                    mainThreadExecutor,
+                                    EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
@@ -224,7 +241,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailWhileCanceling() throws Exception {
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
+                    new DefaultSchedulerBuilder(
+                                    createJobGraph(),
+                                    mainThreadExecutor,
+                                    EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
@@ -272,7 +292,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
+                    new DefaultSchedulerBuilder(
+                                    jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
@@ -331,8 +352,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailExecutionAfterCancel() throws Exception {
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(
-                                    createJobGraphToCancel(), mainThreadExecutor)
+                    new DefaultSchedulerBuilder(
+                                    createJobGraphToCancel(),
+                                    mainThreadExecutor,
+                                    EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(

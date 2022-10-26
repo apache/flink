@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -32,6 +31,10 @@ under the License.
 	<name>Flink : Connectors : SQL : HBase 2.2</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
 
 	<dependencies>
 		<dependency>

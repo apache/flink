@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
@@ -105,11 +104,11 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
 
     private JobResult executeSchedulingTest(
             JobGraph jobGraph, int numSlots, Configuration configuration) throws Exception {
-        configuration.setString(RestOptions.BIND_PORT, "0");
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 30000L);
 
         final MiniClusterConfiguration miniClusterConfiguration =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setConfiguration(configuration)
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(numSlots)

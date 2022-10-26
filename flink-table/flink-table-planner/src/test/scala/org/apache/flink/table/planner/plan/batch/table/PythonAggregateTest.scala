@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
@@ -44,7 +43,8 @@ class PythonAggregateTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     val func = new PandasAggregateFunction
 
-    val resultTable = sourceTable.groupBy('b)
+    val resultTable = sourceTable
+      .groupBy('b)
       .select('b, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
@@ -56,7 +56,8 @@ class PythonAggregateTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     val func = new PandasAggregateFunction
 
-    val resultTable = sourceTable.groupBy('b)
+    val resultTable = sourceTable
+      .groupBy('b)
       .select('b, func('a, 'c), 'a.count())
 
     util.verifyExecPlan(resultTable)

@@ -26,8 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-gcp-pubsub-emulator-tests</artifactId>
@@ -59,14 +58,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- This is used to run the local PubSub -->
-		<dependency>
-			<groupId>com.spotify</groupId>
-			<artifactId>docker-client</artifactId>
-			<version>8.16.0</version>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java</artifactId>
@@ -86,6 +77,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>gcloud</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

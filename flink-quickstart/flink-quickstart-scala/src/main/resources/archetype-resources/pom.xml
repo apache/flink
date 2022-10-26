@@ -124,6 +124,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<artifactSet>
 								<excludes>
 									<exclude>org.apache.flink:flink-shaded-force-shading</exclude>

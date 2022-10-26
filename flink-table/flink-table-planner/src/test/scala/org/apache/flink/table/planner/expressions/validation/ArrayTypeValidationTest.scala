@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -32,17 +31,12 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testObviousInvalidIndexTableApi(): Unit = {
-    testTableApi('f2.at(0), "FAIL", "FAIL")
+    testTableApi('f2.at(0), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testEmptyArraySql(): Unit = {
     testSqlApi("ARRAY[]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testEmptyArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array()", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -56,28 +50,18 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testDifferentTypesArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array(1, true)", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testElementNonArray(): Unit = {
-    testTableApi(
-      'f0.element(),
-      "FAIL",
-      "FAIL")
+    testTableApi('f0.element(), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testElementNonArraySql(): Unit = {
-    testSqlApi(
-      "ELEMENT(f0)",
-      "FAIL")
+    testSqlApi("ELEMENT(f0)", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testCardinalityOnNonArray(): Unit = {
-    testTableApi('f0.cardinality(), "FAIL", "FAIL")
+    testTableApi('f0.cardinality(), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])

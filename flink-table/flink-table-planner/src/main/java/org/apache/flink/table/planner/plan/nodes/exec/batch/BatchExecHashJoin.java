@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -36,11 +37,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTransl
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
+import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.HashJoinOperator;
 import org.apache.flink.table.runtime.operators.join.HashJoinType;
+import org.apache.flink.table.runtime.operators.join.SortMergeJoinFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -61,6 +64,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
     private final boolean tryDistinctBuildRow;
 
     public BatchExecHashJoin(
+            ReadableConfig tableConfig,
             JoinSpec joinSpec,
             int estimatedLeftAvgRowSize,
             int estimatedRightAvgRowSize,
@@ -75,6 +79,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecHashJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecHashJoin.class, tableConfig),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -112,19 +117,25 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
 
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(
-                        config, joinSpec.getNonEquiCondition().orElse(null), leftType, rightType);
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        joinSpec.getNonEquiCondition().orElse(null),
+                        leftType,
+                        rightType);
 
         // projection for equals
         GeneratedProjection leftProj =
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         "HashJoinLeftProjection",
                         leftType,
                         keyType,
                         leftKeys);
         GeneratedProjection rightProj =
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         "HashJoinRightProjection",
                         rightType,
                         keyType,
@@ -153,7 +164,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
             probeTransform = rightInputTransform;
             probeProj = rightProj;
             probeType = rightType;
-            probeRowCount = estimatedLeftRowCount;
+            probeRowCount = estimatedRightRowCount;
             probeKeys = rightKeys;
         } else {
             buildTransform = rightInputTransform;
@@ -180,10 +191,33 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                         joinType.isRightOuter(),
                         joinType == FlinkJoinType.SEMI,
                         joinType == FlinkJoinType.ANTI);
+
+        long externalBufferMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                        .getBytes();
+        long managedMemory = getLargeManagedMemory(joinType, config);
+
+        // sort merge join function
+        SortMergeJoinFunction sortMergeJoinFunction =
+                SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
+                        planner.getFlinkContext().getClassLoader(),
+                        config,
+                        joinType,
+                        leftType,
+                        rightType,
+                        leftKeys,
+                        rightKeys,
+                        keyType,
+                        leftIsBuild,
+                        joinSpec.getFilterNulls(),
+                        condFunc,
+                        1.0 * externalBufferMemory / managedMemory);
+
         if (LongHashJoinGenerator.support(hashJoinType, keyType, joinSpec.getFilterNulls())) {
             operator =
                     LongHashJoinGenerator.gen(
                             config,
+                            planner.getFlinkContext().getClassLoader(),
                             hashJoinType,
                             keyType,
                             buildType,
@@ -193,12 +227,15 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                             buildRowSize,
                             buildRowCount,
                             reverseJoin,
-                            condFunc);
+                            condFunc,
+                            leftIsBuild,
+                            sortMergeJoinFunction);
         } else {
             operator =
                     SimpleOperatorFactory.of(
                             HashJoinOperator.newHashJoinOperator(
                                     hashJoinType,
+                                    leftIsBuild,
                                     condFunc,
                                     reverseJoin,
                                     joinSpec.getFilterNulls(),
@@ -208,11 +245,9 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                                     buildRowSize,
                                     buildRowCount,
                                     probeRowCount,
-                                    keyType));
+                                    keyType,
+                                    sortMergeJoinFunction));
         }
-
-        long managedMemory =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY).getBytes();
 
         return ExecNodeUtil.createTwoInputTransformation(
                 buildTransform,
@@ -223,5 +258,28 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                 InternalTypeInfo.of(getOutputType()),
                 probeTransform.getParallelism(),
                 managedMemory);
+    }
+
+    private long getLargeManagedMemory(FlinkJoinType joinType, ExecNodeConfig config) {
+        long hashJoinManagedMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY).getBytes();
+
+        // The memory used by SortMergeJoinIterator that buffer the matched rows, each side needs
+        // this memory if it is full outer join
+        long externalBufferMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                        .getBytes();
+        // The memory used by BinaryExternalSorter for sort, the left and right side both need it
+        long sortMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
+        int externalBufferNum = 1;
+        if (joinType == FlinkJoinType.FULL) {
+            externalBufferNum = 2;
+        }
+        long sortMergeJoinManagedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2;
+
+        // Due to hash join maybe fallback to sort merge join, so here managed memory choose the
+        // large one
+        return Math.max(hashJoinManagedMemory, sortMergeJoinManagedMemory);
     }
 }

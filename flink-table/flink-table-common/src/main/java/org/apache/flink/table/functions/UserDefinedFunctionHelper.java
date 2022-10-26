@@ -25,9 +25,13 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;
+import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluatorFactory;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
@@ -338,7 +342,8 @@ public final class UserDefinedFunctionHelper {
             FunctionDefinition definition,
             CallContext callContext,
             ClassLoader builtInClassLoader,
-            @Nullable ReadableConfig configuration) {
+            @Nullable ReadableConfig configuration,
+            @Nullable ExpressionEvaluatorFactory evaluatorFactory) {
         if (definition instanceof SpecializedFunction) {
             final SpecializedFunction specialized = (SpecializedFunction) definition;
             final SpecializedContext specializedContext =
@@ -360,6 +365,47 @@ public final class UserDefinedFunctionHelper {
                         @Override
                         public ClassLoader getBuiltInClassLoader() {
                             return builtInClassLoader;
+                        }
+
+                        @Override
+                        public ExpressionEvaluator createEvaluator(
+                                Expression expression,
+                                DataType outputDataType,
+                                DataTypes.Field... args) {
+                            if (evaluatorFactory == null) {
+                                throw new TableException(
+                                        "Access to expression evaluation is currently not supported "
+                                                + "for all kinds of calls.");
+                            }
+                            return evaluatorFactory.createEvaluator(
+                                    expression, outputDataType, args);
+                        }
+
+                        @Override
+                        public ExpressionEvaluator createEvaluator(
+                                String sqlExpression,
+                                DataType outputDataType,
+                                DataTypes.Field... args) {
+                            if (evaluatorFactory == null) {
+                                throw new TableException(
+                                        "Access to expression evaluation is currently not supported "
+                                                + "for all kinds of calls.");
+                            }
+                            return evaluatorFactory.createEvaluator(
+                                    sqlExpression, outputDataType, args);
+                        }
+
+                        @Override
+                        public ExpressionEvaluator createEvaluator(
+                                BuiltInFunctionDefinition function,
+                                DataType outputDataType,
+                                DataType... args) {
+                            if (evaluatorFactory == null) {
+                                throw new TableException(
+                                        "Access to expression evaluation is currently not supported "
+                                                + "for all kinds of calls.");
+                            }
+                            return evaluatorFactory.createEvaluator(function, outputDataType, args);
                         }
                     };
             final UserDefinedFunction udf = specialized.specialize(specializedContext);

@@ -17,44 +17,30 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
-import org.apache.flink.api.common.io.RichOutputFormat;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import org.apache.flink.streaming.connectors.cassandra.MapperOptions;
 import org.apache.flink.util.Preconditions;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.CompletionStage;
 
 /**
  * OutputFormat to write data to Apache Cassandra and from a custom Cassandra annotated object.
+ * Please read the recommendations in {@linkplain CassandraOutputFormatBase}.
  *
  * @param <OUT> type of outputClass
  */
-public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
+public class CassandraPojoOutputFormat<OUT> extends CassandraOutputFormatBase<OUT, Void> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CassandraPojoOutputFormat.class);
     private static final long serialVersionUID = -1701885135103942460L;
-
-    private final ClusterBuilder builder;
 
     private final MapperOptions mapperOptions;
     private final Class<OUT> outputClass;
-
-    private transient Cluster cluster;
-    private transient Session session;
     private transient Mapper<OUT> mapper;
-    private transient FutureCallback<Void> callback;
-    private transient Throwable exception = null;
 
     public CassandraPojoOutputFormat(ClusterBuilder builder, Class<OUT> outputClass) {
         this(builder, outputClass, null);
@@ -62,26 +48,30 @@ public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
 
     public CassandraPojoOutputFormat(
             ClusterBuilder builder, Class<OUT> outputClass, MapperOptions mapperOptions) {
+        this(
+                builder,
+                outputClass,
+                mapperOptions,
+                Integer.MAX_VALUE,
+                Duration.ofMillis(Long.MAX_VALUE));
+    }
+
+    public CassandraPojoOutputFormat(
+            ClusterBuilder builder,
+            Class<OUT> outputClass,
+            MapperOptions mapperOptions,
+            int maxConcurrentRequests,
+            Duration maxConcurrentRequestsTimeout) {
+        super(builder, maxConcurrentRequests, maxConcurrentRequestsTimeout);
         Preconditions.checkNotNull(outputClass, "OutputClass cannot be null");
-        Preconditions.checkNotNull(builder, "Builder cannot be null");
-        this.builder = builder;
         this.mapperOptions = mapperOptions;
         this.outputClass = outputClass;
     }
 
+    /** Opens a Session to Cassandra and initializes the prepared statement. */
     @Override
-    public void configure(Configuration parameters) {
-        this.cluster = builder.getCluster();
-    }
-
-    /**
-     * Opens a Session to Cassandra and initializes the prepared statement.
-     *
-     * @param taskNumber The number of the parallel instance.
-     */
-    @Override
-    public void open(int taskNumber, int numTasks) {
-        this.session = cluster.connect();
+    protected void postOpen() {
+        super.postOpen();
         MappingManager mappingManager = new MappingManager(session);
         this.mapper = mappingManager.mapper(outputClass);
         if (mapperOptions != null) {
@@ -90,67 +80,18 @@ public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
                 mapper.setDefaultSaveOptions(optionsArray);
             }
         }
-        this.callback =
-                new FutureCallback<Void>() {
-                    @Override
-                    public void onSuccess(Void ignored) {
-                        onWriteSuccess();
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        onWriteFailure(t);
-                    }
-                };
     }
 
     @Override
-    public void writeRecord(OUT record) throws IOException {
-        if (exception != null) {
-            throw new IOException("write record failed", exception);
-        }
-
-        ListenableFuture<Void> result = mapper.saveAsync(record);
-        Futures.addCallback(result, callback);
-    }
-
-    /**
-     * Callback that is invoked after a record is written to Cassandra successfully.
-     *
-     * <p>Subclass can override to provide its own logic.
-     */
-    protected void onWriteSuccess() {}
-
-    /**
-     * Callback that is invoked when failing to write to Cassandra. Current implementation will
-     * record the exception and fail the job upon next record.
-     *
-     * <p>Subclass can override to provide its own failure handling logic.
-     *
-     * @param t the exception
-     */
-    protected void onWriteFailure(Throwable t) {
-        exception = t;
+    protected CompletionStage<Void> send(OUT record) {
+        final ListenableFuture<Void> result = mapper.saveAsync(record);
+        return listenableFutureToCompletableFuture(result);
     }
 
     /** Closes all resources used. */
     @Override
-    public void close() {
+    protected void postClose() {
+        super.postClose();
         mapper = null;
-        try {
-            if (session != null) {
-                session.close();
-            }
-        } catch (Exception e) {
-            LOG.error("Error while closing session.", e);
-        }
-
-        try {
-            if (cluster != null) {
-                cluster.close();
-            }
-        } catch (Exception e) {
-            LOG.error("Error while closing cluster.", e);
-        }
     }
 }

@@ -80,6 +80,9 @@ public final class SpecificTypeStrategies {
     public static final TypeStrategy INTERNAL_REPLICATE_ROWS =
             new InternalReplicateRowsTypeStrategy();
 
+    /** See {@link ToTimestampLtzTypeStrategy}. */
+    public static final TypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzTypeStrategy();
+
     private SpecificTypeStrategies() {
         // no instantiation
     }

@@ -17,16 +17,15 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWatermarkAssigner
 
-/**
-  * Rule that converts [[FlinkLogicalWatermarkAssigner]] to [[StreamPhysicalWatermarkAssigner]].
-  */
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+
+/** Rule that converts [[FlinkLogicalWatermarkAssigner]] to [[StreamPhysicalWatermarkAssigner]]. */
 class StreamPhysicalWatermarkAssignerRule
   extends ConverterRule(
     classOf[FlinkLogicalWatermarkAssigner],
@@ -36,8 +35,8 @@ class StreamPhysicalWatermarkAssignerRule
 
   override def convert(rel: RelNode): RelNode = {
     val watermarkAssigner = rel.asInstanceOf[FlinkLogicalWatermarkAssigner]
-    val convertInput = RelOptRule.convert(
-      watermarkAssigner.getInput, FlinkConventions.STREAM_PHYSICAL)
+    val convertInput =
+      RelOptRule.convert(watermarkAssigner.getInput, FlinkConventions.STREAM_PHYSICAL)
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
     new StreamPhysicalWatermarkAssigner(

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.utils
 
 object LogicalPlanFormatUtils {
@@ -28,9 +27,12 @@ object LogicalPlanFormatUtils {
   }
 
   private def getMinTempTableId(logicalStr: String): Long = {
-    val found = tempPattern.findAllIn(logicalStr).map(s => {
-      s.substring(4).toInt
-    })
+    val found = tempPattern
+      .findAllIn(logicalStr)
+      .map(
+        s => {
+          s.substring(4).toInt
+        })
     if (found.isEmpty) {
       0L
     } else {

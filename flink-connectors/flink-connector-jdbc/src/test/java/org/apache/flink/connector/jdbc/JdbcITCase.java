@@ -44,7 +44,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Smoke tests for the {@link JdbcSink} and the underlying classes. */
 public class JdbcITCase extends JdbcTestBase {
@@ -78,7 +78,7 @@ public class JdbcITCase extends JdbcTestBase {
                                         .build()));
         env.execute();
 
-        assertEquals(Arrays.asList(TEST_DATA), selectBooks());
+        assertThat(selectBooks()).isEqualTo(Arrays.asList(TEST_DATA));
     }
 
     @Test
@@ -112,7 +112,7 @@ public class JdbcITCase extends JdbcTestBase {
                                         .build()));
         env.execute();
 
-        assertEquals(Arrays.asList(words), selectWords());
+        assertThat(selectWords()).isEqualTo(Arrays.asList(words));
     }
 
     private List<String> selectWords() throws SQLException {

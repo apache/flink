@@ -18,13 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.utils.CatalogManagerMocks;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
@@ -42,19 +35,7 @@ public class RexWindowBoundSerdeTest {
 
     @Test
     public void testSerde() throws IOException {
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        null,
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                new ModuleManager(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
-                        Thread.currentThread().getContextClassLoader(),
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
+        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
@@ -78,7 +59,7 @@ public class RexWindowBoundSerdeTest {
                                 RexWindowBound.class))
                 .isEqualTo(RexWindowBounds.UNBOUNDED_PRECEDING);
 
-        RexBuilder builder = new RexBuilder(FlinkTypeFactory.INSTANCE());
+        RexBuilder builder = new RexBuilder(serdeCtx.getTypeFactory());
         RexWindowBound windowBound = RexWindowBounds.following(builder.makeLiteral("test"));
         assertThat(
                         objectReader.readValue(

@@ -36,6 +36,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -89,7 +90,7 @@ public class StateBackendBenchmarkUtils {
     private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend() {
         return new BatchExecutionStateBackend()
                 .createKeyedStateBackend(
-                        null,
+                        MockEnvironment.builder().build(),
                         new JobID(),
                         "Test",
                         new LongSerializer(),

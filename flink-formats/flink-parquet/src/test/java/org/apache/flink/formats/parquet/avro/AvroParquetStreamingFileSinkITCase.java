@@ -53,9 +53,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
@@ -161,18 +159,18 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
     private static <T> void validateResults(File folder, GenericData dataModel, List<T> expected)
             throws Exception {
         File[] buckets = folder.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).isNotNull();
+        assertThat(buckets).hasSize(1);
 
         File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
-        assertEquals(2, partFiles.length);
+        assertThat(partFiles).isNotNull();
+        assertThat(partFiles).hasSize(2);
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile.length()).isGreaterThan(0);
 
             final List<T> fileContent = readParquetFile(partFile, dataModel);
-            assertEquals(expected, fileContent);
+            assertThat(fileContent).isEqualTo(expected);
         }
     }
 

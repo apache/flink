@@ -21,8 +21,7 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,14 +30,13 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.function.BiConsumer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link FileSourceSplitSerializer}. */
-public class PendingSplitsCheckpointSerializerTest {
+class PendingSplitsCheckpointSerializerTest {
 
     @Test
-    public void serializeEmptyCheckpoint() throws Exception {
+    void serializeEmptyCheckpoint() throws Exception {
         final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(Collections.emptyList());
 
@@ -49,7 +47,7 @@ public class PendingSplitsCheckpointSerializerTest {
     }
 
     @Test
-    public void serializeSomeSplits() throws Exception {
+    void serializeSomeSplits() throws Exception {
         final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
                         Arrays.asList(testSplit1(), testSplit2(), testSplit3()));
@@ -61,7 +59,7 @@ public class PendingSplitsCheckpointSerializerTest {
     }
 
     @Test
-    public void serializeSplitsAndProcessedPaths() throws Exception {
+    void serializeSplitsAndProcessedPaths() throws Exception {
         final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
                         Arrays.asList(testSplit1(), testSplit2(), testSplit3()),
@@ -77,7 +75,7 @@ public class PendingSplitsCheckpointSerializerTest {
     }
 
     @Test
-    public void repeatedSerialization() throws Exception {
+    void repeatedSerialization() throws Exception {
         final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
                         Arrays.asList(testSplit3(), testSplit1()));
@@ -91,7 +89,7 @@ public class PendingSplitsCheckpointSerializerTest {
     }
 
     @Test
-    public void repeatedSerializationCaches() throws Exception {
+    void repeatedSerializationCaches() throws Exception {
         final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
                         Collections.singletonList(testSplit2()));
@@ -103,7 +101,7 @@ public class PendingSplitsCheckpointSerializerTest {
                 new PendingSplitsCheckpointSerializer<>(FileSourceSplitSerializer.INSTANCE)
                         .serialize(checkpoint);
 
-        assertSame(ser1, ser2);
+        assertThat(ser1).isSameAs(ser2);
     }
 
     // ------------------------------------------------------------------------
@@ -150,16 +148,14 @@ public class PendingSplitsCheckpointSerializerTest {
                 actual.getSplits(),
                 FileSourceSplitSerializerTest::assertSplitsEqual);
 
-        assertOrderedCollectionEquals(
-                expected.getAlreadyProcessedPaths(),
-                actual.getAlreadyProcessedPaths(),
-                Assert::assertEquals);
+        assertThat(actual.getAlreadyProcessedPaths())
+                .containsExactlyElementsOf(expected.getAlreadyProcessedPaths());
     }
 
     private static <E> void assertOrderedCollectionEquals(
             Collection<E> expected, Collection<E> actual, BiConsumer<E, E> equalityAsserter) {
 
-        assertEquals(expected.size(), actual.size());
+        assertThat(actual).hasSize(expected.size());
         final Iterator<E> expectedIter = expected.iterator();
         final Iterator<E> actualIter = actual.iterator();
         while (expectedIter.hasNext()) {

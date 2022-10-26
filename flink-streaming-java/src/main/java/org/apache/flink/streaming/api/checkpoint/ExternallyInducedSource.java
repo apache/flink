@@ -23,8 +23,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.FlinkException;
 
 /**
- * Sources that implement this interface do not trigger checkpoints when receiving a trigger message
- * from the checkpoint coordinator, but when their input data/events indicate that a checkpoint
+ * Sources that implement this interface delay checkpoints when receiving a trigger message from the
+ * checkpoint coordinator to the point when their input data/events indicate that a checkpoint
  * should be triggered.
  *
  * <p>Since sources cannot simply create a new checkpoint on their own, this mechanism always goes

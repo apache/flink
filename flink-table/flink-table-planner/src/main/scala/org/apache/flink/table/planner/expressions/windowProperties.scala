@@ -15,16 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationSuccess}
 
 trait WindowProperty {
-
-  def toNamedWindowProperty(name: String): NamedWindowProperty
 
   def resultType: TypeInformation[_]
 
@@ -42,8 +38,6 @@ abstract class AbstractWindowProperty(child: PlannerExpression)
     } else {
       ValidationFailure("Child must be a window reference.")
     }
-
-  def toNamedWindowProperty(name: String): NamedWindowProperty = NamedWindowProperty(name, this)
 }
 
 case class WindowStart(child: PlannerExpression) extends AbstractWindowProperty(child) {

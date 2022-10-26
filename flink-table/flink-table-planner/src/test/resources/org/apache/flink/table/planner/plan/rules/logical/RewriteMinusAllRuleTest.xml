@@ -43,8 +43,7 @@ LogicalProject(c=[$2])
    :           +- LogicalProject(f=[$0], vcol_marker=[-1:BIGINT])
    :              +- LogicalProject(f=[$2])
    :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-   +- LogicalProject(c=[$0])
-      +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+   +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
     </Resource>
   </TestCase>
@@ -77,8 +76,7 @@ LogicalProject(c=[$2])
    :           +- LogicalProject(f=[$0], vcol_marker=[-1:BIGINT])
    :              +- LogicalProject(f=[$2])
    :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-   +- LogicalProject(c=[$0])
-      +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+   +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
     </Resource>
   </TestCase>
@@ -111,8 +109,7 @@ LogicalProject(c=[$2])
    :              +- LogicalProject(f=[$2])
    :                 +- LogicalFilter(condition=[=(1, 0)])
    :                    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-   +- LogicalProject(c=[$0])
-      +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+   +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
     </Resource>
   </TestCase>
@@ -147,8 +144,7 @@ LogicalProject(c=[$2])
          :           +- LogicalProject(d=[$0], e=[$1], f=[$2], vcol_marker=[-1:BIGINT])
          :              +- LogicalProject(d=[$0], e=[$1], f=[$2])
          :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3)], rowType=[RecordType:peek_no_expand(INTEGER f0, BIGINT f1, VARCHAR(2147483647) f2)])
+         +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)])
 ]]>
     </Resource>
   </TestCase>

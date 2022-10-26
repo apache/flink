@@ -37,11 +37,17 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
+import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.FunctionContext;
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.LookupFunction;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -58,12 +64,15 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.RESOURCE_COUNTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Runtime function implementations for {@link TestValuesTableFactory}. */
@@ -549,40 +558,92 @@ final class TestValuesRuntimeFunctions {
      * A lookup function which find matched rows with the given fields. NOTE: We have to declare it
      * as public because it will be used in code generation.
      */
-    public static class TestValuesLookupFunction extends TableFunction<Row> {
+    public static class TestValuesLookupFunction extends LookupFunction {
 
         private static final long serialVersionUID = 1L;
-        private final Map<Row, List<Row>> data;
-        private transient boolean isOpenCalled = false;
+        private final List<Row> data;
+        private final int[] lookupIndices;
 
-        protected TestValuesLookupFunction(Map<Row, List<Row>> data) {
+        private final RowType producedRowType;
+
+        private final LookupTableSource.DataStructureConverter converter;
+        private final GeneratedProjection generatedProjection;
+        private final boolean projectable;
+        private transient Map<RowData, List<RowData>> indexedData;
+        private transient boolean isOpenCalled = false;
+        private transient Projection<RowData, GenericRowData> projection;
+        private transient TypeSerializer<RowData> rowSerializer;
+
+        protected TestValuesLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                RowType producedRowType,
+                LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection) {
             this.data = data;
+            this.lookupIndices = lookupIndices;
+            this.producedRowType = producedRowType;
+            this.converter = converter;
+            this.projectable = generatedProjection.isPresent();
+            this.generatedProjection = generatedProjection.orElse(null);
         }
 
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
             isOpenCalled = true;
+            if (projectable) {
+                projection =
+                        generatedProjection.newInstance(
+                                Thread.currentThread().getContextClassLoader());
+            }
+            rowSerializer = InternalSerializers.create(producedRowType);
+            indexDataByKey();
         }
 
-        public void eval(Object... inputs) {
+        @Override
+        public Collection<RowData> lookup(RowData keyRow) throws IOException {
             checkArgument(isOpenCalled, "open() is not called.");
-            Row key = Row.of(inputs);
-            if (Arrays.asList(inputs).contains(null)) {
-                throw new IllegalArgumentException(
+            for (int i = 0; i < keyRow.getArity(); i++) {
+                checkNotNull(
+                        ((GenericRowData) keyRow).getField(i),
                         String.format(
                                 "Lookup key %s contains null value, which should not happen.",
-                                key));
+                                keyRow));
             }
-            List<Row> list = data.get(key);
-            if (list != null) {
-                list.forEach(this::collect);
-            }
+            return indexedData.get(keyRow);
         }
 
         @Override
         public void close() throws Exception {
             RESOURCE_COUNTER.decrementAndGet();
+        }
+
+        private void indexDataByKey() {
+            indexedData = new HashMap<>();
+            data.forEach(
+                    record -> {
+                        GenericRowData rowData = (GenericRowData) converter.toInternal(record);
+                        if (projectable) {
+                            rowData = projection.apply(rowData);
+                        }
+                        checkNotNull(
+                                rowData, "Cannot convert record to internal GenericRowData type");
+                        RowData key =
+                                GenericRowData.of(
+                                        Arrays.stream(lookupIndices)
+                                                .mapToObj(rowData::getField)
+                                                .toArray());
+                        RowData copiedRow = rowSerializer.copy(rowData);
+                        List<RowData> list = indexedData.get(key);
+                        if (list != null) {
+                            list.add(copiedRow);
+                        } else {
+                            list = new ArrayList<>();
+                            list.add(copiedRow);
+                            indexedData.put(key, list);
+                        }
+                    });
         }
     }
 
@@ -590,44 +651,73 @@ final class TestValuesRuntimeFunctions {
      * An async lookup function which find matched rows with the given fields. NOTE: We have to
      * declare it as public because it will be used in code generation.
      */
-    public static class AsyncTestValueLookupFunction extends AsyncTableFunction<Row> {
+    public static class AsyncTestValueLookupFunction extends AsyncLookupFunction {
 
         private static final long serialVersionUID = 1L;
-        private final Map<Row, List<Row>> mapping;
+        private final List<Row> data;
+        private final int[] lookupIndices;
+        private final RowType producedRowType;
+        private final LookupTableSource.DataStructureConverter converter;
+
+        private final GeneratedProjection generatedProjection;
+        private final boolean projectable;
+        private final Random random;
         private transient boolean isOpenCalled = false;
         private transient ExecutorService executor;
+        private transient Map<RowData, List<RowData>> indexedData;
+        private transient Projection<RowData, GenericRowData> projection;
+        private transient TypeSerializer<RowData> rowSerializer;
 
-        protected AsyncTestValueLookupFunction(Map<Row, List<Row>> mapping) {
-            this.mapping = mapping;
+        protected AsyncTestValueLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                RowType producedRowType,
+                LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection) {
+            this.data = data;
+            this.lookupIndices = lookupIndices;
+            this.producedRowType = producedRowType;
+            this.converter = converter;
+            this.projectable = generatedProjection.isPresent();
+            this.generatedProjection = generatedProjection.orElse(null);
+            this.random = new Random();
         }
 
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
+            if (projectable) {
+                projection =
+                        generatedProjection.newInstance(
+                                Thread.currentThread().getContextClassLoader());
+            }
+            rowSerializer = InternalSerializers.create(producedRowType);
             isOpenCalled = true;
-            executor = Executors.newSingleThreadExecutor();
+            // generate unordered result for async lookup
+            executor = Executors.newFixedThreadPool(2);
+            indexDataByKey();
         }
 
-        public void eval(CompletableFuture<Collection<Row>> resultFuture, Object... inputs) {
+        @Override
+        public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
             checkArgument(isOpenCalled, "open() is not called.");
-            final Row key = Row.of(inputs);
-            if (Arrays.asList(inputs).contains(null)) {
-                throw new IllegalArgumentException(
+            for (int i = 0; i < keyRow.getArity(); i++) {
+                checkNotNull(
+                        ((GenericRowData) keyRow).getField(i),
                         String.format(
                                 "Lookup key %s contains null value, which should not happen.",
-                                key));
+                                keyRow));
             }
-            CompletableFuture.supplyAsync(
-                            () -> {
-                                List<Row> list = mapping.get(key);
-                                if (list == null) {
-                                    return Collections.<Row>emptyList();
-                                } else {
-                                    return list;
-                                }
-                            },
-                            executor)
-                    .thenAccept(resultFuture::complete);
+            return CompletableFuture.supplyAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(random.nextInt(5));
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return indexedData.get(keyRow);
+                    },
+                    executor);
         }
 
         @Override
@@ -636,6 +726,128 @@ final class TestValuesRuntimeFunctions {
             if (executor != null && !executor.isShutdown()) {
                 executor.shutdown();
             }
+        }
+
+        private void indexDataByKey() {
+            indexedData = new HashMap<>();
+            data.forEach(
+                    record -> {
+                        GenericRowData rowData = (GenericRowData) converter.toInternal(record);
+                        if (projectable) {
+                            rowData = projection.apply(rowData);
+                        }
+                        checkNotNull(
+                                rowData, "Cannot convert record to internal GenericRowData type");
+                        RowData key =
+                                GenericRowData.of(
+                                        Arrays.stream(lookupIndices)
+                                                .mapToObj(rowData::getField)
+                                                .toArray());
+                        RowData copiedRow = rowSerializer.copy(rowData);
+                        List<RowData> list = indexedData.get(key);
+                        if (list != null) {
+                            list.add(copiedRow);
+                        } else {
+                            list = new ArrayList<>();
+                            list.add(copiedRow);
+                            indexedData.put(key, list);
+                        }
+                    });
+        }
+    }
+
+    /**
+     * The {@link TestNoLookupUntilNthAccessLookupFunction} extends {@link
+     * TestValuesLookupFunction}, it will not do real lookup for a key (return null value
+     * immediately) until which lookup times beyond predefined threshold 'lookupThreshold'.
+     */
+    public static class TestNoLookupUntilNthAccessLookupFunction extends TestValuesLookupFunction {
+
+        private static final long serialVersionUID = 1L;
+
+        /** The threshold that a real lookup can happen, otherwise no lookup at all. */
+        private final int lookupThreshold;
+
+        private transient Map<RowData, Integer> accessCounter;
+
+        protected TestNoLookupUntilNthAccessLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                RowType producedRowType,
+                LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection,
+                int lookupThreshold) {
+            super(data, lookupIndices, producedRowType, converter, generatedProjection);
+            this.lookupThreshold = lookupThreshold;
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            accessCounter = new HashMap<>();
+        }
+
+        protected int counter(RowData key) {
+            int currentCnt = accessCounter.computeIfAbsent(key, cnt -> 0) + 1;
+            accessCounter.put(key, currentCnt);
+            return currentCnt;
+        }
+
+        @Override
+        public Collection<RowData> lookup(RowData keyRow) throws IOException {
+            int currentCnt = counter(keyRow);
+            if (currentCnt <= lookupThreshold) {
+                return null;
+            }
+            return super.lookup(keyRow);
+        }
+    }
+
+    /**
+     * The {@link TestNoLookupUntilNthAccessAsyncLookupFunction} extends {@link
+     * AsyncTestValueLookupFunction}, it will not do real lookup for a key (return empty result
+     * immediately) until which lookup times beyond predefined threshold 'lookupThreshold'.
+     */
+    public static class TestNoLookupUntilNthAccessAsyncLookupFunction
+            extends AsyncTestValueLookupFunction {
+        private static final long serialVersionUID = 1L;
+        private static Collection<RowData> emptyResult = Collections.emptyList();
+
+        /** The threshold that a real lookup can happen, otherwise no lookup at all. */
+        private final int lookupThreshold;
+
+        private transient Map<RowData, Integer> accessCounter;
+
+        public TestNoLookupUntilNthAccessAsyncLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                RowType producedRowType,
+                LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection,
+                int lookupThreshold) {
+            super(data, lookupIndices, producedRowType, converter, generatedProjection);
+            this.lookupThreshold = lookupThreshold;
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            accessCounter = new HashMap<>();
+        }
+
+        protected int counter(RowData key) {
+            int currentCnt = accessCounter.computeIfAbsent(key, cnt -> 0) + 1;
+            accessCounter.put(key, currentCnt);
+            return currentCnt;
+        }
+
+        @Override
+        public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
+            int currentCnt = counter(keyRow);
+            if (currentCnt <= lookupThreshold) {
+                return CompletableFuture.supplyAsync(() -> emptyResult);
+            }
+            return super.asyncLookup(keyRow);
         }
     }
 }

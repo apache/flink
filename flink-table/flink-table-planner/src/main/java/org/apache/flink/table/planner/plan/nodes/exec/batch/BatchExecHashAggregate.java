@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -59,6 +60,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
     private final boolean isFinal;
 
     public BatchExecHashAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -71,6 +73,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecHashAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecHashAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -93,10 +96,12 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final RowType outputRowType = (RowType) getOutputType();
 
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
+        final CodeGeneratorContext ctx =
+                new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
 
         final AggregateInfoList aggInfos =
                 AggregateUtil.transformToBatchAggregateInfoList(
+                        planner.getTypeFactory(),
                         aggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         null, // aggCallNeedRetractions
@@ -109,7 +114,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
             generatedOperator =
                     AggWithoutKeysCodeGenerator.genWithoutKeys(
                             ctx,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             aggInfos,
                             inputRowType,
                             outputRowType,
@@ -123,7 +128,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
             generatedOperator =
                     new HashAggCodeGenerator(
                                     ctx,
-                                    planner.getRelBuilder(),
+                                    planner.createRelBuilder(),
                                     aggInfos,
                                     inputRowType,
                                     outputRowType,

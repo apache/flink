@@ -117,12 +117,12 @@ public class RpcSSLAuthITCase extends TestLogger {
         } finally {
             final CompletableFuture<Void> rpcTerminationFuture1 =
                     rpcService1 != null
-                            ? rpcService1.stopService()
+                            ? rpcService1.closeAsync()
                             : CompletableFuture.completedFuture(null);
 
             final CompletableFuture<Void> rpcTerminationFuture2 =
                     rpcService2 != null
-                            ? rpcService2.stopService()
+                            ? rpcService2.closeAsync()
                             : CompletableFuture.completedFuture(null);
 
             FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture1, rpcTerminationFuture2))

@@ -33,18 +33,18 @@ public class HighAvailabilityOptions {
 
     /**
      * Defines high-availability mode used for the cluster execution. A value of "NONE" signals no
-     * highly available setup. To enable high-availability, set this mode to "ZOOKEEPER". Can also
-     * be set to FQN of HighAvailability factory class.
+     * highly available setup. To enable high-availability, set this mode to "ZOOKEEPER" or
+     * "KUBERNETES". Can also be set to the FQN of the HighAvailability factory class.
      */
-    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
+    @Documentation.Section(value = Documentation.Sections.COMMON_HIGH_AVAILABILITY, position = 1)
     public static final ConfigOption<String> HA_MODE =
-            key("high-availability")
+            key("high-availability.type")
                     .stringType()
                     .defaultValue("NONE")
-                    .withDeprecatedKeys("recovery.mode")
+                    .withDeprecatedKeys("recovery.mode", "high-availability")
                     .withDescription(
-                            "Defines high-availability mode used for the cluster execution."
-                                    + " To enable high-availability, set this mode to \"ZOOKEEPER\" or specify FQN of factory class.");
+                            "Defines high-availability mode used for cluster execution."
+                                    + " To enable high-availability, set this mode to \"ZOOKEEPER\", \"KUBERNETES\", or specify the fully qualified name of the factory class.");
 
     /**
      * The ID of the Flink cluster, used to separate multiple Flink clusters Needs to be set for
@@ -216,25 +216,6 @@ public class HighAvailabilityOptions {
                     .withDeprecatedKeys("recovery.job.delay")
                     .withDescription(
                             "The time before a JobManager after a fail over recovers the current jobs.");
-
-    /**
-     * Safety hatch to fallback to the old ha services implementations.
-     *
-     * <p>Ideally, we can remove this option together with the old implementations in the next
-     * release.
-     *
-     * @see <a href="https://issues.apache.org/jira/browse/FLINK-25806">FLINK-25806</a>
-     */
-    @Documentation.Section(Documentation.Sections.EXPERT_HIGH_AVAILABILITY)
-    public static final ConfigOption<Boolean> USE_OLD_HA_SERVICES =
-            key("high-availability.use-old-ha-services")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Use this option to disable the new HA service implementations for ZooKeeper and K8s. This is a safety hatch in case that the new ha services are buggy.")
-                                    .build());
 
     // ------------------------------------------------------------------------
 

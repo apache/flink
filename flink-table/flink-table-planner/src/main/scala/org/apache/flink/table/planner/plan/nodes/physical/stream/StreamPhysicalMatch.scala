@@ -15,92 +15,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalMatch
 import org.apache.flink.table.planner.plan.utils.MatchUtil
-import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil._
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
+import _root_.java.util
+import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 
-import _root_.java.util
-
-import _root_.scala.collection.JavaConversions._
-
-/**
- * Stream physical RelNode which matches along with MATCH_RECOGNIZE.
- */
+/** Stream physical RelNode which matches along with MATCH_RECOGNIZE. */
 class StreamPhysicalMatch(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
-    val logicalMatch: MatchRecognize,
+    logicalMatch: MatchRecognize,
     outputRowType: RelDataType)
-  extends SingleRel(cluster, traitSet, inputNode)
+  extends CommonPhysicalMatch(cluster, traitSet, inputNode, logicalMatch, outputRowType)
   with StreamPhysicalRel {
 
-  if (logicalMatch.measures.values().exists(containsPythonCall(_)) ||
-    logicalMatch.patternDefinitions.values().exists(containsPythonCall(_))) {
-    throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
-  }
-
   override def requireWatermark: Boolean = {
-    val rowtimeFields = getInput.getRowType.getFieldList
+    val rowTimeFields = getInput.getRowType.getFieldList
       .filter(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
-    rowtimeFields.nonEmpty
+    rowTimeFields.nonEmpty
   }
-
-  override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalMatch(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      logicalMatch,
-      outputRowType)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val inputRowType = getInput.getRowType
-    val fieldNames = inputRowType.getFieldNames.toList
-    super.explainTerms(pw)
-      .itemIf("partitionBy",
-        fieldToString(logicalMatch.partitionKeys.toArray, inputRowType),
-        !logicalMatch.partitionKeys.isEmpty)
-      .itemIf("orderBy",
-        collationToString(logicalMatch.orderKeys, inputRowType),
-        !logicalMatch.orderKeys.getFieldCollations.isEmpty)
-      .itemIf("measures",
-        measuresDefineToString(
-          logicalMatch.measures,
-          fieldNames,
-          getExpressionString,
-          convertToExpressionDetail(pw.getDetailLevel)),
-        !logicalMatch.measures.isEmpty)
-      .item("rowsPerMatch", rowsPerMatchToString(logicalMatch.allRows))
-      .item("after", afterMatchToString(logicalMatch.after, fieldNames))
-      .item("pattern", logicalMatch.pattern.toString)
-      .itemIf("subset",
-        subsetToString(logicalMatch.subsets),
-        !logicalMatch.subsets.isEmpty)
-      .item("define", logicalMatch.patternDefinitions)
+    new StreamPhysicalMatch(cluster, traitSet, inputs.get(0), logicalMatch, outputRowType)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecMatch(
+      unwrapTableConfig(this),
       MatchUtil.createMatchSpec(logicalMatch),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

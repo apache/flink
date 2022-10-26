@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FlinkDistribution
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Calc, Sort, TableScan}
@@ -32,17 +32,19 @@ import org.apache.calcite.util.mapping.Mappings
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdDistribution supplies a default implementation of
-  * [[FlinkRelMetadataQuery.flinkDistribution]] for the standard logical algebra.
-  */
+ * FlinkRelMdDistribution supplies a default implementation of
+ * [[FlinkRelMetadataQuery.flinkDistribution]] for the standard logical algebra.
+ */
 class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] {
 
   override def getDef: MetadataDef[FlinkDistribution] = FlinkDistribution.DEF
 
   def flinkDistribution(scan: TableScan, mq: RelMetadataQuery): FlinkRelDistribution = {
     val statsDistribution = scan.getTable.getDistribution
-    if (statsDistribution != null &&
-      statsDistribution.getTraitDef.equals(FlinkRelDistributionTraitDef.INSTANCE)) {
+    if (
+      statsDistribution != null &&
+      statsDistribution.getTraitDef.equals(FlinkRelDistributionTraitDef.INSTANCE)
+    ) {
       statsDistribution.asInstanceOf[FlinkRelDistribution]
     } else {
       getFlinkDistribution(scan)
@@ -63,21 +65,22 @@ class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] 
           case _ => // ignore
         }
     }
-    //FIXME transmit one possible distribution.
+    // FIXME transmit one possible distribution.
     // for example "select a, a, sum(b) group by a"， here only transmit hash[1], not hash[0].
-    val mapping = Mappings.target(
-      mapInToOutPos, input.getRowType.getFieldCount, calc.getRowType.getFieldCount)
+    val mapping =
+      Mappings.target(mapInToOutPos, input.getRowType.getFieldCount, calc.getRowType.getFieldCount)
     distribution.apply(mapping)
   }
 
   def flinkDistribution(sort: Sort, mq: RelMetadataQuery): FlinkRelDistribution = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(sort)
-    val enableRangeSort = tableConfig.getConfiguration.getBoolean(
-      BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
-    if ((sort.getCollation.getFieldCollations.nonEmpty &&
-      sort.fetch == null && sort.offset == null) && enableRangeSort) {
-      //If Sort is global sort, and the table config allows the range partition.
-      //Then the Sort's required traits will are range distribution and sort collation.
+    val tableConfig = unwrapTableConfig(sort)
+    val enableRangeSort = tableConfig.get(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
+    if (
+      (sort.getCollation.getFieldCollations.nonEmpty &&
+        sort.fetch == null && sort.offset == null) && enableRangeSort
+    ) {
+      // If Sort is global sort, and the table config allows the range partition.
+      // Then the Sort's required traits will are range distribution and sort collation.
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
     } else {
       FlinkRelDistribution.SINGLETON
@@ -97,7 +100,7 @@ object FlinkRelMdDistribution {
 
   private val INSTANCE = new FlinkRelMdDistribution
 
-  val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    FlinkMetadata.FlinkDistribution.METHOD, INSTANCE)
+  val SOURCE: RelMetadataProvider =
+    ReflectiveRelMetadataProvider.reflectiveSource(FlinkMetadata.FlinkDistribution.METHOD, INSTANCE)
 
 }

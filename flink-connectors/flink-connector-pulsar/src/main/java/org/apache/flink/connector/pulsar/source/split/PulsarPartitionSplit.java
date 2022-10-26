@@ -30,13 +30,15 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A {@link SourceSplit} implementation for a Pulsar's partition. */
 @Internal
-public class PulsarPartitionSplit implements SourceSplit {
+public class PulsarPartitionSplit implements SourceSplit, Serializable {
+    private static final long serialVersionUID = -6857317360756062625L;
 
     private final TopicPartition partition;
 
@@ -60,8 +62,8 @@ public class PulsarPartitionSplit implements SourceSplit {
     public PulsarPartitionSplit(
             TopicPartition partition,
             StopCursor stopCursor,
-            MessageId latestConsumedId,
-            TxnID uncommittedTransactionId) {
+            @Nullable MessageId latestConsumedId,
+            @Nullable TxnID uncommittedTransactionId) {
         this.partition = checkNotNull(partition);
         this.stopCursor = checkNotNull(stopCursor);
         this.latestConsumedId = latestConsumedId;

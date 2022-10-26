@@ -40,7 +40,7 @@ import java.io.IOException;
 class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
         implements InternalReducingState<K, N, V> {
 
-    private final ReduceTransformation<V> reduceTransformation;
+    private ReduceTransformation<V> reduceTransformation;
 
     /**
      * Creates a new key/value state for the given hash map of key/value pairs.
@@ -112,6 +112,11 @@ class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
         return reduceTransformation.apply(a, b);
     }
 
+    HeapReducingState<K, N, V> setReducingFunction(ReduceFunction<V> reduceFunction) {
+        this.reduceTransformation = new ReduceTransformation<>(reduceFunction);
+        return this;
+    }
+
     static final class ReduceTransformation<V> implements StateTransformationFunction<V, V> {
 
         private final ReduceFunction<V> reduceFunction;
@@ -139,5 +144,17 @@ class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
                         stateTable.getNamespaceSerializer(),
                         stateDesc.getDefaultValue(),
                         ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction());
+    }
+
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState) {
+        return (IS)
+                ((HeapReducingState<K, N, SV>) existingState)
+                        .setReducingFunction(
+                                ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction())
+                        .setNamespaceSerializer(stateTable.getNamespaceSerializer())
+                        .setValueSerializer(stateTable.getStateSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
     }
 }

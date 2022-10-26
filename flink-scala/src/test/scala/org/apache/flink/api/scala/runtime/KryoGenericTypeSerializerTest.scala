@@ -21,11 +21,9 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.SerializerTestInstance
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 
-import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, Serializer}
-
+import com.esotericsoftware.kryo.io.{Input, Output}
 import org.joda.time.LocalDate
-
 import org.junit.Test
 
 import scala.reflect._
@@ -94,20 +92,20 @@ class KryoGenericTypeSerializerTest {
   @Test
   def jodaSerialization(): Unit = {
     val a = List(new LocalDate(1), new LocalDate(2))
-    
+
     runTests(a)
   }
 
   @Test
   def testScalaListSerialization(): Unit = {
-    val a = List(42,1,49,1337)
+    val a = List(42, 1, 49, 1337)
 
     runTests(Seq(a))
   }
 
   @Test
   def testScalaMutablelistSerialization(): Unit = {
-    val a = scala.collection.mutable.ListBuffer(42,1,49,1337)
+    val a = scala.collection.mutable.ListBuffer(42, 1, 49, 1337)
 
     runTests(Seq(a))
   }
@@ -120,7 +118,7 @@ class KryoGenericTypeSerializerTest {
   }
 
   @Test
-  def testMutableMapSerialization(): Unit ={
+  def testMutableMapSerialization(): Unit = {
     val a = scala.collection.mutable.Map((1 -> "1"), (2 -> "2"), (3 -> "3"))
 
     runTests(Seq(a))
@@ -128,8 +126,8 @@ class KryoGenericTypeSerializerTest {
 
   @Test
   def testScalaListComplexTypeSerialization(): Unit = {
-    val a = ComplexType("1234", 42, List(1,2,3,4))
-    val b = ComplexType("4321", 24, List(4,3,2,1))
+    val a = ComplexType("1234", 42, List(1, 2, 3, 4))
+    val b = ComplexType("4321", 24, List(4, 3, 2, 1))
     val c = ComplexType("1337", 1, List(1))
     val list = List(a, b, c)
 
@@ -141,57 +139,55 @@ class KryoGenericTypeSerializerTest {
     val a = new DerivedType("foo", "bar")
     val b = new BaseType("foobar")
     val c = new DerivedType2("bar", "foo")
-    val list = List(a,b,c)
+    val list = List(a, b, c)
 
     runTests(Seq(list))
   }
 
-
-  case class ComplexType(id: String, number: Int, values: List[Int]){
-    override def equals(obj: Any): Boolean ={
-      if(obj != null && obj.isInstanceOf[ComplexType]){
+  case class ComplexType(id: String, number: Int, values: List[Int]) {
+    override def equals(obj: Any): Boolean = {
+      if (obj != null && obj.isInstanceOf[ComplexType]) {
         val complexType = obj.asInstanceOf[ComplexType]
         id.equals(complexType.id) && number.equals(complexType.number) && values.equals(
           complexType.values)
-      }else{
+      } else {
         false
       }
     }
   }
 
-  class BaseType(val name: String){
+  class BaseType(val name: String) {
     override def equals(obj: Any): Boolean = {
-      if(obj != null && obj.isInstanceOf[BaseType]){
+      if (obj != null && obj.isInstanceOf[BaseType]) {
         obj.asInstanceOf[BaseType].name.equals(name)
-      }else{
+      } else {
         false
       }
     }
   }
 
-  class DerivedType(name: String, val sub: String) extends BaseType(name){
+  class DerivedType(name: String, val sub: String) extends BaseType(name) {
     override def equals(obj: Any): Boolean = {
-      if(obj != null && obj.isInstanceOf[DerivedType]){
+      if (obj != null && obj.isInstanceOf[DerivedType]) {
         super.equals(obj) && obj.asInstanceOf[DerivedType].sub.equals(sub)
-      }else{
+      } else {
         false
       }
     }
   }
 
-  class DerivedType2(name: String, val sub: String) extends BaseType(name){
+  class DerivedType2(name: String, val sub: String) extends BaseType(name) {
     override def equals(obj: Any): Boolean = {
-      if(obj != null && obj.isInstanceOf[DerivedType2]){
+      if (obj != null && obj.isInstanceOf[DerivedType2]) {
         super.equals(obj) && obj.asInstanceOf[DerivedType2].sub.equals(sub)
-      }else{
+      } else {
         false
       }
     }
   }
 
-  def runTests[T : ClassTag](objects: Seq[T]): Unit ={
+  def runTests[T: ClassTag](objects: Seq[T]): Unit = {
     val clsTag = classTag[T]
-
 
     // Register the custom Kryo Serializer
     val conf = new ExecutionConfig
@@ -200,7 +196,7 @@ class KryoGenericTypeSerializerTest {
     val serializer = typeInfo.createSerializer(conf)
     val typeClass = typeInfo.getTypeClass
 
-    val instance = new SerializerTestInstance[T](serializer, typeClass, -1, objects: _*)
+    val instance = new SerializerTestInstance[T](serializer, typeClass, -1, objects: _*) {}
 
     instance.testAll()
   }
@@ -214,7 +210,7 @@ class LocalDateSerializer extends Serializer[LocalDate] with java.io.Serializabl
     output.writeInt(obj.getDayOfMonth())
   }
 
-  override def read(kryo: Kryo, input: Input, typeClass: Class[LocalDate]) : LocalDate = {
+  override def read(kryo: Kryo, input: Input, typeClass: Class[LocalDate]): LocalDate = {
     new LocalDate(input.readInt(), input.readInt(), input.readInt())
   }
 }

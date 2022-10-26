@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
@@ -134,8 +133,8 @@ class JoinTest extends TableTestBase {
     val t2 = util.addTableSource[(String, Int, Int)]('d, 'e, 'f)
     val results = t1
       .leftOuterJoin(t2, 'b === 'e)
-      .select('c, Merger('c, 'f) as 'c0)
-      .select(Merger('c, 'c0) as 'c1)
+      .select('c, Merger('c, 'f).as('c0))
+      .select(Merger('c, 'c0).as('c1))
       .where('c1 >= 0)
 
     util.verifyExecPlan(results)
@@ -144,7 +143,7 @@ class JoinTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testFullJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     util.verifyExecPlan(ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g))
@@ -153,7 +152,7 @@ class JoinTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testLeftJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     util.verifyExecPlan(ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g))
@@ -162,7 +161,7 @@ class JoinTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testRightJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     util.verifyExecPlan(ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g))
@@ -171,32 +170,36 @@ class JoinTest extends TableTestBase {
   @Test
   def testNoEqualityJoinPredicate1(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyExecPlan(ds1.join(ds2)
-      // must fail. No equality join predicate
-      .where('d === 'f)
-      .select('c, 'g))
+    util.verifyExecPlan(
+      ds1
+        .join(ds2)
+        // must fail. No equality join predicate
+        .where('d === 'f)
+        .select('c, 'g))
   }
 
   @Test
   def testNoEqualityJoinPredicate2(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyExecPlan(ds1.join(ds2)
-      // must fail. No equality join predicate
-      .where('a < 'd)
-      .select('c, 'g))
+    util.verifyExecPlan(
+      ds1
+        .join(ds2)
+        // must fail. No equality join predicate
+        .where('a < 'd)
+        .select('c, 'g))
   }
 
   @Test
   def testUDFInJoinCondition(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("left",'a, 'b, 'c)
-    val ds2 = util.addTableSource[(Int, Long, String)]("right",'d, 'e, 'f)
+    val ds1 = util.addTableSource[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val ds2 = util.addTableSource[(Int, Long, String)]("right", 'd, 'e, 'f)
 
     val joinT = ds1.join(ds2, 'b === 'e && Merger('a, 'd) === 10)
     util.verifyExecPlan(joinT)

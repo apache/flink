@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -72,7 +73,9 @@ class ResolvedCatalogTableSerdeTest {
         OPTIONS.put("c", "3");
     }
 
-    private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    ResolvedCatalogTableSerdeTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
     private static final RexBuilder REX_BUILDER = new RexBuilder(FACTORY);
 
     private static final RexNode REX_NODE =

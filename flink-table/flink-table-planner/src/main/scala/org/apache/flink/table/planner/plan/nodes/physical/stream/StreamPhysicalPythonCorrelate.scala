@@ -19,20 +19,19 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexCall, RexNode}
 
-/**
-  * Flink RelNode which matches along with join a python user defined table function.
-  */
+/** Flink RelNode which matches along with join a python user defined table function. */
 class StreamPhysicalPythonCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -50,10 +49,7 @@ class StreamPhysicalPythonCorrelate(
     outputRowType,
     joinType) {
 
-  def copy(
-      traitSet: RelTraitSet,
-      newChild: RelNode,
-      outputType: RelDataType): RelNode = {
+  def copy(traitSet: RelTraitSet, newChild: RelNode, outputType: RelDataType): RelNode = {
     new StreamPhysicalPythonCorrelate(
       cluster,
       traitSet,
@@ -67,18 +63,19 @@ class StreamPhysicalPythonCorrelate(
   override def translateToExecNode(): ExecNode[_] = {
     if (condition.orNull != null) {
       if (joinType == JoinRelType.LEFT) {
-        throw new TableException("Currently Python correlate does not support conditions" +
-                                   " in left join.")
+        throw new TableException(
+          "Currently Python correlate does not support conditions" +
+            " in left join.")
       }
       throw new TableException("The condition of StreamPhysicalPythonCorrelate should be null.")
     }
 
     new StreamExecPythonCorrelate(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       scan.getCall.asInstanceOf[RexCall],
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

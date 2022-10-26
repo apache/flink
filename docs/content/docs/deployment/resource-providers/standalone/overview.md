@@ -125,6 +125,19 @@ Local deployment in Session Mode has already been described in the [introduction
 
 All available configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}), in particular the [Basic Setup]({{< ref "docs/deployment/config" >}}#basic-setup) section contains good advise on configuring the ports, memory, parallelism etc.
 
+The following scripts also allow configuration parameters to be set via dynamic properties:
+* `jobmanager.sh`
+* `standalone-job.sh`
+* `taskmanager.sh`
+* `historyserver.sh`
+
+Example:
+```bash
+$ ./bin/jobmanager.sh start -D jobmanager.rpc.address=localhost -D rest.port=8081
+```
+
+Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
+
 ### Debugging
 
 If Flink is behaving unexpectedly, we recommend looking at Flink's log files as a starting point for further investigations.
@@ -237,7 +250,7 @@ By default, the JobManager will pick a *random port* for inter process communica
 1. Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
 
 ```bash
-high-availability: zookeeper
+high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster

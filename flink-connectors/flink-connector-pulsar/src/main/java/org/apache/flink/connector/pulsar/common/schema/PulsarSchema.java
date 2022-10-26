@@ -51,8 +51,9 @@ import static org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo.encodeKeyV
  * A wrapper for Pulsar {@link Schema}, make it serializable and can be created from {@link
  * SchemaInfo}.
  *
- * <p>General pulsar schema info (avro, json, protobuf and keyvalue) don't contain the require class
- * info. We have to urge user to provide the related type class and encoded it into schema info.
+ * <p>General pulsar schema info (avro, json, protobuf and keyvalue) don't contain the required
+ * class info. We have to urge users to provide the related type class and encode it into schema
+ * info.
  */
 @Internal
 public final class PulsarSchema<T> implements Serializable {
@@ -163,8 +164,7 @@ public final class PulsarSchema<T> implements Serializable {
         // Schema
         int byteLen = ois.readInt();
         byte[] schemaBytes = new byte[byteLen];
-        int read = ois.read(schemaBytes);
-        checkState(read == byteLen);
+        ois.readFully(schemaBytes);
 
         // Type
         int typeIdx = ois.readInt();
@@ -210,8 +210,8 @@ public final class PulsarSchema<T> implements Serializable {
     }
 
     /**
-     * We would throw exception if schema type is protobuf and user don't provide protobuf-java in
-     * class path.
+     * We would throw exception if the schema type is protobuf and users don't provide protobuf-java
+     * in the class path.
      */
     private void validateSchemaInfo(SchemaInfo info) {
         SchemaType type = info.getType();

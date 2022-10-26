@@ -23,7 +23,7 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.MutableObjectIterator;
 
-/** Uniform genarator for binary row. */
+/** Uniform generator for binary row. */
 public class UniformBinaryRowGenerator implements MutableObjectIterator<BinaryRowData> {
 
     int numKeys;

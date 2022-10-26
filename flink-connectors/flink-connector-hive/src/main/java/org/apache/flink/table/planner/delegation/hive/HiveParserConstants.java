@@ -27,4 +27,7 @@ public class HiveParserConstants {
     /* Constants for Druid storage handler */
     public static final String DRUID_HIVE_STORAGE_HANDLER_ID =
             "org.apache.hadoop.hive.druid.DruidStorageHandler";
+    /* Constants for insert overwrite directory */
+    public static final String IS_INSERT_DIRECTORY = "is-insert-directory";
+    public static final String IS_TO_LOCAL_DIRECTORY = "is-to-local-directory";
 }

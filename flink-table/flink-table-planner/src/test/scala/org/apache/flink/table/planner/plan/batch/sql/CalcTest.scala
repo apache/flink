@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -159,8 +158,9 @@ class CalcTest extends TableTestBase {
   @Test
   def testMixedType(): Unit = {
     util.addTableSource[(String, Int, Timestamp)]("MyTable5", 'a, 'b, 'c)
-    util.verifyExecPlan("SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable5 " +
-      "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")
+    util.verifyExecPlan(
+      "SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable5 " +
+        "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")
   }
 
   @Test

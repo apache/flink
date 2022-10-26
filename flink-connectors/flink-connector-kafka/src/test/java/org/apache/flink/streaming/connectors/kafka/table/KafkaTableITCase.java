@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.test.util.SuccessException;
@@ -60,9 +61,9 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Basic IT cases for the Kafka table source and sink. */
 @RunWith(Parameterized.class)
@@ -170,7 +171,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         "+I(2019-12-12 00:00:05.000,2019-12-12,00:00:03,2019-12-12 00:00:04.004,3,50.00)",
                         "+I(2019-12-12 00:00:10.000,2019-12-12,00:00:05,2019-12-12 00:00:06.006,2,5.33)");
 
-        assertEquals(expected, TestingSinkFunction.rows);
+        assertThat(TestingSinkFunction.rows).isEqualTo(expected);
 
         // ------------- cleanup -------------------
 
@@ -261,7 +262,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         }
         List<String> expected = Arrays.asList("+I(Dollar)", "+I(Dummy)", "+I(Euro)", "+I(Yen)");
         TestingSinkFunction.rows.sort(Comparator.naturalOrder());
-        assertEquals(expected, TestingSinkFunction.rows);
+        assertThat(TestingSinkFunction.rows).isEqualTo(expected);
 
         // ------------- cleanup -------------------
         topics.forEach(super::deleteTestTopic);
@@ -352,7 +353,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 topic,
                                 true));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -433,7 +434,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 43,
                                 "payload 3"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -511,7 +512,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 102L,
                                 "payload 3"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -524,7 +525,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // 'value.source.timestamp'` DDL
         // will use the session time zone when convert the changelog time from milliseconds to
         // timestamp
-        tEnv.getConfig().getConfiguration().setString("table.local-time-zone", "UTC");
+        tEnv.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
 
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
@@ -626,7 +627,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         "+I[o_005, 2020-10-01T18:00, p_001, 2020-10-01T18:00, 11.9900, Leonard, scooter, 10, 119.9000]",
                         "+I[o_006, 2020-10-01T18:00, null, null, null, Leonard, null, 10, null]");
 
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
 
         // ------------- cleanup -------------------
 
@@ -760,9 +761,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // ---------- Produce an event time stream into Kafka -------------------
         String groupId = getStandardProps().getProperty("group.id");
         String bootstraps = getBootstrapServers();
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+        tEnv.getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
 
         final String createTable =
                 String.format(
@@ -878,9 +877,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Produce an event time stream into Kafka -------------------
         String bootstraps = getBootstrapServers();
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+        tEnv.getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
 
         final String createTableSql =
                 "CREATE TABLE %s (\n"

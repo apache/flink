@@ -39,10 +39,14 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -50,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -57,6 +62,9 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link TaskDeploymentDescriptorFactory}. */
 public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final int PARALLELISM = 4;
 
@@ -150,13 +158,13 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
         return TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setJobGraph(jobGraph)
                 .setBlobWriter(blobWriter)
-                .build();
+                .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(ExecutionVertex ev)
-            throws IOException {
+            throws IOException, ClusterDatasetCorruptedException {
 
-        return TaskDeploymentDescriptorFactory.fromExecutionVertex(ev, 0)
+        return TaskDeploymentDescriptorFactory.fromExecution(ev.getCurrentExecutionAttempt())
                 .createDeploymentDescriptor(new AllocationID(), null, Collections.emptyList());
     }
 

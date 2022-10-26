@@ -18,23 +18,24 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSortLimit
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for [[Sort]].
-  *
-  * This RelNode take the `limit` elements beginning with the first `offset` elements.
-  **/
+ * Stream physical RelNode for [[Sort]].
+ *
+ * This RelNode take the `limit` elements beginning with the first `offset` elements.
+ */
 class StreamPhysicalSortLimit(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -58,7 +59,13 @@ class StreamPhysicalSortLimit(
       offset: RexNode,
       fetch: RexNode): Sort = {
     new StreamPhysicalSortLimit(
-        cluster, traitSet, newInput, newCollation, offset, fetch, rankStrategy)
+      cluster,
+      traitSet,
+      newInput,
+      newCollation,
+      offset,
+      fetch,
+      rankStrategy)
   }
 
   def copy(newStrategy: RankProcessStrategy): StreamPhysicalSortLimit = {
@@ -90,6 +97,7 @@ class StreamPhysicalSortLimit(
   override def translateToExecNode(): ExecNode[_] = {
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     new StreamExecSortLimit(
+      unwrapTableConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
       limitStart,
       limitEnd,
@@ -97,7 +105,6 @@ class StreamPhysicalSortLimit(
       generateUpdateBefore,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

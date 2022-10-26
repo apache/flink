@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -32,11 +31,11 @@ class RowTypeValidationTest extends RowTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testNullRowType(): Unit = {
-    testAllApis("FAIL", "row(null)", "Row(NULL)", "FAIL")
+    testAllApis("FAIL", "Row(NULL)", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testSqlRowIllegalAccess(): Unit = {
-    testAllApis('f5.get("f2"), "f5.get('f2')", "f5.f2", "FAIL")
+    testAllApis('f5.get("f2"), "f5.f2", "FAIL")
   }
 }

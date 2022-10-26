@@ -18,17 +18,43 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
 
 import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /** Akka configuration options. */
 @PublicEvolving
 public class AkkaOptions {
+
+    @Internal
+    @Documentation.ExcludeFromDocumentation("Internal use only")
+    public static final ConfigOption<Boolean> FORCE_RPC_INVOCATION_SERIALIZATION =
+            ConfigOptions.key("akka.rpc.force-invocation-serialization")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Forces the serialization of all RPC invocations (that are not explicitly annotated with %s)."
+                                                    + "This option can be used to find serialization issues in the argument/response types without relying requiring HA setups."
+                                                    + "This option should not be enabled in production.",
+                                            code("org.apache.flink.runtime.rpc.Local"))
+                                    .build());
+
+    public static boolean isForceRpcInvocationSerializationEnabled(Configuration config) {
+        return config.getOptional(FORCE_RPC_INVOCATION_SERIALIZATION)
+                .orElse(
+                        FORCE_RPC_INVOCATION_SERIALIZATION.defaultValue()
+                                || System.getProperties()
+                                        .containsKey(FORCE_RPC_INVOCATION_SERIALIZATION.key()));
+    }
 
     /** Flag whether to capture call stacks for RPC ask calls. */
     public static final ConfigOption<Boolean> CAPTURE_ASK_CALLSTACK =

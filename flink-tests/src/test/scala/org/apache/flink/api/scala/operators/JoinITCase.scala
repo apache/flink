@@ -18,19 +18,19 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.functions.RichJoinFunction
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.{Test, After, Before, Rule}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
-
-import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -59,7 +59,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(1) { (l, r) => (l._3, r._4) }
+    val joinDs = ds1.join(ds2).where(1).equalTo(1)((l, r) => (l._3, r._4))
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
@@ -73,7 +73,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.get3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(0, 1).equalTo(0, 4) { (l, r) => (l._3, r._4) }
+    val joinDs = ds1.join(ds2).where(0, 1).equalTo(0, 4)((l, r) => (l._3, r._4))
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
@@ -103,7 +103,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.joinWithHuge(ds2).where(1).equalTo(1) { (l, r) => (l._3, r._4) }
+    val joinDs = ds1.joinWithHuge(ds2).where(1).equalTo(1)((l, r) => (l._3, r._4))
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
@@ -117,7 +117,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.joinWithTiny(ds2).where(1).equalTo(1) { (l, r) => (l._3, r._4) }
+    val joinDs = ds1.joinWithTiny(ds2).where(1).equalTo(1)((l, r) => (l._3, r._4))
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
@@ -131,7 +131,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(1) { (l, r) => l }
+    val joinDs = ds1.join(ds2).where(1).equalTo(1)((l, r) => l)
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n"
@@ -145,14 +145,14 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(1) { (l, r) => r }
+    val joinDs = ds1.join(ds2).where(1).equalTo(1)((l, r) => r)
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,0,Hallo,1\n" + "2,2,1,Hallo Welt,2\n" + "2,2,1,Hallo Welt,2\n"
   }
 
   @Test
-  def testJoinWithBroadcastSet(): Unit ={
+  def testJoinWithBroadcastSet(): Unit = {
     /*
      * Join with broadcast set
      */
@@ -160,25 +160,30 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val intDs = CollectionDataSets.getIntDataSet(env)
     val ds1 = CollectionDataSets.get3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(4).apply(
-      new RichJoinFunction[
-        (Int, Long, String),
-        (Int, Long, Int, String, Long),
-        (String, String, Int)] {
-        private var broadcast = 41
+    val joinDs = ds1
+      .join(ds2)
+      .where(1)
+      .equalTo(4)
+      .apply(
+        new RichJoinFunction[
+          (Int, Long, String),
+          (Int, Long, Int, String, Long),
+          (String, String, Int)] {
+          private var broadcast = 41
 
-        override def open(config: Configuration) {
-          val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
-          broadcast = ints.sum
-        }
+          override def open(config: Configuration) {
+            val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
+            broadcast = ints.sum
+          }
 
-        override def join(
-                           first: (Int, Long, String),
-                           second: (Int, Long, Int, String, Long)): (String, String, Int) = {
-          (first._3, second. _4, broadcast)
+          override def join(
+              first: (Int, Long, String),
+              second: (Int, Long, Int, String, Long)): (String, String, Int) = {
+            (first._3, second._4, broadcast)
+          }
         }
-      }
-    ).withBroadcastSet(intDs, "ints")
+      )
+      .withBroadcastSet(intDs, "ints")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo,55\n" + "Hi,Hallo Welt wie,55\n" + "Hello,Hallo Welt," +
@@ -193,7 +198,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmallCustomTypeDataSet(env)
     val ds2 = CollectionDataSets.get3TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where( _.myInt ).equalTo(0) { (l, r) => (l.myString, r._3) }
+    val joinDs = ds1.join(ds2).where(_.myInt).equalTo(0)((l, r) => (l.myString, r._3))
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hi\n" + "Hello,Hello\n" + "Hello world,Hello\n"
@@ -207,7 +212,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getCustomTypeDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(_.myLong) apply { (l, r) => (l._3, r.myString) }
+    val joinDs = ds1.join(ds2).where(1).equalTo(_.myLong).apply((l, r) => (l._3, r.myString))
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hello\n" + "Hello,Hello world\n" + "Hello world,Hello world\n"
@@ -236,7 +241,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.get3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where( t => (t._1, t._2)).equalTo( t => (t._1, t._5)) apply {
+    val joinDs = ds1.join(ds2).where(t => (t._1, t._2)).equalTo(t => (t._1, t._5)).apply {
       (l, r) => (l._3, r._4)
     }
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -285,7 +290,8 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmallPojoDataSet(env)
     val ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env)
-    val joinDs = ds1.join(ds2)
+    val joinDs = ds1
+      .join(ds2)
       .where("nestedPojo.longNumber", "number", "str")
       .equalTo("_7", "_1", "_2")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -304,8 +310,10 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmallPojoDataSet(env)
     val ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env)
-    val joinDs = ds1.join(ds2).where("nestedPojo.longNumber", "number",
-      "nestedTupleWithCustom._1").equalTo("_7", "_1", "_3")
+    val joinDs = ds1
+      .join(ds2)
+      .where("nestedPojo.longNumber", "number", "nestedTupleWithCustom._1")
+      .equalTo("_7", "_1", "_3")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.setParallelism(1)
     env.execute()
@@ -322,8 +330,10 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmallPojoDataSet(env)
     val ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env)
-    val joinDs = ds1.join(ds2)
-      .where("nestedTupleWithCustom._1",
+    val joinDs = ds1
+      .join(ds2)
+      .where(
+        "nestedTupleWithCustom._1",
         "nestedTupleWithCustom._2.myInt",
         "nestedTupleWithCustom._2.myLong")
       .equalTo("_3", "_4", "_5")
@@ -338,8 +348,8 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
   @Test
   def testNonPojoFullTuple(): Unit = {
     /*
-    * Non-POJO test to verify that full-tuple keys are working.
-    */
+     * Non-POJO test to verify that full-tuple keys are working.
+     */
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmallNestedTupleDataSet(env)
     val ds2 = CollectionDataSets.getSmallNestedTupleDataSet(env)

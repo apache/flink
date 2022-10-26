@@ -22,21 +22,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -48,6 +51,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 
@@ -55,6 +59,10 @@ import static org.junit.Assert.assertEquals;
 public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
     private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private TestingServer testingServer;
 
@@ -68,7 +76,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
     @Before
     public void before() throws Exception {
-        testingServer = new TestingServer();
+        testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
         config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
@@ -76,12 +84,13 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
         highAvailabilityServices =
-                new ZooKeeperHaServices(
+                new ZooKeeperMultipleComponentLeaderElectionHaServices(
                         ZooKeeperUtils.startCuratorFramework(
                                 config, testingFatalErrorHandlerResource.getFatalErrorHandler()),
-                        TestingUtils.defaultExecutor(),
                         config,
-                        new VoidBlobStore());
+                        EXECUTOR_RESOURCE.getExecutor(),
+                        new VoidBlobStore(),
+                        testingFatalErrorHandlerResource.getFatalErrorHandler());
     }
 
     @After
@@ -93,7 +102,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         }
 
         if (testingServer != null) {
-            testingServer.stop();
+            testingServer.close();
 
             testingServer = null;
         }

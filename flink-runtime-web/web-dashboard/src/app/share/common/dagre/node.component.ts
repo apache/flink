@@ -18,7 +18,7 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input } from '@angular/core';
 
-import { NodesItemCorrect } from 'interfaces';
+import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
 
 @Component({
   selector: '[flink-node]',

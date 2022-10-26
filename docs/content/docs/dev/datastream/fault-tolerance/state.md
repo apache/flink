@@ -432,6 +432,8 @@ will lead to compatibility failure and `StateMigrationException`.
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
+- With TTL enabled configuration, the `defaultValue` in `StateDescriptor`, which is actually already deprecated, will no longer take an effect. This aims to make the semantics more clear and let user manually manage the default value if the contents of the state is null or expired.
+
 #### Cleanup of Expired State
 
 By default, expired values are explicitly removed on read, such as `ValueState#value`, and periodically garbage collected

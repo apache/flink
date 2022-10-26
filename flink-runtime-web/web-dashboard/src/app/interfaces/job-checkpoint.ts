@@ -28,6 +28,8 @@ export interface Checkpoint {
     checkpointed_size: CheckpointMinMaxAvgStatistics;
     state_size: CheckpointMinMaxAvgStatistics;
     end_to_end_duration: CheckpointMinMaxAvgStatistics;
+    processed_data: CheckpointMinMaxAvgStatistics;
+    persisted_data: CheckpointMinMaxAvgStatistics;
     alignment_buffered: CheckpointMinMaxAvgStatistics;
   };
   latest: {
@@ -126,11 +128,14 @@ export interface CheckpointConfig {
     delete_on_cancellation: boolean;
   };
   state_backend: string;
+  state_changelog_enabled: boolean;
   checkpoint_storage: string;
   unaligned_checkpoints: boolean;
   tolerable_failed_checkpoints: number;
   aligned_checkpoint_timeout: number;
   checkpoints_after_tasks_finish: boolean;
+  changelog_storage: string;
+  changelog_periodic_materialization_interval: number;
 }
 
 export interface CheckpointDetail {

@@ -99,6 +99,10 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a",
@@ -192,6 +196,12 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -230,6 +240,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT, `cnt_a` BIGINT, `max_b` BIGINT, `min_c` VARCHAR(2147483647)>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, cnt_a, max_b, min_c])"
   } ],
   "edges" : [ {

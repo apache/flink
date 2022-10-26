@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.model;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SentinelSequenceNumber}. */
 public class SentinelSequenceNumberTest {
@@ -27,7 +27,7 @@ public class SentinelSequenceNumberTest {
     @Test
     public void allSentinelNumbersAreRecognized() {
         for (SentinelSequenceNumber sentinel : SentinelSequenceNumber.values()) {
-            assertTrue(SentinelSequenceNumber.isSentinelSequenceNumber(sentinel.get()));
+            assertThat(SentinelSequenceNumber.isSentinelSequenceNumber(sentinel.get())).isTrue();
         }
     }
 }

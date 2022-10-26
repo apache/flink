@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,10 +20,13 @@ package org.apache.flink.python;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.Description;
+
+import java.util.Map;
 
 /** Configuration options for the Python API. */
 @PublicEvolving
@@ -79,6 +82,14 @@ public class PythonOptions {
                                     + "will be displayed in the log file of the TaskManager periodically. "
                                     + "The interval between each profiling is determined by the config options "
                                     + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
+
+    /** The configuration to enable or disable system env for Python execution. */
+    public static final ConfigOption<Boolean> PYTHON_SYSTEMENV_ENABLED =
+            ConfigOptions.key("python.systemenv.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Specify whether to load System Environment when starting Python worker.");
 
     /** The configuration to enable or disable python operator chaining. */
     public static final ConfigOption<Boolean> PYTHON_OPERATOR_CHAINING_ENABLED =
@@ -136,7 +147,7 @@ public class PythonOptions {
                     .withDescription(
                             "Specify the path of the python interpreter used to execute the python "
                                     + "UDF worker. The python UDF worker depends on Python 3.6+, Apache Beam "
-                                    + "(version == 2.27.0), Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
+                                    + "(version == 2.38.0), Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                                     + "Please ensure that the specified environment meets the above requirements. The "
                                     + "option is equivalent to the command line option \"-pyexec\".");
 
@@ -231,10 +242,40 @@ public class PythonOptions {
                     .stringType()
                     .defaultValue("process")
                     .withDescription(
-                            "Specify the python runtime execution mode. The optional values are `process`, `multi-thread` and `sub-interpreter`. "
+                            "Specify the python runtime execution mode. The optional values are `process` and `thread`. "
                                     + "The `process` mode means that the Python user-defined functions will be executed in separate Python process. "
-                                    + "The `multi-thread` mode means that the Python user-defined functions will be executed in the same thread as Java Operator, but it will be affected by GIL performance. "
-                                    + "The `sub-interpreter` mode means that the Python user-defined functions will be executed in python different sub-interpreters rather than different threads of one interpreter, "
-                                    + "which can largely overcome the effects of the GIL, but it maybe fail in some CPython extensions libraries, such as numpy, tensorflow. "
-                                    + "Note that if the python operator dose not support `multi-thread` and `sub-interpreter` mode, we will still use `process` mode.");
+                                    + "The `thread` mode means that the Python user-defined functions will be executed in the same process of the Java operator. "
+                                    + "Note that currently it still doesn't support to execute Python user-defined functions in `thread` mode in all places. "
+                                    + "It will fall back to `process` mode in these cases.");
+
+    // ------------------------------------------------------------------------------------------
+    // config options used for internal purpose
+    // ------------------------------------------------------------------------------------------
+
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The options will be exported as environment variables which could be accessed in Python worker process.")
+    public static final ConfigOption<Map<String, String>> PYTHON_JOB_OPTIONS =
+            ConfigOptions.key("python.job-options").mapType().noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The distributed cache entries for 'python.files'.")
+    public static final ConfigOption<Map<String, String>> PYTHON_FILES_DISTRIBUTED_CACHE_INFO =
+            ConfigOptions.key("python.internal.files-key-map").mapType().noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The distributed cache entries for 'python.requirements'.")
+    public static final ConfigOption<Map<String, String>>
+            PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO =
+                    ConfigOptions.key("python.internal.requirements-file-key")
+                            .mapType()
+                            .noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The distributed cache entries for 'python.archives'.")
+    public static final ConfigOption<Map<String, String>> PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO =
+            ConfigOptions.key("python.internal.archives-key-map").mapType().noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation("Internal use only. Used for local debug.")
+    public static final ConfigOption<String> PYTHON_LOOPBACK_SERVER_ADDRESS =
+            ConfigOptions.key("python.loopback-server.address").stringType().noDefaultValue();
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -43,14 +42,14 @@ object PlannerExpressionUtils {
 
   private[flink] def isRowtimeAttribute(expr: PlannerExpression): Boolean = expr match {
     case r: PlannerResolvedFieldReference
-      if FlinkTypeFactory.isRowtimeIndicatorType(r.resultType) =>
+        if FlinkTypeFactory.isRowtimeIndicatorType(r.resultType) =>
       true
     case _ => false
   }
 
   private[flink] def isProctimeAttribute(expr: PlannerExpression): Boolean = expr match {
     case r: PlannerResolvedFieldReference
-      if FlinkTypeFactory.isProctimeIndicatorType(r.resultType) =>
+        if FlinkTypeFactory.isProctimeIndicatorType(r.resultType) =>
       true
     case _ => false
   }

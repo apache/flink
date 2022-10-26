@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner.{JArrayList, JDouble}
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
-import org.apache.flink.table.planner.{JArrayList, JDouble}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexNode, RexUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{BuiltInMethod, ImmutableBitSet, Util}
@@ -35,9 +34,9 @@ import org.apache.calcite.util.{BuiltInMethod, ImmutableBitSet, Util}
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdSelectivity supplies a implementation of
-  * [[RelMetadataQuery#getSelectivity]] for the standard logical algebra.
-  */
+ * FlinkRelMdSelectivity supplies a implementation of [[RelMetadataQuery#getSelectivity]] for the
+ * standard logical algebra.
+ */
 class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Selectivity] {
 
   def getDef: MetadataDef[BuiltInMetadata.Selectivity] = BuiltInMetadata.Selectivity.DEF
@@ -73,17 +72,17 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
 
   def getSelectivity(rel: Rank, mq: RelMetadataQuery, predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
-      return 1D
+      return 1d
     }
     val (nonRankPred, rankPred) = FlinkRelMdUtil.splitPredicateOnRank(rel, predicate)
     val childSelectivity: JDouble = nonRankPred match {
       case Some(p) => mq.getSelectivity(rel.getInput, p)
-      case _ => 1D
+      case _ => 1d
     }
 
     val rankSelectivity: JDouble = rankPred match {
       case Some(p) => estimateSelectivity(rel, mq, p)
-      case _ => 1D
+      case _ => 1d
     }
     childSelectivity * rankSelectivity
   }
@@ -91,20 +90,15 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
   def getSelectivity(rel: Sort, mq: RelMetadataQuery, predicate: RexNode): JDouble =
     mq.getSelectivity(rel.getInput, predicate)
 
-  def getSelectivity(
-      rel: Aggregate,
-      mq: RelMetadataQuery,
-      predicate: RexNode): JDouble = getSelectivityOfAgg(rel, mq, predicate)
+  def getSelectivity(rel: Aggregate, mq: RelMetadataQuery, predicate: RexNode): JDouble =
+    getSelectivityOfAgg(rel, mq, predicate)
 
   def getSelectivity(
       rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       predicate: RexNode): JDouble = getSelectivityOfAgg(rel, mq, predicate)
 
-  def getSelectivity(
-      rel: WindowAggregate,
-      mq: RelMetadataQuery,
-      predicate: RexNode): JDouble = {
+  def getSelectivity(rel: WindowAggregate, mq: RelMetadataQuery, predicate: RexNode): JDouble = {
     val newPredicate = FlinkRelMdUtil.makeNamePropertiesSelectivityRexNode(rel, predicate)
     getSelectivityOfAgg(rel, mq, newPredicate)
   }
@@ -168,10 +162,8 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
     }
   }
 
-  def getSelectivity(
-      overWindow: Window,
-      mq: RelMetadataQuery,
-      predicate: RexNode): JDouble = getSelectivityOfOverAgg(overWindow, mq, predicate)
+  def getSelectivity(overWindow: Window, mq: RelMetadataQuery, predicate: RexNode): JDouble =
+    getSelectivityOfOverAgg(overWindow, mq, predicate)
 
   def getSelectivity(
       rel: BatchPhysicalOverAggregate,
@@ -193,11 +185,7 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
       }
       val notPushable = new JArrayList[RexNode]
       val pushable = new JArrayList[RexNode]
-      RelOptUtil.splitFilters(
-        childBitmap,
-        predicate,
-        pushable,
-        notPushable)
+      RelOptUtil.splitFilters(childBitmap, predicate, pushable, notPushable)
       val rexBuilder = over.getCluster.getRexBuilder
       val childPreds = RexUtil.composeConjunction(rexBuilder, pushable, true)
       val partSelectivity = mq.getSelectivity(input, childPreds)
@@ -240,19 +228,23 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
       val adjustments = new Array[Int](rel.getRowType.getFieldCount)
       var inputRows: Seq[JDouble] = Nil
       var inputSelectedRows: Seq[JDouble] = Nil
-      rel.getInputs foreach { input =>
-        val inputRowCount = mq.getRowCount(input)
-        inputRows = inputRows :+ inputRowCount
-        val inputSelectedRow: JDouble = if (inputRowCount == null) {
-          null
-        } else {
-          val modifiedPred = predicate.accept(
-            new RelOptUtil.RexInputConverter(
-              rexBuilder, null, input.getRowType.getFieldList, adjustments))
-          val selectivity = mq.getSelectivity(input, modifiedPred)
-          if (selectivity == null) null else selectivity * inputRowCount
-        }
-        inputSelectedRows = inputSelectedRows :+ inputSelectedRow
+      rel.getInputs.foreach {
+        input =>
+          val inputRowCount = mq.getRowCount(input)
+          inputRows = inputRows :+ inputRowCount
+          val inputSelectedRow: JDouble = if (inputRowCount == null) {
+            null
+          } else {
+            val modifiedPred = predicate.accept(
+              new RelOptUtil.RexInputConverter(
+                rexBuilder,
+                null,
+                input.getRowType.getFieldList,
+                adjustments))
+            val selectivity = mq.getSelectivity(input, modifiedPred)
+            if (selectivity == null) null else selectivity * inputRowCount
+          }
+          inputSelectedRows = inputSelectedRows :+ inputSelectedRow
       }
       if (inputRows.contains(null) || inputSelectedRows.contains(null)) {
         null
@@ -295,7 +287,7 @@ object FlinkRelMdSelectivity {
 
   private val INSTANCE = new FlinkRelMdSelectivity
 
-  val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    BuiltInMethod.SELECTIVITY.method, INSTANCE)
+  val SOURCE: RelMetadataProvider =
+    ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.SELECTIVITY.method, INSTANCE)
 
 }

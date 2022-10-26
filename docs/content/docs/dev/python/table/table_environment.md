@@ -35,13 +35,18 @@ Create a TableEnvironment
 The recommended way to create a `TableEnvironment` is to create from an `EnvironmentSettings` object:
 
 ```python
+from pyflink.common import Configuration
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
-env_settings = EnvironmentSettings.in_streaming_mode()
+config = Configuration()
+config.set_string('execution.buffer-timeout', '1 min')
+env_settings = EnvironmentSettings \
+    .new_instance() \
+    .in_streaming_mode() \
+    .with_configuration(config) \
+    .build()
 
-# or a batch TableEnvironment
-# env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
@@ -107,17 +112,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
-        <strong>sql_query(query)</strong>
-      </td>
-      <td>
-        Evaluates a SQL query and retrieves the result as a `Table` object. 
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>create_temporary_view(view_path, table)</strong>
       </td>
       <td>
@@ -163,6 +157,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.execute_sql" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>sql_query(query)</strong>
+      </td>
+      <td>
+        Evaluates a SQL query and retrieves the result as a `Table` object. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="link">}}
       </td>
     </tr>
   </tbody>
@@ -567,12 +572,11 @@ Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_
         Returns the table config to define the runtime behavior of the Table API.
         You can find all the available configuration options in <a href="{{< ref "docs/deployment/config" >}}">Configuration</a> and
         <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuration</a>. <br> <br>
-        The following code is an example showing how to set the configuration options through this API:
-```python
-# set the parallelism to 8
-table_env.get_config().get_configuration().set_string(
-    "parallelism.default", "8")
-```
+        The following code is an example showing how to set the configuration options through this API:<br>
+# set the parallelism to 8<br>
+table_env.get_config().set("parallelism.default", "8")<br>
+# set the job name <br>
+table_env.get_config().set("pipeline.name", "my_first_job")
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.get_config" name="link">}}
@@ -821,19 +825,19 @@ And now you can configure them by setting key-value options in `TableConfig`, se
 The following code is an example showing how to configure the statebackend, checkpoint and restart strategy through the Table API:
 ```python
 # set the restart strategy to "fixed-delay"
-table_env.get_config().get_configuration().set_string("restart-strategy", "fixed-delay")
-table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.attempts", "3")
-table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.delay", "30s")
+table_env.get_config().set("restart-strategy.type", "fixed-delay")
+table_env.get_config().set("restart-strategy.fixed-delay.attempts", "3")
+table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 
 # set the checkpoint mode to EXACTLY_ONCE
-table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
-table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "3min")
+table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().set("execution.checkpointing.interval", "3min")
 
 # set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
 # e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
-table_env.get_config().get_configuration().set_string("state.backend", "rocksdb")
+table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend
-table_env.get_config().get_configuration().set_string("state.checkpoints.dir", "file:///tmp/checkpoints/")
+table_env.get_config().set("state.checkpoints.dir", "file:///tmp/checkpoints/")
 ```

@@ -20,18 +20,17 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * IT Cases of {@link FineGrainedSlotManager}, with the {@link DefaultResourceAllocationStrategy}.
  */
-public class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
+class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
         extends AbstractFineGrainedSlotManagerITCase {
     private static final ResourceProfile OTHER_SLOT_RESOURCE_PROFILE =
             DEFAULT_TOTAL_RESOURCE_PROFILE.multiply(2);
@@ -48,7 +47,7 @@ public class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
      * requested resource profile.
      */
     @Test
-    public void testWorkerOnlyAllocatedIfRequestedSlotCouldBeFulfilled() throws Exception {
+    void testWorkerOnlyAllocatedIfRequestedSlotCouldBeFulfilled() throws Exception {
         final AtomicInteger resourceRequests = new AtomicInteger(0);
 
         new Context() {
@@ -68,7 +67,7 @@ public class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                                                                     new JobID(),
                                                                     1,
                                                                     OTHER_SLOT_RESOURCE_PROFILE)));
-                            assertThat(resourceRequests.get(), is(0));
+                            assertThat(resourceRequests.get()).isEqualTo(0);
                         });
             }
         };

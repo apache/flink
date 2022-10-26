@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
@@ -57,8 +56,7 @@ public class CheckpointProperties implements Serializable {
 
     private final boolean unclaimed;
 
-    @VisibleForTesting
-    CheckpointProperties(
+    public CheckpointProperties(
             boolean forced,
             SnapshotType checkpointType,
             boolean discardSubsumed,

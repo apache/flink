@@ -24,7 +24,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import javax.annotation.Nonnull;

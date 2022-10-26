@@ -116,6 +116,16 @@ public class CheckpointConfigHandler
 
             String stateBackendName = executionGraph.getStateBackendName().orElse(null);
             String checkpointStorageName = executionGraph.getCheckpointStorageName().orElse(null);
+            long periodicMaterializeIntervalMillis =
+                    executionGraph
+                            .getArchivedExecutionConfig()
+                            .getPeriodicMaterializeIntervalMillis();
+            String changelogStorageName = executionGraph.getChangelogStorageName().orElse(null);
+
+            boolean stateChangelogEnabled =
+                    executionGraph.isChangelogStateBackendEnabled() != null
+                            ? executionGraph.isChangelogStateBackendEnabled().getOrDefault(false)
+                            : false;
 
             return new CheckpointConfigInfo(
                     checkpointCoordinatorConfiguration.isExactlyOnce()
@@ -131,7 +141,10 @@ public class CheckpointConfigHandler
                     checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled(),
                     checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber(),
                     checkpointCoordinatorConfiguration.getAlignedCheckpointTimeout(),
-                    checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish());
+                    checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish(),
+                    stateChangelogEnabled,
+                    periodicMaterializeIntervalMillis,
+                    changelogStorageName);
         }
     }
 }

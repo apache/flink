@@ -35,19 +35,24 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.ComponentClosingUtils;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
+import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -62,18 +67,14 @@ import java.util.function.Supplier;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link SourceCoordinator}. */
 @SuppressWarnings("serial")
-public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
+class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
     @Test
-    public void testThrowExceptionWhenNotStarted() {
+    void testThrowExceptionWhenNotStarted() {
         // The following methods should only be invoked after the source coordinator has started.
         String failureMessage = "Call should fail when source coordinator has not started yet.";
         verifyException(
@@ -81,11 +82,11 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 failureMessage,
                 "The coordinator has not started yet.");
         verifyException(
-                () -> sourceCoordinator.handleEventFromOperator(0, null),
+                () -> sourceCoordinator.handleEventFromOperator(0, 0, null),
                 failureMessage,
                 "The coordinator has not started yet.");
         verifyException(
-                () -> sourceCoordinator.subtaskFailed(0, null),
+                () -> sourceCoordinator.executionAttemptFailed(0, 0, null),
                 failureMessage,
                 "The coordinator has not started yet.");
         verifyException(
@@ -95,7 +96,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    public void testRestCheckpointAfterCoordinatorStarted() throws Exception {
+    void testRestCheckpointAfterCoordinatorStarted() throws Exception {
         // The following methods should only be invoked after the source coordinator has started.
         sourceCoordinator.start();
         verifyException(
@@ -105,34 +106,34 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    public void testStart() throws Exception {
+    void testStart() throws Exception {
         sourceCoordinator.start();
         waitForCoordinatorToProcessActions();
 
-        assertTrue(getEnumerator().isStarted());
+        assertThat(getEnumerator().isStarted()).isTrue();
     }
 
     @Test
-    public void testClosed() throws Exception {
+    void testClosed() throws Exception {
         sourceCoordinator.start();
         sourceCoordinator.close();
-        assertTrue(getEnumerator().isClosed());
+        assertThat(getEnumerator().isClosed()).isTrue();
     }
 
     @Test
-    public void testHandleSourceEvent() throws Exception {
+    void testHandleSourceEvent() throws Exception {
         sourceReady();
 
         SourceEvent sourceEvent = new SourceEvent() {};
-        sourceCoordinator.handleEventFromOperator(0, new SourceEventWrapper(sourceEvent));
+        sourceCoordinator.handleEventFromOperator(0, 0, new SourceEventWrapper(sourceEvent));
         waitForCoordinatorToProcessActions();
 
-        assertEquals(1, getEnumerator().getHandledSourceEvent().size());
-        assertEquals(sourceEvent, getEnumerator().getHandledSourceEvent().get(0));
+        assertThat(getEnumerator().getHandledSourceEvent()).hasSize(1);
+        assertThat(getEnumerator().getHandledSourceEvent().get(0)).isEqualTo(sourceEvent);
     }
 
     @Test
-    public void testCheckpointCoordinatorAndRestore() throws Exception {
+    void testCheckpointCoordinatorAndRestore() throws Exception {
         sourceReady();
         addTestingSplitSet(6);
 
@@ -150,19 +151,17 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         TestingSplitEnumerator<?> restoredEnumerator =
                 (TestingSplitEnumerator<?>) restoredCoordinator.getEnumerator();
         SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
-        assertEquals(
-                "2 splits should have been assigned to reader 0",
-                4,
-                restoredEnumerator.getUnassignedSplits().size());
-        assertTrue(restoredEnumerator.getContext().registeredReaders().isEmpty());
-        assertEquals(
-                "Registered readers should not be recovered by restoring",
-                0,
-                restoredContext.registeredReaders().size());
+        assertThat(restoredEnumerator.getUnassignedSplits())
+                .as("2 splits should have been assigned to reader 0")
+                .hasSize(4);
+        assertThat(restoredEnumerator.getContext().registeredReaders()).isEmpty();
+        assertThat(restoredContext.registeredReaders())
+                .as("Registered readers should not be recovered by restoring")
+                .isEmpty();
     }
 
     @Test
-    public void testSubtaskFailedAndRevertUncompletedAssignments() throws Exception {
+    void testSubtaskFailedAndRevertUncompletedAssignments() throws Exception {
         sourceReady();
         addTestingSplitSet(6);
 
@@ -179,8 +178,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         // check the state.
         waitForCoordinatorToProcessActions();
 
-        assertEquals(4, getEnumerator().getUnassignedSplits().size());
-        assertTrue(splitSplitAssignmentTracker.uncheckpointedAssignments().isEmpty());
+        assertThat(getEnumerator().getUnassignedSplits()).hasSize(4);
+        assertThat(splitSplitAssignmentTracker.uncheckpointedAssignments()).isEmpty();
         verifyAssignment(
                 Arrays.asList("0", "1"),
                 splitSplitAssignmentTracker.assignmentsByCheckpointId().get(100L).get(0));
@@ -189,28 +188,28 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 splitSplitAssignmentTracker.assignmentsByCheckpointId(101L).get(0));
 
         // none of the checkpoints is confirmed, we fail and revert to the previous one
-        sourceCoordinator.subtaskFailed(0, null);
+        sourceCoordinator.executionAttemptFailed(0, 0, null);
         sourceCoordinator.subtaskReset(0, 99L);
         waitForCoordinatorToProcessActions();
 
-        assertFalse(
-                "Reader 0 should have been unregistered.",
-                context.registeredReaders().containsKey(0));
+        assertThat(context.registeredReaders())
+                .as("Reader 0 should have been unregistered.")
+                .doesNotContainKey(0);
         // The tracker should have reverted all the splits assignment to reader 0.
         for (Map<Integer, ?> assignment :
                 splitSplitAssignmentTracker.assignmentsByCheckpointId().values()) {
-            assertFalse(
-                    "Assignment in uncompleted checkpoint should have been reverted.",
-                    assignment.containsKey(0));
+            assertThat(assignment)
+                    .as("Assignment in uncompleted checkpoint should have been reverted.")
+                    .doesNotContainKey(0);
         }
-        assertFalse(splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
+        assertThat(splitSplitAssignmentTracker.uncheckpointedAssignments()).doesNotContainKey(0);
         // The split enumerator should now contains the splits used to b
         // assigned to reader 0.
-        assertEquals(7, getEnumerator().getUnassignedSplits().size());
+        assertThat(getEnumerator().getUnassignedSplits()).hasSize(7);
     }
 
     @Test
-    public void testFailedSubtaskDoNotRevertCompletedCheckpoint() throws Exception {
+    void testFailedSubtaskDoNotRevertCompletedCheckpoint() throws Exception {
         sourceReady();
         addTestingSplitSet(6);
 
@@ -222,19 +221,19 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         sourceCoordinator.checkpointCoordinator(100L, new CompletableFuture<>());
         sourceCoordinator.notifyCheckpointComplete(100L);
 
-        sourceCoordinator.subtaskFailed(0, null);
+        sourceCoordinator.executionAttemptFailed(0, 0, null);
 
         waitForCoordinatorToProcessActions();
 
-        assertEquals(100L, (long) getEnumerator().getSuccessfulCheckpoints().get(0));
-        assertFalse(context.registeredReaders().containsKey(0));
-        assertEquals(4, getEnumerator().getUnassignedSplits().size());
-        assertFalse(splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
-        assertTrue(splitSplitAssignmentTracker.assignmentsByCheckpointId().isEmpty());
+        assertThat(getEnumerator().getSuccessfulCheckpoints().get(0)).isEqualTo(100);
+        assertThat(context.registeredReaders()).doesNotContainKey(0);
+        assertThat(getEnumerator().getUnassignedSplits()).hasSize(4);
+        assertThat(splitSplitAssignmentTracker.uncheckpointedAssignments()).doesNotContainKey(0);
+        assertThat(splitSplitAssignmentTracker.assignmentsByCheckpointId()).isEmpty();
     }
 
     @Test
-    public void testFailJobWhenExceptionThrownFromStart() throws Exception {
+    void testFailJobWhenExceptionThrownFromStart() throws Exception {
         final RuntimeException failureReason = new RuntimeException("Artificial Exception");
         try (final MockSplitEnumeratorContext<MockSourceSplit> enumeratorContext =
                         new MockSplitEnumeratorContext<>(1);
@@ -251,19 +250,20 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
                                 new CoordinatorStoreImpl(),
-                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED)) {
+                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                                null)) {
 
             coordinator.start();
             waitUtil(
                     () -> operatorCoordinatorContext.isJobFailed(),
                     Duration.ofSeconds(10),
                     "The job should have failed due to the artificial exception.");
-            assertEquals(failureReason, operatorCoordinatorContext.getJobFailureReason());
+            assertThat(operatorCoordinatorContext.getJobFailureReason()).isEqualTo(failureReason);
         }
     }
 
     @Test
-    public void testFailJobWhenExceptionThrownFromEnumeratorCreation() throws Exception {
+    void testFailJobWhenExceptionThrownFromEnumeratorCreation() throws Exception {
         final RuntimeException failureReason = new RuntimeException("Artificial Exception");
 
         final SourceCoordinator<?, ?> coordinator =
@@ -275,16 +275,17 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 }),
                         context,
                         new CoordinatorStoreImpl(),
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
 
         coordinator.start();
 
-        assertTrue(operatorCoordinatorContext.isJobFailed());
-        assertEquals(failureReason, operatorCoordinatorContext.getJobFailureReason());
+        assertThat(operatorCoordinatorContext.isJobFailed()).isTrue();
+        assertThat(operatorCoordinatorContext.getJobFailureReason()).isEqualTo(failureReason);
     }
 
     @Test
-    public void testErrorThrownFromSplitEnumerator() throws Exception {
+    void testErrorThrownFromSplitEnumerator() throws Exception {
         final Error error = new Error("Test Error");
         try (final MockSplitEnumeratorContext<MockSourceSplit> enumeratorContext =
                         new MockSplitEnumeratorContext<>(1);
@@ -301,21 +302,22 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
                                 new CoordinatorStoreImpl(),
-                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED)) {
+                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                                null)) {
 
             coordinator.start();
-            coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
+            coordinator.handleEventFromOperator(1, 0, new SourceEventWrapper(new SourceEvent() {}));
 
             waitUtil(
                     () -> operatorCoordinatorContext.isJobFailed(),
                     Duration.ofSeconds(10),
                     "The job should have failed due to the artificial exception.");
-            assertEquals(error, operatorCoordinatorContext.getJobFailureReason());
+            assertThat(operatorCoordinatorContext.getJobFailureReason()).isEqualTo(error);
         }
     }
 
     @Test
-    public void testBlockOnClose() throws Exception {
+    void testBlockOnClose() throws Exception {
         // It is possible that the split enumerator submits some heavy-duty work to the
         // coordinator executor which blocks the coordinator closure.
         final CountDownLatch latch = new CountDownLatch(1);
@@ -346,7 +348,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 new CoordinatorStoreImpl())) {
 
             coordinator.start();
-            coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
+            coordinator.handleEventFromOperator(1, 0, new SourceEventWrapper(new SourceEvent() {}));
             // Wait until the coordinator executor blocks.
             latch.await();
 
@@ -358,7 +360,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
             future.exceptionally(
                             e -> {
-                                assertTrue(e instanceof TimeoutException);
+                                assertThat(e).isInstanceOf(TimeoutException.class);
                                 return null;
                             })
                     .get();
@@ -371,7 +373,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    public void testUserClassLoaderWhenCreatingNewEnumerator() throws Exception {
+    void testUserClassLoaderWhenCreatingNewEnumerator() throws Exception {
         final ClassLoader testClassLoader = new URLClassLoader(new URL[0]);
         final OperatorCoordinator.Context context =
                 new MockOperatorCoordinatorContext(new OperatorID(), testClassLoader);
@@ -384,21 +386,22 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         context.getOperatorId(),
                         source,
                         1,
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
 
         final OperatorCoordinator coordinator = provider.getCoordinator(context);
         coordinator.start();
 
         final ClassLoaderTestEnumerator enumerator = source.createEnumeratorFuture.get();
-        assertSame(testClassLoader, enumerator.constructorClassLoader);
-        assertSame(testClassLoader, enumerator.threadClassLoader.get());
+        assertThat(enumerator.constructorClassLoader).isSameAs(testClassLoader);
+        assertThat(enumerator.threadClassLoader.get()).isSameAs(testClassLoader);
 
         // cleanup
         coordinator.close();
     }
 
     @Test
-    public void testUserClassLoaderWhenRestoringEnumerator() throws Exception {
+    void testUserClassLoaderWhenRestoringEnumerator() throws Exception {
         final ClassLoader testClassLoader = new URLClassLoader(new URL[0]);
         final OperatorCoordinator.Context context =
                 new MockOperatorCoordinatorContext(new OperatorID(), testClassLoader);
@@ -411,22 +414,23 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         context.getOperatorId(),
                         source,
                         1,
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
 
         final OperatorCoordinator coordinator = provider.getCoordinator(context);
         coordinator.resetToCheckpoint(1L, createEmptyCheckpoint());
         coordinator.start();
 
         final ClassLoaderTestEnumerator enumerator = source.restoreEnumeratorFuture.get();
-        assertSame(testClassLoader, enumerator.constructorClassLoader);
-        assertSame(testClassLoader, enumerator.threadClassLoader.get());
+        assertThat(enumerator.constructorClassLoader).isSameAs(testClassLoader);
+        assertThat(enumerator.threadClassLoader.get()).isSameAs(testClassLoader);
 
         // cleanup
         coordinator.close();
     }
 
     @Test
-    public void testSerdeBackwardCompatibility() throws Exception {
+    void testSerdeBackwardCompatibility() throws Exception {
         sourceReady();
         addTestingSplitSet(6);
 
@@ -445,9 +449,84 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
 
         // Check if enumerator is restored correctly
-        assertEquals(splits, restoredEnumerator.getUnassignedSplits());
-        assertTrue(restoredEnumerator.getHandledSourceEvent().isEmpty());
-        assertEquals(0, restoredContext.registeredReaders().size());
+        assertThat(restoredEnumerator.getUnassignedSplits()).isEqualTo(splits);
+        assertThat(restoredEnumerator.getHandledSourceEvent()).isEmpty();
+        assertThat(restoredContext.registeredReaders()).isEmpty();
+    }
+
+    @Test
+    public void testSubtaskRestartAndRequestSplitsAgain() throws Exception {
+        sourceCoordinator.start();
+
+        final List<MockSourceSplit> splits = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            splits.add(new MockSourceSplit(i));
+        }
+        getEnumerator().addNewSplits(splits);
+
+        int attemptNumber = 0;
+        setReaderTaskReady(sourceCoordinator, 0, attemptNumber);
+        registerReader(0, attemptNumber);
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(1);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(2);
+
+        sourceCoordinator.checkpointCoordinator(100L, new CompletableFuture<>());
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(3);
+
+        assertThat(getEnumerator().getUnassignedSplits()).isEmpty();
+
+        // none of the checkpoints is confirmed, we fail and revert to the previous one
+        sourceCoordinator.executionAttemptFailed(0, attemptNumber, null);
+        sourceCoordinator.subtaskReset(0, 99L);
+
+        waitUtilNumberReached(() -> getEnumerator().getUnassignedSplits().size(), 2);
+
+        attemptNumber++;
+        setReaderTaskReady(sourceCoordinator, 0, attemptNumber);
+        registerReader(0, attemptNumber);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(4);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(5);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(6);
+
+        assertThat(getEnumerator().getUnassignedSplits()).isEmpty();
+
+        final List<OperatorEvent> events = receivingTasks.getSentEventsForSubtask(0);
+        assertAddSplitEvent(events.get(0), Collections.singletonList(splits.get(0)));
+        assertAddSplitEvent(events.get(1), Collections.singletonList(splits.get(1)));
+        assertAddSplitEvent(events.get(3), Collections.singletonList(splits.get(0)));
+        assertAddSplitEvent(events.get(4), Collections.singletonList(splits.get(1)));
+
+        assertThat(events.get(2)).isInstanceOf(NoMoreSplitsEvent.class);
+        assertThat(events.get(5)).isInstanceOf(NoMoreSplitsEvent.class);
+    }
+
+    @Test
+    public void testListeningEventsFromOtherCoordinators() throws Exception {
+        final String listeningID = "testListeningID";
+
+        CoordinatorStore store = new CoordinatorStoreImpl();
+        final SourceCoordinator<?, ?> coordinator =
+                new SourceCoordinator<>(
+                        OPERATOR_NAME,
+                        createMockSource(),
+                        context,
+                        store,
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        listeningID);
+        coordinator.start();
+
+        assertThat(store.get(listeningID)).isNotNull().isSameAs(coordinator);
     }
 
     // ------------------------------------------------------------------------
@@ -475,14 +554,6 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         serializer.writeInt(0); // Number of checkpoint in assignment tracker
 
         return serializer.getCopyOfBuffer();
-    }
-
-    private void check(Runnable runnable) {
-        try {
-            coordinatorExecutor.submit(runnable).get();
-        } catch (Exception e) {
-            fail("Test failed due to " + e);
-        }
     }
 
     private static byte[] createEmptyCheckpoint() throws Exception {

@@ -20,15 +20,28 @@ package org.apache.flink.connector.base.sink;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests of a baseline generic sink that implements the AsyncSinkBase. */
+@ExtendWith(TestLoggerExtension.class)
 public class AsyncSinkBaseITCase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -43,13 +56,11 @@ public class AsyncSinkBaseITCase {
         env.fromSequence(999_999, 1_000_100)
                 .map(Object::toString)
                 .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000, 10));
-        Exception e =
-                assertThrows(
-                        JobExecutionException.class,
-                        () -> env.execute("Integration Test: AsyncSinkBaseITCase"));
-        assertEquals(
-                "Intentional error on persisting 1_000_000 to ArrayListDestination",
-                e.getCause().getCause().getMessage());
+        assertThatThrownBy(() -> env.execute("Integration Test: AsyncSinkBaseITCase"))
+                .isInstanceOf(JobExecutionException.class)
+                .rootCause()
+                .hasMessageContaining(
+                        "Intentional error on persisting 1_000_000 to ArrayListDestination");
     }
 
     @Test

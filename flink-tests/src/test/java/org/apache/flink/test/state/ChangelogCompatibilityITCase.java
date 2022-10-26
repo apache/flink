@@ -23,6 +23,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -37,16 +38,18 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.SAVEPOINT_DIRECTORY;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
 import static org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
-import static org.apache.flink.test.util.TestUtils.getMostRecentCompletedCheckpointMaybe;
 import static org.apache.flink.util.ExceptionUtils.findThrowableSerializedAware;
 import static org.junit.Assert.fail;
 
@@ -64,22 +67,26 @@ public class ChangelogCompatibilityITCase {
     @Parameterized.Parameters(name = "{0}")
     public static List<TestCase> parameters() {
         return Arrays.asList(
-                // disable changelog - allow restore only from CANONICAL_SAVEPOINT
+                // disable changelog - allow restore from CANONICAL_SAVEPOINT
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(false)
                         .from(RestoreSource.CANONICAL_SAVEPOINT)
+                        .allowRestore(true),
+                // disable changelog - allow restore from CHECKPOINT
+                TestCase.startWithChangelog(true)
+                        .restoreWithChangelog(false)
+                        .from(RestoreSource.CHECKPOINT)
                         .allowRestore(true),
                 // enable changelog - allow restore only from CANONICAL_SAVEPOINT
                 TestCase.startWithChangelog(false)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CANONICAL_SAVEPOINT)
                         .allowRestore(true),
-                // explicitly disallow recovery from  non-changelog checkpoints
-                // https://issues.apache.org/jira/browse/FLINK-26079
+                // enable recovery from  non-changelog checkpoints
                 TestCase.startWithChangelog(false)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CHECKPOINT)
-                        .allowRestore(false),
+                        .allowRestore(true),
                 // normal cases: changelog enabled before and after recovery
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
@@ -141,12 +148,15 @@ public class ChangelogCompatibilityITCase {
         ClusterClient<?> client = miniClusterResource.getClusterClient();
         submit(jobGraph, client);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
-            while (!getMostRecentCompletedCheckpointMaybe(checkpointDir).isPresent()) {
-                Thread.sleep(50);
-            }
+            waitForCheckpoint(jobGraph.getJobID(), miniClusterResource.getMiniCluster(), 1);
             client.cancel(jobGraph.getJobID()).get();
             // obtain the latest checkpoint *after* cancellation - that one won't be subsumed
-            return pathToString(getMostRecentCompletedCheckpointMaybe(checkpointDir).get());
+            return CommonTestUtils.getLatestCompletedCheckpointPath(
+                            jobGraph.getJobID(), miniClusterResource.getMiniCluster())
+                    .<NoSuchElementException>orElseThrow(
+                            () -> {
+                                throw new NoSuchElementException("No checkpoint was created yet");
+                            });
         } else {
             return client.stopWithSavepoint(
                             jobGraph.getJobID(),
@@ -282,7 +292,8 @@ public class ChangelogCompatibilityITCase {
         Configuration config = new Configuration();
         config.setString(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
         config.setString(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
-        FsStateChangelogStorageFactory.configure(config, TEMPORARY_FOLDER.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()

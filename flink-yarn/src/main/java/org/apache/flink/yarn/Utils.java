@@ -19,11 +19,12 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.security.token.DelegationTokenConverter;
 import org.apache.flink.runtime.util.HadoopUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -66,7 +67,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
@@ -221,16 +224,9 @@ public final class Utils {
             LOG.info("Adding user token " + token.getService() + " with " + token);
             credentials.addToken(token.getService(), token);
         }
-        try (DataOutputBuffer dob = new DataOutputBuffer()) {
-            credentials.writeTokenStorageToStream(dob);
 
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
-            }
-
-            ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-            amContainer.setTokens(securityTokens);
-        }
+        ByteBuffer tokens = ByteBuffer.wrap(DelegationTokenConverter.serialize(credentials));
+        amContainer.setTokens(tokens);
     }
 
     /** Obtain Kerberos security token for HBase. */
@@ -639,12 +635,12 @@ public final class Utils {
         return Resource.newInstance(unitMemMB, unitVcore);
     }
 
-    public static List<Path> getQualifiedRemoteSharedPaths(
+    public static List<Path> getQualifiedRemoteProvidedLibDirs(
             org.apache.flink.configuration.Configuration configuration,
             YarnConfiguration yarnConfiguration)
-            throws IOException, FlinkException {
+            throws IOException {
 
-        return getRemoteSharedPaths(
+        return getRemoteSharedLibPaths(
                 configuration,
                 pathStr -> {
                     final Path path = new Path(pathStr);
@@ -652,10 +648,10 @@ public final class Utils {
                 });
     }
 
-    private static List<Path> getRemoteSharedPaths(
+    private static List<Path> getRemoteSharedLibPaths(
             org.apache.flink.configuration.Configuration configuration,
             FunctionWithException<String, Path, IOException> strToPathMapper)
-            throws IOException, FlinkException {
+            throws IOException {
 
         final List<Path> providedLibDirs =
                 ConfigUtils.decodeListFromConfig(
@@ -663,7 +659,7 @@ public final class Utils {
 
         for (Path path : providedLibDirs) {
             if (!Utils.isRemotePath(path.toString())) {
-                throw new FlinkException(
+                throw new IllegalArgumentException(
                         "The \""
                                 + YarnConfigOptions.PROVIDED_LIB_DIRS.key()
                                 + "\" should only contain"
@@ -673,6 +669,37 @@ public final class Utils {
             }
         }
         return providedLibDirs;
+    }
+
+    public static boolean isUsrLibDirectory(final FileSystem fileSystem, final Path path)
+            throws IOException {
+        final FileStatus fileStatus = fileSystem.getFileStatus(path);
+        // Use the Path obj from fileStatus to get rid of trailing slash
+        return fileStatus.isDirectory()
+                && ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR.equals(fileStatus.getPath().getName());
+    }
+
+    public static Optional<Path> getQualifiedRemoteProvidedUsrLib(
+            org.apache.flink.configuration.Configuration configuration,
+            YarnConfiguration yarnConfiguration)
+            throws IOException, IllegalArgumentException {
+        String usrlib = configuration.getString(YarnConfigOptions.PROVIDED_USRLIB_DIR);
+        if (usrlib == null) {
+            return Optional.empty();
+        }
+        final Path qualifiedUsrLibPath =
+                FileSystem.get(yarnConfiguration).makeQualified(new Path(usrlib));
+        checkArgument(
+                isRemotePath(qualifiedUsrLibPath.toString()),
+                "The \"%s\" must point to a remote dir "
+                        + "which is accessible from all worker nodes.",
+                YarnConfigOptions.PROVIDED_USRLIB_DIR.key());
+        checkArgument(
+                isUsrLibDirectory(FileSystem.get(yarnConfiguration), qualifiedUsrLibPath),
+                "The \"%s\" should be named with \"%s\".",
+                YarnConfigOptions.PROVIDED_USRLIB_DIR.key(),
+                ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+        return Optional.of(qualifiedUsrLibPath);
     }
 
     public static YarnConfiguration getYarnAndHadoopConfiguration(

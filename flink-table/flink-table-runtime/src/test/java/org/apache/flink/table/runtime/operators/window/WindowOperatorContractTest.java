@@ -38,9 +38,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
@@ -68,7 +66,6 @@ import static org.powermock.api.mockito.PowerMockito.when;
 public class WindowOperatorContractTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testAssignerIsInvokedOncePerElement() throws Exception {

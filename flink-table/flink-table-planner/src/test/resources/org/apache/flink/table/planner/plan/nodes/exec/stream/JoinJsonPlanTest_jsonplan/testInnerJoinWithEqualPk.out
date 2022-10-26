@@ -56,6 +56,10 @@
   }, {
     "id" : 3,
     "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ ],
     "aggCallNeedRetractions" : [ ],
@@ -139,6 +143,10 @@
   }, {
     "id" : 7,
     "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ ],
     "aggCallNeedRetractions" : [ ],
@@ -176,8 +184,8 @@
       "filterNulls" : [ true ],
       "nonEquiCondition" : null
     },
-    "leftUniqueKeys" : [ [ 0 ] ],
-    "rightUniqueKeys" : [ [ 0 ] ],
+    "leftUpsertKeys" : [ [ 0 ] ],
+    "rightUpsertKeys" : [ [ 0 ] ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -196,6 +204,12 @@
   }, {
     "id" : 10,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -228,6 +242,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT, `b1` INT>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a1, b1])"
   } ],
   "edges" : [ {

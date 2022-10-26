@@ -15,6 +15,12 @@
             <td>Timeout for jobs which don't have a job manager as leader assigned.</td>
         </tr>
         <tr>
+            <td><h5>resourcemanager.previous-worker.recovery.timeout</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>Timeout for resource manager to recover all the previous attempts workers. If exceeded, resource manager will handle new resource requests by requesting new workers. If you would like to reuse the previous workers as much as possible, you should configure a longer timeout time to wait for previous workers to register.</td>
+        </tr>
+        <tr>
             <td><h5>resourcemanager.rpc.port</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>Integer</td>

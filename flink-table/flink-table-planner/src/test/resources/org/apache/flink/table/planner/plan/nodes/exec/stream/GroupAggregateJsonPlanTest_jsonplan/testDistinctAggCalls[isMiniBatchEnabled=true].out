@@ -97,6 +97,10 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-local-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a1",
@@ -337,6 +341,10 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-global-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a1",
@@ -484,6 +492,12 @@
   }, {
     "id" : 8,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -531,6 +545,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`d` BIGINT, `cnt_a1` BIGINT, `cnt_a2` BIGINT, `sum_a` BIGINT, `sum_b` INT, `avg_b` DOUBLE, `cnt_c` BIGINT>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[d, cnt_a1, cnt_a2, sum_a, sum_b, avg_b, cnt_c])"
   } ],
   "edges" : [ {

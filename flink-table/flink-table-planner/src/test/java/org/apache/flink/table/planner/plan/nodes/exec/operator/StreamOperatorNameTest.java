@@ -248,7 +248,7 @@ public class StreamOperatorNameTest extends OperatorNameTestBase {
                         + " 'connector' = 'values'\n"
                         + ")");
         TemporalTableFunction ratesHistory =
-                tEnv.from("RatesHistory").createTemporalTableFunction("rowtime", "currency");
+                tEnv.from("RatesHistory").createTemporalTableFunction($("rowtime"), $("currency"));
         tEnv.createTemporarySystemFunction("Rates", ratesHistory);
         verifyQuery(
                 "SELECT amount * r.rate "

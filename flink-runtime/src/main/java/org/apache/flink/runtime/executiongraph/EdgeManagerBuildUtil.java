@@ -89,7 +89,7 @@ public class EdgeManagerBuildUtil {
                         .collect(Collectors.toList());
         ConsumedPartitionGroup consumedPartitionGroup =
                 createAndRegisterConsumedPartitionGroupToEdgeManager(
-                        consumedPartitions, intermediateResult);
+                        taskVertices.length, consumedPartitions, intermediateResult);
         for (ExecutionVertex ev : taskVertices) {
             ev.addConsumedPartitionGroup(consumedPartitionGroup);
         }
@@ -122,7 +122,9 @@ public class EdgeManagerBuildUtil {
 
                 ConsumedPartitionGroup consumedPartitionGroup =
                         createAndRegisterConsumedPartitionGroupToEdgeManager(
-                                partition.getPartitionId(), intermediateResult);
+                                consumerVertexGroup.size(),
+                                partition.getPartitionId(),
+                                intermediateResult);
                 executionVertex.addConsumedPartitionGroup(consumedPartitionGroup);
             }
         } else if (sourceCount > targetCount) {
@@ -147,20 +149,19 @@ public class EdgeManagerBuildUtil {
 
                 ConsumedPartitionGroup consumedPartitionGroup =
                         createAndRegisterConsumedPartitionGroupToEdgeManager(
-                                consumedPartitions, intermediateResult);
+                                consumerVertexGroup.size(), consumedPartitions, intermediateResult);
                 executionVertex.addConsumedPartitionGroup(consumedPartitionGroup);
             }
         } else {
             for (int partitionNum = 0; partitionNum < sourceCount; partitionNum++) {
+                int start = (partitionNum * targetCount + sourceCount - 1) / sourceCount;
+                int end = ((partitionNum + 1) * targetCount + sourceCount - 1) / sourceCount;
 
                 IntermediateResultPartition partition =
                         intermediateResult.getPartitions()[partitionNum];
                 ConsumedPartitionGroup consumedPartitionGroup =
                         createAndRegisterConsumedPartitionGroupToEdgeManager(
-                                partition.getPartitionId(), intermediateResult);
-
-                int start = (partitionNum * targetCount + sourceCount - 1) / sourceCount;
-                int end = ((partitionNum + 1) * targetCount + sourceCount - 1) / sourceCount;
+                                end - start, partition.getPartitionId(), intermediateResult);
 
                 List<ExecutionVertexID> consumers = new ArrayList<>(end - start);
 
@@ -179,19 +180,23 @@ public class EdgeManagerBuildUtil {
     }
 
     private static ConsumedPartitionGroup createAndRegisterConsumedPartitionGroupToEdgeManager(
+            int numConsumers,
             IntermediateResultPartitionID consumedPartitionId,
             IntermediateResult intermediateResult) {
         ConsumedPartitionGroup consumedPartitionGroup =
-                ConsumedPartitionGroup.fromSinglePartition(consumedPartitionId);
+                ConsumedPartitionGroup.fromSinglePartition(
+                        numConsumers, consumedPartitionId, intermediateResult.getResultType());
         registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
         return consumedPartitionGroup;
     }
 
     private static ConsumedPartitionGroup createAndRegisterConsumedPartitionGroupToEdgeManager(
+            int numConsumers,
             List<IntermediateResultPartitionID> consumedPartitions,
             IntermediateResult intermediateResult) {
         ConsumedPartitionGroup consumedPartitionGroup =
-                ConsumedPartitionGroup.fromMultiplePartitions(consumedPartitions);
+                ConsumedPartitionGroup.fromMultiplePartitions(
+                        numConsumers, consumedPartitions, intermediateResult.getResultType());
         registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
         return consumedPartitionGroup;
     }

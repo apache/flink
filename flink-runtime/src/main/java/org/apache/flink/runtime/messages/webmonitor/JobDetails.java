@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
@@ -39,6 +41,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -76,6 +83,17 @@ public class JobDetails implements Serializable {
 
     private final int numTasks;
 
+    /**
+     * The map holds the attempt number of the current execution attempt in the Execution, which is
+     * considered as the representing execution for the subtask of the vertex. The keys and values
+     * are JobVertexID -> SubtaskIndex -> CurrenAttempts info.
+     *
+     * <p>The field is excluded from the json. Any usage from the web UI and the history server is
+     * not allowed.
+     */
+    private final Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts;
+
+    @VisibleForTesting
     public JobDetails(
             JobID jobId,
             String jobName,
@@ -86,7 +104,30 @@ public class JobDetails implements Serializable {
             long lastUpdateTime,
             int[] tasksPerState,
             int numTasks) {
+        this(
+                jobId,
+                jobName,
+                startTime,
+                endTime,
+                duration,
+                status,
+                lastUpdateTime,
+                tasksPerState,
+                numTasks,
+                new HashMap<>());
+    }
 
+    public JobDetails(
+            JobID jobId,
+            String jobName,
+            long startTime,
+            long endTime,
+            long duration,
+            JobStatus status,
+            long lastUpdateTime,
+            int[] tasksPerState,
+            int numTasks,
+            Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts) {
         this.jobId = checkNotNull(jobId);
         this.jobName = checkNotNull(jobName);
         this.startTime = startTime;
@@ -100,6 +141,7 @@ public class JobDetails implements Serializable {
                 ExecutionState.values().length);
         this.tasksPerState = checkNotNull(tasksPerState);
         this.numTasks = numTasks;
+        this.currentExecutionAttempts = checkNotNull(currentExecutionAttempts);
     }
 
     public static JobDetails createDetailsForJob(AccessExecutionGraph job) {
@@ -112,15 +154,29 @@ public class JobDetails implements Serializable {
         int[] countsPerStatus = new int[ExecutionState.values().length];
         long lastChanged = 0;
         int numTotalTasks = 0;
+        Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts = new HashMap<>();
 
         for (AccessExecutionJobVertex ejv : job.getVerticesTopologically()) {
             AccessExecutionVertex[] taskVertices = ejv.getTaskVertices();
             numTotalTasks += taskVertices.length;
+            Map<Integer, CurrentAttempts> vertexAttempts = new HashMap<>();
 
             for (AccessExecutionVertex taskVertex : taskVertices) {
                 ExecutionState state = taskVertex.getExecutionState();
                 countsPerStatus[state.ordinal()]++;
                 lastChanged = Math.max(lastChanged, taskVertex.getStateTimestamp(state));
+
+                vertexAttempts.put(
+                        taskVertex.getParallelSubtaskIndex(),
+                        new CurrentAttempts(
+                                taskVertex.getCurrentExecutionAttempt().getAttemptNumber(),
+                                taskVertex.getCurrentExecutions().stream()
+                                        .map(AccessExecution::getAttemptNumber)
+                                        .collect(Collectors.toSet())));
+            }
+
+            if (!vertexAttempts.isEmpty()) {
+                currentExecutionAttempts.put(String.valueOf(ejv.getJobVertexId()), vertexAttempts);
             }
         }
 
@@ -135,7 +191,8 @@ public class JobDetails implements Serializable {
                 status,
                 lastChanged,
                 countsPerStatus,
-                numTotalTasks);
+                numTotalTasks,
+                currentExecutionAttempts);
     }
 
     // ------------------------------------------------------------------------
@@ -176,6 +233,9 @@ public class JobDetails implements Serializable {
         return tasksPerState;
     }
 
+    public Map<String, Map<Integer, CurrentAttempts>> getCurrentExecutionAttempts() {
+        return currentExecutionAttempts;
+    }
     // ------------------------------------------------------------------------
 
     @Override
@@ -192,7 +252,8 @@ public class JobDetails implements Serializable {
                     && this.status == that.status
                     && this.jobId.equals(that.jobId)
                     && this.jobName.equals(that.jobName)
-                    && Arrays.equals(this.tasksPerState, that.tasksPerState);
+                    && Arrays.equals(this.tasksPerState, that.tasksPerState)
+                    && this.currentExecutionAttempts.equals(that.currentExecutionAttempts);
         } else {
             return false;
         }
@@ -208,6 +269,7 @@ public class JobDetails implements Serializable {
         result = 31 * result + (int) (lastUpdateTime ^ (lastUpdateTime >>> 32));
         result = 31 * result + Arrays.hashCode(tasksPerState);
         result = 31 * result + numTasks;
+        result = 31 * result + currentExecutionAttempts.hashCode();
         return result;
     }
 
@@ -319,7 +381,31 @@ public class JobDetails implements Serializable {
                     jobStatus,
                     lastUpdateTime,
                     numVerticesPerExecutionState,
-                    numTasks);
+                    numTasks,
+                    new HashMap<>());
+        }
+    }
+
+    /**
+     * The CurrentAttempts holds the attempt number of the current representative execution attempt,
+     * and the attempt numbers of all the running attempts.
+     */
+    public static final class CurrentAttempts implements Serializable {
+        private final int representativeAttempt;
+
+        private final Set<Integer> currentAttempts;
+
+        public CurrentAttempts(int representativeAttempt, Set<Integer> currentAttempts) {
+            this.representativeAttempt = representativeAttempt;
+            this.currentAttempts = Collections.unmodifiableSet(currentAttempts);
+        }
+
+        public int getRepresentativeAttempt() {
+            return representativeAttempt;
+        }
+
+        public Set<Integer> getCurrentAttempts() {
+            return currentAttempts;
         }
     }
 }

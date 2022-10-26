@@ -15,35 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType, Values}
 
 object FlinkPruneEmptyRules {
 
   /**
-    * This rule is copied from Calcite's
-    * [[org.apache.calcite.rel.rules.PruneEmptyRules#JOIN_RIGHT_INSTANCE]].
-    *
-    * Modification:
-    * - Handles ANTI join specially.
-    *
-    * Rule that converts a [[Join]] to empty if its right child is empty.
-    *
-    * <p>Examples:
-    *
-    * <ul>
-    * <li>Join(Scan(Emp), Empty, INNER) becomes Empty
-    * </ul>
-    */
+   * This rule is copied from Calcite's
+   * [[org.apache.calcite.rel.rules.PruneEmptyRules#JOIN_RIGHT_INSTANCE]].
+   *
+   * Modification:
+   *   - Handles ANTI join specially.
+   *
+   * Rule that converts a [[Join]] to empty if its right child is empty.
+   *
+   * <p>Examples:
+   *
+   * <ul> <li>Join(Scan(Emp), Empty, INNER) becomes Empty </ul>
+   */
   val JOIN_RIGHT_INSTANCE: RelOptRule = new RelOptRule(
-    operand(classOf[Join],
-      some(operand(classOf[RelNode], any),
-        operand(classOf[Values], none))),
+    operand(classOf[Join], some(operand(classOf[RelNode], any), operand(classOf[Values], none))),
     "FlinkPruneEmptyRules(right)") {
 
     override def matches(call: RelOptRuleCall): Boolean = {

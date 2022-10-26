@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -42,10 +43,15 @@ import java.util.List;
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecValues extends CommonExecValues implements StreamExecNode<RowData> {
 
-    public StreamExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
+    public StreamExecValues(
+            ReadableConfig tableConfig,
+            List<List<RexLiteral>> tuples,
+            RowType outputType,
+            String description) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecValues.class),
+                ExecNodeContext.newPersistedConfig(StreamExecValues.class, tableConfig),
                 tuples,
                 outputType,
                 description);
@@ -55,9 +61,10 @@ public class StreamExecValues extends CommonExecValues implements StreamExecNode
     public StreamExecValues(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_TUPLES) List<List<RexLiteral>> tuples,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, tuples, outputType, description);
+        super(id, context, persistedConfig, tuples, outputType, description);
     }
 }

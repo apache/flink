@@ -38,7 +38,6 @@ import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.WebIdentityTokenCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
@@ -55,6 +54,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
@@ -102,8 +102,7 @@ public class AWSUtil {
                             configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
                             configProps.getProperty(AWSConfigConstants.AWS_REGION)));
         } else {
-            builder.withRegion(
-                    Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
+            builder.withRegion(configProps.getProperty(AWSConfigConstants.AWS_REGION));
         }
         return builder.build();
     }
@@ -217,12 +216,7 @@ public class AWSUtil {
      * @return true if the supplied region ID is valid, false otherwise
      */
     public static boolean isValidRegion(String region) {
-        try {
-            Regions.fromName(region.toLowerCase());
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-        return true;
+        return Pattern.matches("^[a-z]+-([a-z]+[-]{0,1}[a-z]+-([0-9]|global)|global)$", region);
     }
 
     /** The prefix used for properties that should be applied to {@link ClientConfiguration}. */

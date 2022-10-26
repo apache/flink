@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -44,10 +45,11 @@ public abstract class CommonExecUnion extends ExecNodeBase<RowData>
     public CommonExecUnion(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

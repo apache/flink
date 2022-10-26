@@ -26,8 +26,7 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.16-SNAPSHOT</version>
-        <relativePath>..</relativePath>
+        <version>1.17-SNAPSHOT</version>
     </parent>
     
     <artifactId>flink-cep-scala_${scala.binary.version}</artifactId>
@@ -82,7 +81,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-tests</artifactId>
+            <artifactId>flink-scala_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
@@ -109,6 +108,23 @@ under the License.
         <!-- Not strictly necessary because of the build-helper-maven-plugin below. -->
         <sourceDirectory>src/main/scala</sourceDirectory>
         <plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
+
             <!-- Scala Compiler -->
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
@@ -122,15 +138,6 @@ under the License.
                     </execution>
                 </executions>
             </plugin>
-            
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
 
 			<!-- Adding scala source directories to build path for Eclipse and generating the sources jar -->
 			<plugin>

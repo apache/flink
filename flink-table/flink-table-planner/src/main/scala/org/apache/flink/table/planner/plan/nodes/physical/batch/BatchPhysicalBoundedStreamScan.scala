@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -23,22 +22,22 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
 
 import java.util
 
 import scala.collection.JavaConverters._
 
 /**
- * Flink RelNode which matches along with Transformation.
- * It ensures that types without deterministic field order (e.g. POJOs) are not part of
- * the plan translation.
+ * Flink RelNode which matches along with Transformation. It ensures that types without
+ * deterministic field order (e.g. POJOs) are not part of the plan translation.
  */
 class BatchPhysicalBoundedStreamScan(
     cluster: RelOptCluster,
@@ -64,13 +63,15 @@ class BatchPhysicalBoundedStreamScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(getHints), !(getHints.isEmpty));
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecBoundedStreamScan(
+      unwrapTableConfig(this),
       boundedStreamTable.dataStream,
       boundedStreamTable.dataType,
       boundedStreamTable.fieldIndexes,

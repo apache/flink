@@ -36,11 +36,24 @@ public class CommittableSummaryAssert
         isNotNull();
         assertThat(actual.getSubtaskId()).isEqualTo(summary.getSubtaskId());
         assertThat(actual.getCheckpointId()).isEqualTo(summary.getCheckpointId());
+        assertThat(actual.getNumberOfSubtasks()).isEqualTo(summary.getNumberOfSubtasks());
         assertThat(actual.getNumberOfCommittables()).isEqualTo(summary.getNumberOfCommittables());
         assertThat(actual.getNumberOfPendingCommittables())
                 .isEqualTo(summary.getNumberOfPendingCommittables());
         assertThat(actual.getNumberOfFailedCommittables())
                 .isEqualTo(summary.getNumberOfFailedCommittables());
+        return this;
+    }
+
+    public CommittableSummaryAssert hasSubtaskId(int subtaskId) {
+        isNotNull();
+        assertThat(actual.getSubtaskId()).isEqualTo(subtaskId);
+        return this;
+    }
+
+    public CommittableSummaryAssert hasNumberOfSubtasks(int numberOfSubtasks) {
+        isNotNull();
+        assertThat(actual.getNumberOfSubtasks()).isEqualTo(numberOfSubtasks);
         return this;
     }
 

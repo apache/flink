@@ -25,19 +25,19 @@ import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.tests.util.pulsar.cases.ExclusiveSubscriptionContext;
-import org.apache.flink.tests.util.pulsar.cases.FailoverSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
 import org.apache.flink.tests.util.pulsar.common.PulsarContainerTestEnvironment;
-import org.apache.flink.testutils.junit.FailsOnJava11;
+import org.apache.flink.tests.util.pulsar.source.ExclusiveSubscriptionContext;
+import org.apache.flink.tests.util.pulsar.source.FailoverSubscriptionContext;
 
-import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Tag;
 
 /**
  * Pulsar E2E test based on connector testing framework. It's used for Failover & Exclusive
  * subscription.
  */
-@Category(value = {FailsOnJava11.class})
+@SuppressWarnings("unused")
+@Tag("org.apache.flink.testutils.junit.FailsOnJava11")
 public class PulsarSourceOrderedE2ECase extends SourceTestSuiteBase<String> {
 
     // Defines the Semantic.

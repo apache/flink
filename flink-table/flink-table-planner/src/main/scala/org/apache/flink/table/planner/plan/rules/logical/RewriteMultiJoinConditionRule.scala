@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.rules.MultiJoin
 import org.apache.calcite.rex.{RexCall, RexNode}
@@ -29,18 +29,16 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Planner rule to apply transitive closure on [[MultiJoin]] for equi-join predicates.
-  *
-  * <p>e.g.
-  * MJ(A, B, C) ON A.a1=B.b1 AND B.b1=C.c1 &rarr;
-  * MJ(A, B, C) ON A.a1=B.b1 AND B.b1=C.c1 AND A.a1=C.c1
-  *
-  * The advantage of applying this rule is that it increases the choice of join reorder;
-  * at the same time, the disadvantage is that it will use more CPU for additional join predicates.
-  */
-class RewriteMultiJoinConditionRule extends RelOptRule(
-  operand(classOf[MultiJoin], any),
-  "RewriteMultiJoinConditionRule") {
+ * Planner rule to apply transitive closure on [[MultiJoin]] for equi-join predicates.
+ *
+ * <p>e.g. MJ(A, B, C) ON A.a1=B.b1 AND B.b1=C.c1 &rarr; MJ(A, B, C) ON A.a1=B.b1 AND B.b1=C.c1 AND
+ * A.a1=C.c1
+ *
+ * The advantage of applying this rule is that it increases the choice of join reorder; at the same
+ * time, the disadvantage is that it will use more CPU for additional join predicates.
+ */
+class RewriteMultiJoinConditionRule
+  extends RelOptRule(operand(classOf[MultiJoin], any), "RewriteMultiJoinConditionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val multiJoin: MultiJoin = call.rel(0)
@@ -72,22 +70,23 @@ class RewriteMultiJoinConditionRule extends RelOptRule(
 
     val newEquiJoinFilters = mutable.ListBuffer[RexNode](equiJoinFilters: _*)
     def containEquiJoinFilter(joinFilter: RexNode): Boolean = {
-      newEquiJoinFilters.exists { f => f.equals(joinFilter) }
+      newEquiJoinFilters.exists(f => f.equals(joinFilter))
     }
 
     val rexBuilder = multiJoin.getCluster.getRexBuilder
     candidateJoinFilters.foreach {
-      candidate => candidate.indices.foreach {
-        startIndex =>
-          val op1 = candidate(startIndex)
-          candidate.subList(startIndex + 1, candidate.size).foreach {
-            op2 =>
-              val newFilter = rexBuilder.makeCall(EQUALS, op1, op2)
-              if (!containEquiJoinFilter(newFilter)) {
-                newEquiJoinFilters += newFilter
-              }
-          }
-      }
+      candidate =>
+        candidate.indices.foreach {
+          startIndex =>
+            val op1 = candidate(startIndex)
+            candidate.subList(startIndex + 1, candidate.size).foreach {
+              op2 =>
+                val newFilter = rexBuilder.makeCall(EQUALS, op1, op2)
+                if (!containEquiJoinFilter(newFilter)) {
+                  newEquiJoinFilters += newFilter
+                }
+            }
+        }
     }
 
     if (newEquiJoinFilters.size == equiJoinFilters.size) {
@@ -112,9 +111,7 @@ class RewriteMultiJoinConditionRule extends RelOptRule(
     call.transformTo(newMultiJoin)
   }
 
-  /**
-    * Partitions MultiJoin condition in equi join filters and non-equi join filters.
-    */
+  /** Partitions MultiJoin condition in equi join filters and non-equi join filters. */
   private def partitionJoinFilters(multiJoin: MultiJoin): (Seq[RexNode], Seq[RexNode]) = {
     val joinFilters = RelOptUtil.conjunctions(multiJoin.getJoinFilter)
     joinFilters.partition(f => f.isA(SqlKind.EQUALS))

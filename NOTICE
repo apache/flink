@@ -1,5 +1,5 @@
 Apache Flink
-Copyright 2014-2021 The Apache Software Foundation
+Copyright 2014-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -17,7 +17,7 @@ See bundled license files for details.
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
 
-- cloudpickle:1.2.2
+- cloudpickle:2.1.0
 - net.sf.py4j:py4j:0.10.9.3
 
 This project bundles the following dependencies under SIL OFL 1.1 license (https://opensource.org/licenses/OFL-1.1).

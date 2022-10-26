@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
@@ -43,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -94,7 +92,13 @@ public class MiniClusterResource extends ExternalResource {
         return restClusterClientConfig;
     }
 
+    /** @deprecated use {@link #getRestAddress()} instead */
+    @Deprecated
     public URI getRestAddres() {
+        return getRestAddress();
+    }
+
+    public URI getRestAddress() {
         return miniCluster.getRestAddress().join();
     }
 
@@ -128,39 +132,25 @@ public class MiniClusterResource extends ExternalResource {
 
     private void cancelAllJobs(boolean waitUntilSlotsAreFreed) {
         try {
-            final long shutdownTimeout =
-                    miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds();
-            final Deadline jobCancellationDeadline =
-                    Deadline.fromNow(Duration.ofMillis(shutdownTimeout));
             final List<CompletableFuture<Acknowledge>> jobCancellationFutures =
-                    miniCluster.listJobs()
-                            .get(
-                                    jobCancellationDeadline.timeLeft().toMillis(),
-                                    TimeUnit.MILLISECONDS)
-                            .stream()
+                    miniCluster.listJobs().get().stream()
                             .filter(status -> !status.getJobState().isGloballyTerminalState())
                             .map(status -> miniCluster.cancelJob(status.getJobId()))
                             .collect(Collectors.toList());
 
-            FutureUtils.waitForAll(jobCancellationFutures)
-                    .get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            FutureUtils.waitForAll(jobCancellationFutures).get();
 
             CommonTestUtils.waitUntilCondition(
                     () -> {
                         final long unfinishedJobs =
-                                miniCluster.listJobs()
-                                        .get(
-                                                jobCancellationDeadline.timeLeft().toMillis(),
-                                                TimeUnit.MILLISECONDS)
-                                        .stream()
+                                miniCluster.listJobs().get().stream()
                                         .filter(
                                                 status ->
                                                         !status.getJobState()
                                                                 .isGloballyTerminalState())
                                         .count();
                         return unfinishedJobs == 0;
-                    },
-                    jobCancellationDeadline);
+                    });
 
             if (waitUntilSlotsAreFreed) {
                 CommonTestUtils.waitUntilCondition(
@@ -169,8 +159,7 @@ public class MiniClusterResource extends ExternalResource {
                                     miniCluster.getResourceOverview().get();
                             return resourceOverview.getNumberRegisteredSlots()
                                     == resourceOverview.getNumberFreeSlots();
-                        },
-                        jobCancellationDeadline);
+                        });
             }
         } catch (Exception e) {
             log.warn("Exception while shutting down remaining jobs.", e);

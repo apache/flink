@@ -39,6 +39,8 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** IT cases for the {@link HadoopMapFunction}. */
 @RunWith(Parameterized.class)
 public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {

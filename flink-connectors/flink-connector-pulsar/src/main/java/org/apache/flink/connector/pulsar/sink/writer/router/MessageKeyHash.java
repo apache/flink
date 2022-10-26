@@ -25,7 +25,7 @@ import org.apache.flink.configuration.description.InlineElement;
 
 import org.apache.pulsar.client.impl.Hash;
 import org.apache.pulsar.client.impl.JavaStringHash;
-import org.apache.pulsar.client.impl.Murmur3_32Hash;
+import org.apache.pulsar.client.impl.Murmur3Hash32;
 
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -57,7 +57,7 @@ public enum MessageKeyHash implements DescribedEnum {
                     link("https://en.wikipedia.org/wiki/MurmurHash", "Murmur3"))) {
         @Override
         public Hash getHash() {
-            return Murmur3_32Hash.getInstance();
+            return Murmur3Hash32.getInstance();
         }
     };
 

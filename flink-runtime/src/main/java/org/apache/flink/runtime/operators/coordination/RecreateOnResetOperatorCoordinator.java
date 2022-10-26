@@ -77,14 +77,18 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
-    public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
+            throws Exception {
         coordinator.applyCall(
-                "handleEventFromOperator", c -> c.handleEventFromOperator(subtask, event));
+                "handleEventFromOperator",
+                c -> c.handleEventFromOperator(subtask, attemptNumber, event));
     }
 
     @Override
-    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
-        coordinator.applyCall("subtaskFailed", c -> c.subtaskFailed(subtask, reason));
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
+        coordinator.applyCall(
+                "executionAttemptFailed",
+                c -> c.executionAttemptFailed(subtask, attemptNumber, reason));
     }
 
     @Override
@@ -93,8 +97,10 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
-    public void subtaskReady(int subtask, SubtaskGateway gateway) {
-        coordinator.applyCall("subtaskReady", c -> c.subtaskReady(subtask, gateway));
+    public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
+        coordinator.applyCall(
+                "executionAttemptReady",
+                c -> c.executionAttemptReady(subtask, attemptNumber, gateway));
     }
 
     @Override
@@ -244,6 +250,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         @Override
         public CoordinatorStore getCoordinatorStore() {
             return context.getCoordinatorStore();
+        }
+
+        @Override
+        public boolean isConcurrentExecutionAttemptsSupported() {
+            return context.isConcurrentExecutionAttemptsSupported();
         }
 
         @VisibleForTesting

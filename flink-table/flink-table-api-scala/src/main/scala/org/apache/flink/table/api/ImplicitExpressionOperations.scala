@@ -19,16 +19,16 @@ package org.apache.flink.table.api
 
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.table.api.internal.BaseExpressions
-import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 
 import scala.language.implicitConversions
 
 /**
-  * These are all the operations that can be used to construct an [[Expression]] AST for
-  * expression operations.
-  */
+ * These are all the operations that can be used to construct an [[Expression]] AST for expression
+ * operations.
+ */
 @PublicEvolving
 trait ImplicitExpressionOperations extends BaseExpressions[Expression, Expression] {
   private[flink] def expr: Expression
@@ -40,128 +40,106 @@ trait ImplicitExpressionOperations extends BaseExpressions[Expression, Expressio
   /**
    * Specifies a name for an expression i.e. a field.
    *
-   * @param name name for one field
-   * @param extraNames additional names if the expression expands to multiple fields
-   * @return field with an alias
+   * @param name
+   *   name for one field
+   * @param extraNames
+   *   additional names if the expression expands to multiple fields
+   * @return
+   *   field with an alias
    */
   def as(name: Symbol, extraNames: Symbol*): Expression = as(name.name, extraNames.map(_.name): _*)
 
-  /**
-    * Boolean AND in three-valued logic.
-    */
-  def && (other: Expression): Expression = and(other)
+  /** Boolean AND in three-valued logic. */
+  def &&(other: Expression): Expression = and(other)
 
-  /**
-    * Boolean OR in three-valued logic.
-    */
-  def || (other: Expression): Expression = or(other)
+  /** Boolean OR in three-valued logic. */
+  def ||(other: Expression): Expression = or(other)
 
-  /**
-    * Greater than.
-    */
-  def > (other: Expression): Expression = isGreater(other)
+  /** Greater than. */
+  def >(other: Expression): Expression = isGreater(other)
 
-  /**
-    * Greater than or equal.
-    */
-  def >= (other: Expression): Expression = isGreaterOrEqual(other)
+  /** Greater than or equal. */
+  def >=(other: Expression): Expression = isGreaterOrEqual(other)
 
-  /**
-    * Less than.
-    */
-  def < (other: Expression): Expression = isLess(other)
+  /** Less than. */
+  def <(other: Expression): Expression = isLess(other)
 
-  /**
-    * Less than or equal.
-    */
-  def <= (other: Expression): Expression = isLessOrEqual(other)
+  /** Less than or equal. */
+  def <=(other: Expression): Expression = isLessOrEqual(other)
 
-  /**
-    * Equals.
-    */
-  def === (other: Expression): Expression = isEqual(other)
+  /** Equals. */
+  def ===(other: Expression): Expression = isEqual(other)
 
-  /**
-    * Not equal.
-    */
-  def !== (other: Expression): Expression = isNotEqual(other)
+  /** Not equal. */
+  def !==(other: Expression): Expression = isNotEqual(other)
 
-  /**
-    * Whether boolean expression is not true; returns null if boolean is null.
-    */
+  /** Whether boolean expression is not true; returns null if boolean is null. */
   def unary_! : Expression = unresolvedCall(NOT, expr)
 
-  /**
-    * Returns negative numeric.
-    */
+  /** Returns negative numeric. */
   def unary_- : Expression = Expressions.negative(expr)
 
-  /**
-    * Returns numeric.
-    */
+  /** Returns numeric. */
   def unary_+ : Expression = expr
 
-  /**
-    * Returns left plus right.
-    */
-  def + (other: Expression): Expression = plus(other)
+  /** Returns left plus right. */
+  def +(other: Expression): Expression = plus(other)
+
+  /** Returns left minus right. */
+  def -(other: Expression): Expression = minus(other)
+
+  /** Returns left divided by right. */
+  def /(other: Expression): Expression = dividedBy(other)
+
+  /** Returns left multiplied by right. */
+  def *(other: Expression): Expression = times(other)
 
   /**
-    * Returns left minus right.
-    */
-  def - (other: Expression): Expression = minus(other)
+   * Returns the remainder (modulus) of left divided by right. The result is negative only if left
+   * is negative.
+   */
+  def %(other: Expression): Expression = mod(other)
 
   /**
-    * Returns left divided by right.
-    */
-  def / (other: Expression): Expression = dividedBy(other)
+   * Indicates the range from left to right, i.e. [left, right], which can be used in columns
+   * selection.
+   *
+   * e.g. withColumns(1 to 3)
+   */
+  def to(other: Expression): Expression = unresolvedCall(RANGE_TO, expr, objectToExpression(other))
 
   /**
-    * Returns left multiplied by right.
-    */
-  def * (other: Expression): Expression = times(other)
-
-  /**
-    * Returns the remainder (modulus) of left divided by right.
-    * The result is negative only if left is negative.
-    */
-  def % (other: Expression): Expression = mod(other)
-
-  /**
-    * Indicates the range from left to right, i.e. [left, right], which can be used in columns
-    * selection.
-    *
-    * e.g. withColumns(1 to 3)
-    */
-  def to (other: Expression): Expression = unresolvedCall(RANGE_TO, expr, objectToExpression(other))
-
-  /**
-    * Ternary conditional operator that decides which of two other expressions should be
-    * based on a evaluated boolean condition.
-    *
-    * e.g. ($"f0" > 5).?("A", "B") leads to "A"
-    *
-    * @param ifTrue expression to be evaluated if condition holds
-    * @param ifFalse expression to be evaluated if condition does not hold
-    */
+   * Ternary conditional operator that decides which of two other expressions should be based on a
+   * evaluated boolean condition.
+   *
+   * e.g. ($"f0" > 5).?("A", "B") leads to "A"
+   *
+   * @param ifTrue
+   *   expression to be evaluated if condition holds
+   * @param ifFalse
+   *   expression to be evaluated if condition does not hold
+   */
   def ?(ifTrue: Expression, ifFalse: Expression): Expression =
     Expressions.ifThenElse(expr, ifTrue, ifFalse).toExpr
 
   // scalar functions
 
   /**
-    * Removes leading and/or trailing characters from the given string.
-    *
-    * @param removeLeading if true, remove leading characters (default: true)
-    * @param removeTrailing if true, remove trailing characters (default: true)
-    * @param character string containing the character (default: " ")
-    * @return trimmed string
-    */
+   * Removes leading and/or trailing characters from the given string.
+   *
+   * @param removeLeading
+   *   if true, remove leading characters (default: true)
+   * @param removeTrailing
+   *   if true, remove trailing characters (default: true)
+   * @param character
+   *   string containing the character (default: " ")
+   * @return
+   *   trimmed string
+   */
   def trim(
       removeLeading: Boolean = true,
       removeTrailing: Boolean = true,
-      character: Expression = valueLiteral(" "))
-    : Expression = {
+      character: Expression = valueLiteral(" ")): Expression = {
     unresolvedCall(
       TRIM,
       valueLiteral(removeLeading),
@@ -173,9 +151,10 @@ trait ImplicitExpressionOperations extends BaseExpressions[Expression, Expressio
   // Row interval type
 
   /**
-    * Creates an interval of rows.
-    *
-    * @return interval of rows
-    */
+   * Creates an interval of rows.
+   *
+   * @return
+   *   interval of rows
+   */
   def rows: Expression = toRowInterval(expr)
 }

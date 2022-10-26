@@ -32,7 +32,7 @@ import {
 import { fromEvent, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { isNil } from 'utils';
+import { isNil } from '@flink-runtime-web/utils';
 
 export enum ResizeModeEnums {
   Vertical = 'vertical',
@@ -48,7 +48,7 @@ export type ResizeMode = ResizeModeEnums | 'vertical' | 'horizontal';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ResizeComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
+  private destroy$ = new Subject<void>();
   private isMoving = false;
   @Input() left = 0;
   @Input() top = 0;

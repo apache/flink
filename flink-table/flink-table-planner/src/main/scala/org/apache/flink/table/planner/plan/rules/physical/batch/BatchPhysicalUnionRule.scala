@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -28,9 +27,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 import scala.collection.JavaConversions._
 
-/**
-  * Rule that converts [[FlinkLogicalUnion]] to [[BatchPhysicalUnion]].
-  */
+/** Rule that converts [[FlinkLogicalUnion]] to [[BatchPhysicalUnion]]. */
 class BatchPhysicalUnionRule
   extends ConverterRule(
     classOf[FlinkLogicalUnion],
@@ -47,12 +44,7 @@ class BatchPhysicalUnionRule
     val traitSet = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newInputs = union.getInputs.map(RelOptRule.convert(_, FlinkConventions.BATCH_PHYSICAL))
 
-    new BatchPhysicalUnion(
-      rel.getCluster,
-      traitSet,
-      newInputs,
-      union.all,
-      rel.getRowType)
+    new BatchPhysicalUnion(rel.getCluster, traitSet, newInputs, union.all, rel.getRowType)
   }
 }
 

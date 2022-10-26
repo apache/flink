@@ -15,25 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 
-/**
- * Inverts the boolean value of a [[CallGenerator]] result.
- */
+/** Inverts the boolean value of a [[CallGenerator]] result. */
 class NotCallGen(callGenerator: CallGenerator) extends CallGenerator {
 
   override def generate(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType
   ): GeneratedExpression = {
     assert(returnType.isInstanceOf[BooleanType])
 
-    ScalarOperatorGens.generateNot(ctx, callGenerator.generate(ctx, operands, returnType))
+    ScalarOperatorGens.generateNot(
+      ctx,
+      callGenerator.generate(ctx, operands, returnType),
+      returnType)
   }
 
 }

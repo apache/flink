@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, ValidationException}
@@ -36,8 +35,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAtt
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeFamily
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.time.Duration
@@ -47,14 +46,10 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/**
- * Utilities for window table-valued functions.
- */
+/** Utilities for window table-valued functions. */
 object WindowUtil {
 
-  /**
-   * Returns true if the grouping keys contain window_start and window_end properties.
-   */
+  /** Returns true if the grouping keys contain window_start and window_end properties. */
   def groupingContainsWindowStartEnd(
       grouping: ImmutableBitSet,
       windowProperties: RelWindowProperties): Boolean = {
@@ -69,13 +64,11 @@ object WindowUtil {
     }
   }
 
-  /**
-   * Excludes window_start, window_end and window_time properties from grouping keys.
-   */
+  /** Excludes window_start, window_end and window_time properties from grouping keys. */
   def groupingExcludeWindowStartEndTimeColumns(
       grouping: ImmutableBitSet,
-      windowProperties: RelWindowProperties): (
-    ImmutableBitSet, ImmutableBitSet, ImmutableBitSet, ImmutableBitSet) = {
+      windowProperties: RelWindowProperties)
+      : (ImmutableBitSet, ImmutableBitSet, ImmutableBitSet, ImmutableBitSet) = {
     val startColumns = windowProperties.getWindowStartColumns.intersect(grouping)
     val endColumns = windowProperties.getWindowEndColumns.intersect(grouping)
     val timeColumns = windowProperties.getWindowTimeColumns.intersect(grouping)
@@ -83,17 +76,13 @@ object WindowUtil {
     (startColumns, endColumns, timeColumns, newGrouping)
   }
 
-  /**
-   * Returns true if the [[RexNode]] is a window table-valued function call.
-   */
+  /** Returns true if the [[RexNode]] is a window table-valued function call. */
   def isWindowTableFunctionCall(node: RexNode): Boolean = node match {
     case call: RexCall => call.getOperator.isInstanceOf[SqlWindowTableFunction]
     case _ => false
   }
 
-  /**
-   * Returns true if expressions in [[Calc]] contain calls on window columns.
-   */
+  /** Returns true if expressions in [[Calc]] contain calls on window columns. */
   def calcContainsCallsOnWindowColumns(calc: Calc, fmq: FlinkRelMetadataQuery): Boolean = {
     val calcInput = calc.getInput
     val calcInputWindowColumns = fmq.getRelWindowProperties(calcInput).getWindowColumns
@@ -115,14 +104,12 @@ object WindowUtil {
   }
 
   /**
-   * Builds a new RexProgram on the input of window-tvf to exclude window columns,
-   * but include time attribute.
+   * Builds a new RexProgram on the input of window-tvf to exclude window columns, but include time
+   * attribute.
    *
-   * The return tuple consists of 4 elements:
-   * (1) the new RexProgram
-   * (2) the field index shifting
-   * (3) the new index of time attribute on the new RexProgram
-   * (4) whether the time attribute is new added
+   * The return tuple consists of 4 elements: (1) the new RexProgram (2) the field index shifting
+   * (3) the new index of time attribute on the new RexProgram (4) whether the time attribute is new
+   * added
    */
   def buildNewProgramWithoutWindowColumns(
       rexBuilder: RexBuilder,
@@ -136,41 +123,40 @@ object WindowUtil {
     var newTimeAttributeIndex = -1
     val calcFieldShifting = ArrayBuffer[Int]()
     val visitedProjectNames = new mutable.ArrayBuffer[String]
-    oldProgram.getNamedProjects.foreach { namedProject =>
-      val expr = oldProgram.expandLocalRef(namedProject.left)
-      val uniqueName = RowTypeUtils.getUniqueName(namedProject.right, visitedProjectNames)
-      // project columns except window columns
-      expr match {
-        case inputRef: RexInputRef if windowColumns.contains(inputRef.getIndex) =>
-          calcFieldShifting += -1
+    oldProgram.getNamedProjects.foreach {
+      namedProject =>
+        val expr = oldProgram.expandLocalRef(namedProject.left)
+        val uniqueName = RowTypeUtils.getUniqueName(namedProject.right, visitedProjectNames)
+        // project columns except window columns
+        expr match {
+          case inputRef: RexInputRef if windowColumns.contains(inputRef.getIndex) =>
+            calcFieldShifting += -1
 
-        case _ =>
-          try {
-            programBuilder.addProject(expr, uniqueName)
-            visitedProjectNames += uniqueName
-          } catch {
-            case e: Throwable =>
-              e.printStackTrace()
-          }
-          val fieldIndex = programBuilder.getProjectList.size() - 1
-          calcFieldShifting += fieldIndex
-          // check time attribute exists in the calc
-          expr match {
-            case ref: RexInputRef if ref.getIndex == inputTimeAttributeIndex =>
-              containsTimeAttribute = true
-              newTimeAttributeIndex = fieldIndex
-            case _ => // nothing
-          }
-      }
+          case _ =>
+            try {
+              programBuilder.addProject(expr, uniqueName)
+              visitedProjectNames += uniqueName
+            } catch {
+              case e: Throwable =>
+                e.printStackTrace()
+            }
+            val fieldIndex = programBuilder.getProjectList.size() - 1
+            calcFieldShifting += fieldIndex
+            // check time attribute exists in the calc
+            expr match {
+              case ref: RexInputRef if ref.getIndex == inputTimeAttributeIndex =>
+                containsTimeAttribute = true
+                newTimeAttributeIndex = fieldIndex
+              case _ => // nothing
+            }
+        }
     }
 
     // append time attribute if the calc doesn't refer it
     if (!containsTimeAttribute) {
       val oldTimeAttributeFieldName = inputRowType.getFieldNames.get(inputTimeAttributeIndex)
       val uniqueName = RowTypeUtils.getUniqueName(oldTimeAttributeFieldName, visitedProjectNames)
-      programBuilder.addProject(
-        inputTimeAttributeIndex,
-        uniqueName)
+      programBuilder.addProject(inputTimeAttributeIndex, uniqueName)
       newTimeAttributeIndex = programBuilder.getProjectList.size() - 1
     }
 
@@ -183,9 +169,7 @@ object WindowUtil {
     (program, calcFieldShifting.toArray, newTimeAttributeIndex, !containsTimeAttribute)
   }
 
-  def validateTimeFieldWithTimeAttribute(
-      windowCall: RexCall,
-      inputRowType: RelDataType): Unit = {
+  def validateTimeFieldWithTimeAttribute(windowCall: RexCall, inputRowType: RelDataType): Unit = {
     val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
@@ -202,16 +186,18 @@ object WindowUtil {
       windowCall: RexCall,
       inputRowType: RelDataType): TimeAttributeWindowingStrategy = {
     if (!isWindowTableFunctionCall(windowCall)) {
-      throw new IllegalArgumentException(s"RexCall $windowCall is not a window table-valued " +
-        "function, can't convert it into WindowingStrategy")
+      throw new IllegalArgumentException(
+        s"RexCall $windowCall is not a window table-valued " +
+          "function, can't convert it into WindowingStrategy")
     }
 
     val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!canBeTimeAttributeType(timeAttributeType)) {
-      throw new ValidationException("The supported time indicator type are TIMESTAMP" +
-        " and TIMESTAMP_LTZ, but is " + FlinkTypeFactory.toLogicalType(fieldType) + "")
+      throw new ValidationException(
+        "The supported time indicator type are TIMESTAMP" +
+          " and TIMESTAMP_LTZ, but is " + FlinkTypeFactory.toLogicalType(fieldType) + "")
     }
 
     val windowFunction = windowCall.getOperator.asInstanceOf[SqlWindowTableFunction]
@@ -250,17 +236,19 @@ object WindowUtil {
   }
 
   /**
-   * Window TVF based aggregations don't support early-fire and late-fire,
-   * throws exception when the configurations are set.
+   * Window TVF based aggregations don't support early-fire and late-fire, throws exception when the
+   * configurations are set.
    */
   def checkEmitConfiguration(tableConfig: TableConfig): Unit = {
-    val conf = tableConfig.getConfiguration
-    if (conf.getBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
-      conf.getBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
-      throw new TableException("Currently, window table function based aggregate doesn't " +
-        s"support early-fire and late-fire configuration " +
-        s"'${TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key()}' and " +
-        s"'${TABLE_EXEC_EMIT_LATE_FIRE_ENABLED.key()}'.")
+    if (
+      tableConfig.get(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
+      tableConfig.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
+    ) {
+      throw new TableException(
+        "Currently, window table function based aggregate doesn't " +
+          s"support early-fire and late-fire configuration " +
+          s"'${TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key()}' and " +
+          s"'${TABLE_EXEC_EMIT_LATE_FIRE_ENABLED.key()}'.")
     }
   }
 
@@ -285,23 +273,22 @@ object WindowUtil {
       aggCalls)
     val builder = typeFactory.builder
     builder.addAll(baseType.getFieldList)
-    namedWindowProperties.foreach { namedProp =>
-      // use types from windowing strategy which keeps the precision and timestamp type
-      // cast the type to not null type, because window properties should never be null
-      val timeType = namedProp.getProperty match {
-        case _: WindowStart | _: WindowEnd =>
-          new TimestampType(false, 3)
-        case _: RowtimeAttribute | _: ProctimeAttribute =>
-          windowing.getTimeAttributeType.copy(false)
-      }
-      builder.add(namedProp.getName, typeFactory.createFieldTypeFromLogicalType(timeType))
+    namedWindowProperties.foreach {
+      namedProp =>
+        // use types from windowing strategy which keeps the precision and timestamp type
+        // cast the type to not null type, because window properties should never be null
+        val timeType = namedProp.getProperty match {
+          case _: WindowStart | _: WindowEnd =>
+            new TimestampType(false, 3)
+          case _: RowtimeAttribute | _: ProctimeAttribute =>
+            windowing.getTimeAttributeType.copy(false)
+        }
+        builder.add(namedProp.getName, typeFactory.createFieldTypeFromLogicalType(timeType))
     }
     builder.build()
   }
 
-  /**
-   * Derives output row type from local window aggregate
-   */
+  /** Derives output row type from local window aggregate */
   def deriveLocalWindowAggregateRowType(
       aggInfoList: AggregateInfoList,
       grouping: Array[Int],
@@ -348,9 +335,10 @@ object WindowUtil {
     operand match {
       case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
         v.getValue.asInstanceOf[JBigDecimal].longValue()
-      case _: RexLiteral => throw new TableException(
-        "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
-          "MONTH and YEAR time unit are not supported yet.")
+      case _: RexLiteral =>
+        throw new TableException(
+          "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
+            "MONTH and YEAR time unit are not supported yet.")
       case _ => throw new TableException("Only constant window descriptors are supported.")
     }
   }

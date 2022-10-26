@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.ReadableConfig
@@ -33,16 +32,20 @@ import scala.collection.JavaConversions._
 object ValuesCodeGenerator {
 
   def generatorInputFormat(
-    tableConfig: ReadableConfig,
-    outputType: RowType,
-    tuples: util.List[util.List[RexLiteral]],
-    description: String): ValuesInputFormat = {
-    val ctx = CodeGeneratorContext(tableConfig)
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      outputType: RowType,
+      tuples: util.List[util.List[RexLiteral]],
+      description: String): ValuesInputFormat = {
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val exprGenerator = new ExprCodeGenerator(ctx, false)
     // generate code for every record
-    val generatedRecords = tuples.map { r =>
-      exprGenerator.generateResultExpression(
-        r.map(exprGenerator.generateExpression), outputType, classOf[GenericRowData])
+    val generatedRecords = tuples.map {
+      r =>
+        exprGenerator.generateResultExpression(
+          r.map(exprGenerator.generateExpression),
+          outputType,
+          classOf[GenericRowData])
     }
 
     // generate input format

@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>pulsar.source.allowKeySharedOutOfOrderDelivery</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If enabled, it will relax the ordering requirement, allowing the broker to send out-of-order messages in case of failures. This will make it faster for new consumers to join without being stalled by an existing slow consumer.<br />In this case, a single consumer will still receive all the keys, but they may be coming in different orders.</td>
+        </tr>
+        <tr>
             <td><h5>pulsar.source.autoCommitCursorInterval</h5></td>
             <td style="word-wrap: break-word;">5000</td>
             <td>Long</td>

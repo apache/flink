@@ -20,6 +20,12 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
@@ -73,7 +79,10 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoi
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowRank;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowTableFunction;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -81,6 +90,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /** Utility class for {@link ExecNodeMetadata} related functionality. */
 @Internal
@@ -128,6 +138,11 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowJoin.class);
                     add(StreamExecWindowRank.class);
                     add(StreamExecWindowTableFunction.class);
+                    add(StreamExecPythonCalc.class);
+                    add(StreamExecPythonCorrelate.class);
+                    add(StreamExecPythonGroupAggregate.class);
+                    add(StreamExecPythonGroupWindowAggregate.class);
+                    add(StreamExecPythonOverAggregate.class);
                 }
             };
 
@@ -148,16 +163,23 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLegacyTableSourceScan.class);
                     add(StreamExecLegacySink.class);
                     add(StreamExecGroupTableAggregate.class);
-                    add(StreamExecPythonCalc.class);
-                    add(StreamExecPythonCorrelate.class);
-                    add(StreamExecPythonGroupAggregate.class);
-                    add(StreamExecPythonGroupWindowAggregate.class);
-                    add(StreamExecPythonOverAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecSort.class);
                     add(StreamExecMultipleInput.class);
                 }
             };
+
+    public static final Set<ConfigOption<?>> TABLE_CONFIG_OPTIONS;
+
+    static {
+        TABLE_CONFIG_OPTIONS = ConfigUtils.getAllConfigOptions(TableConfigOptions.class);
+    }
+
+    public static final Set<ConfigOption<?>> EXECUTION_CONFIG_OPTIONS;
+
+    static {
+        EXECUTION_CONFIG_OPTIONS = ConfigUtils.getAllConfigOptions(ExecutionConfigOptions.class);
+    }
 
     public static Set<Class<? extends ExecNode<?>>> execNodes() {
         return EXEC_NODES;
@@ -252,6 +274,63 @@ public final class ExecNodeMetadataUtil {
         }
         sortedAnnotations.sort(Comparator.comparingInt(ExecNodeMetadata::version));
         return sortedAnnotations.get(sortedAnnotations.size() - 1);
+    }
+
+    @Nullable
+    public static <T extends ExecNode<?>> String[] consumedOptions(Class<T> execNodeClass) {
+        ExecNodeMetadata metadata = latestAnnotation(execNodeClass);
+        if (metadata == null) {
+            return null;
+        }
+        return metadata.consumedOptions();
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static <T extends ExecNode<?>> ReadableConfig newPersistedConfig(
+            Class<T> execNodeClass,
+            ReadableConfig tableConfig,
+            Stream<ConfigOption<?>> configOptions) {
+        final Map<String, ConfigOption<?>> availableConfigOptions = new HashMap<>();
+        configOptions.forEach(
+                co -> {
+                    availableConfigOptions.put(co.key(), co);
+                    co.fallbackKeys().forEach(k -> availableConfigOptions.put(k.getKey(), co));
+                });
+
+        final Configuration persistedConfig = new Configuration();
+        final String[] consumedOptions = ExecNodeMetadataUtil.consumedOptions(execNodeClass);
+        if (consumedOptions == null) {
+            return persistedConfig;
+        }
+
+        final Map<ConfigOption, Object> nodeConfigOptions = new HashMap<>();
+        for (final String consumedOption : consumedOptions) {
+            ConfigOption configOption = availableConfigOptions.get(consumedOption);
+            if (configOption == null) {
+                throw new IllegalStateException(
+                        String.format(
+                                "ExecNode: %s, consumedOption: %s not listed in [%s].",
+                                execNodeClass.getCanonicalName(),
+                                consumedOption,
+                                String.join(
+                                        ", ",
+                                        Arrays.asList(
+                                                TableConfigOptions.class.getSimpleName(),
+                                                ExecutionConfigOptions.class.getSimpleName()))));
+            }
+            if (nodeConfigOptions.containsKey(configOption)) {
+                throw new IllegalStateException(
+                        String.format(
+                                "ExecNode: %s, consumedOption: %s is listed multiple times in "
+                                        + "consumedOptions, potentially also with "
+                                        + "fallback/deprecated key.",
+                                execNodeClass.getCanonicalName(), consumedOption));
+            } else {
+                nodeConfigOptions.put(configOption, tableConfig.get(configOption));
+            }
+        }
+        nodeConfigOptions.forEach(persistedConfig::set);
+        return persistedConfig;
     }
 
     /** Helper Pojo used as a tuple for the {@link #LOOKUP_MAP}. */

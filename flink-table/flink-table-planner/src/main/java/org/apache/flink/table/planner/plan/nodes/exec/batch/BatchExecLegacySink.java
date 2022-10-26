@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -41,6 +42,7 @@ import java.lang.reflect.Modifier;
 public class BatchExecLegacySink<T> extends CommonExecLegacySink<T> implements BatchExecNode<T> {
 
     public BatchExecLegacySink(
+            ReadableConfig tableConfig,
             TableSink<T> tableSink,
             @Nullable String[] upsertKeys,
             InputProperty inputProperty,
@@ -49,6 +51,7 @@ public class BatchExecLegacySink<T> extends CommonExecLegacySink<T> implements B
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecLegacySink.class),
+                ExecNodeContext.newPersistedConfig(BatchExecLegacySink.class, tableConfig),
                 tableSink,
                 upsertKeys,
                 false, // needRetraction

@@ -59,12 +59,11 @@ public final class RootArgumentTypeStrategy implements ArgumentTypeStrategy {
         final LogicalType actualType = actualDataType.getLogicalType();
 
         if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
-            if (throwOnFailure) {
-                throw callContext.newValidationError(
-                        "Unsupported argument type. Expected nullable type of root '%s' but actual type was '%s'.",
-                        expectedRoot, actualType);
-            }
-            return Optional.empty();
+            return callContext.fail(
+                    throwOnFailure,
+                    "Unsupported argument type. Expected nullable type of root '%s' but actual type was '%s'.",
+                    expectedRoot,
+                    actualType);
         }
 
         return findDataType(
@@ -75,11 +74,11 @@ public final class RootArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
         // "< ... >" to indicate that this is not a type
         if (Objects.equals(expectedNullability, Boolean.TRUE)) {
-            return Argument.of("<" + expectedRoot + " NULL>");
+            return Argument.ofGroup(expectedRoot + " NULL");
         } else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
-            return Argument.of("<" + expectedRoot + " NOT NULL>");
+            return Argument.ofGroup(expectedRoot + " NOT NULL");
         }
-        return Argument.of("<" + expectedRoot + ">");
+        return Argument.ofGroup(expectedRoot);
     }
 
     @Override

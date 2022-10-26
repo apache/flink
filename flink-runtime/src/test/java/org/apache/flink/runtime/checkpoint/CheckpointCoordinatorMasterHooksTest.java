@@ -30,10 +30,13 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -47,6 +50,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
 import static org.junit.Assert.assertArrayEquals;
@@ -67,6 +71,10 @@ import static org.mockito.Mockito.when;
 /** Tests for the user-defined hooks that the checkpoint coordinator can call. */
 public class CheckpointCoordinatorMasterHooksTest {
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     // ------------------------------------------------------------------------
     //  hook registration
     // ------------------------------------------------------------------------
@@ -77,7 +85,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         MasterTriggerRestoreHook<?> hook1 = mock(MasterTriggerRestoreHook.class);
@@ -100,7 +108,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         try {
@@ -139,7 +147,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         cc.addMasterHook(hook1);
@@ -194,7 +202,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         final ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexId)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final CheckpointCoordinator cc =
@@ -301,7 +309,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         cc.addMasterHook(statefulHook1);
@@ -363,7 +371,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         cc.addMasterHook(statefulHook);
@@ -402,7 +410,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         CheckpointCoordinator cc =

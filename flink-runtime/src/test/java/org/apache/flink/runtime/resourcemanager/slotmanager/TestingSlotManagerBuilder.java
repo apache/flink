@@ -35,6 +35,7 @@ public class TestingSlotManagerBuilder {
             () -> Collections.emptyMap();
     private Consumer<ResourceRequirements> processRequirementsConsumer = ignored -> {};
     private Consumer<JobID> clearRequirementsConsumer = ignored -> {};
+    private Consumer<Void> triggerRequirementsCheckConsumer = ignored -> {};
 
     public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(
             Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
@@ -60,11 +61,18 @@ public class TestingSlotManagerBuilder {
         return this;
     }
 
+    public TestingSlotManagerBuilder setTriggerRequirementsCheckConsumer(
+            Consumer<Void> triggerRequirementsCheckConsumer) {
+        this.triggerRequirementsCheckConsumer = triggerRequirementsCheckConsumer;
+        return this;
+    }
+
     public TestingSlotManager createSlotManager() {
         return new TestingSlotManager(
                 setFailUnfulfillableRequestConsumer,
                 getRequiredResourcesSupplier,
                 processRequirementsConsumer,
-                clearRequirementsConsumer);
+                clearRequirementsConsumer,
+                triggerRequirementsCheckConsumer);
     }
 }

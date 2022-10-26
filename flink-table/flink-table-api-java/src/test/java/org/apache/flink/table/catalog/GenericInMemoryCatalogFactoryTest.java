@@ -19,9 +19,8 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,10 +28,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link GenericInMemoryCatalog} created by {@link GenericInMemoryCatalogFactory}. */
-public class GenericInMemoryCatalogFactoryTest extends TestLogger {
+class GenericInMemoryCatalogFactoryTest {
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         final String catalogName = "mycatalog";
         final String databaseName = "mydatabase";
 

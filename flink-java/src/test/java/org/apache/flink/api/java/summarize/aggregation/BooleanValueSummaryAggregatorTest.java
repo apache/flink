@@ -21,10 +21,10 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 import org.apache.flink.types.BooleanValue;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ValueSummaryAggregator.BooleanValueSummaryAggregator}. */
-public class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorTest {
+class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorTest {
 
     /**
      * Helper method for summarizing a list of values.
@@ -48,10 +48,10 @@ public class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorT
             @Override
             protected void compareResults(
                     BooleanColumnSummary result1, BooleanColumnSummary result2) {
-                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-                Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
-                Assert.assertEquals(result1.getTrueCount(), result2.getTrueCount());
-                Assert.assertEquals(result1.getFalseCount(), result2.getFalseCount());
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getNonNullCount()).isEqualTo(result1.getNonNullCount());
+                assertThat(result2.getTrueCount()).isEqualTo(result1.getTrueCount());
+                assertThat(result2.getFalseCount()).isEqualTo(result1.getFalseCount());
             }
         }.summarize(booleanValues);
     }

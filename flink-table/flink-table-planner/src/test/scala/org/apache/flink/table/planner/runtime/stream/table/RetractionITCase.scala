@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.TableFunc0
 import org.apache.flink.types.Row
 
@@ -31,9 +30,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
-  * tests for retraction
-  */
+/** tests for retraction */
 @RunWith(classOf[Parameterized])
 class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
   // input data
@@ -57,9 +54,9 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
-      .select('num.sum as 'count)
+      .select('num.sum.as('count))
       .groupBy('count)
-      .select('count, 'count.count as 'frequency)
+      .select('count, 'count.count.as('frequency))
 
     val sink = new TestingRetractSink
     resultTable.toRetractStream[Row].addSink(sink)
@@ -76,7 +73,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
-      .select('word as 'word, 'num.sum as 'cnt)
+      .select('word.as('word), 'num.sum.as('cnt))
       .select('cnt.sum)
 
     val sink = new TestingRetractSink
@@ -93,7 +90,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
-      .select('num.sum as 'count)
+      .select('num.sum.as('count))
       .groupBy('count)
       .select('count, 'count.count)
 
@@ -130,18 +127,33 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val table = stream.toTable(tEnv, 'pk, 'value)
     val resultTable = table
       .groupBy('pk)
-      .select('pk as 'pk, 'value.sum as 'sum)
+      .select('pk.as('pk), 'value.sum.as('sum))
       .groupBy('sum)
-      .select('sum, 'pk.count as 'count)
+      .select('sum, 'pk.count.as('count))
 
     val sink = new TestingRetractSink
     resultTable.toRetractStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "(true,1,1)", "(true,2,1)", "(true,3,1)", "(false,3,1)", "(true,6,1)", "(false,1,1)",
-      "(true,1,2)", "(false,1,2)", "(true,1,3)", "(false,6,1)", "(true,6,2)", "(false,6,2)",
-      "(true,6,1)", "(true,12,1)", "(false,12,1)", "(true,18,1)", "(true,8,1)")
+      "(true,1,1)",
+      "(true,2,1)",
+      "(true,3,1)",
+      "(false,3,1)",
+      "(true,6,1)",
+      "(false,1,1)",
+      "(true,1,2)",
+      "(false,1,2)",
+      "(true,1,3)",
+      "(false,6,1)",
+      "(true,6,2)",
+      "(false,6,2)",
+      "(true,6,1)",
+      "(true,12,1)",
+      "(false,12,1)",
+      "(true,18,1)",
+      "(true,8,1)"
+    )
     assertEquals(expected.sorted, sink.getRawResults.sorted)
   }
 
@@ -154,10 +166,10 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
-      .select('word as 'word, 'num.sum as 'cnt)
+      .select('word.as('word), 'num.sum.as('cnt))
       .leftOuterJoinLateral(func0('word))
       .groupBy('cnt)
-      .select('cnt, 'word.count as 'frequency)
+      .select('cnt, 'word.count.as('frequency))
 
     val sink = new TestingRetractSink
     resultTable.toRetractStream[Row].addSink(sink)

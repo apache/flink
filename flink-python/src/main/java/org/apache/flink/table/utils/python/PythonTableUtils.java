@@ -19,40 +19,64 @@
 package org.apache.flink.table.utils.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
-import org.apache.flink.table.api.Types;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.RowKind;
 
-import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -65,205 +89,131 @@ public final class PythonTableUtils {
     private PythonTableUtils() {}
 
     /**
-     * Wrap the unpickled python data with an InputFormat. It will be passed to
-     * PythonInputFormatTableSource later.
+     * Create a table from {@link PythonDynamicTableSource} that read data from input file with
+     * specific {@link DataType}.
      *
-     * @param data The unpickled python data.
-     * @param dataType The python data type.
-     * @param config The execution config used to create serializer.
-     * @return An InputFormat containing the python data.
+     * @param tEnv The TableEnvironment to create table.
+     * @param filePath the file path of the input data.
+     * @param schema The python data type.
+     * @param batched Whether to read data in a batch
+     * @return Table with InputFormat.
      */
-    public static InputFormat<Row, ?> getInputFormat(
-            final List<Object[]> data,
-            final TypeInformation<Row> dataType,
-            final ExecutionConfig config) {
-        Function<Object, Object> converter = converter(dataType, config);
-        return new CollectionInputFormat<>(
-                data.stream()
-                        .map(objects -> (Row) converter.apply(objects))
-                        .collect(Collectors.toList()),
-                dataType.createSerializer(config));
+    public static Table createTableFromElement(
+            TableEnvironment tEnv, String filePath, DataType schema, boolean batched) {
+        TableDescriptor.Builder builder =
+                TableDescriptor.forConnector(PythonDynamicTableFactory.IDENTIFIER)
+                        .option(PythonDynamicTableOptions.INPUT_FILE_PATH, filePath)
+                        .option(PythonDynamicTableOptions.BATCH_MODE, batched)
+                        .schema(Schema.newBuilder().fromRowDataType(schema).build());
+        return tEnv.from(builder.build());
     }
 
     /**
      * Wrap the unpickled python data with an InputFormat. It will be passed to
-     * StreamExecutionEnvironment.creatInput() to create an InputFormat later.
+     * PythonDynamicTableSource later.
      *
      * @param data The unpickled python data.
      * @param dataType The python data type.
-     * @param config The execution config used to create serializer.
      * @return An InputFormat containing the python data.
      */
-    @SuppressWarnings("unchecked")
-    public static <T> InputFormat<T, ?> getCollectionInputFormat(
-            final List<T> data, final TypeInformation<T> dataType, final ExecutionConfig config) {
-        Function<Object, Object> converter = converter(dataType, config);
-        return new CollectionInputFormat<>(
+    public static InputFormat<RowData, ?> getInputFormat(
+            final List<Object[]> data, final DataType dataType) {
+        Function<Object, Object> converter = converter(dataType.getLogicalType());
+        Collection<RowData> dataCollection =
                 data.stream()
-                        .map(objects -> (T) converter.apply(objects))
-                        .collect(Collectors.toList()),
-                dataType.createSerializer(config));
+                        .map(objects -> (RowData) converter.apply(objects))
+                        .collect(Collectors.toList());
+        return new CollectionInputFormat<>(
+                dataCollection, InternalSerializers.create(dataType.getLogicalType()));
     }
 
     private static BiFunction<Integer, Function<Integer, Object>, Object> arrayConstructor(
-            final TypeInformation<?> elementType, final boolean primitiveArray) {
-        if (elementType.equals(BasicTypeInfo.BOOLEAN_TYPE_INFO)) {
-            if (primitiveArray) {
-                return (length, elementGetter) -> {
-                    boolean[] array = new boolean[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (boolean) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            } else {
-                return (length, elementGetter) -> {
-                    Boolean[] array = new Boolean[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (Boolean) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            }
-        }
-        if (elementType.equals(BasicTypeInfo.BYTE_TYPE_INFO)) {
-            if (primitiveArray) {
-                return (length, elementGetter) -> {
-                    byte[] array = new byte[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (byte) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            } else {
-                return (length, elementGetter) -> {
-                    Byte[] array = new Byte[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (Byte) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            }
-        }
-        if (elementType.equals(BasicTypeInfo.SHORT_TYPE_INFO)) {
-            if (primitiveArray) {
-                return (length, elementGetter) -> {
-                    short[] array = new short[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (short) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            } else {
-                return (length, elementGetter) -> {
-                    Short[] array = new Short[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (Short) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            }
-        }
-        if (elementType.equals(BasicTypeInfo.INT_TYPE_INFO)) {
-            if (primitiveArray) {
-                return (length, elementGetter) -> {
-                    int[] array = new int[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (int) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            } else {
-                return (length, elementGetter) -> {
-                    Integer[] array = new Integer[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (Integer) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            }
-        }
-        if (elementType.equals(BasicTypeInfo.LONG_TYPE_INFO)) {
-            if (primitiveArray) {
-                return (length, elementGetter) -> {
-                    long[] array = new long[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (long) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            } else {
-                return (length, elementGetter) -> {
-                    Long[] array = new Long[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (Long) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            }
-        }
-        if (elementType.equals(BasicTypeInfo.FLOAT_TYPE_INFO)) {
-            if (primitiveArray) {
-                return (length, elementGetter) -> {
-                    float[] array = new float[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (float) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            } else {
-                return (length, elementGetter) -> {
-                    Float[] array = new Float[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (Float) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            }
-        }
-        if (elementType.equals(BasicTypeInfo.DOUBLE_TYPE_INFO)) {
-            if (primitiveArray) {
-                return (length, elementGetter) -> {
-                    double[] array = new double[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (double) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            } else {
-                return (length, elementGetter) -> {
-                    Double[] array = new Double[length];
-                    for (int i = 0; i < length; i++) {
-                        array[i] = (Double) elementGetter.apply(i);
-                    }
-                    return array;
-                };
-            }
-        }
-        if (elementType.equals(BasicTypeInfo.STRING_TYPE_INFO)) {
+            final LogicalType elementType) {
+        if (elementType instanceof BooleanType) {
             return (length, elementGetter) -> {
-                String[] array = new String[length];
+                Boolean[] array = new Boolean[length];
                 for (int i = 0; i < length; i++) {
-                    array[i] = (String) elementGetter.apply(i);
+                    array[i] = (Boolean) elementGetter.apply(i);
                 }
-                return array;
+                return new GenericArrayData(array);
             };
         }
+        if (elementType instanceof TinyIntType) {
+            return (length, elementGetter) -> {
+                Byte[] array = new Byte[length];
+                for (int i = 0; i < length; i++) {
+                    array[i] = (Byte) elementGetter.apply(i);
+                }
+                return new GenericArrayData(array);
+            };
+        }
+
+        if (elementType instanceof IntType) {
+            return (length, elementGetter) -> {
+                Integer[] array = new Integer[length];
+                for (int i = 0; i < length; i++) {
+                    array[i] = (Integer) elementGetter.apply(i);
+                }
+                return new GenericArrayData(array);
+            };
+        }
+        if (elementType instanceof BigIntType) {
+            return (length, elementGetter) -> {
+                Long[] array = new Long[length];
+                for (int i = 0; i < length; i++) {
+                    array[i] = (Long) elementGetter.apply(i);
+                }
+                return new GenericArrayData(array);
+            };
+        }
+        if (elementType instanceof FloatType) {
+            return (length, elementGetter) -> {
+                Float[] array = new Float[length];
+                for (int i = 0; i < length; i++) {
+                    array[i] = (Float) elementGetter.apply(i);
+                }
+                return new GenericArrayData(array);
+            };
+        }
+        if (elementType instanceof DoubleType) {
+            return (length, elementGetter) -> {
+                Double[] array = new Double[length];
+                for (int i = 0; i < length; i++) {
+                    array[i] = (Double) elementGetter.apply(i);
+                }
+                return new GenericArrayData(array);
+            };
+        }
+        if (elementType instanceof CharType || elementType instanceof VarCharType) {
+            return (length, elementGetter) -> {
+                StringData[] array = new StringData[length];
+                for (int i = 0; i < length; i++) {
+                    array[i] = (StringData) elementGetter.apply(i);
+                }
+                return new GenericArrayData(array);
+            };
+        }
+
         return (length, elementGetter) -> {
             Object[] array = new Object[length];
             for (int i = 0; i < length; i++) {
                 array[i] = elementGetter.apply(i);
             }
-            return array;
+            return new GenericArrayData(array);
         };
     }
 
-    private static Function<Object, Object> converter(
-            final TypeInformation<?> dataType, final ExecutionConfig config) {
-        if (dataType.equals(Types.BOOLEAN())) {
+    private static Function<Object, Object> converter(LogicalType logicalType) {
+
+        if (logicalType instanceof NullType) {
+            return n -> null;
+        }
+
+        if (logicalType instanceof BooleanType) {
             return b -> b instanceof Boolean ? b : null;
         }
-        if (dataType.equals(Types.BYTE())) {
+
+        if (logicalType instanceof TinyIntType) {
             return c -> {
                 if (c instanceof Byte) {
                     return c;
@@ -280,7 +230,8 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.SHORT())) {
+
+        if (logicalType instanceof SmallIntType) {
             return c -> {
                 if (c instanceof Byte) {
                     return ((Byte) c).shortValue();
@@ -297,7 +248,8 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.INT())) {
+
+        if (logicalType instanceof IntType) {
             return c -> {
                 if (c instanceof Byte) {
                     return ((Byte) c).intValue();
@@ -314,7 +266,8 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.LONG())) {
+
+        if (logicalType instanceof BigIntType) {
             return c -> {
                 if (c instanceof Byte) {
                     return ((Byte) c).longValue();
@@ -331,7 +284,8 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.FLOAT())) {
+
+        if (logicalType instanceof FloatType) {
             return c -> {
                 if (c instanceof Float) {
                     return c;
@@ -342,7 +296,7 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.DOUBLE())) {
+        if (logicalType instanceof DoubleType) {
             return c -> {
                 if (c instanceof Float) {
                     return ((Float) c).doubleValue();
@@ -353,48 +307,81 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.DECIMAL())) {
-            return c -> c instanceof BigDecimal ? c : null;
+
+        if (logicalType instanceof DecimalType) {
+            int precision = ((DecimalType) logicalType).getPrecision();
+            int scale = ((DecimalType) logicalType).getScale();
+            return c ->
+                    c instanceof BigDecimal
+                            ? DecimalData.fromBigDecimal((BigDecimal) c, precision, scale)
+                            : null;
         }
-        if (dataType.equals(Types.SQL_DATE())) {
+
+        if (logicalType instanceof DateType) {
             return c -> {
                 if (c instanceof Integer) {
-                    long millisLocal = ((Integer) c).longValue() * 86400000;
-                    long millisUtc =
-                            millisLocal - PythonTableUtils.getOffsetFromLocalMillis(millisLocal);
-                    return new Date(millisUtc);
+                    return (Integer) c;
                 }
                 return null;
             };
         }
-        if (dataType.equals(Types.SQL_TIME())) {
+
+        if (logicalType instanceof TimeType) {
+            return c -> {
+                if (c instanceof Integer || c instanceof Long) {
+                    long millisLocal = ((Number) c).longValue() / 1000;
+                    long millisUtc = millisLocal + getOffsetFromLocalMillis(millisLocal);
+                    return (int) millisUtc;
+                }
+                return null;
+            };
+        }
+
+        if (logicalType instanceof TimestampType) {
             return c ->
                     c instanceof Integer || c instanceof Long
-                            ? new Time(((Number) c).longValue() / 1000)
+                            ? TimestampData.fromLocalDateTime(
+                                    Instant.ofEpochMilli(((Number) c).longValue() / 1000)
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDateTime())
                             : null;
         }
-        if (dataType.equals(Types.SQL_TIMESTAMP())) {
+
+        if (logicalType instanceof ZonedTimestampType) {
             return c ->
                     c instanceof Integer || c instanceof Long
-                            ? new Timestamp(((Number) c).longValue() / 1000)
+                            ? TimestampData.fromInstant(
+                                    Instant.ofEpochMilli(((Number) c).longValue() / 1000))
                             : null;
         }
-        if (dataType.equals(org.apache.flink.api.common.typeinfo.Types.INSTANT)) {
+
+        if (logicalType instanceof LocalZonedTimestampType) {
             return c ->
                     c instanceof Integer || c instanceof Long
-                            ? Instant.ofEpochMilli(((Number) c).longValue() / 1000)
+                            ? TimestampData.fromInstant(
+                                    Instant.ofEpochMilli(((Number) c).longValue() / 1000))
                             : null;
         }
-        if (dataType.equals(Types.INTERVAL_MILLIS())) {
+
+        if (logicalType instanceof DayTimeIntervalType) {
             return c ->
                     c instanceof Integer || c instanceof Long
                             ? ((Number) c).longValue() / 1000
                             : null;
         }
-        if (dataType.equals(Types.STRING())) {
-            return c -> c != null ? c.toString() : null;
+
+        if (logicalType instanceof YearMonthIntervalType) {
+            return c ->
+                    c instanceof Integer || c instanceof Long
+                            ? ((Number) c).longValue() / 1000
+                            : null;
         }
-        if (dataType.equals(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)) {
+
+        if (logicalType instanceof CharType || logicalType instanceof VarCharType) {
+            return c -> c != null ? StringData.fromString(c.toString()) : null;
+        }
+
+        if (logicalType instanceof BinaryType || logicalType instanceof VarBinaryType) {
             return c -> {
                 if (c instanceof String) {
                     return ((String) c).getBytes(StandardCharsets.UTF_8);
@@ -405,19 +392,12 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType instanceof PrimitiveArrayTypeInfo
-                || dataType instanceof BasicArrayTypeInfo
-                || dataType instanceof ObjectArrayTypeInfo) {
-            TypeInformation<?> elementType =
-                    dataType instanceof PrimitiveArrayTypeInfo
-                            ? ((PrimitiveArrayTypeInfo<?>) dataType).getComponentType()
-                            : dataType instanceof BasicArrayTypeInfo
-                                    ? ((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo()
-                                    : ((ObjectArrayTypeInfo<?, ?>) dataType).getComponentInfo();
-            boolean primitive = dataType instanceof PrimitiveArrayTypeInfo;
-            Function<Object, Object> elementConverter = converter(elementType, config);
+
+        if (logicalType instanceof ArrayType) {
+            LogicalType elementType = ((ArrayType) logicalType).getElementType();
+            Function<Object, Object> elementConverter = converter(elementType);
             BiFunction<Integer, Function<Integer, Object>, Object> arrayConstructor =
-                    arrayConstructor(elementType, primitive);
+                    arrayConstructor(elementType);
             return c -> {
                 int length = -1;
                 Function<Integer, Object> elementGetter = null;
@@ -435,28 +415,39 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType instanceof MapTypeInfo) {
-            Function<Object, Object> keyConverter =
-                    converter(((MapTypeInfo<?, ?>) dataType).getKeyTypeInfo(), config);
+
+        if (logicalType instanceof MultisetType) {
+            return c -> c;
+        }
+
+        if (logicalType instanceof MapType) {
+            Function<Object, Object> keyConverter = converter(((MapType) logicalType).getKeyType());
             Function<Object, Object> valueConverter =
-                    converter(((MapTypeInfo<?, ?>) dataType).getValueTypeInfo(), config);
-            return c ->
-                    c instanceof Map
-                            ? ((Map<?, ?>) c)
+                    converter(((MapType) logicalType).getValueType());
+
+            return c -> {
+                if (c instanceof Map) {
+                    Map<?, ?> mapData =
+                            ((Map<?, ?>) c)
                                     .entrySet().stream()
                                             .collect(
                                                     Collectors.toMap(
                                                             e -> keyConverter.apply(e.getKey()),
                                                             e ->
                                                                     valueConverter.apply(
-                                                                            e.getValue())))
-                            : null;
+                                                                            e.getValue())));
+                    return new GenericMapData(mapData);
+                } else {
+                    return null;
+                }
+            };
         }
-        if (dataType instanceof RowTypeInfo) {
-            TypeInformation<?>[] fieldTypes = ((RowTypeInfo) dataType).getFieldTypes();
+
+        if (logicalType instanceof RowType) {
+            LogicalType[] fieldTypes = logicalType.getChildren().toArray(new LogicalType[0]);
             List<Function<Object, Object>> fieldConverters =
                     Arrays.stream(fieldTypes)
-                            .map(x -> PythonTableUtils.converter(x, config))
+                            .map(PythonTableUtils::converter)
                             .collect(Collectors.toList());
             return c -> {
                 if (c != null && c.getClass().isArray()) {
@@ -470,8 +461,8 @@ public final class PythonTableUtils {
                                         + " values are provided.");
                     }
 
-                    Row row = new Row(length - 1);
-                    row.setKind(RowKind.fromByteValue(((Number) Array.get(c, 0)).byteValue()));
+                    GenericRowData row = new GenericRowData(length - 1);
+                    row.setRowKind(RowKind.fromByteValue(((Number) Array.get(c, 0)).byteValue()));
 
                     for (int i = 0; i < row.getArity(); i++) {
                         row.setField(i, fieldConverters.get(i).apply(Array.get(c, i + 1)));
@@ -481,54 +472,19 @@ public final class PythonTableUtils {
                 }
                 return null;
             };
-        }
-        if (dataType instanceof TupleTypeInfo) {
-            TypeInformation<?>[] fieldTypes = ((TupleTypeInfo<?>) dataType).getFieldTypes();
-            List<Function<Object, Object>> fieldConverters =
-                    Arrays.stream(fieldTypes)
-                            .map(x -> PythonTableUtils.converter(x, config))
-                            .collect(Collectors.toList());
-            return c -> {
-                if (c != null && c.getClass().isArray()) {
-                    int length = Array.getLength(c);
-                    if (length != fieldTypes.length) {
-                        throw new IllegalStateException(
-                                "Input tuple doesn't have expected number of values required by the schema. "
-                                        + fieldTypes.length
-                                        + " fields are required while "
-                                        + length
-                                        + " values are provided.");
-                    }
-
-                    Tuple tuple = Tuple.newInstance(length);
-                    for (int i = 0; i < tuple.getArity(); i++) {
-                        tuple.setField(fieldConverters.get(i).apply(Array.get(c, i)), i);
-                    }
-
-                    return tuple;
-                }
-                return null;
-            };
+        } else if (logicalType instanceof StructuredType) {
+            Optional<Class<?>> implClass = ((StructuredType) logicalType).getImplementationClass();
+            if (implClass.isPresent()
+                    && (implClass.get() == ListView.class || implClass.get() == MapView.class)) {
+                return converter(logicalType.getChildren().get(0));
+            }
+            throw new IllegalStateException(
+                    "Failed to get the data converter for StructuredType with implementation "
+                            + "class: "
+                            + implClass.orElse(null));
         }
 
-        return c -> {
-            if (c.getClass() != byte[].class || dataType instanceof PickledByteArrayTypeInfo) {
-                return c;
-            }
-
-            // other typeinfos will use the corresponding serializer to deserialize data.
-            byte[] b = (byte[]) c;
-            TypeSerializer<?> dataSerializer = dataType.createSerializer(config);
-            ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos();
-            DataInputViewStreamWrapper baisWrapper = new DataInputViewStreamWrapper(bais);
-            bais.setBuffer(b, 0, b.length);
-            try {
-                return dataSerializer.deserialize(baisWrapper);
-            } catch (IOException e) {
-                throw new IllegalStateException(
-                        "Failed to deserialize the object with datatype " + dataType, e);
-            }
-        };
+        throw new IllegalStateException("Failed to get converter for LogicalType: " + logicalType);
     }
 
     private static int getOffsetFromLocalMillis(final long millisLocal) {

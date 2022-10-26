@@ -15,27 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{ObjectIdentifier, UnresolvedIdentifier}
 import org.apache.flink.table.data.{GenericRowData, TimestampData}
-import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
-import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
-import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
+import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
 import org.apache.flink.table.utils.CatalogManagerMocks
-
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.plan.ConventionTraitDef
 
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
@@ -44,32 +37,13 @@ import org.junit.runners.Parameterized
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util
-import java.util.Collections
 
-/**
-  * Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]].
-  */
+/** Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]]. */
 @RunWith(classOf[Parameterized])
 class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
+  val plannerMocks = PlannerMocks.create()
 
-  // mock FlinkPlannerImpl to avoid discovering TableEnvironment and Executor.
-  val config = TableConfig.getDefault
-  val moduleManager = new ModuleManager
-  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
-  val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
-  val plannerContext = new PlannerContext(
-    false,
-    config,
-    moduleManager,
-    functionCatalog,
-    catalogManager,
-    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
-    Collections.singletonList(ConventionTraitDef.INSTANCE))
-  val planner: FlinkPlannerImpl = plannerContext.createFlinkPlanner(
-    catalogManager.getCurrentCatalog,
-    catalogManager.getCurrentDatabase)
-
-  def getPlanner: FlinkPlannerImpl = planner
+  def getPlanner: FlinkPlannerImpl = plannerMocks.getPlanner
 
   val data = List(
     GenericRowData.of(TimestampData.fromEpochMillis(1000L), JInt.valueOf(5)),
@@ -82,8 +56,8 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 
   @Test
   def testAscendingWatermark(): Unit = {
-    val generator = generateWatermarkGenerator("ts - INTERVAL '0.001' SECOND",
-      useDefinedConstructor)
+    val generator =
+      generateWatermarkGenerator("ts - INTERVAL '0.001' SECOND", useDefinedConstructor)
     val results = data.map(d => generator.currentWatermark(d))
     val expected = List(
       JLong.valueOf(999L),
@@ -97,8 +71,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 
   @Test
   def testBoundedOutOfOrderWatermark(): Unit = {
-    val generator = generateWatermarkGenerator("ts - INTERVAL '5' SECOND",
-      useDefinedConstructor)
+    val generator = generateWatermarkGenerator("ts - INTERVAL '5' SECOND", useDefinedConstructor)
     val results = data.map(d => generator.currentWatermark(d))
     val expected = List(
       JLong.valueOf(-4000L),
@@ -124,7 +97,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     JavaFunc5.openCalled = false
     JavaFunc5.closeCalled = false
     if (isLegacy) {
-      functionCatalog.registerTempCatalogScalarFunction(
+      plannerMocks.getFunctionCatalog.registerTempCatalogScalarFunction(
         ObjectIdentifier.of(
           CatalogManagerMocks.DEFAULT_CATALOG,
           CatalogManagerMocks.DEFAULT_DATABASE,
@@ -132,11 +105,11 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
         new JavaFunc5
       )
     } else {
-      functionCatalog.registerTemporaryCatalogFunction(
-        UnresolvedIdentifier.of(CatalogManagerMocks.DEFAULT_CATALOG,
+      plannerMocks.getFunctionCatalog.registerTemporaryCatalogFunction(
+        UnresolvedIdentifier.of(
+          CatalogManagerMocks.DEFAULT_CATALOG,
           CatalogManagerMocks.DEFAULT_DATABASE,
-          "myFunc"
-        ),
+          "myFunc"),
         new JavaFunc5,
         false
       )
@@ -162,35 +135,46 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     assertTrue(JavaFunc5.closeCalled)
   }
 
-  private def generateWatermarkGenerator(expr: String,
+  private def generateWatermarkGenerator(
+      expr: String,
       useDefinedConstructor: Boolean): WatermarkGenerator = {
-    val tableRowType = plannerContext.getTypeFactory.buildRelNodeRowType(
+    val tableRowType = plannerMocks.getPlannerContext.getTypeFactory.buildRelNodeRowType(
       Seq("ts", "offset"),
       Seq(
         new TimestampType(3),
         new IntType()
       ))
     val rowType = FlinkTypeFactory.toLogicalRowType(tableRowType)
-    val converter = planner.createToRelContext()
-        .getCluster
-        .getPlanner
-        .getContext
-        .unwrap(classOf[FlinkContext])
-        .getSqlExprToRexConverterFactory
-        .create(tableRowType, null)
+    val converter = plannerMocks.getPlanner
+      .createToRelContext()
+      .getCluster
+      .getPlanner
+      .getContext
+      .unwrap(classOf[FlinkContext])
+      .getRexFactory
+      .createSqlToRexConverter(tableRowType, null)
     val rexNode = converter.convertToRexNode(expr)
 
     if (useDefinedConstructor) {
       val generated = WatermarkGeneratorCodeGenerator
-        .generateWatermarkGenerator(new Configuration, rowType, rexNode, Option.apply("context"))
+        .generateWatermarkGenerator(
+          new Configuration,
+          Thread.currentThread().getContextClassLoader,
+          rowType,
+          rexNode,
+          Option.apply("context"))
       val newReferences = generated.getReferences :+
-          new WatermarkGeneratorSupplier.Context {
-            override def getMetricGroup: MetricGroup = null
-          }
+        new WatermarkGeneratorSupplier.Context {
+          override def getMetricGroup: MetricGroup = null
+        }
       generated.newInstance(Thread.currentThread().getContextClassLoader, newReferences)
     } else {
       val generated = WatermarkGeneratorCodeGenerator
-        .generateWatermarkGenerator(new Configuration, rowType, rexNode)
+        .generateWatermarkGenerator(
+          new Configuration,
+          Thread.currentThread().getContextClassLoader,
+          rowType,
+          rexNode)
       generated.newInstance(Thread.currentThread().getContextClassLoader)
     }
   }

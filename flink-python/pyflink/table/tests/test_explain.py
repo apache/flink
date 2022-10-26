@@ -25,12 +25,12 @@ class StreamTableExplainTests(PyFlinkStreamTableTestCase):
 
     def test_explain(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by("c").select(t.a.sum, t.c.alias('b')).explain(
+        result = t.group_by(t.c).select(t.a.sum, t.c.alias('b')).explain(
             ExplainDetail.CHANGELOG_MODE)
 
         assert isinstance(result, str)
 
-        result = t.group_by("c").select(t.a.sum, t.c.alias('b')).explain(
+        result = t.group_by(t.c).select(t.a.sum, t.c.alias('b')).explain(
             ExplainDetail.JSON_EXECUTION_PLAN)
         assert isinstance(result, str)
         try:

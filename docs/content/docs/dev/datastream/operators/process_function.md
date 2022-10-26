@@ -53,7 +53,7 @@ to apply the `ProcessFunction` on a keyed stream:
 {{< /hint >}}
 
 ```java
-stream.keyBy(...).process(new MyProcessFunction())
+stream.keyBy(...).process(new MyProcessFunction());
 ```
 
 ## Low-level Joins
@@ -461,7 +461,7 @@ Stopping a processing-time timer:
 {{< tabs "5d0d1344-6f51-44f8-b500-ebe863cedba4" >}}
 {{< tab "Java" >}}
 ```java
-long timestampOfTimerToStop = ...
+long timestampOfTimerToStop = ...;
 ctx.timerService().deleteProcessingTimeTimer(timestampOfTimerToStop);
 ```
 {{< /tab >}}
@@ -484,7 +484,7 @@ Stopping an event-time timer:
 {{< tabs "581e5996-503c-452e-8b2a-a4daeaf4ac88" >}}
 {{< tab "Java" >}}
 ```java
-long timestampOfTimerToStop = ...
+long timestampOfTimerToStop = ...;
 ctx.timerService().deleteEventTimeTimer(timestampOfTimerToStop);
 ```
 {{< /tab >}}

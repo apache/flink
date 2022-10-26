@@ -112,7 +112,9 @@ public final class LogicalTypeParser {
      *
      * @param typeString a string like "ROW(field1 INT, field2 BOOLEAN)"
      * @throws ValidationException in case of parsing errors.
+     * @deprecated You should use {@link #parse(String, ClassLoader)} to correctly load user types
      */
+    @Deprecated
     public static LogicalType parse(String typeString) {
         return parse(typeString, Thread.currentThread().getContextClassLoader());
     }

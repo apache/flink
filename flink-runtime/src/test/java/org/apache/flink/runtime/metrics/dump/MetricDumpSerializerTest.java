@@ -26,8 +26,8 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.assertj.core.data.Offset;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,14 +41,13 @@ import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_C
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_GAUGE;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_HISTOGRAM;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_METER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link MetricDumpSerialization}. */
-public class MetricDumpSerializerTest {
+class MetricDumpSerializerTest {
     @Test
-    public void testNullGaugeHandling() throws IOException {
+    void testNullGaugeHandling() throws IOException {
         MetricDumpSerialization.MetricDumpSerializer serializer =
                 new MetricDumpSerialization.MetricDumpSerializer();
         MetricDumpSerialization.MetricDumpDeserializer deserializer =
@@ -74,17 +73,16 @@ public class MetricDumpSerializerTest {
                         Collections.<Meter, Tuple2<QueryScopeInfo, String>>emptyMap());
 
         // no metrics should be serialized
-        Assert.assertEquals(0, output.serializedCounters.length);
-        Assert.assertEquals(0, output.serializedGauges.length);
-        Assert.assertEquals(0, output.serializedHistograms.length);
-        Assert.assertEquals(0, output.serializedMeters.length);
-
+        assertThat(output.serializedCounters).isEmpty();
+        assertThat(output.serializedGauges).isEmpty();
+        assertThat(output.serializedHistograms).isEmpty();
+        assertThat(output.serializedMeters).isEmpty();
         List<MetricDump> deserialized = deserializer.deserialize(output);
-        Assert.assertEquals(0, deserialized.size());
+        assertThat(deserialized).isEmpty();
     }
 
     @Test
-    public void testJavaSerialization() throws IOException {
+    void testJavaSerialization() throws IOException {
         MetricDumpSerialization.MetricDumpSerializer serializer =
                 new MetricDumpSerialization.MetricDumpSerializer();
 
@@ -100,7 +98,7 @@ public class MetricDumpSerializerTest {
     }
 
     @Test
-    public void testSerialization() throws IOException {
+    void testSerialization() throws IOException {
         MetricDumpSerialization.MetricDumpSerializer serializer =
                 new MetricDumpSerialization.MetricDumpSerializer();
         MetricDumpSerialization.MetricDumpDeserializer deserializer =
@@ -161,11 +159,12 @@ public class MetricDumpSerializerTest {
         gauges.put(
                 g1,
                 new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, "D"), "g1"));
+                        new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, 0, "D"), "g1"));
         histograms.put(
                 h1,
                 new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.OperatorQueryScopeInfo("jid", "vid", 2, "opname", "E"),
+                        new QueryScopeInfo.OperatorQueryScopeInfo(
+                                "jid", "vid", 2, 0, "opname", "E"),
                         "h1"));
 
         MetricDumpSerialization.MetricSerializationResult serialized =
@@ -174,7 +173,7 @@ public class MetricDumpSerializerTest {
 
         // ===== Counters
         // ==============================================================================================
-        assertEquals(5, deserialized.size());
+        assertThat(deserialized.size()).isEqualTo(5);
 
         for (MetricDump metric : deserialized) {
             switch (metric.getCategory()) {
@@ -182,87 +181,86 @@ public class MetricDumpSerializerTest {
                     MetricDump.CounterDump counterDump = (MetricDump.CounterDump) metric;
                     switch ((byte) counterDump.count) {
                         case 1:
-                            assertTrue(
-                                    counterDump.scopeInfo
-                                            instanceof QueryScopeInfo.JobManagerQueryScopeInfo);
-                            assertEquals("A", counterDump.scopeInfo.scope);
-                            assertEquals("c1", counterDump.name);
+                            assertThat(counterDump.scopeInfo)
+                                    .isInstanceOf(QueryScopeInfo.JobManagerQueryScopeInfo.class);
+                            assertThat(counterDump.scopeInfo.scope).isEqualTo("A");
+                            assertThat(counterDump.name).isEqualTo("c1");
                             counters.remove(c1);
                             break;
                         case 2:
-                            assertTrue(
-                                    counterDump.scopeInfo
-                                            instanceof QueryScopeInfo.TaskManagerQueryScopeInfo);
-                            assertEquals("B", counterDump.scopeInfo.scope);
-                            assertEquals("c2", counterDump.name);
-                            assertEquals(
-                                    "tmid",
-                                    ((QueryScopeInfo.TaskManagerQueryScopeInfo)
-                                                    counterDump.scopeInfo)
-                                            .taskManagerID);
+                            assertThat(counterDump.scopeInfo)
+                                    .isInstanceOf(QueryScopeInfo.TaskManagerQueryScopeInfo.class);
+                            assertThat(counterDump.scopeInfo.scope).isEqualTo("B");
+                            assertThat(counterDump.name).isEqualTo("c2");
+                            assertThat("tmid")
+                                    .isEqualTo(
+                                            ((QueryScopeInfo.TaskManagerQueryScopeInfo)
+                                                            counterDump.scopeInfo)
+                                                    .taskManagerID);
                             counters.remove(c2);
                             break;
                         default:
-                            fail();
+                            fail("Unexpected counter count.");
                     }
                     break;
                 case METRIC_CATEGORY_GAUGE:
                     MetricDump.GaugeDump gaugeDump = (MetricDump.GaugeDump) metric;
-                    assertEquals("4", gaugeDump.value);
-                    assertEquals("g1", gaugeDump.name);
+                    assertThat(gaugeDump.value).isEqualTo("4");
+                    assertThat(gaugeDump.name).isEqualTo("g1");
 
-                    assertTrue(gaugeDump.scopeInfo instanceof QueryScopeInfo.TaskQueryScopeInfo);
+                    assertThat(gaugeDump.scopeInfo)
+                            .isInstanceOf(QueryScopeInfo.TaskQueryScopeInfo.class);
                     QueryScopeInfo.TaskQueryScopeInfo taskInfo =
                             (QueryScopeInfo.TaskQueryScopeInfo) gaugeDump.scopeInfo;
-                    assertEquals("D", taskInfo.scope);
-                    assertEquals("jid", taskInfo.jobID);
-                    assertEquals("vid", taskInfo.vertexID);
-                    assertEquals(2, taskInfo.subtaskIndex);
+                    assertThat(taskInfo.scope).isEqualTo("D");
+                    assertThat(taskInfo.jobID).isEqualTo("jid");
+                    assertThat(taskInfo.vertexID).isEqualTo("vid");
+                    assertThat(taskInfo.subtaskIndex).isEqualTo(2);
                     gauges.remove(g1);
                     break;
                 case METRIC_CATEGORY_HISTOGRAM:
                     MetricDump.HistogramDump histogramDump = (MetricDump.HistogramDump) metric;
-                    assertEquals("h1", histogramDump.name);
-                    assertEquals(0.5, histogramDump.median, 0.1);
-                    assertEquals(0.75, histogramDump.p75, 0.1);
-                    assertEquals(0.90, histogramDump.p90, 0.1);
-                    assertEquals(0.95, histogramDump.p95, 0.1);
-                    assertEquals(0.98, histogramDump.p98, 0.1);
-                    assertEquals(0.99, histogramDump.p99, 0.1);
-                    assertEquals(0.999, histogramDump.p999, 0.1);
-                    assertEquals(4, histogramDump.mean, 0.1);
-                    assertEquals(5, histogramDump.stddev, 0.1);
-                    assertEquals(6, histogramDump.max);
-                    assertEquals(7, histogramDump.min);
+                    assertThat(histogramDump.name).isEqualTo("h1");
+                    assertThat(histogramDump.median).isCloseTo(0.5, Offset.offset(0.1));
+                    assertThat(histogramDump.p75).isCloseTo(0.75, Offset.offset(0.1));
+                    assertThat(histogramDump.p90).isCloseTo(0.9, Offset.offset(0.1));
+                    assertThat(histogramDump.p95).isCloseTo(0.95, Offset.offset(0.1));
+                    assertThat(histogramDump.p98).isCloseTo(0.98, Offset.offset(0.1));
+                    assertThat(histogramDump.p99).isCloseTo(0.99, Offset.offset(0.1));
+                    assertThat(histogramDump.p999).isCloseTo(0.999, Offset.offset(0.1));
+                    assertThat(histogramDump.mean).isCloseTo(4, Offset.offset(0.1));
+                    assertThat(histogramDump.stddev).isCloseTo(5, Offset.offset(0.1));
+                    assertThat(histogramDump.max).isEqualTo(6);
+                    assertThat(histogramDump.min).isEqualTo(7);
 
-                    assertTrue(
-                            histogramDump.scopeInfo
-                                    instanceof QueryScopeInfo.OperatorQueryScopeInfo);
+                    assertThat(histogramDump.scopeInfo)
+                            .isInstanceOf(QueryScopeInfo.OperatorQueryScopeInfo.class);
                     QueryScopeInfo.OperatorQueryScopeInfo opInfo =
                             (QueryScopeInfo.OperatorQueryScopeInfo) histogramDump.scopeInfo;
-                    assertEquals("E", opInfo.scope);
-                    assertEquals("jid", opInfo.jobID);
-                    assertEquals("vid", opInfo.vertexID);
-                    assertEquals(2, opInfo.subtaskIndex);
-                    assertEquals("opname", opInfo.operatorName);
+                    assertThat(opInfo.scope).isEqualTo("E");
+                    assertThat(opInfo.jobID).isEqualTo("jid");
+                    assertThat(opInfo.vertexID).isEqualTo("vid");
+                    assertThat(opInfo.subtaskIndex).isEqualTo(2);
+                    assertThat(opInfo.operatorName).isEqualTo("opname");
                     histograms.remove(h1);
                     break;
                 case METRIC_CATEGORY_METER:
                     MetricDump.MeterDump meterDump = (MetricDump.MeterDump) metric;
-                    assertEquals(5.0, meterDump.rate, 0.1);
+                    assertThat(meterDump.rate).isCloseTo(5.0, Offset.offset(0.1));
 
-                    assertTrue(meterDump.scopeInfo instanceof QueryScopeInfo.JobQueryScopeInfo);
-                    assertEquals("C", meterDump.scopeInfo.scope);
-                    assertEquals("c3", meterDump.name);
-                    assertEquals(
-                            "jid", ((QueryScopeInfo.JobQueryScopeInfo) meterDump.scopeInfo).jobID);
+                    assertThat(meterDump.scopeInfo)
+                            .isInstanceOf(QueryScopeInfo.JobQueryScopeInfo.class);
+                    assertThat(meterDump.scopeInfo.scope).isEqualTo("C");
+                    assertThat(meterDump.name).isEqualTo("c3");
+                    assertThat(((QueryScopeInfo.JobQueryScopeInfo) meterDump.scopeInfo).jobID)
+                            .isEqualTo("jid");
                     break;
                 default:
-                    fail();
+                    fail("Unexpected metric type: " + metric.getCategory());
             }
         }
-        assertTrue(counters.isEmpty());
-        assertTrue(gauges.isEmpty());
-        assertTrue(histograms.isEmpty());
+        assertThat(counters).isEmpty();
+        assertThat(gauges).isEmpty();
+        assertThat(histograms).isEmpty();
     }
 }

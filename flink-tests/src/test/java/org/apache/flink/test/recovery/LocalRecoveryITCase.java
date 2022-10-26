@@ -21,7 +21,6 @@ package org.apache.flink.test.recovery;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -105,10 +104,7 @@ class LocalRecoveryITCase {
 
             final long waitingTimeInSeconds = 45L;
             waitUntilCheckpointCompleted(
-                    configuration,
-                    clusterEntrypoint.getRestPort(),
-                    jobClient.getJobID(),
-                    Deadline.fromNow(Duration.ofSeconds(waitingTimeInSeconds)));
+                    configuration, clusterEntrypoint.getRestPort(), jobClient.getJobID());
 
             restartTaskManagerProcesses(taskManagerProcesses, parallelism - 1);
 
@@ -219,8 +215,7 @@ class LocalRecoveryITCase {
     }
 
     private void waitUntilCheckpointCompleted(
-            Configuration configuration, int restPort, JobID jobId, Deadline deadline)
-            throws Exception {
+            Configuration configuration, int restPort, JobID jobId) throws Exception {
         final RestClient restClient = new RestClient(configuration, Executors.directExecutor());
         final JobMessageParameters messageParameters = new JobMessageParameters();
         messageParameters.jobPathParameter.resolve(jobId);
@@ -237,8 +232,7 @@ class LocalRecoveryITCase {
                                             EmptyRequestBody.getInstance())
                                     .join();
                     return checkpointingStatistics.getCounts().getNumberCompletedCheckpoints() > 0;
-                },
-                deadline);
+                });
     }
 
     private JobClient submitJob(

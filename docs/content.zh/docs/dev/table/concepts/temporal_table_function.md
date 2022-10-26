@@ -61,7 +61,7 @@ the versioning time attribute.
 {{< tab "Java" >}}
 ```java
 TemporalTableFunction rates = tEnv
-    .from("currency_rates").
+    .from("currency_rates")
     .createTemporalTableFunction("update_time", "currency");
  
 tEnv.registerFunction("rates", rates);                                                        
@@ -70,10 +70,15 @@ tEnv.registerFunction("rates", rates);
 {{< tab "Scala" >}}
 ```scala
 rates = tEnv
-    .from("currency_rates").
+    .from("currency_rates")
     .createTemporalTableFunction("update_time", "currency")
  
 tEnv.registerFunction("rates", rates)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python Table API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -124,6 +129,11 @@ Table result = orders
 val result = orders
     .joinLateral($"rates(order_time)", $"orders.currency = rates.currency")
     .select($"(o_amount * r_rate).sum as amount"))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}

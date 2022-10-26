@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,11 +41,13 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.createTransaction;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.unwrap;
 
 /**
  * The split reader a given {@link PulsarPartitionSplit}, it would be closed once the {@link
@@ -56,8 +59,6 @@ import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUt
 public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSplitReaderBase<OUT> {
     private static final Logger LOG =
             LoggerFactory.getLogger(PulsarUnorderedPartitionSplitReader.class);
-
-    private static final Duration REDELIVER_TIME = Duration.ofSeconds(3);
 
     private final TransactionCoordinatorClient coordinatorClient;
 
@@ -97,17 +98,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
                         .acknowledgeAsync(message.getMessageId(), uncommittedTransaction)
                         .get();
             } catch (InterruptedException e) {
-                sneakyClient(
-                        () ->
-                                pulsarConsumer.reconsumeLater(
-                                        message, REDELIVER_TIME.toMillis(), TimeUnit.MILLISECONDS));
                 Thread.currentThread().interrupt();
-                throw e;
-            } catch (ExecutionException e) {
-                sneakyClient(
-                        () ->
-                                pulsarConsumer.reconsumeLater(
-                                        message, REDELIVER_TIME.toMillis(), TimeUnit.MILLISECONDS));
                 throw e;
             }
         }
@@ -126,7 +117,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
     }
 
     @Override
-    protected void startConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
+    protected void afterCreatingConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
         TxnID uncommittedTransactionId = split.getUncommittedTransactionId();
 
         // Abort the uncommitted pulsar transaction.
@@ -135,10 +126,14 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
                 try {
                     coordinatorClient.abort(uncommittedTransactionId);
                 } catch (TransactionCoordinatorClientException e) {
-                    LOG.error(
-                            "Failed to abort the uncommitted transaction {} when restart the reader",
-                            uncommittedTransactionId,
-                            e);
+                    TransactionCoordinatorClientException exception = unwrap(e);
+                    // The aborted transaction would return a not found exception.
+                    if (!(exception instanceof TransactionNotFoundException)) {
+                        LOG.error(
+                                "Failed to abort the uncommitted transaction {} when restart the reader",
+                                uncommittedTransactionId,
+                                e);
+                    }
                 }
             }
 
@@ -147,7 +142,11 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
         }
     }
 
-    public PulsarPartitionSplitState snapshotState(long checkpointId) {
+    public Optional<PulsarPartitionSplitState> snapshotState() {
+        if (registeredSplit == null) {
+            return Optional.empty();
+        }
+
         PulsarPartitionSplitState state = new PulsarPartitionSplitState(registeredSplit);
 
         // Avoiding NP problem when Pulsar don't get the message before Flink checkpoint.
@@ -157,7 +156,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
             state.setUncommittedTransactionId(txnID);
         }
 
-        return state;
+        return Optional.of(state);
     }
 
     private Transaction newTransaction() {

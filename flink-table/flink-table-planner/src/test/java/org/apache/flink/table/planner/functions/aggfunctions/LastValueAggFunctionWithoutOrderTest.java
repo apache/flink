@@ -250,7 +250,7 @@ public final class LastValueAggFunctionWithoutOrderTest {
 
     /** Test base for {@link LastValueAggFunction} without order. */
     public abstract static class LastValueAggFunctionWithoutOrderTestBase<T>
-            extends AggFunctionTestBase<T, RowData> {
+            extends AggFunctionTestBase<T, T, RowData> {
 
         @Override
         protected Class<?> getAccClass() {

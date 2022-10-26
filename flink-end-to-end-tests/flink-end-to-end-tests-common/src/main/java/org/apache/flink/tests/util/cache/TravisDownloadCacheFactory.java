@@ -18,7 +18,7 @@
 
 package org.apache.flink.tests.util.cache;
 
-import org.apache.flink.tests.util.parameters.ParameterProperty;
+import org.apache.flink.test.parameters.ParameterProperty;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

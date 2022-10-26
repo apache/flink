@@ -17,43 +17,43 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link DeclarationRewriter}. */
-public class DeclarationRewriterTest extends CodeRewriterTestBase<DeclarationRewriter> {
+class DeclarationRewriterTest extends CodeRewriterTestBase<DeclarationRewriter> {
 
     public DeclarationRewriterTest() {
         super("declaration", code -> new DeclarationRewriter(code, 20));
     }
 
     @Test
-    public void testRewriteLocalVariable() {
+    void testRewriteLocalVariable() {
         runTest("TestRewriteLocalVariable");
     }
 
     @Test
-    public void testNotRewriteLocalVariableInFunctionWithReturnValue() {
+    void testNotRewriteLocalVariableInFunctionWithReturnValue() {
         runTest("TestNotRewriteLocalVariableInFunctionWithReturnValue");
     }
 
     @Test
-    public void testRewriteLocalVariableInForLoop() {
+    void testRewriteLocalVariableInForLoop() {
         runTest("TestRewriteLocalVariableInForLoop1");
         runTest("TestRewriteLocalVariableInForLoop2");
     }
 
     @Test
-    public void testLocalVariableWithSameName() {
+    void testLocalVariableWithSameName() {
         runTest("TestLocalVariableWithSameName");
     }
 
     @Test
-    public void testRewriteInnerClass() {
+    void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
     }
 
     @Test
-    public void testLocalVariableAndMemberVariableWithSameName() {
+    void testLocalVariableAndMemberVariableWithSameName() {
         runTest("TestLocalVariableAndMemberVariableWithSameName");
     }
 }

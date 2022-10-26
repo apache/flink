@@ -41,8 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** The Table Source ITCase for {@link OracleDialect}. */
 public class OracleTableSourceITCase extends AbstractTestBase {
@@ -155,7 +154,7 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                                 "+I[2, 1.12345, 2.1234567879, 101.1234, -1.175E-10, -1.79769E40, a, abc, abcdef, 1997-01-02, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, Hey Leonard, [69, 61, 122, 52]]")
                         .sorted()
                         .collect(Collectors.toList());
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
@@ -198,7 +197,7 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                                 "+I[2, 2020-01-01T15:36:01.123456, 101.1234]")
                         .sorted()
                         .collect(Collectors.toList());
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
@@ -240,9 +239,9 @@ public class OracleTableSourceITCase extends AbstractTestBase {
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 1.175E-10, 1.79769E40, 100.1234]");
         expected.add(
                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, -1.175E-10, -1.79769E40, 101.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                "The actual output is not a subset of the expected set.",
-                expected.containsAll(result));
+        assertThat(result).hasSize(1);
+        assertThat(expected)
+                .as("The actual output is not a subset of the expected set.")
+                .containsAll(result);
     }
 }

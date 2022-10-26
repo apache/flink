@@ -51,21 +51,22 @@ object Literal {
 case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
   override def toString: String = resultType match {
     case _: BasicTypeInfo[_] => value.toString
-    case _@SqlTimeTypeInfo.DATE => value.toString + ".toDate"
-    case _@SqlTimeTypeInfo.TIME => value.toString + ".toTime"
-    case _@SqlTimeTypeInfo.TIMESTAMP => value.toString + ".toTimestamp"
-    case _@TimeIntervalTypeInfo.INTERVAL_MILLIS => value.toString + ".millis"
-    case _@TimeIntervalTypeInfo.INTERVAL_MONTHS => value.toString + ".months"
+    case _ @SqlTimeTypeInfo.DATE => value.toString + ".toDate"
+    case _ @SqlTimeTypeInfo.TIME => value.toString + ".toTime"
+    case _ @SqlTimeTypeInfo.TIMESTAMP => value.toString + ".toTimestamp"
+    case _ @TimeIntervalTypeInfo.INTERVAL_MILLIS => value.toString + ".millis"
+    case _ @TimeIntervalTypeInfo.INTERVAL_MONTHS => value.toString + ".months"
     case _ => s"Literal($value, $resultType)"
   }
 
   /**
-    * Convert a Date value to a Calendar. Calcite's fromCalendarField functions use the
-    * Calendar.get methods, so the raw values of the individual fields are preserved when
-    * converted to the String formats.
-    *
-    * @return get the Calendar value
-    */
+   * Convert a Date value to a Calendar. Calcite's fromCalendarField functions use the Calendar.get
+   * methods, so the raw values of the individual fields are preserved when converted to the String
+   * formats.
+   *
+   * @return
+   *   get the Calendar value
+   */
   private def valueAsCalendar: Calendar = {
     val date = value.asInstanceOf[java.util.Date]
     val cal = Calendar.getInstance

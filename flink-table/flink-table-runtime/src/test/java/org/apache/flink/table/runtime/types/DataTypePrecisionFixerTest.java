@@ -33,9 +33,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -117,8 +115,6 @@ public class DataTypePrecisionFixerTest {
     }
 
     @Parameterized.Parameter public TestSpec testSpec;
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testPrecisionFixing() {

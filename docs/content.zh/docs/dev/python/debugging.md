@@ -58,10 +58,14 @@ print(table.get_schema())
 在作业运行的过程中，日志信息会打印在 `TaskManager` 的日志文件中。
 
 ```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+
+import logging
+
 @udf(result_type=DataTypes.BIGINT())
 def add(i, j):
     # 使用 logging 模块
-    import logging
     logging.info("debug")
     # 使用 print 函数
     print('debug')
@@ -116,7 +120,7 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 你可以打开profile来分析性能瓶颈
 
 ```python
-t_env.get_config().get_configuration().set_boolean("python.profile.enabled", True)
+t_env.get_config().set("python.profile.enabled", "true")
 ``` 
 
 你可以在[日志](#查看日志)里面查看profile的结果

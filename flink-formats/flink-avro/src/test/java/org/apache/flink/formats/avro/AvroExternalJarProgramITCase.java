@@ -46,6 +46,7 @@ class AvroExternalJarProgramITCase {
     private static final MiniCluster MINI_CLUSTER =
             new MiniCluster(
                     new MiniClusterConfiguration.Builder()
+                            .withRandomPorts()
                             .setNumTaskManagers(1)
                             .setNumSlotsPerTaskManager(PARALLELISM)
                             .build());

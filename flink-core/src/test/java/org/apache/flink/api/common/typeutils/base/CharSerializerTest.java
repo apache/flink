@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Random;
 
 /** A test for the {@link org.apache.flink.api.common.typeutils.base.CharSerializer}. */
-public class CharSerializerTest extends SerializerTestBase<Character> {
+class CharSerializerTest extends SerializerTestBase<Character> {
 
     @Override
     protected TypeSerializer<Character> createSerializer() {

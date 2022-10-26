@@ -15,22 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 
 import scala.collection.JavaConverters._
 
-/**
-  * Rule that converts [[FlinkLogicalCalc]] to [[BatchPhysicalCalc]].
-  */
+/** Rule that converts [[FlinkLogicalCalc]] to [[BatchPhysicalCalc]]. */
 class BatchPhysicalCalcRule
   extends ConverterRule(
     classOf[FlinkLogicalCalc],
@@ -49,12 +47,7 @@ class BatchPhysicalCalcRule
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newInput = RelOptRule.convert(calc.getInput, FlinkConventions.BATCH_PHYSICAL)
 
-    new BatchPhysicalCalc(
-      rel.getCluster,
-      newTrait,
-      newInput,
-      calc.getProgram,
-      rel.getRowType)
+    new BatchPhysicalCalc(rel.getCluster, newTrait, newInput, calc.getProgram, rel.getRowType)
   }
 }
 

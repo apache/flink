@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -27,9 +26,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 
-/**
-  * Test for [[org.apache.flink.table.planner.codegen.ExpressionReducer]].
-  */
+/** Test for [[org.apache.flink.table.planner.codegen.ExpressionReducer]]. */
 class ExpressionReductionRulesTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -62,6 +59,12 @@ class ExpressionReductionRulesTest extends TableTestBase {
     util.addFunction("PyUdf", DeterministicPythonFunc)
     util.addFunction("MyUdf", Func1)
     util.verifyExecPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
+  }
+
+  @Test
+  def testExpressionReductionWithRand(): Unit = {
+    util.verifyExecPlan(
+      "SELECT RAND(), RAND(), RAND(1), RAND(1), RAND_INTEGER(3), RAND_INTEGER(3) FROM MyTable")
   }
 }
 

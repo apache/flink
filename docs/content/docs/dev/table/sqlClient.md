@@ -174,8 +174,8 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                --pyExecutable
                                                /usr/local/bin/python3). The python
                                                UDF worker depends on Python 3.6+,
-                                               Apache Beam (version == 2.27.0), Pip
-                                               (version >= 7.1.0) and SetupTools
+                                               Apache Beam (version == 2.38.0), Pip
+                                               (version >= 20.3) and SetupTools
                                                (version >= 37.0.0). Please ensure
                                                that the specified environment meets
                                                the above requirements.
@@ -382,7 +382,7 @@ SET 'parallelism.default' = '1'; -- optional: Flink's parallelism (1 by default)
 SET 'pipeline.auto-watermark-interval' = '200'; --optional: interval for periodic watermarks
 SET 'pipeline.max-parallelism' = '10'; -- optional: Flink's maximum parallelism
 SET 'table.exec.state.ttl' = '1000'; -- optional: table program's idle state time
-SET 'restart-strategy' = 'fixed-delay';
+SET 'restart-strategy.type' = 'fixed-delay';
 
 -- Configuration options for adjusting and tuning table programs.
 
@@ -394,7 +394,7 @@ SET 'table.exec.spill-compression.block-size' = '128kb';
 This configuration:
 
 - connects to Hive catalogs and uses `MyCatalog` as the current catalog with `MyDatabase` as the current database of the catalog,
-- defines a table `MyTableSource` that can read data from a CSV file,
+- defines a table `MyTable` that can read data from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name,
 - uses streaming mode for running statements and a parallelism of 1,

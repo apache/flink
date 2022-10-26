@@ -52,7 +52,9 @@ import static org.powermock.api.mockito.PowerMockito.when;
 
 /** Test for FlinkCalciteCatalogReader. */
 public class FlinkCalciteCatalogReaderTest {
-    private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(new FlinkTypeSystem());
+    private final FlinkTypeFactory typeFactory =
+            new FlinkTypeFactory(
+                    Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
     private final String tableMockName = "ts";
 
     private SchemaPlus rootSchemaPlus;

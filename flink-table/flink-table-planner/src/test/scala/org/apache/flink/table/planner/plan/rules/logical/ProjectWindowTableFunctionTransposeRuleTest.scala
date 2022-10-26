@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, FlinkStreamProgram, HEP_RULES_EXECUTION_TYPE, StreamOptimizeContext}
@@ -24,12 +23,9 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-
 import org.junit.{Before, Test}
 
-/**
- * Test for [[ProjectWindowTableFunctionTransposeRule]].
- */
+/** Test for [[ProjectWindowTableFunctionTransposeRule]]. */
 class ProjectWindowTableFunctionTransposeRuleTest extends TableTestBase {
   private val util = streamTestUtil()
 
@@ -42,23 +38,23 @@ class ProjectWindowTableFunctionTransposeRuleTest extends TableTestBase {
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(ProjectWindowTableFunctionTransposeRule.INSTANCE))
-        .build())
+        .build()
+    )
     util.replaceStreamProgram(programs)
 
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  a INT,
-         |  b BIGINT,
-         |  c STRING NOT NULL,
-         |  d DECIMAL(10, 3),
-         |  e BIGINT,
-         |  rowtime TIMESTAMP(3),
-         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
-         |) with (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable (
+                                |  a INT,
+                                |  b BIGINT,
+                                |  c STRING NOT NULL,
+                                |  d DECIMAL(10, 3),
+                                |  e BIGINT,
+                                |  rowtime TIMESTAMP(3),
+                                |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+                                |) with (
+                                |  'connector' = 'values'
+                                |)
+                                |""".stripMargin)
   }
 
   @Test

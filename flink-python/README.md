@@ -26,7 +26,7 @@ The auto-generated Python docs can be found at [https://nightlies.apache.org/fli
 
 ## Python Requirements
 
-Apache Flink Python API depends on Py4J (currently version 0.10.9.3), CloudPickle (currently version 1.2.2), python-dateutil(currently version 2.8.0), Apache Beam (currently version 2.27.0).
+Apache Flink Python API depends on Py4J (currently version 0.10.9.3), CloudPickle (currently version 2.1.0), python-dateutil(currently version 2.8.0), Apache Beam (currently version 2.38.0).
 
 ## Development Notices
 
@@ -39,9 +39,9 @@ python pyflink/gen_protos.py
 ```
 
 PyFlink depends on the following libraries to execute the above script:
-1. grpcio-tools (>=1.3.5,<=1.14.2)
+1. grpcio-tools (>=1.29.0,<=1.46.3)
 2. setuptools (>=37.0.0)
-3. pip (>=7.1.0)
+3. pip (>=20.3)
 
 ### Running Test Cases 
 
@@ -49,5 +49,24 @@ Currently, we use conda and tox to verify the compatibility of the Flink Python 
 We can enter the directory where this README.md file is located and run test cases by executing
 
 ```
+./dev/lint-python.sh
+```
+
+To use your system conda environment, you can set `FLINK_CONDA_HOME` variable:
+
+```shell
+export FLINK_CONDA_HOME=$(dirname $(dirname $CONDA_EXE))
+```
+
+Create a virtual environment:
+```shell
+conda create -n pyflink_38 python=3.8
+```
+
+Then you can activate your environment and run tests, for example:
+
+```shell
+conda activate pyflink_38
+pip install -r ./dev/dev-requirements.txt
 ./dev/lint-python.sh
 ```

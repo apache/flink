@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -41,6 +42,7 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
     private final boolean isGlobal;
 
     public BatchExecLimit(
+            ReadableConfig tableConfig,
             long limitStart,
             long limitEnd,
             boolean isGlobal,
@@ -50,6 +52,7 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecLimit.class),
+                ExecNodeContext.newPersistedConfig(BatchExecLimit.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

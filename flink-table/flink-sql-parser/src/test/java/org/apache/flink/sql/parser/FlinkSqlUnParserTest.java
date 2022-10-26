@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
  * successfully.
  */
 @Execution(CONCURRENT)
-public class FlinkSqlUnParserTest extends FlinkSqlParserImplTest {
+class FlinkSqlUnParserTest extends FlinkSqlParserImplTest {
     // ~ Constructors -----------------------------------------------------------
 
     public FlinkSqlUnParserTest() {}

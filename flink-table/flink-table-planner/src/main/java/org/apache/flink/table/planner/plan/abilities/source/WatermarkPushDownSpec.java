@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.abilities.source;
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
@@ -75,15 +74,14 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
         if (tableSource instanceof SupportsWatermarkPushDown) {
             GeneratedWatermarkGenerator generatedWatermarkGenerator =
                     WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
-                            context.getTableConfig().getConfiguration(),
+                            context.getTableConfig(),
+                            context.getClassLoader(),
                             context.getSourceRowType(),
                             watermarkExpr,
                             Option.apply("context"));
-            Configuration configuration = context.getTableConfig().getConfiguration();
 
             WatermarkGeneratorSupplier<RowData> supplier =
-                    new GeneratedWatermarkGeneratorSupplier(
-                            configuration, generatedWatermarkGenerator);
+                    new GeneratedWatermarkGeneratorSupplier(generatedWatermarkGenerator);
 
             WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.forGenerator(supplier);
             if (idleTimeoutMillis > 0) {

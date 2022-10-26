@@ -15,19 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.types
-
-import scala.collection.immutable.{BitSet, HashMap, HashSet, ListMap, ListSet, NumericRange, Queue, Range, SortedMap, SortedSet}
-import scala.collection.mutable.{Buffer, ListBuffer, WrappedArray, BitSet => MBitSet, HashMap => MHashMap, HashSet => MHashSet, Map => MMap, Queue => MQueue, Set => MSet}
-import scala.util.matching.Regex
-import _root_.java.io.Serializable
-
-import com.twitter.chill._
 
 import org.apache.flink.api.java.typeutils.runtime.kryo.FlinkChillPackageRegistrar
 
+import _root_.java.io.Serializable
+import com.twitter.chill._
+
 import scala.collection.JavaConverters._
+import scala.collection.immutable.{BitSet, HashMap, HashSet, ListMap, ListSet, NumericRange, Queue, Range, SortedMap, SortedSet}
+import scala.collection.mutable.{BitSet => MBitSet, Buffer, HashMap => MHashMap, HashSet => MHashSet, ListBuffer, Map => MMap, Queue => MQueue, Set => MSet, WrappedArray}
+import scala.util.matching.Regex
 
 /*
 This code is copied as is from Twitter Chill 0.7.4 because we need to user a newer chill version
@@ -38,8 +36,8 @@ checks in our code base.
  */
 
 /**
- * This class has a no-arg constructor, suitable for use with reflection instantiation
- * It has no registered serializers, just the standard Kryo configured for Kryo.
+ * This class has a no-arg constructor, suitable for use with reflection instantiation It has no
+ * registered serializers, just the standard Kryo configured for Kryo.
  */
 class EmptyFlinkScalaKryoInstantiator extends KryoInstantiator {
   override def newKryo = {
@@ -60,9 +58,7 @@ object FlinkScalaKryoInstantiator extends Serializable {
   private val mutex = new AnyRef with Serializable // some serializable object
   @transient private var kpool: KryoPool = null
 
-  /**
-   * Return a KryoPool that uses the FlinkScalaKryoInstantiator
-   */
+  /** Return a KryoPool that uses the FlinkScalaKryoInstantiator */
   def defaultPool: KryoPool = mutex.synchronized {
     if (null == kpool) {
       kpool = KryoPool.withByteArrayOutputStream(guessThreads, new FlinkScalaKryoInstantiator)
@@ -141,9 +137,10 @@ class ScalaCollectionsRegistrar extends IKryoRegistrar {
       .forConcreteTraversableClass(
         HashMap[Any, Any]('a -> 'a, 'b -> 'b, 'c -> 'c, 'd -> 'd, 'e -> 'e))
       // The normal fields serializer works for ranges
-      .registerClasses(Seq(classOf[Range.Inclusive],
-      classOf[NumericRange.Inclusive[_]],
-      classOf[NumericRange.Exclusive[_]]))
+      .registerClasses(Seq(
+        classOf[Range.Inclusive],
+        classOf[NumericRange.Inclusive[_]],
+        classOf[NumericRange.Exclusive[_]]))
       // Add some maps
       .forSubclass[SortedMap[Any, Any]](new SortedMapSerializer)
       .forTraversableSubclass(ListMap.empty[Any, Any])
@@ -181,8 +178,7 @@ class AllScalaRegistrar extends IKryoRegistrar {
       override def isImmutable = true
       def write(k: Kryo, out: Output, obj: Symbol) { out.writeString(obj.name) }
       def read(k: Kryo, in: Input, cls: Class[Symbol]) = Symbol(in.readString)
-    })
-      .forSubclass[Regex](new RegexSerializer)
+    }).forSubclass[Regex](new RegexSerializer)
       .forClass[ClassManifest[Any]](new ClassManifestSerializer[Any])
       .forSubclass[Manifest[Any]](new ManifestSerializer[Any])
       .forSubclass[scala.Enumeration#Value](new EnumerationSerializer)

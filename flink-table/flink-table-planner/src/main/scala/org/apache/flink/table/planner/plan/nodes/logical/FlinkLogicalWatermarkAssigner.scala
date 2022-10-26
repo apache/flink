@@ -15,20 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
+
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWatermarkAssigner, WatermarkAssigner}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWatermarkAssigner, WatermarkAssigner}
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  */
+ * Sub-class of [[WatermarkAssigner]] that is a relational operator which generates
+ * [[org.apache.flink.streaming.api.watermark.Watermark]].
+ */
 class FlinkLogicalWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -38,10 +38,7 @@ class FlinkLogicalWatermarkAssigner(
   extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkExpr)
   with FlinkLogicalRel {
 
-
-  /**
-    * Copies a new WatermarkAssigner.
-    */
+  /** Copies a new WatermarkAssigner. */
   override def copy(
       traitSet: RelTraitSet,
       input: RelNode,
@@ -52,11 +49,12 @@ class FlinkLogicalWatermarkAssigner(
 
 }
 
-class FlinkLogicalWatermarkAssignerConverter extends ConverterRule(
-  classOf[LogicalWatermarkAssigner],
-  Convention.NONE,
-  FlinkConventions.LOGICAL,
-  "FlinkLogicalWatermarkAssignerConverter") {
+class FlinkLogicalWatermarkAssignerConverter
+  extends ConverterRule(
+    classOf[LogicalWatermarkAssigner],
+    Convention.NONE,
+    FlinkConventions.LOGICAL,
+    "FlinkLogicalWatermarkAssignerConverter") {
 
   override def convert(rel: RelNode): RelNode = {
     val watermark = rel.asInstanceOf[LogicalWatermarkAssigner]

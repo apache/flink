@@ -572,6 +572,51 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
+### Cache
+#### DataStream &rarr; CachedDataStream
+
+把算子的结果缓存起来。目前只支持批执行模式下运行的作业。算子的结果在算子第一次执行的时候会被缓存起来，之后的
+作业中会复用该算子缓存的结果。如果算子的结果丢失了，它会被原来的算子重新计算并缓存。
+
+{{< tabs cache >}}
+{{< tab "Java" >}}
+```java
+DataStream<Integer> dataStream = //...
+CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+cachedDataStream.print(); // Do anything with the cachedDataStream
+...
+env.execute(); // Execute and create cache.
+        
+cachedDataStream.print(); // Consume cached result.
+env.execute();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val dataStream : DataStream[Int] = //...
+val cachedDataStream = dataStream.cache()
+cachedDataStream.print() // Do anything with the cachedDataStream
+...
+env.execute() // Execute and create cache.
+
+cachedDataStream.print() // Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ... # DataStream
+cached_data_stream = data_stream.cache()
+cached_data_stream.print()
+# ...
+env.execute() # Execute and create cache.
+
+cached_data_stream.print() # Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< /tabs>}}
+
 ## 物理分区
 
 Flink 也提供以下方法让用户根据需要在数据转换完成后对数据分区进行更细粒度的配置。
@@ -771,7 +816,7 @@ Flink里的算子和作业节点会有一个名字和一个描述。名字和描
 {{< tabs namedescription>}}
 {{< tab "Java" >}}
 ```java
-someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}

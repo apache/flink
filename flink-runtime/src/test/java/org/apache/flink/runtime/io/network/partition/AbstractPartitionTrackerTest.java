@@ -93,8 +93,7 @@ public class AbstractPartitionTrackerTest extends TestLogger {
                                 : Optional.empty();
                     }
                 },
-                1,
-                true);
+                1);
     }
 
     private static class TestPartitionTracker

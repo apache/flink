@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
@@ -30,13 +29,14 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.rel.{RelCollations, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-class BatchPhysicalSinkRule extends ConverterRule(
+class BatchPhysicalSinkRule
+  extends ConverterRule(
     classOf[FlinkLogicalSink],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
@@ -60,12 +60,11 @@ class BatchPhysicalSinkRule extends ConverterRule(
           }
 
           val dynamicPartFields = resolvedCatalogTable.getPartitionKeys
-              .filter(!sink.staticPartitions.contains(_))
-          val fieldNames = resolvedCatalogTable
-            .getResolvedSchema
-            .toPhysicalRowDataType
-            .getLogicalType.asInstanceOf[RowType]
-            .getFieldNames
+            .filter(!sink.staticPartitions.contains(_))
+          val fieldNames =
+            resolvedCatalogTable.getResolvedSchema.toPhysicalRowDataType.getLogicalType
+              .asInstanceOf[RowType]
+              .getFieldNames
 
           if (dynamicPartFields.nonEmpty) {
             val dynamicPartIndices =
@@ -73,14 +72,15 @@ class BatchPhysicalSinkRule extends ConverterRule(
 
             // TODO This option is hardcoded to remove the dependency of planner from
             //  flink-connector-files. We should move this option out of FileSystemConnectorOptions
-            val shuffleEnable = resolvedCatalogTable
-              .getOptions
+            val shuffleEnable = resolvedCatalogTable.getOptions
               .getOrDefault("sink.shuffle-by-partition.enable", "false")
 
             if (shuffleEnable.toBoolean) {
               requiredTraitSet = requiredTraitSet.plus(
-                FlinkRelDistribution.hash(dynamicPartIndices
-                    .map(Integer.valueOf), requireStrict = false))
+                FlinkRelDistribution.hash(
+                  dynamicPartIndices
+                    .map(Integer.valueOf),
+                  requireStrict = false))
             }
 
             if (partitionSink.requiresPartitionGrouping(true)) {
@@ -96,10 +96,11 @@ class BatchPhysicalSinkRule extends ConverterRule(
               }
             }
           }
-        case _ => throw new TableException(
-          s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}' is a partitioned table, " +
-            s"but the underlying [${sink.tableSink.asSummaryString()}] DynamicTableSink " +
-            s"doesn't implement SupportsPartitioning interface.")
+        case _ =>
+          throw new TableException(
+            s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}' is a partitioned table, " +
+              s"but the underlying [${sink.tableSink.asSummaryString()}] DynamicTableSink " +
+              s"doesn't implement SupportsPartitioning interface.")
       }
     }
 

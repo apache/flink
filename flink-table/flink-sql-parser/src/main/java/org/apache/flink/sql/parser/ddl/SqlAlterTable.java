@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.SqlPartitionUtils;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -31,7 +32,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -93,5 +96,10 @@ public abstract class SqlAlterTable extends SqlCall {
     /** Get partition spec as key-value strings. */
     public LinkedHashMap<String, String> getPartitionKVs() {
         return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+    }
+
+    /** Alter table context. */
+    public static class AlterTableContext extends SqlCreateTable.TableCreationContext {
+        public List<SqlNode> columnPositions = new ArrayList<>();
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
@@ -25,7 +26,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -40,9 +40,10 @@ import org.apache.flink.util.Collector;
  * UNBOUNDED preceding AND CURRENT ROW) FROM T.
  */
 public class ProcTimeUnboundedPrecedingFunction<K>
-        extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
-    private static final long serialVersionUID = 1L;
+        extends KeyedProcessFunction<K, RowData, RowData> {
+    private static final long serialVersionUID = 2L;
 
+    private final StateTtlConfig ttlConfig;
     private final GeneratedAggsHandleFunction genAggsHandler;
     private final LogicalType[] accTypes;
 
@@ -51,11 +52,10 @@ public class ProcTimeUnboundedPrecedingFunction<K>
     private transient JoinedRowData output;
 
     public ProcTimeUnboundedPrecedingFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             GeneratedAggsHandleFunction genAggsHandler,
             LogicalType[] accTypes) {
-        super(minRetentionTime, maxRetentionTime);
+        this.ttlConfig = ttlConfig;
         this.genAggsHandler = genAggsHandler;
         this.accTypes = accTypes;
     }
@@ -69,10 +69,11 @@ public class ProcTimeUnboundedPrecedingFunction<K>
 
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> stateDescriptor =
-                new ValueStateDescriptor<RowData>("accState", accTypeInfo);
+                new ValueStateDescriptor<>("accState", accTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            stateDescriptor.enableTimeToLive(ttlConfig);
+        }
         accState = getRuntimeContext().getState(stateDescriptor);
-
-        initCleanupTimeState("ProcTimeUnboundedOverCleanupTime");
     }
 
     @Override
@@ -81,9 +82,6 @@ public class ProcTimeUnboundedPrecedingFunction<K>
             KeyedProcessFunction<K, RowData, RowData>.Context ctx,
             Collector<RowData> out)
             throws Exception {
-        // register state-cleanup timer
-        registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-
         RowData accumulators = accState.value();
         if (null == accumulators) {
             accumulators = function.createAccumulators();
@@ -102,18 +100,6 @@ public class ProcTimeUnboundedPrecedingFunction<K>
         RowData aggValue = function.getValue();
         output.replace(input, aggValue);
         out.collect(output);
-    }
-
-    @Override
-    public void onTimer(
-            long timestamp,
-            KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
-            Collector<RowData> out)
-            throws Exception {
-        if (stateCleaningEnabled) {
-            cleanupState(accState);
-            function.cleanup();
-        }
     }
 
     @Override

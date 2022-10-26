@@ -29,7 +29,7 @@ import org.mockito.Mockito;
 import java.sql.ResultSet;
 import java.time.LocalDateTime;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AbstractJdbcRowConverter}. */
 public class AbstractJdbcRowConverterTest {
@@ -54,9 +54,8 @@ public class AbstractJdbcRowConverterTest {
                 .thenReturn(LocalDateTime.parse("2021-04-07T00:00:05.999"));
         RowData res = rowConverter.toInternal(resultSet);
 
-        assertEquals(123, res.getInt(0));
-        assertEquals(
-                LocalDateTime.parse("2021-04-07T00:00:05.999"),
-                res.getTimestamp(1, 3).toLocalDateTime());
+        assertThat(res.getInt(0)).isEqualTo(123);
+        assertThat(res.getTimestamp(1, 3).toLocalDateTime())
+                .isEqualTo(LocalDateTime.parse("2021-04-07T00:00:05.999"));
     }
 }

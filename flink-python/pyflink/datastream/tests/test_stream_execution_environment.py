@@ -18,29 +18,26 @@
 import datetime
 import decimal
 import glob
-import json
 import os
 import shutil
 import tempfile
 import time
-import unittest
 import uuid
 
 from pyflink.common import Configuration, ExecutionConfig, RestartStrategies
-from pyflink.common.serialization import JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic,
                                 SlotSharingGroup)
-from pyflink.datastream.connectors import FlinkKafkaConsumer
+from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.slot_sharing_group import MemorySize
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
-from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
-    EnvironmentSettings
+from pyflink.table import DataTypes, StreamTableEnvironment, EnvironmentSettings
 from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 from pyflink.util.java_utils import get_j_env_configuration
 
@@ -218,35 +215,20 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(self.env.get_checkpoint_config().get_checkpoint_timeout(), 12000)
         self.assertTrue(isinstance(self.env.get_state_backend(), MemoryStateBackend))
 
-    @unittest.skip("Python API does not support DataStream now. refactor this test later")
-    def test_get_execution_plan(self):
-        tmp_dir = tempfile.gettempdir()
-        source_path = os.path.join(tmp_dir + '/streaming.csv')
-        tmp_csv = os.path.join(tmp_dir + '/streaming2.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-
-        t_env = StreamTableEnvironment.create(self.env)
-        csv_source = CsvTableSource(source_path, field_names, field_types)
-        t_env.register_table_source("Orders", csv_source)
-        t_env.register_table_sink(
-            "Results",
-            CsvTableSink(field_names, field_types, tmp_csv))
-        t_env.from_path("Orders").execute_insert("Results").wait()
-
-        plan = self.env.get_execution_plan()
-
-        json.loads(plan)
-
     def test_execute(self):
         tmp_dir = tempfile.gettempdir()
-        field_names = ['a', 'b', 'c']
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env = StreamTableEnvironment.create(self.env)
-        t_env.register_table_sink(
-            'Results',
-            CsvTableSink(field_names, field_types,
-                         os.path.join('{}/{}.csv'.format(tmp_dir, round(time.time())))))
+        t_env.execute_sql("""
+            CREATE TABLE Results (
+                a BIGINT,
+                b STRING,
+                c STRING
+            ) WITH (
+                'connector' = 'filesystem',
+                'path'='{0}/{1}.csv',
+                'format' = 'csv'
+            )
+        """.format(tmp_dir, round(time.time())))
         execution_result = exec_insert_table(
             t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']),
             'Results')
@@ -403,7 +385,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         from pyflink.table.expressions import col
         add_three = udf(plus_three, result_type=DataTypes.BIGINT())
 
-        tab = t_env.from_data_stream(ds, 'a') \
+        tab = t_env.from_data_stream(ds, col('a')) \
                    .select(add_three(col('a')))
         t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
              .map(lambda i: i[0]) \
@@ -445,10 +427,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             from test_dep2 import add_three
             return add_three(value)
 
+        env.add_python_file(python_file_path)
         t_env = StreamTableEnvironment.create(
             stream_execution_environment=env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
-        env.add_python_file(python_file_path)
 
         from pyflink.table.udf import udf
         from pyflink.table.expressions import col
@@ -466,7 +448,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import uuid
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
-            f.write("cloudpickle==1.2.2")
+            f.write("cloudpickle==2.1.0")
         self.env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
@@ -678,13 +660,15 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         # The parallelism of Sink: Test Sink should be 4
         self.assertEqual(nodes[4]['parallelism'], 4)
 
-        env_config_with_dependencies = dict(get_gateway().jvm.org.apache.flink.python.util
-                                            .PythonConfigUtil.getEnvConfigWithDependencies(
-            env._j_stream_execution_environment).toMap())
+        python_dependency_config = dict(
+            get_gateway().jvm.org.apache.flink.python.util.PythonDependencyUtils.
+            configurePythonDependencies(
+                env._j_stream_execution_environment.getCachedFiles(),
+                env._j_stream_execution_environment.getConfiguration()).toMap())
 
         # Make sure that user specified files and archives are correctly added.
-        self.assertIsNotNone(env_config_with_dependencies['python.files'])
-        self.assertIsNotNone(env_config_with_dependencies['python.archives'])
+        self.assertIsNotNone(python_dependency_config['python.internal.files-key-map'])
+        self.assertIsNotNone(python_dependency_config['python.internal.archives-key-map'])
 
     def test_register_slot_sharing_group(self):
         slot_sharing_group_1 = SlotSharingGroup.builder('slot_sharing_group_1') \

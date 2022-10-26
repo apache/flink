@@ -77,7 +77,7 @@ public class AbstractMetricGroupTest extends TestLogger {
                 };
         assertTrue(group.getAllVariables().isEmpty());
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -152,30 +152,20 @@ public class AbstractMetricGroupTest extends TestLogger {
         config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
 
         MetricConfig metricConfig1 = new MetricConfig();
-        metricConfig1.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+        metricConfig1.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "-");
 
         MetricConfig metricConfig2 = new MetricConfig();
-        metricConfig2.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
+        metricConfig2.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "!");
 
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                CollectingMetricsReporter.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test1."
-                        + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,
+                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
                 "-");
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                CollectingMetricsReporter.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test2."
-                        + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,
+                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
                 "!");
 
         CollectingMetricsReporter reporter1 = new CollectingMetricsReporter(FILTER_B);
@@ -247,7 +237,7 @@ public class AbstractMetricGroupTest extends TestLogger {
                                 input -> input.replace("A", "X").replace(counterName, "3")));
             }
         } finally {
-            testRegistry.shutdown().get();
+            testRegistry.closeAsync().get();
         }
     }
 
@@ -285,7 +275,7 @@ public class AbstractMetricGroupTest extends TestLogger {
                                     reporter2.findAdded(counterName).group)
                             .getLogicalScope(reporter2, ','));
         } finally {
-            testRegistry.shutdown().get();
+            testRegistry.closeAsync().get();
         }
     }
 
@@ -311,7 +301,7 @@ public class AbstractMetricGroupTest extends TestLogger {
             assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1, '.'));
             assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2, '.'));
         } finally {
-            testRegistry.shutdown().get();
+            testRegistry.closeAsync().get();
         }
     }
 

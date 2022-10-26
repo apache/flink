@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -76,8 +75,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
 
         boolean success = false;
         try {
-            CommonTestUtils.waitUntilCondition(
-                    workingDirectory::exists, Deadline.fromNow(Duration.ofMinutes(1L)));
+            CommonTestUtils.waitUntilCondition(workingDirectory::exists);
 
             taskManagerProcess.getProcess().destroy();
 
@@ -115,8 +113,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
                         try (Stream<Path> files = Files.list(workingDirBase.toPath())) {
                             return files.findAny().isPresent();
                         }
-                    },
-                    Deadline.fromNow(Duration.ofMinutes(1L)));
+                    });
 
             final File workingDirectory =
                     Iterables.getOnlyElement(

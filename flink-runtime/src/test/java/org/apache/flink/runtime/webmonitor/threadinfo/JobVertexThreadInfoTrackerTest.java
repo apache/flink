@@ -38,23 +38,25 @@ import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
 import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -64,11 +66,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link JobVertexThreadInfoTracker}. */
 public class JobVertexThreadInfoTrackerTest extends TestLogger {
@@ -91,11 +89,9 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     private static final int MAX_STACK_TRACE_DEPTH = 100;
     private static final Duration DELAY_BETWEEN_SAMPLES = Duration.ofMillis(50);
 
-    @Rule public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
-
     private static ScheduledExecutorService executor;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() {
         // Time gap determines endTime of stats, which controls if the "refresh" is triggered:
         // now >= stats.getEndTime() + statsRefreshInterval
@@ -110,7 +106,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         executor = Executors.newScheduledThreadPool(1);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() {
         if (executor != null) {
             executor.shutdownNow();
@@ -139,7 +135,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         Optional<JobVertexThreadInfoStats> result =
                 tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
         // cached result is returned instead of unusedThreadInfoStats
-        assertEquals(threadInfoStatsDefaultSample, result.get());
+        assertThat(threadInfoStatsDefaultSample).isEqualTo(result.get());
     }
 
     /** Tests that cached result is NOT reused after refresh interval. */
@@ -170,7 +166,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                         threadInfoStatsAfterRefresh);
 
         // no stats yet, but the request triggers async collection of stats
-        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        assertThat(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX)).isNotPresent();
         // block until the async call completes and the first result is available
         tracker.getResultAvailableFuture().get();
 
@@ -204,11 +200,11 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                         threadInfoStatsDefaultSample);
 
         // no stats yet, but the request triggers async collection of stats
-        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        assertThat(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX)).isNotPresent();
         // wait until one eviction was registered
         cacheExpired.await();
 
-        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        assertThat(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX)).isNotPresent();
     }
 
     /** Tests that cached results are NOT removed within the cleanup interval. */
@@ -236,9 +232,9 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         tracker.shutDown();
 
         // verify that the previous cached result is invalid and trigger another request
-        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        assertThat(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX)).isNotPresent();
         // verify no response after shutdown
-        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        assertThat(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX)).isNotPresent();
     }
 
     private Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> createCache(
@@ -256,7 +252,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
             JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker)
             throws InterruptedException, ExecutionException {
         // no stats yet, but the request triggers async collection of stats
-        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
+        assertThat(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX)).isNotPresent();
         // block until the async call completes and the first result is available
         tracker.getResultAvailableFuture().get();
         assertExpectedEqualsReceived(
@@ -266,16 +262,16 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     private static void assertExpectedEqualsReceived(
             JobVertexThreadInfoStats expected,
             Optional<JobVertexThreadInfoStats> receivedOptional) {
-        assertTrue(receivedOptional.isPresent());
+        assertThat(receivedOptional).isPresent();
         JobVertexThreadInfoStats received = receivedOptional.get();
 
-        assertEquals(expected.getRequestId(), received.getRequestId());
-        assertEquals(expected.getEndTime(), received.getEndTime());
+        assertThat(expected.getRequestId()).isEqualTo(received.getRequestId());
+        assertThat(expected.getEndTime()).isEqualTo(received.getEndTime());
 
-        assertEquals(TASK_VERTICES.length, received.getNumberOfSubtasks());
+        assertThat(TASK_VERTICES.length).isEqualTo(received.getNumberOfSubtasks());
 
-        for (List<ThreadInfoSample> samples : received.getSamplesBySubtask().values()) {
-            assertThat(samples.isEmpty(), is(false));
+        for (Collection<ThreadInfoSample> samples : received.getSamplesBySubtask().values()) {
+            assertThat(samples.isEmpty()).isFalse();
         }
     }
 
@@ -323,12 +319,13 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
             List<ThreadInfoSample> threadInfoSamples) {
         Instant endTime = startTime.plus(timeGap);
 
-        final Map<ExecutionAttemptID, List<ThreadInfoSample>> threadInfoRatiosByTask =
-                new HashMap<>();
+        final Map<ImmutableSet<ExecutionAttemptID>, Collection<ThreadInfoSample>>
+                threadInfoRatiosByTask = new HashMap<>();
 
         for (ExecutionVertex vertex : TASK_VERTICES) {
-            threadInfoRatiosByTask.put(
-                    vertex.getCurrentExecutionAttempt().getAttemptId(), threadInfoSamples);
+            Set<ExecutionAttemptID> attemptIds = new HashSet<>();
+            attemptIds.add(vertex.getCurrentExecutionAttempt().getAttemptId());
+            threadInfoRatiosByTask.put(ImmutableSet.copyOf(attemptIds), threadInfoSamples);
         }
 
         return new JobVertexThreadInfoStats(
@@ -378,7 +375,10 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         @Override
         public CompletableFuture<JobVertexThreadInfoStats> triggerThreadInfoRequest(
-                Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>> ignored1,
+                Map<
+                                ImmutableSet<ExecutionAttemptID>,
+                                CompletableFuture<TaskExecutorThreadInfoGateway>>
+                        executionsWithGateways,
                 int ignored2,
                 Duration ignored3,
                 int ignored4) {

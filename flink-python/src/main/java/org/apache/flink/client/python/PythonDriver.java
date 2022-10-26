@@ -154,10 +154,14 @@ public final class PythonDriver {
      */
     static List<String> constructPythonCommands(final PythonDriverOptions pythonDriverOptions) {
         final List<String> commands = new ArrayList<>();
+        commands.add("-m");
         if (pythonDriverOptions.getEntryPointScript().isPresent()) {
-            commands.add(pythonDriverOptions.getEntryPointScript().get());
+            String pythonFileName = pythonDriverOptions.getEntryPointScript().get();
+            commands.add(
+                    pythonFileName.substring(
+                            pythonFileName.lastIndexOf(File.separator) + 1,
+                            pythonFileName.lastIndexOf(".py")));
         } else {
-            commands.add("-m");
             commands.add(pythonDriverOptions.getEntryPointModule());
         }
         commands.addAll(pythonDriverOptions.getProgramArgs());

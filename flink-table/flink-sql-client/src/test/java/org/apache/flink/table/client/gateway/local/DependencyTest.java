@@ -55,10 +55,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -72,7 +70,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Dependency tests for {@link LocalExecutor}. Mainly for testing classloading of dependencies. */
-public class DependencyTest {
+class DependencyTest {
 
     public static final String CONNECTOR_TYPE_VALUE = "test-connector";
     public static final String TEST_PROPERTY = "test-property";
@@ -80,7 +78,6 @@ public class DependencyTest {
 
     public static final String CATALOG_TYPE_TEST = "DependencyTest";
 
-    private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
     private static final List<String> INIT_SQL =
             Arrays.asList(
                     String.format(
@@ -100,7 +97,7 @@ public class DependencyTest {
     private static final String SESSION_ID = "test-session";
 
     @Test
-    public void testTableFactoryDiscovery() throws Exception {
+    void testTableFactoryDiscovery() throws Exception {
         final LocalExecutor executor = createLocalExecutor();
         try {
             final TableResult tableResult =
@@ -137,7 +134,7 @@ public class DependencyTest {
     }
 
     @Test
-    public void testSqlParseWithUserClassLoader() throws Exception {
+    void testSqlParseWithUserClassLoader() throws Exception {
         final LocalExecutor executor = createLocalExecutor();
         try {
             Operation operation =
@@ -151,12 +148,10 @@ public class DependencyTest {
     }
 
     private LocalExecutor createLocalExecutor() throws Exception {
-        // create executor with dependencies
-        final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
         // create default context
         DefaultContext defaultContext =
                 new DefaultContext(
-                        Collections.singletonList(dependency),
+                        Collections.emptyList(),
                         new Configuration(),
                         Collections.singletonList(new DefaultCLI()));
         LocalExecutor executor = new LocalExecutor(defaultContext);

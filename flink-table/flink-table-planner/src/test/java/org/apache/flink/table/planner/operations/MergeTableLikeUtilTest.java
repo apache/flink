@@ -49,9 +49,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -61,13 +59,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link MergeTableLikeUtil}. */
 public class MergeTableLikeUtilTest {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(new FlinkTypeSystem());
+    private final FlinkTypeFactory typeFactory =
+            new FlinkTypeFactory(
+                    Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
     private final SqlValidator sqlValidator =
             PlannerMocks.create().getPlanner().getOrCreateSqlValidator();
     private final MergeTableLikeUtil util = new MergeTableLikeUtil(sqlValidator, SqlNode::toString);
@@ -114,14 +113,16 @@ public class MergeTableLikeUtilTest {
                         regularColumn("one", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("A column named 'one' already exists in the base table.");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                derivedColumns,
-                Collections.emptyList(),
-                null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("A column named 'one' already exists in the base table.");
     }
 
     @Test
@@ -135,14 +136,16 @@ public class MergeTableLikeUtilTest {
                         regularColumn("two", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("A regular Column named 'two' already exists in the table.");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                derivedColumns,
-                Collections.emptyList(),
-                null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("A regular Column named 'two' already exists in the table.");
     }
 
     @Test
@@ -157,16 +160,18 @@ public class MergeTableLikeUtilTest {
                         regularColumn("three", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "A column named 'three' already exists in the table. "
-                        + "Duplicate columns exist in the compute column and regular column. ");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                derivedColumns,
-                Collections.emptyList(),
-                null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A column named 'three' already exists in the table. Duplicate columns "
+                                + "exist in the compute column and regular column. ");
     }
 
     @Test
@@ -181,16 +186,18 @@ public class MergeTableLikeUtilTest {
                         regularColumn("two", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "A column named 'two' already exists in the table. "
-                        + "Duplicate columns exist in the metadata column and regular column. ");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                derivedColumns,
-                Collections.emptyList(),
-                null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A column named 'two' already exists in the table. Duplicate columns "
+                                + "exist in the metadata column and regular column. ");
     }
 
     @Test
@@ -270,16 +277,19 @@ public class MergeTableLikeUtilTest {
         List<SqlNode> derivedColumns =
                 Collections.singletonList(computedColumn("two", plus("one", "3")));
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "A generated column named 'two' already exists in the base table. You "
-                        + "might want to specify EXCLUDING GENERATED or OVERWRITING GENERATED");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                derivedColumns,
-                Collections.emptyList(),
-                null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A generated column named 'two' already exists in the base table. You "
+                                + "might want to specify EXCLUDING GENERATED or "
+                                + "OVERWRITING GENERATED.");
     }
 
     @Test
@@ -293,16 +303,19 @@ public class MergeTableLikeUtilTest {
         List<SqlNode> derivedColumns =
                 Collections.singletonList(metadataColumn("two", DataTypes.INT(), false));
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "A metadata column named 'two' already exists in the base table. You "
-                        + "might want to specify EXCLUDING METADATA or OVERWRITING METADATA");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                derivedColumns,
-                Collections.emptyList(),
-                null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A metadata column named 'two' already exists in the base table. You "
+                                + "might want to specify EXCLUDING METADATA or "
+                                + "OVERWRITING METADATA.");
     }
 
     @Test
@@ -443,12 +456,19 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "A column named 'two' already exists in the table. "
-                        + "Duplicate columns exist in the compute column and regular column. ");
-        util.mergeTables(
-                mergingStrategies, sourceSchema, derivedColumns, Collections.emptyList(), null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        mergingStrategies,
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A column named 'two' already exists in the table. "
+                                + "Duplicate columns exist in the compute column "
+                                + "and regular column. ");
     }
 
     @Test
@@ -465,12 +485,18 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.OVERWRITING);
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "A column named 'two' already exists in the base table."
-                        + " Metadata columns can only overwrite other metadata columns.");
-        util.mergeTables(
-                mergingStrategies, sourceSchema, derivedColumns, Collections.emptyList(), null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        mergingStrategies,
+                                        sourceSchema,
+                                        derivedColumns,
+                                        Collections.emptyList(),
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A column named 'two' already exists in the base table."
+                                + " Metadata columns can only overwrite other metadata columns.");
     }
 
     @Test
@@ -534,16 +560,19 @@ public class MergeTableLikeUtilTest {
                                 identifier("timestamp"),
                                 boundedStrategy("timestamp", "10")));
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "There already exists a watermark spec for column 'timestamp' in the "
-                        + "base table. You might want to specify EXCLUDING WATERMARKS or OVERWRITING WATERMARKS.");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                Collections.emptyList(),
-                derivedWatermarkSpecs,
-                null);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        Collections.emptyList(),
+                                        derivedWatermarkSpecs,
+                                        null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "There already exists a watermark spec for column 'timestamp' in the "
+                                + "base table. You might want to specify EXCLUDING WATERMARKS "
+                                + "or OVERWRITING WATERMARKS.");
     }
 
     @Test
@@ -699,16 +728,18 @@ public class MergeTableLikeUtilTest {
                         .primaryKey("constraint-42", new String[] {"one", "two"})
                         .build();
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "The base table already has a primary key. You might want to specify "
-                        + "EXCLUDING CONSTRAINTS.");
-        util.mergeTables(
-                getDefaultMergingStrategies(),
-                sourceSchema,
-                Collections.emptyList(),
-                Collections.emptyList(),
-                primaryKey("one", "two"));
+        assertThatThrownBy(
+                        () ->
+                                util.mergeTables(
+                                        getDefaultMergingStrategies(),
+                                        sourceSchema,
+                                        Collections.emptyList(),
+                                        Collections.emptyList(),
+                                        primaryKey("one", "two")))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "The base table already has a primary key. You might want to specify "
+                                + "EXCLUDING CONSTRAINTS.");
     }
 
     @Test
@@ -772,10 +803,16 @@ public class MergeTableLikeUtilTest {
         List<String> sourcePartitions = Arrays.asList("col3", "col4");
         List<String> derivedPartitions = Arrays.asList("col1", "col2");
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "The base table already has partitions defined. You might want to specify EXCLUDING PARTITIONS");
-        util.mergePartitions(MergingStrategy.INCLUDING, sourcePartitions, derivedPartitions);
+        assertThatThrownBy(
+                        () ->
+                                util.mergePartitions(
+                                        MergingStrategy.INCLUDING,
+                                        sourcePartitions,
+                                        derivedPartitions))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "The base table already has partitions defined. You might want "
+                                + "to specify EXCLUDING PARTITIONS.");
     }
 
     @Test
@@ -821,11 +858,15 @@ public class MergeTableLikeUtilTest {
         Map<String, String> derivedOptions = new HashMap<>();
         derivedOptions.put("offset", "2");
 
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "There already exists an option ['offset' -> '1']  in the base table. You might want"
-                        + " to specify EXCLUDING OPTIONS or OVERWRITING OPTIONS.");
-        util.mergeOptions(MergingStrategy.INCLUDING, sourceOptions, derivedOptions);
+        assertThatThrownBy(
+                        () ->
+                                util.mergeOptions(
+                                        MergingStrategy.INCLUDING, sourceOptions, derivedOptions))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "There already exists an option ['offset' -> '1']  in the base table. "
+                                + "You might want to specify EXCLUDING OPTIONS or "
+                                + "OVERWRITING OPTIONS.");
     }
 
     @Test

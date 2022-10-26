@@ -132,7 +132,6 @@ abstract class SemiAntiJoinTestBase extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-
   @Test
   def testInWithUncorrelated_Having(): Unit = {
     val sqlQuery =
@@ -580,7 +579,7 @@ abstract class SemiAntiJoinTestBase extends TableTestBase {
 
   @Test
   def testNotExistsWithUniqueRight(): Unit = {
-    val sqlQuery =  "SELECT * FROM leftT WHERE NOT EXISTS " +
+    val sqlQuery = "SELECT * FROM leftT WHERE NOT EXISTS " +
       "(SELECT * FROM (SELECT DISTINCT c FROM rightT) WHERE a = c)"
     util.verifyExecPlan(sqlQuery)
   }

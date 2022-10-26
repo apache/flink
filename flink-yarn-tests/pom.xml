@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<!--
@@ -36,6 +35,10 @@ under the License.
 	<artifactId>flink-yarn-tests</artifactId>
 	<name>Flink : Yarn Tests</name>
 	<packaging>jar</packaging>
+
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
 
 	<dependencies>
 		
@@ -69,14 +72,6 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
 		<!-- Needed for the streaming wordcount example -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -89,14 +84,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-yarn</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-yarn</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
@@ -119,9 +106,23 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<!-- Use whatever guava version Hadoop pulls in. -->
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -143,7 +144,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-yarn-client</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -161,7 +162,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-yarn-api</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -175,7 +176,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-minicluster</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -198,6 +199,10 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -342,15 +347,6 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
 			</plugin>
 
 			<plugin>

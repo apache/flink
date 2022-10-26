@@ -32,7 +32,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link KafkaSourceEnumStateSerializer}. */
 public class KafkaSourceEnumStateSerializerTest {
@@ -52,7 +52,7 @@ public class KafkaSourceEnumStateSerializerTest {
         final KafkaSourceEnumState restoredState =
                 serializer.deserialize(serializer.getVersion(), bytes);
 
-        assertEquals(state.assignedPartitions(), restoredState.assignedPartitions());
+        assertThat(restoredState.assignedPartitions()).isEqualTo(state.assignedPartitions());
     }
 
     @Test
@@ -72,7 +72,7 @@ public class KafkaSourceEnumStateSerializerTest {
         final KafkaSourceEnumState kafkaSourceEnumState =
                 new KafkaSourceEnumStateSerializer().deserialize(0, bytes);
 
-        assertEquals(topicPartitions, kafkaSourceEnumState.assignedPartitions());
+        assertThat(kafkaSourceEnumState.assignedPartitions()).isEqualTo(topicPartitions);
     }
 
     private Set<TopicPartition> constructTopicPartitions() {

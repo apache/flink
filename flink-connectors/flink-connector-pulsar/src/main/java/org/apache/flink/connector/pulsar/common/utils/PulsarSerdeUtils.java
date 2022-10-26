@@ -27,8 +27,10 @@ import org.apache.flink.util.function.FunctionWithException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -50,10 +52,7 @@ public final class PulsarSerdeUtils {
     public static byte[] deserializeBytes(DataInputStream in) throws IOException {
         int size = in.readInt();
         byte[] bytes = new byte[size];
-        int result = in.read(bytes);
-        if (result < 0) {
-            throw new IOException("Couldn't deserialize the object, wrong byte buffer.");
-        }
+        in.readFully(bytes);
 
         return bytes;
     }
@@ -76,6 +75,32 @@ public final class PulsarSerdeUtils {
         } catch (ClassNotFoundException e) {
             throw new IOException(e);
         }
+    }
+
+    // Common List serialization.
+
+    public static <T> void serializeList(
+            DataOutputStream out,
+            List<T> list,
+            BiConsumerWithException<DataOutputStream, T, IOException> serializer)
+            throws IOException {
+        out.writeInt(list.size());
+        for (T t : list) {
+            serializer.accept(out, t);
+        }
+    }
+
+    public static <T> List<T> deserializeList(
+            DataInputStream in, FunctionWithException<DataInputStream, T, IOException> deserializer)
+            throws IOException {
+        int size = in.readInt();
+        List<T> set = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            T t = deserializer.apply(in);
+            set.add(t);
+        }
+
+        return set;
     }
 
     // Common Set serialization.

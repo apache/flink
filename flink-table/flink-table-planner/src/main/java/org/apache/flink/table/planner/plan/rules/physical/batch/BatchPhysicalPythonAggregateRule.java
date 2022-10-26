@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -107,6 +108,7 @@ public class BatchPhysicalPythonAggregateRule extends ConverterRule {
 
         Tuple3<int[][], DataType[][], UserDefinedFunction[]> aggBufferTypesAndFunctions =
                 AggregateUtil.transformToBatchAggregateFunctions(
+                        ShortcutUtils.unwrapTypeFactory(input),
                         FlinkTypeFactory.toLogicalRowType(input.getRowType()),
                         aggCallsWithoutAuxGroupCalls,
                         null);

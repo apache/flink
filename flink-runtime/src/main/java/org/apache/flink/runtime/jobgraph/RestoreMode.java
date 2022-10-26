@@ -53,4 +53,6 @@ public enum RestoreMode implements DescribedEnum {
     public InlineElement getDescription() {
         return text(description);
     }
+
+    public static final RestoreMode DEFAULT = NO_CLAIM;
 }

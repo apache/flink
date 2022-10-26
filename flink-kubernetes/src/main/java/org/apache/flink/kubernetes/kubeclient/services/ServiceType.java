@@ -19,12 +19,19 @@
 package org.apache.flink.kubernetes.kubeclient.services;
 
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** An abstract class represents the service type that flink supported. */
 public abstract class ServiceType {
@@ -74,11 +81,53 @@ public abstract class ServiceType {
             KubernetesJobManagerParameters kubernetesJobManagerParameters);
 
     /**
+     * Gets the rest endpoint from the kubernetes service.
+     *
+     * @param targetService the target service to retrieve from.
+     * @param internalClient the client to interact with api server.
+     * @param nodePortAddressType the target address type of the node.
+     * @return the rest endpoint.
+     */
+    public abstract Optional<Endpoint> getRestEndpoint(
+            Service targetService,
+            NamespacedKubernetesClient internalClient,
+            KubernetesConfigOptions.NodePortAddressType nodePortAddressType);
+
+    /**
+     * Gets the rest port from the service port.
+     *
+     * @param port the target service port.
+     * @return the rest port.
+     */
+    public abstract int getRestPort(ServicePort port);
+
+    /**
      * Gets the type of the target kubernetes service.
      *
      * @return the type of the target kubernetes service.
      */
     public abstract String getType();
+
+    /** Get rest port from the external Service. */
+    public int getRestPortFromExternalService(Service externalService) {
+        final List<ServicePort> servicePortCandidates =
+                externalService.getSpec().getPorts().stream()
+                        .filter(x -> x.getName().equals(Constants.REST_PORT_NAME))
+                        .collect(Collectors.toList());
+
+        if (servicePortCandidates.isEmpty()) {
+            throw new RuntimeException(
+                    "Failed to find port \""
+                            + Constants.REST_PORT_NAME
+                            + "\" in Service \""
+                            + externalService.getMetadata().getName()
+                            + "\"");
+        }
+
+        final ServicePort externalServicePort = servicePortCandidates.get(0);
+
+        return getRestPort(externalServicePort);
+    }
 
     // Helper method
     public static KubernetesConfigOptions.ServiceExposedType classify(Service service) {

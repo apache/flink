@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-s3-fs-presto</artifactId>
@@ -33,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.257</presto.version>
+		<presto.version>0.272</presto.version>
 	</properties>
 
 	<dependencies>
@@ -366,6 +365,14 @@ under the License.
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
 					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
+					</exclusion>
 				</exclusions>
 			</dependency>
 			<dependency>
@@ -384,6 +391,14 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>

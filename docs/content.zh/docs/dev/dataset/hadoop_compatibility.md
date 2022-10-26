@@ -25,6 +25,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+{{< hint warning >}}
+Starting with Flink 1.12 the DataSet API has been soft deprecated.
+
+We recommend that you use the [Table API and SQL]({{< ref "docs/dev/table/overview" >}}) to run efficient
+batch pipelines in a fully unified API. Table API is well integrated with common batch connectors and
+catalogs.
+
+Alternatively, you can also use the DataStream API with `BATCH` [execution mode]({{< ref "docs/dev/datastream/execution_mode" >}}).
+The linked section also outlines cases where it makes sense to use the DataSet API but those cases will
+become rarer as development progresses and the DataSet API will eventually be removed. Please also
+see [FLIP-131](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741) for
+background information on this decision.
+{{< /hint >}}
+
 # Hadoop 兼容
 
 Flink is compatible with Apache Hadoop MapReduce interfaces and therefore allows
@@ -88,7 +102,7 @@ The former is used for input formats derived
 from `FileInputFormat` while the latter has to be used for general purpose
 input formats.
 The resulting `InputFormat` can be used to create a data source by using
-`ExecutionEnvironmen#createInput`.
+`ExecutionEnvironment#createInput`.
 
 The resulting `DataSet` contains 2-tuples where the first field
 is the key and the second field is the value retrieved from the Hadoop
@@ -142,7 +156,7 @@ The following example shows how to use Hadoop's `TextOutputFormat`.
 
 ```java
 // Obtain the result we want to emit
-DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
+DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...];
 
 // Set up the Hadoop TextOutputFormat.
 HadoopOutputFormat<Text, IntWritable> hadoopOF =
@@ -198,7 +212,7 @@ The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 
 ```java
 // Obtain data to process somehow.
-DataSet<Tuple2<LongWritable, Text>> text = [...]
+DataSet<Tuple2<LongWritable, Text>> text = [...];
 
 DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction

@@ -27,8 +27,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkTestBase.TEST_RUNTIME_CONTEXT;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Simple uniqueness tests for the {@link SemanticXidGenerator}. */
 public class SemanticXidGeneratorTest {
@@ -59,6 +59,6 @@ public class SemanticXidGeneratorTest {
             // We "drop" the branch id because uniqueness of gtrid is important
             generated.add(new XidImpl(0, generate.apply(i).getGlobalTransactionId(), new byte[0]));
         }
-        assertEquals(COUNT, generated.size());
+        assertThat(generated).hasSize(COUNT);
     }
 }

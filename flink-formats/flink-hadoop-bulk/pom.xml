@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-hadoop-bulk</artifactId>
@@ -86,7 +85,7 @@ under the License.
 			<artifactId>hadoop-hdfs</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -100,7 +99,7 @@ under the License.
 			<artifactId>hadoop-common</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -116,6 +115,14 @@ under the License.
 					<artifactId>jdk.tools</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

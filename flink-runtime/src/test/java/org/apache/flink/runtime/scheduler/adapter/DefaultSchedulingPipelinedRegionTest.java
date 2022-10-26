@@ -29,10 +29,13 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -40,6 +43,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -50,6 +54,10 @@ import static org.junit.Assert.fail;
 
 /** Unit tests for {@link DefaultSchedulingPipelinedRegion}. */
 public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void gettingUnknownVertexThrowsException() {
@@ -121,7 +129,8 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         e.connectNewDataSetAsInput(d, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final DefaultExecutionGraph simpleTestGraph =
-                ExecutionGraphTestUtils.createSimpleTestGraph(a, b, c, d, e);
+                ExecutionGraphTestUtils.createExecutionGraph(
+                        EXECUTOR_RESOURCE.getExecutor(), a, b, c, d, e);
         final DefaultExecutionTopology topology =
                 DefaultExecutionTopology.fromExecutionGraph(simpleTestGraph);
 
@@ -138,7 +147,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         final Set<IntermediateResultPartitionID> secondPipelinedRegionConsumedResults =
                 new HashSet<>();
         for (ConsumedPartitionGroup consumedPartitionGroup :
-                secondPipelinedRegion.getAllBlockingConsumedPartitionGroups()) {
+                secondPipelinedRegion.getAllNonPipelinedConsumedPartitionGroups()) {
             for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 if (!secondPipelinedRegion.contains(
                         topology.getResultPartition(partitionId).getProducer().getId())) {
@@ -148,7 +157,10 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         }
 
         assertThat(
-                firstPipelinedRegion.getAllBlockingConsumedPartitionGroups().iterator().hasNext(),
+                firstPipelinedRegion
+                        .getAllNonPipelinedConsumedPartitionGroups()
+                        .iterator()
+                        .hasNext(),
                 is(false));
         assertThat(secondPipelinedRegionConsumedResults, contains(b0ConsumedResultPartition));
     }

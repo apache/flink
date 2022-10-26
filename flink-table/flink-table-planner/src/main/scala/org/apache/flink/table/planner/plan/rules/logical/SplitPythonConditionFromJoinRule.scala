@@ -15,29 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.RelOptRule.{none, operand}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
-import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexProgram, RexProgramBuilder, RexUtil}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalJoin}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
+
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.RelOptRule.{none, operand}
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex.{RexProgram, RexProgramBuilder, RexUtil}
 
 import scala.collection.JavaConversions._
 
 /**
-  * Rule will splits the [[FlinkLogicalJoin]] which contains Python Functions in join condition
-  * into a [[FlinkLogicalJoin]] and a [[FlinkLogicalCalc]] with python Functions. Currently, only
-  * inner join is supported.
-  *
-  * After this rule is applied, there will be no Python Functions in the condition of the
-  * [[FlinkLogicalJoin]].
-  */
-class SplitPythonConditionFromJoinRule extends RelOptRule(
-  operand(classOf[FlinkLogicalJoin], none),
-  "SplitPythonConditionFromJoinRule") {
+ * Rule will splits the [[FlinkLogicalJoin]] which contains Python Functions in join condition into
+ * a [[FlinkLogicalJoin]] and a [[FlinkLogicalCalc]] with python Functions. Currently, only inner
+ * join is supported.
+ *
+ * After this rule is applied, there will be no Python Functions in the condition of the
+ * [[FlinkLogicalJoin]].
+ */
+class SplitPythonConditionFromJoinRule
+  extends RelOptRule(operand(classOf[FlinkLogicalJoin], none), "SplitPythonConditionFromJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
@@ -61,6 +60,7 @@ class SplitPythonConditionFromJoinRule extends RelOptRule(
       join.getLeft,
       join.getRight,
       newJoinCondition,
+      join.getHints,
       join.getJoinType)
 
     val rexProgram = new RexProgramBuilder(bottomJoin.getRowType, rexBuilder).getProgram

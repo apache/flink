@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -279,8 +278,7 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
                                         && afterConnectionReconnect
                                                 .getLeaderAddress()
                                                 .equals(newLeaderAddress);
-                            },
-                            Deadline.fromNow(Duration.ofSeconds(30L)));
+                            });
                 });
     }
 

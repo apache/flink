@@ -69,10 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for the ORC BulkWriter write RowData with nested type. */
 public class OrcBulkRowDataWriterTest {
@@ -192,28 +189,28 @@ public class OrcBulkRowDataWriterTest {
 
     private void validate(File files, List<RowData> expected) throws IOException {
         final File[] buckets = files.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).isNotNull();
+        assertThat(buckets).hasSize(1);
 
         final File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
+        assertThat(partFiles).isNotNull();
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile.length()).isGreaterThan(0);
 
             OrcFile.ReaderOptions readerOptions = OrcFile.readerOptions(new Configuration());
             Reader reader =
                     OrcFile.createReader(
                             new org.apache.hadoop.fs.Path(partFile.toURI()), readerOptions);
 
-            assertEquals(2, reader.getNumberOfRows());
-            assertEquals(4, reader.getSchema().getFieldNames().size());
-            assertSame(reader.getCompressionKind(), CompressionKind.LZ4);
+            assertThat(reader.getNumberOfRows()).isEqualTo(2);
+            assertThat(reader.getSchema().getFieldNames()).hasSize(4);
+            assertThat(reader.getCompressionKind()).isSameAs(CompressionKind.LZ4);
 
             List<RowData> results = getResults(reader);
 
-            assertEquals(2, results.size());
-            assertEquals(results, expected);
+            assertThat(results).hasSize(2);
+            assertThat(results).isEqualTo(expected);
         }
     }
 

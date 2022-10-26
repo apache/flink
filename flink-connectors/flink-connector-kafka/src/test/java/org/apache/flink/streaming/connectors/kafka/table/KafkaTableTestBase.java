@@ -41,7 +41,6 @@ import org.junit.ClassRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -63,7 +62,6 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaTableTestBase.class);
 
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
-    private static final Network NETWORK = Network.newNetwork();
     private static final int zkTimeoutMills = 30000;
 
     @ClassRule
@@ -77,7 +75,6 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
                     }
                 }
             }.withEmbeddedZookeeper()
-                    .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
                     .withEnv(
                             "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",

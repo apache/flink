@@ -124,7 +124,7 @@ public class FileChannelManagerImplTest extends TestLogger {
 
             // Waits till the process has created temporary files and registered the corresponding
             // shutdown hooks.
-            TestJvmProcess.waitForMarkerFile(signalFile, TEST_TIMEOUT.toMillis());
+            TestJvmProcess.waitForMarkerFile(signalFile, 3 * TEST_TIMEOUT.toMillis());
 
             Process kill =
                     Runtime.getRuntime()
@@ -196,6 +196,8 @@ public class FileChannelManagerImplTest extends TestLogger {
             String tmpDirectory = args[1];
             String signalFilePath = args[2];
 
+            LOG.info("The FileChannelManagerCleanupRunner process has started");
+
             FileChannelManager manager =
                     new FileChannelManagerImpl(new String[] {tmpDirectory}, DIR_NAME_PREFIX);
 
@@ -205,8 +207,12 @@ public class FileChannelManagerImplTest extends TestLogger {
                 ShutdownHookUtil.addShutdownHook(() -> manager.close(), "Caller", LOG);
             }
 
+            LOG.info("The FileChannelManagerCleanupRunner is going to create the new file");
+
             // Signals the main process to execute the kill action.
             new File(signalFilePath).createNewFile();
+
+            LOG.info("The FileChannelManagerCleanupRunner has created the new file");
 
             // Blocks the process to wait to be killed.
             Thread.sleep(3 * TEST_TIMEOUT.toMillis());

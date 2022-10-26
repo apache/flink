@@ -304,7 +304,8 @@ public class TaskManagerServices {
                         // iff the external data port is not explicitly defined
                         taskManagerServicesConfiguration.getExternalDataPort() > 0
                                 ? taskManagerServicesConfiguration.getExternalDataPort()
-                                : listeningDataPort);
+                                : listeningDataPort,
+                        taskManagerServicesConfiguration.getNodeId());
 
         final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
@@ -413,6 +414,8 @@ public class TaskManagerServices {
                         taskManagerServicesConfiguration.getNetworkMemorySize(),
                         taskManagerServicesConfiguration.isLocalCommunicationOnly(),
                         taskManagerServicesConfiguration.getBindAddress(),
+                        taskManagerServicesConfiguration.getNumberOfSlots(),
+                        taskManagerServicesConfiguration.getTmpDirPaths(),
                         taskEventDispatcher,
                         taskManagerMetricGroup,
                         ioExecutor);

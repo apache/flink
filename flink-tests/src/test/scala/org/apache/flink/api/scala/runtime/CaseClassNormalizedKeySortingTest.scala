@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
@@ -25,17 +24,18 @@ import org.apache.flink.api.scala._
 import org.apache.flink.core.memory._
 import org.apache.flink.runtime.operators.sort.{NormalizedKeySorter, QuickSort}
 
-import java.util
-import java.util.Random
-
 import org.junit.Assert._
 import org.junit.Test
 import org.mockito.Mockito
 
+import java.util
+import java.util.Random
+
 case class CaseTestClass(a: Int, b: Int, c: Int, d: String)
 
-/** Test that verifies that the case class comparators properly
- * generate normalized keys used during sorting.
+/**
+ * Test that verifies that the case class comparators properly generate normalized keys used during
+ * sorting.
  */
 class CaseClassNormalizedKeySortingTest {
 
@@ -46,11 +46,8 @@ class CaseClassNormalizedKeySortingTest {
 
     val serializer = typeInfo.createSerializer(new ExecutionConfig)
     val comparator = new FailingCompareDeserializedWrapper(
-      typeInfo.createComparator(
-        Array[Int](0, 2),
-        Array[Boolean](true, true),
-        0,
-        new ExecutionConfig))
+      typeInfo
+        .createComparator(Array[Int](0, 2), Array[Boolean](true, true), 0, new ExecutionConfig))
 
     assertTrue(comparator.supportsNormalizedKey())
     assertEquals(8, comparator.getNormalizeKeyLen())
@@ -58,28 +55,26 @@ class CaseClassNormalizedKeySortingTest {
 
     // validate the failing mock
     {
-      val in1 : DataInputView = Mockito.mock(classOf[DataInputView])
-      val in2 : DataInputView = Mockito.mock(classOf[DataInputView])
+      val in1: DataInputView = Mockito.mock(classOf[DataInputView])
+      val in2: DataInputView = Mockito.mock(classOf[DataInputView])
 
       try {
         comparator.compareSerialized(in1, in2)
         fail("should throw an exception")
-      }
-      catch {
+      } catch {
         case e: UnsupportedOperationException => // fine
         case ee: Exception => fail("unexpected exception")
       }
     }
 
-
     val numMemSegs = 20
-    val memory : util.List[MemorySegment] = new util.ArrayList[MemorySegment](numMemSegs)
+    val memory: util.List[MemorySegment] = new util.ArrayList[MemorySegment](numMemSegs)
     for (i <- 1 to numMemSegs) {
-      memory.add(MemorySegmentFactory.allocateUnpooledSegment(32*1024))
+      memory.add(MemorySegmentFactory.allocateUnpooledSegment(32 * 1024))
     }
 
-    val sorter : NormalizedKeySorter[CaseTestClass] = new NormalizedKeySorter[CaseTestClass](
-      serializer, comparator, memory)
+    val sorter: NormalizedKeySorter[CaseTestClass] =
+      new NormalizedKeySorter[CaseTestClass](serializer, comparator, memory)
 
     val rnd = new Random()
     var moreToGo = true
@@ -96,17 +91,17 @@ class CaseClassNormalizedKeySortingTest {
 
   class FailingCompareDeserializedWrapper[T](wrapped: TypeComparator[T]) extends TypeComparator[T] {
 
-    def hash(record: T) : Int = wrapped.hash(record)
+    def hash(record: T): Int = wrapped.hash(record)
 
     def setReference(toCompare: T) = wrapped.setReference(toCompare)
 
     def equalToReference(candidate: T): Boolean = wrapped.equalToReference(candidate)
 
-    def compareToReference(referencedComparator: TypeComparator[T]): Int
-    = wrapped.compareToReference(referencedComparator)
+    def compareToReference(referencedComparator: TypeComparator[T]): Int =
+      wrapped.compareToReference(referencedComparator)
 
-    override def supportsCompareAgainstReference(): Boolean
-    = wrapped.supportsCompareAgainstReference()
+    override def supportsCompareAgainstReference(): Boolean =
+      wrapped.supportsCompareAgainstReference()
 
     def compare(first: T, second: T): Int = wrapped.compare(first, second)
 
@@ -116,29 +111,29 @@ class CaseClassNormalizedKeySortingTest {
 
     def supportsNormalizedKey(): Boolean = wrapped.supportsNormalizedKey()
 
-    def supportsSerializationWithKeyNormalization(): Boolean
-    = wrapped.supportsSerializationWithKeyNormalization()
+    def supportsSerializationWithKeyNormalization(): Boolean =
+      wrapped.supportsSerializationWithKeyNormalization()
 
     def getNormalizeKeyLen(): Int = wrapped.getNormalizeKeyLen()
 
-    def isNormalizedKeyPrefixOnly(keyBytes: Int): Boolean
-    = wrapped.isNormalizedKeyPrefixOnly(keyBytes)
+    def isNormalizedKeyPrefixOnly(keyBytes: Int): Boolean =
+      wrapped.isNormalizedKeyPrefixOnly(keyBytes)
 
-    def putNormalizedKey(record: T, target: MemorySegment, offset: Int, numBytes: Int): Unit
-    = wrapped.putNormalizedKey(record, target, offset, numBytes)
+    def putNormalizedKey(record: T, target: MemorySegment, offset: Int, numBytes: Int): Unit =
+      wrapped.putNormalizedKey(record, target, offset, numBytes)
 
-    def writeWithKeyNormalization(record: T, target: DataOutputView): Unit
-    = wrapped.writeWithKeyNormalization(record, target)
+    def writeWithKeyNormalization(record: T, target: DataOutputView): Unit =
+      wrapped.writeWithKeyNormalization(record, target)
 
-    def readWithKeyDenormalization(reuse: T, source: DataInputView): T
-    = wrapped.readWithKeyDenormalization(reuse, source)
+    def readWithKeyDenormalization(reuse: T, source: DataInputView): T =
+      wrapped.readWithKeyDenormalization(reuse, source)
 
     def invertNormalizedKey(): Boolean = wrapped.invertNormalizedKey()
 
     def duplicate(): TypeComparator[T] = new FailingCompareDeserializedWrapper(wrapped.duplicate())
 
-    def extractKeys(record: Object, target: Array[Object], index: Int): Int
-    = wrapped.extractKeys(record, target, index)
+    def extractKeys(record: Object, target: Array[Object], index: Int): Int =
+      wrapped.extractKeys(record, target, index)
 
     def getFlatComparators(): Array[TypeComparator[_]] = wrapped.getFlatComparators()
 

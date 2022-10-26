@@ -75,6 +75,17 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
     }
 
     @Override
+    public CheckpointBoundKeyedStateHandle rebound(long checkpointId) {
+        return new IncrementalLocalKeyedStateHandle(
+                backendIdentifier,
+                checkpointId,
+                getDirectoryStateHandle(),
+                getKeyGroupRange(),
+                getMetaDataState(),
+                getSharedStateHandles());
+    }
+
+    @Override
     @Nonnull
     public UUID getBackendIdentifier() {
         return backendIdentifier;

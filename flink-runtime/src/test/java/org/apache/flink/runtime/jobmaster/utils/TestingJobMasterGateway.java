@@ -24,9 +24,12 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -97,10 +100,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             requestPartitionStateFunction;
 
     @Nonnull
-    private final Function<ResultPartitionID, CompletableFuture<Acknowledge>>
-            notifyPartitionDataAvailableFunction;
-
-    @Nonnull
     private final Function<ResourceID, CompletableFuture<Acknowledge>>
             disconnectTaskManagerFunction;
 
@@ -136,7 +135,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction;
 
-    @Nonnull private final Supplier<CompletableFuture<String>> triggerCheckpointFunction;
+    @Nonnull
+    private final Function<CheckpointType, CompletableFuture<CompletedCheckpoint>>
+            triggerCheckpointFunction;
 
     @Nonnull
     private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
@@ -188,6 +189,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     private final Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer;
 
+    private final Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+            notifyNewBlockedNodesFunction;
+
     public TestingJobMasterGateway(
             @Nonnull String address,
             @Nonnull String hostname,
@@ -207,9 +211,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                                     ResultPartitionID,
                                     CompletableFuture<ExecutionState>>
                             requestPartitionStateFunction,
-            @Nonnull
-                    Function<ResultPartitionID, CompletableFuture<Acknowledge>>
-                            notifyPartitionDataAvailableFunction,
             @Nonnull
                     Function<ResourceID, CompletableFuture<Acknowledge>>
                             disconnectTaskManagerFunction,
@@ -239,7 +240,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nonnull
                     TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                             triggerSavepointFunction,
-            @Nonnull Supplier<CompletableFuture<String>> triggerCheckpointFunction,
+            @Nonnull
+                    Function<CheckpointType, CompletableFuture<CompletedCheckpoint>>
+                            triggerCheckpointFunction,
             @Nonnull
                     TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                             stopWithSavepointFunction,
@@ -290,14 +293,16 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                                     SerializedValue<CoordinationRequest>,
                                     CompletableFuture<CoordinationResponse>>
                             deliverCoordinationRequestFunction,
-            @Nonnull Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
+            @Nonnull Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer,
+            @Nonnull
+                    Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+                            notifyNewBlockedNodesFunction) {
         this.address = address;
         this.hostname = hostname;
         this.cancelFunction = cancelFunction;
         this.updateTaskExecutionStateFunction = updateTaskExecutionStateFunction;
         this.requestNextInputSplitFunction = requestNextInputSplitFunction;
         this.requestPartitionStateFunction = requestPartitionStateFunction;
-        this.notifyPartitionDataAvailableFunction = notifyPartitionDataAvailableFunction;
         this.disconnectTaskManagerFunction = disconnectTaskManagerFunction;
         this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
         this.offerSlotsFunction = offerSlotsFunction;
@@ -321,6 +326,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.operatorEventSender = operatorEventSender;
         this.deliverCoordinationRequestFunction = deliverCoordinationRequestFunction;
         this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
+        this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
     }
 
     @Override
@@ -344,12 +350,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public CompletableFuture<ExecutionState> requestPartitionState(
             IntermediateDataSetID intermediateResultId, ResultPartitionID partitionId) {
         return requestPartitionStateFunction.apply(intermediateResultId, partitionId);
-    }
-
-    @Override
-    public CompletableFuture<Acknowledge> notifyPartitionDataAvailable(
-            ResultPartitionID partitionID, Time timeout) {
-        return notifyPartitionDataAvailableFunction.apply(partitionID);
     }
 
     @Override
@@ -418,8 +418,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public CompletableFuture<String> triggerCheckpoint(Time timeout) {
-        return triggerCheckpointFunction.get();
+    public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
+            CheckpointType checkpointType, Time timeout) {
+        return triggerCheckpointFunction.apply(checkpointType);
     }
 
     @Override
@@ -549,5 +550,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public CompletableFuture<?> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> partitionIds) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
+        return notifyNewBlockedNodesFunction.apply(newNodes);
     }
 }

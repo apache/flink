@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.{TableException, ValidationException}
@@ -26,8 +25,8 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
 
-import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject}
 import org.apache.calcite.rex.{RexCall, RexNode}
@@ -35,11 +34,12 @@ import org.apache.calcite.tools.RelBuilder
 
 import scala.collection.JavaConversions._
 
-class WindowPropertiesRule extends RelOptRule(
-  operand(classOf[LogicalProject],
-    operand(classOf[LogicalProject],
-      operand(classOf[LogicalWindowAggregate], none()))),
-  "WindowPropertiesRule") {
+class WindowPropertiesRule
+  extends RelOptRule(
+    operand(
+      classOf[LogicalProject],
+      operand(classOf[LogicalProject], operand(classOf[LogicalWindowAggregate], none()))),
+    "WindowPropertiesRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val project: LogicalProject = call.rel(0)
@@ -52,26 +52,31 @@ class WindowPropertiesRule extends RelOptRule(
     val innerProject: LogicalProject = call.rel(1)
     val agg: LogicalWindowAggregate = call.rel(2)
 
-    val converted = WindowPropertiesRules.convertWindowNodes(
-      call.builder(), project, None, innerProject, agg)
+    val converted =
+      WindowPropertiesRules.convertWindowNodes(call.builder(), project, None, innerProject, agg)
 
     call.transformTo(converted)
   }
 }
 
-class WindowPropertiesHavingRule extends RelOptRule(
-  RelOptRule.operand(classOf[LogicalProject],
-    RelOptRule.operand(classOf[LogicalFilter],
-      RelOptRule.operand(classOf[LogicalProject],
-        RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.none())))),
-  "WindowPropertiesHavingRule") {
+class WindowPropertiesHavingRule
+  extends RelOptRule(
+    RelOptRule.operand(
+      classOf[LogicalProject],
+      RelOptRule.operand(
+        classOf[LogicalFilter],
+        RelOptRule.operand(
+          classOf[LogicalProject],
+          RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.none())))
+    ),
+    "WindowPropertiesHavingRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val project: LogicalProject = call.rel(0)
     val filter: LogicalFilter = call.rel(1)
 
     project.getProjects.exists(WindowPropertiesRules.hasGroupAuxiliaries) ||
-      WindowPropertiesRules.hasGroupAuxiliaries(filter.getCondition)
+    WindowPropertiesRules.hasGroupAuxiliaries(filter.getCondition)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -81,7 +86,11 @@ class WindowPropertiesHavingRule extends RelOptRule(
     val agg: LogicalWindowAggregate = call.rel(3)
 
     val converted = WindowPropertiesRules.convertWindowNodes(
-      call.builder(), project, Some(filter), innerProject, agg)
+      call.builder(),
+      project,
+      Some(filter),
+      innerProject,
+      agg)
 
     call.transformTo(converted)
   }
@@ -103,25 +112,31 @@ object WindowPropertiesRules {
     val windowType = getWindowType(w)
 
     val startEndProperties = Seq(
-     new NamedWindowProperty(
-        propertyName(w, "start"), new WindowStart(w.aliasAttribute)),
-      new NamedWindowProperty(
-        propertyName(w, "end"), new WindowEnd(w.aliasAttribute)))
+      new NamedWindowProperty(propertyName(w, "start"), new WindowStart(w.aliasAttribute)),
+      new NamedWindowProperty(propertyName(w, "end"), new WindowEnd(w.aliasAttribute))
+    )
 
     // allow rowtime/proctime for rowtime windows and proctime for proctime windows
     val timeProperties = windowType match {
       case 'streamRowtime =>
         Seq(
-          new NamedWindowProperty(propertyName(w, "rowtime"),
+          new NamedWindowProperty(
+            propertyName(w, "rowtime"),
             new RowtimeAttribute(w.aliasAttribute)),
-          new NamedWindowProperty(propertyName(w, "proctime"),
-            new ProctimeAttribute(w.aliasAttribute)))
+          new NamedWindowProperty(
+            propertyName(w, "proctime"),
+            new ProctimeAttribute(w.aliasAttribute))
+        )
       case 'streamProctime =>
-        Seq(new NamedWindowProperty(propertyName(w, "proctime"),
-          new ProctimeAttribute(w.aliasAttribute)))
+        Seq(
+          new NamedWindowProperty(
+            propertyName(w, "proctime"),
+            new ProctimeAttribute(w.aliasAttribute)))
       case 'batchRowtime =>
-        Seq(new NamedWindowProperty(propertyName(w, "rowtime"),
-          new RowtimeAttribute(w.aliasAttribute)))
+        Seq(
+          new NamedWindowProperty(
+            propertyName(w, "rowtime"),
+            new RowtimeAttribute(w.aliasAttribute)))
       case _ =>
         throw new TableException("Unknown window type encountered. Please report this bug.")
     }
@@ -135,9 +150,7 @@ object WindowPropertiesRules {
     builder.project(innerProject.getProjects ++ properties.map(np => builder.field(np.getName)))
 
     // replace window auxiliary function in filter by access to window properties
-    filter.foreach { f =>
-      builder.filter(replaceGroupAuxiliaries(f.getCondition, w, builder))
-    }
+    filter.foreach(f => builder.filter(replaceGroupAuxiliaries(f.getCondition, w, builder)))
 
     // replace window auxiliary unctions in projection by access to window properties
     builder.project(
@@ -154,7 +167,8 @@ object WindowPropertiesRules {
     } else if (AggregateUtil.isProctimeAttribute(window.timeAttribute)) {
       'streamProctime
     } else if (
-          window.timeAttribute.getOutputDataType.getLogicalType.is(TIMESTAMP_WITHOUT_TIME_ZONE)) {
+      window.timeAttribute.getOutputDataType.getLogicalType.is(TIMESTAMP_WITHOUT_TIME_ZONE)
+    ) {
       'batchRowtime
     } else {
       throw new TableException("Unknown window type encountered. Please report this bug.")
@@ -221,10 +235,9 @@ object WindowPropertiesRules {
     node match {
       case n: RexCall if n.getOperator.isGroupAuxiliary =>
         n.getOperator match {
-          case FlinkSqlOperatorTable.TUMBLE_START |
-               FlinkSqlOperatorTable.HOP_START |
-               FlinkSqlOperatorTable.SESSION_START
-          => true
+          case FlinkSqlOperatorTable.TUMBLE_START | FlinkSqlOperatorTable.HOP_START |
+              FlinkSqlOperatorTable.SESSION_START =>
+            true
           case _ => false
         }
       case _ => false
@@ -236,9 +249,9 @@ object WindowPropertiesRules {
     node match {
       case n: RexCall if n.getOperator.isGroupAuxiliary =>
         n.getOperator match {
-          case FlinkSqlOperatorTable.TUMBLE_END |
-               FlinkSqlOperatorTable.HOP_END |
-               FlinkSqlOperatorTable.SESSION_END => true
+          case FlinkSqlOperatorTable.TUMBLE_END | FlinkSqlOperatorTable.HOP_END |
+              FlinkSqlOperatorTable.SESSION_END =>
+            true
           case _ => false
         }
       case _ => false
@@ -250,9 +263,9 @@ object WindowPropertiesRules {
     node match {
       case n: RexCall if n.getOperator.isGroupAuxiliary =>
         n.getOperator match {
-          case FlinkSqlOperatorTable.TUMBLE_ROWTIME |
-               FlinkSqlOperatorTable.HOP_ROWTIME |
-               FlinkSqlOperatorTable.SESSION_ROWTIME => true
+          case FlinkSqlOperatorTable.TUMBLE_ROWTIME | FlinkSqlOperatorTable.HOP_ROWTIME |
+              FlinkSqlOperatorTable.SESSION_ROWTIME =>
+            true
           case _ => false
         }
       case _ => false
@@ -264,9 +277,9 @@ object WindowPropertiesRules {
     node match {
       case n: RexCall if n.getOperator.isGroupAuxiliary =>
         n.getOperator match {
-          case FlinkSqlOperatorTable.TUMBLE_PROCTIME |
-               FlinkSqlOperatorTable.HOP_PROCTIME |
-               FlinkSqlOperatorTable.SESSION_PROCTIME => true
+          case FlinkSqlOperatorTable.TUMBLE_PROCTIME | FlinkSqlOperatorTable.HOP_PROCTIME |
+              FlinkSqlOperatorTable.SESSION_PROCTIME =>
+            true
           case _ => false
         }
       case _ => false

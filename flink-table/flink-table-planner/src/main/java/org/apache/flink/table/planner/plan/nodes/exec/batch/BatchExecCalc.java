@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -37,6 +38,7 @@ import java.util.List;
 public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
 
     public BatchExecCalc(
+            ReadableConfig tableConfig,
             List<RexNode> projection,
             @Nullable RexNode condition,
             InputProperty inputProperty,
@@ -45,6 +47,7 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecCalc.class),
+                ExecNodeContext.newPersistedConfig(BatchExecCalc.class, tableConfig),
                 projection,
                 condition,
                 TableStreamOperator.class,

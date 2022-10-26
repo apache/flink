@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
-import org.apache.flink.runtime.util.NonClosingOutpusStreamDecorator;
+import org.apache.flink.runtime.util.NonClosingOutputStreamDecorator;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +36,7 @@ public class UncompressedStreamCompressionDecorator extends StreamCompressionDec
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream)
+    protected OutputStream decorateWithCompression(NonClosingOutputStreamDecorator stream)
             throws IOException {
         return stream;
     }

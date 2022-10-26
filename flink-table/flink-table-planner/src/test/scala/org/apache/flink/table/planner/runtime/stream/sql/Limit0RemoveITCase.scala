@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendTableSink, TestingRetractTableSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendTableSink, TestingRetractTableSink, TestSinkUtil}
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

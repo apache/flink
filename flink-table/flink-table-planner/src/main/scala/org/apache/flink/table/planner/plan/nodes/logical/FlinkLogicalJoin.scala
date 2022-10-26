@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
@@ -29,23 +29,21 @@ import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
-import java.util.Collections
-
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Join]] that is a relational expression
-  * which combines two relational expressions according to some condition in Flink.
-  */
+ * Sub-class of [[Join]] that is a relational expression which combines two relational expressions
+ * according to some condition in Flink.
+ */
 class FlinkLogicalJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     left: RelNode,
     right: RelNode,
     condition: RexNode,
+    hints: JList[RelHint],
     joinType: JoinRelType)
-  extends Join(cluster, traitSet, Collections.emptyList[RelHint](),
-    left, right, condition, Set.empty[CorrelationId], joinType)
+  extends Join(cluster, traitSet, hints, left, right, condition, Set.empty[CorrelationId], joinType)
   with FlinkLogicalRel {
 
   override def copy(
@@ -55,7 +53,7 @@ class FlinkLogicalJoin(
       right: RelNode,
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
-    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, getHints, joinType)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -79,9 +77,7 @@ class FlinkLogicalJoin(
 
 }
 
-/**
-  * Support all joins.
-  */
+/** Support all joins. */
 private class FlinkLogicalJoinConverter
   extends ConverterRule(
     classOf[LogicalJoin],
@@ -93,7 +89,7 @@ private class FlinkLogicalJoinConverter
     val join = rel.asInstanceOf[LogicalJoin]
     val newLeft = RelOptRule.convert(join.getLeft, FlinkConventions.LOGICAL)
     val newRight = RelOptRule.convert(join.getRight, FlinkConventions.LOGICAL)
-    FlinkLogicalJoin.create(newLeft, newRight, join.getCondition, join.getJoinType)
+    FlinkLogicalJoin.create(newLeft, newRight, join.getCondition, join.getHints, join.getJoinType)
   }
 }
 
@@ -104,9 +100,10 @@ object FlinkLogicalJoin {
       left: RelNode,
       right: RelNode,
       conditionExpr: RexNode,
+      hints: JList[RelHint],
       joinType: JoinRelType): FlinkLogicalJoin = {
     val cluster = left.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, hints, joinType)
   }
 }

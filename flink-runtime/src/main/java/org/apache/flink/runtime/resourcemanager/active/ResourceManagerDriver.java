@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -40,11 +41,13 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
      * @param resourceEventHandler Handler that handles resource events.
      * @param mainThreadExecutor Rpc main thread executor.
      * @param ioExecutor IO executor.
+     * @param blockedNodeRetriever To retrieve all blocked nodes
      */
     void initialize(
             ResourceEventHandler<WorkerType> resourceEventHandler,
             ScheduledExecutor mainThreadExecutor,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            BlockedNodeRetriever blockedNodeRetriever)
             throws Exception;
 
     /** Terminate the deployment specific components. */

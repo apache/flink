@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -83,6 +82,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
@@ -107,33 +113,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<!-- required for the Kinesis e2e test -->
-							<shadeTestJar>true</shadeTestJar>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<artifactSet combine.children="append">
-								<includes>
-									<include>io.netty:*</include>
-								</includes>
-							</artifactSet>
-							<relocations combine.children="override">
-								<relocation>
-									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.shaded.netty4.io.netty</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.io.netty</shadedPattern>
-								</relocation>
-							</relocations>
-						</configuration>
-					</execution>
 					<execution>
 						<id>fat-jar-kinesis-example</id>
 						<phase>package</phase>

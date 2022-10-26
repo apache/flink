@@ -37,6 +37,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -58,7 +59,7 @@ public class TaskManagerGroupTest extends TestLogger {
     @After
     public void teardown() throws Exception {
         if (registry != null) {
-            registry.shutdown().get();
+            registry.closeAsync().get();
         }
     }
 
@@ -83,19 +84,16 @@ public class TaskManagerGroupTest extends TestLogger {
         final JobVertexID vertex13 = new JobVertexID();
         final JobVertexID vertex21 = new JobVertexID();
 
-        final ExecutionAttemptID execution11 = new ExecutionAttemptID();
-        final ExecutionAttemptID execution12 = new ExecutionAttemptID();
-        final ExecutionAttemptID execution13 = new ExecutionAttemptID();
-        final ExecutionAttemptID execution21 = new ExecutionAttemptID();
+        final ExecutionAttemptID execution11 = createExecutionAttemptId(vertex11, 17, 0);
+        final ExecutionAttemptID execution12 = createExecutionAttemptId(vertex12, 13, 1);
+        final ExecutionAttemptID execution13 = createExecutionAttemptId(vertex13, 0, 0);
+        final ExecutionAttemptID execution21 = createExecutionAttemptId(vertex21, 7, 2);
 
-        TaskMetricGroup tmGroup11 =
-                group.addJob(jid1, jobName1).addTask(vertex11, execution11, "test", 17, 0);
+        TaskMetricGroup tmGroup11 = group.addJob(jid1, jobName1).addTask(execution11, "test");
 
-        TaskMetricGroup tmGroup12 =
-                group.addJob(jid1, jobName1).addTask(vertex12, execution12, "test", 13, 1);
+        TaskMetricGroup tmGroup12 = group.addJob(jid1, jobName1).addTask(execution12, "test");
 
-        TaskMetricGroup tmGroup21 =
-                group.addJob(jid2, jobName2).addTask(vertex21, execution21, "test", 7, 2);
+        TaskMetricGroup tmGroup21 = group.addJob(jid2, jobName2).addTask(execution21, "test");
 
         assertEquals(2, group.numRegisteredJobMetricGroups());
         assertFalse(tmGroup11.parent().isClosed());
@@ -118,8 +116,7 @@ public class TaskManagerGroupTest extends TestLogger {
 
         // add one more to job one
 
-        TaskMetricGroup tmGroup13 =
-                group.addJob(jid1, jobName1).addTask(vertex13, execution13, "test", 0, 0);
+        TaskMetricGroup tmGroup13 = group.addJob(jid1, jobName1).addTask(execution13, "test");
         assertSame(
                 tmGroup11.parent(),
                 tmGroup13.parent()); // should use the same TaskManagerJobMetricGroup
@@ -143,18 +140,15 @@ public class TaskManagerGroupTest extends TestLogger {
         final JobVertexID vertex12 = new JobVertexID();
         final JobVertexID vertex21 = new JobVertexID();
 
-        final ExecutionAttemptID execution11 = new ExecutionAttemptID();
-        final ExecutionAttemptID execution12 = new ExecutionAttemptID();
-        final ExecutionAttemptID execution21 = new ExecutionAttemptID();
+        final ExecutionAttemptID execution11 = createExecutionAttemptId(vertex11, 17, 0);
+        final ExecutionAttemptID execution12 = createExecutionAttemptId(vertex12, 13, 1);
+        final ExecutionAttemptID execution21 = createExecutionAttemptId(vertex21, 7, 1);
 
-        TaskMetricGroup tmGroup11 =
-                group.addJob(jid1, jobName1).addTask(vertex11, execution11, "test", 17, 0);
+        TaskMetricGroup tmGroup11 = group.addJob(jid1, jobName1).addTask(execution11, "test");
 
-        TaskMetricGroup tmGroup12 =
-                group.addJob(jid1, jobName1).addTask(vertex12, execution12, "test", 13, 1);
+        TaskMetricGroup tmGroup12 = group.addJob(jid1, jobName1).addTask(execution12, "test");
 
-        TaskMetricGroup tmGroup21 =
-                group.addJob(jid2, jobName2).addTask(vertex21, execution21, "test", 7, 1);
+        TaskMetricGroup tmGroup21 = group.addJob(jid2, jobName2).addTask(execution21, "test");
 
         group.close();
 
@@ -191,7 +185,7 @@ public class TaskManagerGroupTest extends TestLogger {
         assertArrayEquals(
                 new String[] {"constant", "host", "foo", "host"}, group.getScopeComponents());
         assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test

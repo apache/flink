@@ -15,24 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.streaming.api.scala.{CloseableIterator, DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.{CloseableIterator, DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.{DataTypes, Table, TableResult}
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.planner.runtime.stream.sql.DataStreamScalaITCase.{ComplexCaseClass, ImmutableCaseClass}
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
 import org.hamcrest.Matchers.containsInAnyOrder
-import org.junit.Assert.{assertEquals, assertThat}
 import org.junit.{Before, Test}
+import org.junit.Assert.{assertEquals, assertThat}
 
 import java.util
+
 import scala.collection.JavaConverters._
 
 /** Tests for connecting to the Scala [[DataStream]] API. */
@@ -65,14 +65,15 @@ class DataStreamScalaITCase extends AbstractTestBase {
       Column.physical("a", DataTypes.STRING()),
       Column.physical(
         "p",
-        DataTypes.STRUCTURED(
-          classOf[ImmutableCaseClass],
-          DataTypes.FIELD(
-            "d",
-            DataTypes.DOUBLE().notNull()), // serializer doesn't support null
-          DataTypes.FIELD(
-            "b",
-            DataTypes.BOOLEAN().notNull().bridgedTo(classOf[Boolean]))).notNull()))
+        DataTypes
+          .STRUCTURED(
+            classOf[ImmutableCaseClass],
+            DataTypes.FIELD("d", DataTypes.DOUBLE().notNull()), // serializer doesn't support null
+            DataTypes.FIELD("b", DataTypes.BOOLEAN().notNull().bridgedTo(classOf[Boolean]))
+          )
+          .notNull()
+      )
+    )
 
     testResult(
       table.execute(),
@@ -90,9 +91,7 @@ class DataStreamScalaITCase extends AbstractTestBase {
     val table = env.fromElements((42, "hello")).toTable(tableEnv)
 
     // Table to DataStream implicit
-    assertEquals(
-      List(Row.of(Int.box(42), "hello")),
-      table.executeAndCollect().toList)
+    assertEquals(List(Row.of(Int.box(42), "hello")), table.executeAndCollect().toList)
   }
 
   // --------------------------------------------------------------------------------------------

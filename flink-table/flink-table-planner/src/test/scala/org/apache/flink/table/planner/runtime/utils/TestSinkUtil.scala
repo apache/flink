@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.table.api.{Table, TableException}
@@ -26,11 +25,12 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.types.Row
+import org.apache.flink.util.StringUtils
+
 import org.apache.calcite.avatica.util.DateTimeUtils
+
 import java.sql.{Date, Time, Timestamp}
 import java.util.{Calendar, TimeZone}
-
-import org.apache.flink.util.StringUtils
 
 import scala.collection.JavaConverters._
 
@@ -41,7 +41,8 @@ object TestSinkUtil {
     val fieldNames = rowType.getFieldNames.asScala.toArray
     val fieldTypes = rowType.getFieldList.asScala
       .map(field => FlinkTypeFactory.toLogicalType(field.getType))
-      .map(TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo).toArray
+      .map(TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo)
+      .toArray
     sink match {
       case _: TestingAppendTableSink =>
         new TestingAppendTableSink().configure(fieldNames, fieldTypes).asInstanceOf[T]
@@ -63,7 +64,7 @@ object TestSinkUtil {
 
   def rowToString(row: Row, tz: TimeZone = TimeZone.getTimeZone("UTC")): String = {
     val sb = StringBuilder.newBuilder
-    for (i <- 0 until row.getArity ) {
+    for (i <- 0 until row.getArity) {
       if (i > 0) {
         sb.append(",")
       }

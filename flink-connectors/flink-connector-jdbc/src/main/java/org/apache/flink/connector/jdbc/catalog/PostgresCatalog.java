@@ -71,12 +71,13 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
     private final JdbcDialectTypeMapper dialectTypeMapper;
 
     protected PostgresCatalog(
+            ClassLoader userClassLoader,
             String catalogName,
             String defaultDatabase,
             String username,
             String pwd,
             String baseUrl) {
-        super(catalogName, defaultDatabase, username, pwd, baseUrl);
+        super(userClassLoader, catalogName, defaultDatabase, username, pwd, baseUrl);
         this.dialectTypeMapper = new PostgresTypeMapper();
     }
 

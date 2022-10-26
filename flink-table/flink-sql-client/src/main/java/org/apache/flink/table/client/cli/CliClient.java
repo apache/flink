@@ -22,12 +22,15 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
+import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -47,7 +50,7 @@ import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
-import org.apache.flink.table.operations.command.ShowJarsOperation;
+import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
@@ -55,7 +58,6 @@ import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -277,7 +279,7 @@ public class CliClient implements AutoCloseable {
         // print welcome
         terminal.writer().append(CliStrings.MESSAGE_WELCOME);
 
-        LineReader lineReader = createLineReader(terminal);
+        LineReader lineReader = createLineReader(terminal, true);
         getAndExecuteStatements(lineReader, ExecutionMode.INTERACTIVE_EXECUTION);
     }
 
@@ -350,7 +352,7 @@ public class CliClient implements AutoCloseable {
                 new ByteArrayInputStream(SqlMultiLineParser.formatSqlFile(content).getBytes());
         Terminal dumbTerminal = TerminalUtils.createDumbTerminal(inputStream, outputStream);
         try {
-            LineReader lineReader = createLineReader(dumbTerminal);
+            LineReader lineReader = createLineReader(dumbTerminal, false);
             return getAndExecuteStatements(lineReader, mode);
         } catch (Throwable e) {
             printExecutionException(e);
@@ -412,7 +414,8 @@ public class CliClient implements AutoCloseable {
         // check the current operation is allowed in STATEMENT SET.
         if (isStatementSetMode) {
             if (!(operation instanceof SinkModifyOperation
-                    || operation instanceof EndStatementSetOperation)) {
+                    || operation instanceof EndStatementSetOperation
+                    || operation instanceof CreateTableASOperation)) {
                 // It's up to invoker of the executeStatement to determine whether to continue
                 // execution
                 throw new SqlExecutionException(MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR);
@@ -456,47 +459,31 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof StatementSetOperation) {
             // statement set
             callInserts(((StatementSetOperation) operation).getOperations());
-        } else if (operation instanceof AddJarOperation) {
-            // ADD JAR
-            callAddJar((AddJarOperation) operation);
         } else if (operation instanceof RemoveJarOperation) {
             // REMOVE JAR
             callRemoveJar((RemoveJarOperation) operation);
-        } else if (operation instanceof ShowJarsOperation) {
-            // SHOW JARS
-            callShowJars();
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
         } else if (operation instanceof ShowCreateViewOperation) {
             // SHOW CREATE VIEW
             callShowCreateView((ShowCreateViewOperation) operation);
+        } else if (operation instanceof CreateTableASOperation) {
+            // CTAS
+            callInsert((CreateTableASOperation) operation);
+        } else if (operation instanceof StopJobOperation) {
+            // STOP JOB
+            callStopJob((StopJobOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
         }
     }
 
-    private void callAddJar(AddJarOperation operation) {
-        String jarPath = operation.getPath();
-        executor.addJar(sessionId, jarPath);
-        printInfo(CliStrings.MESSAGE_ADD_JAR_STATEMENT);
-    }
-
     private void callRemoveJar(RemoveJarOperation operation) {
         String jarPath = operation.getPath();
         executor.removeJar(sessionId, jarPath);
         printInfo(CliStrings.MESSAGE_REMOVE_JAR_STATEMENT);
-    }
-
-    private void callShowJars() {
-        List<String> jars = executor.listJars(sessionId);
-        if (CollectionUtils.isEmpty(jars)) {
-            terminal.writer().println("Empty set");
-        } else {
-            jars.forEach(jar -> terminal.writer().println(jar));
-        }
-        terminal.flush();
     }
 
     private void callQuit() {
@@ -581,7 +568,7 @@ public class CliClient implements AutoCloseable {
         }
     }
 
-    private void callInsert(SinkModifyOperation operation) {
+    private void callInsert(ModifyOperation operation) {
         if (isStatementSetMode) {
             statementSetOperations.add(operation);
             printInfo(CliStrings.MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET);
@@ -654,6 +641,23 @@ public class CliClient implements AutoCloseable {
         }
     }
 
+    private void callStopJob(StopJobOperation stopJobOperation) {
+        Optional<String> savepoint =
+                executor.stopJob(
+                        sessionId,
+                        stopJobOperation.getJobId(),
+                        stopJobOperation.isWithSavepoint(),
+                        stopJobOperation.isWithDrain());
+        if (stopJobOperation.isWithSavepoint()) {
+            Preconditions.checkState(savepoint.isPresent());
+            printInfo(
+                    String.format(
+                            CliStrings.MESSAGE_STOP_JOB_WITH_SAVEPOINT_STATEMENT, savepoint.get()));
+        } else {
+            printInfo(CliStrings.MESSAGE_STOP_JOB_STATEMENT);
+        }
+    }
+
     private void executeOperation(Operation operation) {
         TableResultInternal result = executor.executeOperation(sessionId, operation);
         if (TABLE_RESULT_OK == result) {
@@ -686,11 +690,6 @@ public class CliClient implements AutoCloseable {
         terminal.flush();
     }
 
-    private void printWarning(String message) {
-        terminal.writer().println(CliStrings.messageWarning(message).toAnsi());
-        terminal.flush();
-    }
-
     // --------------------------------------------------------------------------------------------
 
     private void closeTerminal() {
@@ -702,15 +701,19 @@ public class CliClient implements AutoCloseable {
         }
     }
 
-    private LineReader createLineReader(Terminal terminal) {
+    private LineReader createLineReader(Terminal terminal, boolean enableSqlCompleter) {
         // initialize line lineReader
-        LineReader lineReader =
+        LineReaderBuilder builder =
                 LineReaderBuilder.builder()
                         .terminal(terminal)
                         .appName(CliStrings.CLI_NAME)
-                        .parser(parser)
-                        .completer(new SqlCompleter(sessionId, executor))
-                        .build();
+                        .parser(parser);
+
+        if (enableSqlCompleter) {
+            builder.completer(new SqlCompleter(sessionId, executor));
+        }
+        LineReader lineReader = builder.build();
+
         // this option is disabled for now for correct backslash escaping
         // a "SELECT '\'" query should return a string with a backslash
         lineReader.option(LineReader.Option.DISABLE_EVENT_EXPANSION, true);

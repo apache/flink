@@ -107,11 +107,12 @@ public class JavaFieldPredicates {
         return DescribedPredicate.describe(
                 "annotated with @" + annotationType.getSimpleName(),
                 field ->
-                        field.getAnnotations().size() == 1
-                                && field.getAnnotations()
-                                        .iterator()
-                                        .next()
-                                        .getRawType()
-                                        .isEquivalentTo(annotationType));
+                        field.getAnnotations().stream()
+                                .map(
+                                        annotation ->
+                                                annotation
+                                                        .getRawType()
+                                                        .isEquivalentTo(annotationType))
+                                .reduce(false, Boolean::logicalOr));
     }
 }

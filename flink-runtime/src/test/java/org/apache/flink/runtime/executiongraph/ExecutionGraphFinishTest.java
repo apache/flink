@@ -22,21 +22,29 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
-import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 
 /** Tests the finish behaviour of the {@link ExecutionGraph}. */
 public class ExecutionGraphFinishTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testJobFinishes() throws Exception {
@@ -47,8 +55,10 @@ public class ExecutionGraphFinishTest extends TestLogger {
                         ExecutionGraphTestUtils.createJobVertex("Task2", 2, NoOpInvokable.class));
 
         SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                new DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .build();
 
         ExecutionGraph eg = scheduler.getExecutionGraph();

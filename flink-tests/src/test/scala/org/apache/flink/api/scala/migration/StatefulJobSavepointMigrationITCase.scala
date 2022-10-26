@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.migration
 
 import org.apache.flink.FlinkVersion
-
-import java.util
 import org.apache.flink.api.common.accumulators.IntCounter
 import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.java.tuple.Tuple2
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
+import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -36,23 +37,22 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase
-import org.apache.flink.util.Collector
-import org.apache.flink.api.java.tuple.Tuple2
-import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{ExecutionMode, SnapshotSpec, SnapshotType}
+import org.apache.flink.util.Collector
+
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Test
 
+import java.util
 import java.util.stream.Collectors
+
 import scala.util.{Failure, Try}
 
 object StatefulJobSavepointMigrationITCase {
 
   // TODO increase this to newer version to create and test snapshot migration for newer versions
-  val currentVersion = FlinkVersion.v1_14
+  val currentVersion = FlinkVersion.v1_15
 
   // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
   // TODO Note: You should generate the snapshot based on the release branch instead of the
@@ -105,7 +105,8 @@ object StatefulJobSavepointMigrationITCase {
         SnapshotType.CHECKPOINT,
         FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
     if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-      parameters = parameters.stream()
+      parameters = parameters
+        .stream()
         .filter(x => x.getFlinkVersion().equals(currentVersion))
         .collect(Collectors.toList())
     }
@@ -131,12 +132,11 @@ object StatefulJobSavepointMigrationITCase {
   }
 }
 
-/**
- * ITCase for migration Scala state types across different Flink versions.
- */
+/** ITCase for migration Scala state types across different Flink versions. */
 @RunWith(classOf[Parameterized])
 class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
-  extends SnapshotMigrationTestBase with Serializable {
+  extends SnapshotMigrationTestBase
+  with Serializable {
 
   @Test
   def testSavepoint(): Unit = {
@@ -153,14 +153,14 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
       case _ => throw new UnsupportedOperationException
     }
 
-    env.enableChangelogStateBackend(false)
     env.enableCheckpointing(500)
     env.setParallelism(4)
     env.setMaxParallelism(4)
 
     env
-      .addSource(
-        new CheckpointedSource(4)).setMaxParallelism(1).uid("checkpointedSource")
+      .addSource(new CheckpointedSource(4))
+      .setMaxParallelism(1)
+      .uid("checkpointedSource")
       .keyBy(
         new KeySelector[(Long, Long), Long] {
           override def getKey(value: (Long, Long)): Long = value._1
@@ -180,8 +180,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
           StatefulJobSavepointMigrationITCase.NUM_ELEMENTS
         )
       )
-    } else if (
-      StatefulJobSavepointMigrationITCase.executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
+    } else if (StatefulJobSavepointMigrationITCase.executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
       restoreAndExecute(
         env,
         SnapshotMigrationTestBase.getResourceFilename(
@@ -202,7 +201,8 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
 
   @SerialVersionUID(1L)
   private class CheckpointedSource(val numElements: Int)
-    extends SourceFunction[(Long, Long)] with CheckpointedFunction {
+    extends SourceFunction[(Long, Long)]
+    with CheckpointedFunction {
 
     private var isRunning = true
     private var state: ListState[CustomCaseClass] = _
@@ -229,7 +229,8 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     override def initializeState(context: FunctionInitializationContext): Unit = {
       state = context.getOperatorStateStore.getListState(
         new ListStateDescriptor[CustomCaseClass](
-          "sourceState", createTypeInformation[CustomCaseClass]))
+          "sourceState",
+          createTypeInformation[CustomCaseClass]))
     }
 
     override def snapshotState(context: FunctionSnapshotContext): Unit = {
@@ -252,14 +253,14 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     override def open(parameters: Configuration) {
       super.open(parameters)
       getRuntimeContext.addAccumulator(
-        AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, new IntCounter)
+        AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
+        new IntCounter)
     }
 
     @throws[Exception]
     override def invoke(value: T) {
       count += 1
-      getRuntimeContext.getAccumulator(
-        AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR).add(1)
+      getRuntimeContext.getAccumulator(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR).add(1)
     }
   }
 
@@ -280,37 +281,44 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     override def open(parameters: Configuration): Unit = {
       caseClassState = getRuntimeContext.getState(
         new ValueStateDescriptor[CustomCaseClass](
-          "caseClassState", createTypeInformation[CustomCaseClass]))
+          "caseClassState",
+          createTypeInformation[CustomCaseClass]))
       caseClassWithNestingState = getRuntimeContext.getState(
         new ValueStateDescriptor[CustomCaseClassWithNesting](
-          "caseClassWithNestingState", createTypeInformation[CustomCaseClassWithNesting]))
+          "caseClassWithNestingState",
+          createTypeInformation[CustomCaseClassWithNesting]))
       collectionState = getRuntimeContext.getState(
         new ValueStateDescriptor[List[CustomCaseClass]](
-          "collectionState", createTypeInformation[List[CustomCaseClass]]))
+          "collectionState",
+          createTypeInformation[List[CustomCaseClass]]))
       tryState = getRuntimeContext.getState(
         new ValueStateDescriptor[Try[CustomCaseClass]](
-          "tryState", createTypeInformation[Try[CustomCaseClass]]))
+          "tryState",
+          createTypeInformation[Try[CustomCaseClass]]))
       tryFailureState = getRuntimeContext.getState(
         new ValueStateDescriptor[Try[CustomCaseClass]](
-          "tryFailureState", createTypeInformation[Try[CustomCaseClass]]))
+          "tryFailureState",
+          createTypeInformation[Try[CustomCaseClass]]))
       optionState = getRuntimeContext.getState(
         new ValueStateDescriptor[Option[CustomCaseClass]](
-          "optionState", createTypeInformation[Option[CustomCaseClass]]))
+          "optionState",
+          createTypeInformation[Option[CustomCaseClass]]))
       optionNoneState = getRuntimeContext.getState(
         new ValueStateDescriptor[Option[CustomCaseClass]](
-          "optionNoneState", createTypeInformation[Option[CustomCaseClass]]))
+          "optionNoneState",
+          createTypeInformation[Option[CustomCaseClass]]))
       eitherLeftState = getRuntimeContext.getState(
         new ValueStateDescriptor[Either[CustomCaseClass, String]](
-          "eitherLeftState", createTypeInformation[Either[CustomCaseClass, String]]))
+          "eitherLeftState",
+          createTypeInformation[Either[CustomCaseClass, String]]))
       eitherRightState = getRuntimeContext.getState(
         new ValueStateDescriptor[Either[CustomCaseClass, String]](
-          "eitherRightState", createTypeInformation[Either[CustomCaseClass, String]]))
+          "eitherRightState",
+          createTypeInformation[Either[CustomCaseClass, String]]))
       enumOneState = getRuntimeContext.getState(
-        new ValueStateDescriptor[CustomEnum](
-          "enumOneState", createTypeInformation[CustomEnum]))
+        new ValueStateDescriptor[CustomEnum]("enumOneState", createTypeInformation[CustomEnum]))
       enumThreeState = getRuntimeContext.getState(
-        new ValueStateDescriptor[CustomEnum](
-          "enumThreeState", createTypeInformation[CustomEnum]))
+        new ValueStateDescriptor[CustomEnum]("enumThreeState", createTypeInformation[CustomEnum]))
     }
 
     override def flatMap(in: (Long, Long), collector: Collector[(Long, Long)]): Unit = {

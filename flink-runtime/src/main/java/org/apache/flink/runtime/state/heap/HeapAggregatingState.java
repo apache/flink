@@ -41,7 +41,7 @@ import java.io.IOException;
  */
 class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<K, N, IN, ACC, OUT>
         implements InternalAggregatingState<K, N, IN, ACC, OUT> {
-    private final AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
+    private AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
 
     /**
      * Creates a new key/value state for the given hash map of key/value pairs.
@@ -118,6 +118,12 @@ class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<
         return aggregateTransformation.aggFunction.merge(a, b);
     }
 
+    HeapAggregatingState<K, N, IN, ACC, OUT> setAggregateFunction(
+            AggregateFunction<IN, ACC, OUT> aggregateFunction) {
+        this.aggregateTransformation = new AggregateTransformation<>(aggregateFunction);
+        return this;
+    }
+
     static final class AggregateTransformation<IN, ACC, OUT>
             implements StateTransformationFunction<ACC, IN> {
 
@@ -149,5 +155,17 @@ class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<
                         stateTable.getNamespaceSerializer(),
                         stateDesc.getDefaultValue(),
                         ((AggregatingStateDescriptor<T, SV, ?>) stateDesc).getAggregateFunction());
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    static <T, K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState) {
+        return (IS)
+                ((HeapAggregatingState<K, N, T, SV, ?>) existingState)
+                        .setAggregateFunction(
+                                ((AggregatingStateDescriptor) stateDesc).getAggregateFunction())
+                        .setNamespaceSerializer(stateTable.getNamespaceSerializer())
+                        .setValueSerializer(stateTable.getStateSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
     }
 }

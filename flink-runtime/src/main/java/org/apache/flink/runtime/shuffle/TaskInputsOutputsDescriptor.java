@@ -29,6 +29,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Describes inputs and outputs information of a task. */
 public class TaskInputsOutputsDescriptor {
 
+    // Number of input gates
+    private final int inputGateNums;
+
     // Number of input channels per dataSet.
     private final Map<IntermediateDataSetID, Integer> inputChannelNums;
 
@@ -39,6 +42,7 @@ public class TaskInputsOutputsDescriptor {
     private final Map<IntermediateDataSetID, ResultPartitionType> partitionTypes;
 
     private TaskInputsOutputsDescriptor(
+            int inputGateNums,
             Map<IntermediateDataSetID, Integer> inputChannelNums,
             Map<IntermediateDataSetID, Integer> subpartitionNums,
             Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
@@ -47,9 +51,14 @@ public class TaskInputsOutputsDescriptor {
         checkNotNull(subpartitionNums);
         checkNotNull(partitionTypes);
 
+        this.inputGateNums = inputGateNums;
         this.inputChannelNums = inputChannelNums;
         this.subpartitionNums = subpartitionNums;
         this.partitionTypes = partitionTypes;
+    }
+
+    public int getInputGateNums() {
+        return inputGateNums;
     }
 
     public Map<IntermediateDataSetID, Integer> getInputChannelNums() {
@@ -65,10 +74,12 @@ public class TaskInputsOutputsDescriptor {
     }
 
     public static TaskInputsOutputsDescriptor from(
+            int inputGateNums,
             Map<IntermediateDataSetID, Integer> inputChannelNums,
             Map<IntermediateDataSetID, Integer> subpartitionNums,
             Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
 
-        return new TaskInputsOutputsDescriptor(inputChannelNums, subpartitionNums, partitionTypes);
+        return new TaskInputsOutputsDescriptor(
+                inputGateNums, inputChannelNums, subpartitionNums, partitionTypes);
     }
 }

@@ -36,16 +36,20 @@ public class BufferCompressor {
     /** The intermediate buffer for the compressed data. */
     private final NetworkBuffer internalBuffer;
 
+    /** The backup array of intermediate buffer. */
+    private final byte[] internalBufferArray;
+
     public BufferCompressor(int bufferSize, String factoryName) {
         checkArgument(bufferSize > 0);
         checkNotNull(factoryName);
         // the size of this intermediate heap buffer will be gotten from the
         // plugin configuration in the future, and currently, double size of
-        // the input buffer is enough for lz4-java compression library.
-        final byte[] heapBuffer = new byte[2 * bufferSize];
+        // the input buffer is enough for the compression libraries used.
+        this.internalBufferArray = new byte[2 * bufferSize];
         this.internalBuffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.wrap(heapBuffer), FreeingBufferRecycler.INSTANCE);
+                        MemorySegmentFactory.wrap(internalBufferArray),
+                        FreeingBufferRecycler.INSTANCE);
         this.blockCompressor =
                 BlockCompressionFactory.createBlockCompressionFactory(factoryName).getCompressor();
     }
@@ -86,7 +90,7 @@ public class BufferCompressor {
         // copy the compressed data back
         int memorySegmentOffset = buffer.getMemorySegmentOffset();
         MemorySegment segment = buffer.getMemorySegment();
-        segment.put(memorySegmentOffset, internalBuffer.array(), 0, compressedLen);
+        segment.put(memorySegmentOffset, internalBufferArray, 0, compressedLen);
 
         return new ReadOnlySlicedNetworkBuffer(
                 buffer.asByteBuf(), 0, compressedLen, memorySegmentOffset, true);
@@ -107,15 +111,34 @@ public class BufferCompressor {
                 "Illegal reference count, buffer need to be released.");
 
         try {
+            int compressedLen;
             int length = buffer.getSize();
-            // compress the given buffer into the internal heap buffer
-            int compressedLen =
-                    blockCompressor.compress(
-                            buffer.getNioBuffer(0, length),
-                            0,
-                            length,
-                            internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
-                            0);
+            MemorySegment memorySegment = buffer.getMemorySegment();
+            // If buffer is on-heap, manipulate the underlying array directly. There are two main
+            // reasons why NIO buffer is not directly used here: One is that some compression
+            // libraries will use the underlying array for heap buffer, but our input buffer may be
+            // a read-only ByteBuffer, and it is illegal to access internal array. Another reason
+            // is that for the on-heap buffer, directly operating the underlying array can reduce
+            // additional overhead compared to generating a NIO buffer.
+            if (!memorySegment.isOffHeap()) {
+                compressedLen =
+                        blockCompressor.compress(
+                                memorySegment.getArray(),
+                                buffer.getMemorySegmentOffset(),
+                                length,
+                                internalBufferArray,
+                                0);
+            } else {
+                // compress the given buffer into the internal heap buffer
+                compressedLen =
+                        blockCompressor.compress(
+                                buffer.getNioBuffer(0, length),
+                                0,
+                                length,
+                                internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
+                                0);
+            }
+
             return compressedLen < length ? compressedLen : 0;
         } catch (Throwable throwable) {
             // return the original buffer if failed to compress

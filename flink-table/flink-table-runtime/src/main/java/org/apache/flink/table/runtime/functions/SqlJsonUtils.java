@@ -41,6 +41,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidPathException;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.spi.cache.CacheProvider;
 import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
@@ -73,6 +74,10 @@ public class SqlJsonUtils {
     private static final MappingProvider JSON_PATH_MAPPING_PROVIDER = new JacksonMappingProvider();
 
     private SqlJsonUtils() {}
+
+    static {
+        CacheProvider.setCache(new JsonPathCache());
+    }
 
     /** Returns the {@link JsonNodeFactory} for creating nodes. */
     public static JsonNodeFactory getNodeFactory() {

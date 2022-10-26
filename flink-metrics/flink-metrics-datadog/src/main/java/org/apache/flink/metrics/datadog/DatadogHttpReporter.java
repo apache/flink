@@ -18,14 +18,15 @@
 
 package org.apache.flink.metrics.datadog;
 
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -44,8 +45,6 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Variables in metrics scope will be sent to Datadog as tags.
  */
-@InstantiateViaFactory(
-        factoryClassName = "org.apache.flink.metrics.datadog.DatadogHttpReporterFactory")
 public class DatadogHttpReporter implements MetricReporter, Scheduled {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
     private static final String HOST_VARIABLE = "<host>";
@@ -56,79 +55,25 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
     private final Map<Meter, DMeter> meters = new ConcurrentHashMap<>();
     private final Map<Histogram, DHistogram> histograms = new ConcurrentHashMap<>();
 
-    private DatadogHttpClient client;
-    private List<String> configTags;
-    private int maxMetricsPerRequestValue;
+    private final DatadogHttpClient client;
+    private final List<String> configTags;
+    private final int maxMetricsPerRequestValue;
+    private final boolean useLogicalIdentifier;
 
     private final Clock clock = () -> System.currentTimeMillis() / 1000L;
 
-    public static final String API_KEY = "apikey";
-    public static final String PROXY_HOST = "proxyHost";
-    public static final String PROXY_PORT = "proxyPort";
-    public static final String DATA_CENTER = "dataCenter";
-    public static final String TAGS = "tags";
-    public static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
-
-    @Override
-    public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-        final String name = group.getMetricIdentifier(metricName);
-
-        List<String> tags = new ArrayList<>(configTags);
-        tags.addAll(getTagsFromMetricGroup(group));
-        String host = getHostFromMetricGroup(group);
-
-        if (metric instanceof Counter) {
-            Counter c = (Counter) metric;
-            counters.put(c, new DCounter(c, name, host, tags, clock));
-        } else if (metric instanceof Gauge) {
-            Gauge g = (Gauge) metric;
-            gauges.put(g, new DGauge(g, name, host, tags, clock));
-        } else if (metric instanceof Meter) {
-            Meter m = (Meter) metric;
-            // Only consider rate
-            meters.put(m, new DMeter(m, name, host, tags, clock));
-        } else if (metric instanceof Histogram) {
-            Histogram h = (Histogram) metric;
-            histograms.put(h, new DHistogram(h, name, host, tags, clock));
-        } else {
-            LOGGER.warn(
-                    "Cannot add unknown metric type {}. This indicates that the reporter "
-                            + "does not support this metric type.",
-                    metric.getClass().getName());
-        }
-    }
-
-    @Override
-    public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-        if (metric instanceof Counter) {
-            counters.remove(metric);
-        } else if (metric instanceof Gauge) {
-            gauges.remove(metric);
-        } else if (metric instanceof Meter) {
-            meters.remove(metric);
-        } else if (metric instanceof Histogram) {
-            histograms.remove(metric);
-        } else {
-            LOGGER.warn(
-                    "Cannot remove unknown metric type {}. This indicates that the reporter "
-                            + "does not support this metric type.",
-                    metric.getClass().getName());
-        }
-    }
-
-    @Override
-    public void open(MetricConfig config) {
-        String apiKey = config.getString(API_KEY, null);
-        String proxyHost = config.getString(PROXY_HOST, null);
-        Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
-        String rawDataCenter = config.getString(DATA_CENTER, "US");
-        maxMetricsPerRequestValue = config.getInteger(MAX_METRICS_PER_REQUEST, 2000);
-        DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
-        String tags = config.getString(TAGS, "");
-
-        client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
-
-        configTags = getTagsFromConfig(tags);
+    public DatadogHttpReporter(
+            String apiKey,
+            String proxyHost,
+            int proxyPort,
+            int maxMetricsPerRequestValue,
+            DataCenter dataCenter,
+            String tags,
+            boolean useLogicalIdentifier) {
+        this.maxMetricsPerRequestValue = maxMetricsPerRequestValue;
+        this.useLogicalIdentifier = useLogicalIdentifier;
+        this.client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
+        this.configTags = getTagsFromConfig(tags);
 
         LOGGER.info(
                 "Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}, maxMetricsPerRequest={}",
@@ -138,6 +83,72 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
                 dataCenter,
                 maxMetricsPerRequestValue);
     }
+
+    @Override
+    public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+        final String name =
+                this.useLogicalIdentifier
+                        ? ((LogicalScopeProvider) group)
+                                        .getLogicalScope(CharacterFilter.NO_OP_FILTER)
+                                + "."
+                                + metricName
+                        : group.getMetricIdentifier(metricName);
+
+        List<String> tags = new ArrayList<>(configTags);
+        tags.addAll(getTagsFromMetricGroup(group));
+        String host = getHostFromMetricGroup(group);
+
+        switch (metric.getMetricType()) {
+            case COUNTER:
+                Counter c = (Counter) metric;
+                counters.put(c, new DCounter(c, name, host, tags, clock));
+                break;
+            case GAUGE:
+                Gauge g = (Gauge) metric;
+                gauges.put(g, new DGauge(g, name, host, tags, clock));
+                break;
+            case METER:
+                Meter m = (Meter) metric;
+                // Only consider rate
+                meters.put(m, new DMeter(m, name, host, tags, clock));
+                break;
+            case HISTOGRAM:
+                Histogram h = (Histogram) metric;
+                histograms.put(h, new DHistogram(h, name, host, tags, clock));
+                break;
+            default:
+                LOGGER.warn(
+                        "Cannot add unknown metric type {}. This indicates that the reporter "
+                                + "does not support this metric type.",
+                        metric.getClass().getName());
+        }
+    }
+
+    @Override
+    public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+        switch (metric.getMetricType()) {
+            case COUNTER:
+                counters.remove(metric);
+                break;
+            case GAUGE:
+                gauges.remove(metric);
+                break;
+            case METER:
+                meters.remove(metric);
+                break;
+            case HISTOGRAM:
+                histograms.remove(metric);
+                break;
+            default:
+                LOGGER.warn(
+                        "Cannot remove unknown metric type {}. This indicates that the reporter "
+                                + "does not support this metric type.",
+                        metric.getClass().getName());
+        }
+    }
+
+    @Override
+    public void open(MetricConfig config) {}
 
     @Override
     public void close() {

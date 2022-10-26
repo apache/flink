@@ -18,13 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -34,30 +29,23 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link LogicalWindow} serialization and deserialization. */
-@RunWith(Parameterized.class)
-public class LogicalWindowSerdeTest {
+@Execution(CONCURRENT)
+class LogicalWindowSerdeTest {
 
-    @Parameterized.Parameter public LogicalWindow window;
-
-    @Parameterized.Parameters(name = "{0}")
-    public static List<LogicalWindow> testData() {
+    static List<LogicalWindow> testLogicalWindowSerde() {
         return Arrays.asList(
                 new TumblingGroupWindow(
                         new WindowReference(
@@ -111,28 +99,9 @@ public class LogicalWindowSerdeTest {
                         new ValueLiteralExpression(Duration.ofDays(10))));
     }
 
-    @Test
-    public void testLogicalWindowSerde() throws IOException {
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        null,
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                new ModuleManager(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
-                        Thread.currentThread().getContextClassLoader(),
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
-
-        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
-        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
-
-        assertThat(window)
-                .isEqualTo(
-                        objectReader.readValue(
-                                objectWriter.writeValueAsString(window), LogicalWindow.class));
+    @ParameterizedTest
+    @MethodSource("testLogicalWindowSerde")
+    void testLogicalWindowSerde(LogicalWindow window) throws IOException {
+        JsonSerdeTestUtil.testJsonRoundTrip(window, LogicalWindow.class);
     }
 }

@@ -21,17 +21,17 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.firehose.model.Record;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Covers construction and sanity checking of {@link KinesisFirehoseSinkElementConverter}. */
-public class KinesisFirehoseSinkElementConverterTest {
+class KinesisFirehoseSinkElementConverterTest {
 
     @Test
-    public void elementConverterWillComplainASerializationSchemaIsNotSetIfBuildIsCalledWithoutIt() {
+    void elementConverterWillComplainASerializationSchemaIsNotSetIfBuildIsCalledWithoutIt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> KinesisFirehoseSinkElementConverter.<String>builder().build())
                 .withMessageContaining(
@@ -39,7 +39,7 @@ public class KinesisFirehoseSinkElementConverterTest {
     }
 
     @Test
-    public void elementConverterUsesProvidedSchemaToSerializeRecord() {
+    void elementConverterUsesProvidedSchemaToSerializeRecord() {
         ElementConverter<String, Record> elementConverter =
                 KinesisFirehoseSinkElementConverter.<String>builder()
                         .setSerializationSchema(new SimpleStringSchema())

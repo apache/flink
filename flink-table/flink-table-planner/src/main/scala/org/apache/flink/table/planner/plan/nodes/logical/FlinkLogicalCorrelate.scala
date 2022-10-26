@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -28,9 +27,9 @@ import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.util.ImmutableBitSet
 
 /**
-  * Sub-class of [[Correlate]] that is a relational operator
-  * which performs nested-loop joins in Flink.
-  */
+ * Sub-class of [[Correlate]] that is a relational operator which performs nested-loop joins in
+ * Flink.
+ */
 class FlinkLogicalCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -94,6 +93,12 @@ object FlinkLogicalCorrelate {
     val cluster = left.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalCorrelate(
-      cluster, traitSet, left, right, correlationId, requiredColumns, joinType)
+      cluster,
+      traitSet,
+      left,
+      right,
+      correlationId,
+      requiredColumns,
+      joinType)
   }
 }

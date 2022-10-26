@@ -25,8 +25,11 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluatorFactory;
 import org.apache.flink.table.planner.calcite.FlinkContext;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -35,6 +38,10 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlTableFunction;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.tools.RelBuilder;
 
 import java.util.List;
 
@@ -52,19 +59,20 @@ import static org.apache.flink.util.Preconditions.checkState;
  * (either a system or user-defined function).
  */
 @Internal
-public final class BridgingSqlFunction extends SqlFunction {
+public class BridgingSqlFunction extends SqlFunction {
 
+    // it would be great to inject the factories from the outside, but since the code generation
+    // stack is too complex, we pass context with every function
     private final DataTypeFactory dataTypeFactory;
-
     private final FlinkTypeFactory typeFactory;
-
+    private final RexFactory rexFactory;
     private final ContextResolvedFunction resolvedFunction;
-
     private final TypeInference typeInference;
 
     private BridgingSqlFunction(
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
+            RexFactory rexFactory,
             SqlKind kind,
             ContextResolvedFunction resolvedFunction,
             TypeInference typeInference) {
@@ -83,6 +91,7 @@ public final class BridgingSqlFunction extends SqlFunction {
 
         this.dataTypeFactory = dataTypeFactory;
         this.typeFactory = typeFactory;
+        this.rexFactory = rexFactory;
         this.resolvedFunction = resolvedFunction;
         this.typeInference = typeInference;
     }
@@ -92,6 +101,7 @@ public final class BridgingSqlFunction extends SqlFunction {
      *
      * @param dataTypeFactory used for creating {@link DataType}
      * @param typeFactory used for bridging to {@link RelDataType}
+     * @param rexFactory used for {@link ExpressionEvaluatorFactory}
      * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this
      *     function cannot be mapped to a common function kind.
      * @param resolvedFunction system or user-defined {@link FunctionDefinition} with context
@@ -100,6 +110,7 @@ public final class BridgingSqlFunction extends SqlFunction {
     public static BridgingSqlFunction of(
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
+            RexFactory rexFactory,
             SqlKind kind,
             ContextResolvedFunction resolvedFunction,
             TypeInference typeInference) {
@@ -108,8 +119,17 @@ public final class BridgingSqlFunction extends SqlFunction {
                 functionKind == FunctionKind.SCALAR || functionKind == FunctionKind.TABLE,
                 "Scalar or table function kind expected.");
 
+        if (functionKind == FunctionKind.TABLE) {
+            return new BridgingSqlFunction.WithTableFunction(
+                    dataTypeFactory,
+                    typeFactory,
+                    rexFactory,
+                    kind,
+                    resolvedFunction,
+                    typeInference);
+        }
         return new BridgingSqlFunction(
-                dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
+                dataTypeFactory, typeFactory, rexFactory, kind, resolvedFunction, typeInference);
     }
 
     /** Creates an instance of a scalar or table function during translation. */
@@ -123,6 +143,7 @@ public final class BridgingSqlFunction extends SqlFunction {
         return of(
                 dataTypeFactory,
                 typeFactory,
+                context.getRexFactory(),
                 SqlKind.OTHER_FUNCTION,
                 resolvedFunction,
                 typeInference);
@@ -153,6 +174,10 @@ public final class BridgingSqlFunction extends SqlFunction {
         return typeFactory;
     }
 
+    public RexFactory getRexFactory() {
+        return rexFactory;
+    }
+
     public ContextResolvedFunction getResolvedFunction() {
         return resolvedFunction;
     }
@@ -176,5 +201,34 @@ public final class BridgingSqlFunction extends SqlFunction {
     @Override
     public boolean isDeterministic() {
         return resolvedFunction.getDefinition().isDeterministic();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Table function extension
+    // --------------------------------------------------------------------------------------------
+
+    /** Special flavor of {@link BridgingSqlFunction} to indicate a table function to Calcite. */
+    public static class WithTableFunction extends BridgingSqlFunction implements SqlTableFunction {
+
+        private WithTableFunction(
+                DataTypeFactory dataTypeFactory,
+                FlinkTypeFactory typeFactory,
+                RexFactory rexFactory,
+                SqlKind kind,
+                ContextResolvedFunction resolvedFunction,
+                TypeInference typeInference) {
+            super(dataTypeFactory, typeFactory, rexFactory, kind, resolvedFunction, typeInference);
+        }
+
+        /**
+         * The conversion to a row type is handled on the caller side. This allows us to perform it
+         * SQL/Table API-specific. This is in particular important to set the aliases of fields
+         * correctly (see {@link FlinkRelBuilder#pushFunctionScan(RelBuilder, SqlOperator, int,
+         * Iterable, List)}).
+         */
+        @Override
+        public SqlReturnTypeInference getRowTypeInference() {
+            return getReturnTypeInference();
+        }
     }
 }

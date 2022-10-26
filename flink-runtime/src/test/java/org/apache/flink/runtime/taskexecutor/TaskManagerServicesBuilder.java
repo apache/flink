@@ -36,10 +36,9 @@ import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
-import org.apache.flink.testutils.TestingUtils;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.mockito.Mockito.mock;
 
@@ -59,7 +58,6 @@ public class TaskManagerServicesBuilder {
     private TaskExecutorLocalStateStoresManager taskStateManager;
     private TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager;
     private TaskEventDispatcher taskEventDispatcher;
-    private ExecutorService ioExecutor;
     private LibraryCacheManager libraryCacheManager;
     private long managedMemorySize;
     private SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
@@ -82,7 +80,6 @@ public class TaskManagerServicesBuilder {
                         RetryingRegistrationConfiguration.defaultConfiguration());
         taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
         taskChangelogStoragesManager = mock(TaskExecutorStateChangelogStoragesManager.class);
-        ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
         this.slotAllocationSnapshotPersistenceService =
@@ -144,11 +141,6 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
-    public TaskManagerServicesBuilder setIOExecutorService(ExecutorService ioExecutor) {
-        this.ioExecutor = ioExecutor;
-        return this;
-    }
-
     public TaskManagerServicesBuilder setLibraryCacheManager(
             LibraryCacheManager libraryCacheManager) {
         this.libraryCacheManager = libraryCacheManager;
@@ -180,7 +172,7 @@ public class TaskManagerServicesBuilder {
                 taskStateManager,
                 taskChangelogStoragesManager,
                 taskEventDispatcher,
-                ioExecutor,
+                Executors.newSingleThreadScheduledExecutor(),
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService);
     }

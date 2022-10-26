@@ -26,16 +26,15 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-kinesis</artifactId>
 	<name>Flink : Connectors : Kinesis</name>
 	<properties>
-		<aws.sdk.version>1.12.7</aws.sdk.version>
-		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
-		<aws.kinesis-kcl.version>1.14.7</aws.kinesis-kcl.version>
+		<aws.sdk.version>1.12.276</aws.sdk.version>
+		<aws.sdkv2.version>2.17.247</aws.sdkv2.version>
+		<aws.kinesis-kcl.version>1.14.8</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.14.1</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.3</aws.dynamodbstreams-kinesis-adapter.version>
 		<httpclient.version>4.5.13</httpclient.version>
@@ -44,6 +43,25 @@ under the License.
 	</properties>
 
 	<packaging>jar</packaging>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.amazonaws</groupId>
+				<artifactId>aws-java-sdk-bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdkv2.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<!-- AWS dependencies -->
@@ -58,32 +76,26 @@ under the License.
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-sts</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kms</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-s3</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-dynamodb</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-cloudwatch</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
@@ -94,16 +106,6 @@ under the License.
 			<groupId>com.amazonaws</groupId>
 			<artifactId>amazon-kinesis-client</artifactId>
 			<version>${aws.kinesis-kcl.version}</version>
-			<!--
-				We're excluding the below from the KCL since we'll only be using the
-				com.amazonaws.services.kinesis.clientlibrary.types.UserRecord class, which will not need these dependencies.
-			-->
-			<exclusions>
-				<exclusion>
-					<groupId>com.amazonaws</groupId>
-					<artifactId>aws-java-sdk-cloudwatch</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
@@ -179,13 +181,6 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -236,9 +231,8 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-test-utils</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
@@ -246,19 +240,16 @@ under the License.
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>kinesis</artifactId>
-			<version>${aws.sdkv2.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>netty-nio-client</artifactId>
-			<version>${aws.sdkv2.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>sts</artifactId>
-			<version>${aws.sdkv2.version}</version>
 		</dependency>
 
 		<dependency>
@@ -334,6 +325,8 @@ under the License.
 									<include>org.reactivestreams:*</include>
 									<include>io.netty:*</include>
 									<include>com.typesafe.netty:*</include>
+									<include>com.fasterxml.jackson.core:*</include>
+									<include>com.fasterxml.jackson.dataformat:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -374,6 +367,10 @@ under the License.
 								<relocation>
 									<pattern>org.reactivestreams</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.reactivestreams</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

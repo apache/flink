@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -289,6 +290,16 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     @Override
     protected long getTotalNumberOfBytesUnsafe() {
         return data.getSize();
+    }
+
+    @Override
+    public void alignedBarrierTimeout(long checkpointId) {
+        // Nothing to do.
+    }
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        // Nothing to do.
     }
 
     int getBuffersInBacklogUnsafe() {

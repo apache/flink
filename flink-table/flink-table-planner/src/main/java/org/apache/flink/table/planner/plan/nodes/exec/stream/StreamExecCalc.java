@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -48,6 +49,7 @@ import java.util.List;
 public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<RowData> {
 
     public StreamExecCalc(
+            ReadableConfig tableConfig,
             List<RexNode> projection,
             @Nullable RexNode condition,
             InputProperty inputProperty,
@@ -56,6 +58,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecCalc.class),
+                ExecNodeContext.newPersistedConfig(StreamExecCalc.class, tableConfig),
                 projection,
                 condition,
                 Collections.singletonList(inputProperty),
@@ -67,6 +70,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
     public StreamExecCalc(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
             @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
@@ -75,6 +79,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         super(
                 id,
                 context,
+                persistedConfig,
                 projection,
                 condition,
                 TableStreamOperator.class,

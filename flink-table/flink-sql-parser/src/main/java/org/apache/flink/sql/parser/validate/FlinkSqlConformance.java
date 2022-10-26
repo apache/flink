@@ -18,7 +18,9 @@
 
 package org.apache.flink.sql.parser.validate;
 
+import org.apache.calcite.sql.fun.SqlLibrary;
 import org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.calcite.sql.validate.SqlConformanceEnum;
 
 /** Sql conformance used for flink to set specific sql dialect parser. * */
 public enum FlinkSqlConformance implements SqlConformance {
@@ -175,5 +177,10 @@ public enum FlinkSqlConformance implements SqlConformance {
     @Override
     public boolean allowQualifyingCommonColumn() {
         return true;
+    }
+
+    @Override
+    public SqlLibrary semantics() {
+        return SqlConformanceEnum.DEFAULT.semantics();
     }
 }

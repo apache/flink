@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.Types
@@ -57,9 +56,9 @@ abstract class RowTypeTestBase extends ExpressionTestBase {
       /* 2 */ Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN),
       /* 3 */ Types.ROW(Types.INT, Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN)),
       /* 4 */ Types.ROW(
-                Types.LOCAL_DATE,
-                DecimalDataTypeInfo.of(9, 8),
-                ObjectArrayTypeInfo.getInfoFor(Types.INT)),
+        Types.LOCAL_DATE,
+        DecimalDataTypeInfo.of(9, 8),
+        ObjectArrayTypeInfo.getInfoFor(Types.INT)),
       /* 5 */ Types.ROW(Types.STRING, Types.BOOLEAN),
       /* 6 */ Types.ROW(Types.STRING, Types.STRING)
     )

@@ -97,6 +97,13 @@ interface TaskManagerTracker
     void replaceAllPendingAllocations(
             Map<PendingTaskManagerId, Map<JobID, ResourceCounter>> pendingSlotAllocations);
 
+    /**
+     * Clear all previous pending slot allocation records for the given job.
+     *
+     * @param jobId of the given job
+     */
+    void clearPendingAllocationsOfJob(JobID jobId);
+
     /** Removes all state from the tracker. */
     void clear();
 }

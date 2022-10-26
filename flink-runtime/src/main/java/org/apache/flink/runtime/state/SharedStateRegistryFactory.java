@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 
 import java.util.Collection;
 import java.util.concurrent.Executor;
@@ -29,10 +30,13 @@ public interface SharedStateRegistryFactory {
     /**
      * Factory method for {@link SharedStateRegistry}.
      *
-     * @param checkpoints whose shared state will be registered.
      * @param deleteExecutor executor used to run (async) deletes.
+     * @param checkpoints whose shared state will be registered.
+     * @param restoreMode the mode in which the given checkpoints were restored
      * @return a SharedStateRegistry object
      */
     SharedStateRegistry create(
-            Executor deleteExecutor, Collection<CompletedCheckpoint> checkpoints);
+            Executor deleteExecutor,
+            Collection<CompletedCheckpoint> checkpoints,
+            RestoreMode restoreMode);
 }

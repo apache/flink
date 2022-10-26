@@ -19,48 +19,43 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils
 
-/**
- * Generic base class for trees that can be transformed and traversed.
- */
+/** Generic base class for trees that can be transformed and traversed. */
 abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
 
   /**
-   * List of child nodes that should be considered when doing transformations. Other values
-   * in the Product will not be transformed, only handed through.
+   * List of child nodes that should be considered when doing transformations. Other values in the
+   * Product will not be transformed, only handed through.
    */
   private[flink] def children: Seq[A]
 
-  /**
-   * Tests for equality by first testing for reference equality.
-   */
+  /** Tests for equality by first testing for reference equality. */
   private[flink] def fastEquals(other: TreeNode[_]): Boolean = this.eq(other) || this == other
 
-  /**
-    * Do tree transformation in post order.
-    */
+  /** Do tree transformation in post order. */
   private[flink] def postOrderTransform(rule: PartialFunction[A, A]): A = {
     def childrenTransform(rule: PartialFunction[A, A]): A = {
       var changed = false
       val newArgs = productIterator.map {
         case arg: TreeNode[_] if children.contains(arg) =>
           val newChild = arg.asInstanceOf[A].postOrderTransform(rule)
-          if (!(newChild fastEquals arg)) {
+          if (!(newChild.fastEquals(arg))) {
             changed = true
             newChild
           } else {
             arg
           }
-        case args: Traversable[_] => args.map {
-          case arg: TreeNode[_] if children.contains(arg) =>
-            val newChild = arg.asInstanceOf[A].postOrderTransform(rule)
-            if (!(newChild fastEquals arg)) {
-              changed = true
-              newChild
-            } else {
-              arg
-            }
-          case other => other
-        }
+        case args: Traversable[_] =>
+          args.map {
+            case arg: TreeNode[_] if children.contains(arg) =>
+              val newChild = arg.asInstanceOf[A].postOrderTransform(rule)
+              if (!(newChild.fastEquals(arg))) {
+                changed = true
+                newChild
+              } else {
+                arg
+              }
+            case other => other
+          }
         case nonChild: AnyRef => nonChild
         case null => null
       }.toArray
@@ -68,48 +63,48 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
     }
 
     val afterChildren = childrenTransform(rule)
-    if (afterChildren fastEquals this) {
+    if (afterChildren.fastEquals(this)) {
       rule.applyOrElse(this, identity[A])
     } else {
       rule.applyOrElse(afterChildren, identity[A])
     }
   }
 
-  /**
-    * Runs the given function first on the node and then recursively on all its children.
-    */
+  /** Runs the given function first on the node and then recursively on all its children. */
   private[flink] def preOrderVisit(f: A => Unit): Unit = {
     f(this)
     children.foreach(_.preOrderVisit(f))
   }
 
   /**
-   * Creates a new copy of this expression with new children. This is used during transformation
-   * if children change.
+   * Creates a new copy of this expression with new children. This is used during transformation if
+   * children change.
    */
   private[flink] def makeCopy(newArgs: Array[AnyRef]): A = {
-    val ctors = getClass.getConstructors.filter(_.getParameterTypes.length > 0)
+    val ctors = getClass.getConstructors.filter(_.getParameterCount > 0)
     if (ctors.isEmpty) {
       throw new RuntimeException(s"No valid constructor for ${getClass.getSimpleName}")
     }
 
-    val defaultCtor = ctors.find { ctor =>
-      if (ctor.getParameterTypes.length != newArgs.length) {
-        false
-      } else if (newArgs.contains(null)) {
-        false
-      } else {
-        val argsClasses: Array[Class[_]] = newArgs.map(_.getClass)
-        TypeInfoCheckUtils.isAssignable(argsClasses, ctor.getParameterTypes)
+    val defaultCtor = ctors
+      .find {
+        ctor =>
+          if (ctor.getParameterCount != newArgs.length) {
+            false
+          } else if (newArgs.contains(null)) {
+            false
+          } else {
+            val argsClasses: Array[Class[_]] = newArgs.map(_.getClass)
+            TypeInfoCheckUtils.isAssignable(argsClasses, ctor.getParameterTypes)
+          }
       }
-    }.getOrElse(ctors.maxBy(_.getParameterTypes.length))
+      .getOrElse(ctors.maxBy(_.getParameterCount))
 
     try {
       defaultCtor.newInstance(newArgs: _*).asInstanceOf[A]
     } catch {
       case e: Throwable =>
-        throw new RuntimeException(
-          s"Fail to copy tree node ${getClass.getName}.", e)
+        throw new RuntimeException(s"Fail to copy tree node ${getClass.getName}.", e)
     }
   }
 }

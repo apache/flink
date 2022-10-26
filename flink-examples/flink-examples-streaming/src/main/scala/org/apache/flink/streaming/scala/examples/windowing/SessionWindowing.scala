@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.windowing
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder
@@ -35,8 +34,8 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import java.time.Duration
 
 /**
- * An example of grouped stream windowing in session windows with session timeout of 3 msec.
- * A source fetches elements with key, timestamp, and count.
+ * An example of grouped stream windowing in session windows with session timeout of 3 msec. A
+ * source fetches elements with key, timestamp, and count.
  */
 object SessionWindowing {
 
@@ -62,14 +61,15 @@ object SessionWindowing {
       ("c", 11L, 1)
     )
 
-    val source: DataStream[(String, Long, Int)] = env.addSource(
-      new SourceFunction[(String, Long, Int)]() {
+    val source: DataStream[(String, Long, Int)] =
+      env.addSource(new SourceFunction[(String, Long, Int)]() {
 
         override def run(ctx: SourceContext[(String, Long, Int)]): Unit = {
-          input.foreach(value => {
-            ctx.collectWithTimestamp(value, value._2)
-            ctx.emitWatermark(new Watermark(value._2 - 1))
-          })
+          input.foreach(
+            value => {
+              ctx.collectWithTimestamp(value, value._2)
+              ctx.emitWatermark(new Watermark(value._2 - 1))
+            })
           ctx.emitWatermark(new Watermark(Long.MaxValue))
         }
 
@@ -84,14 +84,19 @@ object SessionWindowing {
       .sum(2)
 
     if (fileOutput) {
-      aggregated.sinkTo(FileSink.forRowFormat[(String, Long, Int)](
-          new Path(params.get("output")),
-          new SimpleStringEncoder())
-        .withRollingPolicy(DefaultRollingPolicy.builder()
-          .withMaxPartSize(MemorySize.ofMebiBytes(1))
-          .withRolloverInterval(Duration.ofSeconds(10))
-          .build())
-        .build())
+      aggregated
+        .sinkTo(
+          FileSink
+            .forRowFormat[(String, Long, Int)](
+              new Path(params.get("output")),
+              new SimpleStringEncoder())
+            .withRollingPolicy(
+              DefaultRollingPolicy
+                .builder()
+                .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                .withRolloverInterval(Duration.ofSeconds(10))
+                .build())
+            .build())
         .name("file-sink")
     } else {
       print("Printing result to stdout. Use --output to specify output path.")

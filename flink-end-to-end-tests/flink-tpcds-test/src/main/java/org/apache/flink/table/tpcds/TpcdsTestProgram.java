@@ -140,18 +140,14 @@ public class TpcdsTestProgram {
         // config Optimizer parameters
         // TODO use the default shuffle mode of batch runtime mode once FLINK-23470 is implemented
         tEnv.getConfig()
-                .getConfiguration()
-                .setString(
+                .set(
                         ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                         GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
         tEnv.getConfig()
-                .getConfiguration()
-                .setLong(
+                .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD,
-                        10 * 1024 * 1024);
-        tEnv.getConfig()
-                .getConfiguration()
-                .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
+                        10 * 1024 * 1024L);
+        tEnv.getConfig().set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
         // register TPC-DS tables
         TPCDS_TABLES.forEach(

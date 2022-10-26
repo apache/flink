@@ -166,7 +166,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
         TaskLocalStateStore taskLocalStateStore =
                 storesManager.localStateStoreForSubtask(
-                        jobID, allocationID, jobVertexID, subtaskIdx);
+                        jobID,
+                        allocationID,
+                        jobVertexID,
+                        subtaskIdx,
+                        new Configuration(),
+                        new Configuration());
 
         Assert.assertFalse(taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled());
         Assert.assertNull(
@@ -202,7 +207,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
         TaskLocalStateStore taskLocalStateStore =
                 storesManager.localStateStoreForSubtask(
-                        jobID, allocationID, jobVertexID, subtaskIdx);
+                        jobID,
+                        allocationID,
+                        jobVertexID,
+                        subtaskIdx,
+                        new Configuration(),
+                        new Configuration());
 
         LocalRecoveryDirectoryProvider directoryProvider =
                 taskLocalStateStore
@@ -258,7 +268,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
         taskLocalStateStore =
                 storesManager.localStateStoreForSubtask(
-                        jobID, otherAllocationID, jobVertexID, subtaskIdx);
+                        jobID,
+                        otherAllocationID,
+                        jobVertexID,
+                        subtaskIdx,
+                        new Configuration(),
+                        new Configuration());
 
         directoryProvider =
                 taskLocalStateStore
@@ -338,9 +353,14 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
         // register local state stores
         taskExecutorLocalStateStoresManager.localStateStoreForSubtask(
-                jobId, retainedAllocationId, jobVertexId, 0);
+                jobId,
+                retainedAllocationId,
+                jobVertexId,
+                0,
+                new Configuration(),
+                new Configuration());
         taskExecutorLocalStateStoresManager.localStateStoreForSubtask(
-                jobId, otherAllocationId, jobVertexId, 1);
+                jobId, otherAllocationId, jobVertexId, 1, new Configuration(), new Configuration());
 
         final Collection<Path> allocationDirectories =
                 TaskExecutorLocalStateStoresManager.listAllocationDirectoriesIn(localStateStore);

@@ -16,12 +16,7 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { Subject } from 'rxjs';
-import { mergeMap, takeUntil } from 'rxjs/operators';
-
-import { StatusService, TaskManagerService } from 'services';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 @Component({
   selector: 'flink-task-manager',
@@ -29,39 +24,6 @@ import { StatusService, TaskManagerService } from 'services';
   styleUrls: ['./task-manager.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TaskManagerComponent implements OnInit, OnDestroy {
-  public isLoading = true;
-
-  private readonly destroy$ = new Subject<void>();
-
-  constructor(
-    private readonly cdr: ChangeDetectorRef,
-    private readonly activatedRoute: ActivatedRoute,
-    private readonly taskManagerService: TaskManagerService,
-    private readonly statusService: StatusService
-  ) {}
-
-  public ngOnInit(): void {
-    this.statusService.refresh$
-      .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(() => this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId))
-      )
-      .subscribe(
-        data => {
-          this.taskManagerService.taskManagerDetail$.next(data);
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
-  }
-
-  public ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
+export class TaskManagerComponent {
+  constructor() {}
 }

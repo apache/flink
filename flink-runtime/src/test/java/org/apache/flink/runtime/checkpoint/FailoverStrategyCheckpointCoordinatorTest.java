@@ -24,14 +24,18 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphCheckpointPlanCalcu
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
@@ -40,6 +44,11 @@ import static org.mockito.Mockito.mock;
 
 /** Tests for actions of {@link CheckpointCoordinator} on task failures. */
 public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     private ManuallyTriggeredScheduledExecutor manualThreadExecutor;
 
     @Before
@@ -58,7 +67,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
                         .setTransitToRunning(false)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
                 new CheckpointCoordinatorConfiguration(
                         Integer.MAX_VALUE,

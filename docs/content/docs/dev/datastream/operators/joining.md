@@ -39,7 +39,7 @@ stream.join(otherStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
     .window(<WindowAssigner>)
-    .apply(<JoinFunction>)
+    .apply(<JoinFunction>);
 ```
 
 Some notes on semantics:
@@ -65,8 +65,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream.join(greenStream)
     .where(<KeySelector>)
@@ -119,8 +119,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream.join(greenStream)
     .where(<KeySelector>)
@@ -172,8 +172,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream.join(greenStream)
     .where(<KeySelector>)
@@ -244,14 +244,14 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream
     .keyBy(<KeySelector>)
     .intervalJoin(greenStream.keyBy(<KeySelector>))
     .between(Time.milliseconds(-2), Time.milliseconds(1))
-    .process (new ProcessJoinFunction<Integer, Integer, String(){
+    .process (new ProcessJoinFunction<Integer, Integer, String>(){
 
         @Override
         public void processElement(Integer left, Integer right, Context ctx, Collector<String> out) {

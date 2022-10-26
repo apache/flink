@@ -22,21 +22,19 @@ import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexCall, RexNode}
 
 import scala.collection.JavaConversions._
 
-/**
-  * Base Flink RelNode which matches along with join a user defined table function.
-  */
+/** Base Flink RelNode which matches along with join a user defined table function. */
 abstract class StreamPhysicalCorrelateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    inputRel: RelNode,
-    scan: FlinkLogicalTableFunctionScan,
-    condition: Option[RexNode],
+    val inputRel: RelNode,
+    val scan: FlinkLogicalTableFunctionScan,
+    val condition: Option[RexNode],
     outputRowType: RelDataType,
     joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
@@ -52,23 +50,21 @@ abstract class StreamPhysicalCorrelateBase(
     copy(traitSet, inputs.get(0), outputRowType)
   }
 
-  /**
-    * Note: do not passing member 'child' because singleRel.replaceInput may update 'input' rel.
-    */
-  def copy(
-      traitSet: RelTraitSet,
-      newChild: RelNode,
-      outputType: RelDataType): RelNode
+  /** Note: do not passing member 'child' because singleRel.replaceInput may update 'input' rel. */
+  def copy(traitSet: RelTraitSet, newChild: RelNode, outputType: RelDataType): RelNode
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val rexCall = scan.getCall.asInstanceOf[RexCall]
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("invocation", scan.getCall)
-      .item("correlate", RelExplainUtil.correlateToString(
-        inputRel.getRowType,
-        rexCall,
-        getExpressionString,
-        convertToExpressionDetail(pw.getDetailLevel)))
+      .item(
+        "correlate",
+        RelExplainUtil.correlateToString(
+          inputRel.getRowType,
+          rexCall,
+          getExpressionString,
+          convertToExpressionDetail(pw.getDetailLevel)))
       .item("select", outputRowType.getFieldNames.mkString(","))
       .item("rowType", outputRowType)
       .item("joinType", joinType)

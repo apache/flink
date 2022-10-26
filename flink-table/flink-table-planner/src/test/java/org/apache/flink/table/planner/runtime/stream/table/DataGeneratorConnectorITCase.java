@@ -18,9 +18,14 @@
 
 package org.apache.flink.table.planner.runtime.stream.table;
 
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.utils.TestingTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 
@@ -71,5 +76,30 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
         }
 
         assertThat(results).as("Unexpected number of results").hasSize(10);
+    }
+
+    @Test
+    public void testLimitPushDown() throws Exception {
+        final TestingTableEnvironment env =
+                TestingTableEnvironment.create(
+                        EnvironmentSettings.newInstance().inStreamingMode().build(),
+                        null,
+                        new TableConfig());
+
+        env.executeSql(
+                "CREATE TABLE datagen_t (\n"
+                        + "	f0 CHAR(1)\n"
+                        + ") WITH ("
+                        + "	'connector' = 'datagen'"
+                        + ")");
+
+        final Table table = env.sqlQuery("select * from datagen_t limit 5");
+        assertThat(table.explain())
+                .contains(
+                        "table=[[default_catalog, default_database, datagen_t, limit=[5]]], fields=[f0]");
+
+        assertThat(CollectionUtil.iteratorToList(table.execute().collect()))
+                .as("Unexpected number of results")
+                .hasSize(5);
     }
 }

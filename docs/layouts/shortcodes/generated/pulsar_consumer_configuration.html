@@ -33,12 +33,6 @@
             <td>Buffering a large number of outstanding uncompleted chunked messages can bring memory pressure and it can be guarded by providing this <code class="highlighter-rouge">pulsar.consumer.maxPendingChunkedMessage</code> threshold. Once a consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acknowledging if <code class="highlighter-rouge">pulsar.consumer.autoAckOldestChunkedMessageOnQueueFull</code> is true. Otherwise, it marks them for redelivery.</td>
         </tr>
         <tr>
-            <td><h5>pulsar.consumer.autoUpdatePartitionsIntervalSeconds</h5></td>
-            <td style="word-wrap: break-word;">60</td>
-            <td>Integer</td>
-            <td>The interval (in seconds) of updating partitions. This only works if autoUpdatePartitions is enabled.</td>
-        </tr>
-        <tr>
             <td><h5>pulsar.consumer.consumerName</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -58,7 +52,7 @@
         </tr>
         <tr>
             <td><h5>pulsar.consumer.deadLetterPolicy.maxRedeliverCount</h5></td>
-            <td style="word-wrap: break-word;">0</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
             <td>The maximum number of times that a message are redelivered before being sent to the dead letter queue.</td>
         </tr>
@@ -139,12 +133,6 @@ C5, 1, 1
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If enabled, the consumer will automatically retry messages.</td>
-        </tr>
-        <tr>
-            <td><h5>pulsar.consumer.subscriptionInitialPosition</h5></td>
-            <td style="word-wrap: break-word;">Latest</td>
-            <td><p>Enum</p></td>
-            <td>Initial position at which to set cursor when subscribing to a topic at first time.<br /><br />Possible values:<ul><li>"Latest"</li><li>"Earliest"</li></ul></td>
         </tr>
         <tr>
             <td><h5>pulsar.consumer.subscriptionMode</h5></td>

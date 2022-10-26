@@ -28,6 +28,8 @@ import org.apache.flink.util.Collector;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.containsResultAsText;
+
 /** Test iteration with termination criterion. */
 public class IterationTerminationWithTerminationTail extends JavaProgramTestBase {
     private static final String EXPECTED = "22\n";

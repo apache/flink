@@ -32,6 +32,9 @@ import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 
+import java.util.Collection;
+import java.util.Set;
+
 /**
  * The common pulsar source reader for both ordered & unordered message consuming.
  *
@@ -76,6 +79,12 @@ abstract class PulsarSourceReaderBase<OUT>
     }
 
     @Override
+    public void pauseOrResumeSplits(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        splitFetcherManager.pauseOrResumeSplits(splitsToPause, splitsToResume);
+    }
+
+    @Override
     public void close() throws Exception {
         // Close the all the consumers first.
         super.close();
@@ -83,5 +92,11 @@ abstract class PulsarSourceReaderBase<OUT>
         // Close shared pulsar resources.
         pulsarClient.shutdown();
         pulsarAdmin.close();
+    }
+
+    protected void closeFinishedSplits(Set<String> finishedSplitIds) {
+        for (String splitId : finishedSplitIds) {
+            ((PulsarFetcherManagerBase<OUT>) splitFetcherManager).closeFetcher(splitId);
+        }
     }
 }

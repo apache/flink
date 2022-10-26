@@ -17,24 +17,35 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 
 /** An {@link StateChangelogStorageFactory} for creating {@link InMemoryStateChangelogStorage}. */
 public class InMemoryStateChangelogStorageFactory implements StateChangelogStorageFactory {
 
-    public static String identifier = "memory";
+    public static final String IDENTIFIER = "memory";
 
     @Override
     public String getIdentifier() {
-        return identifier;
+        return IDENTIFIER;
     }
 
     @Override
     public StateChangelogStorage<?> createStorage(
-            Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
+            JobID jobID,
+            Configuration configuration,
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig) {
+        return new InMemoryStateChangelogStorage();
+    }
+
+    @Override
+    public StateChangelogStorageView<?> createStorageView(Configuration configuration) {
         return new InMemoryStateChangelogStorage();
     }
 }

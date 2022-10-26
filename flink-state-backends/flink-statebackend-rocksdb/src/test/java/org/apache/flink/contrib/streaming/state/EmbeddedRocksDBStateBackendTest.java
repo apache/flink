@@ -20,6 +20,8 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -45,6 +47,7 @@ import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -64,6 +67,7 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.RocksObject;
 import org.rocksdb.Snapshot;
@@ -327,10 +331,10 @@ public class EmbeddedRocksDBStateBackendTest
 
             ValueStateDescriptor<String> stubState1 =
                     new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
-            test.createInternalState(StringSerializer.INSTANCE, stubState1);
+            test.createOrUpdateInternalState(StringSerializer.INSTANCE, stubState1);
             ValueStateDescriptor<String> stubState2 =
                     new ValueStateDescriptor<>("StubState-2", StringSerializer.INSTANCE);
-            test.createInternalState(StringSerializer.INSTANCE, stubState2);
+            test.createOrUpdateInternalState(StringSerializer.INSTANCE, stubState2);
 
             // The default CF is pre-created so sum up to 2 times (once for each stub state)
             verify(columnFamilyOptions, Mockito.times(2))
@@ -357,11 +361,6 @@ public class EmbeddedRocksDBStateBackendTest
                             CheckpointOptions.forCheckpointWithDefaultLocation());
 
             RocksDB spyDB = keyedStateBackend.db;
-
-            if (!enableIncrementalCheckpointing) {
-                verify(spyDB, times(1)).getSnapshot();
-                verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
-            }
 
             // Ensure every RocksObjects not closed yet
             for (RocksObject rocksCloseable : allCreatedCloseables) {
@@ -619,6 +618,25 @@ public class EmbeddedRocksDBStateBackendTest
         }
     }
 
+    @Test(expected = FlinkRuntimeException.class)
+    public void testMapStateClear() throws Exception {
+        setupRocksKeyedStateBackend();
+        MapStateDescriptor<Integer, String> kvId =
+                new MapStateDescriptor<>("id", Integer.class, String.class);
+        MapState<Integer, String> state =
+                keyedStateBackend.getPartitionedState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+        doAnswer(
+                        invocationOnMock -> {
+                            throw new RocksDBException("Artificial failure");
+                        })
+                .when(keyedStateBackend.db)
+                .newIterator(any(ColumnFamilyHandle.class), any(ReadOptions.class));
+
+        state.clear();
+    }
+
     private void runStateUpdates() throws Exception {
         for (int i = 50; i < 150; ++i) {
             if (i % 10 == 0) {
@@ -638,11 +656,6 @@ public class EmbeddedRocksDBStateBackendTest
 
         assertNotNull(null, keyedStateBackend.db);
         RocksDB spyDB = keyedStateBackend.db;
-
-        if (!enableIncrementalCheckpointing) {
-            verify(spyDB, times(1)).getSnapshot();
-            verify(spyDB, times(1)).releaseSnapshot(any(Snapshot.class));
-        }
 
         keyedStateBackend.dispose();
         verify(spyDB, times(1)).close();

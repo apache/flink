@@ -65,19 +65,19 @@ public class AggregatingSubtasksMetricsHandlerTest
         Collection<MetricDump> dumps = new ArrayList<>(3);
         QueryScopeInfo.TaskQueryScopeInfo task1 =
                 new QueryScopeInfo.TaskQueryScopeInfo(
-                        JOB_ID.toString(), TASK_ID.toString(), 1, "abc");
+                        JOB_ID.toString(), TASK_ID.toString(), 1, 0, "abc");
         MetricDump.CounterDump cd1 = new MetricDump.CounterDump(task1, "metric1", 1);
         dumps.add(cd1);
 
         QueryScopeInfo.TaskQueryScopeInfo task2 =
                 new QueryScopeInfo.TaskQueryScopeInfo(
-                        JOB_ID.toString(), TASK_ID.toString(), 2, "abc");
+                        JOB_ID.toString(), TASK_ID.toString(), 2, 0, "abc");
         MetricDump.CounterDump cd2 = new MetricDump.CounterDump(task2, "metric1", 3);
         dumps.add(cd2);
 
         QueryScopeInfo.TaskQueryScopeInfo task3 =
                 new QueryScopeInfo.TaskQueryScopeInfo(
-                        JOB_ID.toString(), TASK_ID.toString(), 3, "abc");
+                        JOB_ID.toString(), TASK_ID.toString(), 3, 0, "abc");
         MetricDump.CounterDump cd3 = new MetricDump.CounterDump(task3, "metric2", 5);
         dumps.add(cd3);
 

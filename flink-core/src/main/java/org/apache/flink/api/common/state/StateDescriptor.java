@@ -103,8 +103,13 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
     /** The configuration of state time-to-live(TTL), it is disabled by default. */
     @Nonnull private StateTtlConfig ttlConfig = StateTtlConfig.DISABLED;
 
-    /** The default value returned by the state when no other value is bound to a key. */
-    @Nullable protected transient T defaultValue;
+    /**
+     * The default value returned by the state when no other value is bound to a key.
+     *
+     * @deprecated To make the semantics more clear, user should manually manage the default value
+     *     if the contents of the state is {@code null}
+     */
+    @Nullable @Deprecated protected transient T defaultValue;
 
     // ------------------------------------------------------------------------
 
@@ -259,6 +264,9 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      *
      * <p>State user value will expire, become unavailable and be cleaned up in storage depending on
      * configured {@link StateTtlConfig}.
+     *
+     * <p>If enabling the TTL configuration, the field {@link StateDescriptor#defaultValue} will be
+     * invalid.
      *
      * @param ttlConfig configuration of state TTL
      */

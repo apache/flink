@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.16-SNAPSHOT</version>
+	<version>1.17-SNAPSHOT</version>
 
 	<name>Flink : </name>
 	<packaging>pom</packaging>
@@ -48,6 +48,19 @@ under the License.
 		<connection>git@github.com:apache/flink.git</connection>
 		<developerConnection>scm:git:https://gitbox.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
+
+	<repositories>
+		<repository>
+			<id>repository.jboss.org</id>
+			<url>http://repository.jboss.org/nexus/content/groups/public/</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+		</repository>
+	</repositories>
 
 	<modules>
 		<module>flink-annotations</module>
@@ -88,28 +101,34 @@ under the License.
 		<module>flink-walkthroughs</module>
 		<module>flink-kubernetes</module>
 		<module>flink-external-resources</module>
-		<module>tools/ci/java-ci-tools</module>
+		<module>tools/ci/flink-ci-tools</module>
 	</modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<hadoop.version>2.8.5</hadoop.version>
+		<flink.hadoop.version>2.8.5</flink.hadoop.version>
+		<flink.XmxMax>3072m</flink.XmxMax>
+		<!-- XmxMax / forkCountITCase -->
+		<flink.XmxITCase>1536m</flink.XmxITCase>
+		<!-- XmxMax / forkCountUnitTest -->
+		<flink.XmxUnitTest>768m</flink.XmxUnitTest>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
-		<flink.forkCount>1C</flink.forkCount>
-		<!-- Allow overriding the fork behaviour for the expensive tests in flink-tests
-			 to avoid process kills due to container limits on TravisCI -->
-		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
+		<!-- Number of forkCounts for ITCase and UnitTest should take into account allocated memory
+			 to the jvm (-Xmx) and the available memory on the machine running the test -->
+		<flink.forkCountITCase>2</flink.forkCountITCase>
+		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
+		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
 		<flink.shaded.version>15.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.32</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
-			 Intellij is (sometimes?) using those values to choose target language level
+			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
 		<maven.compiler.source>${target.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
@@ -122,21 +141,23 @@ under the License.
 		<!-- keep FlinkContainersBuilder#buildZookeeperContainer() in sync -->
 		<zookeeper.version>3.5.9</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
-		<avro.version>1.10.0</avro.version>
+		<avro.version>1.11.1</avro.version>
+		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
+		<jackson-bom.version>2.13.4.20221013</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
-		<junit5.version>5.8.1</junit5.version>
+		<junit5.version>5.9.1</junit5.version>
 		<archunit.version>0.22.0</archunit.version>
-		<mockito.version>2.21.0</mockito.version>
+		<mockito.version>3.4.6</mockito.version>
 		<powermock.version>2.0.9</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
-		<assertj.version>3.21.0</assertj.version>
+		<assertj.version>3.23.1</assertj.version>
 		<py4j.version>0.10.9.3</py4j.version>
-		<beam.version>2.27.0</beam.version>
-		<protoc.version>3.17.3</protoc.version>
+		<beam.version>2.38.0</beam.version>
+		<protoc.version>3.21.7</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
-		<testcontainers.version>1.16.2</testcontainers.version>
+		<testcontainers.version>1.17.2</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -146,18 +167,38 @@ under the License.
 			Starting Hadoop 3, org.apache.kerby will be used instead of MiniKDC. We may have
 			to revisit the impact at that time.
 		-->
-		<minikdc.version>3.2.0</minikdc.version>
-		<hive.version>2.3.4</hive.version>
-		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
+		<minikdc.version>3.2.4</minikdc.version>
+		<hive.version>2.3.9</hive.version>
 		<orc.version>1.5.6</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.14.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.15.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
-		<spotless.version>2.4.2</spotless.version>
+		<spotless.version>2.27.1</spotless.version>
+		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
+		<spotless.delimiter>package</spotless.delimiter>
+		<spotless.license.header>
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+		</spotless.license.header>
 
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
@@ -207,7 +248,23 @@ under the License.
 
 		<dependency>
 			<groupId>org.mockito</groupId>
+			<artifactId>mockito-inline</artifactId>
+			<version>${mockito.version}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
 			<version>${mockito.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
@@ -331,7 +388,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -351,7 +408,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -371,7 +428,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-mapreduce-client-core</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -391,7 +448,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -411,7 +468,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-client</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -493,7 +550,7 @@ under the License.
 			<dependency>
 				<groupId>com.github.oshi</groupId>
 				<artifactId>oshi-core</artifactId>
-				<version>3.4.0</version>
+				<version>6.1.5</version>
 			</dependency>
 
 			<!-- We no longer align the avro version with the version bundled in Hadoop.
@@ -515,14 +572,14 @@ under the License.
 				<!-- mockito/powermock mismatch -->
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy</artifactId>
-				<version>1.8.22</version>
+				<version>1.10.14</version>
 			</dependency>
 
 			<dependency>
 				<!-- mockito/powermock mismatch -->
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy-agent</artifactId>
-				<version>1.8.22</version>
+				<version>1.10.14</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -544,9 +601,9 @@ under the License.
 				<artifactId>jackson-bom</artifactId>
 				<type>pom</type>
 				<scope>import</scope>
-				<version>2.13.0</version>
+				<version>${jackson-bom.version}</version>
 			</dependency>
-			
+
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp</artifactId>
@@ -693,12 +750,6 @@ under the License.
 				<groupId>org.scala-lang</groupId>
 				<artifactId>scala-compiler</artifactId>
 				<version>${scala.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.scala-lang.modules</groupId>
-				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-				<version>1.1.1</version>
 			</dependency>
 
 			<dependency>
@@ -923,32 +974,6 @@ under the License.
 							<version>3.2.4</version>
 						</plugin>
 						<plugin>
-							<groupId>com.github.siom79.japicmp</groupId>
-							<artifactId>japicmp-maven-plugin</artifactId>
-							<dependencies>
-								<dependency>
-									<groupId>javax.xml.bind</groupId>
-									<artifactId>jaxb-api</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-impl</artifactId>
-									<version>2.3.1</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-core</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>javax.activation</groupId>
-									<artifactId>activation</artifactId>
-									<version>1.1.1</version>
-								</dependency>
-							</dependencies>
-						</plugin>
-						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
@@ -962,30 +987,6 @@ under the License.
 								<additionalJOptions>
 									<additionalJOption>--add-exports=java.base/sun.net.util=ALL-UNNAMED</additionalJOption>
 								</additionalJOptions>
-							</configuration>
-						</plugin>
-					</plugins>
-				</pluginManagement>
-			</build>
-		</profile>
-
-		<profile>
-			<id>java17</id>
-			<activation>
-				<jdk>[17,)</jdk>
-			</activation>
-
-			<build>
-				<pluginManagement>
-					<plugins>
-						<plugin>
-							<groupId>com.diffplug.spotless</groupId>
-							<artifactId>spotless-maven-plugin</artifactId>
-							<configuration>
-								<!-- Current google format does not run on Java 17.
-									 Don't upgrade it in this profile because it formats code differently.
-									 Re-evaluate once support for Java 8 is dropped. -->
-								<skip>true</skip>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1069,13 +1070,6 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
-							<groupId>org.scalastyle</groupId>
-							<artifactId>scalastyle-maven-plugin</artifactId>
-							<configuration>
-								<skip>true</skip>
-							</configuration>
-						</plugin>
-						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-enforcer-plugin</artifactId>
 							<configuration>
@@ -1090,7 +1084,7 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
-							<groupId>com.github.siom79.japicmp</groupId>
+							<groupId>io.github.zentol.japicmp</groupId>
 							<artifactId>japicmp-maven-plugin</artifactId>
 							<configuration>
 								<skip>true</skip>
@@ -1219,12 +1213,12 @@ under the License.
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
-						<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
+						<version>3.2.1</version>
 						<executions>
 							<execution>
 								<id>attach-sources</id>
 								<goals>
-									<goal>jar</goal>
+									<goal>jar-no-fork</goal>
 								</goals>
 							</execution>
 						</executions>
@@ -1359,6 +1353,12 @@ under the License.
 						</manifest>
 					</archive>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<!-- activate API compatibility checks -->
+				<groupId>io.github.zentol.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
 			</plugin>
 
 			<plugin>
@@ -1526,7 +1526,6 @@ under the License.
 						<!-- Generated content -->
 						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
-						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
 						<exclude>docs/layouts/shortcodes/generated/**</exclude>
 						<exclude>docs/static/generated/**</exclude>
@@ -1544,10 +1543,6 @@ under the License.
 						<!-- Generated code via Avro -->
 						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/**</exclude>
-						<!-- Files generated by jepsen tests -->
-						<exclude>flink-jepsen/store/**</exclude>
-						<exclude>flink-jepsen/docker/id_rsa*</exclude>
-						<exclude>flink-jepsen/docker/nodes</exclude>
 
 						<!-- flink-python -->
 						<exclude>flink-python/lib/**</exclude>
@@ -1580,14 +1575,18 @@ under the License.
 				<configuration>
 					<!-- enables TCP/IP communication between surefire and forked JVM-->
 					<forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
-					<systemPropertyVariables>
+					<systemPropertyVariables combine.children="append">
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
-						<hadoop.version>${hadoop.version}</hadoop.version>
+						<!-- $$ ensures that surefire resolves this to the current forkNumber,
+						 	instead of maven during initialization -->
+						<mvn.forkNumber>$${surefire.forkNumber}</mvn.forkNumber>
+						<hadoop.version>${flink.hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
+						<user.country>US</user.country>
+						<user.language>en</user.language>
 						<!-- force the use of the Changelog State Backend in tests on mini-cluster
 							on: enable CheckpointingOptions.ENABLE_STATE_CHANGE_LOG on cluster level
 							random: enable it randomly, unless explicitly set
@@ -1598,8 +1597,16 @@ under the License.
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
 						<junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
+						<!-- Enabled the parallel test execution feature. -->
+						<!-- Tests and test classes can be enabled for concurrent execution using @Execution(ExecutionMode.CONCURRENT). -->
+						<junit.jupiter.execution.parallel.enabled>true</junit.jupiter.execution.parallel.enabled>
+						<!-- Tests are by default executed by a single thread; parallel execution is opt-in. -->
+						<junit.jupiter.execution.parallel.mode.default>same_thread</junit.jupiter.execution.parallel.mode.default>
+						<!-- Tests suites are by default executed by a single thread; parallel execution is opt-in. -->
+						<junit.jupiter.execution.parallel.mode.classes.default>same_thread</junit.jupiter.execution.parallel.mode.classes.default>
+						<!-- automatically adjust parallelism based on available cpu/processor cores-->
+						<junit.jupiter.execution.parallel.config.strategy>dynamic</junit.jupiter.execution.parallel.config.strategy>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC -Duser.country=US -Duser.language=en</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
@@ -1613,6 +1620,8 @@ under the License.
 							<includes>
 								<include>${test.unit.pattern}</include>
 							</includes>
+							<forkCount>${flink.forkCountUnitTest}</forkCount>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxUnitTest}</argLine>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1632,6 +1641,8 @@ under the License.
 								     e.g., 'org.apache.flink.api.scala.typeutils.Foo$Bar$Foobar'. -->
 								<exclude>**/*$*</exclude>
 							</excludes>
+							<forkCount>${flink.forkCountITCase}</forkCount>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxITCase}</argLine>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
@@ -1866,8 +1877,6 @@ under the License.
 									i.e. poms which do not contain properties which are derived from this root pom.
 									In particular, the Scala version properties are defined in the root pom and without
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
-									Removing this exclusion will also cause compilation errors in at least
-									1 module (flink-connector-elasticsearch5), for unknown reasons.
 									-->
 									<include>org.apache.flink:flink-shaded-force-shading</include>
 								</includes>
@@ -1922,7 +1931,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-checkstyle-plugin</artifactId>
-					<version>2.17</version>
+					<version>3.1.2</version>
 					<dependencies>
 						<dependency>
 							<groupId>com.puppycrawl.tools</groupId>
@@ -2062,32 +2071,6 @@ under the License.
 					</executions>
 				</plugin>
 
-				<!-- configure scala style -->
-				<plugin>
-					<groupId>org.scalastyle</groupId>
-					<artifactId>scalastyle-maven-plugin</artifactId>
-					<version>1.0.0</version>
-					<executions>
-						<execution>
-							<phase>validate</phase>
-							<goals>
-								<goal>check</goal>
-							</goals>
-						</execution>
-					</executions>
-					<configuration>
-						<verbose>false</verbose>
-						<failOnViolation>true</failOnViolation>
-						<includeTestSourceDirectory>true</includeTestSourceDirectory>
-						<failOnWarning>false</failOnWarning>
-						<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-						<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-						<outputFile>${project.basedir}/target/scalastyle-output.xml</outputFile>
-						<inputEncoding>UTF-8</inputEncoding>
-						<outputEncoding>UTF-8</outputEncoding>
-					</configuration>
-				</plugin>
-
 				<!-- set scala maven plugin version -->
 				<plugin>
 					<groupId>net.alchim31.maven</groupId>
@@ -2106,9 +2089,9 @@ under the License.
 
 				<!-- Configuration for the binary compatibility checker -->
 				<plugin>
-					<groupId>com.github.siom79.japicmp</groupId>
+					<groupId>io.github.zentol.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.11.0</version>
+					<version>0.16.0_m325</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
@@ -2135,6 +2118,8 @@ under the License.
 								<exclude>@org.apache.flink.annotation.Experimental</exclude>
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
+								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
+								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#getSideOutput(org.apache.flink.util.OutputTag)</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.DataStream#DataStream(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.streaming.api.transformations.StreamTransformation)</exclude>
 								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction#invoke(java.lang.Object)</exclude>
@@ -2147,6 +2132,14 @@ under the License.
 								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopOutputFormat</exclude>
 								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat</exclude>
 								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopOutputFormat</exclude>
+								<exclude>org.apache.flink.metrics.Metric#getMetricType()</exclude>
+								<exclude>org.apache.flink.metrics.Counter#getMetricType()</exclude>
+								<exclude>org.apache.flink.metrics.Meter#getMetricType()</exclude>
+								<exclude>org.apache.flink.metrics.Gauge#getMetricType()</exclude>
+								<exclude>org.apache.flink.metrics.Histogram#getMetricType()</exclude>
+								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#sendEventToSourceReader(int,int,org.apache.flink.api.connector.source.SourceEvent)</exclude>
+								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#registeredReadersOfAttempts()</exclude>
+								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>
@@ -2158,6 +2151,9 @@ under the License.
 							<skipPomModules>true</skipPomModules>
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+							<packagingSupporteds>
+								<packagingSupported>jar</packagingSupported>
+							</packagingSupporteds>
 						</parameter>
 						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>

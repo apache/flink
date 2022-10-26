@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { of, Subject } from 'rxjs';
+import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
-import { TaskManagerDetail } from 'interfaces';
-import { TaskManagerService } from 'services';
+import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-task-manager-status',
@@ -37,20 +38,33 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
     { path: 'log-list', title: 'Log List' },
     { path: 'thread-dump', title: 'Thread Dump' }
   ];
-
-  public taskManagerDetail: TaskManagerDetail;
-
-  @Input() public isLoading = true;
+  public taskManagerDetail?: TaskManagerDetail;
+  public loading = true;
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly taskManagerService: TaskManagerService,
+    private readonly statusService: StatusService,
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.cdr.markForCheck();
-    });
+    this.statusService.refresh$
+      .pipe(
+        mergeMap(() =>
+          this.taskManagerService
+            .loadManager(this.activatedRoute.snapshot.params.taskManagerId)
+            .pipe(catchError(() => of(undefined)))
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.taskManagerDetail = data;
+        this.loading = false;
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {

@@ -23,8 +23,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,9 +36,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test Filesystem connector with DebeziumJson. */
-public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
+class DebeziumJsonFileSystemITCase extends StreamingTestBase {
 
     private static final List<String> EXPECTED =
             Arrays.asList(
@@ -66,9 +67,10 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
     private File source;
     private File sink;
 
-    private void prepareTables(boolean isPartition) throws IOException {
+    private void prepareTables(boolean isPartition, Path tempSourceDir, Path tempSinkDir)
+            throws IOException {
         byte[] bytes = readBytes("debezium-data-schema-exclude.txt");
-        source = TEMPORARY_FOLDER.newFolder();
+        source = tempSourceDir.toFile();
         File file;
         if (isPartition) {
             File partition = new File(source, "p=1");
@@ -80,7 +82,7 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
         file.createNewFile();
         Files.write(file.toPath(), bytes);
 
-        sink = TEMPORARY_FOLDER.newFolder();
+        sink = tempSinkDir.toFile();
 
         env().setParallelism(1);
     }
@@ -100,8 +102,8 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testNonPartition() throws Exception {
-        prepareTables(false);
+    void testNonPartition(@TempDir Path tempSourceDir, @TempDir Path tempSinkDir) throws Exception {
+        prepareTables(false, tempSourceDir, tempSinkDir);
         createTable(false, source.toURI().toString(), false);
         createTable(true, sink.toURI().toString(), false);
 
@@ -117,12 +119,12 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
                         .collect(Collectors.toList());
         iter.close();
 
-        Assert.assertEquals(EXPECTED, results);
+        assertThat(results).isEqualTo(EXPECTED);
     }
 
     @Test
-    public void testPartition() throws Exception {
-        prepareTables(true);
+    void testPartition(@TempDir Path tempSourceDir, @TempDir Path tempSinkDir) throws Exception {
+        prepareTables(true, tempSourceDir, tempSinkDir);
         createTable(false, source.toURI().toString(), true);
         createTable(true, sink.toURI().toString(), true);
 
@@ -140,11 +142,11 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
                         .map(Row::toString)
                         .collect(Collectors.toList());
 
-        Assert.assertEquals(EXPECTED, results);
+        assertThat(results).isEqualTo(EXPECTED);
 
         // check partition value
         for (Row row : list) {
-            Assert.assertEquals(1, row.getField(4));
+            assertThat(row.getField(4)).isEqualTo(1);
         }
     }
 

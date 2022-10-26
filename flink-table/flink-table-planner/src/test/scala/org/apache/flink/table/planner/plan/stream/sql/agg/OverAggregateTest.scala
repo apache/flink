@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.scala._
@@ -30,8 +29,8 @@ import org.junit.Test
 class OverAggregateTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  util
+    .addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   def verifyPlanIdentical(sql1: String, sql2: String): Unit = {
     val table1 = util.tableEnv.sqlQuery(sql1)
@@ -41,9 +40,7 @@ class OverAggregateTest extends TableTestBase {
     assertEquals(FlinkRelOptUtil.toString(optimized1), FlinkRelOptUtil.toString(optimized2))
   }
 
-  /**
-    * All aggregates must be computed on the same window.
-    */
+  /** All aggregates must be computed on the same window. */
   @Test(expected = classOf[TableException])
   def testMultiWindow(): Unit = {
     val sqlQuery =
@@ -57,18 +54,14 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
+  /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation(): Unit = {
     util.addFunction("overAgg", new OverAgg0)
     util.verifyExecPlan("SELECT overAgg(c, a) FROM MyTable")
   }
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
+  /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation2(): Unit = {
     util.addFunction("overAgg", new OverAgg0)

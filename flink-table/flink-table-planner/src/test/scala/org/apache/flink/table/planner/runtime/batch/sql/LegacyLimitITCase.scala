@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.api.TableSchema
@@ -34,83 +33,64 @@ class LegacyLimitITCase extends BatchTestBase {
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
     TestLegacyLimitableTableSource.createTemporaryTable(
-      tEnv, data3, new TableSchema(Array("a", "b", "c"), type3.getFieldTypes), "LimitTable")
+      tEnv,
+      data3,
+      new TableSchema(Array("a", "b", "c"), type3.getFieldTypes),
+      "LimitTable")
   }
 
   @Test
   def testOffsetAndFetch(): Unit = {
-    checkSize(
-      "SELECT * FROM Table3 OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY",
-      5)
+    checkSize("SELECT * FROM Table3 OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY", 5)
   }
 
   @Test
   def testOffsetAndLimit(): Unit = {
-    checkSize(
-      "SELECT * FROM Table3 LIMIT 10 OFFSET 2",
-      10)
+    checkSize("SELECT * FROM Table3 LIMIT 10 OFFSET 2", 10)
   }
 
   @Test
   def testFetch(): Unit = {
-    checkSize(
-      "SELECT * FROM Table3 FETCH NEXT 10 ROWS ONLY",
-      10)
+    checkSize("SELECT * FROM Table3 FETCH NEXT 10 ROWS ONLY", 10)
   }
 
   @Test
   def testFetchWithLimitTable(): Unit = {
-    checkSize(
-      "SELECT * FROM LimitTable FETCH NEXT 10 ROWS ONLY",
-      10)
+    checkSize("SELECT * FROM LimitTable FETCH NEXT 10 ROWS ONLY", 10)
   }
 
   @Test
   def testFetchFirst(): Unit = {
-    checkSize(
-      "SELECT * FROM Table3 FETCH FIRST 10 ROWS ONLY",
-      10)
+    checkSize("SELECT * FROM Table3 FETCH FIRST 10 ROWS ONLY", 10)
   }
 
   @Test
   def testFetchFirstWithLimitTable(): Unit = {
-    checkSize(
-      "SELECT * FROM LimitTable FETCH FIRST 10 ROWS ONLY",
-      10)
+    checkSize("SELECT * FROM LimitTable FETCH FIRST 10 ROWS ONLY", 10)
   }
 
   @Test
   def testLimit(): Unit = {
-    checkSize(
-      "SELECT * FROM Table3 LIMIT 5",
-      5)
+    checkSize("SELECT * FROM Table3 LIMIT 5", 5)
   }
 
   @Test
   def testLimit0WithLimitTable(): Unit = {
-    checkSize(
-      "SELECT * FROM LimitTable LIMIT 0",
-      0)
+    checkSize("SELECT * FROM LimitTable LIMIT 0", 0)
   }
 
   @Test
   def testLimitWithLimitTable(): Unit = {
-    checkSize(
-      "SELECT * FROM LimitTable LIMIT 5",
-      5)
+    checkSize("SELECT * FROM LimitTable LIMIT 5", 5)
   }
 
   @Test
   def testLessThanOffset(): Unit = {
-    checkSize(
-      "SELECT * FROM Table3 OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY",
-      19)
+    checkSize("SELECT * FROM Table3 OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY", 19)
   }
 
   @Test
   def testLessThanOffsetWithLimitSource(): Unit = {
-    checkSize(
-      "SELECT * FROM LimitTable OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY",
-      19)
+    checkSize("SELECT * FROM LimitTable OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY", 19)
   }
 }

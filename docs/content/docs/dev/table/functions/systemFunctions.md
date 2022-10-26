@@ -123,10 +123,10 @@ The following table lists specifiers for time interval and time point units.
 For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 
 | Time Interval Unit       | Time Point Unit                |
-| :----------------------- | :----------------------------- |
-| `MILLENIUM` _(SQL-only)_ |                                |
-| `CENTURY` _(SQL-only)_   |                                |
-| `DECADE` _(SQL-only)_    |                                |
+|:-------------------------|:-------------------------------|
+| `MILLENNIUM`             |                                |
+| `CENTURY`                |                                |
+| `DECADE`                 |                                |
 | `YEAR`                   | `YEAR`                         |
 | `YEAR TO MONTH`          |                                |
 | `QUARTER`                | `QUARTER`                      |
@@ -142,10 +142,13 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 | `MINUTE`                 | `MINUTE`                       |
 | `MINUTE TO SECOND`       |                                |
 | `SECOND`                 | `SECOND`                       |
-|                          | `MILLISECOND`                  |
-|                          | `MICROSECOND`                  |
+| `MILLISECOND`            | `MILLISECOND`                  |
+| `MICROSECOND`            | `MICROSECOND`                  |
+| `NANOSECOND`             |                                |
+| `EPOCH`                  |                                |
 | `DOY` _(SQL-only)_       |                                |
 | `DOW` _(SQL-only)_       |                                |
+| `EPOCH` _(SQL-only)_     |                                |
 | `ISODOW` _(SQL-only)_    |                                |
 | `ISOYEAR` _(SQL-only)_   |                                |
 |                          | `SQL_TSI_YEAR` _(SQL-only)_    |
@@ -194,13 +197,13 @@ The usage of the column function is illustrated in the following table. (Suppose
 
 | API | Usage | Description |
 |-|-|-|
-| withColumns(*)| select("withColumns(*)") | select("*") = select("a, b, c, d, e") | all the columns |
-| withColumns(m to n) | select("withColumns(2 to 4)") = select("b, c, d") | columns from m to n |
-|  withColumns(m, n, k)  | select("withColumns(1, 3, e)") = select("a, c, e") |  columns m, n, k |
-|  withColumns(m, n to k)  | select("withColumns(1, 3 to 5)") = select("a, c, d ,e") |  mixing of the above two representation |
-|  withoutColumns(m to n) | select("withoutColumns(2 to 4)") = select("a, e") |  deselect columns from m to n |
-|  withoutColumns(m, n, k) | select("withoutColumns(1, 3, 5)") = select("b, d") |  deselect columns m, n, k |
-|  withoutColumns(m, n to k) | select("withoutColumns(1, 3 to 5)") = select("b") |  mixing of the above two representation |
+| withColumns($(*)) | select(withColumns($("*")))  = select($("a"), $("b"), $("c"), $("d"), $("e")) | all the columns |
+| withColumns(m to n) | select(withColumns(range(2, 4))) = select($("b"), $("c"), $("d")) | columns from m to n |
+| withColumns(m, n, k)  | select(withColumns(lit(1), lit(3), $("e"))) = select($("a"), $("c"), $("e")) |  columns m, n, k |
+| withColumns(m, n to k)  | select(withColumns(lit(1), range(3, 5))) = select($("a"), $("c"), $("d"), $("e")) |  mixing of the above two representation |
+| withoutColumns(m to n) | select(withoutColumns(range(2, 4))) = select($("a"), $("e")) |  deselect columns from m to n |
+| withoutColumns(m, n, k) | select(withoutColumns(lit(1), lit(3), lit(5))) = select($("b"), $("d")) |  deselect columns m, n, k |
+| withoutColumns(m, n to k) | select(withoutColumns(lit(1), range(3, 5))) = select($("b")) |  mixing of the above two representation |
 
 The column functions can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDFs etc.` e.g.:
 
@@ -208,22 +211,22 @@ The column functions can be used in all places where column fields are expected,
 {{< tab "Java" >}}
 ```java
 table
-   .groupBy("withColumns(1 to 3)")
-   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+    .groupBy(withColumns(range(1, 3)))
+    .select(withColumns(range("a", "b")), myUDAgg(myUDF(withColumns(range(5, 20)))));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 table
-   .groupBy(withColumns(1 to 3))
-   .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
+    .groupBy(withColumns(range(1, 3)))
+    .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
 table \
-    .group_by("withColumns(1 to 3)") \
-    .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+    .group_by(with_columns(range_(1, 3))) \
+    .select(with_columns(range_('a', 'b')), myUDAgg(myUDF(with_columns(range_(5, 20)))))
 ```
 {{< /tab >}}
 {{< /tabs >}}

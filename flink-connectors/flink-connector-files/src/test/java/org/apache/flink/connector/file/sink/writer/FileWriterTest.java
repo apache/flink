@@ -62,17 +62,17 @@ import java.util.concurrent.ScheduledFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FileWriter}. */
-public class FileWriterTest {
+class FileWriterTest {
 
     private MetricListener metricListener;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         metricListener = new MetricListener();
     }
 
     @Test
-    public void testPreCommit(@TempDir java.nio.file.Path tempDir) throws Exception {
+    void testPreCommit(@TempDir java.nio.file.Path tempDir) throws Exception {
         Path path = new Path(tempDir.toUri());
 
         FileWriter<String> fileWriter =
@@ -91,7 +91,7 @@ public class FileWriterTest {
     }
 
     @Test
-    public void testSnapshotAndRestore(@TempDir java.nio.file.Path tempDir) throws Exception {
+    void testSnapshotAndRestore(@TempDir java.nio.file.Path tempDir) throws Exception {
         Path path = new Path(tempDir.toUri());
 
         FileWriter<String> fileWriter =
@@ -128,7 +128,7 @@ public class FileWriterTest {
     }
 
     @Test
-    public void testMergingForRescaling(@TempDir java.nio.file.Path tempDir) throws Exception {
+    void testMergingForRescaling(@TempDir java.nio.file.Path tempDir) throws Exception {
         Path path = new Path(tempDir.toUri());
 
         FileWriter<String> firstFileWriter =
@@ -191,8 +191,7 @@ public class FileWriterTest {
     }
 
     @Test
-    public void testBucketIsRemovedWhenNotActive(@TempDir java.nio.file.Path tempDir)
-            throws Exception {
+    void testBucketIsRemovedWhenNotActive(@TempDir java.nio.file.Path tempDir) throws Exception {
         Path path = new Path(tempDir.toUri());
 
         FileWriter<String> fileWriter =
@@ -210,7 +209,7 @@ public class FileWriterTest {
     }
 
     @Test
-    public void testOnProcessingTime(@TempDir java.nio.file.Path tempDir) throws Exception {
+    void testOnProcessingTime(@TempDir java.nio.file.Path tempDir) throws Exception {
         Path path = new Path(tempDir.toUri());
 
         // Create the processing timer service starts from 10.
@@ -276,19 +275,17 @@ public class FileWriterTest {
     }
 
     @Test
-    public void testContextPassingNormalExecution(@TempDir java.nio.file.Path tempDir)
-            throws Exception {
+    void testContextPassingNormalExecution(@TempDir java.nio.file.Path tempDir) throws Exception {
         testCorrectTimestampPassingInContext(1L, 2L, 3L, tempDir);
     }
 
     @Test
-    public void testContextPassingNullTimestamp(@TempDir java.nio.file.Path tempDir)
-            throws Exception {
+    void testContextPassingNullTimestamp(@TempDir java.nio.file.Path tempDir) throws Exception {
         testCorrectTimestampPassingInContext(null, 4L, 5L, tempDir);
     }
 
     @Test
-    public void testNumberRecordsOutCounter(@TempDir java.nio.file.Path tempDir)
+    void testNumberRecordsOutCounter(@TempDir java.nio.file.Path tempDir)
             throws IOException, InterruptedException {
         Path path = new Path(tempDir.toUri());
 
@@ -298,7 +295,7 @@ public class FileWriterTest {
                 InternalSinkWriterMetricGroup.mock(
                         metricListener.getMetricGroup(), operatorIOMetricGroup);
 
-        Counter recordsCounter = sinkWriterMetricGroup.getNumRecordsSendCounter();
+        Counter recordsCounter = sinkWriterMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
         SinkWriter.Context context = new ContextImpl();
         FileWriter<String> fileWriter =
                 createWriter(

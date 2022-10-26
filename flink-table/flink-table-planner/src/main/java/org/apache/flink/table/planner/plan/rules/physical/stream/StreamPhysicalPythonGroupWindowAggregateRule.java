@@ -143,7 +143,7 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
                 agg.getGroupSet().toArray(),
                 JavaScalaConversionUtil.toScala(aggCalls),
                 agg.getWindow(),
-                agg.getNamedProperties(),
+                JavaScalaConversionUtil.toScala(agg.getNamedProperties()),
                 emitStrategy);
     }
 }

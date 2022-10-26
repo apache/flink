@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.configuration.{ConfigOption, ConfigOptions}
@@ -29,14 +28,13 @@ import org.junit.Assert
 
 import java.{lang, util}
 
-/**
-  * Test [[TableSourceFactory]] and [[TableSinkFactory]] for context.
-  */
+/** Test [[TableSourceFactory]] and [[TableSinkFactory]] for context. */
 class TestContextTableFactory[T](
     sourceIdentifier: ObjectIdentifier,
     sinkIdentifier: ObjectIdentifier,
     isBatch: Boolean)
-    extends TableSourceFactory[T] with TableSinkFactory[T] {
+  extends TableSourceFactory[T]
+  with TableSinkFactory[T] {
 
   var hasInvokedSource = false
   var hasInvokedSink = false
@@ -65,7 +63,9 @@ class TestContextTableFactory[T](
   }
 }
 
-object TestContextTableFactory{
+object TestContextTableFactory {
   val REQUIRED_KEY: ConfigOption[lang.Boolean] = ConfigOptions
-      .key("testing.required.key").booleanType().defaultValue(false)
+    .key("testing.required.key")
+    .booleanType()
+    .defaultValue(false)
 }

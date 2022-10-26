@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -110,7 +109,7 @@ public class SsgNetworkMemoryCalculationUtils {
         Map<IntermediateDataSetID, ResultPartitionType> partitionTypes = getPartitionTypes(jv);
 
         return TaskInputsOutputsDescriptor.from(
-                maxInputChannelNums, maxSubpartitionNums, partitionTypes);
+                jv.getNumberOfInputs(), maxInputChannelNums, maxSubpartitionNums, partitionTypes);
     }
 
     private static Map<IntermediateDataSetID, Integer> getMaxInputChannelNums(
@@ -131,7 +130,7 @@ public class SsgNetworkMemoryCalculationUtils {
                             ejv.getParallelism(),
                             consumedResult.getNumberOfAssignedPartitions(),
                             inputEdge.getDistributionPattern());
-            ret.put(consumedResult.getId(), maxNum);
+            ret.merge(consumedResult.getId(), maxNum, Integer::sum);
         }
 
         return ret;
@@ -143,15 +142,22 @@ public class SsgNetworkMemoryCalculationUtils {
         Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
         List<IntermediateDataSet> producedDataSets = ejv.getJobVertex().getProducedDataSets();
 
-        for (int i = 0; i < producedDataSets.size(); i++) {
-            IntermediateDataSet producedDataSet = producedDataSets.get(i);
-            JobEdge outputEdge = checkNotNull(producedDataSet.getConsumer());
-            ExecutionJobVertex consumerJobVertex = ejvs.apply(outputEdge.getTarget().getID());
-            int maxNum =
-                    EdgeManagerBuildUtil.computeMaxEdgesToTargetExecutionVertex(
-                            ejv.getParallelism(),
-                            consumerJobVertex.getParallelism(),
-                            outputEdge.getDistributionPattern());
+        checkState(!ejv.getGraph().isDynamic(), "Only support non-dynamic graph.");
+        for (IntermediateDataSet producedDataSet : producedDataSets) {
+            int maxNum = 0;
+            List<JobEdge> outputEdges = producedDataSet.getConsumers();
+
+            if (!outputEdges.isEmpty()) {
+                // for non-dynamic graph, the consumer vertices' parallelisms and distribution
+                // patterns must be the same
+                JobEdge outputEdge = outputEdges.get(0);
+                ExecutionJobVertex consumerJobVertex = ejvs.apply(outputEdge.getTarget().getID());
+                maxNum =
+                        EdgeManagerBuildUtil.computeMaxEdgesToTargetExecutionVertex(
+                                ejv.getParallelism(),
+                                consumerJobVertex.getParallelism(),
+                                outputEdge.getDistributionPattern());
+            }
             ret.put(producedDataSet.getId(), maxNum);
         }
 
@@ -171,18 +177,26 @@ public class SsgNetworkMemoryCalculationUtils {
         Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
 
         for (ExecutionVertex vertex : ejv.getTaskVertices()) {
+            Map<IntermediateDataSetID, Integer> tmp = new HashMap<>();
+
             for (ConsumedPartitionGroup partitionGroup : vertex.getAllConsumedPartitionGroups()) {
 
                 IntermediateResultPartition resultPartition =
                         ejv.getGraph().getResultPartitionOrThrow((partitionGroup.getFirst()));
                 SubpartitionIndexRange subpartitionIndexRange =
                         TaskDeploymentDescriptorFactory.computeConsumedSubpartitionRange(
-                                resultPartition, vertex.getParallelSubtaskIndex());
+                                partitionGroup.getNumConsumers(),
+                                resultPartition,
+                                vertex.getParallelSubtaskIndex());
 
-                ret.merge(
+                tmp.merge(
                         partitionGroup.getIntermediateDataSetID(),
                         subpartitionIndexRange.size() * partitionGroup.size(),
-                        Integer::max);
+                        Integer::sum);
+            }
+
+            for (Map.Entry<IntermediateDataSetID, Integer> entry : tmp.entrySet()) {
+                ret.merge(entry.getKey(), entry.getValue(), Integer::max);
             }
         }
 

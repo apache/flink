@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
@@ -245,7 +246,7 @@ public class InMemoryReporter implements MetricReporter {
         configuration.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "mini_cluster_resource_reporter."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 InMemoryReporter.Factory.class.getName());
         configuration.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX + "mini_cluster_resource_reporter." + ID,

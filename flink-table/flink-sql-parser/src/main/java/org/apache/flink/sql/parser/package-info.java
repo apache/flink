@@ -33,13 +33,12 @@
  *
  * <pre>
  *   SqlParser.create(source,
- *   		SqlParser.configBuilder()
- *   			.setParserFactory(parserImplFactory())
- * 				.setQuoting(Quoting.DOUBLE_QUOTE)
- * 				.setUnquotedCasing(Casing.TO_UPPER)
- * 				.setQuotedCasing(Casing.UNCHANGED)
- * 				.setConformance(conformance0) // the sql conformance you want use.
- * 				.build());
+ *   		SqlParser.config()
+ *   			.withParserFactory(parserImplFactory())
+ * 				.withQuoting(Quoting.DOUBLE_QUOTE)
+ * 				.withUnquotedCasing(Casing.TO_UPPER)
+ * 				.withQuotedCasing(Casing.UNCHANGED)
+ * 				.withConformance(conformance0); // the sql conformance you want use.
  * </pre>
  *
  * </blockquote>

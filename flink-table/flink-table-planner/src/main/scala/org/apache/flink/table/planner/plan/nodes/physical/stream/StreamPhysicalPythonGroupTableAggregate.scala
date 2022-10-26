@@ -18,20 +18,19 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupTableAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
 
-/**
- * Stream physical RelNode for unbounded python group table aggregate.
- */
+/** Stream physical RelNode for unbounded python group table aggregate. */
 class StreamPhysicalPythonGroupTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -63,6 +62,7 @@ class StreamPhysicalPythonGroupTableAggregate(
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecPythonGroupTableAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       aggCallNeedRetractions,
@@ -70,7 +70,6 @@ class StreamPhysicalPythonGroupTableAggregate(
       needRetraction,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

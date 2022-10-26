@@ -418,6 +418,35 @@ Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w0$o2 AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testOverWindowWithConstants3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    COUNT(2) OVER (ORDER BY a),
+    COUNT(1) OVER (PARTITION BY c ORDER BY a)
+FROM MyTable
+      ]]>
+	</Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COUNT(2) OVER (ORDER BY $0 NULLS FIRST)], EXPR$1=[COUNT(1) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+	</Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(1) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0, w1$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- OverAggregate(orderBy=[a ASC], window#0=[COUNT(2) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
+            +- Sort(orderBy=[a ASC])
+               +- Exchange(distribution=[single])
+                  +- Calc(select=[a, c])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+	</Resource>
+  </TestCase>
   <TestCase name="testSamePartitionKeysWithDiffOrderKeys1">
     <Resource name="sql">
       <![CDATA[

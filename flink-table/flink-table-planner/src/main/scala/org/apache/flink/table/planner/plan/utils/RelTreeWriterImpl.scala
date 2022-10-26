@@ -17,10 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.{Correlate, Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
+import org.apache.calcite.rel.hint.Hintable
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
@@ -29,16 +33,17 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Explain a relational expression as tree style.
-  */
+/** Explain a relational expression as tree style. */
 class RelTreeWriterImpl(
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withIdPrefix: Boolean = false,
     withChangelogTraits: Boolean = false,
     withRowType: Boolean = false,
-    withTreeStyle: Boolean = true)
+    withTreeStyle: Boolean = true,
+    withUpsertKey: Boolean = false,
+    withJoinHint: Boolean = true,
+    withQueryBlockAlias: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   var lastChildren: Seq[Boolean] = Nil
@@ -57,9 +62,7 @@ class RelTreeWriterImpl(
     val s = new StringBuilder
     if (withTreeStyle) {
       if (depth > 0) {
-        lastChildren.init.foreach { isLast =>
-          s.append(if (isLast) "   " else ":  ")
-        }
+        lastChildren.init.foreach(isLast => s.append(if (isLast) "   " else ":  "))
         s.append(if (lastChildren.last) "+- " else ":- ")
       }
     }
@@ -89,6 +92,51 @@ class RelTreeWriterImpl(
       case _ => // ignore
     }
 
+    if (withUpsertKey) rel match {
+      case streamRel: StreamPhysicalRel =>
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(rel.getCluster.getMetadataQuery)
+        val upsertKeys = fmq.getUpsertKeys(streamRel)
+        if (null != upsertKeys && !upsertKeys.isEmpty) {
+          val fieldNames = streamRel.getRowType.getFieldNames
+          printValues.add(
+            Pair.of(
+              "upsertKeys",
+              upsertKeys
+                .map(bitset => bitset.toArray.map(fieldNames).mkString("[", ", ", "]"))
+                .mkString(", ")))
+        }
+      case _ => // ignore
+    }
+
+    if (withJoinHint) {
+      rel match {
+        case _: Join | _: Correlate =>
+          val joinHints = FlinkHints.getAllJoinHints(rel.asInstanceOf[Hintable].getHints)
+          if (joinHints.nonEmpty) {
+            printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
+          }
+        case _ => // ignore
+      }
+    }
+
+    if (withQueryBlockAlias) {
+      rel match {
+        case node: Hintable =>
+          node match {
+            case _: TableScan =>
+            // We don't need to pint hints about TableScan because TableScan will always
+            // print hints if exist. See more in such as LogicalTableScan#explainTerms
+            case _ =>
+              val queryBlockAliasHints = FlinkHints.getQueryBlockAliasHints(node.getHints)
+              if (queryBlockAliasHints.nonEmpty) {
+                printValues.add(
+                  Pair.of("hints", RelExplainUtil.hintsToString(queryBlockAliasHints)))
+              }
+          }
+        case _ => // ignore
+      }
+    }
+
     if (!printValues.isEmpty) {
       var j = 0
       printValues.toSeq.foreach {
@@ -113,18 +161,19 @@ class RelTreeWriterImpl(
     }
     pw.println(s)
 
-    if (inputs.length > 1) inputs.toSeq.init.foreach { rel =>
-      if (withTreeStyle) {
-        depth = depth + 1
-        lastChildren = lastChildren :+ false
-      }
+    if (inputs.length > 1) inputs.toSeq.init.foreach {
+      rel =>
+        if (withTreeStyle) {
+          depth = depth + 1
+          lastChildren = lastChildren :+ false
+        }
 
-      rel.explain(this)
+        rel.explain(this)
 
-      if (withTreeStyle) {
-        depth = depth - 1
-        lastChildren = lastChildren.init
-      }
+        if (withTreeStyle) {
+          depth = depth - 1
+          lastChildren = lastChildren.init
+        }
     }
     if (!inputs.isEmpty) {
       if (withTreeStyle) {

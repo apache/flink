@@ -33,13 +33,16 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.contains;
@@ -58,6 +61,10 @@ public class DefaultSlotStatusSyncerTest extends TestLogger {
             new TaskExecutorConnection(
                     ResourceID.generate(),
                     new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testAllocateSlot() throws Exception {
@@ -93,7 +100,7 @@ public class DefaultSlotStatusSyncerTest extends TestLogger {
                 taskManagerTracker,
                 resourceTracker,
                 ResourceManagerId.generate(),
-                TestingUtils.defaultExecutor());
+                EXECUTOR_RESOURCE.getExecutor());
 
         final CompletableFuture<Void> allocatedFuture =
                 slotStatusSyncer.allocateSlot(
@@ -140,7 +147,7 @@ public class DefaultSlotStatusSyncerTest extends TestLogger {
                 taskManagerTracker,
                 resourceTracker,
                 ResourceManagerId.generate(),
-                TestingUtils.defaultExecutor());
+                EXECUTOR_RESOURCE.getExecutor());
 
         final CompletableFuture<Void> allocatedFuture =
                 slotStatusSyncer.allocateSlot(
@@ -176,7 +183,7 @@ public class DefaultSlotStatusSyncerTest extends TestLogger {
                 taskManagerTracker,
                 resourceTracker,
                 ResourceManagerId.generate(),
-                TestingUtils.defaultExecutor());
+                EXECUTOR_RESOURCE.getExecutor());
         taskManagerTracker.addTaskManager(
                 TASK_EXECUTOR_CONNECTION, ResourceProfile.ANY, ResourceProfile.ANY);
         taskManagerTracker.notifySlotStatus(
@@ -209,7 +216,7 @@ public class DefaultSlotStatusSyncerTest extends TestLogger {
                 taskManagerTracker,
                 resourceTracker,
                 ResourceManagerId.generate(),
-                TestingUtils.defaultExecutor());
+                EXECUTOR_RESOURCE.getExecutor());
         final TestingTaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(ignored -> new CompletableFuture<>())

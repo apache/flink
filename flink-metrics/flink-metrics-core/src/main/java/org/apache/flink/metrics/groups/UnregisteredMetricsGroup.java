@@ -108,6 +108,10 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredSplitEnumeratorMetricGroup();
     }
 
+    public static CacheMetricGroup createCacheMetricGroup() {
+        return new UnregisteredCacheMetricGroup();
+    }
+
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
             implements OperatorMetricGroup {
         @Override
@@ -177,5 +181,29 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
             return null;
         }
+    }
+
+    private static class UnregisteredCacheMetricGroup extends UnregisteredMetricsGroup
+            implements CacheMetricGroup {
+        @Override
+        public void hitCounter(Counter hitCounter) {}
+
+        @Override
+        public void missCounter(Counter missCounter) {}
+
+        @Override
+        public void loadCounter(Counter loadCounter) {}
+
+        @Override
+        public void numLoadFailuresCounter(Counter numLoadFailuresCounter) {}
+
+        @Override
+        public void latestLoadTimeGauge(Gauge<Long> latestLoadTimeGauge) {}
+
+        @Override
+        public void numCachedRecordsGauge(Gauge<Long> numCachedRecordsGauge) {}
+
+        @Override
+        public void numCachedBytesGauge(Gauge<Long> numCachedBytesGauge) {}
     }
 }

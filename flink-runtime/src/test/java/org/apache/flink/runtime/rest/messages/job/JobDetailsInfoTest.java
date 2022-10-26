@@ -91,7 +91,10 @@ public class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetai
                         random.nextLong(),
                         random.nextBoolean(),
                         random.nextLong(),
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextDouble()));
 
         for (ExecutionState executionState : ExecutionState.values()) {
             tasksPerState.put(executionState, random.nextInt());

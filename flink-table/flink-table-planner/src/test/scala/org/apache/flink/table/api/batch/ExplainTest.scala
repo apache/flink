@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
@@ -25,9 +24,9 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 @RunWith(classOf[Parameterized])
 class ExplainTest(extended: Boolean) extends TableTestBase {
@@ -76,8 +75,8 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   @Test
   def testExplainWithJoin(): Unit = {
     // TODO support other join operators when them are supported
-    util.tableEnv.getConfig.set(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extraDetails: _*)
   }
 
@@ -119,8 +118,8 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
   @Test
   def testExplainMultipleInput(): Unit = {
-    util.tableEnv.getConfig.set(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     val sql =
       """
         |select * from

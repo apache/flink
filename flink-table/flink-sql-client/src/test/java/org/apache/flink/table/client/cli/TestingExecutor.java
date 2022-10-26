@@ -19,7 +19,6 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
@@ -36,11 +35,12 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** A customizable {@link Executor} for testing purposes. */
 class TestingExecutor implements Executor {
 
-    private static final Configuration defaultConfig = TableConfig.getDefault().getConfiguration();
+    private static final Configuration defaultConfig = new Configuration();
     private int numCancelCalls = 0;
 
     private int numRetrieveResultChancesCalls = 0;
@@ -68,17 +68,14 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public void addJar(String sessionId, String jarUrl) {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
     public void removeJar(String sessionId, String jarUrl) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public List<String> listJars(String sessionId) {
+    public Optional<String> stopJob(
+            String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+            throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 

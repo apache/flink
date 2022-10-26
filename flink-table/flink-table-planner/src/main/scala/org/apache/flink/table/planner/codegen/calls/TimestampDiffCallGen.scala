@@ -15,30 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
-import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{IntType, LogicalType}
-import org.apache.flink.table.utils.DateTimeUtils.TimeUnit
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
+import org.apache.flink.table.utils.DateTimeUtils.TimeUnit
 
 class TimestampDiffCallGen extends CallGenerator {
 
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: LogicalType)
-  : GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
 
     val unit = getEnum(operands.head).asInstanceOf[TimeUnit]
     unit match {
-      case TimeUnit.YEAR |
-           TimeUnit.MONTH |
-           TimeUnit.QUARTER =>
+      case TimeUnit.YEAR | TimeUnit.MONTH | TimeUnit.QUARTER =>
         (operands(1).resultType.getTypeRoot, operands(2).resultType.getTypeRoot) match {
           case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
@@ -80,11 +76,7 @@ class TimestampDiffCallGen extends CallGenerator {
             }
         }
 
-      case TimeUnit.WEEK |
-           TimeUnit.DAY |
-           TimeUnit.HOUR |
-           TimeUnit.MINUTE |
-           TimeUnit.SECOND =>
+      case TimeUnit.WEEK | TimeUnit.DAY | TimeUnit.HOUR | TimeUnit.MINUTE | TimeUnit.SECOND =>
         (operands(1).resultType.getTypeRoot, operands(2).resultType.getTypeRoot) match {
           case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {

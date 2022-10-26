@@ -36,6 +36,8 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.JobStatusHook;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -116,6 +118,7 @@ public class StreamGraph implements Pipeline {
     private Map<Integer, StreamNode> streamNodes;
     private Set<Integer> sources;
     private Set<Integer> sinks;
+    private Set<Integer> expandedSinks;
     private Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
     private Map<Integer, Tuple3<Integer, StreamPartitioner<?>, StreamExchangeMode>>
             virtualPartitionNodes;
@@ -133,6 +136,8 @@ public class StreamGraph implements Pipeline {
     private PipelineOptions.VertexDescriptionMode descriptionMode =
             PipelineOptions.VertexDescriptionMode.TREE;
     private boolean vertexNameIncludeIndexPrefix = false;
+
+    private final List<JobStatusHook> jobStatusHooks = new ArrayList<>();
 
     public StreamGraph(
             ExecutionConfig executionConfig,
@@ -156,6 +161,7 @@ public class StreamGraph implements Pipeline {
         iterationSourceSinkPairs = new HashSet<>();
         sources = new HashSet<>();
         sinks = new HashSet<>();
+        expandedSinks = new HashSet<>();
         slotSharingGroupResources = new HashMap<>();
     }
 
@@ -365,6 +371,16 @@ public class StreamGraph implements Pipeline {
                     vertexID, ((OutputFormatOperatorFactory) operatorFactory).getOutputFormat());
         }
         sinks.add(vertexID);
+    }
+
+    /**
+     * Register expanded sink nodes. These nodes should also be treated as sinks. But we do not add
+     * them into {@link #sinks} to avoid messing up the json plan.
+     *
+     * @param nodeIds sink nodes to register
+     */
+    public void registerExpandedSinks(Collection<Integer> nodeIds) {
+        expandedSinks.addAll(nodeIds);
     }
 
     public <IN, OUT> void addOperator(
@@ -596,6 +612,14 @@ public class StreamGraph implements Pipeline {
     }
 
     public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID, int typeNumber) {
+        addEdge(upStreamVertexID, downStreamVertexID, typeNumber, null);
+    }
+
+    public void addEdge(
+            Integer upStreamVertexID,
+            Integer downStreamVertexID,
+            int typeNumber,
+            IntermediateDataSetID intermediateDataSetId) {
         addEdgeInternal(
                 upStreamVertexID,
                 downStreamVertexID,
@@ -603,7 +627,8 @@ public class StreamGraph implements Pipeline {
                 null,
                 new ArrayList<String>(),
                 null,
-                null);
+                null,
+                intermediateDataSetId);
     }
 
     private void addEdgeInternal(
@@ -613,7 +638,8 @@ public class StreamGraph implements Pipeline {
             StreamPartitioner<?> partitioner,
             List<String> outputNames,
             OutputTag outputTag,
-            StreamExchangeMode exchangeMode) {
+            StreamExchangeMode exchangeMode,
+            IntermediateDataSetID intermediateDataSetId) {
 
         if (virtualSideOutputNodes.containsKey(upStreamVertexID)) {
             int virtualId = upStreamVertexID;
@@ -628,7 +654,8 @@ public class StreamGraph implements Pipeline {
                     partitioner,
                     null,
                     outputTag,
-                    exchangeMode);
+                    exchangeMode,
+                    intermediateDataSetId);
         } else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
             int virtualId = upStreamVertexID;
             upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
@@ -643,7 +670,8 @@ public class StreamGraph implements Pipeline {
                     partitioner,
                     outputNames,
                     outputTag,
-                    exchangeMode);
+                    exchangeMode,
+                    intermediateDataSetId);
         } else {
             createActualEdge(
                     upStreamVertexID,
@@ -651,7 +679,8 @@ public class StreamGraph implements Pipeline {
                     typeNumber,
                     partitioner,
                     outputTag,
-                    exchangeMode);
+                    exchangeMode,
+                    intermediateDataSetId);
         }
     }
 
@@ -661,7 +690,8 @@ public class StreamGraph implements Pipeline {
             int typeNumber,
             StreamPartitioner<?> partitioner,
             OutputTag outputTag,
-            StreamExchangeMode exchangeMode) {
+            StreamExchangeMode exchangeMode,
+            IntermediateDataSetID intermediateDataSetId) {
         StreamNode upstreamNode = getStreamNode(upStreamVertexID);
         StreamNode downstreamNode = getStreamNode(downStreamVertexID);
 
@@ -713,7 +743,8 @@ public class StreamGraph implements Pipeline {
                         partitioner,
                         outputTag,
                         exchangeMode,
-                        uniqueId);
+                        uniqueId,
+                        intermediateDataSetId);
 
         getStreamNode(edge.getSourceId()).addOutEdge(edge);
         getStreamNode(edge.getTargetId()).addInEdge(edge);
@@ -799,18 +830,6 @@ public class StreamGraph implements Pipeline {
         vertex.setSerializerOut(out);
     }
 
-    public void setSerializersFrom(Integer from, Integer to) {
-        StreamNode fromVertex = getStreamNode(from);
-        StreamNode toVertex = getStreamNode(to);
-
-        toVertex.setSerializersIn(fromVertex.getTypeSerializerOut());
-        toVertex.setSerializerOut(fromVertex.getTypeSerializerIn(0));
-    }
-
-    public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
-        getStreamNode(vertexID).setSerializerOut(outType.createSerializer(executionConfig));
-    }
-
     public void setInputFormat(Integer vertexID, InputFormat<?, ?> inputFormat) {
         getStreamNode(vertexID).setInputFormat(inputFormat);
     }
@@ -874,6 +893,10 @@ public class StreamGraph implements Pipeline {
 
     public Collection<Integer> getSinkIDs() {
         return sinks;
+    }
+
+    public Collection<Integer> getExpandedSinkIds() {
+        return expandedSinks;
     }
 
     public Collection<StreamNode> getStreamNodes() {
@@ -984,13 +1007,14 @@ public class StreamGraph implements Pipeline {
     }
 
     /** Gets the assembled {@link JobGraph} with a random {@link JobID}. */
+    @VisibleForTesting
     public JobGraph getJobGraph() {
-        return getJobGraph(null);
+        return getJobGraph(Thread.currentThread().getContextClassLoader(), null);
     }
 
     /** Gets the assembled {@link JobGraph} with a specified {@link JobID}. */
-    public JobGraph getJobGraph(@Nullable JobID jobID) {
-        return StreamingJobGraphGenerator.createJobGraph(this, jobID);
+    public JobGraph getJobGraph(ClassLoader userClassLoader, @Nullable JobID jobID) {
+        return StreamingJobGraphGenerator.createJobGraph(userClassLoader, this, jobID);
     }
 
     public String getStreamingPlanAsJSON() {
@@ -1029,5 +1053,17 @@ public class StreamGraph implements Pipeline {
 
     public boolean isVertexNameIncludeIndexPrefix() {
         return this.vertexNameIncludeIndexPrefix;
+    }
+
+    /** Registers the JobStatusHook. */
+    public void registerJobStatusHook(JobStatusHook hook) {
+        checkNotNull(hook, "Registering a null JobStatusHook is not allowed. ");
+        if (!jobStatusHooks.contains(hook)) {
+            this.jobStatusHooks.add(hook);
+        }
+    }
+
+    public List<JobStatusHook> getJobStatusHooks() {
+        return this.jobStatusHooks;
     }
 }

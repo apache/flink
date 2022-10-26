@@ -27,9 +27,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] which `fetch` is null or `fetch` is 0,
-  * and converts it to [[StreamPhysicalSort]].
-  */
+ * Rule that matches [[FlinkLogicalSort]] which `fetch` is null or `fetch` is 0, and converts it to
+ * [[StreamPhysicalSort]].
+ */
 class StreamPhysicalSortRule
   extends ConverterRule(
     classOf[FlinkLogicalSort],
@@ -40,7 +40,7 @@ class StreamPhysicalSortRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
     !sort.getCollation.getFieldCollations.isEmpty && sort.fetch == null && sort.offset == null &&
-      !StreamPhysicalTemporalSortRule.canConvertToTemporalSort(sort)
+    !StreamPhysicalTemporalSortRule.canConvertToTemporalSort(sort)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -54,11 +54,7 @@ class StreamPhysicalSortRule
       .replace(FlinkConventions.STREAM_PHYSICAL)
 
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
-    new StreamPhysicalSort(
-      rel.getCluster,
-      providedTraitSet,
-      newInput,
-      sort.collation)
+    new StreamPhysicalSort(rel.getCluster, providedTraitSet, newInput, sort.collation)
   }
 }
 

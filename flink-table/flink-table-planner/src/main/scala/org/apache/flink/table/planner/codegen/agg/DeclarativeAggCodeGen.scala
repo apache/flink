@@ -17,15 +17,15 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
-import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
+import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeExpression}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.{toRexDistinctKey, toRexInputRef}
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeExpression}
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, SizeBasedWindowFunction}
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.logical.LogicalType
@@ -34,20 +34,28 @@ import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 
 /**
-  * It is for code generate aggregation functions that are specified using expressions.
-  * The aggregate buffer is embedded inside of a larger shared aggregation buffer.
-  *
-  * @param ctx the code gen context
-  * @param aggInfo  the aggregate information
-  * @param filterExpression filter argument access expression, none if no filter
-  * @param mergedAccOffset the mergedAcc may come from local aggregate,
-  *                        this is the first buffer offset in the row
-  * @param aggBufferOffset  the offset in the buffers of this aggregate
-  * @param aggBufferSize  the total size of aggregate buffers
-  * @param inputTypes   the input field type infos
-  * @param constants  the constant literals
-  * @param relBuilder  the rel builder to translate expressions to calcite rex nodes
-  */
+ * It is for code generate aggregation functions that are specified using expressions. The aggregate
+ * buffer is embedded inside of a larger shared aggregation buffer.
+ *
+ * @param ctx
+ *   the code gen context
+ * @param aggInfo
+ *   the aggregate information
+ * @param filterExpression
+ *   filter argument access expression, none if no filter
+ * @param mergedAccOffset
+ *   the mergedAcc may come from local aggregate, this is the first buffer offset in the row
+ * @param aggBufferOffset
+ *   the offset in the buffers of this aggregate
+ * @param aggBufferSize
+ *   the total size of aggregate buffers
+ * @param inputTypes
+ *   the input field type infos
+ * @param constants
+ *   the constant literals
+ * @param relBuilder
+ *   the rel builder to translate expressions to calcite rex nodes
+ */
 class DeclarativeAggCodeGen(
     ctx: CodeGeneratorContext,
     aggInfo: AggregateInfo,
@@ -65,15 +73,26 @@ class DeclarativeAggCodeGen(
   private val bufferTypes = aggInfo.externalAccTypes.map(fromDataTypeToLogicalType)
   private val bufferIndexes = Array.range(aggBufferOffset, aggBufferOffset + bufferTypes.length)
   private val bufferTerms = function.aggBufferAttributes
-      .map(a => s"agg${aggInfo.aggIndex}_${a.getName}")
+    .map(a => s"agg${aggInfo.aggIndex}_${a.getName}")
 
   private val rexNodeGen = new ExpressionConverter(relBuilder)
 
+  private val windowSizeTerm = function match {
+    case f: SizeBasedWindowFunction =>
+      val exprCodegen = new ExprCodeGenerator(ctx, false)
+      exprCodegen.generateExpression(f.windowSizeAttribute().accept(rexNodeGen))
+      f.windowSizeAttribute().getName
+    case _ => null
+  }
+
   private val bufferNullTerms = {
     val exprCodegen = new ExprCodeGenerator(ctx, false)
-    bufferTerms.zip(bufferTypes).map {
-      case (name, t) => localRef(name, fromLogicalTypeToDataType(t))
-    }.map(_.accept(rexNodeGen)).map(exprCodegen.generateExpression).map(_.nullTerm)
+    bufferTerms
+      .zip(bufferTypes)
+      .map { case (name, t) => localRef(name, fromLogicalTypeToDataType(t)) }
+      .map(_.accept(rexNodeGen))
+      .map(exprCodegen.generateExpression)
+      .map(_.nullTerm)
   }
 
   private val argIndexes = aggInfo.argIndexes
@@ -89,8 +108,9 @@ class DeclarativeAggCodeGen(
 
   def setAccumulator(generator: ExprCodeGenerator): String = {
     val aggBufferAccesses = function.aggBufferAttributes.zipWithIndex
-      .map { case (attr, index) =>
-        toRexInputRef(relBuilder, bufferIndexes(index), bufferTypes(index))
+      .map {
+        case (attr, index) =>
+          toRexInputRef(relBuilder, bufferIndexes(index), bufferTypes(index))
       }
       .map(expr => generator.generateExpression(expr.accept(rexNodeGen)))
 
@@ -122,9 +142,9 @@ class DeclarativeAggCodeGen(
   }
 
   def getAccumulator(generator: ExprCodeGenerator): Seq[GeneratedExpression] = {
-    bufferTypes.zipWithIndex.map { case (bufferType, index) =>
-      GeneratedExpression(
-        bufferTerms(index), bufferNullTerms(index), "", bufferType)
+    bufferTypes.zipWithIndex.map {
+      case (bufferType, index) =>
+        GeneratedExpression(bufferTerms(index), bufferNullTerms(index), "", bufferType)
     }
   }
 
@@ -137,11 +157,12 @@ class DeclarativeAggCodeGen(
       .map(_.accept(rexNodeGen)) // rex nodes
       .map(generator.generateExpression) // generated expressions
 
-    val codes = exprs.zipWithIndex.map { case (expr, index) =>
-      s"""
-         |${expr.code}
-         |${expr.copyResultTermToTargetIfChanged(ctx, bufferTerms(index))};
-         |${bufferNullTerms(index)} = ${expr.nullTerm};
+    val codes = exprs.zipWithIndex.map {
+      case (expr, index) =>
+        s"""
+           |${expr.code}
+           |${expr.copyResultTermToTargetIfChanged(ctx, bufferTerms(index))};
+           |${bufferNullTerms(index)} = ${expr.nullTerm};
        """.stripMargin
     }
 
@@ -167,11 +188,12 @@ class DeclarativeAggCodeGen(
       .map(_.accept(rexNodeGen)) // rex nodes
       .map(generator.generateExpression) // generated expressions
 
-    val codes = exprs.zipWithIndex.map { case (expr, index) =>
-      s"""
-         |${expr.code}
-         |${expr.copyResultTermToTargetIfChanged(ctx, bufferTerms(index))};
-         |${bufferNullTerms(index)} = ${expr.nullTerm};
+    val codes = exprs.zipWithIndex.map {
+      case (expr, index) =>
+        s"""
+           |${expr.code}
+           |${expr.copyResultTermToTargetIfChanged(ctx, bufferTerms(index))};
+           |${bufferNullTerms(index)} = ${expr.nullTerm};
        """.stripMargin
     }
 
@@ -194,11 +216,12 @@ class DeclarativeAggCodeGen(
       .map(_.accept(rexNodeGen)) // rex nodes
       .map(generator.generateExpression) // generated expressions
 
-    val codes = exprs.zipWithIndex.map { case (expr, index) =>
-      s"""
-         |${expr.code}
-         |${expr.copyResultTermToTargetIfChanged(ctx, bufferTerms(index))};
-         |${bufferNullTerms(index)} = ${expr.nullTerm};
+    val codes = exprs.zipWithIndex.map {
+      case (expr, index) =>
+        s"""
+           |${expr.code}
+           |${expr.copyResultTermToTargetIfChanged(ctx, bufferTerms(index))};
+           |${bufferNullTerms(index)} = ${expr.nullTerm};
        """.stripMargin
     }
 
@@ -212,13 +235,12 @@ class DeclarativeAggCodeGen(
   }
 
   /**
-    * Resolves the given expression to a resolved Expression.
-    *
-    * @param isMerge this is called from merge() method
-    */
-  private case class ResolveReference(
-      isMerge: Boolean = false,
-      isDistinctMerge: Boolean = false)
+   * Resolves the given expression to a resolved Expression.
+   *
+   * @param isMerge
+   *   this is called from merge() method
+   */
+  private case class ResolveReference(isMerge: Boolean = false, isDistinctMerge: Boolean = false)
     extends DeclarativeExpressionResolver(relBuilder, function, isMerge) {
 
     override def toMergeInputExpr(name: String, localIndex: Int): ResolvedExpression = {
@@ -234,8 +256,11 @@ class DeclarativeAggCodeGen(
       if (inputIndex >= inputTypes.length) { // it is a constant
         val constantIndex = inputIndex - inputTypes.length
         val constant = constants(constantIndex)
-        new RexNodeExpression(constant,
-          fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(constant.getType)), null, null)
+        new RexNodeExpression(
+          constant,
+          fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(constant.getType)),
+          null,
+          null)
       } else { // it is a input field
         if (isDistinctMerge) { // this is called from distinct merge
           if (function.operandCount == 1) {
@@ -255,18 +280,25 @@ class DeclarativeAggCodeGen(
 
     override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
       // name => agg${aggInfo.aggIndex}_$name"
-      localRef(
-        bufferTerms(localIndex),
-        fromLogicalTypeToDataType(bufferTypes(localIndex)))
+      localRef(bufferTerms(localIndex), fromLogicalTypeToDataType(bufferTypes(localIndex)))
     }
   }
 
   override def checkNeededMethods(
-     needAccumulate: Boolean = false,
-     needRetract: Boolean = false,
-     needMerge: Boolean = false,
-     needReset: Boolean = false,
-     needEmitValue: Boolean = false): Unit = {
+      needAccumulate: Boolean = false,
+      needRetract: Boolean = false,
+      needMerge: Boolean = false,
+      needReset: Boolean = false,
+      needEmitValue: Boolean = false): Unit = {
     // skip the check for DeclarativeAggregateFunction for now
+  }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    function match {
+      case _: SizeBasedWindowFunction =>
+        s"""this.$windowSizeTerm = ${generator.input1Term};"""
+      case _ =>
+        ""
+    }
   }
 }

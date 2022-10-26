@@ -154,6 +154,12 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-deduplicate_1",
+    "configuration" : {
+      "table.exec.deduplicate.insert-update-after-sensitive-enabled" : "true",
+      "table.exec.deduplicate.mini-batch.compact-changes-enabled" : "false",
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
     "uniqueKeys" : [ 2 ],
     "isRowtime" : false,
     "keepLastRow" : false,
@@ -223,6 +229,12 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`sink`",
@@ -260,6 +272,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
+    "inputUpsertKey" : [ 2 ],
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[order_id, user, product, order_time])"
   } ],
   "edges" : [ {

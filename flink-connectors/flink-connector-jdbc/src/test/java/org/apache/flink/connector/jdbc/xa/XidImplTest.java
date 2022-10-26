@@ -23,8 +23,7 @@ import java.util.Random;
 
 import static javax.transaction.xa.Xid.MAXBQUALSIZE;
 import static javax.transaction.xa.Xid.MAXGTRIDSIZE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link XidImpl}. */
 public class XidImplTest {
@@ -35,24 +34,25 @@ public class XidImplTest {
         XidImpl other =
                 new XidImpl(
                         XID.getFormatId(), XID.getGlobalTransactionId(), XID.getBranchQualifier());
-        assertEquals(XID, other);
-        assertEquals(XID.hashCode(), other.hashCode());
+        assertThat(other).isEqualTo(XID).hasSameHashCodeAs(XID);
     }
 
     @Test
     public void testXidsNotEqual() {
-        assertNotEquals(
-                XID, new XidImpl(0, XID.getGlobalTransactionId(), XID.getBranchQualifier()));
-        assertNotEquals(
-                XID,
-                new XidImpl(
-                        XID.getFormatId(), randomBytes(MAXGTRIDSIZE), XID.getBranchQualifier()));
-        assertNotEquals(
-                XID,
-                new XidImpl(
-                        XID.getFormatId(),
-                        XID.getGlobalTransactionId(),
-                        randomBytes(MAXBQUALSIZE)));
+        assertThat(new XidImpl(0, XID.getGlobalTransactionId(), XID.getBranchQualifier()))
+                .isNotEqualTo(XID);
+        assertThat(
+                        new XidImpl(
+                                XID.getFormatId(),
+                                randomBytes(MAXGTRIDSIZE),
+                                XID.getBranchQualifier()))
+                .isNotEqualTo(XID);
+        assertThat(
+                        new XidImpl(
+                                XID.getFormatId(),
+                                XID.getGlobalTransactionId(),
+                                randomBytes(MAXBQUALSIZE)))
+                .isNotEqualTo(XID);
     }
 
     private static byte[] randomBytes(int size) {

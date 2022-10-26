@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
 import java.util.Random;
@@ -34,7 +34,7 @@ import java.util.Random;
  * Testing the serialization of classes which are subclasses of a class that implements an
  * interface.
  */
-public class SubclassFromInterfaceSerializerTest
+class SubclassFromInterfaceSerializerTest
         extends SerializerTestBase<SubclassFromInterfaceSerializerTest.TestUserInterface> {
     private TypeInformation<TestUserInterface> type =
             TypeExtractor.getForClass(TestUserInterface.class);
@@ -71,7 +71,7 @@ public class SubclassFromInterfaceSerializerTest
 
     @Override
     @Test
-    public void testInstantiate() {
+    protected void testInstantiate() {
         // don't do anything, since the PojoSerializer with subclass will return null
     }
 

@@ -52,7 +52,7 @@ function run_test {
     trap 'test_error' ERR
 
     # Always enable unaligned checkpoint
-    set_config_key "execution.checkpointing.unaligned" "true"
+    set_config_key "execution.checkpointing.unaligned.enabled" "true"
 
     ${command}
     exit_code="$?"
@@ -109,7 +109,10 @@ function log_environment_info {
     jps
 
     echo "Disk information"
-    df -hH
+    df -h
+
+    echo "##[group]Top 15 biggest directories in terms of used disk space"
+    du -a . | sort -n -r | head -n 15
 
     if sudo -n true 2>/dev/null; then
       echo "Allocated ports"

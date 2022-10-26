@@ -327,6 +327,9 @@ public class CheckpointStatsTracker {
     static final String LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC =
             "lastCheckpointExternalPath";
 
+    @VisibleForTesting
+    static final String LATEST_COMPLETED_CHECKPOINT_ID_METRIC = "lastCompletedCheckpointId";
+
     /**
      * Register the exposed metrics.
      *
@@ -359,6 +362,8 @@ public class CheckpointStatsTracker {
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC,
                 new LatestCompletedCheckpointExternalPathGauge());
+        metricGroup.gauge(
+                LATEST_COMPLETED_CHECKPOINT_ID_METRIC, new LatestCompletedCheckpointIdGauge());
     }
 
     private class CheckpointsCounter implements Gauge<Long> {
@@ -469,6 +474,18 @@ public class CheckpointStatsTracker {
                 return completed.getExternalPath();
             } else {
                 return "n/a";
+            }
+        }
+    }
+
+    private class LatestCompletedCheckpointIdGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            if (completed != null) {
+                return completed.getCheckpointId();
+            } else {
+                return -1L;
             }
         }
     }

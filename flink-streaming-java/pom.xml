@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-streaming-java</artifactId>
@@ -99,35 +98,6 @@ under the License.
 
 	<build>
 		<plugins>
-
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<oldVersion>
-						<!-- Previous version had a scala suffix -->
-						<!-- Remove this in 1.16 -->
-						<dependency>
-							<groupId>${project.groupId}</groupId>
-							<artifactId>${project.artifactId}_2.11</artifactId>
-							<version>${japicmp.referenceVersion}</version>
-							<type>jar</type>
-						</dependency>
-					</oldVersion>
-				</configuration>
-			</plugin>
-
-			<!-- disable fork reuse for the streaming project, because of
-			incorrect declaration of tests -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>

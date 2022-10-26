@@ -36,8 +36,6 @@ public final class RuntimeSerializerFactory<T>
 
     private TypeSerializer<T> serializer;
 
-    private boolean firstSerializer = true;
-
     private Class<T> clazz;
 
     // Because we read the class from the TaskConfig and instantiate ourselves
@@ -62,7 +60,6 @@ public final class RuntimeSerializerFactory<T>
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void readParametersFromConfig(Configuration config, ClassLoader cl)
             throws ClassNotFoundException {
@@ -71,12 +68,8 @@ public final class RuntimeSerializerFactory<T>
         }
 
         try {
-            this.clazz =
-                    (Class<T>) InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_CLASS, cl);
-            this.serializer =
-                    (TypeSerializer<T>)
-                            InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_SER, cl);
-            firstSerializer = true;
+            this.clazz = InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_CLASS, cl);
+            this.serializer = InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_SER, cl);
         } catch (ClassNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -87,12 +80,7 @@ public final class RuntimeSerializerFactory<T>
     @Override
     public TypeSerializer<T> getSerializer() {
         if (this.serializer != null) {
-            if (firstSerializer) {
-                firstSerializer = false;
-                return this.serializer;
-            } else {
-                return this.serializer.duplicate();
-            }
+            return this.serializer.duplicate();
         } else {
             throw new RuntimeException(
                     "SerializerFactory has not been initialized from configuration.");

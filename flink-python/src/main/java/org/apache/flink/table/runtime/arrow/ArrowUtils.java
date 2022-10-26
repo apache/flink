@@ -567,7 +567,7 @@ public final class ArrowUtils {
         TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
         if (tableEnv instanceof TableEnvironmentImpl) {
             final RuntimeExecutionMode mode =
-                    tableEnv.getConfig().getConfiguration().get(ExecutionOptions.RUNTIME_MODE);
+                    tableEnv.getConfig().get(ExecutionOptions.RUNTIME_MODE);
             if (mode == RuntimeExecutionMode.AUTOMATIC) {
                 throw new RuntimeException(
                         String.format("Runtime execution mode '%s' is not supported yet.", mode));

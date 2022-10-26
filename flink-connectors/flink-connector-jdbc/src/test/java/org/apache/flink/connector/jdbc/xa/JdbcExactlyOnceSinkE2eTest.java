@@ -91,7 +91,7 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaFacadeTestHelper.getInser
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.slf4j.event.Level.TRACE;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
@@ -233,9 +233,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 IntStream.range(0, elementsPerSource * dbEnv.getParallelism())
                         .boxed()
                         .collect(Collectors.toList());
-        assertTrue(
-                insertedIds.toString(),
-                insertedIds.size() == expectedIds.size() && expectedIds.containsAll(insertedIds));
+        assertThat(insertedIds)
+                .as(insertedIds.toString())
+                .containsExactlyInAnyOrderElementsOf(expectedIds);
         LOG.info(
                 "Test insert for {} finished in {} ms.",
                 dbEnv,

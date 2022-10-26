@@ -18,7 +18,7 @@
 
 package org.apache.flink.tests.util.kafka;
 
-import org.apache.flink.tests.util.parameters.ParameterProperty;
+import org.apache.flink.test.parameters.ParameterProperty;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

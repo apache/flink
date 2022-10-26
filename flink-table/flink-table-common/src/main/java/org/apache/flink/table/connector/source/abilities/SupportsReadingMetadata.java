@@ -76,9 +76,14 @@ import java.util.Map;
  * casting to INT will be performed by the planner in a subsequent operation:
  *
  * <pre>{@code
- * // for t1 and t2
- * ROW < i INT, s STRING, d DOUBLE >                                              // physical output
- * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final output
+ * // physical output
+ * ROW < i INT, s STRING, d DOUBLE >
+ *
+ * // final output (i.e. produced type) for t1
+ * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
+ *
+ * // final output (i.e. produced type) for t2
+ * ROW < i INT, s STRING, d DOUBLE, myTimestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
  * }</pre>
  */
 @PublicEvolving
@@ -129,7 +134,8 @@ public interface SupportsReadingMetadata {
      *
      * @param metadataKeys a subset of the keys returned by {@link #listReadableMetadata()}, ordered
      *     by the iteration order of returned map
-     * @param producedDataType the final output type of the source
+     * @param producedDataType the final output type of the source, it is intended to be only
+     *     forwarded and the planner will decide on the field names to avoid collisions
      * @see DecodingFormat#applyReadableMetadata(List)
      */
     void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType);

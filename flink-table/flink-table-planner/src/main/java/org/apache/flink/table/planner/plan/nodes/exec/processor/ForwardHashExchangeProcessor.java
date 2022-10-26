@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -69,6 +70,7 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
         if (!context.getPlanner().getExecEnv().getConfig().isDynamicGraph()) {
             return execGraph;
         }
+        ReadableConfig tableConfig = context.getPlanner().getTableConfig();
         ExecNodeVisitor visitor =
                 new AbstractExecNodeExactlyOnceVisitor() {
                     @Override
@@ -85,20 +87,22 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                                     inputProperty.getRequiredDistribution();
                             ExecEdge edge = node.getInputEdges().get(i);
 
-                            if (requiredDistribution.getType() == DistributionType.SINGLETON) {
-                                if (!hasExchangeInput(edge) && isInputSortedNode(node)) {
-                                    // if operation chaining is disabled, this could mark sure the
-                                    // sort node and its output can also be connected by
-                                    // ForwardPartitioner
+                            if (requiredDistribution.getType() != DistributionType.HASH) {
+                                boolean visitChild =
+                                        requiredDistribution.getType()
+                                                == DistributionType.SINGLETON;
+                                if (!hasExchangeInput(edge)
+                                        && hasSortInputForInputSortedNode(node)) {
                                     ExecEdge newEdge =
-                                            addExchangeAndReconnectEdge(edge, inputProperty, true);
+                                            addExchangeAndReconnectEdge(
+                                                    tableConfig,
+                                                    edge,
+                                                    inputProperty,
+                                                    true,
+                                                    visitChild);
                                     newEdges.set(i, newEdge);
                                     changed = true;
                                 }
-                                continue;
-                            }
-
-                            if (requiredDistribution.getType() != DistributionType.HASH) {
                                 continue;
                             }
 
@@ -111,9 +115,11 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                                         ExecNode<?> sort = edge.getSource();
                                         ExecEdge newEdgeOfSort =
                                                 addExchangeAndReconnectEdge(
+                                                        tableConfig,
                                                         sort.getInputEdges().get(0),
                                                         inputProperty,
-                                                        false);
+                                                        false,
+                                                        true);
                                         sort.setInputEdges(
                                                 Collections.singletonList(newEdgeOfSort));
                                     }
@@ -122,12 +128,14 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                                     // sort node and its output can also be connected by
                                     // ForwardPartitioner
                                     newEdge =
-                                            addExchangeAndReconnectEdge(edge, inputProperty, true);
+                                            addExchangeAndReconnectEdge(
+                                                    tableConfig, edge, inputProperty, true, true);
                                 } else {
                                     // add Exchange with keep_input_as_is distribution as the input
                                     // of the node
                                     newEdge =
-                                            addExchangeAndReconnectEdge(edge, inputProperty, false);
+                                            addExchangeAndReconnectEdge(
+                                                    tableConfig, edge, inputProperty, false, true);
                                     updateOriginalEdgeInMultipleInput(
                                             node, i, (BatchExecExchange) newEdge.getSource());
                                 }
@@ -138,7 +146,8 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                                 // if operation chaining is disabled, this could mark sure the sort
                                 // node and its output can also be connected by ForwardPartitioner
                                 ExecEdge newEdge =
-                                        addExchangeAndReconnectEdge(edge, inputProperty, true);
+                                        addExchangeAndReconnectEdge(
+                                                tableConfig, edge, inputProperty, true, true);
                                 newEdges.set(i, newEdge);
                                 changed = true;
                             }
@@ -154,27 +163,36 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
 
     // TODO This implementation should be updated once FLINK-21224 is finished.
     private ExecEdge addExchangeAndReconnectEdge(
-            ExecEdge edge, InputProperty inputProperty, boolean strict) {
+            ReadableConfig tableConfig,
+            ExecEdge edge,
+            InputProperty inputProperty,
+            boolean strict,
+            boolean visitChild) {
         ExecNode<?> target = edge.getTarget();
         ExecNode<?> source = edge.getSource();
         if (source instanceof CommonExecExchange) {
             return edge;
         }
         // only Calc, Correlate and Sort can propagate sort property and distribution property
-        if (source instanceof BatchExecCalc
-                || source instanceof BatchExecPythonCalc
-                || source instanceof BatchExecSort
-                || source instanceof BatchExecCorrelate
-                || source instanceof BatchExecPythonCorrelate) {
+        if (visitChild
+                && (source instanceof BatchExecCalc
+                        || source instanceof BatchExecPythonCalc
+                        || source instanceof BatchExecSort
+                        || source instanceof BatchExecCorrelate
+                        || source instanceof BatchExecPythonCorrelate)) {
             ExecEdge newEdge =
                     addExchangeAndReconnectEdge(
-                            source.getInputEdges().get(0), inputProperty, strict);
+                            tableConfig,
+                            source.getInputEdges().get(0),
+                            inputProperty,
+                            strict,
+                            true);
             source.setInputEdges(Collections.singletonList(newEdge));
         }
 
         BatchExecExchange exchange =
                 createExchangeWithKeepInputAsIsDistribution(
-                        inputProperty, strict, (RowType) edge.getOutputType());
+                        tableConfig, inputProperty, strict, (RowType) edge.getOutputType());
         ExecEdge newEdge =
                 new ExecEdge(source, exchange, edge.getShuffle(), edge.getExchangeMode());
         exchange.setInputEdges(Collections.singletonList(newEdge));
@@ -182,7 +200,10 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
     }
 
     private BatchExecExchange createExchangeWithKeepInputAsIsDistribution(
-            InputProperty inputProperty, boolean strict, RowType outputRowType) {
+            ReadableConfig tableConfig,
+            InputProperty inputProperty,
+            boolean strict,
+            RowType outputRowType) {
         InputProperty newInputProperty =
                 InputProperty.builder()
                         .requiredDistribution(
@@ -191,7 +212,8 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                         .damBehavior(inputProperty.getDamBehavior())
                         .priority(inputProperty.getPriority())
                         .build();
-        return new BatchExecExchange(newInputProperty, outputRowType, newInputProperty.toString());
+        return new BatchExecExchange(
+                tableConfig, newInputProperty, outputRowType, newInputProperty.toString());
     }
 
     private boolean hasExchangeInput(ExecEdge edge) {

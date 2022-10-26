@@ -71,6 +71,11 @@ The keyed states ks1 and ks2 are combined to a single table with three columns, 
 The keyed table holds one row for each distinct key of both keyed states.
 Since the operator “Snk” does not have any state, its namespace is empty.
 
+## Identifying operators
+
+The State Processor API allows you to identify operators using [UIDs]({{< ref "docs/concepts/glossary.md" >}}#UID) or [UID hashes]({{< ref "docs/concepts/glossary" >}}#UID-hashes) via `OperatorIdentifier#forUid/forUidHash`.
+Hashes should only be used when the use of `UIDs` is not possible, for example when the application that created the [savepoint]({{< ref "docs/ops/state/savepoints" >}}) did not specify them or when the `UID` is unknown.
+
 ## Reading State
 
 Reading state begins by specifying the path to a valid savepoint or checkpoint along with the `StateBackend` that should be used to restore the data.
@@ -95,7 +100,7 @@ The state name and type information should match those used to define the `ListS
 
 ```java
 DataStream<Integer> listState  = savepoint.readListState<>(
-    "my-uid",
+    OperatorIdentifier.forUid("my-uid"),
     "list-state",
     Types.INT);
 ```
@@ -108,7 +113,7 @@ The framework will return a _single_ copy of the state, equivalent to restoring 
 
 ```java
 DataStream<Integer> listState  = savepoint.readUnionState<>(
-    "my-uid",
+    OperatorIdentifier.forUid("my-uid"),
     "union-state",
     Types.INT);
 ```
@@ -121,7 +126,7 @@ The framework will return a _single_ copy of the state, equivalent to restoring 
 
 ```java
 DataStream<Tuple2<Integer, Integer>> broadcastState = savepoint.readBroadcastState<>(
-    "my-uid",
+    OperatorIdentifier.forUid("my-uid"),
     "broadcast-state",
     Types.INT,
     Types.INT);
@@ -133,7 +138,7 @@ Each of the operator state readers support using custom `TypeSerializers` if one
 
 ```java
 DataStream<Integer> listState = savepoint.readListState<>(
-    "uid",
+    OperatorIdentifier.forUid("uid"),
     "list-state", 
     Types.INT,
     new MyCustomIntSerializer());
@@ -174,7 +179,7 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
 Then it can read by defining an output type and corresponding `KeyedStateReaderFunction`. 
 
 ```java
-DataStream<KeyedState> keyedState = savepoint.readKeyedState("my-uid", new ReaderFunction());
+DataStream<KeyedState> keyedState = savepoint.readKeyedState(OperatorIdentifier.forUid("my-uid"), new ReaderFunction());
 
 public class KeyedState {
   public int key;
@@ -261,7 +266,7 @@ class ClickCounter implements AggregateFunction<Click, Integer, Integer> {
 	}
 }
 
-DataStream<Click> clicks = . . . 
+DataStream<Click> clicks = ...;
 
 clicks
     .keyBy(click -> click.userId)
@@ -337,9 +342,9 @@ a savepoint for the Scala DataStream API please manually pass in all type inform
 int maxParallelism = 128;
 
 SavepointWriter
-    .newSavepoint(new HashMapStateBackend(), maxParallelism)
-    .withOperator("uid1", transformation1)
-    .withOperator("uid2", transformation2)
+    .newSavepoint(env, new HashMapStateBackend(), maxParallelism)
+    .withOperator(OperatorIdentifier.forUid("uid1"), transformation1)
+    .withOperator(OperatorIdentifier.forUid("uid2"), transformation2)
     .write(savepointPath);
 ```
 
@@ -483,7 +488,29 @@ Besides creating a savepoint from scratch, you can base one off an existing save
 
 ```java
 SavepointWriter
-    .fromExistingSavepoint(oldPath, new HashMapStateBackend())
-    .withOperator("uid", transformation)
+    .fromExistingSavepoint(env, oldPath, new HashMapStateBackend())
+    .withOperator(OperatorIdentifier.forUid("uid"), transformation)
     .write(newPath);
+```
+
+### Changing UID (hashes)
+
+`SavepointWriter#changeOperatorIdenfifier` can be used to modify the [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) or [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash) of an operator.
+
+If a `UID` was not explicitly set (and was thus auto-generated and is effectively unknown), you can assign a `UID` provided that you know the `UID hash` (e.g., by parsing the logs):
+```java
+savepointWriter
+    .changeOperatorIdentifier(
+        OperatorIdentifier.forUidHash("2feb7f8bcc404c3ac8a981959780bd78"),
+        OperatorIdentifier.forUid("new-uid"))
+    ...
+```
+
+You can also replace one `UID` with another:
+```java
+savepointWriter
+    .changeOperatorIdentifier(
+        OperatorIdentifier.forUid("old-uid"),
+        OperatorIdentifier.forUid("new-uid"))
+    ...
 ```

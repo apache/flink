@@ -25,8 +25,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * Output stream, that wraps another input stream and forwards all method calls to the wrapped
- * stream.
+ * {@code OutputStream}, that wraps another {@code OutputStream} and forwards all method calls to
+ * the wrapped stream.
  */
 @Internal
 public class ForwardingOutputStream extends OutputStream {

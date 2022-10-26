@@ -87,5 +87,12 @@ public class CsvFormatOptions {
                             "Optional null literal string that is interpreted as a\n"
                                     + "null value (disabled by default)");
 
+    public static final ConfigOption<Boolean> WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION =
+            ConfigOptions.key("write-bigdecimal-in-scientific-notation")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Enables representation of BigDecimal data type in scientific notation (default is true). For example, 100000 is encoded as 1E+5 by default, and will be written as 100000 if set this option to false. Note: Only when the value is not 0 and a multiple of 10 is converted to scientific notation.");
+
     private CsvFormatOptions() {}
 }

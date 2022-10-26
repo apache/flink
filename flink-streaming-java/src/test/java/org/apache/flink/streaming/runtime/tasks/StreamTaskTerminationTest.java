@@ -33,7 +33,6 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -41,7 +40,6 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -78,12 +76,14 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -94,9 +94,11 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -105,6 +107,10 @@ import static org.mockito.Mockito.when;
 
 /** Tests for the StreamTask termination. */
 public class StreamTaskTerminationTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final OneShotLatch RUN_LATCH = new OneShotLatch();
     private static final AtomicBoolean SNAPSHOT_HAS_STARTED = new AtomicBoolean();
@@ -127,6 +133,7 @@ public class StreamTaskTerminationTest extends TestLogger {
         streamConfig.setStreamOperator(noOpStreamOperator);
         streamConfig.setOperatorID(new OperatorID());
         streamConfig.setStateBackend(blockingStateBackend);
+        streamConfig.serializeAllConfigs();
 
         final long checkpointId = 0L;
         final long checkpointTimestamp = 0L;
@@ -158,10 +165,8 @@ public class StreamTaskTerminationTest extends TestLogger {
                 new Task(
                         jobInformation,
                         taskInformation,
-                        new ExecutionAttemptID(),
+                        createExecutionAttemptId(taskInformation.getJobVertexId()),
                         new AllocationID(),
-                        0,
-                        0,
                         Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                         Collections.<InputGateDeploymentDescriptor>emptyList(),
                         MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
@@ -181,12 +186,11 @@ public class StreamTaskTerminationTest extends TestLogger {
                         mock(FileCache.class),
                         taskManagerRuntimeInfo,
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-                        new NoOpResultPartitionConsumableNotifier(),
                         mock(PartitionProducerStateChecker.class),
                         Executors.directExecutor());
 
         CompletableFuture<Void> taskRun =
-                CompletableFuture.runAsync(() -> task.run(), TestingUtils.defaultExecutor());
+                CompletableFuture.runAsync(() -> task.run(), EXECUTOR_RESOURCE.getExecutor());
 
         // wait until the stream task started running
         RUN_LATCH.await();

@@ -23,9 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -50,9 +48,10 @@ import static java.util.Collections.singletonList;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link org.apache.flink.table.expressions.Expression} and its sub-classes. */
-public class ExpressionTest {
+class ExpressionTest {
 
     private static final ScalarFunction DUMMY_FUNCTION = new ScalarFunction() {
                 // dummy
@@ -66,20 +65,18 @@ public class ExpressionTest {
 
     private static final String TREE_WITH_NULL_STRING = "and(true, equals(field, dummy(null)))";
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
-    public void testExpressionString() {
+    void testExpressionString() {
         assertThat(TREE_WITH_NULL.toString()).isEqualTo(TREE_WITH_NULL_STRING);
     }
 
     @Test
-    public void testExpressionEquality() {
+    void testExpressionEquality() {
         assertThat(TREE_WITH_SAME_VALUE).isEqualTo(TREE_WITH_VALUE);
     }
 
     @Test
-    public void testArrayValueLiteralEquality() {
+    void testArrayValueLiteralEquality() {
         assertThat(new ValueLiteralExpression(new Integer[][] {null, null, {1, 2, 3}}))
                 .isEqualTo(new ValueLiteralExpression(new Integer[][] {null, null, {1, 2, 3}}));
 
@@ -97,12 +94,12 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testExpressionInequality() {
+    void testExpressionInequality() {
         assertThat(TREE_WITH_VALUE).isNotEqualTo(TREE_WITH_NULL);
     }
 
     @Test
-    public void testValueLiteralString() {
+    void testValueLiteralString() {
         assertThat(new ValueLiteralExpression(new Integer[][] {null, null, {1, 2, 3}}).toString())
                 .isEqualTo("[null, null, [1, 2, 3]]");
 
@@ -133,23 +130,22 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testInvalidValueLiteral() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("does not support a value literal of class 'java.lang.Integer'");
-
-        new ValueLiteralExpression(12, DataTypes.TINYINT().notNull());
+    void testInvalidValueLiteral() {
+        assertThatThrownBy(() -> new ValueLiteralExpression(12, DataTypes.TINYINT().notNull()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "does not support a value literal of class 'java.lang.Integer'");
     }
 
     @Test
-    public void testInvalidValueLiteralExtraction() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("Cannot derive a data type");
-
-        new ValueLiteralExpression(this);
+    void testInvalidValueLiteralExtraction() {
+        assertThatThrownBy(() -> new ValueLiteralExpression(this))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot derive a data type");
     }
 
     @Test
-    public void testBigDecimalValueLiteralExtraction() {
+    void testBigDecimalValueLiteralExtraction() {
         final float f = 2.44444444443f;
         assertThat(
                         new ValueLiteralExpression(f)
@@ -160,7 +156,7 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testLocalDateTimeValueLiteralExtraction() {
+    void testLocalDateTimeValueLiteralExtraction() {
         final Timestamp sqlTimestamp = Timestamp.valueOf("2006-11-03 00:00:00.123456789");
         final LocalDateTime localDateTime = LocalDateTime.of(2006, 11, 3, 0, 0, 0, 123456789);
 
@@ -172,7 +168,7 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testLocalTimeValueLiteralExtraction() {
+    void testLocalTimeValueLiteralExtraction() {
         final LocalTime localTime = LocalTime.of(12, 12, 12, 123456789);
 
         final long nanos = localTime.toNanoOfDay();
@@ -201,7 +197,7 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testLocalDateValueLiteralExtraction() {
+    void testLocalDateValueLiteralExtraction() {
         final LocalDate localDate = LocalDate.of(2012, 12, 12);
 
         final int daysSinceEpoch = (int) localDate.toEpochDay();
@@ -222,7 +218,7 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testInstantValueLiteralExtraction() {
+    void testInstantValueLiteralExtraction() {
         final Instant instant = Instant.ofEpochMilli(100);
 
         final long millis = instant.toEpochMilli();
@@ -243,7 +239,7 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testOffsetDateTimeValueLiteralExtraction() {
+    void testOffsetDateTimeValueLiteralExtraction() {
         final OffsetDateTime offsetDateTime =
                 OffsetDateTime.of(
                         LocalDateTime.parse("2012-12-12T12:12:12"),
@@ -261,7 +257,7 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testSymbolValueLiteralExtraction() {
+    void testSymbolValueLiteralExtraction() {
         final TimeIntervalUnit intervalUnit = TimeIntervalUnit.DAY_TO_MINUTE;
 
         assertThat(
@@ -272,7 +268,7 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testPeriodValueLiteralExtraction() {
+    void testPeriodValueLiteralExtraction() {
         Integer periodInInt = 10;
         final Period expected = Period.ofMonths(10);
         assertThat(

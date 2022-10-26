@@ -41,6 +41,8 @@ The JDBC sink provides at-least-once guarantee.
 Effectively though, exactly-once can be achieved by crafting upsert SQL statements or idempotent SQL updates.
 Configuration goes as follow (see also {{< javadoc file="org/apache/flink/connector/jdbc/JdbcSink.html" name="JdbcSink javadoc" >}}).
 
+{{< tabs "4ab65f13-607a-411a-8d24-e709f701cd4c" >}}
+{{< tab "Java" >}}
 ```java
 JdbcSink.sink(
       	sqlDmlStatement,                       // mandatory
@@ -48,7 +50,19 @@ JdbcSink.sink(
       	jdbcExecutionOptions,                  // optional
       	jdbcConnectionOptions                  // mandatory
 );
-```        	
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+JdbcSink.sink(
+    sql_dml_statement,          # mandatory
+    type_info,                  # mandatory
+    jdbc_connection_options,    # mandatory
+    jdbc_execution_options      # optional
+)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### SQL DML statement and JDBC statement builder
 
@@ -68,13 +82,26 @@ It then repeatedly calls a user-provided function to update that prepared statem
 
 The SQL DML statements are executed in batches, which can optionally be configured with the following instance (see also {{< javadoc name="JdbcExecutionOptions javadoc" file="org/apache/flink/connector/jdbc/JdbcExecutionOptions.html" >}})
 
+{{< tabs "4ab65f13-607a-411a-8d24-e709f512ed6k" >}}
+{{< tab "Java" >}}
 ```java
 JdbcExecutionOptions.builder()
         .withBatchIntervalMs(200)             // optional: default = 0, meaning no time-based execution is done
         .withBatchSize(1000)                  // optional: default = 5000 values
         .withMaxRetries(5)                    // optional: default = 3 
-.build()
+.build();
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+JdbcExecutionOptions.builder() \
+    .with_batch_interval_ms(2000) \
+    .with_batch_size(100) \
+    .with_max_retries(5) \
+    .build()
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 A JDBC batch is executed as soon as one of the following conditions is true:
 
@@ -89,6 +116,8 @@ Please see {{< javadoc name="JdbcConnectionOptions javadoc" file="org/apache/fli
 
 ### Full example
 
+{{< tabs "4ab65f13-608a-411a-8d24-e303f348ds8d" >}}
+{{< tab "Java" >}}
 ```java
 public class JdbcSinkExample {
 
@@ -139,6 +168,38 @@ public class JdbcSinkExample {
     }
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+type_info = Types.ROW([Types.INT(), Types.STRING(), Types.STRING(), Types.INT()])
+env.from_collection(
+    [(101, "Stream Processing with Apache Flink", "Fabian Hueske, Vasiliki Kalavri", 2019),
+     (102, "Streaming Systems", "Tyler Akidau, Slava Chernyak, Reuven Lax", 2018),
+     (103, "Designing Data-Intensive Applications", "Martin Kleppmann", 2017),
+     (104, "Kafka: The Definitive Guide", "Gwen Shapira, Neha Narkhede, Todd Palino", 2017)
+     ], type_info=type_info) \
+    .add_sink(
+    JdbcSink.sink(
+        "insert into books (id, title, authors, year) values (?, ?, ?, ?)",
+        type_info,
+        JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+            .with_url('jdbc:postgresql://dbhost:5432/postgresdb')
+            .with_driver_name('org.postgresql.Driver')
+            .with_user_name('someUser')
+            .with_password('somePassword')
+            .build(),
+        JdbcExecutionOptions.builder()
+            .with_batch_interval_ms(1000)
+            .with_batch_size(200)
+            .with_max_retries(5)
+            .build()
+    ))
+
+env.execute()
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ## `JdbcSink.exactlyOnceSink`
 
@@ -153,6 +214,9 @@ To use it, create a sink using `exactlyOnceSink()` method as above and additiona
 - [XA DataSource](https://docs.oracle.com/javase/8/docs/api/javax/sql/XADataSource.html) Supplier
 
 For example:
+
+{{< tabs "4ab65f13-608a-411a-8d24-e304f627ac8f" >}}
+{{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env
@@ -179,13 +243,32 @@ env
                 });
 env.execute();
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 **NOTE:** Some databases only allow a single XA transaction per connection (e.g. PostgreSQL, MySQL).
 In such cases, please use the following API to construct `JdbcExactlyOnceOptions`:
+
+{{< tabs "4ab65f13-608a-411a-8d24-e304f627cd4e" >}}
+{{< tab "Java" >}}
 ```java
 JdbcExactlyOnceOptions.builder()
 .withTransactionPerConnection(true)
-.build()
+.build();
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 This will make Flink use a separate connection for every XA transaction. This may require adjusting connection limits.
 For PostgreSQL and MySQL, this can be done by increasing `max_connections`.
 
@@ -198,28 +281,56 @@ with `JdbcExecutionOptions.maxRetries == 0`; otherwise, duplicated results maybe
 
 ### `XADataSource` examples
 PostgreSQL `XADataSource` example:
+{{< tabs "4ab65f13-608a-411a-8d24-e304f323ab3a" >}}
+{{< tab "Java" >}}
 ```java
 PGXADataSource xaDataSource = new org.postgresql.xa.PGXADataSource();
 xaDataSource.setUrl("jdbc:postgresql://localhost:5432/postgres");
 xaDataSource.setUser(username);
 xaDataSource.setPassword(password);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 MySQL `XADataSource` example:
+{{< tabs "4ab65f13-608a-411a-8d24-b213f323ca3c" >}}
+{{< tab "Java" >}}
 ```java
 MysqlXADataSource xaDataSource = new com.mysql.cj.jdbc.MysqlXADataSource();
 xaDataSource.setUrl("jdbc:mysql://localhost:3306/");
 xaDataSource.setUser(username);
 xaDataSource.setPassword(password);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 Oracle `XADataSource` example:
+{{< tabs "4ab65f13-608a-411a-8d24-b213f337ad5f" >}}
+{{< tab "Java" >}}
 ```java
 OracleXADataSource xaDataSource = new oracle.jdbc.xa.OracleXADataSource();
 xaDataSource.setURL("jdbc:oracle:oci8:@");
 xaDataSource.setUser("scott");
 xaDataSource.setPassword("tiger");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 Please also take Oracle connection pooling into account.
 
 Please refer to the `JdbcXaSinkFunction` documentation for more details.

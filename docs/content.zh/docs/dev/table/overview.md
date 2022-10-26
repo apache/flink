@@ -29,7 +29,9 @@ under the License.
 
 Apache Flink 有两种关系型 API 来做流批统一处理：Table API 和 SQL。Table API 是用于 Scala 和 Java 语言的查询API，它可以用一种非常直观的方式来组合使用选取、过滤、join 等关系型算子。Flink SQL 是基于 [Apache Calcite](https://calcite.apache.org) 来实现的标准 SQL。无论输入是连续的（流式）还是有界的（批处理），在两个接口中指定的查询都具有相同的语义，并指定相同的结果。
 
-Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream API。你可以在这些 API 之间，以及一些基于这些 API 的库之间轻松的切换。比如，你可以先用 [CEP]({{< ref "docs/libs/cep" >}}) 从 DataStream 中做模式匹配，然后用 Table API 来分析匹配的结果；或者你可以用 SQL 来扫描、过滤、聚合一个批式的表，然后再跑一个 [Gelly 图算法]({{< ref "docs/libs/gelly/overview" >}}) 来处理已经预处理好的数据。
+Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream API。你可以在这些 API 之间，以及一些基于这些 API 的库之间轻松的切换。
+For instance, you can detect patterns from a table using [`MATCH_RECOGNIZE` clause]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
+and later use the DataStream API to build alerting based on the matched patterns.
 
 ## Table 程序依赖
 

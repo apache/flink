@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * TypeInformation for "Java Beans"-style types. Flink refers to them as POJOs, since the conditions
- * are slightly different from Java Beans. A type is considered a FLink POJO type, if it fulfills
+ * are slightly different from Java Beans. A type is considered a Flink POJO type, if it fulfills
  * the conditions below.
  *
  * <ul>

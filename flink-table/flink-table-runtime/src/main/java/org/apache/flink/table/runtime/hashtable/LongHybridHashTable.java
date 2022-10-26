@@ -28,8 +28,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
+import org.apache.flink.table.runtime.io.LongHashPartitionChannelReaderInputViewIterator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
+import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.util.MathUtils;
 
 import java.io.EOFException;
@@ -52,6 +54,12 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
     private final BinaryRowDataSerializer probeSideSerializer;
     private final ArrayList<LongHashPartition> partitionsBeingBuilt;
     private final ArrayList<LongHashPartition> partitionsPending;
+    /**
+     * The partitions that have been spilled previously and are pending to be processed by sort
+     * merge join operator.
+     */
+    private final List<LongHashPartition> partitionsPendingForSMJ;
+
     private ProbeIterator probeIterator;
     private LongHashPartition.MatchIterator matchIterator;
 
@@ -85,6 +93,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
         this.partitionsBeingBuilt = new ArrayList<>();
         this.partitionsPending = new ArrayList<>();
+        this.partitionsPendingForSMJ = new ArrayList<>();
 
         createPartitions(initPartitionFanOut, 0);
     }
@@ -184,7 +193,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
     /** After build end, try to use dense mode. */
     private void tryDenseMode() {
-
+        // if some partitions have spilled to disk, always use hash mode
         if (numSpillFiles != 0) {
             return;
         }
@@ -212,7 +221,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
         long range = maxKey - minKey + 1;
 
-        // 1.range is negative mean: range is to big to overflow
+        // 1.range is negative mean: range is too big to overflow
         // 2.range is zero, maybe the max is Long.Max, and the min is Long.Min,
         // so we should not use dense mode too.
         if (range > 0 && (range <= recordCount * 4 || range <= segmentSize / 8)) {
@@ -221,8 +230,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             int buffers = (int) Math.ceil(((double) (range * 8)) / segmentSize);
 
             // TODO MemoryManager needs to support flexible larger segment, so that the index area
-            // of the
-            // build side is placed on a segment to avoid the overhead of addressing.
+            // of the build side is placed on a segment to avoid the overhead of addressing.
             MemorySegment[] denseBuckets = new MemorySegment[buffers];
             for (int i = 0; i < buffers; i++) {
                 MemorySegment seg = getNextBuffer();
@@ -362,10 +370,38 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             return prepareNextPartition();
         }
 
+        final int nextRecursionLevel = p.getRecursionLevel() + 1;
+        if (nextRecursionLevel == 2) {
+            LOG.info("Recursive hash join: partition number is " + p.getPartitionNumber());
+        } else if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
+            LOG.info(
+                    "Partition number [{}] recursive level more than {}, process the partition using SortMergeJoin later.",
+                    p.getPartitionNumber(),
+                    MAX_RECURSION_DEPTH);
+            // if the partition has spilled to disk more than three times, process it by sort merge
+            // join later
+            this.partitionsPendingForSMJ.add(p);
+            // also need to remove it from pending list
+            this.partitionsPending.remove(0);
+            // recursively get the next partition
+            return prepareNextPartition();
+        }
+
         // build the next table; memory must be allocated after this call
-        buildTableFromSpilledPartition(p);
+        buildTableFromSpilledPartition(p, nextRecursionLevel);
 
         // set the probe side
+        setPartitionProbeReader(p);
+
+        // unregister the pending partition
+        this.partitionsPending.remove(0);
+        this.currentRecursionDepth = p.getRecursionLevel() + 1;
+
+        // recursively get the next
+        return nextMatching();
+    }
+
+    private void setPartitionProbeReader(LongHashPartition p) throws IOException {
         ChannelWithMeta channelWithMeta =
                 new ChannelWithMeta(
                         p.probeSideBuffer.getChannel().getChannelID(),
@@ -386,26 +422,10 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
                         this.currentSpilledProbeSide, new ArrayList<>(), this.probeSideSerializer);
         this.probeIterator.set(probeReader);
         this.probeIterator.setReuse(probeSideSerializer.createInstance());
-
-        // unregister the pending partition
-        this.partitionsPending.remove(0);
-        this.currentRecursionDepth = p.getRecursionLevel() + 1;
-
-        // recursively get the next
-        return nextMatching();
     }
 
-    private void buildTableFromSpilledPartition(final LongHashPartition p) throws IOException {
-
-        final int nextRecursionLevel = p.getRecursionLevel() + 1;
-        if (nextRecursionLevel == 2) {
-            LOG.info("Recursive hash join: partition number is " + p.getPartitionNumber());
-        } else if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
-            throw new RuntimeException(
-                    "Hash join exceeded maximum number of recursions, without reducing "
-                            + "partitions enough to be memory resident. Probably cause: Too many duplicate keys.");
-        }
-
+    private void buildTableFromSpilledPartition(
+            final LongHashPartition p, final int nextRecursionLevel) throws IOException {
         if (p.getBuildSideBlockCount() > p.getProbeSideBlockCount()) {
             LOG.info(
                     String.format(
@@ -561,6 +581,53 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         return largestPartNum;
     }
 
+    public List<LongHashPartition> getPartitionsPendingForSMJ() {
+        return this.partitionsPendingForSMJ;
+    }
+
+    public RowIterator getSpilledPartitionBuildSideIter(LongHashPartition p) throws IOException {
+        // close build side channel of last processed partition
+        if (this.currentSpilledBuildSide != null) {
+            try {
+                this.currentSpilledBuildSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition build side.",
+                        t);
+            }
+            this.currentSpilledBuildSide = null;
+        }
+
+        this.currentSpilledBuildSide =
+                createInputView(
+                        p.getBuildSideChannel().getChannelID(),
+                        p.getBuildSideBlockCount(),
+                        p.getLastSegmentLimit());
+        return new WrappedRowIterator<>(
+                new LongHashPartitionChannelReaderInputViewIterator(
+                        this.currentSpilledBuildSide, this.buildSideSerializer),
+                this.buildSideSerializer.createInstance());
+    }
+
+    public ProbeIterator getSpilledPartitionProbeSideIter(LongHashPartition p) throws IOException {
+        // close probe side channel of last processed partition
+        if (this.currentSpilledProbeSide != null) {
+            try {
+                this.currentSpilledProbeSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition probe side.",
+                        t);
+            }
+            this.currentSpilledProbeSide = null;
+        }
+
+        // get the probe side iterator
+        this.probeIterator = new ProbeIterator(this.probeSideSerializer.createInstance());
+        setPartitionProbeReader(p);
+        return this.probeIterator;
+    }
+
     @Override
     protected void clearPartitions() {
         this.probeIterator = null;
@@ -579,6 +646,16 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         for (final LongHashPartition p : this.partitionsPending) {
             p.clearAllMemory(this.internalPool);
         }
+
+        // clear the partitions that processed by sort merge join operator
+        for (final LongHashPartition p : this.partitionsPendingForSMJ) {
+            try {
+                p.clearAllMemory(this.internalPool);
+            } catch (Exception e) {
+                LOG.error("Error during partition cleanup.", e);
+            }
+        }
+        this.partitionsPendingForSMJ.clear();
     }
 
     public boolean compressionEnable() {

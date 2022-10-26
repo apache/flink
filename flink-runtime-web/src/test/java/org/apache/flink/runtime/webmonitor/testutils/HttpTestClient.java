@@ -61,9 +61,9 @@ import java.util.concurrent.TimeoutException;
  * client.sendGetRequest("/overview", timeout);
  * SimpleHttpResponse response = client.getNextResponse(timeout);
  *
- * assertEquals(200, response.getStatus().code()); // OK
- * assertEquals("application/json", response.getType());
- * assertTrue(response.getContent().contains("\"jobs-running\":0"));
+ * assertThat(response.getStatus().code()).isEqualTo(200); // OK
+ * assertThat(response.getType()).isEqualTo("application/json");
+ * assertThat(response.getContent()).contains("\"jobs-running\":0");
  * </pre>
  *
  * <p>This code is based on Netty's HttpSnoopClient.

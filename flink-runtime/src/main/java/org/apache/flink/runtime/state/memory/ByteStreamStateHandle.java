@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
@@ -54,6 +55,11 @@ public class ByteStreamStateHandle implements StreamStateHandle {
     @Override
     public Optional<byte[]> asBytesIfInMemory() {
         return Optional.of(getData());
+    }
+
+    @Override
+    public PhysicalStateHandleID getStreamStateHandleID() {
+        return new PhysicalStateHandleID(handleName);
     }
 
     public byte[] getData() {

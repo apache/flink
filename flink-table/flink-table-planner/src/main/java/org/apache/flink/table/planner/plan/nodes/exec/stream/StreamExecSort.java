@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
@@ -51,6 +52,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
     private final SortSpec sortSpec;
 
     public StreamExecSort(
+            ReadableConfig tableConfig,
             SortSpec sortSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -58,6 +60,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecSort.class),
+                ExecNodeContext.newPersistedConfig(StreamExecSort.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -77,7 +80,11 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         // sort code gen
         GeneratedRecordComparator rowComparator =
                 ComparatorCodeGenerator.gen(
-                        config, "StreamExecSortComparator", inputType, sortSpec);
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        "StreamExecSortComparator",
+                        inputType,
+                        sortSpec);
         StreamSortOperator sortOperator =
                 new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator);
         Transformation<RowData> inputTransform =

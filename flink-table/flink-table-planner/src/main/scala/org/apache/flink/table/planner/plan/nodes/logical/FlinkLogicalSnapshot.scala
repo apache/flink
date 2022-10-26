@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.plan.nodes.logical
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Snapshot
 import org.apache.calcite.rel.logical.LogicalSnapshot
 import org.apache.calcite.rel.metadata.{RelMdCollation, RelMetadataQuery}
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.{RexFieldAccess, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.util.Litmus
@@ -33,9 +33,9 @@ import java.util
 import java.util.function.Supplier
 
 /**
-  * Sub-class of [[Snapshot]] that is a relational expression which returns
-  * the contents of a relation expression as it was at a given time in the past.
-  */
+ * Sub-class of [[Snapshot]] that is a relational expression which returns the contents of a
+ * relation expression as it was at a given time in the past.
+ */
 class FlinkLogicalSnapshot(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -46,15 +46,13 @@ class FlinkLogicalSnapshot(
 
   isValid(Litmus.THROW, null)
 
-  override def isValid(
-      litmus: Litmus,
-      context: RelNode.Context): Boolean = {
+  override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
     val msg = "Temporal table can only be used in temporal join and only supports " +
       "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\nQuerying a temporal table " +
       "using 'FOR SYSTEM TIME AS OF' syntax with %s is not supported yet."
     period match {
       case _: RexFieldAccess =>
-        // pass
+      // pass
       case lit: RexLiteral =>
         return litmus.fail(String.format(msg, s"a constant timestamp '${lit.toString}'"))
       case _ =>
@@ -69,10 +67,7 @@ class FlinkLogicalSnapshot(
     litmus.succeed()
   }
 
-  override def copy(
-    traitSet: RelTraitSet,
-    input: RelNode,
-    period: RexNode): Snapshot = {
+  override def copy(traitSet: RelTraitSet, input: RelNode, period: RexNode): Snapshot = {
     new FlinkLogicalSnapshot(cluster, traitSet, input, period)
   }
 
@@ -105,13 +100,17 @@ object FlinkLogicalSnapshot {
   def create(input: RelNode, period: RexNode): FlinkLogicalSnapshot = {
     val cluster = input.getCluster
     val mq = cluster.getMetadataQuery
-    val traitSet = cluster.traitSet.replace(Convention.NONE).replaceIfs(
-      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
-        def get: util.List[RelCollation] = RelMdCollation.snapshot(mq, input)
-      })
+    val traitSet = cluster.traitSet
+      .replace(Convention.NONE)
+      .replaceIfs(
+        RelCollationTraitDef.INSTANCE,
+        new Supplier[util.List[RelCollation]]() {
+          def get: util.List[RelCollation] = RelMdCollation.snapshot(mq, input)
+        })
     val snapshot = new FlinkLogicalSnapshot(cluster, traitSet, input, period)
     val newTraitSet = snapshot.getTraitSet
-      .replace(FlinkConventions.LOGICAL).simplify()
+      .replace(FlinkConventions.LOGICAL)
+      .simplify()
     snapshot.copy(newTraitSet, input, period).asInstanceOf[FlinkLogicalSnapshot]
   }
 }

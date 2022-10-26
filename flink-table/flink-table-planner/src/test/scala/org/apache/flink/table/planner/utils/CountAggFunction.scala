@@ -27,12 +27,10 @@ import java.lang.{Iterable => JIterable, Long => JLong}
 
 /** The initial accumulator for count aggregate function */
 class CountAccumulator extends JTuple1[JLong] {
-  f0 = 0L //count
+  f0 = 0L // count
 }
 
-/**
-  * built-in count aggregate function
-  */
+/** built-in count aggregate function */
 class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
 
   def accumulate(acc: CountAccumulator, value: Any): Unit = {

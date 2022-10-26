@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.loader;
 
 import org.apache.flink.table.delegation.ExecutorFactory;
-import org.apache.flink.table.delegation.ExpressionParserFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.TestLogger;
@@ -75,26 +74,5 @@ public class LoaderITCase extends TestLogger {
 
         assertThat(plannerFactory).isNotNull().isInstanceOf(DelegatePlannerFactory.class);
         assertThat(plannerFactory.factoryIdentifier()).isEqualTo(PlannerFactory.DEFAULT_IDENTIFIER);
-    }
-
-    @Test
-    public void testExpressionParserFactory() {
-        assertThat(
-                        DelegateExpressionParserFactory.class
-                                .getClassLoader()
-                                .getResourceAsStream(FLINK_TABLE_PLANNER_FAT_JAR))
-                .isNotNull();
-
-        ExpressionParserFactory expressionParserFactory =
-                FactoryUtil.discoverFactory(
-                        LoaderITCase.class.getClassLoader(),
-                        ExpressionParserFactory.class,
-                        ExpressionParserFactory.DEFAULT_IDENTIFIER);
-
-        assertThat(expressionParserFactory)
-                .isNotNull()
-                .isInstanceOf(DelegateExpressionParserFactory.class);
-        assertThat(expressionParserFactory.factoryIdentifier())
-                .isEqualTo(ExpressionParserFactory.DEFAULT_IDENTIFIER);
     }
 }

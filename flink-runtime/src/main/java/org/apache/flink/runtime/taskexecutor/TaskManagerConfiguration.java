@@ -56,7 +56,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
     private final Time slotTimeout;
 
     // null indicates an infinite duration
-    @Nullable private final Time maxRegistrationDuration;
+    @Nullable private final Duration maxRegistrationDuration;
 
     private final UnmodifiableConfiguration configuration;
 
@@ -81,7 +81,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             String[] tmpDirectories,
             Time rpcTimeout,
             Time slotTimeout,
-            @Nullable Time maxRegistrationDuration,
+            @Nullable Duration maxRegistrationDuration,
             Configuration configuration,
             boolean exitJvmOnOutOfMemory,
             @Nullable String taskManagerLogPath,
@@ -130,7 +130,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
     }
 
     @Nullable
-    public Time getMaxRegistrationDuration() {
+    public Duration getMaxRegistrationDuration() {
         return maxRegistrationDuration;
     }
 
@@ -203,11 +203,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         final Time slotTimeout =
                 Time.milliseconds(configuration.get(TaskManagerOptions.SLOT_TIMEOUT).toMillis());
 
-        Time finiteRegistrationDuration;
+        Duration finiteRegistrationDuration;
         try {
-            Duration maxRegistrationDuration =
-                    configuration.get(TaskManagerOptions.REGISTRATION_TIMEOUT);
-            finiteRegistrationDuration = Time.milliseconds(maxRegistrationDuration.toMillis());
+            finiteRegistrationDuration = configuration.get(TaskManagerOptions.REGISTRATION_TIMEOUT);
         } catch (IllegalArgumentException e) {
             LOG.warn(
                     "Invalid format for parameter {}. Set the timeout to be infinite.",

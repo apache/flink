@@ -34,19 +34,15 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 /** Tests the functionality of the {@link FileSink} in BATCH mode. */
-@RunWith(Parameterized.class)
-public class BatchExecutionFileSinkITCase extends FileSinkITBase {
+class BatchExecutionFileSinkITCase extends FileSinkITBase {
 
     /**
      * Creating the testing job graph in batch mode. The graph created is [Source] -> [Failover Map
      * -> File Sink]. The Failover Map is introduced to ensure the failover would always restart the
      * file writer so the data would be re-written.
      */
-    protected JobGraph createJobGraph(String path) {
+    protected JobGraph createJobGraph(boolean triggerFailover, String path) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration config = new Configuration();
         config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);

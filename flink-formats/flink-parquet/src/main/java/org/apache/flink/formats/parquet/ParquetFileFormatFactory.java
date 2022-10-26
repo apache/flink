@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
@@ -26,16 +27,20 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
+import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInputFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -43,6 +48,7 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -111,9 +117,14 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
         return new HashSet<>();
     }
 
-    private static class ParquetBulkDecodingFormat
+    /**
+     * ParquetBulkDecodingFormat which implements {@link FileBasedStatisticsReportableInputFormat}.
+     */
+    @VisibleForTesting
+    public static class ParquetBulkDecodingFormat
             implements ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>>,
-                    BulkDecodingFormat<RowData> {
+                    BulkDecodingFormat<RowData>,
+                    FileBasedStatisticsReportableInputFormat {
 
         private final ReadableConfig formatOptions;
 
@@ -141,6 +152,15 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
         @Override
         public ChangelogMode getChangelogMode() {
             return ChangelogMode.insertOnly();
+        }
+
+        @Override
+        public TableStats reportStatistics(List<Path> files, DataType producedDataType) {
+            return ParquetFormatStatisticsReportUtil.getTableStatistics(
+                    files,
+                    producedDataType,
+                    getParquetConfiguration(formatOptions),
+                    formatOptions.get(UTC_TIMEZONE));
         }
     }
 }

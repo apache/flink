@@ -59,9 +59,9 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -165,26 +165,31 @@ public final class DynamicSourceUtils {
     // TODO: isUpsertSource(), isSourceChangeEventsDuplicate()
 
     /**
-     * Returns a list of required metadata keys. Ordered by the iteration order of {@link
+     * Returns a list of required metadata columns. Ordered by the iteration order of {@link
      * SupportsReadingMetadata#listReadableMetadata()}.
      *
      * <p>This method assumes that source and schema have been validated via {@link
      * #prepareDynamicSource(String, ResolvedCatalogTable, DynamicTableSource, boolean,
      * ReadableConfig)}.
      */
-    public static List<String> createRequiredMetadataKeys(
+    public static List<MetadataColumn> createRequiredMetadataColumns(
             ResolvedSchema schema, DynamicTableSource source) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 
-        final Set<String> requiredMetadataKeys =
-                metadataColumns.stream()
-                        .map(c -> c.getMetadataKey().orElse(c.getName()))
-                        .collect(Collectors.toSet());
+        Map<String, MetadataColumn> metadataKeysToMetadataColumns = new HashMap<>();
+
+        for (MetadataColumn column : metadataColumns) {
+            String metadataKey = column.getMetadataKey().orElse(column.getName());
+            // After resolving, every metadata column has the unique metadata key.
+            metadataKeysToMetadataColumns.put(metadataKey, column);
+        }
 
         final Map<String, DataType> metadataMap = extractMetadataMap(source);
 
+        // reorder the column
         return metadataMap.keySet().stream()
-                .filter(requiredMetadataKeys::contains)
+                .filter(metadataKeysToMetadataColumns::containsKey)
+                .map(metadataKeysToMetadataColumns::get)
                 .collect(Collectors.toList());
     }
 
@@ -203,8 +208,16 @@ public final class DynamicSourceUtils {
                 ((RowType) schema.toPhysicalRowDataType().getLogicalType()).getFields().stream();
 
         final Stream<RowField> metadataFields =
-                createRequiredMetadataKeys(schema, source).stream()
-                        .map(k -> new RowField(k, metadataMap.get(k).getLogicalType()));
+                createRequiredMetadataColumns(schema, source).stream()
+                        .map(
+                                k ->
+                                        new RowField(
+                                                // Use the alias to ensure that physical and
+                                                // metadata columns don't collide
+                                                k.getName(),
+                                                metadataMap
+                                                        .get(k.getMetadataKey().orElse(k.getName()))
+                                                        .getLogicalType()));
 
         final List<RowField> rowFields =
                 Stream.concat(physicalFields, metadataFields).collect(Collectors.toList());
@@ -237,9 +250,7 @@ public final class DynamicSourceUtils {
         boolean isCDCSource =
                 !mode.containsOnly(RowKind.INSERT) && !isUpsertSource(resolvedSchema, tableSource);
         boolean changeEventsDuplicate =
-                tableConfig
-                        .getConfiguration()
-                        .getBoolean(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
+                tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
         boolean hasPrimaryKey = resolvedSchema.getPrimaryKey().isPresent();
         return isCDCSource && changeEventsDuplicate && hasPrimaryKey;
     }
@@ -312,12 +323,9 @@ public final class DynamicSourceUtils {
                                                             c.getDataType().getLogicalType());
                                     if (c instanceof MetadataColumn) {
                                         final MetadataColumn metadataColumn = (MetadataColumn) c;
-                                        final String metadataKey =
-                                                metadataColumn
-                                                        .getMetadataKey()
-                                                        .orElse(metadataColumn.getName());
+                                        String columnName = metadataColumn.getName();
                                         return rexBuilder.makeAbstractCast(
-                                                relDataType, relBuilder.field(metadataKey));
+                                                relDataType, relBuilder.field(columnName));
                                     } else {
                                         return relBuilder.field(c.getName());
                                     }
@@ -348,6 +356,7 @@ public final class DynamicSourceUtils {
                         !isBatchMode,
                         contextResolvedTable,
                         ShortcutUtils.unwrapContext(relBuilder),
+                        ShortcutUtils.unwrapTypeFactory(relBuilder),
                         new SourceAbilitySpec[0]);
 
         final LogicalTableScan scan =
@@ -362,7 +371,7 @@ public final class DynamicSourceUtils {
         return Collections.emptyMap();
     }
 
-    private static List<MetadataColumn> extractMetadataColumns(ResolvedSchema schema) {
+    public static List<MetadataColumn> extractMetadataColumns(ResolvedSchema schema) {
         return schema.getColumns().stream()
                 .filter(MetadataColumn.class::isInstance)
                 .map(MetadataColumn.class::cast)
@@ -437,7 +446,9 @@ public final class DynamicSourceUtils {
                 });
 
         metadataSource.applyReadableMetadata(
-                createRequiredMetadataKeys(schema, source),
+                createRequiredMetadataColumns(schema, source).stream()
+                        .map(column -> column.getMetadataKey().orElse(column.getName()))
+                        .collect(Collectors.toList()),
                 TypeConversions.fromLogicalToDataType(createProducedType(schema, source)));
     }
 

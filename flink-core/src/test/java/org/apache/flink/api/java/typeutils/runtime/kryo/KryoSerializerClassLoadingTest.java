@@ -24,19 +24,19 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.testutils.ClassLoaderUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This test validates that the Kryo-based serializer handles classes with custom class loaders
  * correctly.
  */
-public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
+class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 
     /** Class loader and object that is not in the test class path. */
     private static final ClassLoaderUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
@@ -46,27 +46,25 @@ public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 
     private ClassLoader originalClassLoader;
 
-    @Before
-    public void setupClassLoader() {
+    @BeforeEach
+    void setupClassLoader() {
         originalClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
     }
 
-    @After
-    public void restoreOriginalClassLoader() {
+    @AfterEach
+    void restoreOriginalClassLoader() {
         Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
 
     // ------------------------------------------------------------------------
 
     @Test
-    public void guardTestAssumptions() {
-        try {
-            Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName());
-            fail("This test's assumptions are broken");
-        } catch (ClassNotFoundException ignored) {
-            // expected
-        }
+    void guardTestAssumptions() {
+        assertThatThrownBy(
+                        () -> Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName()))
+                .isInstanceOf(ClassNotFoundException.class)
+                .withFailMessage("This test's assumptions are broken");
     }
 
     // ------------------------------------------------------------------------

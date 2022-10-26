@@ -26,17 +26,16 @@ import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link KubernetesTaskManagerFactory}. */
-public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestBase {
+class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestBase {
 
     private Pod resultPod;
 
@@ -70,31 +69,33 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
     }
 
     @Test
-    public void testPod() {
-        assertEquals(POD_NAME, this.resultPod.getMetadata().getName());
-        assertEquals(5, this.resultPod.getMetadata().getLabels().size());
-        assertEquals(4, this.resultPod.getSpec().getVolumes().size());
+    void testPod() {
+        assertThat(this.resultPod.getMetadata().getName()).isEqualTo(POD_NAME);
+        assertThat(this.resultPod.getMetadata().getLabels()).hasSize(5);
+        assertThat(this.resultPod.getSpec().getVolumes()).hasSize(4);
     }
 
     @Test
-    public void testContainer() {
+    void testContainer() {
         final List<Container> resultContainers = this.resultPod.getSpec().getContainers();
-        assertEquals(1, resultContainers.size());
+        assertThat(resultContainers).hasSize(1);
 
         final Container resultMainContainer = resultContainers.get(0);
-        assertEquals(Constants.MAIN_CONTAINER_NAME, resultMainContainer.getName());
-        assertEquals(CONTAINER_IMAGE, resultMainContainer.getImage());
-        assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), resultMainContainer.getImagePullPolicy());
+        assertThat(resultMainContainer.getName()).isEqualTo(Constants.MAIN_CONTAINER_NAME);
+        assertThat(resultMainContainer.getImage()).isEqualTo(CONTAINER_IMAGE);
+        assertThat(resultMainContainer.getImagePullPolicy())
+                .isEqualTo(CONTAINER_IMAGE_PULL_POLICY.name());
 
-        assertEquals(4, resultMainContainer.getEnv().size());
-        assertTrue(
-                resultMainContainer.getEnv().stream()
-                        .anyMatch(envVar -> envVar.getName().equals("key1")));
+        assertThat(resultMainContainer.getEnv()).hasSize(5);
+        assertThat(
+                        resultMainContainer.getEnv().stream()
+                                .anyMatch(envVar -> envVar.getName().equals("key1")))
+                .isTrue();
 
-        assertEquals(1, resultMainContainer.getPorts().size());
-        assertEquals(1, resultMainContainer.getCommand().size());
+        assertThat(resultMainContainer.getPorts()).hasSize(1);
+        assertThat(resultMainContainer.getCommand()).hasSize(1);
         // The args list is [bash, -c, 'java -classpath $FLINK_CLASSPATH ...'].
-        assertEquals(3, resultMainContainer.getArgs().size());
-        assertEquals(4, resultMainContainer.getVolumeMounts().size());
+        assertThat(resultMainContainer.getArgs()).hasSize(3);
+        assertThat(resultMainContainer.getVolumeMounts()).hasSize(4);
     }
 }

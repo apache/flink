@@ -128,7 +128,8 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         // ChangelogStateBackend is used.
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
-        FsStateChangelogStorageFactory.configure(configuration, changelogFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                configuration, changelogFolder.newFolder(), Duration.ofMinutes(1), 10);
 
         cluster =
                 new MiniClusterWithClientResource(

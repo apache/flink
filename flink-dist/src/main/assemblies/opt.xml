@@ -37,21 +37,6 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Gelly -->
-		<file>
-			<source>../flink-libraries/flink-gelly/target/flink-gelly-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-libraries/flink-gelly-scala/target/flink-gelly-scala_${scala.binary.version}-${project.version}-jar-with-dependencies.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly-scala_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<!-- Table/SQL dependencies -->
 		<file>
 			<source>../flink-table/flink-table-planner/target/flink-table-planner_${scala.binary.version}-${project.version}.jar</source>
@@ -63,6 +48,12 @@
 			<source>../flink-table/flink-sql-client/target/flink-sql-client-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-sql-client-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-sql-gateway/target/flink-sql-gateway-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-sql-gateway-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -119,9 +110,9 @@
 
 		<!-- Python -->
 		<file>
-			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-python/target/flink-python-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>
-			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-python-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

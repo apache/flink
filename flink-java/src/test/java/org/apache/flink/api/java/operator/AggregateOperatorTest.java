@@ -27,22 +27,24 @@ import org.apache.flink.api.java.aggregation.UnsupportedAggregationTypeException
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
+
 /** Tests for {@link DataSet#aggregate(Aggregations, int)}. */
-public class AggregateOperatorTest {
+class AggregateOperatorTest {
 
     // TUPLE DATA
 
     private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
-            new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
+            new ArrayList<>();
 
     private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo =
-            new TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
+            new TupleTypeInfo<>(
                     BasicTypeInfo.INT_TYPE_INFO,
                     BasicTypeInfo.LONG_TYPE_INFO,
                     BasicTypeInfo.STRING_TYPE_INFO,
@@ -51,46 +53,31 @@ public class AggregateOperatorTest {
 
     // LONG DATA
 
-    private final List<Long> emptyLongData = new ArrayList<Long>();
+    private final List<Long> emptyLongData = new ArrayList<>();
 
     @Test
-    public void testFieldsAggregate() {
+    void testFieldsAggregate() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.aggregate(Aggregations.SUM, 1);
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        tupleDs.aggregate(Aggregations.SUM, 1);
 
         // should not work: index out of bounds
-        try {
-            tupleDs.aggregate(Aggregations.SUM, 10);
-            Assert.fail();
-        } catch (IllegalArgumentException iae) {
-            // we're good here
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        assertThatThrownBy(() -> tupleDs.aggregate(Aggregations.SUM, 10))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // should not work: not applied to tuple dataset
         DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
-        try {
-            longDs.aggregate(Aggregations.MIN, 1);
-            Assert.fail();
-        } catch (InvalidProgramException uoe) {
-            // we're good here
-        } catch (Exception e) {
-            Assert.fail();
-        }
+
+        assertThatThrownBy(() -> longDs.aggregate(Aggregations.MIN, 1))
+                .isInstanceOf(InvalidProgramException.class);
     }
 
     @Test
-    public void testAggregationTypes() {
+    void testAggregationTypes() {
         try {
             final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -103,16 +90,12 @@ public class AggregateOperatorTest {
             tupleDs.aggregate(Aggregations.MIN, 2).aggregate(Aggregations.SUM, 1);
 
             // should not work: average on string
-            try {
-                tupleDs.aggregate(Aggregations.SUM, 2);
-                Assert.fail();
-            } catch (UnsupportedAggregationTypeException iae) {
-                // we're good here
-            }
+            assertThatThrownBy(() -> tupleDs.aggregate(Aggregations.SUM, 2))
+                    .isInstanceOf(UnsupportedAggregationTypeException.class);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 }

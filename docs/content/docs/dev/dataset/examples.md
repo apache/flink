@@ -24,6 +24,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+{{< hint warning >}}
+Starting with Flink 1.12 the DataSet API has been soft deprecated.
+
+We recommend that you use the [Table API and SQL]({{< ref "docs/dev/table/overview" >}}) to run efficient
+batch pipelines in a fully unified API. Table API is well integrated with common batch connectors and
+catalogs.
+
+Alternatively, you can also use the DataStream API with `BATCH` [execution mode]({{< ref "docs/dev/datastream/execution_mode" >}}).
+The linked section also outlines cases where it makes sense to use the DataSet API but those cases will
+become rarer as development progresses and the DataSet API will eventually be removed. Please also
+see [FLIP-131](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741) for
+background information on this decision.
+{{< /hint >}}
+
 # Batch Examples
 
 The following example programs showcase different applications of Flink
@@ -134,7 +148,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // read the pages and initial ranks by parsing a CSV file
 DataSet<Tuple2<Long, Double>> pagesWithRanks = env.readCsvFile(pagesInputPath)
-						   .types(Long.class, Double.class)
+						   .types(Long.class, Double.class);
 
 // the links are encoded as an adjacency list: (page-id, Array(neighbor-ids))
 DataSet<Tuple2<Long, Long[]>> pageLinkLists = getLinksDataSet(env);

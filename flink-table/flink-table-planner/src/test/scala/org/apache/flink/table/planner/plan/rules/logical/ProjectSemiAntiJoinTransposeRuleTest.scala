@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -28,9 +27,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[ProjectSemiAntiJoinTransposeRule]].
-  */
+/** Test for [[ProjectSemiAntiJoinTransposeRule]]. */
 class ProjectSemiAntiJoinTransposeRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -118,7 +115,7 @@ class ProjectSemiAntiJoinTransposeRuleTest extends TableTestBase {
 
   @Test
   def testTransposeProject_Anti2(): Unit = {
-    util.verifyRelPlan( "SELECT a + 1 FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT a + 1 FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
   }
 
   @Test

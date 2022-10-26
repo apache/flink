@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -44,7 +45,7 @@ public class TableConfigUtils {
      * @return true if the given operator is disabled.
      */
     public static boolean isOperatorDisabled(TableConfig tableConfig, OperatorType operatorType) {
-        String value = tableConfig.getConfiguration().getString(TABLE_EXEC_DISABLED_OPERATORS);
+        String value = tableConfig.get(TABLE_EXEC_DISABLED_OPERATORS);
         if (value == null) {
             return false;
         }
@@ -71,9 +72,8 @@ public class TableConfigUtils {
      * @param tableConfig TableConfig object
      * @return the aggregate phase strategy
      */
-    public static AggregatePhaseStrategy getAggPhaseStrategy(TableConfig tableConfig) {
-        String aggPhaseConf =
-                tableConfig.getConfiguration().getString(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
+    public static AggregatePhaseStrategy getAggPhaseStrategy(ReadableConfig tableConfig) {
+        String aggPhaseConf = tableConfig.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
         if (aggPhaseConf.isEmpty()) {
             return AggregatePhaseStrategy.AUTO;
         } else {
@@ -106,6 +106,16 @@ public class TableConfigUtils {
         return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
                 ? ZoneId.systemDefault()
                 : ZoneId.of(zone);
+    }
+
+    /**
+     * Similar to {@link TableConfig#getMaxIdleStateRetentionTime()}.
+     *
+     * @see TableConfig#getMaxIdleStateRetentionTime()
+     */
+    @Deprecated
+    public static long getMaxIdleStateRetentionTime(ReadableConfig tableConfig) {
+        return tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis() * 3 / 2;
     }
 
     /** Validates user configured time zone. */

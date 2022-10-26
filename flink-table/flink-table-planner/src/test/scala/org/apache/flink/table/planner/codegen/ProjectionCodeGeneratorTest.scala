@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
-import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.runtime.generated.Projection
 import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
 
@@ -29,22 +28,23 @@ import org.junit.{Assert, Test}
 
 import scala.util.Random
 
-/**
-  * Test for [[ProjectionCodeGenerator]].
-  */
+/** Test for [[ProjectionCodeGenerator]]. */
 class ProjectionCodeGeneratorTest {
 
   private val classLoader = Thread.currentThread().getContextClassLoader
 
   @Test
   def testProjectionBinaryRow(): Unit = {
-    val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new Configuration),
-      "name",
-      RowType.of(new IntType(), new BigIntType()),
-      RowType.of(new BigIntType(), new IntType()),
-      Array(1, 0)
-    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
+    val projection = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        "name",
+        RowType.of(new IntType(), new BigIntType()),
+        RowType.of(new BigIntType(), new IntType()),
+        Array(1, 0)
+      )
+      .newInstance(classLoader)
+      .asInstanceOf[Projection[RowData, BinaryRowData]]
     val row: BinaryRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
     Assert.assertEquals(5, row.getInt(1))
     Assert.assertEquals(8, row.getLong(0))
@@ -52,14 +52,17 @@ class ProjectionCodeGeneratorTest {
 
   @Test
   def testProjectionGenericRow(): Unit = {
-    val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new Configuration),
-      "name",
-      RowType.of(new IntType(), new BigIntType()),
-      RowType.of(new BigIntType(), new IntType()),
-      Array(1, 0),
-      outClass = classOf[GenericRowData]
-    ).newInstance(classLoader).asInstanceOf[Projection[RowData, GenericRowData]]
+    val projection = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        "name",
+        RowType.of(new IntType(), new BigIntType()),
+        RowType.of(new BigIntType(), new IntType()),
+        Array(1, 0),
+        outClass = classOf[GenericRowData]
+      )
+      .newInstance(classLoader)
+      .asInstanceOf[Projection[RowData, GenericRowData]]
     val row: GenericRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
     Assert.assertEquals(5, row.getInt(1))
     Assert.assertEquals(8, row.getLong(0))
@@ -68,13 +71,16 @@ class ProjectionCodeGeneratorTest {
   @Test
   def testProjectionManyField(): Unit = {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
-    val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new Configuration),
-      "name",
-      rowType,
-      rowType,
-      (0 until 100).toArray
-    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
+    val projection = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        "name",
+        rowType,
+        rowType,
+        (0 until 100).toArray
+      )
+      .newInstance(classLoader)
+      .asInstanceOf[Projection[RowData, BinaryRowData]]
     val rnd = new Random()
     val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
@@ -86,14 +92,17 @@ class ProjectionCodeGeneratorTest {
   @Test
   def testProjectionManyFieldGenericRow(): Unit = {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
-    val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new Configuration),
-      "name",
-      rowType,
-      rowType,
-      (0 until 100).toArray,
-      outClass = classOf[GenericRowData]
-    ).newInstance(classLoader).asInstanceOf[Projection[RowData, GenericRowData]]
+    val projection = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        "name",
+        rowType,
+        rowType,
+        (0 until 100).toArray,
+        outClass = classOf[GenericRowData]
+      )
+      .newInstance(classLoader)
+      .asInstanceOf[Projection[RowData, GenericRowData]]
     val rnd = new Random()
     val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
@@ -104,19 +113,16 @@ class ProjectionCodeGeneratorTest {
 
   @Test
   def testProjectionBinaryRowWithVariableLengthData(): Unit = {
-    val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new Configuration),
-      "name",
-      RowType.of(
-        new DecimalType(38, 0),
-        new DecimalType(38, 0),
-        new TimestampType(9)),
-      RowType.of(
-        new DecimalType(38, 0),
-        new TimestampType(9),
-        new DecimalType(38, 0)),
-      Array(1, 2, 0)
-    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
+    val projection = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        "name",
+        RowType.of(new DecimalType(38, 0), new DecimalType(38, 0), new TimestampType(9)),
+        RowType.of(new DecimalType(38, 0), new TimestampType(9), new DecimalType(38, 0)),
+        Array(1, 2, 0)
+      )
+      .newInstance(classLoader)
+      .asInstanceOf[Projection[RowData, BinaryRowData]]
 
     val decimal = DecimalData.fromBigDecimal(java.math.BigDecimal.valueOf(123), 38, 0)
     val timestamp = TimestampData.fromEpochMillis(123)

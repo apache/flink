@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 
 import org.rocksdb.CompactionStyle;
-import org.rocksdb.InfoLogLevel;
 
 import javax.annotation.Nullable;
 
@@ -54,15 +53,9 @@ public enum PredefinedOptions {
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
      * to sync data to stable storage.
      *
-     * <p>The following options are set:
-     *
-     * <ul>
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-     * </ul>
+     * <p>There are no specified options here.
      */
-    DEFAULT(
-            Collections.singletonMap(
-                    RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL)),
+    DEFAULT(Collections.emptyMap()),
 
     /**
      * Pre-defined options for regular spinning hard disks.
@@ -78,7 +71,6 @@ public enum PredefinedOptions {
      *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
      * </ul>
      *
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
@@ -91,7 +83,6 @@ public enum PredefinedOptions {
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
                     put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
-                    put(RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL);
                     put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
                     put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
                 }
@@ -116,7 +107,6 @@ public enum PredefinedOptions {
      *   <li>setMinWriteBufferNumberToMerge(3)
      *   <li>setMaxWriteBufferNumber(4)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
      *   <li>BlockBasedTableConfig.setBlockCacheSize(256 MBytes)
      *   <li>BlockBasedTableConfig.setBlockSize(128 KBytes)
      * </ul>
@@ -131,7 +121,6 @@ public enum PredefinedOptions {
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
                     put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
-                    put(RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL);
                     put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
                     put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
                     put(
@@ -159,7 +148,6 @@ public enum PredefinedOptions {
      *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
      * </ul>
      *
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
@@ -172,7 +160,6 @@ public enum PredefinedOptions {
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
                     put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
-                    put(RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL);
                 }
             });
 

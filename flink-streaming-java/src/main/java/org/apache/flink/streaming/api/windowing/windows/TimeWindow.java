@@ -262,6 +262,12 @@ public class TimeWindow extends Window {
      * @return window start
      */
     public static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) {
-        return timestamp - (timestamp - offset + windowSize) % windowSize;
+        final long remainder = (timestamp - offset) % windowSize;
+        // handle both positive and negative cases
+        if (remainder < 0) {
+            return timestamp - (remainder + windowSize);
+        } else {
+            return timestamp - remainder;
+        }
     }
 }

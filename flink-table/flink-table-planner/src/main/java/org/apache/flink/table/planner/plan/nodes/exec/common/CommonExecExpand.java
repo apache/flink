@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ExpandCodeGenerator;
@@ -60,12 +61,13 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
     public CommonExecExpand(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<List<RexNode>> projects,
             boolean retainHeader,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.projects = checkNotNull(projects);
         checkArgument(
@@ -85,7 +87,8 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
 
         final CodeGenOperatorFactory<RowData> operatorFactory =
                 ExpandCodeGenerator.generateExpandOperator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         projects,

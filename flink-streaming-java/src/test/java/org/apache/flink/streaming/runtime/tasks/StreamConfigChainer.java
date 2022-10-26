@@ -21,7 +21,10 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -157,6 +160,7 @@ public class StreamConfigChainer<OWNER> {
                     ManagedMemoryUseCase.STATE_BACKEND, 1.0);
         }
         tailConfig.setChainIndex(chainIndex);
+        tailConfig.serializeAllConfigs();
 
         chainedConfigs.put(chainIndex, tailConfig);
 
@@ -165,34 +169,35 @@ public class StreamConfigChainer<OWNER> {
 
     public OWNER finish() {
         checkState(chainIndex > 0, "Use finishForSingletonOperatorChain");
-        List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
+        List<NonChainedOutput> outEdgesInOrder = new LinkedList<>();
 
         StreamNode sourceVertex =
                 new StreamNode(chainIndex, null, null, (StreamOperator<?>) null, null, null);
         for (int i = 0; i < numberOfNonChainedOutputs; ++i) {
-            StreamEdge streamEdge =
-                    new StreamEdge(
-                            sourceVertex,
-                            new StreamNode(
-                                    chainIndex + i,
-                                    null,
-                                    null,
-                                    (StreamOperator<?>) null,
-                                    null,
-                                    null),
-                            0,
+            NonChainedOutput streamOutput =
+                    new NonChainedOutput(
+                            true,
+                            sourceVertex.getId(),
+                            1,
+                            1,
+                            100,
+                            false,
+                            new IntermediateDataSetID(),
+                            null,
                             new BroadcastPartitioner<>(),
-                            null);
-            streamEdge.setBufferTimeout(1);
-            outEdgesInOrder.add(streamEdge);
+                            ResultPartitionType.PIPELINED_BOUNDED);
+            outEdgesInOrder.add(streamOutput);
         }
 
         tailConfig.setChainEnd();
         tailConfig.setNumberOfOutputs(numberOfNonChainedOutputs);
-        tailConfig.setOutEdgesInOrder(outEdgesInOrder);
-        tailConfig.setNonChainedOutputs(outEdgesInOrder);
-        headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
-        headConfig.setOutEdgesInOrder(outEdgesInOrder);
+        tailConfig.setVertexNonChainedOutputs(outEdgesInOrder);
+        tailConfig.setOperatorNonChainedOutputs(outEdgesInOrder);
+        chainedConfigs.values().forEach(StreamConfig::serializeAllConfigs);
+
+        headConfig.setAndSerializeTransitiveChainedTaskConfigs(chainedConfigs);
+        headConfig.setVertexNonChainedOutputs(outEdgesInOrder);
+        headConfig.serializeAllConfigs();
 
         return owner;
     }
@@ -205,7 +210,7 @@ public class StreamConfigChainer<OWNER> {
                 new AbstractStreamOperator<OUT>() {
                     private static final long serialVersionUID = 1L;
                 };
-        List<StreamEdge> outEdgesInOrder = new LinkedList<>();
+        List<NonChainedOutput> streamOutputs = new LinkedList<>();
 
         StreamNode sourceVertexDummy =
                 new StreamNode(
@@ -216,31 +221,29 @@ public class StreamConfigChainer<OWNER> {
                         "source dummy",
                         SourceStreamTask.class);
         for (int i = 0; i < numberOfNonChainedOutputs; ++i) {
-            StreamNode targetVertexDummy =
-                    new StreamNode(
-                            MAIN_NODE_ID + 1 + i,
-                            "group",
+            streamOutputs.add(
+                    new NonChainedOutput(
+                            true,
+                            sourceVertexDummy.getId(),
+                            1,
+                            1,
+                            100,
+                            false,
+                            new IntermediateDataSetID(),
                             null,
-                            dummyOperator,
-                            "target dummy",
-                            SourceStreamTask.class);
-
-            outEdgesInOrder.add(
-                    new StreamEdge(
-                            sourceVertexDummy,
-                            targetVertexDummy,
-                            0,
                             new BroadcastPartitioner<>(),
-                            null));
+                            ResultPartitionType.PIPELINED_BOUNDED));
         }
 
         headConfig.setVertexID(0);
         headConfig.setNumberOfOutputs(1);
-        headConfig.setOutEdgesInOrder(outEdgesInOrder);
-        headConfig.setNonChainedOutputs(outEdgesInOrder);
-        headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
-        headConfig.setOutEdgesInOrder(outEdgesInOrder);
+        headConfig.setVertexNonChainedOutputs(streamOutputs);
+        headConfig.setOperatorNonChainedOutputs(streamOutputs);
+        chainedConfigs.values().forEach(StreamConfig::serializeAllConfigs);
+        headConfig.setAndSerializeTransitiveChainedTaskConfigs(chainedConfigs);
+        headConfig.setVertexNonChainedOutputs(streamOutputs);
         headConfig.setTypeSerializerOut(outputSerializer);
+        headConfig.serializeAllConfigs();
 
         return owner;
     }

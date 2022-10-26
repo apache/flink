@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -46,18 +47,21 @@ import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorEx
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
+import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -119,6 +123,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     (ignoredA, ignoredB) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private volatile Function<ResourceID, CompletableFuture<Void>> jobMasterHeartbeatFunction;
+
+    private volatile Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+            notifyNewBlockedNodesFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     public TestingResourceManagerGateway() {
         this(
@@ -235,6 +243,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.declareRequiredResourcesFunction = declareRequiredResourcesFunction;
     }
 
+    public void setNotifyNewBlockedNodesFunction(
+            Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+                    notifyNewBlockedNodesFunction) {
+        this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
+    }
+
     @Override
     public CompletableFuture<RegistrationResponse> registerJobMaster(
             JobMasterId jobMasterId,
@@ -297,7 +311,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     new TaskExecutorRegistrationSuccess(
                             new InstanceID(),
                             ownResourceId,
-                            new ClusterInformation("localhost", 1234)));
+                            new ClusterInformation("localhost", 1234),
+                            null));
         }
     }
 
@@ -391,7 +406,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     @Override
     public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
         return CompletableFuture.completedFuture(
-                new ResourceOverview(1, 1, 1, ResourceProfile.ZERO, ResourceProfile.ZERO));
+                new ResourceOverview(1, 1, 1, 0, 0, ResourceProfile.ZERO, ResourceProfile.ZERO));
     }
 
     @Override
@@ -491,5 +506,22 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     public CompletableFuture<Void> releaseClusterPartitions(
             IntermediateDataSetID dataSetToRelease) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> reportClusterPartitions(
+            ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionsShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
+        return notifyNewBlockedNodesFunction.apply(newNodes);
     }
 }

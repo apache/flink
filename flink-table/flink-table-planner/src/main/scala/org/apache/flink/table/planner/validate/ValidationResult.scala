@@ -17,17 +17,14 @@
  */
 package org.apache.flink.table.planner.validate
 
-/**
-  * Represents the result of a validation.
-  */
+/** Represents the result of a validation. */
 sealed trait ValidationResult {
   def isFailure: Boolean = !isSuccess
   def isSuccess: Boolean
 
   /**
-    * Allows constructing a cascade of validation results.
-    * The first failure result will be returned.
-    */
+   * Allows constructing a cascade of validation results. The first failure result will be returned.
+   */
   def orElse(other: ValidationResult): ValidationResult = {
     if (isSuccess) {
       other
@@ -37,17 +34,15 @@ sealed trait ValidationResult {
   }
 }
 
-/**
-  * Represents the successful result of a validation.
-  */
+/** Represents the successful result of a validation. */
 object ValidationSuccess extends ValidationResult {
   val isSuccess: Boolean = true
 }
 
 /**
-  * Represents the failing result of a validation,
-  * with a error message to show the reason of failure.
-  */
+ * Represents the failing result of a validation, with a error message to show the reason of
+ * failure.
+ */
 case class ValidationFailure(message: String) extends ValidationResult {
   val isSuccess: Boolean = false
 }

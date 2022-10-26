@@ -200,6 +200,11 @@
   }, {
     "id" : 5,
     "type" : "stream-exec-group-window-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1",
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "EXPR$1",
@@ -259,6 +264,12 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

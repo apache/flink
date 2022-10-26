@@ -113,7 +113,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
     private static final long FATAL_ERROR_SHUTDOWN_TIMEOUT_MS = 10000L;
 
     private static final int SUCCESS_EXIT_CODE = 0;
-    @VisibleForTesting static final int FAILURE_EXIT_CODE = 1;
+    @VisibleForTesting public static final int FAILURE_EXIT_CODE = 1;
 
     private final Thread shutdownHook;
 
@@ -380,7 +380,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
             if (metricRegistry != null) {
                 try {
-                    metricRegistry.shutdown();
+                    metricRegistry.closeAsync();
                 } catch (Exception e) {
                     exception = ExceptionUtils.firstOrSuppressed(e, exception);
                 }
@@ -395,7 +395,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             }
 
             if (rpcService != null) {
-                terminationFutures.add(rpcService.stopService());
+                terminationFutures.add(rpcService.closeAsync());
             }
 
             if (executor != null) {

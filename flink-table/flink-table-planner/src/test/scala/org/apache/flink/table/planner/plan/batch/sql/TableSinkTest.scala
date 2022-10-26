@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
@@ -40,14 +39,13 @@ class TableSinkTest extends TableTestBase {
 
   @Test
   def testSingleSink(): Unit = {
-    util.addTable(
-      s"""
-         |CREATE TABLE sink (
-         |  `a` BIGINT
-         |) WITH (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` BIGINT
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     util.verifyRelPlan(stmtSet)
@@ -55,25 +53,24 @@ class TableSinkTest extends TableTestBase {
 
   @Test
   def testMultiSinks(): Unit = {
-    util.addTable(
-      s"""
-         |CREATE TABLE sink1 (
-         |  `total_sum` INT
-         |) WITH (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
-    util.addTable(
-      s"""
-         |CREATE TABLE sink2 (
-         |  `total_min` INT
-         |) WITH (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE sink1 (
+                     |  `total_sum` INT
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE sink2 (
+                     |  `total_min` INT
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
 
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+    util.tableEnv.getConfig.set(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS sum_a, c FROM MyTable GROUP BY c")
     util.tableEnv.createTemporaryView("table1", table1)
     val stmtSet = util.tableEnv.createStatementSet()
@@ -85,17 +82,16 @@ class TableSinkTest extends TableTestBase {
 
   @Test
   def testDynamicPartWithOrderBy(): Unit = {
-    util.addTable(
-      s"""
-         |CREATE TABLE sink (
-         |  `a` INT,
-         |  `b` BIGINT
-         |) PARTITIONED BY (
-         |  `b`
-         |) WITH (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) PARTITIONED BY (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
     util.verifyExecPlan(stmtSet)
@@ -103,31 +99,29 @@ class TableSinkTest extends TableTestBase {
 
   @Test
   def testTableHints(): Unit = {
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'true'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'true'
+                                |)
        """.stripMargin)
 
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MySink (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'filesystem',
-         |  'format' = 'testcsv',
-         |  'path' = '/tmp/test'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MySink (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'filesystem',
+                                |  'format' = 'testcsv',
+                                |  'path' = '/tmp/test'
+                                |)
        """.stripMargin)
-    val stmtSet= util.tableEnv.createStatementSet()
+    val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(
       "insert into MySink /*+ OPTIONS('path' = '/tmp1') */ select * from MyTable")
     stmtSet.addInsertSql(
@@ -138,33 +132,31 @@ class TableSinkTest extends TableTestBase {
 
   @Test
   def testManagedTableSinkWithDisableCheckpointing(): Unit = {
-    util.addTable(
-      s"""
-         |CREATE TABLE sink (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH(
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  `c` STRING
+                     |) WITH(
+                     |)
+                     |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
-    
+
     util.verifyAstPlan(stmtSet)
   }
 
   @Test
   def testManagedTableSinkWithEnableCheckpointing(): Unit = {
     util.getStreamEnv.enableCheckpointing(10)
-    util.addTable(
-      s"""
-         |CREATE TABLE sink (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH(
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  `c` STRING
+                     |) WITH(
+                     |)
+                     |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
 

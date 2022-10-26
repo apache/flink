@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /** XaSerializersTest. */
-public class CheckpointAndXidSerializersTest extends SerializerTestBase<CheckpointAndXid> {
+class CheckpointAndXidSerializersTest extends SerializerTestBase<CheckpointAndXid> {
     private static final CheckpointAndXid CHECKPOINT_AND_XID =
             CheckpointAndXid.createRestored(1L, 1, XidImplTest.XID);
 

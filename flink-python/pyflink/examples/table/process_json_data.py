@@ -20,6 +20,7 @@ import sys
 
 from pyflink.table import (EnvironmentSettings, TableEnvironment, DataTypes, TableDescriptor,
                            Schema)
+from pyflink.table.expressions import col
 
 
 def process_json_data():
@@ -45,7 +46,7 @@ def process_json_data():
                                .build())
                        .build())
 
-    table = table.select(table.id, table.data.json_value('$.addr.country', DataTypes.STRING()))
+    table = table.select(col('id'), col('data').json_value('$.addr.country', DataTypes.STRING()))
 
     # execute
     table.execute_insert('sink') \

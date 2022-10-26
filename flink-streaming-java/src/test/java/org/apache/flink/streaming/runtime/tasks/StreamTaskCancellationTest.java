@@ -31,11 +31,15 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.Closeable;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
@@ -45,6 +49,9 @@ import static org.junit.Assert.assertFalse;
 
 /** Tests for the StreamTask cancellation. */
 public class StreamTaskCancellationTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testDoNotInterruptWhileClosing() throws Exception {
@@ -91,7 +98,11 @@ public class StreamTaskCancellationTest extends TestLogger {
 
             Task task =
                     createTask(
-                            CancelFailingTask.class, shuffleEnvironment, cfg, new Configuration());
+                            CancelFailingTask.class,
+                            shuffleEnvironment,
+                            cfg,
+                            new Configuration(),
+                            EXECUTOR_RESOURCE.getExecutor());
 
             // start the task and wait until it runs
             // execution state RUNNING is not enough, we need to wait until the stream task's run()
@@ -217,7 +228,11 @@ public class StreamTaskCancellationTest extends TestLogger {
                 new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
                     createTask(
-                            CancelThrowingTask.class, shuffleEnvironment, cfg, new Configuration());
+                            CancelThrowingTask.class,
+                            shuffleEnvironment,
+                            cfg,
+                            new Configuration(),
+                            EXECUTOR_RESOURCE.getExecutor());
 
             task.startTaskThread();
             task.getExecutingThread().join();

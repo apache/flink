@@ -18,6 +18,7 @@
 
 package org.apache.flink.orc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
@@ -26,12 +27,15 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
+import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInputFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -40,6 +44,7 @@ import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -83,6 +88,13 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         return orcProperties;
     }
 
+    private static Configuration getOrcConfiguration(ReadableConfig formatOptions) {
+        Properties properties = getOrcProperties(formatOptions);
+        Configuration hadoopConf = new Configuration();
+        properties.forEach((k, v) -> hadoopConf.set(k.toString(), v.toString()));
+        return hadoopConf;
+    }
+
     @Override
     public BulkDecodingFormat<RowData> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
@@ -115,9 +127,12 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         };
     }
 
-    private static class OrcBulkDecodingFormat
+    /** OrcBulkDecodingFormat which implements {@link FileBasedStatisticsReportableInputFormat}. */
+    @VisibleForTesting
+    public static class OrcBulkDecodingFormat
             implements BulkDecodingFormat<RowData>,
-                    ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>> {
+                    ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>>,
+                    FileBasedStatisticsReportableInputFormat {
 
         private final ReadableConfig formatOptions;
         private List<ResolvedExpression> filters;
@@ -142,13 +157,9 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                 }
             }
 
-            Properties properties = getOrcProperties(formatOptions);
-            Configuration conf = new Configuration();
-            properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
-
             return OrcColumnarRowInputFormat.createPartitionedFormat(
                     OrcShim.defaultShim(),
-                    conf,
+                    getOrcConfiguration(formatOptions),
                     (RowType) producedDataType.getLogicalType(),
                     Collections.emptyList(),
                     null,
@@ -166,6 +177,12 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         @Override
         public void applyFilters(List<ResolvedExpression> filters) {
             this.filters = filters;
+        }
+
+        @Override
+        public TableStats reportStatistics(List<Path> files, DataType producedDataType) {
+            return OrcFormatStatisticsReportUtil.getTableStatistics(
+                    files, producedDataType, getOrcConfiguration(formatOptions));
         }
     }
 }

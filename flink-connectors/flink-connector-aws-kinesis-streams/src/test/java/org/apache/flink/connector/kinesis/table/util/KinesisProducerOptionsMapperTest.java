@@ -20,19 +20,18 @@ package org.apache.flink.connector.kinesis.table.util;
 
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.kinesis.table.util.KinesisStreamsConnectorOptionsUtils.KinesisProducerOptionsMapper;
-import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /** Unit tests for {@link KinesisProducerOptionsMapper}. */
-public class KinesisProducerOptionsMapperTest extends TestLogger {
+class KinesisProducerOptionsMapperTest {
 
     @Test
-    public void testProducerVerifyCertificateOptionsMapping() {
+    void testProducerVerifyCertificateOptionsMapping() {
         Map<String, String> deprecatedOptions = new HashMap<>();
         deprecatedOptions.put("sink.producer.verify-certificate", "false");
         Map<String, String> expectedOptions = new HashMap<>();
@@ -48,7 +47,7 @@ public class KinesisProducerOptionsMapperTest extends TestLogger {
     }
 
     @Test
-    public void testProducerEndpointExtraction() {
+    void testProducerEndpointExtraction() {
         Map<String, String> deprecatedOptions = new HashMap<>();
         Map<String, String> expectedOptions = new HashMap<>();
         deprecatedOptions.put("sink.producer.kinesis-endpoint", "some-end-point.kinesis");
@@ -63,7 +62,7 @@ public class KinesisProducerOptionsMapperTest extends TestLogger {
     }
 
     @Test
-    public void testProducerEndpointAndPortExtraction() {
+    void testProducerEndpointAndPortExtraction() {
         Map<String, String> deprecatedOptions = new HashMap<>();
         Map<String, String> expectedOptions = new HashMap<>();
         deprecatedOptions.put("sink.producer.kinesis-endpoint", "some-end-point.kinesis");

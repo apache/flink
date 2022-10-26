@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.sql.parser.SqlPartitionUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions;
 import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
@@ -117,8 +120,8 @@ public class HiveTestUtils {
             String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
             String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 
+            HiveConf.setHiveSiteLocation(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             HiveConf hiveConf = new HiveConf();
-            hiveConf.addResource(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             hiveConf.setVar(
                     HiveConf.ConfVars.METASTOREWAREHOUSE,
                     TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());
@@ -153,10 +156,24 @@ public class HiveTestUtils {
 
     public static TableEnvironment createTableEnvInBatchMode(SqlDialect dialect) {
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         tableEnv.getConfig().setSqlDialect(dialect);
+        return tableEnv;
+    }
+
+    public static TableEnvironment createTableEnvInBatchModeWithAdaptiveScheduler() {
+        EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
+        settings.getConfiguration()
+                .set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
+        settings.getConfiguration()
+                .set(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM, 4);
+        settings.getConfiguration()
+                .set(
+                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
+                        MemorySize.parse("150kb"));
+        settings.getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, -1);
+        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         return tableEnv;
     }
 
@@ -168,9 +185,7 @@ public class HiveTestUtils {
     public static StreamTableEnvironment createTableEnvInStreamingMode(
             StreamExecutionEnvironment env, SqlDialect dialect) {
         StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         tableEnv.getConfig().setSqlDialect(dialect);
         return tableEnv;
     }

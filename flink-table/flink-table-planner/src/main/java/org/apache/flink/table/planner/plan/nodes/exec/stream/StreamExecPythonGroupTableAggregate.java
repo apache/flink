@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -41,6 +42,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -73,6 +75,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
     private final boolean needRetraction;
 
     public StreamExecPythonGroupTableAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -84,6 +87,8 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonGroupTableAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonGroupTableAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -113,6 +118,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
 
         final AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
@@ -125,16 +131,18 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
         DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
         Configuration pythonConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
+                CommonPythonUtil.extractPythonConfiguration(
+                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonTableAggregateFunctionOperator(
                         pythonConfig,
+                        planner.getFlinkContext().getClassLoader(),
                         inputRowType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         pythonFunctionInfos,
                         dataViewSpecs,
                         config.getStateRetentionTime(),
-                        config.getMaxIdleStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         generateUpdateBefore,
                         inputCountIndex);
 
@@ -147,13 +155,17 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
+                pythonConfig, planner.getFlinkContext().getClassLoader())) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
         return transform;
@@ -162,6 +174,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonTableAggregateFunctionOperator(
             Configuration config,
+            ClassLoader classLoader,
             RowType inputRowType,
             RowType outputRowType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
@@ -170,7 +183,9 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
             long maxIdleStateRetentionTime,
             boolean generateUpdateBefore,
             int indexOfCountStar) {
-        Class<?> clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME);
+        Class<?> clazz =
+                CommonPythonUtil.loadClass(
+                        PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME, classLoader);
         try {
             Constructor<?> ctor =
                     clazz.getConstructor(

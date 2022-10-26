@@ -32,7 +32,7 @@ public enum ResultPartitionType {
      * {@link #PIPELINED} partitions), but only released through the scheduler, when it determines
      * that the partition is no longer needed.
      */
-    BLOCKING(false, false, false, false, true),
+    BLOCKING(true, false, false, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
 
     /**
      * BLOCKING_PERSISTENT partitions are similar to {@link #BLOCKING} partitions, but have a
@@ -45,7 +45,7 @@ public enum ResultPartitionType {
      * scenarios, like when the TaskManager exits or when the TaskManager loses connection to
      * JobManager / ResourceManager for too long.
      */
-    BLOCKING_PERSISTENT(false, false, false, true, true),
+    BLOCKING_PERSISTENT(true, false, true, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
 
     /**
      * A pipelined streaming data exchange. This is applicable to both bounded and unbounded
@@ -57,7 +57,7 @@ public enum ResultPartitionType {
      * <p>This result partition type may keep an arbitrary amount of data in-flight, in contrast to
      * the {@link #PIPELINED_BOUNDED} variant.
      */
-    PIPELINED(true, true, false, false, false),
+    PIPELINED(false, false, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool.
@@ -70,7 +70,8 @@ public enum ResultPartitionType {
      * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there
      * are no checkpoint barriers.
      */
-    PIPELINED_BOUNDED(true, true, true, false, false),
+    PIPELINED_BOUNDED(
+            false, true, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool to support downstream task to
@@ -81,13 +82,33 @@ public enum ResultPartitionType {
      * in that {@link #PIPELINED_APPROXIMATE} partition can be reconnected after down stream task
      * fails.
      */
-    PIPELINED_APPROXIMATE(true, true, true, false, true);
+    PIPELINED_APPROXIMATE(
+            false, true, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.UPSTREAM),
 
-    /** Can the partition be consumed while being produced? */
-    private final boolean isPipelined;
+    /**
+     * Hybrid partitions with a bounded (local) buffer pool to support downstream task to
+     * simultaneous reading and writing shuffle data.
+     *
+     * <p>Hybrid partitions can be consumed any time, whether fully produced or not.
+     *
+     * <p>HYBRID_FULL partitions can be consumed repeatedly, but it does not support concurrent
+     * consumption. So re-consumable is false, but double calculation can be avoided during
+     * failover.
+     */
+    // TODO support re-consumable for HYBRID_FULL resultPartitionType.
+    HYBRID_FULL(false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER),
 
-    /** Does the partition produce back pressure when not consumed? */
-    private final boolean hasBackPressure;
+    /**
+     * HYBRID_SELECTIVE partitions are similar to {@link #HYBRID_FULL} partitions, but it cannot be
+     * consumed repeatedly.
+     */
+    HYBRID_SELECTIVE(
+            false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
+
+    /**
+     * Can this result partition be consumed by multiple downstream consumers for multiple times.
+     */
+    private final boolean isReconsumable;
 
     /** Does this partition use a limited number of (network) buffers? */
     private final boolean isBounded;
@@ -95,46 +116,93 @@ public enum ResultPartitionType {
     /** This partition will not be released after consuming if 'isPersistent' is true. */
     private final boolean isPersistent;
 
+    private final ConsumingConstraint consumingConstraint;
+
+    private final ReleaseBy releaseBy;
+
+    /** ConsumingConstraint indicates when can the downstream consume the upstream. */
+    private enum ConsumingConstraint {
+        /** Upstream must be finished before downstream consume. */
+        BLOCKING,
+        /** Downstream can consume while upstream is running. */
+        CAN_BE_PIPELINED,
+        /** Downstream must consume while upstream is running. */
+        MUST_BE_PIPELINED
+    }
+
     /**
-     * Can the partition be reconnected.
+     * ReleaseBy indicates who is responsible for releasing the result partition.
      *
-     * <p>Attention: this attribute is introduced temporally for
-     * ResultPartitionType.PIPELINED_APPROXIMATE It will be removed afterwards: TODO: 1. Approximate
-     * local recovery has its won failover strategy to restart the failed set of tasks instead of
-     * restarting downstream of failed tasks depending on {@code
-     * RestartPipelinedRegionFailoverStrategy} 2. FLINK-19895: Unify the life cycle of
-     * ResultPartitionType Pipelined Family
+     * <p>Attention: This may only be a short-term solution to deal with the partition release
+     * logic. We can discuss the issue of unifying the partition release logic in FLINK-27948. Once
+     * the ticket is resolved, we can remove the enumeration here.
      */
-    private final boolean isReconnectable;
+    private enum ReleaseBy {
+        UPSTREAM,
+        SCHEDULER
+    }
 
     /** Specifies the behaviour of an intermediate result partition at runtime. */
     ResultPartitionType(
-            boolean isPipelined,
-            boolean hasBackPressure,
+            boolean isReconsumable,
             boolean isBounded,
             boolean isPersistent,
-            boolean isReconnectable) {
-        this.isPipelined = isPipelined;
-        this.hasBackPressure = hasBackPressure;
+            ConsumingConstraint consumingConstraint,
+            ReleaseBy releaseBy) {
+        this.isReconsumable = isReconsumable;
         this.isBounded = isBounded;
         this.isPersistent = isPersistent;
-        this.isReconnectable = isReconnectable;
+        this.consumingConstraint = consumingConstraint;
+        this.releaseBy = releaseBy;
     }
 
-    public boolean hasBackPressure() {
-        return hasBackPressure;
+    /** return if this partition's upstream and downstream must be scheduled in the same time. */
+    public boolean mustBePipelinedConsumed() {
+        return consumingConstraint == ConsumingConstraint.MUST_BE_PIPELINED;
     }
 
-    public boolean isBlocking() {
-        return !isPipelined;
+    /** return if this partition's upstream and downstream support scheduling in the same time. */
+    public boolean canBePipelinedConsumed() {
+        return consumingConstraint == ConsumingConstraint.CAN_BE_PIPELINED
+                || consumingConstraint == ConsumingConstraint.MUST_BE_PIPELINED;
     }
 
-    public boolean isPipelined() {
-        return isPipelined;
+    public boolean isReleaseByScheduler() {
+        return releaseBy == ReleaseBy.SCHEDULER;
     }
 
-    public boolean isReconnectable() {
-        return isReconnectable;
+    public boolean isReleaseByUpstream() {
+        return releaseBy == ReleaseBy.UPSTREAM;
+    }
+
+    /**
+     * {@link #isBlockingOrBlockingPersistentResultPartition()} is used to judge whether it is the
+     * specified {@link #BLOCKING} or {@link #BLOCKING_PERSISTENT} resultPartitionType.
+     *
+     * <p>this method suitable for judgment conditions related to the specific implementation of
+     * {@link ResultPartitionType}.
+     *
+     * <p>this method not related to data consumption and partition release. As for the logic
+     * related to partition release, use {@link #isReleaseByScheduler()} instead, and as consume
+     * type, use {@link #mustBePipelinedConsumed()} or {@link #canBePipelinedConsumed()} instead.
+     */
+    public boolean isBlockingOrBlockingPersistentResultPartition() {
+        return this == BLOCKING || this == BLOCKING_PERSISTENT;
+    }
+
+    /**
+     * {@link #isPipelinedOrPipelinedBoundedResultPartition()} is used to judge whether it is the
+     * specified {@link #PIPELINED} or {@link #PIPELINED_BOUNDED} resultPartitionType.
+     *
+     * <p>This method suitable for judgment conditions related to the specific implementation of
+     * {@link ResultPartitionType}.
+     *
+     * <p>This method not related to data consumption and partition release. As for the logic
+     * related to partition release, use {@link #isReleaseByScheduler()} instead, and as consume
+     * type, use {@link #mustBePipelinedConsumed()} or {@link #canBePipelinedConsumed()} instead.
+     */
+    public boolean isPipelinedOrPipelinedBoundedResultPartition() {
+        return this == PIPELINED || this == PIPELINED_BOUNDED;
     }
 
     /**
@@ -148,5 +216,15 @@ public enum ResultPartitionType {
 
     public boolean isPersistent() {
         return isPersistent;
+    }
+
+    public boolean supportCompression() {
+        return isBlockingOrBlockingPersistentResultPartition()
+                || this == HYBRID_FULL
+                || this == HYBRID_SELECTIVE;
+    }
+
+    public boolean isReconsumable() {
+        return isReconsumable;
     }
 }

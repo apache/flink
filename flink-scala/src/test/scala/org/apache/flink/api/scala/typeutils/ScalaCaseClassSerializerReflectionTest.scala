@@ -15,19 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTest._
 import org.apache.flink.util.TestLogger
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-
-/**
-  * Test obtaining the primary constructor of a case class
-  * via reflection.
-  */
+/** Test obtaining the primary constructor of a case class via reflection. */
 class ScalaCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
@@ -88,7 +84,7 @@ class ScalaCaseClassSerializerReflectionTest extends TestLogger {
       1.asInstanceOf[AnyRef],
       new DegreeCelsius(0.5f).asInstanceOf[AnyRef]
     )
-    
+
     val actual = constructor(arguments)
 
     assertEquals(Measurement(1, new DegreeCelsius(0.5f)), actual)

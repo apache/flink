@@ -55,6 +55,15 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> {
         return new CopyOnWriteStateMap<>(getStateSerializer());
     }
 
+    @Override
+    public void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+        super.setMetaInfo(metaInfo);
+        for (StateMap<K, N, S> keyGroupedStateMap : keyGroupedStateMaps) {
+            ((CopyOnWriteStateMap<K, N, S>) keyGroupedStateMap)
+                    .setStateSerializer(metaInfo.getStateSerializer());
+        }
+    }
+
     // Snapshotting
     // ----------------------------------------------------------------------------------------------------
 

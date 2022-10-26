@@ -46,13 +46,13 @@ public class StandaloneLeaderElectionTest extends TestLogger {
             leaderElectionService.start(contender);
             leaderRetrievalService.start(testingListener);
 
-            contender.waitForLeader(1000l);
+            contender.waitForLeader();
 
             assertTrue(contender.isLeader());
             assertEquals(
                     HighAvailabilityServices.DEFAULT_LEADER_ID, contender.getLeaderSessionID());
 
-            testingListener.waitForNewLeader(1000l);
+            testingListener.waitForNewLeader();
 
             assertEquals(TEST_URL, testingListener.getAddress());
             assertEquals(

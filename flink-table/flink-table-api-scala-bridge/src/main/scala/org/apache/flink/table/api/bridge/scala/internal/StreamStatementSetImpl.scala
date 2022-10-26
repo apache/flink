@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api.bridge.scala.internal
 
 import org.apache.flink.annotation.Internal
+import org.apache.flink.table.api.{ExplainDetail, Table, TableDescriptor, TablePipeline}
 import org.apache.flink.table.api.bridge.scala.StreamStatementSet
 import org.apache.flink.table.api.internal.StatementSetImpl
-import org.apache.flink.table.api.{ExplainDetail, Table, TableDescriptor, TablePipeline}
 
 /** Implementation for [[StreamStatementSet]]. */
 @Internal
 class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
-    extends StatementSetImpl[StreamTableEnvironmentImpl](tableEnvironment)
-    with StreamStatementSet {
+  extends StatementSetImpl[StreamTableEnvironmentImpl](tableEnvironment)
+  with StreamStatementSet {
 
   override def add(tablePipeline: TablePipeline): StreamStatementSet = {
     super.add(tablePipeline).asInstanceOf[StreamStatementSet]
@@ -44,8 +43,7 @@ class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
   override def addInsert(
       targetPath: String,
       table: Table,
-      overwrite: Boolean)
-    : StreamStatementSet = {
+      overwrite: Boolean): StreamStatementSet = {
     super.addInsert(targetPath, table, overwrite).asInstanceOf[StreamStatementSet]
   }
 
@@ -56,8 +54,7 @@ class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
   override def addInsert(
       targetDescriptor: TableDescriptor,
       table: Table,
-      overwrite: Boolean)
-    : StreamStatementSet = {
+      overwrite: Boolean): StreamStatementSet = {
     super.addInsert(targetDescriptor, table, overwrite).asInstanceOf[StreamStatementSet]
   }
 
@@ -69,8 +66,7 @@ class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
   override def attachAsDataStream(): Unit = {
     try {
       tableEnvironment.attachAsDataStream(operations)
-    }
-    finally {
+    } finally {
       operations.clear()
     }
   }

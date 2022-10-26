@@ -59,7 +59,7 @@ class AvroBulkFormatTest {
 
     private static final List<RowData> TEST_DATA =
             Arrays.asList(
-                    // -------- batch 0, block start 186 --------
+                    // -------- batch 0, block start 232 --------
                     GenericRowData.of(
                             StringData.fromString("AvroBulk"), StringData.fromString("FormatTest")),
                     GenericRowData.of(
@@ -71,20 +71,20 @@ class AvroBulkFormatTest {
                                             + "以为流觞曲水，列坐其次。虽无丝竹管弦之盛，一觞一咏，亦足以畅"
                                             + "叙幽情。"),
                             StringData.fromString("")),
-                    // -------- batch 1, block start 547 --------
+                    // -------- batch 1, block start 593 --------
                     GenericRowData.of(
                             StringData.fromString("File"), StringData.fromString("Format")),
                     GenericRowData.of(
                             null,
                             StringData.fromString(
                                     "This is a string with English, 中文 and even 🍎🍌🍑🥝🍍🥭🍐")),
-                    // -------- batch 2, block start 659 --------
+                    // -------- batch 2, block start 705 --------
                     GenericRowData.of(
                             StringData.fromString("block with"),
                             StringData.fromString("only one record"))
-                    // -------- file length 706 --------
+                    // -------- file length 752 --------
                     );
-    private static final List<Integer> BLOCK_STARTS = Arrays.asList(186, 547, 659);
+    private static final List<Long> BLOCK_STARTS = Arrays.asList(232L, 593L, 705L);
 
     private File tmpFile;
 
@@ -101,13 +101,23 @@ class AvroBulkFormatTest {
         DatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(schema);
         DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(datumWriter);
         dataFileWriter.create(schema, out);
-        dataFileWriter.setSyncInterval(64);
 
-        for (RowData rowData : TEST_DATA) {
-            dataFileWriter.append((GenericRecord) converter.convert(schema, rowData));
-        }
-
+        //  Generate the sync points manually in order to test blocks.
+        long syncBlock1 = dataFileWriter.sync();
+        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(0)));
+        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(1)));
+        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(2)));
+        long syncBlock2 = dataFileWriter.sync();
+        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(3)));
+        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(4)));
+        long syncBlock3 = dataFileWriter.sync();
+        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(5)));
+        long syncEnd = dataFileWriter.sync();
         dataFileWriter.close();
+
+        // These values should be constant if nothing else changes with the file.
+        assertThat(BLOCK_STARTS).isEqualTo(Arrays.asList(syncBlock1, syncBlock2, syncBlock3));
+        assertThat(tmpFile).hasSize(syncEnd);
     }
 
     @AfterEach

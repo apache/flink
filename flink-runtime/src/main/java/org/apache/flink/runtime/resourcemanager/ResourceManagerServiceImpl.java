@@ -30,6 +30,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -346,6 +347,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,
@@ -362,6 +364,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                         rpcService,
                         highAvailabilityServices,
                         heartbeatServices,
+                        delegationTokenManager,
                         fatalErrorHandler,
                         clusterInformation,
                         webInterfaceUrl,

@@ -350,9 +350,11 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
             ConsumedPartitionGroup consumedPartitionGroup =
                     ConsumedPartitionGroup.fromMultiplePartitions(
+                            consumers.size(),
                             resultPartitions.stream()
                                     .map(TestingSchedulingResultPartition::getId)
-                                    .collect(Collectors.toList()));
+                                    .collect(Collectors.toList()),
+                            resultPartitions.get(0).getResultType());
             Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                     consumedPartitionById =
                             resultPartitions.stream()

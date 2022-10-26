@@ -27,6 +27,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -68,11 +69,8 @@ class CastInputTypeStrategy implements InputTypeStrategy {
             return Optional.of(argumentDataTypes);
         }
         if (!supportsExplicitCast(fromType, toType)) {
-            if (throwOnFailure) {
-                throw callContext.newValidationError(
-                        "Unsupported cast from '%s' to '%s'.", fromType, toType);
-            }
-            return Optional.empty();
+            return callContext.fail(
+                    throwOnFailure, "Unsupported cast from '%s' to '%s'.", fromType, toType);
         }
         return Optional.of(argumentDataTypes);
     }
@@ -80,7 +78,6 @@ class CastInputTypeStrategy implements InputTypeStrategy {
     @Override
     public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
         return Collections.singletonList(
-                Signature.of(
-                        Signature.Argument.of("<ANY>"), Signature.Argument.of("<TYPE LITERAL>")));
+                Signature.of(Argument.ofGroup("ANY"), Argument.ofGroup("TYPE LITERAL")));
     }
 }

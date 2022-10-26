@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -28,9 +27,7 @@ import org.apache.calcite.rel.rules.{CoreRules, PruneEmptyRules}
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[FlinkPruneEmptyRules]].
-  */
+/** Test for [[FlinkPruneEmptyRules]]. */
 class FlinkPruneEmptyRulesTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -49,7 +46,8 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
           CoreRules.PROJECT_REDUCE_EXPRESSIONS,
           PruneEmptyRules.FILTER_INSTANCE,
           PruneEmptyRules.PROJECT_INSTANCE,
-          FlinkPruneEmptyRules.JOIN_RIGHT_INSTANCE))
+          FlinkPruneEmptyRules.JOIN_RIGHT_INSTANCE
+        ))
         .build()
     )
     util.replaceBatchProgram(programs)

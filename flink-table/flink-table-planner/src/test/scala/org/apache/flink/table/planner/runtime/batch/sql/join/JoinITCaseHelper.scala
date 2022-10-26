@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 
-/**
-  * providing join it case utility functions.
-  */
+/** providing join it case utility functions. */
 object JoinITCaseHelper {
 
   def disableBroadcastHashJoin(tEnv: TableEnvironment): Unit = {

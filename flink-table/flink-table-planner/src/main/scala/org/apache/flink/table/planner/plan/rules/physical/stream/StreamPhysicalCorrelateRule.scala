@@ -24,16 +24,14 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalC
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule.{getMergedCalc, getTableScan}
 import org.apache.flink.table.planner.plan.utils.PythonUtil
 
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.{RexNode, RexProgram, RexProgramBuilder}
 
-/**
- * Rule that converts [[FlinkLogicalCorrelate]] to [[StreamPhysicalCorrelate]].
- */
+/** Rule that converts [[FlinkLogicalCorrelate]] to [[StreamPhysicalCorrelate]]. */
 class StreamPhysicalCorrelateRule
   extends ConverterRule(
     classOf[FlinkLogicalCorrelate],
@@ -68,8 +66,8 @@ class StreamPhysicalCorrelateRule
   override def convert(rel: RelNode): RelNode = {
     val correlate = rel.asInstanceOf[FlinkLogicalCorrelate]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val convInput: RelNode = RelOptRule.convert(
-      correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
+    val convInput: RelNode =
+      RelOptRule.convert(correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
     val right: RelNode = correlate.getInput(1)
 
     @scala.annotation.tailrec
@@ -122,7 +120,8 @@ object StreamPhysicalCorrelateRule {
             bottomCalc.getProgram,
             topCalc.getCluster.getRexBuilder)
         assert(mergedProgram.getOutputRowType eq topProgram.getOutputRowType)
-        topCalc.copy(topCalc.getTraitSet, bottomCalc.getInput, mergedProgram)
+        topCalc
+          .copy(topCalc.getTraitSet, bottomCalc.getInput, mergedProgram)
           .asInstanceOf[FlinkLogicalCalc]
       case _ =>
         calc

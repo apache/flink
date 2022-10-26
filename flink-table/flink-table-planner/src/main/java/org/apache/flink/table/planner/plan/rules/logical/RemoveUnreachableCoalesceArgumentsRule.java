@@ -31,6 +31,7 @@ import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
@@ -58,9 +59,6 @@ public class RemoveUnreachableCoalesceArgumentsRule
     public static final RelOptRule CALC_INSTANCE =
             Config.EMPTY.as(Config.class).withCalc().toRule();
 
-    private static final UnreachableCoalesceArgumentsRemoveRexShuttle REX_SHUTTLE_INSTANCE =
-            new UnreachableCoalesceArgumentsRemoveRexShuttle();
-
     public RemoveUnreachableCoalesceArgumentsRule(Config config) {
         super(config);
     }
@@ -68,10 +66,17 @@ public class RemoveUnreachableCoalesceArgumentsRule
     @Override
     public void onMatch(RelOptRuleCall call) {
         final RelNode relNode = call.rel(0);
-        call.transformTo(relNode.accept(REX_SHUTTLE_INSTANCE));
+        final RexBuilder rexBuilder = relNode.getCluster().getRexBuilder();
+        call.transformTo(
+                relNode.accept(new UnreachableCoalesceArgumentsRemoveRexShuttle(rexBuilder)));
     }
 
     private static class UnreachableCoalesceArgumentsRemoveRexShuttle extends RexShuttle {
+        private final RexBuilder rexBuilder;
+
+        private UnreachableCoalesceArgumentsRemoveRexShuttle(RexBuilder rexBuilder) {
+            this.rexBuilder = rexBuilder;
+        }
 
         @Override
         public RexNode visitCall(RexCall call) {
@@ -86,7 +91,12 @@ public class RemoveUnreachableCoalesceArgumentsRule
 
             // If it's the first argument, just return the argument without the coalesce invocation
             if (firstNonNullableArgIndex == 0) {
-                return call.operands.get(0);
+                RexNode operand = call.operands.get(0);
+                if (call.getType().equals(operand.getType())) {
+                    return operand;
+                } else {
+                    return rexBuilder.makeCast(call.getType(), operand);
+                }
             }
 
             // If it's the last argument, or no non-null argument was found, return the original

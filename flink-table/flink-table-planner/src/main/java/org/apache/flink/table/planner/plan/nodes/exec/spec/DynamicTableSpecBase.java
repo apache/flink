@@ -31,24 +31,20 @@ import java.util.Map;
 class DynamicTableSpecBase {
 
     Map<String, String> loadOptionsFromCatalogTable(
-            ContextResolvedTable contextResolvedTable, FlinkContext flinkContext) {
+            ContextResolvedTable contextResolvedTable, FlinkContext context) {
         // We need to load options from the catalog only if PLAN_RESTORE_CATALOG_OBJECTS == ALL and
         // the table is permanent.
         // In case of CatalogPlanRestore.ALL_ENFORCED, catalog querying is disabled.
         // In case of CatalogPlanRestore.IDENTIFIER, getCatalogTable() already returns the table
         //  loaded from the catalog
         final TableConfigOptions.CatalogPlanRestore catalogPlanRestore =
-                flinkContext
-                        .getTableConfig()
-                        .getConfiguration()
-                        .get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
+                context.getTableConfig().get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
         if (!contextResolvedTable.isPermanent()
                 || catalogPlanRestore != TableConfigOptions.CatalogPlanRestore.ALL) {
             return Collections.emptyMap();
         }
 
-        return flinkContext
-                .getCatalogManager()
+        return context.getCatalogManager()
                 .getTable(contextResolvedTable.getIdentifier())
                 .map(ContextResolvedTable::<ResolvedCatalogTable>getResolvedTable)
                 .map(CatalogBaseTable::getOptions)

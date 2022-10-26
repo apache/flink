@@ -54,7 +54,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveTableFactory}. */
 public class HiveTableFactoryTest {
@@ -87,7 +87,7 @@ public class HiveTableFactoryTest {
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
 
         final Optional<TableFactory> tableFactoryOpt = catalog.getTableFactory();
-        assertTrue(tableFactoryOpt.isPresent());
+        assertThat(tableFactoryOpt).isPresent();
         final HiveTableFactory tableFactory = (HiveTableFactory) tableFactoryOpt.get();
 
         final TableSource tableSource =
@@ -97,7 +97,7 @@ public class HiveTableFactoryTest {
                                 table,
                                 new Configuration(),
                                 false));
-        assertTrue(tableSource instanceof StreamTableSource);
+        assertThat(tableSource).isInstanceOf(StreamTableSource.class);
 
         final TableSink tableSink =
                 tableFactory.createTableSink(
@@ -107,7 +107,7 @@ public class HiveTableFactoryTest {
                                 new Configuration(),
                                 true,
                                 false));
-        assertTrue(tableSink instanceof StreamTableSink);
+        assertThat(tableSink).isInstanceOf(StreamTableSink.class);
     }
 
     @Test
@@ -135,7 +135,7 @@ public class HiveTableFactoryTest {
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);
-        assertTrue(tableSource instanceof HiveTableSource);
+        assertThat(tableSource).isInstanceOf(HiveTableSource.class);
 
         final DynamicTableSink tableSink =
                 FactoryUtil.createDynamicTableSink(
@@ -146,6 +146,6 @@ public class HiveTableFactoryTest {
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);
-        assertTrue(tableSink instanceof HiveTableSink);
+        assertThat(tableSink).isInstanceOf(HiveTableSink.class);
     }
 }

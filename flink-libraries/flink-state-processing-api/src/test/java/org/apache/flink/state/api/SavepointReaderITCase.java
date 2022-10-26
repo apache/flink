@@ -43,17 +43,18 @@ public class SavepointReaderITCase extends SavepointReaderITTestBase {
 
     @Override
     public DataStream<Integer> readListState(SavepointReader savepoint) throws IOException {
-        return savepoint.readListState(UID, LIST_NAME, Types.INT);
+        return savepoint.readListState(OperatorIdentifier.forUid(UID), LIST_NAME, Types.INT);
     }
 
     @Override
     public DataStream<Integer> readUnionState(SavepointReader savepoint) throws IOException {
-        return savepoint.readUnionState(UID, UNION_NAME, Types.INT);
+        return savepoint.readUnionState(OperatorIdentifier.forUid(UID), UNION_NAME, Types.INT);
     }
 
     @Override
     public DataStream<Tuple2<Integer, String>> readBroadcastState(SavepointReader savepoint)
             throws IOException {
-        return savepoint.readBroadcastState(UID, BROADCAST_NAME, Types.INT, Types.STRING);
+        return savepoint.readBroadcastState(
+                OperatorIdentifier.forUid(UID), BROADCAST_NAME, Types.INT, Types.STRING);
     }
 }

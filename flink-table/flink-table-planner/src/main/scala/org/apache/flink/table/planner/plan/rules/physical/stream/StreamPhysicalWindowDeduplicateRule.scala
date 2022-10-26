@@ -15,24 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowDeduplicate
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.utils.{RankUtil, WindowUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
 
-/**
- * Rule to convert a [[FlinkLogicalRank]] into a [[StreamPhysicalWindowDeduplicate]].
- */
+/** Rule to convert a [[FlinkLogicalRank]] into a [[StreamPhysicalWindowDeduplicate]]. */
 class StreamPhysicalWindowDeduplicateRule
   extends ConverterRule(
     classOf[FlinkLogicalRank],
@@ -47,7 +44,7 @@ class StreamPhysicalWindowDeduplicateRule
     val windowProperties = fmq.getRelWindowProperties(rank.getInput)
     val partitionKey = rank.partitionKey
     WindowUtil.groupingContainsWindowStartEnd(partitionKey, windowProperties) &&
-      RankUtil.canConvertToDeduplicate(rank)
+    RankUtil.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -63,7 +60,8 @@ class StreamPhysicalWindowDeduplicateRule
       FlinkRelDistribution.SINGLETON
     }
 
-    val requiredTraitSet = rank.getCluster.getPlanner.emptyTraitSet()
+    val requiredTraitSet = rank.getCluster.getPlanner
+      .emptyTraitSet()
       .replace(requiredDistribution)
       .replace(FlinkConventions.STREAM_PHYSICAL)
     val providedTraitSet = rank.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)

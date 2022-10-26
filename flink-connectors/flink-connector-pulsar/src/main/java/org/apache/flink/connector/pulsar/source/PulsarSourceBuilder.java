@@ -33,7 +33,7 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.range.UniformRangeGenerator;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.range.SplitRangeGenerator;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -44,11 +44,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
 import static java.lang.Boolean.FALSE;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAMS;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAM_MAP;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PLUGIN_CLASS_NAME;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONSUMER_NAME;
@@ -97,7 +101,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
  * discovery always expected new splits to come and not exiting. To disable auto partition
  * discovery, use builder.setConfig({@link
- * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
+ * PulsarSourceOptions#PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
  *
  * <pre>{@code
  * PulsarSource<String> source = PulsarSource
@@ -266,7 +270,7 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * The consumer name is informative and it can be used to identify a particular consumer
+     * The consumer name is informative, and it can be used to identify a particular consumer
      * instance from the topic stats.
      */
     public PulsarSourceBuilder<OUT> setConsumerName(String consumerName) {
@@ -321,7 +325,7 @@ public final class PulsarSourceBuilder<OUT> {
      * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
      * discovery always expected new splits to come and not exiting. To disable auto partition
      * discovery, use builder.setConfig({@link
-     * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
+     * PulsarSourceOptions#PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
      *
      * @param stopCursor The {@link StopCursor} to specify the stopping offset.
      * @return this PulsarSourceBuilder.
@@ -334,7 +338,7 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * By default the PulsarSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
+     * By default, the PulsarSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
      * and thus never stops until the Flink job fails or is canceled. To let the PulsarSource run in
      * {@link Boundedness#BOUNDED} manner and stops at some point, one can set an {@link StopCursor}
      * to specify the stopping offsets for each partition. When all the partitions have reached
@@ -367,6 +371,35 @@ public final class PulsarSourceBuilder<OUT> {
         PulsarSourceBuilder<T> self = specialized();
         self.deserializationSchema = deserializationSchema;
         return self;
+    }
+
+    /**
+     * Configure the authentication provider to use in the Pulsar client instance.
+     *
+     * @param authPluginClassName name of the Authentication-Plugin you want to use
+     * @param authParamsString string which represents parameters for the Authentication-Plugin,
+     *     e.g., "key1:val1,key2:val2"
+     * @return this PulsarSourceBuilder.
+     */
+    public PulsarSourceBuilder<OUT> setAuthentication(
+            String authPluginClassName, String authParamsString) {
+        configBuilder.set(PULSAR_AUTH_PLUGIN_CLASS_NAME, authPluginClassName);
+        configBuilder.set(PULSAR_AUTH_PARAMS, authParamsString);
+        return this;
+    }
+
+    /**
+     * Configure the authentication provider to use in the Pulsar client instance.
+     *
+     * @param authPluginClassName name of the Authentication-Plugin you want to use
+     * @param authParams map which represents parameters for the Authentication-Plugin
+     * @return this PulsarSourceBuilder.
+     */
+    public PulsarSourceBuilder<OUT> setAuthentication(
+            String authPluginClassName, Map<String, String> authParams) {
+        configBuilder.set(PULSAR_AUTH_PLUGIN_CLASS_NAME, authPluginClassName);
+        configBuilder.set(PULSAR_AUTH_PARAM_MAP, authParams);
+        return this;
     }
 
     /**
@@ -426,8 +459,8 @@ public final class PulsarSourceBuilder<OUT> {
             if (rangeGenerator == null) {
                 LOG.warn(
                         "No range generator provided for key_shared subscription,"
-                                + " we would use the UniformRangeGenerator as the default range generator.");
-                this.rangeGenerator = new UniformRangeGenerator();
+                                + " we would use the SplitRangeGenerator as the default range generator.");
+                this.rangeGenerator = new SplitRangeGenerator();
             }
         } else {
             // Override the range generator.
@@ -473,9 +506,14 @@ public final class PulsarSourceBuilder<OUT> {
         if (!configBuilder.contains(PULSAR_CONSUMER_NAME)) {
             LOG.warn(
                     "We recommend set a readable consumer name through setConsumerName(String) in production mode.");
+        } else {
+            String consumerName = configBuilder.get(PULSAR_CONSUMER_NAME);
+            if (!consumerName.contains("%s")) {
+                configBuilder.override(PULSAR_CONSUMER_NAME, consumerName + " - %s");
+            }
         }
 
-        // Since these implementation could be a lambda, make sure they are serializable.
+        // Since these implementations could be a lambda, make sure they are serializable.
         checkState(isSerializable(startCursor), "StartCursor isn't serializable");
         checkState(isSerializable(stopCursor), "StopCursor isn't serializable");
         checkState(isSerializable(rangeGenerator), "RangeGenerator isn't serializable");
@@ -496,7 +534,7 @@ public final class PulsarSourceBuilder<OUT> {
 
     // ------------- private helpers  --------------
 
-    /** Helper method for java compiler recognize the generic type. */
+    /** Helper method for java compiler recognizes the generic type. */
     @SuppressWarnings("unchecked")
     private <T extends OUT> PulsarSourceBuilder<T> specialized() {
         return (PulsarSourceBuilder<T>) this;

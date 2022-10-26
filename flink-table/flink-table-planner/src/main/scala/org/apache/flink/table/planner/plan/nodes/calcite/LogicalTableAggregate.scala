@@ -15,20 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
-
-import java.util
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.util.ImmutableBitSet
 
+import java.util
+
 /**
-  * Sub-class of [[TableAggregate]] that is a relational expression which performs aggregations but
-  * outputs 0 or more records for a group. This class corresponds to Calcite logical rel.
-  */
+ * Sub-class of [[TableAggregate]] that is a relational expression which performs aggregations but
+ * outputs 0 or more records for a group. This class corresponds to Calcite logical rel.
+ */
 class LogicalTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

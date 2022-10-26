@@ -23,16 +23,16 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.planner.JList
 import org.apache.flink.types.Row
 
 import org.junit.Assert
 
-import java.lang.Boolean
+import java.util
 
 import scala.annotation.varargs
-
 
 case class SimpleUser(name: String, age: Int)
 
@@ -50,7 +50,7 @@ class TableFunc0 extends TableFunction[SimpleUser] {
 @SerialVersionUID(1L)
 class TableFunc1 extends TableFunction[String] {
   def eval(str: String): Unit = {
-    if (str.contains("#")){
+    if (str.contains("#")) {
       str.split("#").foreach(collect)
     }
   }
@@ -67,12 +67,15 @@ class TableFunc1 extends TableFunction[String] {
 class TableFunc2 extends TableFunction[Row] {
   def eval(str: String): Unit = {
     if (str.contains("#")) {
-      str.split("#").foreach({ s =>
-        val row = new Row(2)
-        row.setField(0, s)
-        row.setField(1, s.length)
-        collect(row)
-      })
+      str
+        .split("#")
+        .foreach({
+          s =>
+            val row = new Row(2)
+            row.setField(0, s)
+            row.setField(1, s.length)
+            collect(row)
+        })
     }
   }
 
@@ -98,12 +101,13 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
             val value = conf.get(key).get
             collect(
               SimpleUser(
-                data.concat("_key=")
-                .concat(key)
-                .concat("_value=")
-                .concat(value)
-                .concat("_")
-                .concat(splits(0)),
+                data
+                  .concat("_key=")
+                  .concat(key)
+                  .concat("_value=")
+                  .concat(value)
+                  .concat("_")
+                  .concat(splits(0)),
                 splits(1).toInt))
           }
         } else {
@@ -117,9 +121,10 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
 }
 
 @SerialVersionUID(1L)
+@DataTypeHint("ROW<x INT, y INT>")
 class MockPythonTableFunction extends TableFunction[Row] with PythonFunction {
 
-  def eval(x: Int, y: Int) = ???
+  def eval(x: java.lang.Integer, y: java.lang.Integer) = ???
 
   override def getResultType: TypeInformation[Row] =
     new RowTypeInfo(Types.INT, Types.INT)
@@ -368,27 +373,18 @@ class MockPythonTableFunction extends TableFunction[Row] with PythonFunction {
 //}
 
 @SerialVersionUID(1L)
+@DataTypeHint("ROW<f0 STRING, f1 STRING, f2 STRING>")
 class TableFunc4 extends TableFunction[Row] {
   def eval(b: Byte, s: Short, f: Float): Unit = {
     collect(Row.of("Byte=" + b, "Short=" + s, "Float=" + f))
   }
-
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.STRING, Types.STRING, Types.STRING)
-  }
 }
 
 @SerialVersionUID(1L)
+@DataTypeHint("ROW<a INT, b INT, c INT>")
 class TableFunc6 extends TableFunction[Row] {
-  def eval(row: Row): Unit = {
+  def eval(@DataTypeHint("ROW<a INT, b INT, c INT>") row: Row): Unit = {
     collect(row)
-  }
-
-  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
-    Array(new RowTypeInfo(Types.INT, Types.INT, Types.INT))
-
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.INT, Types.INT, Types.INT)
   }
 }
 
@@ -396,11 +392,9 @@ class TableFunc6 extends TableFunction[Row] {
 @DataTypeHint("ROW<f0 INT>")
 class TableFunc7 extends TableFunction[Row] {
 
-  def eval(@DataTypeHint("ROW<f0 INT>") row: Row): Unit = {
-  }
+  def eval(@DataTypeHint("ROW<f0 INT>") row: Row): Unit = {}
 
-  def eval(@DataTypeHint("ARRAY<ROW<f0 INT>>") row: java.util.List[Row]): Unit = {
-  }
+  def eval(@DataTypeHint("ARRAY<ROW<f0 INT>>") row: java.util.List[Row]): Unit = {}
 }
 
 @SerialVersionUID(1L)
@@ -421,12 +415,12 @@ class VarArgsFunc0 extends TableFunction[String] {
 }
 
 @SerialVersionUID(1L)
-class HierarchyTableFunction extends SplittableTableFunction[Boolean, Integer] {
+class HierarchyTableFunction extends SplittableTableFunction[java.lang.Boolean, Integer] {
   def eval(user: String) {
     if (user.contains("#")) {
       val splits = user.split("#")
       val age = splits(1).toInt
-      collect(new Tuple3[String, Boolean, Integer](splits(0), age >= 20, age))
+      collect(new Tuple3[String, java.lang.Boolean, Integer](splits(0), age >= 20, age))
     }
   }
 }
@@ -457,7 +451,6 @@ class PojoUser() {
 // ----------------------------------------------------------------------------------------------
 // Invalid Table Functions
 // ----------------------------------------------------------------------------------------------
-
 
 // this is used to check whether scala object is forbidden
 @SerialVersionUID(1L)
@@ -519,5 +512,26 @@ class RichTableFunc1 extends TableFunction[String] {
 
   override def close(): Unit = {
     separator = None
+  }
+}
+
+@SerialVersionUID(1L)
+class RichTableFuncWithFinish extends TableFunction[String] {
+  var buffer: JList[String] = _
+
+  override def open(context: FunctionContext): Unit = {
+    buffer = new util.ArrayList[String]()
+  }
+
+  def eval(str: String): Unit = {
+    buffer.add(str)
+  }
+
+  override def finish(): Unit = {
+    buffer.forEach(collect(_))
+  }
+
+  override def close(): Unit = {
+    buffer = null
   }
 }

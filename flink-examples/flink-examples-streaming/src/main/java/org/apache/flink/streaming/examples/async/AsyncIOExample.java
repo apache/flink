@@ -30,7 +30,7 @@ import org.apache.flink.streaming.examples.async.util.SimpleSource;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-/** Example to illustrates how to use {@link AsyncFunction}. */
+/** Example to illustrate how to use {@link AsyncFunction}. */
 public class AsyncIOExample {
 
     /** An example of {@link AsyncFunction} using an async client to query an external service. */

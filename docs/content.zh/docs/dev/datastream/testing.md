@@ -302,7 +302,6 @@ class StatefulFlatMapTest extends FlatSpec with Matchers with BeforeAndAfter {
 在 Flink 代码库里可以找到更多使用这些测试工具的示例，例如：
 
 * `org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest` 是测试算子和用户自定义函数（取决于处理时间和事件时间）的一个很好的例子。
-* `org.apache.flink.streaming.api.functions.sink.filesystem.LocalStreamingFileSinkTest` 展示了如何使用 `AbstractStreamOperatorTestHarness` 测试自定义 sink。具体来说，它使用 `AbstractStreamOperatorTestHarness.snapshot` 和 `AbstractStreamOperatorTestHarness.initializeState` 来测试它与 Flink checkpoint 机制的交互。
 
 <span class="label label-info">注意</span> `AbstractStreamOperatorTestHarness` 及其派生类目前不属于公共 API，可以进行更改。
 

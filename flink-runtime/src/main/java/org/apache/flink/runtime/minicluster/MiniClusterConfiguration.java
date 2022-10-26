@@ -175,6 +175,7 @@ public class MiniClusterConfiguration {
         private RpcServiceSharing rpcServiceSharing = SHARED;
         @Nullable private String commonBindAddress = null;
         private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
+        private boolean useRandomPorts = false;
 
         public Builder setConfiguration(Configuration configuration1) {
             this.configuration = Preconditions.checkNotNull(configuration1);
@@ -206,6 +207,11 @@ public class MiniClusterConfiguration {
             return this;
         }
 
+        public Builder withRandomPorts() {
+            this.useRandomPorts = true;
+            return this;
+        }
+
         public MiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
             modifiedConfiguration.setInteger(
@@ -213,6 +219,15 @@ public class MiniClusterConfiguration {
             modifiedConfiguration.setString(
                     RestOptions.ADDRESS,
                     modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
+
+            if (useRandomPorts) {
+                if (!configuration.contains(JobManagerOptions.PORT)) {
+                    modifiedConfiguration.set(JobManagerOptions.PORT, 0);
+                }
+                if (!configuration.contains(RestOptions.BIND_PORT)) {
+                    modifiedConfiguration.setString(RestOptions.BIND_PORT, "0");
+                }
+            }
 
             return new MiniClusterConfiguration(
                     modifiedConfiguration,

@@ -77,7 +77,8 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     //  (De)serialization entry points
     // ------------------------------------------------------------------------
 
-    public static void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+    @Override
+    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
             throws IOException {
         INSTANCE.serializeMetadata(checkpointMetadata, dos);
     }

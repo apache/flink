@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
@@ -46,8 +45,9 @@ class LegacySinkTest extends TableTestBase {
   @Test
   def testMultiSinks(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+    util.tableEnv.getConfig.set(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS sum_a, c FROM MyTable GROUP BY c")
     util.tableEnv.registerTable("table1", table1)
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(sum_a) AS total_sum FROM table1")
@@ -66,30 +66,28 @@ class LegacySinkTest extends TableTestBase {
 
   @Test
   def testTableHints(): Unit = {
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'true'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'true'
+                                |)
        """.stripMargin)
 
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MySink (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'OPTIONS',
-         |  'path' = '/tmp/test'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MySink (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'OPTIONS',
+                                |  'path' = '/tmp/test'
+                                |)
        """.stripMargin)
-    val stmtSet= util.tableEnv.createStatementSet()
+    val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(
       "insert into MySink /*+ OPTIONS('path' = '/tmp1') */ select * from MyTable")
     stmtSet.addInsertSql(

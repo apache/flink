@@ -436,7 +436,7 @@ public final class PulsarOptions {
     public static final ConfigOption<Long> PULSAR_MEMORY_LIMIT_BYTES =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "memoryLimitBytes")
                     .longType()
-                    .defaultValue(0L)
+                    .defaultValue(64 * 1024 * 1024L)
                     .withDescription(
                             Description.builder()
                                     .text(

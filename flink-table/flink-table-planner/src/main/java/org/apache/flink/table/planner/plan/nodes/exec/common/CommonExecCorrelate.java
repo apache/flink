@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.CorrelateCodeGenerator;
@@ -72,6 +73,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
     public CommonExecCorrelate(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             FlinkJoinType joinType,
             RexCall invocation,
             @Nullable RexNode condition,
@@ -80,7 +82,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.joinType = checkNotNull(joinType);
         this.invocation = checkNotNull(invocation);
@@ -97,7 +99,8 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(config).setOperatorBaseClass(operatorBaseClass);
+                new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader())
+                        .setOperatorBaseClass(operatorBaseClass);
         return CorrelateCodeGenerator.generateCorrelateTransformation(
                 config,
                 ctx,

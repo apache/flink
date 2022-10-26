@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -39,7 +39,6 @@ public class SerdeContext {
     static final String SERDE_CONTEXT_KEY = "serdeCtx";
 
     private final Parser parser;
-    private final ClassLoader classLoader;
     private final FlinkContext flinkContext;
     private final FlinkTypeFactory typeFactory;
     private final SqlOperatorTable operatorTable;
@@ -48,11 +47,9 @@ public class SerdeContext {
     public SerdeContext(
             Parser parser,
             FlinkContext flinkContext,
-            ClassLoader classLoader,
             FlinkTypeFactory typeFactory,
             SqlOperatorTable operatorTable) {
         this.parser = parser;
-        this.classLoader = classLoader;
         this.flinkContext = flinkContext;
         this.typeFactory = typeFactory;
         this.operatorTable = operatorTable;
@@ -71,12 +68,12 @@ public class SerdeContext {
         return parser;
     }
 
-    public Configuration getConfiguration() {
-        return flinkContext.getTableConfig().getConfiguration();
+    public ReadableConfig getConfiguration() {
+        return flinkContext.getTableConfig();
     }
 
     public ClassLoader getClassLoader() {
-        return classLoader;
+        return flinkContext.getClassLoader();
     }
 
     public FlinkContext getFlinkContext() {

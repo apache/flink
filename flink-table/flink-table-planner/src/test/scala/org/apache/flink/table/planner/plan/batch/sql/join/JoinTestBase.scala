@@ -19,8 +19,8 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
 import org.junit.Test
@@ -209,5 +209,71 @@ abstract class JoinTestBase extends TableTestBase {
          |ON (src1.k = src2.k AND src2.k > 10)
          """.stripMargin
     util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInnerJoinWithFilterPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |   (select a, count(b) as b from MyTable1 group by a)
+                          |   join
+                          |   (select d, count(e) as e from MyTable2 group by d)
+                          |   on true where a = d and b = e and d = 2
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testInnerJoinWithJoinConditionPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |   (select a, count(b) as b from MyTable1 group by a)
+                          |   join
+                          |   (select d, count(e) as e from MyTable2 group by d)
+                          |   on a = d and b = e and d = 2 and b = 1
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testLeftJoinWithFilterPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |   (select a, count(b) as b from MyTable1 group by a)
+                          |   left join
+                          |   (select d, count(e) as e from MyTable2 group by d)
+                          |   on true where a = d and b = e and a = 2
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testLeftJoinWithJoinConditionPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |   (select a, count(b) as b from MyTable1 group by a)
+                          |   left join
+                          |   (select d, count(e) as e from MyTable2 group by d)
+                          |   on a = d and b = e and a = 2 and e = 1
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testRightJoinWithFilterPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |   (select a, count(b) as b from MyTable1 group by a)
+                          |   right join
+                          |   (select d, count(e) as e from MyTable2 group by d)
+                          |   on true where a = d and b = e and d = 2
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testRightJoinWithJoinConditionPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |   (select a, count(b) as b from MyTable1 group by a)
+                          |   right join
+                          |   (select d, count(e) as e from MyTable2 group by d)
+                          |   on a = d and b = e and d = 2 and b = 1
+                          |""".stripMargin)
   }
 }

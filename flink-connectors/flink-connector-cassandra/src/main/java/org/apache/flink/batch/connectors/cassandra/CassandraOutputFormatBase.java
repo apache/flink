@@ -17,116 +17,74 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
-import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.api.common.io.OutputFormatBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import org.apache.flink.util.Preconditions;
 
 import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
-import com.google.common.base.Strings;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
+
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * CassandraOutputFormatBase is the common abstract class for writing into Apache Cassandra.
+ * CassandraOutputFormatBase is the common abstract class for writing into Apache Cassandra using
+ * output formats.
+ *
+ * <p>In case of experiencing the following error: {@code Error while sending value.
+ * com.datastax.driver.core.exceptions.WriteTimeoutException: Cassandra timeout during write query
+ * at consistency LOCAL_ONE (1 replica were required but only 0 acknowledged the write)},
+ *
+ * <p>it is recommended to increase the Cassandra write timeout to adapt to your workload in your
+ * Cassandra cluster so that such timeout errors do not happen. For that you need to raise
+ * write_request_timeout_in_ms conf parameter in your cassandra.yml. Indeed, This exception means
+ * that Cassandra coordinator node (internal Cassandra) waited too long for an internal replication
+ * (replication to another node and did not ack the write. It is not recommended to lower the
+ * replication factor in your Cassandra cluster because it is mandatory that you do not loose data
+ * in case of a Cassandra cluster failure. Waiting for a single replica for write acknowledge is the
+ * minimum level for this guarantee in Cassandra.}
  *
  * @param <OUT> Type of the elements to write.
  */
-public abstract class CassandraOutputFormatBase<OUT> extends RichOutputFormat<OUT> {
+abstract class CassandraOutputFormatBase<OUT, V> extends OutputFormatBase<OUT, V> {
     private static final Logger LOG = LoggerFactory.getLogger(CassandraOutputFormatBase.class);
 
-    private final String insertQuery;
     private final ClusterBuilder builder;
-
     private transient Cluster cluster;
-    private transient Session session;
-    private transient PreparedStatement prepared;
-    private transient FutureCallback<ResultSet> callback;
-    private transient Throwable exception = null;
+    protected transient Session session;
 
-    public CassandraOutputFormatBase(String insertQuery, ClusterBuilder builder) {
-        Preconditions.checkArgument(
-                !Strings.isNullOrEmpty(insertQuery), "Query cannot be null or empty");
+    public CassandraOutputFormatBase(
+            ClusterBuilder builder,
+            int maxConcurrentRequests,
+            Duration maxConcurrentRequestsTimeout) {
+        super(maxConcurrentRequests, maxConcurrentRequestsTimeout);
         Preconditions.checkNotNull(builder, "Builder cannot be null");
-
-        this.insertQuery = insertQuery;
         this.builder = builder;
     }
 
+    /** Configure the connection to Cassandra. */
     @Override
     public void configure(Configuration parameters) {
         this.cluster = builder.getCluster();
     }
 
-    /**
-     * Opens a Session to Cassandra and initializes the prepared statement.
-     *
-     * @param taskNumber The number of the parallel instance.
-     * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
-     */
+    /** Opens a Session to Cassandra . */
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    protected void postOpen() {
         this.session = cluster.connect();
-        this.prepared = session.prepare(insertQuery);
-        this.callback =
-                new FutureCallback<ResultSet>() {
-                    @Override
-                    public void onSuccess(ResultSet ignored) {
-                        onWriteSuccess(ignored);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        onWriteFailure(t);
-                    }
-                };
     }
 
+    /** Closes all resources used by Cassandra connection. */
     @Override
-    public void writeRecord(OUT record) throws IOException {
-        if (exception != null) {
-            throw new IOException("write record failed", exception);
-        }
-
-        Object[] fields = extractFields(record);
-        ResultSetFuture result = session.executeAsync(prepared.bind(fields));
-        Futures.addCallback(result, callback);
-    }
-
-    protected abstract Object[] extractFields(OUT record);
-
-    /**
-     * Callback that is invoked after a record is written to Cassandra successfully.
-     *
-     * <p>Subclass can override to provide its own logic.
-     *
-     * @param ignored the result.
-     */
-    protected void onWriteSuccess(ResultSet ignored) {}
-
-    /**
-     * Callback that is invoked when failing to write to Cassandra. Current implementation will
-     * record the exception and fail the job upon next record.
-     *
-     * <p>Subclass can override to provide its own failure handling logic.
-     *
-     * @param t the exception
-     */
-    protected void onWriteFailure(Throwable t) {
-        exception = t;
-    }
-
-    /** Closes all resources used. */
-    @Override
-    public void close() throws IOException {
+    protected void postClose() {
         try {
             if (session != null) {
                 session.close();
@@ -134,13 +92,38 @@ public abstract class CassandraOutputFormatBase<OUT> extends RichOutputFormat<OU
         } catch (Exception e) {
             LOG.error("Error while closing session.", e);
         }
-
         try {
             if (cluster != null) {
                 cluster.close();
             }
         } catch (Exception e) {
             LOG.error("Error while closing cluster.", e);
+        }
+    }
+
+    protected static <T> CompletableFuture<T> listenableFutureToCompletableFuture(
+            final ListenableFuture<T> listenableFuture) {
+        CompletableFuture<T> completable = new CompletableFuture<T>();
+        Futures.addCallback(listenableFuture, new CompletableFutureCallback<>(completable));
+        return completable;
+    }
+
+    private static class CompletableFutureCallback<T> implements FutureCallback<T> {
+
+        private final CompletableFuture<T> completableFuture;
+
+        public CompletableFutureCallback(CompletableFuture<T> completableFuture) {
+            this.completableFuture = completableFuture;
+        }
+
+        @Override
+        public void onSuccess(@Nullable T result) {
+            completableFuture.complete(result);
+        }
+
+        @Override
+        public void onFailure(Throwable throwable) {
+            completableFuture.completeExceptionally(throwable);
         }
     }
 }

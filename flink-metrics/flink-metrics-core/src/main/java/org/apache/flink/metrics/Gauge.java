@@ -30,4 +30,9 @@ public interface Gauge<T> extends Metric {
      * @return calculated value
      */
     T getValue();
+
+    @Override
+    default MetricType getMetricType() {
+        return MetricType.GAUGE;
+    }
 }

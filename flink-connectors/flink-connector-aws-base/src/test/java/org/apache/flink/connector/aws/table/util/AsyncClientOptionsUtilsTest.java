@@ -19,17 +19,16 @@
 package org.apache.flink.connector.aws.table.util;
 
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
-import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
 /** Unit tests for {@link AsyncClientOptionsUtils}. */
-public class AsyncClientOptionsUtilsTest extends TestLogger {
+class AsyncClientOptionsUtilsTest {
 
     @Test
     public void testGoodAsyncClientOptionsMapping() {
@@ -44,7 +43,7 @@ public class AsyncClientOptionsUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testAsyncClientOptionsUtilsFilteringNonPrefixedOptions() {
+    void testAsyncClientOptionsUtilsFilteringNonPrefixedOptions() {
         Map<String, String> defaultClientOptions = getDefaultClientOptions();
         defaultClientOptions.put("sink.not.http-client.some.option", "someValue");
 
@@ -59,7 +58,7 @@ public class AsyncClientOptionsUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testAsyncClientOptionsUtilsExtractingCorrectConfiguration() {
+    void testAsyncClientOptionsUtilsExtractingCorrectConfiguration() {
         AsyncClientOptionsUtils asyncClientOptionsUtils =
                 new AsyncClientOptionsUtils(getDefaultClientOptions());
 
@@ -70,7 +69,7 @@ public class AsyncClientOptionsUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testAsyncClientOptionsUtilsFailOnInvalidMaxConcurrency() {
+    void testAsyncClientOptionsUtilsFailOnInvalidMaxConcurrency() {
         Map<String, String> defaultClientOptions = getDefaultClientOptions();
         defaultClientOptions.put("sink.http-client.max-concurrency", "invalid-integer");
 
@@ -84,7 +83,7 @@ public class AsyncClientOptionsUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testAsyncClientOptionsUtilsFailOnInvalidReadTimeout() {
+    void testAsyncClientOptionsUtilsFailOnInvalidReadTimeout() {
         Map<String, String> defaultClientOptions = getDefaultClientOptions();
         defaultClientOptions.put("sink.http-client.read-timeout", "invalid-integer");
 
@@ -98,7 +97,7 @@ public class AsyncClientOptionsUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testAsyncClientOptionsUtilsFailOnInvalidHttpProtocol() {
+    void testAsyncClientOptionsUtilsFailOnInvalidHttpProtocol() {
         Map<String, String> defaultProperties = getDefaultClientOptions();
         defaultProperties.put("sink.http-client.protocol.version", "invalid-http-protocol");
 

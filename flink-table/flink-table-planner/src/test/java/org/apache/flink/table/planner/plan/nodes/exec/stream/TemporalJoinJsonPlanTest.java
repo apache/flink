@@ -27,6 +27,8 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /** Test json serialization/deserialization for TemporalJoin. */
 public class TemporalJoinJsonPlanTest extends TableTestBase {
 
@@ -59,7 +61,7 @@ public class TemporalJoinJsonPlanTest extends TableTestBase {
                         + " 'connector' = 'values'\n"
                         + ")");
         TemporalTableFunction ratesHistory =
-                tEnv.from("RatesHistory").createTemporalTableFunction("rowtime", "currency");
+                tEnv.from("RatesHistory").createTemporalTableFunction($("rowtime"), $("currency"));
         tEnv.createTemporarySystemFunction("Rates", ratesHistory);
     }
 

@@ -21,11 +21,12 @@ import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestro
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
+import { ExceptionInfo, RootExceptionInfo } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
+import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
-import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { ExceptionInfo, RootExceptionInfo } from 'interfaces';
-import { JobService } from 'services';
+import { JobLocalService } from '../job-local.service';
 
 interface ExceptionHistoryItem {
   /**
@@ -75,7 +76,11 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
     this.loadMore();
@@ -89,7 +94,8 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
   public loadMore(): void {
     this.isLoading = true;
     this.maxExceptions += 10;
-    this.jobService.jobDetail$
+    this.jobLocalService
+      .jobDetailChanges()
       .pipe(
         distinctUntilChanged((pre, next) => pre.jid === next.jid),
         mergeMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions)),

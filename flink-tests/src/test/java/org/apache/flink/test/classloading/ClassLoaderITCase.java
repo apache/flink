@@ -24,6 +24,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -31,6 +32,7 @@ import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
@@ -40,6 +42,7 @@ import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -56,7 +59,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.Deadline;
@@ -65,6 +67,7 @@ import scala.concurrent.duration.FiniteDuration;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
 import static org.apache.flink.changelog.fs.FsStateChangelogStorageFactory.IDENTIFIER;
 import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -128,6 +131,10 @@ public class ClassLoaderITCase extends TestLogger {
         // can only be set on the cluster level; so we do it unconditionally here.
         config.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
         config.setString(BASE_PATH, FOLDER.newFolder().getAbsolutePath());
+
+        // some tests check for serialization problems related to class-loading
+        // this requires all RPCs to actually go through serialization
+        config.setBoolean(AkkaOptions.FORCE_RPC_INVOCATION_SERIALIZATION, true);
 
         miniClusterResource =
                 new MiniClusterResource(
@@ -238,37 +245,21 @@ public class ClassLoaderITCase extends TestLogger {
                 Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
                 Collections.emptyList());
 
-        try {
-            streamingCheckpointedProg.invokeInteractiveModeForExecution();
-        } catch (Exception e) {
-            // Program should terminate with a 'SuccessException':
-            // the exception class is contained in the user-jar, but is not present on the maven
-            // classpath
-            // the deserialization of the exception should thus fail here
-            Optional<Throwable> exception =
-                    ExceptionUtils.findThrowable(
-                            e,
-                            candidate ->
-                                    candidate
-                                            .getClass()
-                                            .getName()
-                                            .equals(
-                                                    "org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram$SuccessException"));
+        // sanity check that the exception from the user-jar is not on the classpath
+        assertThatThrownBy(
+                        () ->
+                                Class.forName(
+                                        "org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram$SuccessException"))
+                .isInstanceOf(ClassNotFoundException.class);
 
-            if (!exception.isPresent()) {
-                // if this is achieved, either we failed due to another exception or the
-                // user-specific
-                // exception is not serialized between JobManager and JobClient.
-                throw e;
-            }
-
-            try {
-                Class.forName(exception.get().getClass().getName());
-                fail("Deserialization of user exception should have failed.");
-            } catch (ClassNotFoundException expected) {
-                // expected
-            }
-        }
+        // Program should terminate with a 'SuccessException'
+        // the exception should be contained in a SerializedThrowable, which failed to deserialize
+        // the original exception because it is only contained in the user-jar
+        assertThatThrownBy(() -> streamingCheckpointedProg.invokeInteractiveModeForExecution())
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SerializedThrowable.class,
+                                "org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram$SuccessException"));
     }
 
     @Test

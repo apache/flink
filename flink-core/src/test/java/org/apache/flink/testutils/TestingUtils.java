@@ -19,8 +19,8 @@
 package org.apache.flink.testutils;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -35,8 +35,6 @@ public class TestingUtils {
     public static final Time TIMEOUT = Time.minutes(1L);
     public static final Duration DEFAULT_AKKA_ASK_TIMEOUT = Duration.ofSeconds(200);
 
-    private static ScheduledExecutorService sharedExecutorInstance;
-
     public static Time infiniteTime() {
         return Time.milliseconds(Integer.MAX_VALUE);
     }
@@ -47,16 +45,12 @@ public class TestingUtils {
         return Duration.ofDays(365L);
     }
 
-    public static synchronized ScheduledExecutorService defaultExecutor() {
-        if (sharedExecutorInstance == null || sharedExecutorInstance.isShutdown()) {
-            sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor();
-        }
-
-        return sharedExecutorInstance;
+    public static TestExecutorExtension<ScheduledExecutorService> defaultExecutorExtension() {
+        return new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
     }
 
-    public static ScheduledExecutor defaultScheduledExecutor() {
-        return new ScheduledExecutorServiceAdapter(defaultExecutor());
+    public static TestExecutorResource<ScheduledExecutorService> defaultExecutorResource() {
+        return new TestExecutorResource<>(Executors::newSingleThreadScheduledExecutor);
     }
 
     public static UUID zeroUUID() {

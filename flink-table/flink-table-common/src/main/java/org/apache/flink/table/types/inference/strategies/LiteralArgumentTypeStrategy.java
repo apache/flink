@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -42,27 +42,20 @@ public final class LiteralArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
         if (!callContext.isArgumentLiteral(argumentPos)) {
-            if (throwOnFailure) {
-                throw callContext.newValidationError("Literal expected.");
-            }
-            return Optional.empty();
+            return callContext.fail(throwOnFailure, "Literal expected.");
         }
         if (callContext.isArgumentNull(argumentPos) && !allowNull) {
-            if (throwOnFailure) {
-                throw callContext.newValidationError("Literal must not be NULL.");
-            }
-            return Optional.empty();
+            return callContext.fail(throwOnFailure, "Literal must not be NULL.");
         }
         return Optional.of(callContext.getArgumentDataTypes().get(argumentPos));
     }
 
     @Override
-    public Signature.Argument getExpectedArgument(
-            FunctionDefinition functionDefinition, int argumentPos) {
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
         if (allowNull) {
-            return Signature.Argument.of("<LITERAL>");
+            return Argument.ofGroup("LITERAL");
         }
-        return Signature.Argument.of("<LITERAL NOT NULL>");
+        return Argument.ofGroup("LITERAL NOT NULL");
     }
 
     @Override

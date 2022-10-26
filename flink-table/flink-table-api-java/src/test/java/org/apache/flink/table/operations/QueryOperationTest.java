@@ -29,7 +29,7 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
@@ -37,10 +37,10 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMi
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for describing {@link Operation}s. */
-public class QueryOperationTest {
+class QueryOperationTest {
 
     @Test
-    public void testSummaryString() {
+    void testSummaryString() {
         ResolvedSchema schema =
                 ResolvedSchema.physical(
                         Collections.singletonList("a"), Collections.singletonList(DataTypes.INT()));
@@ -79,7 +79,7 @@ public class QueryOperationTest {
     }
 
     @Test
-    public void testWindowAggregationSummaryString() {
+    void testWindowAggregationSummaryString() {
         ResolvedSchema schema =
                 ResolvedSchema.physical(
                         Collections.singletonList("a"), Collections.singletonList(DataTypes.INT()));
@@ -118,7 +118,7 @@ public class QueryOperationTest {
     }
 
     @Test
-    public void testIndentation() {
+    void testIndentation() {
 
         String input =
                 "firstLevel\n"

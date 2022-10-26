@@ -26,17 +26,28 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-aws-kinesis-streams</artifactId>
 	<name>Flink : Connectors : Amazon Kinesis Data Streams</name>
 	<properties>
-		<aws.sdk.version>2.17.52</aws.sdk.version>
+		<aws.sdk.version>2.17.247</aws.sdk.version>
 	</properties>
 
 	<packaging>jar</packaging>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<dependency>
@@ -60,14 +71,7 @@ under the License.
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>sdk-core</artifactId>
-			<version>${aws.sdk.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>kinesis</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 
 		<!--Table API dependencies-->
@@ -111,9 +115,8 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-test-utils</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 

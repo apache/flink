@@ -51,10 +51,10 @@ public class BatchShuffleReadBufferPool {
     private static final Logger LOG = LoggerFactory.getLogger(BatchShuffleReadBufferPool.class);
 
     /**
-     * Memory size in bytes can be allocated from this buffer pool for a single request (8M is for
+     * Memory size in bytes can be allocated from this buffer pool for a single request (4M is for
      * better sequential read).
      */
-    private static final int NUM_BYTES_PER_REQUEST = 8 * 1024 * 1024;
+    private static final int NUM_BYTES_PER_REQUEST = 4 * 1024 * 1024;
 
     /**
      * Wait for at most 2 seconds before return if there is no enough available buffers currently.
@@ -257,9 +257,12 @@ public class BatchShuffleReadBufferPool {
                 return;
             }
 
+            boolean shouldNotify =
+                    buffers.size() < numBuffersPerRequest
+                            && buffers.size() + segments.size() >= numBuffersPerRequest;
             buffers.addAll(segments);
             lastBufferOperationTimestamp = System.nanoTime();
-            if (buffers.size() >= numBuffersPerRequest) {
+            if (shouldNotify) {
                 buffers.notifyAll();
             }
         }

@@ -18,32 +18,26 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Window
 
 import java.util
 
-/**
- * Stream physical RelNode for time-based over [[Window]].
- */
+/** Stream physical RelNode for time-based over [[Window]]. */
 class StreamPhysicalOverAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val logicWindow: Window)
-  extends StreamPhysicalOverAggregateBase(
-    cluster,
-    traitSet,
-    inputRel,
-    outputRowType,
-    logicWindow) {
+    logicWindow: Window)
+  extends StreamPhysicalOverAggregateBase(cluster, traitSet, inputRel, outputRowType, logicWindow) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamPhysicalOverAggregate(
@@ -57,10 +51,10 @@ class StreamPhysicalOverAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecOverAggregate(
+      unwrapTableConfig(this),
       OverAggregateUtil.createOverSpec(logicWindow),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

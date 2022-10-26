@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the RetryOnFailure annotation. */
 @ExtendWith(RetryExtension.class)
-public class RetryOnFailureExtensionTest {
+class RetryOnFailureExtensionTest {
 
     private static final int NUMBER_OF_RUNS = 5;
 
@@ -39,14 +39,14 @@ public class RetryOnFailureExtensionTest {
     private static boolean firstRun = true;
 
     @AfterAll
-    public static void verify() throws Exception {
+    static void verify() {
         assertEquals(NUMBER_OF_RUNS + 1, numberOfFailedRuns);
         assertEquals(3, numberOfSuccessfulRuns);
     }
 
     @TestTemplate
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    public void testRetryOnFailure() throws Exception {
+    void testRetryOnFailure() {
         // All but the (expected) last run should be successful
         if (numberOfFailedRuns < NUMBER_OF_RUNS) {
             numberOfFailedRuns++;
@@ -58,7 +58,7 @@ public class RetryOnFailureExtensionTest {
 
     @TestTemplate
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    public void testRetryOnceOnFailure() throws Exception {
+    void testRetryOnceOnFailure() {
         if (firstRun) {
             numberOfFailedRuns++;
             firstRun = false;
@@ -70,7 +70,7 @@ public class RetryOnFailureExtensionTest {
 
     @TestTemplate
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    public void testNotRetryOnSuccess() throws Exception {
+    void testNotRetryOnSuccess() {
         numberOfSuccessfulRuns++;
     }
 }

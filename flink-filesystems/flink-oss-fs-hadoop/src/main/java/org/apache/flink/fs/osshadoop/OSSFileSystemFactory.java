@@ -19,10 +19,13 @@
 package org.apache.flink.fs.osshadoop;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.fs.aliyun.oss.AliyunOSSFileSystem;
 import org.slf4j.Logger;
@@ -51,6 +54,23 @@ public class OSSFileSystemFactory implements FileSystemFactory {
      * we add all configuration key with prefix `fs.oss` in flink conf to hadoop conf
      */
     private static final String[] FLINK_CONFIG_PREFIXES = {"fs.oss."};
+
+    public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
+            ConfigOptions.key("oss.upload.min.part.size")
+                    .defaultValue(FlinkOSSFileSystem.MULTIPART_UPLOAD_PART_SIZE_MIN)
+                    .withDescription(
+                            "This option is relevant to the Recoverable Writer and sets the min size of data that "
+                                    + "buffered locally, before being sent to OSS. Flink also takes care of checkpoint locally "
+                                    + "buffered data. This value cannot be less than 100KB or greater than 5GB (limits set by Aliyun OSS).");
+
+    public static final ConfigOption<Integer> MAX_CONCURRENT_UPLOADS =
+            ConfigOptions.key("oss.upload.max.concurrent.uploads")
+                    .defaultValue(Runtime.getRuntime().availableProcessors())
+                    .withDescription(
+                            "This option is relevant to the Recoverable Writer and limits the number of "
+                                    + "parts that can be concurrently in-flight. By default, this is set to "
+                                    + Runtime.getRuntime().availableProcessors()
+                                    + ".");
 
     @Override
     public String getScheme() {
@@ -81,7 +101,15 @@ public class OSSFileSystemFactory implements FileSystemFactory {
 
         final AliyunOSSFileSystem fs = new AliyunOSSFileSystem();
         fs.initialize(fsUri, hadoopConfig);
-        return new HadoopFileSystem(fs);
+        final String[] localTmpDirectories = ConfigurationUtils.parseTempDirectories(flinkConfig);
+        Preconditions.checkArgument(localTmpDirectories.length > 0);
+        final String localTmpDirectory = localTmpDirectories[0];
+        return new FlinkOSSFileSystem(
+                fs,
+                flinkConfig.getLong(PART_UPLOAD_MIN_SIZE),
+                flinkConfig.getInteger(MAX_CONCURRENT_UPLOADS),
+                localTmpDirectory,
+                new OSSAccessor(fs));
     }
 
     @VisibleForTesting

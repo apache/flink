@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
@@ -60,8 +59,8 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     t.groupBy('a, 'b)
-    // must fail. 'c is not a grouping key or aggregation
-    .select('c)
+      // must fail. 'c is not a grouping key or aggregation
+      .select('c)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -95,8 +94,8 @@ class AggregateValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
     t.groupBy('b)
-    // must fail. UDAGG does not accept String type
-    .select(myWeightedAvg('c, 'a))
+      // must fail. UDAGG does not accept String type
+      .select(myWeightedAvg('c, 'a))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -108,8 +107,8 @@ class AggregateValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
     t.groupBy('c)
-    // must fail. UDAGG does not accept String type
-    .select(myWeightedAvg(myWeightedAvg('b, 'a), 'a))
+      // must fail. UDAGG does not accept String type
+      .select(myWeightedAvg(myWeightedAvg('b, 'a), 'a))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -125,7 +124,7 @@ class AggregateValidationTest extends TableTestBase {
   @throws[Exception]
   def testNonWorkingAggregationDataTypesJava() {
     val util = batchTestUtil()
-    val t = util.addTableSource[(Long, String)]("Table2",'b, 'c)
+    val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Cannot compute SUM aggregate on String field.
     t.select($"c".sum)
   }
@@ -134,7 +133,7 @@ class AggregateValidationTest extends TableTestBase {
   @throws[Exception]
   def testNoNestedAggregationsJava() {
     val util = batchTestUtil()
-    val t = util.addTableSource[(Long, String)]("Table2",'b, 'c)
+    val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
     t.select($"b".sum.sum)
   }
@@ -143,7 +142,7 @@ class AggregateValidationTest extends TableTestBase {
   @throws[Exception]
   def testNoDeeplyNestedAggregationsJava() {
     val util = batchTestUtil()
-    val t = util.addTableSource[(Long, String)]("Table2",'b, 'c)
+    val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
     t.select(($"b".sum + 1).sum)
   }
@@ -156,7 +155,7 @@ class AggregateValidationTest extends TableTestBase {
 
     // must fail. Field foo is not in input
     t.groupBy($"foo")
-    .select($"a".avg)
+      .select($"a".avg)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -166,8 +165,8 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     t.groupBy($"a", $"b")
-    // must fail. Field c is not a grouping key or aggregation
-    .select($"c")
+      // must fail. Field c is not a grouping key or aggregation
+      .select($"c")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -187,7 +186,7 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     t.groupBy($"a", $"b")
-    // must fail. unknown is not known
+      // must fail. unknown is not known
       .select(call("unknown", $"c"))
   }
 
@@ -198,7 +197,7 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-   util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addFunction("myWeightedAvg", myWeightedAvg)
 
     // must fail. UDAGG does not accept String type
     t.select(call("myWeightedAvg", $"c", $"a"))
@@ -211,10 +210,10 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-   util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addFunction("myWeightedAvg", myWeightedAvg)
 
     t.groupBy($"b")
-    // must fail. UDAGG does not accept String type
-    .select(call("myWeightedAvg", $"c", $"a"))
+      // must fail. UDAGG does not accept String type
+      .select(call("myWeightedAvg", $"c", $"a"))
   }
 }

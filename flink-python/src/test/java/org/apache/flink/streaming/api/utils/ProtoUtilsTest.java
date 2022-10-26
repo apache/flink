@@ -21,22 +21,21 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.python.util.ProtoUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test class for testing utilities used to construct protobuf objects or construct objects from
  * protobuf objects.
  */
-public class ProtoUtilsTest {
+class ProtoUtilsTest {
     @Test
-    public void testParseStateTtlConfigFromProto() {
+    void testParseStateTtlConfigFromProto() {
         FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies cleanupStrategiesProto =
                 FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.newBuilder()
                         .setIsCleanupInBackground(true)
@@ -95,28 +94,28 @@ public class ProtoUtilsTest {
         StateTtlConfig stateTTLConfig =
                 ProtoUtils.parseStateTtlConfigFromProto(stateTTLConfigProto);
 
-        assertEquals(stateTTLConfig.getUpdateType(), StateTtlConfig.UpdateType.OnCreateAndWrite);
-        assertEquals(
-                stateTTLConfig.getStateVisibility(),
-                StateTtlConfig.StateVisibility.NeverReturnExpired);
-        assertEquals(stateTTLConfig.getTtl(), Time.milliseconds(1000));
-        assertEquals(
-                stateTTLConfig.getTtlTimeCharacteristic(),
-                StateTtlConfig.TtlTimeCharacteristic.ProcessingTime);
+        assertThat(stateTTLConfig.getUpdateType())
+                .isEqualTo(StateTtlConfig.UpdateType.OnCreateAndWrite);
+        assertThat(stateTTLConfig.getStateVisibility())
+                .isEqualTo(StateTtlConfig.StateVisibility.NeverReturnExpired);
+        assertThat(stateTTLConfig.getTtl()).isEqualTo(Time.milliseconds(1000));
+        assertThat(stateTTLConfig.getTtlTimeCharacteristic())
+                .isEqualTo(StateTtlConfig.TtlTimeCharacteristic.ProcessingTime);
 
         StateTtlConfig.CleanupStrategies cleanupStrategies = stateTTLConfig.getCleanupStrategies();
-        assertTrue(cleanupStrategies.isCleanupInBackground());
-        assertTrue(cleanupStrategies.inFullSnapshot());
+        assertThat(cleanupStrategies.isCleanupInBackground()).isTrue();
+        assertThat(cleanupStrategies.inFullSnapshot()).isTrue();
 
         StateTtlConfig.IncrementalCleanupStrategy incrementalCleanupStrategy =
                 cleanupStrategies.getIncrementalCleanupStrategy();
-        assertNotNull(incrementalCleanupStrategy);
-        assertEquals(incrementalCleanupStrategy.getCleanupSize(), 10);
-        assertTrue(incrementalCleanupStrategy.runCleanupForEveryRecord());
+        assertThat(incrementalCleanupStrategy).isNotNull();
+        assertThat(incrementalCleanupStrategy.getCleanupSize()).isEqualTo(10);
+        assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord()).isTrue();
 
         StateTtlConfig.RocksdbCompactFilterCleanupStrategy rocksdbCompactFilterCleanupStrategy =
                 cleanupStrategies.getRocksdbCompactFilterCleanupStrategy();
-        assertNotNull(rocksdbCompactFilterCleanupStrategy);
-        assertEquals(rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries(), 1000);
+        assertThat(rocksdbCompactFilterCleanupStrategy).isNotNull();
+        assertThat(rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries())
+                .isEqualTo(1000);
     }
 }

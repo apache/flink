@@ -106,7 +106,7 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
         int numTotalInputChannels =
                 desc.getInputChannelNums().values().stream().mapToInt(Integer::intValue).sum();
-        int numTotalInputGates = desc.getInputChannelNums().size();
+        int numTotalInputGates = desc.getInputGateNums();
 
         int numRequiredNetworkBuffers =
                 NettyShuffleUtils.computeNetworkBuffersForAnnouncing(

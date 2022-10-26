@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.logical.LogicalJoin
@@ -39,17 +38,15 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Planner rule that filters null values before join if the count null value from join input
-  * is greater than null filter threshold.
-  *
-  * Since the key of the Null value is impossible to match in the inner join, and there is a single
-  * point skew due to too many Null values. We should push down a not-null filter into the child
-  * node of join.
-  */
+ * Planner rule that filters null values before join if the count null value from join input is
+ * greater than null filter threshold.
+ *
+ * Since the key of the Null value is impossible to match in the inner join, and there is a single
+ * point skew due to too many Null values. We should push down a not-null filter into the child node
+ * of join.
+ */
 class JoinDeriveNullFilterRule
-  extends RelOptRule(
-    operand(classOf[LogicalJoin], any()),
-    "JoinDeriveNullFilterRule") {
+  extends RelOptRule(operand(classOf[LogicalJoin], any()), "JoinDeriveNullFilterRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
@@ -61,19 +58,21 @@ class JoinDeriveNullFilterRule
 
     val rexBuilder = join.getCluster.getRexBuilder
     val mq = FlinkRelMetadataQuery.reuseOrCreate(join.getCluster.getMetadataQuery)
-    val conf = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val minNullCount = conf.getConfiguration.getLong(
-      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
+    val tableConfig = unwrapTableConfig(join)
+    val minNullCount =
+      tableConfig.get(JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
 
     def createIsNotNullFilter(input: RelNode, keys: ImmutableIntList): RelNode = {
       val relBuilder = call.builder()
       val filters = new mutable.ArrayBuffer[RexNode]
-      keys.foreach { key =>
-        val nullCount = mq.getColumnNullCount(input, key)
-        if (nullCount != null && nullCount > minNullCount) {
-          filters += relBuilder.call(
-            SqlStdOperatorTable.IS_NOT_NULL, rexBuilder.makeInputRef(input, key))
-        }
+      keys.foreach {
+        key =>
+          val nullCount = mq.getColumnNullCount(input, key)
+          if (nullCount != null && nullCount > minNullCount) {
+            filters += relBuilder.call(
+              SqlStdOperatorTable.IS_NOT_NULL,
+              rexBuilder.makeInputRef(input, key))
+          }
       }
       if (filters.nonEmpty) {
         relBuilder.push(input).filter(filters).build()
@@ -100,9 +99,10 @@ object JoinDeriveNullFilterRule {
   @Experimental
   val TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD: ConfigOption[JLong] =
     key("table.optimizer.join.null-filter-threshold")
-        .longType()
-        .defaultValue(JLong.valueOf(2000000L))
-        .withDescription("To avoid the impact of null values on the single join node, " +
-            "We will add a null filter (possibly be pushed down) before the join to filter" +
-            " null values when the source of InnerJoin has nullCount more than this value.")
+      .longType()
+      .defaultValue(JLong.valueOf(2000000L))
+      .withDescription(
+        "To avoid the impact of null values on the single join node, " +
+          "We will add a null filter (possibly be pushed down) before the join to filter" +
+          " null values when the source of InnerJoin has nullCount more than this value.")
 }

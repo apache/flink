@@ -24,7 +24,6 @@ import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
 import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
-import org.apache.flink.runtime.rpc.messages.UnfencedMessage;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -46,8 +45,15 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
             CompletableFuture<Boolean> terminationFuture,
             int version,
             final long maximumFramesize,
+            final boolean forceSerialization,
             ClassLoader flinkClassLoader) {
-        super(rpcEndpoint, terminationFuture, version, maximumFramesize, flinkClassLoader);
+        super(
+                rpcEndpoint,
+                terminationFuture,
+                version,
+                maximumFramesize,
+                forceSerialization,
+                flinkClassLoader);
     }
 
     @Override
@@ -97,15 +103,12 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
                                             + '.'));
                 }
             }
-        } else if (message instanceof UnfencedMessage) {
-            super.handleRpcMessage(((UnfencedMessage<?>) message).getPayload());
         } else {
             if (log.isDebugEnabled()) {
                 log.debug(
-                        "Unknown message type: Ignoring message {} because it is neither of type {} nor {}.",
+                        "Unknown message type: Ignoring message {} because it is not of type {}.",
                         message,
-                        FencedMessage.class.getSimpleName(),
-                        UnfencedMessage.class.getSimpleName());
+                        FencedMessage.class.getSimpleName());
             }
 
             sendErrorIfSender(
@@ -114,11 +117,9 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
                                     + message
                                     + " of type "
                                     + message.getClass().getSimpleName()
-                                    + " because it is neither of type "
+                                    + " because it is not of type "
                                     + FencedMessage.class.getSimpleName()
-                                    + " nor "
-                                    + UnfencedMessage.class.getSimpleName()
-                                    + '.'));
+                                    + "."));
         }
     }
 

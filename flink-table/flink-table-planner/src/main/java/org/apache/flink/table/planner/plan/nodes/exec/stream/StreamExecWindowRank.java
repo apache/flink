@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -41,6 +42,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.rank.ConstantRankRange;
@@ -105,6 +107,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
     private final WindowingStrategy windowing;
 
     public StreamExecWindowRank(
+            ReadableConfig tableConfig,
             RankType rankType,
             PartitionSpec partitionSpec,
             SortSpec sortSpec,
@@ -117,6 +120,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecWindowRank.class),
+                ExecNodeContext.newPersistedConfig(StreamExecWindowRank.class, tableConfig),
                 rankType,
                 partitionSpec,
                 sortSpec,
@@ -132,6 +136,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
     public StreamExecWindowRank(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_RANK_TYPE) RankType rankType,
             @JsonProperty(FIELD_NAME_PARTITION_SPEC) PartitionSpec partitionSpec,
             @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
@@ -141,7 +146,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.rankType = checkNotNull(rankType);
         this.partitionSpec = checkNotNull(partitionSpec);
@@ -204,7 +209,8 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputType);
         int[] sortFields = sortSpec.getFieldIndices();
         RowDataKeySelector sortKeySelector =
-                KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo);
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(), sortFields, inputRowTypeInfo);
 
         SortSpec.SortSpecBuilder builder = SortSpec.builder();
         IntStream.range(0, sortFields.length)
@@ -218,16 +224,20 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
 
         ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
-                        windowing.getTimeAttributeType(), config.getLocalTimeZone());
+                        windowing.getTimeAttributeType(),
+                        TableConfigUtils.getLocalTimeZone(config));
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(
                         config,
+                        planner.getFlinkContext().getClassLoader(),
                         "StreamExecSortComparator",
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
         RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(
-                        partitionSpec.getFieldIndices(), inputRowTypeInfo);
+                        planner.getFlinkContext().getClassLoader(),
+                        partitionSpec.getFieldIndices(),
+                        inputRowTypeInfo);
 
         OneInputStreamOperator<RowData, RowData> operator =
                 WindowRankOperatorBuilder.builder()

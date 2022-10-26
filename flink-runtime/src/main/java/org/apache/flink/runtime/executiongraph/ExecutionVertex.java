@@ -28,18 +28,18 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.util.EvictingBoundedList;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -64,7 +63,7 @@ public class ExecutionVertex
 
     // --------------------------------------------------------------------------------------------
 
-    private final ExecutionJobVertex jobVertex;
+    final ExecutionJobVertex jobVertex;
 
     private final Map<IntermediateResultPartitionID, IntermediateResultPartition> resultPartitions;
 
@@ -72,7 +71,7 @@ public class ExecutionVertex
 
     private final ExecutionVertexID executionVertexId;
 
-    private final EvictingBoundedList<ArchivedExecution> priorExecutions;
+    final ExecutionHistory executionHistory;
 
     private final Time timeout;
 
@@ -80,9 +79,16 @@ public class ExecutionVertex
     private final String taskNameWithSubtask;
 
     /** The current or latest execution attempt of this vertex's task. */
-    private Execution currentExecution; // this field must never be null
+    Execution currentExecution; // this field must never be null
 
-    private final ArrayList<InputSplit> inputSplits;
+    final ArrayList<InputSplit> inputSplits;
+
+    private int nextAttemptNumber;
+
+    /** This field holds the allocation id of the last successful assignment. */
+    @Nullable private TaskManagerLocation lastAssignedLocation;
+
+    @Nullable private AllocationID lastAssignedAllocationID;
 
     // --------------------------------------------------------------------------------------------
 
@@ -92,8 +98,8 @@ public class ExecutionVertex
      * @param timeout The RPC timeout to use for deploy / cancel calls
      * @param createTimestamp The timestamp for the vertex creation, used to initialize the first
      *     Execution with.
-     * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
-     *     to keep.
+     * @param executionHistorySizeLimit The maximum number of historical Executions (= execution
+     *     attempts) to keep.
      * @param initialAttemptCount The attempt number of the first execution of this vertex.
      */
     @VisibleForTesting
@@ -103,7 +109,7 @@ public class ExecutionVertex
             IntermediateResult[] producedDataSets,
             Time timeout,
             long createTimestamp,
-            int maxPriorExecutionHistoryLength,
+            int executionHistorySizeLimit,
             int initialAttemptCount) {
 
         this.jobVertex = jobVertex;
@@ -130,25 +136,34 @@ public class ExecutionVertex
             resultPartitions.put(irp.getPartitionId(), irp);
         }
 
-        this.priorExecutions = new EvictingBoundedList<>(maxPriorExecutionHistoryLength);
+        this.executionHistory = new ExecutionHistory(executionHistorySizeLimit);
 
-        this.currentExecution =
-                new Execution(
-                        getExecutionGraphAccessor().getFutureExecutor(),
-                        this,
-                        initialAttemptCount,
-                        createTimestamp,
-                        timeout);
-
-        getExecutionGraphAccessor().registerExecution(currentExecution);
+        this.nextAttemptNumber = initialAttemptCount;
 
         this.timeout = timeout;
         this.inputSplits = new ArrayList<>();
+
+        this.currentExecution = createNewExecution(createTimestamp);
+
+        getExecutionGraphAccessor().registerExecution(currentExecution);
     }
 
     // --------------------------------------------------------------------------------------------
     //  Properties
     // --------------------------------------------------------------------------------------------
+
+    Execution createNewExecution(final long timestamp) {
+        return new Execution(
+                getExecutionGraphAccessor().getFutureExecutor(),
+                this,
+                nextAttemptNumber++,
+                timestamp,
+                timeout);
+    }
+
+    public Execution getPartitionProducer() {
+        return currentExecution;
+    }
 
     public JobID getJobId() {
         return this.jobVertex.getJobId();
@@ -223,16 +238,14 @@ public class ExecutionVertex
         return allConsumedPartitions.get(input);
     }
 
-    public InputSplit getNextInputSplit(String host) {
-        final int taskId = getParallelSubtaskIndex();
-        synchronized (inputSplits) {
-            final InputSplit nextInputSplit =
-                    jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
-            if (nextInputSplit != null) {
-                inputSplits.add(nextInputSplit);
-            }
-            return nextInputSplit;
+    public Optional<InputSplit> getNextInputSplit(String host, int attemptNumber) {
+        final int subtaskIndex = getParallelSubtaskIndex();
+        final InputSplit nextInputSplit =
+                jobVertex.getSplitAssigner().getNextInputSplit(host, subtaskIndex);
+        if (nextInputSplit != null) {
+            inputSplits.add(nextInputSplit);
         }
+        return Optional.ofNullable(nextInputSplit);
     }
 
     @Override
@@ -240,90 +253,65 @@ public class ExecutionVertex
         return currentExecution;
     }
 
+    public Collection<Execution> getCurrentExecutions() {
+        return Collections.singleton(currentExecution);
+    }
+
+    public Execution getCurrentExecution(int attemptNumber) {
+        checkArgument(attemptNumber == currentExecution.getAttemptNumber());
+        return currentExecution;
+    }
+
     @Override
     public ExecutionState getExecutionState() {
-        return currentExecution.getState();
+        return getCurrentExecutionAttempt().getState();
     }
 
     @Override
     public long getStateTimestamp(ExecutionState state) {
-        return currentExecution.getStateTimestamp(state);
+        return getCurrentExecutionAttempt().getStateTimestamp(state);
     }
 
     @Override
     public Optional<ErrorInfo> getFailureInfo() {
-        return currentExecution.getFailureInfo();
+        return getCurrentExecutionAttempt().getFailureInfo();
     }
 
     public CompletableFuture<TaskManagerLocation> getCurrentTaskManagerLocationFuture() {
-        return currentExecution.getTaskManagerLocationFuture();
+        return getCurrentExecutionAttempt().getTaskManagerLocationFuture();
     }
 
     public LogicalSlot getCurrentAssignedResource() {
-        return currentExecution.getAssignedResource();
+        return getCurrentExecutionAttempt().getAssignedResource();
     }
 
     @Override
     public TaskManagerLocation getCurrentAssignedResourceLocation() {
-        return currentExecution.getAssignedResourceLocation();
+        return getCurrentExecutionAttempt().getAssignedResourceLocation();
     }
 
-    @Nullable
     @Override
-    public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
-        synchronized (priorExecutions) {
-            if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
-                return priorExecutions.get(attemptNumber);
-            } else {
-                throw new IllegalArgumentException("attempt does not exist");
-            }
-        }
+    public ExecutionHistory getExecutionHistory() {
+        return executionHistory;
+    }
+
+    void setLatestPriorSlotAllocation(
+            TaskManagerLocation taskManagerLocation, AllocationID lastAssignedAllocationID) {
+        this.lastAssignedLocation = Preconditions.checkNotNull(taskManagerLocation);
+        this.lastAssignedAllocationID = Preconditions.checkNotNull(lastAssignedAllocationID);
     }
 
     /**
-     * Gets the latest property from a prior execution that is not null.
+     * Gets the location that an execution of this vertex was assigned to.
      *
-     * @param extractor defining the property to extract
-     * @param <T> type of the property
-     * @return Optional containing the latest property if it exists; otherwise {@code
-     *     Optional.empty()}.
+     * @return The last execution location, or null, if there is none, yet.
      */
-    private <T> Optional<T> getLatestPriorProperty(Function<ArchivedExecution, T> extractor) {
-        int index = priorExecutions.size() - 1;
-
-        while (index >= 0 && !priorExecutions.isDroppedIndex(index)) {
-            final ArchivedExecution archivedExecution = priorExecutions.get(index);
-
-            final T extractedValue = extractor.apply(archivedExecution);
-
-            if (extractedValue != null) {
-                return Optional.of(extractedValue);
-            }
-
-            index -= 1;
-        }
-
-        return Optional.empty();
+    public Optional<TaskManagerLocation> findLastLocation() {
+        return Optional.ofNullable(lastAssignedLocation);
     }
 
-    /**
-     * Gets the location where the latest completed/canceled/failed execution of the vertex's task
-     * happened.
-     *
-     * @return The latest prior execution location, or null, if there is none, yet.
-     */
-    public Optional<TaskManagerLocation> findLatestPriorLocation() {
-        return getLatestPriorProperty(ArchivedExecution::getAssignedResourceLocation);
-    }
-
-    public Optional<AllocationID> findLatestPriorAllocation() {
-        return getLatestPriorProperty(ArchivedExecution::getAssignedAllocationID);
-    }
-
-    EvictingBoundedList<ArchivedExecution> getCopyOfPriorExecutionsList() {
-        synchronized (priorExecutions) {
-            return new EvictingBoundedList<>(priorExecutions);
-        }
+    public Optional<AllocationID> findLastAllocation() {
+        return Optional.ofNullable(lastAssignedAllocationID);
     }
 
     public final InternalExecutionGraphAccessor getExecutionGraphAccessor() {
@@ -332,6 +320,10 @@ public class ExecutionVertex
 
     public Map<IntermediateResultPartitionID, IntermediateResultPartition> getProducedPartitions() {
         return resultPartitions;
+    }
+
+    CompletableFuture<?> getTerminationFuture() {
+        return currentExecution.getTerminalStateFuture();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -353,7 +345,7 @@ public class ExecutionVertex
         // only restore to same execution if it has state
         if (currentExecution.getTaskRestore() != null
                 && currentExecution.getTaskRestore().getTaskStateSnapshot().hasState()) {
-            return findLatestPriorLocation();
+            return findLastLocation();
         }
 
         return Optional.empty();
@@ -369,57 +361,56 @@ public class ExecutionVertex
     }
 
     private void resetForNewExecutionInternal(final long timestamp) {
-        final Execution oldExecution = currentExecution;
-        final ExecutionState oldState = oldExecution.getState();
+        final boolean isFinished = (getExecutionState() == FINISHED);
 
-        if (oldState.isTerminal()) {
-            if (oldState == FINISHED) {
-                // pipelined partitions are released in Execution#cancel(), covering both job
-                // failures and vertex resets
-                // do not release pipelined partitions here to save RPC calls
-                oldExecution.handlePartitionCleanup(false, true);
-                getExecutionGraphAccessor()
-                        .getPartitionGroupReleaseStrategy()
-                        .vertexUnfinished(executionVertexId);
-            }
+        resetExecutionsInternal();
 
-            priorExecutions.add(oldExecution.archive());
-
-            final Execution newExecution =
-                    new Execution(
-                            getExecutionGraphAccessor().getFutureExecutor(),
-                            this,
-                            oldExecution.getAttemptNumber() + 1,
-                            timestamp,
-                            timeout);
-
-            currentExecution = newExecution;
-
-            synchronized (inputSplits) {
-                InputSplitAssigner assigner = jobVertex.getSplitAssigner();
-                if (assigner != null) {
-                    assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
-                    inputSplits.clear();
-                }
-            }
-
-            // register this execution at the execution graph, to receive call backs
-            getExecutionGraphAccessor().registerExecution(newExecution);
-
-            // if the execution was 'FINISHED' before, tell the ExecutionGraph that
-            // we take one step back on the road to reaching global FINISHED
-            if (oldState == FINISHED) {
-                getJobVertex().executionVertexUnFinished();
-            }
-
-            // reset the intermediate results
-            for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
-                resultPartition.resetForNewExecution();
-            }
-        } else {
-            throw new IllegalStateException(
-                    "Cannot reset a vertex that is in non-terminal state " + oldState);
+        InputSplitAssigner assigner = jobVertex.getSplitAssigner();
+        if (assigner != null) {
+            assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
+            inputSplits.clear();
         }
+
+        // if the execution was 'FINISHED' before, tell the ExecutionGraph that
+        // we take one step back on the road to reaching global FINISHED
+        if (isFinished) {
+            getJobVertex().executionVertexUnFinished();
+        }
+
+        // reset the intermediate results
+        for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
+            resultPartition.resetForNewExecution();
+        }
+
+        final Execution newExecution = createNewExecution(timestamp);
+        currentExecution = newExecution;
+
+        // register this execution to the execution graph, to receive call backs
+        getExecutionGraphAccessor().registerExecution(newExecution);
+    }
+
+    void resetExecutionsInternal() {
+        resetExecution(currentExecution);
+    }
+
+    void resetExecution(final Execution execution) {
+        final ExecutionState oldState = execution.getState();
+
+        checkState(
+                oldState.isTerminal(),
+                "Cannot reset an execution that is in non-terminal state " + oldState);
+
+        if (oldState == FINISHED) {
+            // pipelined partitions are released in Execution#cancel(), covering both job
+            // failures and vertex resets
+            // do not release pipelined partitions here to save RPC calls
+            execution.handlePartitionCleanup(false, true);
+            getExecutionGraphAccessor()
+                    .getPartitionGroupReleaseStrategy()
+                    .vertexUnfinished(executionVertexId);
+        }
+
+        executionHistory.add(execution.archive());
     }
 
     public void tryAssignResource(LogicalSlot slot) {
@@ -482,20 +473,6 @@ public class ExecutionVertex
         currentExecution.markFailed(t);
     }
 
-    void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
-        checkArgument(partitionId.getProducerId().equals(currentExecution.getAttemptId()));
-
-        final IntermediateResultPartition partition =
-                resultPartitions.get(partitionId.getPartitionId());
-        checkState(partition != null, "Unknown partition " + partitionId + ".");
-        checkState(
-                partition.getResultType().isPipelined(),
-                "partition data available notification is "
-                        + "only valid for pipelined partitions.");
-
-        partition.markDataProduced();
-    }
-
     void cachePartitionInfo(PartitionInfo partitionInfo) {
         getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
     }
@@ -506,7 +483,7 @@ public class ExecutionVertex
         List<IntermediateResultPartition> finishedBlockingPartitions = null;
 
         for (IntermediateResultPartition partition : resultPartitions.values()) {
-            if (partition.getResultType().isBlocking()) {
+            if (!partition.getResultType().canBePipelinedConsumed()) {
 
                 partition.markFinished();
 

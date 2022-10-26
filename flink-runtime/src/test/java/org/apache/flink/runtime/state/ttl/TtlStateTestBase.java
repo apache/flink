@@ -95,7 +95,7 @@ public abstract class TtlStateTestBase {
                 new TtlReducingStateTestContext());
     }
 
-    public boolean fullSnapshot() {
+    public boolean isSavepoint() {
         return true;
     }
 
@@ -354,7 +354,7 @@ public abstract class TtlStateTestBase {
 
     @Test
     public void testMultipleKeysWithSnapshotCleanup() throws Exception {
-        assumeTrue("full snapshot strategy", fullSnapshot());
+        assumeTrue("full snapshot strategy", isSavepoint());
         initTest(getConfBuilder(TTL).cleanupFullSnapshot().build());
         // set time back after restore to see entry unexpired if it was not cleaned up in snapshot
         // properly
@@ -369,7 +369,7 @@ public abstract class TtlStateTestBase {
 
     @Test
     public void testMultipleNamespacesWithSnapshotCleanup() throws Exception {
-        assumeTrue("full snapshot strategy", fullSnapshot());
+        assumeTrue("full snapshot strategy", isSavepoint());
         initTest(getConfBuilder(TTL).cleanupFullSnapshot().build());
         // set time back after restore to see entry unexpired if it was not cleaned up in snapshot
         // properly

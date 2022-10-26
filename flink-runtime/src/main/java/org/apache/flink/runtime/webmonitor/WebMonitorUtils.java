@@ -26,10 +26,6 @@ import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandle
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,8 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -197,26 +191,6 @@ public final class WebMonitorUtils {
             throw new FlinkException(
                     "The module flink-runtime-web could not be found in the class path. Please add "
                             + "this jar in order to enable web based job submission.");
-        }
-    }
-
-    public static Map<String, String> fromKeyValueJsonArray(String jsonString) {
-        try {
-            Map<String, String> map = new HashMap<>();
-            ObjectMapper m = new ObjectMapper();
-            ArrayNode array = (ArrayNode) m.readTree(jsonString);
-
-            Iterator<JsonNode> elements = array.elements();
-            while (elements.hasNext()) {
-                JsonNode node = elements.next();
-                String key = node.get("key").asText();
-                String value = node.get("value").asText();
-                map.put(key, value);
-            }
-
-            return map;
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
         }
     }
 

@@ -85,6 +85,10 @@ public class Constants {
 
     public static final String POD_IP_FIELD_PATH = "status.podIP";
 
+    public static final String ENV_FLINK_POD_NODE_ID = "_POD_NODE_ID";
+
+    public static final String POD_NODE_ID_FIELD_PATH = "spec.nodeName";
+
     public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
 
     public static final String RESTART_POLICY_OF_NEVER = "Never";

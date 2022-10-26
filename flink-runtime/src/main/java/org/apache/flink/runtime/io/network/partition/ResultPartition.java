@@ -158,8 +158,12 @@ public abstract class ResultPartition implements ResultPartitionWriter {
                 "Bug in result partition setup logic: Already registered buffer pool.");
 
         this.bufferPool = checkNotNull(bufferPoolFactory.get());
+        setupInternal();
         partitionManager.registerResultPartition(this);
     }
+
+    /** Do the subclass's own setup operation. */
+    protected abstract void setupInternal() throws IOException;
 
     public String getOwningTaskName() {
         return owningTaskName;
@@ -191,6 +195,10 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     /** Returns the number of queued buffers of the given target subpartition. */
     public abstract int getNumberOfQueuedBuffers(int targetSubpartition);
+
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        this.bufferPool.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
+    }
 
     /**
      * Returns the type of this result partition.

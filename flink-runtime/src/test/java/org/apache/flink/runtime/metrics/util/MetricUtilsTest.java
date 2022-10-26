@@ -34,6 +34,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ChildFirstClassLoader;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -48,6 +49,7 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_FLINK;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MANAGED_MEMORY;
@@ -83,10 +85,14 @@ public class MetricUtilsTest extends TestLogger {
 
         try {
             final int threadPriority =
-                    rpcService.execute(() -> Thread.currentThread().getPriority()).get();
+                    rpcService
+                            .getScheduledExecutor()
+                            .schedule(
+                                    () -> Thread.currentThread().getPriority(), 0, TimeUnit.SECONDS)
+                            .get();
             assertThat(threadPriority, is(expectedThreadPriority));
         } finally {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 
@@ -184,7 +190,8 @@ public class MetricUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testManagedMemoryMetricsInitialization() throws MemoryAllocationException {
+    public void testManagedMemoryMetricsInitialization()
+            throws MemoryAllocationException, FlinkException {
         final int maxMemorySize = 16284;
         final int numberOfAllocatedPages = 2;
         final int pageSize = 4096;
@@ -202,34 +209,38 @@ public class MetricUtilsTest extends TestLogger {
                                         .build())
                         .setManagedMemorySize(maxMemorySize)
                         .build();
+        try {
 
-        List<String> actualSubGroupPath = new ArrayList<>();
-        final InterceptingOperatorMetricGroup metricGroup =
-                new InterceptingOperatorMetricGroup() {
-                    @Override
-                    public MetricGroup addGroup(String name) {
-                        actualSubGroupPath.add(name);
-                        return this;
-                    }
-                };
-        MetricUtils.instantiateFlinkMemoryMetricGroup(
-                metricGroup,
-                taskManagerServices.getTaskSlotTable(),
-                taskManagerServices::getManagedMemorySize);
+            List<String> actualSubGroupPath = new ArrayList<>();
+            final InterceptingOperatorMetricGroup metricGroup =
+                    new InterceptingOperatorMetricGroup() {
+                        @Override
+                        public MetricGroup addGroup(String name) {
+                            actualSubGroupPath.add(name);
+                            return this;
+                        }
+                    };
+            MetricUtils.instantiateFlinkMemoryMetricGroup(
+                    metricGroup,
+                    taskManagerServices.getTaskSlotTable(),
+                    taskManagerServices::getManagedMemorySize);
 
-        Gauge<Number> usedMetric = (Gauge<Number>) metricGroup.get("Used");
-        Gauge<Number> maxMetric = (Gauge<Number>) metricGroup.get("Total");
+            Gauge<Number> usedMetric = (Gauge<Number>) metricGroup.get("Used");
+            Gauge<Number> maxMetric = (Gauge<Number>) metricGroup.get("Total");
 
-        assertThat(usedMetric.getValue().intValue(), is(numberOfAllocatedPages * pageSize));
-        assertThat(maxMetric.getValue().intValue(), is(maxMemorySize));
+            assertThat(usedMetric.getValue().intValue(), is(numberOfAllocatedPages * pageSize));
+            assertThat(maxMetric.getValue().intValue(), is(maxMemorySize));
 
-        assertThat(
-                actualSubGroupPath,
-                is(
-                        Arrays.asList(
-                                METRIC_GROUP_FLINK,
-                                METRIC_GROUP_MEMORY,
-                                METRIC_GROUP_MANAGED_MEMORY)));
+            assertThat(
+                    actualSubGroupPath,
+                    is(
+                            Arrays.asList(
+                                    METRIC_GROUP_FLINK,
+                                    METRIC_GROUP_MEMORY,
+                                    METRIC_GROUP_MANAGED_MEMORY)));
+        } finally {
+            taskManagerServices.shutDown();
+        }
     }
 
     // --------------- utility methods and classes ---------------

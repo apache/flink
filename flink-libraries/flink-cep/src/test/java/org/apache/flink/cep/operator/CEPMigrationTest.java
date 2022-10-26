@@ -41,7 +41,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -72,16 +71,7 @@ public class CEPMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return Arrays.asList(
-                FlinkVersion.v1_6,
-                FlinkVersion.v1_7,
-                FlinkVersion.v1_8,
-                FlinkVersion.v1_9,
-                FlinkVersion.v1_10,
-                FlinkVersion.v1_11,
-                FlinkVersion.v1_12,
-                FlinkVersion.v1_13,
-                FlinkVersion.v1_14);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_6, FlinkVersion.v1_15);
     }
 
     public CEPMigrationTest(FlinkVersion migrateVersion) {

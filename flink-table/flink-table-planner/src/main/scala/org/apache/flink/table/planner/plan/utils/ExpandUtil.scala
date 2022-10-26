@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
@@ -34,10 +33,9 @@ import scala.collection.JavaConversions._
 object ExpandUtil {
 
   /**
-    * Build the [[Expand]] node.
-    * The input node should be pushed into the RelBuilder before calling this method
-    * and the created Expand node will be at the top of the stack of the RelBuilder.
-    */
+   * Build the [[Expand]] node. The input node should be pushed into the RelBuilder before calling
+   * this method and the created Expand node will be at the top of the stack of the RelBuilder.
+   */
   def buildExpandNode(
       relBuilder: FlinkRelBuilder,
       aggCalls: Seq[AggregateCall],
@@ -55,21 +53,25 @@ object ExpandUtil {
     // only field 'b' and 'c' need be outputted as duplicate fields.
     val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(aggCalls)
     val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2)).asList()
-    val duplicateFieldIndexes = aggCalls.zipWithIndex.flatMap {
-      case (aggCall, idx) =>
-        // filterArg should also be considered here.
-        val allArgList = new util.ArrayList[Integer](aggCall.getArgList)
-        if (aggCall.filterArg > -1) {
-          allArgList.add(aggCall.filterArg)
-        }
-        if (groupIdExprs.contains(idx)) {
-          List.empty[Integer]
-        } else if (commonGroupSet.containsAll(allArgList)) {
-          List.empty[Integer]
-        } else {
-          allArgList.diff(commonGroupSet)
-        }
-    }.intersect(groupSet.asList()).sorted.toArray[Integer]
+    val duplicateFieldIndexes = aggCalls.zipWithIndex
+      .flatMap {
+        case (aggCall, idx) =>
+          // filterArg should also be considered here.
+          val allArgList = new util.ArrayList[Integer](aggCall.getArgList)
+          if (aggCall.filterArg > -1) {
+            allArgList.add(aggCall.filterArg)
+          }
+          if (groupIdExprs.contains(idx)) {
+            List.empty[Integer]
+          } else if (commonGroupSet.containsAll(allArgList)) {
+            List.empty[Integer]
+          } else {
+            allArgList.diff(commonGroupSet)
+          }
+      }
+      .intersect(groupSet.asList())
+      .sorted
+      .toArray[Integer]
 
     val inputType = relBuilder.peek().getRowType
 
@@ -90,31 +92,34 @@ object ExpandUtil {
   }
 
   /**
-    * Mapping original duplicate field index to new index in [[LogicalExpand]].
-    *
-    * @param inputType Input row type.
-    * @param duplicateFieldIndexes Fields indexes that will be output as duplicate.
-    * @return a Map that mapping original index to new index for duplicate fields.
-    */
+   * Mapping original duplicate field index to new index in [[LogicalExpand]].
+   *
+   * @param inputType
+   *   Input row type.
+   * @param duplicateFieldIndexes
+   *   Fields indexes that will be output as duplicate.
+   * @return
+   *   a Map that mapping original index to new index for duplicate fields.
+   */
   private def buildDuplicateFieldMap(
       inputType: RelDataType,
       duplicateFieldIndexes: Array[Integer]): Map[Integer, Integer] = {
     // original input fields + expand_id field + duplicate fields
-    duplicateFieldIndexes.zipWithIndex.map {
-      case (duplicateFieldIdx: Integer, idx) =>
-        require(duplicateFieldIdx < inputType.getFieldCount)
-        val duplicateFieldNewIdx: Integer = inputType.getFieldCount + 1 + idx
-        (duplicateFieldIdx, duplicateFieldNewIdx)
-    }.toMap[Integer, Integer]
+    duplicateFieldIndexes.zipWithIndex
+      .map {
+        case (duplicateFieldIdx: Integer, idx) =>
+          require(duplicateFieldIdx < inputType.getFieldCount)
+          val duplicateFieldNewIdx: Integer = inputType.getFieldCount + 1 + idx
+          (duplicateFieldIdx, duplicateFieldNewIdx)
+      }
+      .toMap[Integer, Integer]
   }
 
   /**
-    * Get unique field name based on existed `allFieldNames` collection.
-    * NOTES: the new unique field name will be added to existed `allFieldNames` collection.
-    */
-  def buildUniqueFieldName(
-      allFieldNames: util.Set[String],
-      toAddFieldName: String): String = {
+   * Get unique field name based on existed `allFieldNames` collection. NOTES: the new unique field
+   * name will be added to existed `allFieldNames` collection.
+   */
+  def buildUniqueFieldName(allFieldNames: util.Set[String], toAddFieldName: String): String = {
     var name: String = toAddFieldName
     var i: Int = 0
     while (allFieldNames.contains(name)) {
@@ -142,16 +147,22 @@ object ExpandUtil {
   }
 
   /**
-    * Create Project list for [[LogicalExpand]].
-    * One input row will expand to multiple output rows, so multi projects will be created.
-    *
-    * @param rexBuilder Rex builder.
-    * @param inputType Input row type.
-    * @param groupSet The original groupSet of a aggregate before expanded.
-    * @param groupSets The original groupSets of a aggregate before expanded.
-    * @param duplicateFieldIndexes Fields indexes that will be output as duplicate.
-    * @return List of expressions of expanded row.
-    */
+   * Create Project list for [[LogicalExpand]]. One input row will expand to multiple output rows,
+   * so multi projects will be created.
+   *
+   * @param rexBuilder
+   *   Rex builder.
+   * @param inputType
+   *   Input row type.
+   * @param groupSet
+   *   The original groupSet of a aggregate before expanded.
+   * @param groupSets
+   *   The original groupSets of a aggregate before expanded.
+   * @param duplicateFieldIndexes
+   *   Fields indexes that will be output as duplicate.
+   * @return
+   *   List of expressions of expanded row.
+   */
   def createExpandProjects(
       rexBuilder: RexBuilder,
       inputType: RelDataType,
@@ -163,45 +174,44 @@ object ExpandUtil {
     require(!groupSets.isEmpty && fullGroupList.nonEmpty)
 
     // expand for each groupSet
-    val expandProjects = groupSets.map { subGroupSet =>
-      val subGroup = subGroupSet.toArray
-      val projects: util.List[RexNode] = new util.ArrayList[RexNode]()
+    val expandProjects = groupSets.map {
+      subGroupSet =>
+        val subGroup = subGroupSet.toArray
+        val projects: util.List[RexNode] = new util.ArrayList[RexNode]()
 
-      // output the input fields
-      for (i <- 0 until inputType.getFieldCount) {
-        val shouldOutputValue = subGroup.contains(i) || !fullGroupList.contains(i)
-        val resultType = inputType.getFieldList.get(i).getType
-        val project = if (shouldOutputValue) {
-          rexBuilder.makeInputRef(resultType, i)
-        } else {
-          rexBuilder.makeNullLiteral(resultType)
+        // output the input fields
+        for (i <- 0 until inputType.getFieldCount) {
+          val shouldOutputValue = subGroup.contains(i) || !fullGroupList.contains(i)
+          val resultType = inputType.getFieldList.get(i).getType
+          val project = if (shouldOutputValue) {
+            rexBuilder.makeInputRef(resultType, i)
+          } else {
+            rexBuilder.makeNullLiteral(resultType)
+          }
+          projects.add(project)
         }
-        projects.add(project)
-      }
 
-      // output for expand_id('$e') field
-      val expandId = genExpandId(groupSet, subGroupSet)
-      val expandIdField = rexBuilder.makeBigintLiteral(BigDecimal.valueOf(expandId))
-      projects.add(expandIdField)
+        // output for expand_id('$e') field
+        val expandId = genExpandId(groupSet, subGroupSet)
+        val expandIdField = rexBuilder.makeBigintLiteral(BigDecimal.valueOf(expandId))
+        projects.add(expandIdField)
 
-      // TODO only need output duplicate fields for the row against 'regular' aggregates
-      // currently, we can't distinguish that
-      // an expand row is for 'regular' aggregates or for 'distinct' aggregates
-      duplicateFieldIndexes.foreach {
-        duplicateFieldIdx =>
-          val resultType = inputType.getFieldList.get(duplicateFieldIdx).getType
-          val duplicateField = rexBuilder.makeInputRef(resultType, duplicateFieldIdx)
-          projects.add(duplicateField)
-      }
+        // TODO only need output duplicate fields for the row against 'regular' aggregates
+        // currently, we can't distinguish that
+        // an expand row is for 'regular' aggregates or for 'distinct' aggregates
+        duplicateFieldIndexes.foreach {
+          duplicateFieldIdx =>
+            val resultType = inputType.getFieldList.get(duplicateFieldIdx).getType
+            val duplicateField = rexBuilder.makeInputRef(resultType, duplicateFieldIdx)
+            projects.add(duplicateField)
+        }
 
-      projects
+        projects
     }
     expandProjects
   }
 
-  /**
-    * generate expand_id('$e' field) value to distinguish different expanded rows.
-    */
+  /** generate expand_id('$e' field) value to distinguish different expanded rows. */
   def genExpandId(fullGroupSet: ImmutableBitSet, groupSet: ImmutableBitSet): Long = {
     var v: Long = 0L
     var x: Long = 1L << (fullGroupSet.cardinality - 1)

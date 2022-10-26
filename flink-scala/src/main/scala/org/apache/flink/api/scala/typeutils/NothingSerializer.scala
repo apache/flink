@@ -17,16 +17,16 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import java.util.function.Supplier
-
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.{SimpleTypeSerializerSnapshot, TypeSerializer, TypeSerializerSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
+import java.util.function.Supplier
+
 /**
  * Serializer for cases where no serializer is required but the system still expects one. This
- * happens for OptionTypeInfo when None is used, or for Either when one of the type parameters
- * is Nothing.
+ * happens for OptionTypeInfo when None is used, or for Either when one of the type parameters is
+ * Nothing.
  */
 @Internal
 class NothingSerializer extends TypeSerializer[Any] {
@@ -76,5 +76,4 @@ class NothingSerializer extends TypeSerializer[Any] {
 class NothingSerializerSnapshot
   extends SimpleTypeSerializerSnapshot[Any](new Supplier[TypeSerializer[Any]] {
     override def get(): TypeSerializer[Any] = new NothingSerializer
-  }) {
-}
+  }) {}

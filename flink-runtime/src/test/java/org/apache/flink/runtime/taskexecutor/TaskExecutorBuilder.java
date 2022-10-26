@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.blob.TaskExecutorBlobService;
@@ -40,8 +38,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
-
-import java.util.Collections;
 
 /** Builder for testing {@link TaskExecutor}. */
 public class TaskExecutorBuilder {
@@ -75,15 +71,6 @@ public class TaskExecutorBuilder {
     private TaskExecutorPartitionTracker partitionTracker =
             new TestingTaskExecutorPartitionTracker();
 
-    private TaskExecutorResourceSpec taskExecutorResourceSpec =
-            new TaskExecutorResourceSpec(
-                    new CPUResource(1.0),
-                    MemorySize.ofMebiBytes(1024),
-                    MemorySize.ofMebiBytes(1024),
-                    MemorySize.ofMebiBytes(1024),
-                    MemorySize.ofMebiBytes(1024),
-                    Collections.emptyList());
-
     private final WorkingDirectory workingDirectory;
 
     private TaskExecutorBuilder(
@@ -116,6 +103,9 @@ public class TaskExecutorBuilder {
         } else {
             resolvedTaskExecutorBlobService = taskExecutorBlobService;
         }
+
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration);
 
         final TaskManagerConfiguration resolvedTaskManagerConfiguration;
 

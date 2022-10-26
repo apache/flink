@@ -19,6 +19,7 @@ package org.apache.flink.runtime.state.changelog.inmemory;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -34,7 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -76,11 +76,14 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
-    public CompletableFuture<InMemoryChangelogStateHandle> persist(SequenceNumber from) {
+    public CompletableFuture<SnapshotResult<InMemoryChangelogStateHandle>> persist(
+            SequenceNumber from) {
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
         return completedFuture(
-                new InMemoryChangelogStateHandle(collectChanges(from), from, sqn, keyGroupRange));
+                SnapshotResult.of(
+                        new InMemoryChangelogStateHandle(
+                                collectChanges(from), from, sqn, keyGroupRange)));
     }
 
     private List<StateChange> collectChanges(SequenceNumber after) {
@@ -104,23 +107,21 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
-    public SequenceNumber getLowestSequenceNumber() {
-        return changesByKeyGroup.values().stream()
-                .filter(map -> !map.isEmpty())
-                .map(SortedMap::firstKey)
-                .min(Comparator.naturalOrder())
-                .orElse(nextSequenceNumber());
+    public void truncate(SequenceNumber to) {
+        changesByKeyGroup.forEach((kg, changesBySqn) -> changesBySqn.headMap(to, false).clear());
     }
 
     @Override
-    public void truncate(SequenceNumber before) {
-        changesByKeyGroup.forEach(
-                (kg, changesBySqn) -> changesBySqn.headMap(before, false).clear());
+    public void truncateAndClose(SequenceNumber from) {
+        close();
     }
 
     @Override
-    public void confirm(SequenceNumber from, SequenceNumber to) {}
+    public void confirm(SequenceNumber from, SequenceNumber to, long checkpointID) {}
 
     @Override
-    public void reset(SequenceNumber from, SequenceNumber to) {}
+    public void subsume(long checkpointId) {}
+
+    @Override
+    public void reset(SequenceNumber from, SequenceNumber to, long checkpointID) {}
 }

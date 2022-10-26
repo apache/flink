@@ -29,13 +29,15 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for {@link DataSet#fullOuterJoin(DataSet)}. */
-public class FullOuterJoinOperatorTest {
+class FullOuterJoinOperatorTest {
 
     // TUPLE DATA
     private static final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
@@ -50,7 +52,7 @@ public class FullOuterJoinOperatorTest {
                     BasicTypeInfo.INT_TYPE_INFO);
 
     @Test
-    public void testFullOuter1() {
+    void testFullOuter1() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -63,7 +65,7 @@ public class FullOuterJoinOperatorTest {
     }
 
     @Test
-    public void testFullOuter2() {
+    void testFullOuter2() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -76,7 +78,7 @@ public class FullOuterJoinOperatorTest {
     }
 
     @Test
-    public void testFullOuter3() {
+    void testFullOuter3() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -92,7 +94,7 @@ public class FullOuterJoinOperatorTest {
     }
 
     @Test
-    public void testFullOuter4() {
+    void testFullOuter4() {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -104,7 +106,7 @@ public class FullOuterJoinOperatorTest {
     }
 
     @Test
-    public void testFullOuter5() {
+    void testFullOuter5() {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -116,7 +118,7 @@ public class FullOuterJoinOperatorTest {
     }
 
     @Test
-    public void testFullOuter6() {
+    void testFullOuter6() {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -127,8 +129,8 @@ public class FullOuterJoinOperatorTest {
         ds1.fullOuterJoin(ds2).where("f0").equalTo(4).with(new DummyJoin());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
-    public void testFullOuter7() {
+    @Test
+    void testFullOuter7() {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -136,11 +138,12 @@ public class FullOuterJoinOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // invalid key position
-        ds1.fullOuterJoin(ds2).where(5).equalTo(0).with(new DummyJoin());
+        assertThatThrownBy(() -> ds1.fullOuterJoin(ds2).where(5).equalTo(0).with(new DummyJoin()))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
-    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
-    public void testFullOuter8() {
+    @Test
+    void testFullOuter8() {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -148,64 +151,72 @@ public class FullOuterJoinOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // invalid key reference
-        ds1.fullOuterJoin(ds2).where(1).equalTo("f5").with(new DummyJoin());
-    }
-
-    @Test(expected = InvalidProgramException.class)
-    public void testFullOuter9() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
-                env.fromCollection(emptyTupleData, tupleTypeInfo);
-        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
-                env.fromCollection(emptyTupleData, tupleTypeInfo);
-
-        // key types do not match
-        ds1.fullOuterJoin(ds2).where(0).equalTo(1).with(new DummyJoin());
-    }
-
-    @Test(expected = InvalidProgramException.class)
-    public void testFullOuter10() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
-                env.fromCollection(emptyTupleData, tupleTypeInfo);
-        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
-                env.fromCollection(emptyTupleData, tupleTypeInfo);
-
-        // key types do not match
-        ds1.fullOuterJoin(ds2)
-                .where(new IntKeySelector())
-                .equalTo(new LongKeySelector())
-                .with(new DummyJoin());
+        assertThatThrownBy(
+                        () -> ds1.fullOuterJoin(ds2).where(1).equalTo("f5").with(new DummyJoin()))
+                .isInstanceOf(CompositeType.InvalidFieldReferenceException.class);
     }
 
     @Test
-    public void testFullOuterStrategy1() {
+    void testFullOuter9() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+        // key types do not match
+        assertThatThrownBy(() -> ds1.fullOuterJoin(ds2).where(0).equalTo(1).with(new DummyJoin()))
+                .isInstanceOf(InvalidProgramException.class);
+    }
+
+    @Test
+    void testFullOuter10() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+        // key types do not match
+        assertThatThrownBy(
+                        () ->
+                                ds1.fullOuterJoin(ds2)
+                                        .where(new IntKeySelector())
+                                        .equalTo(new LongKeySelector())
+                                        .with(new DummyJoin()))
+                .isInstanceOf(InvalidProgramException.class);
+    }
+
+    @Test
+    void testFullOuterStrategy1() {
         this.testFullOuterStrategies(JoinHint.OPTIMIZER_CHOOSES);
     }
 
     @Test
-    public void testFullOuterStrategy2() {
+    void testFullOuterStrategy2() {
         this.testFullOuterStrategies(JoinHint.REPARTITION_SORT_MERGE);
     }
 
     @Test
-    public void testFullOuterStrategy3() {
+    void testFullOuterStrategy3() {
         this.testFullOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
     }
 
-    @Test(expected = InvalidProgramException.class)
-    public void testFullOuterStrategy4() {
-        this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
+    @Test
+    void testFullOuterStrategy4() {
+        assertThatThrownBy(() -> this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_SECOND))
+                .isInstanceOf(InvalidProgramException.class);
     }
 
     @Test
-    public void testFullOuterStrategy5() {
+    void testFullOuterStrategy5() {
         this.testFullOuterStrategies(JoinHint.REPARTITION_HASH_FIRST);
     }
 
-    @Test(expected = InvalidProgramException.class)
-    public void testFullOuterStrategy6() {
-        this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
+    @Test
+    void testFullOuterStrategy6() {
+        assertThatThrownBy(() -> this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_FIRST))
+                .isInstanceOf(InvalidProgramException.class);
     }
 
     private void testFullOuterStrategies(JoinHint hint) {

@@ -212,6 +212,10 @@ final class CastRuleUtils {
             return stmt(varName + " = " + value);
         }
 
+        public CodeWriter assignPlusStmt(String varName, String value) {
+            return stmt(varName + " += " + value);
+        }
+
         public CodeWriter assignArrayStmt(String varName, String index, String value) {
             return stmt(varName + "[" + index + "] = " + value);
         }

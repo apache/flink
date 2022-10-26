@@ -23,11 +23,11 @@ import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.connector.pulsar.source.enumerator.cursor.MessageIdUtils.nextMessageId;
+import static org.apache.flink.connector.pulsar.source.enumerator.cursor.MessageIdUtils.unwrapMessageId;
 
-/** This cursor would left pulsar start consuming from a specific message id. */
+/** This cursor would leave pulsar start consuming from a specific message id. */
 public class MessageIdStartCursor implements StartCursor {
     private static final long serialVersionUID = -8057345435887170111L;
 
@@ -43,23 +43,17 @@ public class MessageIdStartCursor implements StartCursor {
      * code</a> for understanding pulsar internal logic.
      *
      * @param messageId The message id for start position.
-     * @param inclusive Should we include the start message id in consuming result.
+     * @param inclusive Whether we include the start message id in consuming result. This works only
+     *     if we provide a specified message id instead of {@link MessageId#earliest} or {@link
+     *     MessageId#latest}.
      */
     public MessageIdStartCursor(MessageId messageId, boolean inclusive) {
-        if (inclusive) {
-            this.messageId = messageId;
+        if (MessageId.earliest.equals(messageId)
+                || MessageId.latest.equals(messageId)
+                || inclusive) {
+            this.messageId = unwrapMessageId(messageId);
         } else {
-            checkState(
-                    messageId instanceof MessageIdImpl,
-                    "We only support normal message id and batch message id.");
-            MessageIdImpl id = (MessageIdImpl) messageId;
-            if (MessageId.earliest.equals(messageId) || MessageId.latest.equals(messageId)) {
-                this.messageId = messageId;
-            } else {
-                this.messageId =
-                        new MessageIdImpl(
-                                id.getLedgerId(), id.getEntryId() + 1, id.getPartitionIndex());
-            }
+            this.messageId = nextMessageId(messageId);
         }
     }
 

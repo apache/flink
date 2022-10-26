@@ -54,9 +54,7 @@ public class EmbeddedPythonEnvironmentManager extends AbstractPythonEnvironmentM
 
         String executionMode = dependencyInfo.getExecutionMode();
 
-        if (executionMode.equalsIgnoreCase("sub-interpreter")) {
-            execType = PythonInterpreterConfig.ExecType.SUB_INTERPRETER;
-        } else if (executionMode.equalsIgnoreCase("multi-thread")) {
+        if (executionMode.equalsIgnoreCase("thread")) {
             execType = PythonInterpreterConfig.ExecType.MULTI_THREAD;
         } else {
             throw new RuntimeException(
@@ -66,16 +64,8 @@ public class EmbeddedPythonEnvironmentManager extends AbstractPythonEnvironmentM
         String pythonVersion =
                 PythonEnvironmentManagerUtils.getPythonVersion(dependencyInfo.getPythonExec());
 
-        if (execType == PythonInterpreterConfig.ExecType.SUB_INTERPRETER) {
-            if (pythonVersion.compareTo("3.8") < 0) {
-                throw new RuntimeException(
-                        "`SUB-INTERPRETER` execution mode only supports Python 3.8+");
-            }
-        } else {
-            if (pythonVersion.compareTo("3.7") < 0) {
-                throw new RuntimeException(
-                        "`MULTI-THREAD` execution mode only supports Python 3.7+");
-            }
+        if (pythonVersion.compareTo("3.7") < 0) {
+            throw new RuntimeException("`THREAD` execution mode only supports Python 3.7+");
         }
 
         if (env.containsKey("FLINK_TESTING")) {

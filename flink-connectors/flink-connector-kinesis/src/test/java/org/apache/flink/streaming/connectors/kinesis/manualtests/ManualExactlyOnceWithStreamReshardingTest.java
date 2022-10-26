@@ -103,7 +103,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
                                 .build());
         flink.before();
 
-        final int flinkPort = flink.getRestAddres().getPort();
+        final int flinkPort = flink.getRestAddress().getPort();
 
         try {
             // we have to use a manual generator here instead of the FlinkKinesisProducer

@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
-import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
 import org.junit._
+import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -53,7 +52,8 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (8L, 4L, "Comment#2", 8),
       (1L, 1L, "Hi", 2),
       (1L, 1L, "Hi", 1),
-      (4L, 3L, "Helloworld, how are you?", 4))
+      (4L, 3L, "Helloworld, how are you?", 4)
+    )
 
     val t = failingDataSource(data)
       .assignTimestampsAndWatermarks(
@@ -79,7 +79,8 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#1,7",
       "4,Comment#2,8",
       "4,Comment#3,9",
-      "4,Comment#4,10")
+      "4,Comment#4,10"
+    )
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -96,7 +97,8 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (10L, 4L, "Comment#4", 10),
       (8L, 4L, "Comment#2", 8),
       (1L, 1L, "Hi", 1),
-      (4L, 3L, "Helloworld, how are you?", 4))
+      (4L, 3L, "Helloworld, how are you?", 4)
+    )
 
     val t = failingDataSource(data)
       .assignTimestampsAndWatermarks(
@@ -122,7 +124,8 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#1,7",
       "4,Comment#2,8",
       "4,Comment#3,9",
-      "4,Comment#4,10")
+      "4,Comment#4,10"
+    )
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -140,23 +143,23 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       row(LocalDateTime.parse("1970-01-01T00:00:08"), 4L, "Comment#2", 8),
       row(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 2),
       row(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 1),
-      row(LocalDateTime.parse("1970-01-01T00:00:04"), 3L, "Helloworld, how are you?", 4))
+      row(LocalDateTime.parse("1970-01-01T00:00:04"), 3L, "Helloworld, how are you?", 4)
+    )
 
     val tableId = TestValuesTableFactory.registerData(rows)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE T (
-         |  rowtime TIMESTAMP(3),
-         |  key BIGINT,
-         |  str STRING,
-         |  `int` INT,
-         |  WATERMARK FOR rowtime AS rowtime - interval '10' SECOND
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$tableId',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T (
+                       |  rowtime TIMESTAMP(3),
+                       |  key BIGINT,
+                       |  str STRING,
+                       |  `int` INT,
+                       |  WATERMARK FOR rowtime AS rowtime - interval '10' SECOND
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$tableId',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
 
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime, `int`"
 
@@ -176,7 +179,8 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#1,7",
       "4,Comment#2,8",
       "4,Comment#3,9",
-      "4,Comment#4,10")
+      "4,Comment#4,10"
+    )
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -194,23 +198,23 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       row(Instant.ofEpochSecond(8L), 4L, "Comment#2", 8),
       row(Instant.ofEpochSecond(1L), 1L, "Hi", 2),
       row(Instant.ofEpochSecond(1L), 1L, "Hi", 1),
-      row(Instant.ofEpochSecond(4L), 3L, "Helloworld, how are you?", 4))
+      row(Instant.ofEpochSecond(4L), 3L, "Helloworld, how are you?", 4)
+    )
 
     val tableId = TestValuesTableFactory.registerData(rows)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE T (
-         |  rowtime TIMESTAMP_LTZ(3),
-         |  key BIGINT,
-         |  str STRING,
-         |  `int` INT,
-         |  WATERMARK FOR rowtime AS rowtime - interval '10' SECOND
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$tableId',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T (
+                       |  rowtime TIMESTAMP_LTZ(3),
+                       |  key BIGINT,
+                       |  str STRING,
+                       |  `int` INT,
+                       |  WATERMARK FOR rowtime AS rowtime - interval '10' SECOND
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$tableId',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
 
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime, `int`"
 
@@ -230,7 +234,8 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#1,7",
       "4,Comment#2,8",
       "4,Comment#3,9",
-      "4,Comment#4,10")
+      "4,Comment#4,10"
+    )
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -269,9 +274,10 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "18,6,Comment#12",
       "19,6,Comment#13",
       "20,6,Comment#14",
-      "21,6,Comment#15")
+      "21,6,Comment#15"
+    )
 
-     assertEquals(expected, sink.getRetractResults)
+    assertEquals(expected, sink.getRetractResults)
   }
 
 }

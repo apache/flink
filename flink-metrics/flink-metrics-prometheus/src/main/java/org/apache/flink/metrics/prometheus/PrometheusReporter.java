@@ -21,7 +21,6 @@ package org.apache.flink.metrics.prometheus;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.util.Preconditions;
 
@@ -32,8 +31,6 @@ import java.util.Iterator;
 
 /** {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus. */
 @PublicEvolving
-@InstantiateViaFactory(
-        factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusReporterFactory")
 public class PrometheusReporter extends AbstractPrometheusReporter {
 
     private HTTPServer httpServer;

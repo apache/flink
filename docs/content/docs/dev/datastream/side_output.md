@@ -50,6 +50,11 @@ OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
 val outputTag = OutputTag[String]("side-output")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+output_tag = OutputTag("side-output", Types.STRING())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Notice how the `OutputTag` is typed according to the type of elements that the side output stream
@@ -115,6 +120,25 @@ val mainDataStream = input
   })
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+output_tag = OutputTag("side-output", Types.STRING())
+
+class MyProcessFunction(ProcessFunction):
+
+    def process_element(self, value: int, ctx: ProcessFunction.Context):
+        # emit data to regular output
+        yield value
+
+        # emit data to side output
+        yield output_tag, "sideout-" + str(value)
+
+
+main_data_stream = input \
+    .process(MyProcessFunction(), Types.INT())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 For retrieving the side output stream you use `getSideOutput(OutputTag)`
@@ -140,6 +164,15 @@ val outputTag = OutputTag[String]("side-output")
 val mainDataStream = ...
 
 val sideOutputStream: DataStream[String] = mainDataStream.getSideOutput(outputTag)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+output_tag = OutputTag("side-output", Types.STRING())
+
+main_data_stream = ...  # type: DataStream
+
+side_output_stream = main_data_stream.get_side_output(output_tag)  # type: DataStream
 ```
 {{< /tab >}}
 {{< /tabs >}}

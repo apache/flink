@@ -36,7 +36,9 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -72,14 +74,14 @@ public class JobVertex implements java.io.Serializable {
      */
     private final List<OperatorIDPair> operatorIDs;
 
-    /** List of produced data sets, one per writer. */
-    private final ArrayList<IntermediateDataSet> results = new ArrayList<>();
+    /** Produced data sets, one per writer. */
+    private final Map<IntermediateDataSetID, IntermediateDataSet> results = new LinkedHashMap<>();
 
     /** List of edges with incoming data. One per Reader. */
-    private final ArrayList<JobEdge> inputs = new ArrayList<>();
+    private final List<JobEdge> inputs = new ArrayList<>();
 
     /** The list of factories for operator coordinators. */
-    private final ArrayList<SerializedValue<OperatorCoordinator.Provider>> operatorCoordinators =
+    private final List<SerializedValue<OperatorCoordinator.Provider>> operatorCoordinators =
             new ArrayList<>();
 
     /** Number of subtasks to split this task into at runtime. */
@@ -141,6 +143,17 @@ public class JobVertex implements java.io.Serializable {
      * JSON plan.
      */
     private String resultOptimizerProperties;
+
+    /**
+     * The intermediateDataSetId of the cached intermediate dataset that the job vertex consumes.
+     */
+    private final List<IntermediateDataSetID> intermediateDataSetIdsToConsume = new ArrayList<>();
+
+    /** Indicates whether this job vertex contains source operators. */
+    private boolean containsSourceOperators = false;
+
+    /** Indicates whether this job vertex contains sink operators. */
+    private boolean containsSinkOperators = false;
 
     // --------------------------------------------------------------------------------------------
 
@@ -297,8 +310,11 @@ public class JobVertex implements java.io.Serializable {
      * @param parallelism The parallelism for the task.
      */
     public void setParallelism(int parallelism) {
-        if (parallelism < 1) {
-            throw new IllegalArgumentException("The parallelism must be at least one.");
+        if (parallelism < 1 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
+            throw new IllegalArgumentException(
+                    "The parallelism must be at least one, or "
+                            + ExecutionConfig.PARALLELISM_DEFAULT
+                            + " (unset).");
         }
         this.parallelism = parallelism;
     }
@@ -360,7 +376,7 @@ public class JobVertex implements java.io.Serializable {
     }
 
     public List<IntermediateDataSet> getProducedDataSets() {
-        return this.results;
+        return new ArrayList<>(results.values());
     }
 
     public List<JobEdge> getInputs() {
@@ -467,24 +483,37 @@ public class JobVertex implements java.io.Serializable {
     }
 
     // --------------------------------------------------------------------------------------------
-    private IntermediateDataSet createAndAddResultDataSet(ResultPartitionType partitionType) {
-        return createAndAddResultDataSet(new IntermediateDataSetID(), partitionType);
-    }
-
-    public IntermediateDataSet createAndAddResultDataSet(
+    public IntermediateDataSet getOrCreateResultDataSet(
             IntermediateDataSetID id, ResultPartitionType partitionType) {
-
-        IntermediateDataSet result = new IntermediateDataSet(id, partitionType, this);
-        this.results.add(result);
-        return result;
+        return this.results.computeIfAbsent(
+                id, key -> new IntermediateDataSet(id, partitionType, this));
     }
 
     public JobEdge connectNewDataSetAsInput(
             JobVertex input, DistributionPattern distPattern, ResultPartitionType partitionType) {
+        return connectNewDataSetAsInput(input, distPattern, partitionType, false);
+    }
 
-        IntermediateDataSet dataSet = input.createAndAddResultDataSet(partitionType);
+    public JobEdge connectNewDataSetAsInput(
+            JobVertex input,
+            DistributionPattern distPattern,
+            ResultPartitionType partitionType,
+            boolean isBroadcast) {
+        return connectNewDataSetAsInput(
+                input, distPattern, partitionType, new IntermediateDataSetID(), isBroadcast);
+    }
 
-        JobEdge edge = new JobEdge(dataSet, this, distPattern);
+    public JobEdge connectNewDataSetAsInput(
+            JobVertex input,
+            DistributionPattern distPattern,
+            ResultPartitionType partitionType,
+            IntermediateDataSetID intermediateDataSetId,
+            boolean isBroadcast) {
+
+        IntermediateDataSet dataSet =
+                input.getOrCreateResultDataSet(intermediateDataSetId, partitionType);
+
+        JobEdge edge = new JobEdge(dataSet, this, distPattern, isBroadcast);
         this.inputs.add(edge);
         dataSet.addConsumer(edge);
         return edge;
@@ -505,13 +534,23 @@ public class JobVertex implements java.io.Serializable {
     }
 
     public boolean hasNoConnectedInputs() {
-        for (JobEdge edge : inputs) {
-            if (!edge.isIdReference()) {
-                return false;
-            }
-        }
+        return inputs.isEmpty();
+    }
 
-        return true;
+    public void markContainsSources() {
+        this.containsSourceOperators = true;
+    }
+
+    public boolean containsSources() {
+        return containsSourceOperators;
+    }
+
+    public void markContainsSinks() {
+        this.containsSinkOperators = true;
+    }
+
+    public boolean containsSinks() {
+        return containsSinkOperators;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -520,19 +559,32 @@ public class JobVertex implements java.io.Serializable {
      * A hook that can be overwritten by sub classes to implement logic that is called by the master
      * when the job starts.
      *
-     * @param loader The class loader for user defined code.
+     * @param context Provides contextual information for the initialization
      * @throws Exception The method may throw exceptions which cause the job to fail immediately.
      */
-    public void initializeOnMaster(ClassLoader loader) throws Exception {}
+    public void initializeOnMaster(InitializeOnMasterContext context) throws Exception {}
 
     /**
      * A hook that can be overwritten by sub classes to implement logic that is called by the master
      * after the job completed.
      *
-     * @param loader The class loader for user defined code.
+     * @param context Provides contextual information for the initialization
      * @throws Exception The method may throw exceptions which cause the job to fail immediately.
      */
-    public void finalizeOnMaster(ClassLoader loader) throws Exception {}
+    public void finalizeOnMaster(InitializeOnMasterContext context) throws Exception {}
+
+    public interface InitializeOnMasterContext {
+        /** The class loader for user defined code. */
+        ClassLoader getClassLoader();
+
+        /**
+         * The actual parallelism this vertex will be run with. In contrast, the {@link
+         * #getParallelism()} is the original parallelism set when creating the {@link JobGraph} and
+         * might be updated e.g. by the {@link
+         * org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler}.
+         */
+        int getExecutionParallelism();
+    }
 
     // --------------------------------------------------------------------------------------------
 
@@ -566,6 +618,14 @@ public class JobVertex implements java.io.Serializable {
 
     public void setResultOptimizerProperties(String resultOptimizerProperties) {
         this.resultOptimizerProperties = resultOptimizerProperties;
+    }
+
+    public void addIntermediateDataSetIdToConsume(IntermediateDataSetID intermediateDataSetId) {
+        intermediateDataSetIdsToConsume.add(intermediateDataSetId);
+    }
+
+    public List<IntermediateDataSetID> getIntermediateDataSetIdsToConsume() {
+        return intermediateDataSetIdsToConsume;
     }
 
     // --------------------------------------------------------------------------------------------

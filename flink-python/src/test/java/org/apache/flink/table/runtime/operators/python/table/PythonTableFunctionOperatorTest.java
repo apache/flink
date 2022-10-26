@@ -26,7 +26,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
-import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -36,10 +35,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
-import org.apache.calcite.rel.core.JoinRelType;
-
 import java.util.Collection;
-import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
@@ -80,7 +76,7 @@ public class PythonTableFunctionOperatorTest
             RowType inputType,
             RowType outputType,
             int[] udfInputOffsets,
-            JoinRelType joinRelType) {
+            FlinkJoinType joinRelType) {
         final RowType udfInputType = (RowType) Projection.of(udfInputOffsets).project(inputType);
         final RowType udfOutputType =
                 (RowType)
@@ -93,9 +89,11 @@ public class PythonTableFunctionOperatorTest
                 inputType,
                 udfInputType,
                 udfOutputType,
-                JoinTypeUtil.getFlinkJoinType(joinRelType),
+                joinRelType,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "UdtfInputProjection",
                         inputType,
                         udfInputType,
@@ -131,8 +129,7 @@ public class PythonTableFunctionOperatorTest
                     udfInputType,
                     udfOutputType,
                     getFunctionUrn(),
-                    getUserDefinedFunctionsProto(),
-                    new HashMap<>(),
+                    createUserDefinedFunctionsProto(),
                     PythonTestUtils.createMockFlinkMetricContainer());
         }
     }

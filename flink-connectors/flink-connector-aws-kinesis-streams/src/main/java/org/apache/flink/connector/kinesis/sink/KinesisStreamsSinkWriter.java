@@ -24,6 +24,7 @@ import org.apache.flink.connector.base.sink.throwable.FatalExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
@@ -76,11 +77,7 @@ class KinesisStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecord
                     RESOURCE_NOT_FOUND_EXCEPTION_CLASSIFIER,
                     getSdkClientMisconfiguredExceptionClassifier());
 
-    // deprecated, use numRecordsSendErrorsCounter instead.
-    @Deprecated private final Counter numRecordsOutErrorsCounter;
-
-    /* A counter for the total number of records that have encountered an error during put */
-    private final Counter numRecordsSendErrorsCounter;
+    private final Counter numRecordsOutErrorsCounter;
 
     /* Name of the stream in Kinesis Data Streams */
     private final String streamName;
@@ -140,18 +137,19 @@ class KinesisStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecord
         super(
                 elementConverter,
                 context,
-                maxBatchSize,
-                maxInFlightRequests,
-                maxBufferedRequests,
-                maxBatchSizeInBytes,
-                maxTimeInBufferMS,
-                maxRecordSizeInBytes,
+                AsyncSinkWriterConfiguration.builder()
+                        .setMaxBatchSize(maxBatchSize)
+                        .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
+                        .setMaxInFlightRequests(maxInFlightRequests)
+                        .setMaxBufferedRequests(maxBufferedRequests)
+                        .setMaxTimeInBufferMS(maxTimeInBufferMS)
+                        .setMaxRecordSizeInBytes(maxRecordSizeInBytes)
+                        .build(),
                 states);
         this.failOnError = failOnError;
         this.streamName = streamName;
         this.metrics = context.metricGroup();
         this.numRecordsOutErrorsCounter = metrics.getNumRecordsOutErrorsCounter();
-        this.numRecordsSendErrorsCounter = metrics.getNumRecordsSendErrorsCounter();
         this.httpClient = AWSGeneralUtil.createAsyncHttpClient(kinesisClientProperties);
         this.kinesisClient = buildClient(kinesisClientProperties, this.httpClient);
     }
@@ -204,7 +202,6 @@ class KinesisStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecord
                 requestEntries.size(),
                 err);
         numRecordsOutErrorsCounter.inc(requestEntries.size());
-        numRecordsSendErrorsCounter.inc(requestEntries.size());
 
         if (isRetryable(err)) {
             requestResult.accept(requestEntries);

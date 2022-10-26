@@ -20,15 +20,27 @@ package org.apache.flink.batch.connectors.cassandra;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
+import java.time.Duration;
+
 /**
- * OutputFormat to write Flink {@link Tuple}s into a Cassandra cluster.
+ * OutputFormat to write Flink {@link Tuple}s into a Cassandra cluster. Please read the
+ * recommendations in {@linkplain CassandraOutputFormatBase}.
  *
  * @param <OUT> Type of {@link Tuple} to write to Cassandra.
  */
-public class CassandraTupleOutputFormat<OUT extends Tuple> extends CassandraOutputFormatBase<OUT> {
+public class CassandraTupleOutputFormat<OUT extends Tuple>
+        extends CassandraColumnarOutputFormatBase<OUT> {
 
     public CassandraTupleOutputFormat(String insertQuery, ClusterBuilder builder) {
-        super(insertQuery, builder);
+        this(insertQuery, builder, Integer.MAX_VALUE, Duration.ofMillis(Long.MAX_VALUE));
+    }
+
+    public CassandraTupleOutputFormat(
+            String insertQuery,
+            ClusterBuilder builder,
+            int maxConcurrentRequests,
+            Duration maxConcurrentRequestsTimeout) {
+        super(insertQuery, builder, maxConcurrentRequests, maxConcurrentRequestsTimeout);
     }
 
     @Override

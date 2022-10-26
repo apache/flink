@@ -36,8 +36,10 @@ jobmanager.rpc.address: localhost
 
 jobmanager.rpc.port: 6123
 
-# The host interface the JobManager will bind to. My default, this is localhost, and will prevent
+# The host interface the JobManager will bind to. By default, this is localhost, and will prevent
 # the JobManager from communicating outside the machine/container it is running on.
+# On YARN this setting will be ignored if it is set to 'localhost', defaulting to 0.0.0.0.
+# On Kubernetes this setting will be ignored, defaulting to 0.0.0.0.
 #
 # To enable this, set the bind-host address to one that has access to an outside facing network
 # interface, such as 0.0.0.0.
@@ -53,6 +55,8 @@ jobmanager.memory.process.size: 1600m
 
 # The host interface the TaskManager will bind to. By default, this is localhost, and will prevent
 # the TaskManager from communicating outside the machine/container it is running on.
+# On YARN this setting will be ignored if it is set to 'localhost', defaulting to 0.0.0.0.
+# On Kubernetes this setting will be ignored, defaulting to 0.0.0.0.
 #
 # To enable this, set the bind-host address to one that has access to an outside facing network
 # interface, such as 0.0.0.0.
@@ -105,7 +109,7 @@ parallelism.default: 1
 
 # The high-availability mode. Possible options are 'NONE' or 'zookeeper'.
 #
-# high-availability: zookeeper
+# high-availability.type: zookeeper
 
 # The path where metadata for master recovery is persisted. While ZooKeeper stores
 # the small ground truth for checkpoint and leader election, this location stores
@@ -150,7 +154,7 @@ parallelism.default: 1
 # Supported backends are 'hashmap', 'rocksdb', or the
 # <class-name-of-factory>.
 #
-# state.backend: hashmap
+# state.backend.type: hashmap
 
 # Directory for checkpoints filesystem, when using any of the default bundled
 # state backends.

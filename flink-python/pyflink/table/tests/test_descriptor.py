@@ -42,18 +42,18 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
 
     def test_timestamps_from_extractor(self):
         rowtime = Rowtime().timestamps_from_extractor(
-            "org.apache.flink.table.legacyutils.CustomExtractor")
+            "org.apache.flink.table.utils.TestingDescriptors$CustomExtractor")
 
         properties = rowtime.to_properties()
         expected = {
             'rowtime.timestamps.type': 'custom',
             'rowtime.timestamps.class':
-                'org.apache.flink.table.legacyutils.CustomExtractor',
+                'org.apache.flink.table.utils.TestingDescriptors$CustomExtractor',
             'rowtime.timestamps.serialized':
-                'rO0ABXNyADJvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmxlZ2FjeXV0aWxzLkN1c3RvbUV4dHJhY3Rvctj'
-                'ZLTGK9XvxAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cmluZzt4cgA-b3JnLmFwYWNoZS5mbGluay'
-                '50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYWN0b3Jf1Y6piFNsGAIAAHhwd'
-                'AACdHM'}
+                'rO0ABXNyAD9vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnV0aWxzLlRlc3RpbmdEZXNjcmlwdG9ycyRDdXN0b2'
+                '1FeHRyYWN0b3K-MntVKO8Z7QIAAUwABWZpZWxkdAASTGphdmEvbGFuZy9TdHJpbmc7eHIAPm9yZy5hcGFj'
+                'aGUuZmxpbmsudGFibGUuc291cmNlcy50c2V4dHJhY3RvcnMuVGltZXN0YW1wRXh0cmFjdG9yX9WOqYhTbB'
+                'gCAAB4cHQAAnRz'}
         self.assertEqual(expected, properties)
 
     def test_watermarks_periodic_ascending(self):
@@ -80,18 +80,18 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
 
     def test_watermarks_from_strategy(self):
         rowtime = Rowtime().watermarks_from_strategy(
-            "org.apache.flink.table.legacyutils.CustomAssigner")
+            "org.apache.flink.table.utils.TestingDescriptors$CustomAssigner")
 
         properties = rowtime.to_properties()
         expected = {
             'rowtime.watermarks.type': 'custom',
             'rowtime.watermarks.class':
-                'org.apache.flink.table.legacyutils.CustomAssigner',
+                'org.apache.flink.table.utils.TestingDescriptors$CustomAssigner',
             'rowtime.watermarks.serialized':
-                'rO0ABXNyADFvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmxlZ2FjeXV0aWxzLkN1c3RvbUFzc2lnbmVyu_8'
-                'TLNBQBsACAAB4cgBHb3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5QdW'
-                '5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9AIAAHhyAD1vcmcuYXBhY2hlLmZsaW5rLnRhY'
-                'mxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cmF0ZWd53nt-g2OWaT4CAAB4cA'}
+                'rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnV0aWxzLlRlc3RpbmdEZXNjcmlwdG9ycyRDdXN0b2'
+                '1Bc3NpZ25lcsY_Xt96bBjDAgAAeHIAR29yZy5hcGFjaGUuZmxpbmsudGFibGUuc291cmNlcy53bXN0cmF0'
+                'ZWdpZXMuUHVuY3R1YXRlZFdhdGVybWFya0Fzc2lnbmVygVHOe6GlrvQCAAB4cgA9b3JnLmFwYWNoZS5mbG'
+                'luay50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5XYXRlcm1hcmtTdHJhdGVned57foNjlmk-AgAAeHA'}
         self.assertEqual(expected, properties)
 
 

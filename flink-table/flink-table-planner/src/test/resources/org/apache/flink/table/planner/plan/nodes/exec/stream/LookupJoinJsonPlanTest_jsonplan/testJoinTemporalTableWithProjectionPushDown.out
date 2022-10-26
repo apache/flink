@@ -246,9 +246,18 @@
               "bounded" : "false"
             }
           }
-        }
+        },
+        "abilities" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 0 ] ],
+          "producedType" : "ROW<`id` INT> NOT NULL"
+        }, {
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : "ROW<`id` INT> NOT NULL"
+        } ]
       },
-      "outputType" : "ROW<`id` INT, `name` VARCHAR(2147483647), `age` INT> NOT NULL"
+      "outputType" : "ROW<`id` INT> NOT NULL"
     },
     "lookupKeys" : {
       "0" : {
@@ -256,12 +265,10 @@
         "index" : 0
       }
     },
-    "projectionOnTemporalTable" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : "INT"
-    } ],
+    "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
+    "lookupKeyContainsPrimaryKey" : false,
+    "inputChangelogMode" : [ "INSERT" ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -300,7 +307,7 @@
         "fieldType" : "INT"
       } ]
     },
-    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id])"
+    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id])"
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
@@ -368,6 +375,12 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
@@ -24,14 +23,14 @@ import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.RelOptTable.ToRelContext
 import org.apache.calcite.plan.{Contexts, RelOptCluster, RelOptTable}
+import org.apache.calcite.plan.RelOptTable.ToRelContext
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
-import org.apache.calcite.rel.core.RelFactories._
+import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.core.RelFactories._
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical._
-import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlKind.{EXCEPT, INTERSECT, UNION}
@@ -43,9 +42,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Contains factory interface and default implementation for creating various
-  * flink logical rel nodes.
-  */
+ * Contains factory interface and default implementation for creating various flink logical rel
+ * nodes.
+ */
 object FlinkLogicalRelFactories {
 
   val FLINK_LOGICAL_PROJECT_FACTORY = new ProjectFactoryImpl
@@ -60,8 +59,10 @@ object FlinkLogicalRelFactories {
   val FLINK_LOGICAL_EXPAND_FACTORY = new ExpandFactoryImpl
   val FLINK_LOGICAL_RANK_FACTORY = new RankFactoryImpl
 
-  /** A [[RelBuilderFactory]] that creates a [[RelBuilder]] that will
-    * create logical relational expressions for everything. */
+  /**
+   * A [[RelBuilderFactory]] that creates a [[RelBuilder]] that will create logical relational
+   * expressions for everything.
+   */
   val FLINK_LOGICAL_REL_BUILDER: RelBuilderFactory = FlinkRelBuilder.proto(
     Contexts.of(
       FLINK_LOGICAL_PROJECT_FACTORY,
@@ -73,17 +74,16 @@ object FlinkLogicalRelFactories {
       FLINK_LOGICAL_VALUES_FACTORY,
       FLINK_LOGICAL_TABLE_SCAN_FACTORY,
       FLINK_LOGICAL_EXPAND_FACTORY,
-      FLINK_LOGICAL_RANK_FACTORY))
+      FLINK_LOGICAL_RANK_FACTORY
+    ))
 
-  /**
-    * Implementation of [[ProjectFactory]] that returns a [[FlinkLogicalCalc]].
-    */
+  /** Implementation of [[ProjectFactory]] that returns a [[FlinkLogicalCalc]]. */
   class ProjectFactoryImpl extends ProjectFactory {
     def createProject(
         input: RelNode,
         hints: util.List[RelHint],
         childExprs: util.List[_ <: RexNode],
-        fieldNames: util.List[String]): RelNode = {
+        fieldNames: util.List[_ <: String]): RelNode = {
       val rexBuilder = input.getCluster.getRexBuilder
       val inputRowType = input.getRowType
       val programBuilder = new RexProgramBuilder(inputRowType, rexBuilder)
@@ -95,9 +95,7 @@ object FlinkLogicalRelFactories {
     }
   }
 
-  /**
-    * Implementation of [[SortFactory]] that returns a [[FlinkLogicalSort]].
-    */
+  /** Implementation of [[SortFactory]] that returns a [[FlinkLogicalSort]]. */
   class SortFactoryImpl extends SortFactory {
     def createSort(
         input: RelNode,
@@ -109,10 +107,9 @@ object FlinkLogicalRelFactories {
   }
 
   /**
-    * Implementation of [[SetOpFactory]] that
-    * returns a flink [[org.apache.calcite.rel.core.SetOp]] for the particular kind of set
-    * operation (UNION, EXCEPT, INTERSECT).
-    */
+   * Implementation of [[SetOpFactory]] that returns a flink [[org.apache.calcite.rel.core.SetOp]]
+   * for the particular kind of set operation (UNION, EXCEPT, INTERSECT).
+   */
   class SetOpFactoryImpl extends SetOpFactory {
     def createSetOp(kind: SqlKind, inputs: util.List[RelNode], all: Boolean): RelNode = {
       kind match {
@@ -128,9 +125,7 @@ object FlinkLogicalRelFactories {
     }
   }
 
-  /**
-    * Implementation of [[AggregateFactory]] that returns a [[FlinkLogicalAggregate]].
-    */
+  /** Implementation of [[AggregateFactory]] that returns a [[FlinkLogicalAggregate]]. */
   class AggregateFactoryImpl extends AggregateFactory {
     def createAggregate(
         input: RelNode,
@@ -142,9 +137,7 @@ object FlinkLogicalRelFactories {
     }
   }
 
-  /**
-    * Implementation of [[FilterFactory]] that returns a [[FlinkLogicalCalc]].
-    */
+  /** Implementation of [[FilterFactory]] that returns a [[FlinkLogicalCalc]]. */
   class FilterFactoryImpl extends FilterFactory {
     override def createFilter(
         input: RelNode,
@@ -162,9 +155,7 @@ object FlinkLogicalRelFactories {
     }
   }
 
-  /**
-    * Implementation of [[JoinFactory]] that returns a [[FlinkLogicalJoin]].
-    */
+  /** Implementation of [[JoinFactory]] that returns a [[FlinkLogicalJoin]]. */
   class JoinFactoryImpl extends JoinFactory {
     def createJoin(
         left: RelNode,
@@ -174,13 +165,11 @@ object FlinkLogicalRelFactories {
         variablesSet: util.Set[CorrelationId],
         joinType: JoinRelType,
         semiJoinDone: Boolean): RelNode = {
-      FlinkLogicalJoin.create(left, right, condition, joinType)
+      FlinkLogicalJoin.create(left, right, condition, hints, joinType)
     }
   }
 
-  /**
-    * Implementation of [[CorrelateFactory]] that returns a [[FlinkLogicalCorrelate]].
-    */
+  /** Implementation of [[CorrelateFactory]] that returns a [[FlinkLogicalCorrelate]]. */
   class CorrelateFactoryImpl extends CorrelateFactory {
     def createCorrelate(
         left: RelNode,
@@ -192,23 +181,24 @@ object FlinkLogicalRelFactories {
     }
   }
 
-  /**
-    * Implementation of [[ValuesFactory]] that returns a [[FlinkLogicalValues]].
-    */
+  /** Implementation of [[ValuesFactory]] that returns a [[FlinkLogicalValues]]. */
   class ValuesFactoryImpl extends ValuesFactory {
     def createValues(
         cluster: RelOptCluster,
         rowType: RelDataType,
         tuples: util.List[ImmutableList[RexLiteral]]): RelNode = {
       FlinkLogicalValues.create(
-        cluster, null, rowType, ImmutableList.copyOf[ImmutableList[RexLiteral]](tuples))
+        cluster,
+        null,
+        rowType,
+        ImmutableList.copyOf[ImmutableList[RexLiteral]](tuples))
     }
   }
 
   /**
-    * Implementation of [[TableScanFactory]] that returns a
-    * [[FlinkLogicalLegacyTableSourceScan]] or [[FlinkLogicalDataStreamTableScan]].
-    */
+   * Implementation of [[TableScanFactory]] that returns a [[FlinkLogicalLegacyTableSourceScan]] or
+   * [[FlinkLogicalDataStreamTableScan]].
+   */
   class TableScanFactoryImpl extends TableScanFactory {
     def createScan(toRelContext: ToRelContext, table: RelOptTable): RelNode = {
       val cluster = toRelContext.getCluster
@@ -230,9 +220,8 @@ object FlinkLogicalRelFactories {
   }
 
   /**
-    * Implementation of [[FlinkRelFactories.ExpandFactory]] that returns a
-    * [[FlinkLogicalExpand]].
-    */
+   * Implementation of [[FlinkRelFactories.ExpandFactory]] that returns a [[FlinkLogicalExpand]].
+   */
   class ExpandFactoryImpl extends ExpandFactory {
     def createExpand(
         input: RelNode,
@@ -242,10 +231,7 @@ object FlinkLogicalRelFactories {
     }
   }
 
-  /**
-    * Implementation of [[FlinkRelFactories.RankFactory]] that returns a
-    * [[FlinkLogicalRank]].
-    */
+  /** Implementation of [[FlinkRelFactories.RankFactory]] that returns a [[FlinkLogicalRank]]. */
   class RankFactoryImpl extends RankFactory {
     def createRank(
         input: RelNode,
@@ -255,8 +241,14 @@ object FlinkLogicalRelFactories {
         rankRange: RankRange,
         rankNumberType: RelDataTypeField,
         outputRankNumber: Boolean): RelNode = {
-      FlinkLogicalRank.create(input, partitionKey, orderKey, rankType, rankRange,
-        rankNumberType, outputRankNumber)
+      FlinkLogicalRank.create(
+        input,
+        partitionKey,
+        orderKey,
+        rankType,
+        rankRange,
+        rankNumberType,
+        outputRankNumber)
     }
   }
 }

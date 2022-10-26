@@ -16,9 +16,10 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode)
+from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode, Configuration)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.util.java_utils import get_j_env_configuration
 
 
 class ExecutionConfigTests(PyFlinkTestCase):
@@ -273,3 +274,15 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.assertEqual(config1, config2)
 
         self.assertEqual(hash(config1), hash(config2))
+
+    def test_get_execution_environment_with_config(self):
+        configuration = Configuration()
+        configuration.set_integer('parallelism.default', 12)
+        configuration.set_string('pipeline.name', 'haha')
+        env = StreamExecutionEnvironment.get_execution_environment(configuration)
+        execution_config = env.get_config()
+
+        self.assertEqual(execution_config.get_parallelism(), 12)
+        config = Configuration(
+            j_configuration=get_j_env_configuration(env._j_stream_execution_environment))
+        self.assertEqual(config.get_string('pipeline.name', ''), 'haha')

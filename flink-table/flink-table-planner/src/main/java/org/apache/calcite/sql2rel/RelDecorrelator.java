@@ -16,6 +16,9 @@
  */
 package org.apache.calcite.sql2rel;
 
+import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.hint.FlinkHints;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -31,11 +34,13 @@ import org.apache.calcite.linq4j.function.Function2;
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCostImpl;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
+import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelCollation;
@@ -99,9 +104,8 @@ import org.apache.calcite.util.ReflectiveVisitor;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mappings;
 import org.apache.calcite.util.trace.CalciteTrace;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
-
-import javax.annotation.Nonnull;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -114,11 +118,23 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-/** Copied to fix calcite issues. */
+import static java.util.Objects.requireNonNull;
+import static org.apache.calcite.linq4j.Nullness.castNonNull;
+
+/**
+ * Copied to fix calcite issues. FLINK modifications are at lines
+ *
+ * <ol>
+ *   <li>Was changed within FLINK-29280, FLINK-28682: Line 224 ~ 234
+ *   <li>Should be removed after fix of FLINK-29540: Line 296 ~ 302
+ *   <li>Should be removed after fix of FLINK-29540: Line 314 ~ 320
+ *   <li>Was changed within FLINK-21592: Line 1954 ~ 1962, Should be removed after update to Calcite
+ *       1.28.0 as it is fixed at CALCITE-4773
+ * </ol>
+ */
 public class RelDecorrelator implements ReflectiveVisitor {
     // ~ Static fields/initializers ---------------------------------------------
 
@@ -126,27 +142,29 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
     // ~ Instance fields --------------------------------------------------------
 
-    private final RelBuilder relBuilder;
+    protected final RelBuilder relBuilder;
 
     // map built during translation
     protected CorelMap cm;
 
-    private final ReflectUtil.MethodDispatcher<Frame> dispatcher =
-            ReflectUtil.createMethodDispatcher(Frame.class, this, "decorrelateRel", RelNode.class);
+    @SuppressWarnings("method.invocation.invalid")
+    protected final ReflectUtil.MethodDispatcher<@Nullable Frame> dispatcher =
+            ReflectUtil.<RelNode, @Nullable Frame>createMethodDispatcher(
+                    Frame.class, getVisitor(), "decorrelateRel", RelNode.class, boolean.class);
 
     // The rel which is being visited
-    private RelNode currentRel;
+    protected @Nullable RelNode currentRel;
 
-    private final Context context;
+    protected final Context context;
 
     /**
      * Built during decorrelation, of rel to all the newly created correlated variables in its
      * output, and to map old input positions to new input positions. This is from the view point of
      * the parent rel of a new rel.
      */
-    private final Map<RelNode, Frame> map = new HashMap<>();
+    protected final Map<RelNode, Frame> map = new HashMap<>();
 
-    private final HashSet<Correlate> generatedCorRels = new HashSet<>();
+    protected final HashSet<Correlate> generatedCorRels = new HashSet<>();
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -203,10 +221,22 @@ public class RelDecorrelator implements ReflectiveVisitor {
         // Re-propagate the hints.
         newRootRel = RelOptUtil.propagateRelHints(newRootRel, true);
 
+        // ----- FLINK MODIFICATION BEGIN -----
+
+        // replace all join hints with upper case
+        newRootRel = FlinkHints.capitalizeJoinHints(newRootRel);
+
+        // clear join hints which are propagated into wrong query block
+        // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
+        // distinguish the query block in the SQL.
+        newRootRel = newRootRel.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+
+        // ----- FLINK MODIFICATION END -----
+
         return newRootRel;
     }
 
-    private void setCurrent(RelNode root, Correlate corRel) {
+    private void setCurrent(@Nullable RelNode root, @Nullable Correlate corRel) {
         currentRel = corRel;
         if (corRel != null) {
             cm = new CorelMapBuilder().build(Util.first(root, corRel));
@@ -263,20 +293,42 @@ public class RelDecorrelator implements ReflectiveVisitor {
                                 FilterCorrelateRule.Config.DEFAULT
                                         .withRelBuilderFactory(f)
                                         .toRule())
+                        /* ----- FLINK MODIFICATION BEGIN -----
+                        This is commented as a workaround for https://issues.apache.org/jira/browse/FLINK-29540
+                        .addRuleInstance(
+                                 FilterFlattenCorrelatedConditionRule.Config.DEFAULT
+                                         .withRelBuilderFactory(f)
+                                         .toRule())
+                                         ----- FLINK MODIFICATION END -----*/
                         .build();
 
         HepPlanner planner = createPlanner(program);
 
         planner.setRoot(root);
         root = planner.findBestExp();
-
+        if (SQL2REL_LOGGER.isDebugEnabled()) {
+            SQL2REL_LOGGER.debug(
+                    "Plan before extracting correlated computations:\n"
+                            + RelOptUtil.toString(root));
+        }
+        /* ----- FLINK MODIFICATION BEGIN -----
+        This is commented as a workaround for https://issues.apache.org/jira/browse/FLINK-29540
+        root = root.accept(new CorrelateProjectExtractor(f));
+        // Necessary to update cm (CorrelMap) since CorrelateProjectExtractor above may modify the
+        // plan
+        this.cm = new CorelMapBuilder().build(root);
+         ----- FLINK MODIFICATION END ----- */
+        if (SQL2REL_LOGGER.isDebugEnabled()) {
+            SQL2REL_LOGGER.debug(
+                    "Plan after extracting correlated computations:\n" + RelOptUtil.toString(root));
+        }
         // Perform decorrelation.
         map.clear();
 
-        final Frame frame = getInvoke(root, null);
+        final Frame frame = getInvoke(root, false, null);
         if (frame != null) {
             // has been rewritten; apply rules post-decorrelation
-            final HepProgram program2 =
+            final HepProgramBuilder builder =
                     HepProgram.builder()
                             .addRuleInstance(
                                     CoreRules.FILTER_INTO_JOIN
@@ -287,8 +339,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
                                     CoreRules.JOIN_CONDITION_PUSH
                                             .config
                                             .withRelBuilderFactory(f)
-                                            .toRule())
-                            .build();
+                                            .toRule());
+            if (!getPostDecorrelateRules().isEmpty()) {
+                builder.addRuleCollection(getPostDecorrelateRules());
+            }
+            final HepProgram program2 = builder.build();
 
             final HepPlanner planner2 = createPlanner(program2);
             final RelNode newRoot = frame.r;
@@ -299,7 +354,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return root;
     }
 
-    private Function2<RelNode, RelNode, Void> createCopyHook() {
+    private Function2<RelNode, RelNode, @Nullable Void> createCopyHook() {
         return (oldNode, newNode) -> {
             if (cm.mapRefRelToCorRef.containsKey(oldNode)) {
                 cm.mapRefRelToCorRef.putAll(newNode, cm.mapRefRelToCorRef.get(oldNode));
@@ -381,14 +436,14 @@ public class RelDecorrelator implements ReflectiveVisitor {
     }
 
     /** Fallback if none of the other {@code decorrelateRel} methods match. */
-    public Frame decorrelateRel(RelNode rel) {
+    public @Nullable Frame decorrelateRel(RelNode rel, boolean isCorVarDefined) {
         RelNode newRel = rel.copy(rel.getTraitSet(), rel.getInputs());
 
         if (rel.getInputs().size() > 0) {
             List<RelNode> oldInputs = rel.getInputs();
             List<RelNode> newInputs = new ArrayList<>();
             for (int i = 0; i < oldInputs.size(); ++i) {
-                final Frame frame = getInvoke(oldInputs.get(i), rel);
+                final Frame frame = getInvoke(oldInputs.get(i), isCorVarDefined, rel);
                 if (frame == null || !frame.corDefOutputs.isEmpty()) {
                     // if input is not rewritten, or if it produces correlated
                     // variables, terminate rewrite
@@ -412,7 +467,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 ImmutableSortedMap.of());
     }
 
-    public Frame decorrelateRel(Sort rel) {
+    public @Nullable Frame decorrelateRel(Sort rel, boolean isCorVarDefined) {
         //
         // Rewrite logic:
         //
@@ -429,15 +484,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
         // need to call propagateExpr.
 
         final RelNode oldInput = rel.getInput();
-        final Frame frame = getInvoke(oldInput, rel);
+        final Frame frame = getInvoke(oldInput, isCorVarDefined, rel);
         if (frame == null) {
             // If input has not been rewritten, do not rewrite this rel.
             return null;
         }
 
-        // BEGIN FLINK MODIFICATION
-        // Reason: to de-correlate sort rel when its parent is not a correlate
-        // Should be removed after CALCITE-4333 is fixed
         final RelNode newInput = frame.r;
 
         Mappings.TargetMapping mapping =
@@ -451,7 +503,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         final int offset = rel.offset == null ? -1 : RexLiteral.intValue(rel.offset);
         final int fetch = rel.fetch == null ? -1 : RexLiteral.intValue(rel.fetch);
-        // END FLINK MODIFICATION
 
         final RelNode newSort =
                 relBuilder
@@ -463,16 +514,16 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return register(rel, newSort, frame.oldToNewOutputs, frame.corDefOutputs);
     }
 
-    public Frame decorrelateRel(Values rel) {
+    public @Nullable Frame decorrelateRel(Values rel, boolean isCorVarDefined) {
         // There are no inputs, so rel does not need to be changed.
         return null;
     }
 
-    public Frame decorrelateRel(LogicalAggregate rel) {
-        return decorrelateRel((Aggregate) rel);
+    public @Nullable Frame decorrelateRel(LogicalAggregate rel, boolean isCorVarDefined) {
+        return decorrelateRel((Aggregate) rel, isCorVarDefined);
     }
 
-    public Frame decorrelateRel(Aggregate rel) {
+    public @Nullable Frame decorrelateRel(Aggregate rel, boolean isCorVarDefined) {
         //
         // Rewrite logic:
         //
@@ -486,7 +537,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         assert !cm.mapRefRelToCorRef.containsKey(rel);
 
         final RelNode oldInput = rel.getInput();
-        final Frame frame = getInvoke(oldInput, rel);
+        final Frame frame = getInvoke(oldInput, isCorVarDefined, rel);
         if (frame == null) {
             // If input has not been rewritten, do not rewrite this rel.
             return null;
@@ -527,7 +578,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
             newPos++;
         }
 
-        final SortedMap<CorDef, Integer> corDefOutputs = new TreeMap<>();
+        final NavigableMap<CorDef, Integer> corDefOutputs = new TreeMap<>();
         if (!frame.corDefOutputs.isEmpty()) {
             // If input produces correlated variables, move them to the front,
             // right after any existing GROUP BY fields.
@@ -579,10 +630,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
         //                newInput
         Map<Integer, Integer> combinedMap = new HashMap<>();
 
-        for (Integer oldInputPos : frame.oldToNewOutputs.keySet()) {
+        for (Map.Entry<Integer, Integer> entry : frame.oldToNewOutputs.entrySet()) {
             combinedMap.put(
-                    oldInputPos,
-                    mapNewInputToProjOutputs.get(frame.oldToNewOutputs.get(oldInputPos)));
+                    entry.getKey(),
+                    requireNonNull(
+                            mapNewInputToProjOutputs.get(entry.getValue()),
+                            () -> "mapNewInputToProjOutputs.get(" + entry.getValue() + ")"));
         }
 
         register(oldInput, newProject, combinedMap, corDefOutputs);
@@ -619,12 +672,16 @@ public class RelDecorrelator implements ReflectiveVisitor {
             // output position mapping can be used to derive the new positions
             // for the argument.
             for (int oldPos : oldAggArgs) {
-                aggArgs.add(combinedMap.get(oldPos));
+                aggArgs.add(
+                        requireNonNull(
+                                combinedMap.get(oldPos), () -> "combinedMap.get(" + oldPos + ")"));
             }
             final int filterArg =
                     oldAggCall.filterArg < 0
                             ? oldAggCall.filterArg
-                            : combinedMap.get(oldAggCall.filterArg);
+                            : requireNonNull(
+                                    combinedMap.get(oldAggCall.filterArg),
+                                    () -> "combinedMap.get(" + oldAggCall.filterArg + ")");
 
             newAggCalls.add(
                     oldAggCall.adaptTo(
@@ -676,39 +733,32 @@ public class RelDecorrelator implements ReflectiveVisitor {
     private static void shiftMapping(Map<Integer, Integer> mapping, int startIndex, int offset) {
         for (Map.Entry<Integer, Integer> entry : mapping.entrySet()) {
             if (entry.getValue() >= startIndex) {
-                mapping.put(entry.getKey(), entry.getValue() + offset);
-            } else {
-                mapping.put(entry.getKey(), entry.getValue());
+                entry.setValue(entry.getValue() + offset);
             }
         }
     }
 
-    public Frame getInvoke(RelNode r, RelNode parent) {
-        final Frame frame = dispatcher.invoke(r);
-        // BEGIN FLINK MODIFICATION
-        // Reason: to de-correlate sort rel when its parent is not a correlate
-        // Should be removed after CALCITE-4333 is fixed
-        if (frame != null && parent instanceof Correlate && r instanceof Sort) {
-            Sort sort = (Sort) r;
+    public @Nullable Frame getInvoke(RelNode r, boolean isCorVarDefined, @Nullable RelNode parent) {
+        final Frame frame = dispatcher.invoke(r, isCorVarDefined);
+        currentRel = parent;
+        if (frame != null && isCorVarDefined && r instanceof Sort) {
+            final Sort sort = (Sort) r;
             // Can not decorrelate if the sort has per-correlate-key attributes like
             // offset or fetch limit, because these attributes scope would change to
             // global after decorrelation. They should take effect within the scope
             // of the correlation key actually.
             if (sort.offset != null || sort.fetch != null) {
-                currentRel = parent;
                 return null;
             }
         }
-        // END FLINK MODIFICATION
         if (frame != null) {
             map.put(r, frame);
         }
-        currentRel = parent;
         return frame;
     }
 
     /** Returns a literal output field, or null if it is not literal. */
-    private static RexLiteral projectedLiteral(RelNode rel, int i) {
+    private static @Nullable RexLiteral projectedLiteral(RelNode rel, int i) {
         if (rel instanceof Project) {
             final Project project = (Project) rel;
             final RexNode node = project.getProjects().get(i);
@@ -719,11 +769,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return null;
     }
 
-    public Frame decorrelateRel(LogicalProject rel) {
-        return decorrelateRel((Project) rel);
+    public @Nullable Frame decorrelateRel(LogicalProject rel, boolean isCorVarDefined) {
+        return decorrelateRel((Project) rel, isCorVarDefined);
     }
 
-    public Frame decorrelateRel(Project rel) {
+    public @Nullable Frame decorrelateRel(Project rel, boolean isCorVarDefined) {
         //
         // Rewrite logic:
         //
@@ -731,7 +781,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         //
 
         final RelNode oldInput = rel.getInput();
-        Frame frame = getInvoke(oldInput, rel);
+        Frame frame = getInvoke(oldInput, isCorVarDefined, rel);
         if (frame == null) {
             // If input has not been rewritten, do not rewrite this rel.
             return null;
@@ -756,13 +806,17 @@ public class RelDecorrelator implements ReflectiveVisitor {
             projects.add(
                     newPos,
                     Pair.of(
-                            decorrelateExpr(currentRel, map, cm, oldProjects.get(newPos)),
+                            decorrelateExpr(
+                                    requireNonNull(currentRel, "currentRel"),
+                                    map,
+                                    cm,
+                                    oldProjects.get(newPos)),
                             relOutput.get(newPos).getName()));
             mapOldToNewOutputs.put(newPos, newPos);
         }
 
         // Project any correlated variables the input wants to pass along.
-        final SortedMap<CorDef, Integer> corDefOutputs = new TreeMap<>();
+        final NavigableMap<CorDef, Integer> corDefOutputs = new TreeMap<>();
         for (Map.Entry<CorDef, Integer> entry : frame.corDefOutputs.entrySet()) {
             projects.add(RexInputRef.of2(entry.getValue(), frame.r.getRowType().getFieldList()));
             corDefOutputs.put(entry.getKey(), newPos);
@@ -788,10 +842,10 @@ public class RelDecorrelator implements ReflectiveVisitor {
      * @param corDefOutputs output positions for the correlated variables generated
      * @return RelNode the root of the resultant RelNode tree
      */
-    private RelNode createValueGenerator(
+    private @Nullable RelNode createValueGenerator(
             Iterable<CorRef> correlations,
             int valueGenFieldOffset,
-            SortedMap<CorDef, Integer> corDefOutputs) {
+            NavigableMap<CorDef, Integer> corDefOutputs) {
         final Map<RelNode, List<Integer>> mapNewInputToOutputs = new HashMap<>();
 
         final Map<RelNode, Integer> mapNewInputToNewOffset = new HashMap<>();
@@ -803,7 +857,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
             final RelNode oldInput = getCorRel(corVar);
             assert oldInput != null;
-            final Frame frame = getFrame(oldInput, true);
+            final Frame frame = getOrCreateFrame(oldInput);
             assert frame != null;
             final RelNode newInput = frame.r;
 
@@ -836,12 +890,14 @@ public class RelDecorrelator implements ReflectiveVisitor {
         for (CorRef corVar : correlations) {
             final RelNode oldInput = getCorRel(corVar);
             assert oldInput != null;
-            final RelNode newInput = getFrame(oldInput, true).r;
+            final RelNode newInput = getOrCreateFrame(oldInput).r;
             assert newInput != null;
 
             if (!joinedInputs.contains(newInput)) {
-                final List<Integer> positions = mapNewInputToOutputs.get(newInput);
-                final List<String> fieldNames = newInput.getRowType().getFieldNames();
+                final List<Integer> positions =
+                        requireNonNull(
+                                mapNewInputToOutputs.get(newInput),
+                                () -> "mapNewInputToOutputs.get(" + newInput + ")");
 
                 RelNode distinct =
                         relBuilder
@@ -879,11 +935,14 @@ public class RelDecorrelator implements ReflectiveVisitor {
             // the correlated variables.
             final RelNode oldInput = getCorRel(corRef);
             assert oldInput != null;
-            final Frame frame = getFrame(oldInput, true);
+            final Frame frame = getOrCreateFrame(oldInput);
             final RelNode newInput = frame.r;
             assert newInput != null;
 
-            final List<Integer> newLocalOutputs = mapNewInputToOutputs.get(newInput);
+            final List<Integer> newLocalOutputs =
+                    requireNonNull(
+                            mapNewInputToOutputs.get(newInput),
+                            () -> "mapNewInputToOutputs.get(" + newInput + ")");
 
             final int newLocalOutput = frame.oldToNewOutputs.get(corRef.field);
 
@@ -892,7 +951,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
             // each newInput.
             final int newOutput =
                     newLocalOutputs.indexOf(newLocalOutput)
-                            + mapNewInputToNewOffset.get(newInput)
+                            + requireNonNull(
+                                    mapNewInputToNewOffset.get(newInput),
+                                    () -> "mapNewInputToNewOffset.get(" + newInput + ")")
                             + valueGenFieldOffset;
 
             corDefOutputs.put(corRef.def(), newOutput);
@@ -901,18 +962,25 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return r;
     }
 
-    private Frame getFrame(RelNode r, boolean safe) {
-        final Frame frame = map.get(r);
-        if (frame == null && safe) {
+    private Frame getOrCreateFrame(RelNode r) {
+        final Frame frame = getFrame(r);
+        if (frame == null) {
             return new Frame(
                     r, r, ImmutableSortedMap.of(), identityMap(r.getRowType().getFieldCount()));
         }
         return frame;
     }
 
+    private @Nullable Frame getFrame(RelNode r) {
+        return map.get(r);
+    }
+
     private RelNode getCorRel(CorRef corVar) {
-        final RelNode r = cm.mapCorToCorRel.get(corVar.corr);
-        return r.getInput(0);
+        final RelNode r =
+                requireNonNull(
+                        cm.mapCorToCorRel.get(corVar.corr),
+                        () -> "cm.mapCorToCorRel.get(" + corVar.corr + ")");
+        return requireNonNull(r.getInput(0), () -> "r.getInput(0) is null for " + r);
     }
 
     /**
@@ -936,7 +1004,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
      * Returns whether all of a collection of {@link CorRef}s are satisfied by at least one of a
      * collection of {@link CorDef}s.
      */
-    private boolean hasAll(Collection<CorRef> corRefs, Collection<CorDef> corDefs) {
+    private static boolean hasAll(Collection<CorRef> corRefs, Collection<CorDef> corDefs) {
         for (CorRef corRef : corRefs) {
             if (!has(corDefs, corRef)) {
                 return false;
@@ -949,7 +1017,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
      * Returns whether a {@link CorrelationId} is satisfied by at least one of a collection of
      * {@link CorDef}s.
      */
-    private boolean has(Collection<CorDef> corDefs, CorRef corr) {
+    private static boolean has(Collection<CorDef> corDefs, CorRef corr) {
         for (CorDef corDef : corDefs) {
             if (corDef.corr.equals(corr.corr) && corDef.field == corr.field) {
                 return true;
@@ -963,14 +1031,14 @@ public class RelDecorrelator implements ReflectiveVisitor {
         assert rel.getInputs().size() == 1;
         RelNode oldInput = frame.r;
 
-        final SortedMap<CorDef, Integer> corDefOutputs = new TreeMap<>(frame.corDefOutputs);
+        final NavigableMap<CorDef, Integer> corDefOutputs = new TreeMap<>(frame.corDefOutputs);
 
         final Collection<CorRef> corVarList = cm.mapRefRelToCorRef.get(rel);
 
         // Try to populate correlation variables using local fields.
         // This means that we do not need a value generator.
         if (rel instanceof Filter) {
-            SortedMap<CorDef, Integer> map = new TreeMap<>();
+            NavigableMap<CorDef, Integer> map = new TreeMap<>();
             List<RexNode> projects = new ArrayList<>();
             for (CorRef correlation : corVarList) {
                 final CorDef def = correlation.def();
@@ -980,11 +1048,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 try {
                     findCorrelationEquivalent(correlation, ((Filter) rel).getCondition());
                 } catch (Util.FoundOne e) {
-                    if (e.getNode() instanceof RexInputRef) {
-                        map.put(def, ((RexInputRef) e.getNode()).getIndex());
+                    Object node = requireNonNull(e.getNode(), "e.getNode()");
+                    if (node instanceof RexInputRef) {
+                        map.put(def, ((RexInputRef) node).getIndex());
                     } else {
                         map.put(def, frame.r.getRowType().getFieldCount() + projects.size());
-                        projects.add((RexNode) e.getNode());
+                        projects.add((RexNode) node);
                     }
                 }
             }
@@ -1009,7 +1078,10 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // can directly add positions into corDefOutputs since join
         // does not change the output ordering from the inputs.
-        RelNode valueGen = createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs);
+        RelNode valueGen =
+                requireNonNull(
+                        createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs),
+                        "createValueGenerator(...) is null");
 
         RelNode join =
                 relBuilder
@@ -1028,7 +1100,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
      * Finds a {@link RexInputRef} that is equivalent to a {@link CorRef}, and if found, throws a
      * {@link org.apache.calcite.util.Util.FoundOne}.
      */
-    private void findCorrelationEquivalent(CorRef correlation, RexNode e) throws Util.FoundOne {
+    private static void findCorrelationEquivalent(CorRef correlation, RexNode e)
+            throws Util.FoundOne {
         switch (e.getKind()) {
             case EQUALS:
                 final RexCall call = (RexCall) e;
@@ -1044,10 +1117,13 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 for (RexNode operand : ((RexCall) e).getOperands()) {
                     findCorrelationEquivalent(correlation, operand);
                 }
+                break;
+            default:
+                break;
         }
     }
 
-    private boolean references(RexNode e, CorRef correlation) {
+    private static boolean references(RexNode e, CorRef correlation) {
         switch (e.getKind()) {
             case CAST:
                 final RexNode operand = ((RexCall) e).getOperands().get(0);
@@ -1079,30 +1155,30 @@ public class RelDecorrelator implements ReflectiveVisitor {
      *   <li>{@code VARCHAR(10)} is a widening of {@code VARCHAR(10) NOT NULL}.
      * </ul>
      */
-    private boolean isWidening(RelDataType type, RelDataType type1) {
+    private static boolean isWidening(RelDataType type, RelDataType type1) {
         return type.getSqlTypeName() == type1.getSqlTypeName()
                 && type.getPrecision() >= type1.getPrecision();
     }
 
-    public Frame decorrelateRel(LogicalSnapshot rel) {
+    public @Nullable Frame decorrelateRel(LogicalSnapshot rel, boolean isCorVarDefined) {
         if (RexUtil.containsCorrelation(rel.getPeriod())) {
             return null;
         }
-        return decorrelateRel((RelNode) rel);
+        return decorrelateRel((RelNode) rel, isCorVarDefined);
     }
 
-    public Frame decorrelateRel(LogicalTableFunctionScan rel) {
+    public @Nullable Frame decorrelateRel(LogicalTableFunctionScan rel, boolean isCorVarDefined) {
         if (RexUtil.containsCorrelation(rel.getCall())) {
             return null;
         }
-        return decorrelateRel((RelNode) rel);
+        return decorrelateRel((RelNode) rel, isCorVarDefined);
     }
 
-    public Frame decorrelateRel(LogicalFilter rel) {
-        return decorrelateRel((Filter) rel);
+    public @Nullable Frame decorrelateRel(LogicalFilter rel, boolean isCorVarDefined) {
+        return decorrelateRel((Filter) rel, isCorVarDefined);
     }
 
-    public Frame decorrelateRel(Filter rel) {
+    public @Nullable Frame decorrelateRel(Filter rel, boolean isCorVarDefined) {
         //
         // Rewrite logic:
         //
@@ -1120,7 +1196,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         //
 
         final RelNode oldInput = rel.getInput();
-        Frame frame = getInvoke(oldInput, rel);
+        Frame frame = getInvoke(oldInput, isCorVarDefined, rel);
         if (frame == null) {
             // If input has not been rewritten, do not rewrite this rel.
             return null;
@@ -1140,7 +1216,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // Replace the filter expression to reference output of the join
         // Map filter to the new filter over join
-        relBuilder.push(frame.r).filter(decorrelateExpr(currentRel, map, cm2, rel.getCondition()));
+        relBuilder
+                .push(frame.r)
+                .filter(decorrelateExpr(castNonNull(currentRel), map, cm2, rel.getCondition()));
 
         // Filter does not change the input ordering.
         // Filter rel does not permute the input.
@@ -1149,11 +1227,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return register(rel, relBuilder.build(), frame.oldToNewOutputs, frame.corDefOutputs);
     }
 
-    public Frame decorrelateRel(LogicalCorrelate rel) {
-        return decorrelateRel((Correlate) rel);
+    public @Nullable Frame decorrelateRel(LogicalCorrelate rel, boolean isCorVarDefined) {
+        return decorrelateRel((Correlate) rel, isCorVarDefined);
     }
 
-    public Frame decorrelateRel(Correlate rel) {
+    public @Nullable Frame decorrelateRel(Correlate rel, boolean isCorVarDefined) {
         //
         // Rewrite logic:
         //
@@ -1167,8 +1245,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
         final RelNode oldLeft = rel.getInput(0);
         final RelNode oldRight = rel.getInput(1);
 
-        final Frame leftFrame = getInvoke(oldLeft, rel);
-        final Frame rightFrame = getInvoke(oldRight, rel);
+        final Frame leftFrame = getInvoke(oldLeft, isCorVarDefined, rel);
+        final Frame rightFrame = getInvoke(oldRight, true, rel);
 
         if (leftFrame == null || rightFrame == null) {
             // If any input has not been rewritten, do not rewrite this rel.
@@ -1184,7 +1262,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         // Change correlator rel into a join.
         // Join all the correlated variables produced by this correlator rel
         // with the values generated and propagated from the right input
-        final SortedMap<CorDef, Integer> corDefOutputs = new TreeMap<>(rightFrame.corDefOutputs);
+        final NavigableMap<CorDef, Integer> corDefOutputs = new TreeMap<>(rightFrame.corDefOutputs);
         final List<RexNode> conditions = new ArrayList<>();
         final List<RelDataTypeField> newLeftOutput = leftFrame.r.getRowType().getFieldList();
         int newLeftFieldCount = newLeftOutput.size();
@@ -1212,9 +1290,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // Update the output position for the corVars: only pass on the cor
         // vars that are not used in the join key.
-        for (CorDef corDef : corDefOutputs.keySet()) {
-            int newPos = corDefOutputs.get(corDef) + newLeftFieldCount;
-            corDefOutputs.put(corDef, newPos);
+        for (Map.Entry<CorDef, Integer> entry : corDefOutputs.entrySet()) {
+            entry.setValue(entry.getValue() + newLeftFieldCount);
         }
 
         // then add any corVar from the left input. Do not need to change
@@ -1252,16 +1329,16 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return register(rel, newJoin, mapOldToNewOutputs, corDefOutputs);
     }
 
-    public Frame decorrelateRel(LogicalJoin rel) {
-        return decorrelateRel((Join) rel);
+    public @Nullable Frame decorrelateRel(LogicalJoin rel, boolean isCorVarDefined) {
+        return decorrelateRel((Join) rel, isCorVarDefined);
     }
 
-    public Frame decorrelateRel(Join rel) {
+    public @Nullable Frame decorrelateRel(Join rel, boolean isCorVarDefined) {
         // For SEMI/ANTI join decorrelate it's input directly,
         // because the correlate variables can only be propagated from
         // the left side, which is not supported yet.
         if (!rel.getJoinType().projectsRight()) {
-            return decorrelateRel((RelNode) rel);
+            return decorrelateRel((RelNode) rel, isCorVarDefined);
         }
         //
         // Rewrite logic:
@@ -1273,8 +1350,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
         final RelNode oldLeft = rel.getInput(0);
         final RelNode oldRight = rel.getInput(1);
 
-        final Frame leftFrame = getInvoke(oldLeft, rel);
-        final Frame rightFrame = getInvoke(oldRight, rel);
+        final Frame leftFrame = getInvoke(oldLeft, isCorVarDefined, rel);
+        final Frame rightFrame = getInvoke(oldRight, isCorVarDefined, rel);
 
         if (leftFrame == null || rightFrame == null) {
             // If any input has not been rewritten, do not rewrite this rel.
@@ -1287,7 +1364,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
                         .push(rightFrame.r)
                         .join(
                                 rel.getJoinType(),
-                                decorrelateExpr(currentRel, map, cm, rel.getCondition()),
+                                decorrelateExpr(
+                                        castNonNull(currentRel), map, cm, rel.getCondition()),
                                 ImmutableSet.of())
                         .hints(rel.getHints())
                         .build();
@@ -1312,7 +1390,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                     i + oldLeftFieldCount, rightFrame.oldToNewOutputs.get(i) + newLeftFieldCount);
         }
 
-        final SortedMap<CorDef, Integer> corDefOutputs = new TreeMap<>(leftFrame.corDefOutputs);
+        final NavigableMap<CorDef, Integer> corDefOutputs = new TreeMap<>(leftFrame.corDefOutputs);
 
         // Right input positions are shifted by newLeftFieldCount.
         for (Map.Entry<CorDef, Integer> entry : rightFrame.corDefOutputs.entrySet()) {
@@ -1339,7 +1417,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 oldInput = oldInput0;
                 break;
             }
-            RelNode newInput = map.get(oldInput0).r;
+            RelNode newInput =
+                    requireNonNull(map.get(oldInput0), () -> "map.get(oldInput0) for " + oldInput0)
+                            .r;
             newOrdinal += newInput.getRowType().getFieldCount();
             oldOrdinal -= n;
         }
@@ -1470,9 +1550,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
      */
     private boolean checkCorVars(
             Correlate correlate,
-            Project project,
-            Filter filter,
-            List<RexFieldAccess> correlatedJoinKeys) {
+            @Nullable Project project,
+            @Nullable Filter filter,
+            @Nullable List<RexFieldAccess> correlatedJoinKeys) {
         if (filter != null) {
             assert correlatedJoinKeys != null;
 
@@ -1519,9 +1599,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
      * @param correlate Correlate
      */
     private void removeCorVarFromTree(Correlate correlate) {
-        if (cm.mapCorToCorRel.get(correlate.getCorrelationId()) == correlate) {
-            cm.mapCorToCorRel.remove(correlate.getCorrelationId());
-        }
+        cm.mapCorToCorRel.remove(correlate.getCorrelationId(), correlate);
     }
 
     /**
@@ -1566,7 +1644,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
             RelNode rel,
             RelNode newRel,
             Map<Integer, Integer> oldToNewOutputs,
-            SortedMap<CorDef, Integer> corDefOutputs) {
+            NavigableMap<CorDef, Integer> corDefOutputs) {
         final Frame frame = new Frame(rel, newRel, corDefOutputs, oldToNewOutputs);
         map.put(rel, frame);
         return frame;
@@ -1598,9 +1676,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         private final CorelMap cm;
 
         private DecorrelateRexShuttle(RelNode currentRel, Map<RelNode, Frame> map, CorelMap cm) {
-            this.currentRel = Objects.requireNonNull(currentRel);
-            this.map = Objects.requireNonNull(map);
-            this.cm = Objects.requireNonNull(cm);
+            this.currentRel = requireNonNull(currentRel, "currentRel");
+            this.map = requireNonNull(map, "map");
+            this.cm = requireNonNull(cm, "cm");
         }
 
         @Override
@@ -1648,13 +1726,13 @@ public class RelDecorrelator implements ReflectiveVisitor {
         final RexBuilder rexBuilder;
         final RelDataTypeFactory typeFactory;
         final boolean projectPulledAboveLeftCorrelator;
-        final RexInputRef nullIndicator;
+        final @Nullable RexInputRef nullIndicator;
         final ImmutableSet<Integer> isCount;
 
         RemoveCorrelationRexShuttle(
                 RexBuilder rexBuilder,
                 boolean projectPulledAboveLeftCorrelator,
-                RexInputRef nullIndicator,
+                @Nullable RexInputRef nullIndicator,
                 Set<Integer> isCount) {
             this.projectPulledAboveLeftCorrelator = projectPulledAboveLeftCorrelator;
             this.nullIndicator = nullIndicator; // may be null
@@ -1664,7 +1742,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
 
         private RexNode createCaseExpression(
-                RexInputRef nullInputRef, RexLiteral lit, RexNode rexNode) {
+                RexInputRef nullInputRef, @Nullable RexLiteral lit, RexNode rexNode) {
             RexNode[] caseOperands = new RexNode[3];
 
             // Construct a CASE expression to handle the null indicator.
@@ -1739,7 +1817,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 int pos = inputRef.getIndex();
                 RexInputRef newInputRef = new RexInputRef(leftInputFieldCount + pos, newType);
 
-                if ((isCount != null) && isCount.contains(pos)) {
+                if (isCount.contains(pos)) {
                     return createCaseExpression(
                             newInputRef, rexBuilder.makeExactLiteral(BigDecimal.ZERO), newInputRef);
                 } else {
@@ -1842,7 +1920,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
 
         /** Creates a RemoveSingleAggregateRule. */
-        protected RemoveSingleAggregateRule(Config config) {
+        RemoveSingleAggregateRule(Config config) {
             super(config);
         }
 
@@ -1853,7 +1931,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
             Aggregate aggregate = call.rel(2);
 
             // check singleAggRel is single_value agg
-            if ((!singleAggregate.getGroupSet().isEmpty())
+            if (!singleAggregate.getGroupSet().isEmpty()
                     || (singleAggregate.getAggCallList().size() != 1)
                     || !(singleAggregate.getAggCallList().get(0).getAggregation()
                             instanceof SqlSingleValueAggFunction)) {
@@ -1928,9 +2006,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
 
         /** Creates a RemoveCorrelationForScalarProjectRule. */
-        protected RemoveCorrelationForScalarProjectRule(Config config) {
+        RemoveCorrelationForScalarProjectRule(Config config) {
             super(config);
-            this.d = Objects.requireNonNull(config.decorrelator());
+            this.d = requireNonNull(config.decorrelator());
         }
 
         @Override
@@ -1964,7 +2042,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
             // check that the agg is of the following type:
             // doing a single_value() on the entire input
-            if ((!aggregate.getGroupSet().isEmpty())
+            if (!aggregate.getGroupSet().isEmpty()
                     || (aggregate.getAggCallList().size() != 1)
                     || !(aggregate.getAggCallList().get(0).getAggregation()
                             instanceof SqlSingleValueAggFunction)) {
@@ -2159,9 +2237,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
 
         /** Creates a RemoveCorrelationForScalarAggregateRule. */
-        protected RemoveCorrelationForScalarAggregateRule(Config config) {
+        RemoveCorrelationForScalarAggregateRule(Config config) {
             super(config);
-            d = Objects.requireNonNull(config.decorrelator());
+            d = requireNonNull(config.decorrelator());
         }
 
         @Override
@@ -2553,9 +2631,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
 
         /** Creates an AdjustProjectForCountAggregateRule. */
-        protected AdjustProjectForCountAggregateRule(Config config) {
+        AdjustProjectForCountAggregateRule(Config config) {
             super(config);
-            this.d = Objects.requireNonNull(config.decorrelator());
+            this.d = requireNonNull(config.decorrelator());
         }
 
         @Override
@@ -2726,7 +2804,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
 
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             return this == o
                     || o instanceof CorRef
                             && uniqueKey == ((CorRef) o).uniqueKey
@@ -2734,7 +2812,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
                             && field == ((CorRef) o).field;
         }
 
-        public int compareTo(@Nonnull CorRef o) {
+        @Override
+        public int compareTo(CorRef o) {
             int c = corr.compareTo(o.corr);
             if (c != 0) {
                 return c;
@@ -2772,14 +2851,15 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
 
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             return this == o
                     || o instanceof CorDef
                             && corr == ((CorDef) o).corr
                             && field == ((CorDef) o).field;
         }
 
-        public int compareTo(@Nonnull CorDef o) {
+        @Override
+        public int compareTo(CorDef o) {
             int c = corr.compareTo(o.corr);
             if (c != 0) {
                 return c;
@@ -2809,13 +2889,13 @@ public class RelDecorrelator implements ReflectiveVisitor {
      */
     protected static class CorelMap {
         private final Multimap<RelNode, CorRef> mapRefRelToCorRef;
-        private final SortedMap<CorrelationId, RelNode> mapCorToCorRel;
+        private final NavigableMap<CorrelationId, RelNode> mapCorToCorRel;
         private final Map<RexFieldAccess, CorRef> mapFieldAccessToCorRef;
 
         // TODO: create immutable copies of all maps
         private CorelMap(
                 Multimap<RelNode, CorRef> mapRefRelToCorRef,
-                SortedMap<CorrelationId, RelNode> mapCorToCorRel,
+                NavigableMap<CorrelationId, RelNode> mapCorToCorRel,
                 Map<RexFieldAccess, CorRef> mapFieldAccessToCorRef) {
             this.mapRefRelToCorRef = mapRefRelToCorRef;
             this.mapCorToCorRel = mapCorToCorRel;
@@ -2833,10 +2913,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
                     + "\n";
         }
 
+        @SuppressWarnings("UndefinedEquals")
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(@Nullable Object obj) {
             return obj == this
                     || obj instanceof CorelMap
+                            // TODO: Multimap does not have well-defined equals behavior
                             && mapRefRelToCorRef.equals(((CorelMap) obj).mapRefRelToCorRef)
                             && mapCorToCorRel.equals(((CorelMap) obj).mapCorToCorRel)
                             && mapFieldAccessToCorRef.equals(
@@ -2851,12 +2933,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
         /** Creates a CorelMap with given contents. */
         public static CorelMap of(
                 SortedSetMultimap<RelNode, CorRef> mapRefRelToCorVar,
-                SortedMap<CorrelationId, RelNode> mapCorToCorRel,
+                NavigableMap<CorrelationId, RelNode> mapCorToCorRel,
                 Map<RexFieldAccess, CorRef> mapFieldAccessToCorVar) {
             return new CorelMap(mapRefRelToCorVar, mapCorToCorRel, mapFieldAccessToCorVar);
         }
 
-        public SortedMap<CorrelationId, RelNode> getMapCorToCorRel() {
+        public NavigableMap<CorrelationId, RelNode> getMapCorToCorRel() {
             return mapCorToCorRel;
         }
 
@@ -2872,7 +2954,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
     /** Builds a {@link org.apache.calcite.sql2rel.RelDecorrelator.CorelMap}. */
     public static class CorelMapBuilder extends RelHomogeneousShuttle {
-        final SortedMap<CorrelationId, RelNode> mapCorToCorRel = new TreeMap<>();
+        final NavigableMap<CorrelationId, RelNode> mapCorToCorRel = new TreeMap<>();
 
         final SortedSetMultimap<RelNode, CorRef> mapRefRelToCorRef =
                 MultimapBuilder.SortedSetMultimapBuilder.hashKeys().treeSetValues().build();
@@ -2988,9 +3070,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         Frame(
                 RelNode oldRel,
                 RelNode r,
-                SortedMap<CorDef, Integer> corDefOutputs,
+                NavigableMap<CorDef, Integer> corDefOutputs,
                 Map<Integer, Integer> oldToNewOutputs) {
-            this.r = Objects.requireNonNull(r);
+            this.r = requireNonNull(r, "r");
             this.corDefOutputs = ImmutableSortedMap.copyOf(corDefOutputs);
             this.oldToNewOutputs = ImmutableSortedMap.copyOf(oldToNewOutputs);
             assert allLessThan(
@@ -3012,5 +3094,23 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         /** Sets {@link #decorrelator}. */
         Config withDecorrelator(RelDecorrelator decorrelator);
+    }
+
+    // -------------------------------------------------------------------------
+    //  Getter/Setter
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns the {@code visitor} on which the {@code MethodDispatcher} dispatches each {@code
+     * decorrelateRel} method, the default implementation returns this instance, if you got a
+     * sub-class, override this method to replace the {@code visitor} as the sub-class instance.
+     */
+    protected RelDecorrelator getVisitor() {
+        return this;
+    }
+
+    /** Returns the rules applied on the rel after decorrelation, never null. */
+    protected Collection<RelOptRule> getPostDecorrelateRules() {
+        return Collections.emptyList();
     }
 }

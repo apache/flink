@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
@@ -75,7 +76,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-rank",
         version = 1,
-        consumedOptions = {"table.exec.state.ttl", "table.exec.rank.topn-cache-size"},
+        consumedOptions = {"table.exec.rank.topn-cache-size"},
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -114,6 +115,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
     private final boolean generateUpdateBefore;
 
     public StreamExecRank(
+            ReadableConfig tableConfig,
             RankType rankType,
             PartitionSpec partitionSpec,
             SortSpec sortSpec,
@@ -127,6 +129,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecRank.class),
+                ExecNodeContext.newPersistedConfig(StreamExecRank.class, tableConfig),
                 rankType,
                 partitionSpec,
                 sortSpec,
@@ -143,6 +146,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
     public StreamExecRank(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_RANK_TYPE) RankType rankType,
             @JsonProperty(FIELD_NAME_PARTITION_SPEC) PartitionSpec partitionSpec,
             @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
@@ -153,7 +157,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.rankType = checkNotNull(rankType);
         this.rankRange = checkNotNull(rankRange);
@@ -190,7 +194,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputType);
         int[] sortFields = sortSpec.getFieldIndices();
         RowDataKeySelector sortKeySelector =
-                KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo);
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(), sortFields, inputRowTypeInfo);
         // create a sort spec on sort keys.
         int[] sortKeyPositions = IntStream.range(0, sortFields.length).toArray();
         SortSpec.SortSpecBuilder builder = SortSpec.builder();
@@ -205,6 +210,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(
                         config,
+                        planner.getFlinkContext().getClassLoader(),
                         "StreamExecSortComparator",
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
@@ -269,7 +275,10 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                         (RankProcessStrategy.UpdateFastStrategy) rankStrategy;
                 int[] primaryKeys = updateFastStrategy.getPrimaryKeys();
                 RowDataKeySelector rowKeySelector =
-                        KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo);
+                        KeySelectorUtil.getRowDataSelector(
+                                planner.getFlinkContext().getClassLoader(),
+                                primaryKeys,
+                                inputRowTypeInfo);
                 processFunction =
                         new UpdatableTopNFunction(
                                 ttlConfig,
@@ -289,7 +298,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                     new EqualiserCodeGenerator(
                             inputType.getFields().stream()
                                     .map(RowType.RowField::getType)
-                                    .toArray(LogicalType[]::new));
+                                    .toArray(LogicalType[]::new),
+                            planner.getFlinkContext().getClassLoader());
             GeneratedRecordEqualiser generatedEqualiser =
                     equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser");
             ComparableRecordComparator comparator =
@@ -330,7 +340,9 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         // set KeyType and Selector for state
         RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(
-                        partitionSpec.getFieldIndices(), inputRowTypeInfo);
+                        planner.getFlinkContext().getClassLoader(),
+                        partitionSpec.getFieldIndices(),
+                        inputRowTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
         return transform;

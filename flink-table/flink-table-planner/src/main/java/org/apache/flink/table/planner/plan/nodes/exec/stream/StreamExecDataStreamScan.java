@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
@@ -63,6 +64,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
     private final List<String> qualifiedName;
 
     public StreamExecDataStreamScan(
+            ReadableConfig tableConfig,
             DataStream<?> dataStream,
             DataType sourceType,
             int[] fieldIndexes,
@@ -73,6 +75,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecDataStreamScan.class),
+                ExecNodeContext.newPersistedConfig(StreamExecDataStreamScan.class, tableConfig),
                 Collections.emptyList(),
                 outputType,
                 description);
@@ -88,7 +91,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         final Transformation<?> sourceTransform = dataStream.getTransformation();
-        final Optional<RexNode> rowtimeExpr = getRowtimeExpression(planner.getRelBuilder());
+        final Optional<RexNode> rowtimeExpr = getRowtimeExpression(planner.createRelBuilder());
 
         final Transformation<RowData> transformation;
         // when there is row time extraction expression, we need internal conversion
@@ -105,7 +108,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
                 resetElement = "";
             }
             final CodeGeneratorContext ctx =
-                    new CodeGeneratorContext(config)
+                    new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader())
                             .setOperatorBaseClass(TableStreamOperator.class);
             transformation =
                     ScanUtil.convertToInternalRow(

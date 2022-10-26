@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -50,10 +51,11 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
     public CommonExecValues(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<List<RexLiteral>> tuples,
             RowType outputType,
             String description) {
-        super(id, context, Collections.emptyList(), outputType, description);
+        super(id, context, persistedConfig, Collections.emptyList(), outputType, description);
         this.tuples = tuples;
     }
 
@@ -62,7 +64,11 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
             PlannerBase planner, ExecNodeConfig config) {
         final ValuesInputFormat inputFormat =
                 ValuesCodeGenerator.generatorInputFormat(
-                        config, (RowType) getOutputType(), tuples, getClass().getSimpleName());
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        (RowType) getOutputType(),
+                        tuples,
+                        getClass().getSimpleName());
         final Transformation<RowData> transformation =
                 planner.getExecEnv()
                         .createInput(inputFormat, inputFormat.getProducedType())

@@ -31,6 +31,7 @@ import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 import java.time.Duration;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT;
+import static org.junit.Assert.assertFalse;
 
 /** Tests for {@link FanOutShardSubscriber}. */
 public class FanOutShardSubscriberTest {
@@ -118,6 +119,25 @@ public class FanOutShardSubscriberTest {
 
         StartingPosition startingPosition = StartingPosition.builder().build();
         subscriber.subscribeToShardAndConsumeRecords(startingPosition, event -> {});
+    }
+
+    @Test
+    public void testSubscriptionCompletion() throws Exception {
+        FakeKinesisFanOutBehavioursFactory.AbstractSingleShardFanOutKinesisV2 errorKinesisV2 =
+                FakeKinesisFanOutBehavioursFactory.emptyBatchFollowedBySingleRecord();
+
+        FanOutShardSubscriber subscriber =
+                new FanOutShardSubscriber(
+                        "consumerArn",
+                        "shardId",
+                        errorKinesisV2,
+                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
+
+        StartingPosition startingPosition = StartingPosition.builder().build();
+        boolean result =
+                subscriber.subscribeToShardAndConsumeRecords(startingPosition, event -> {});
+
+        assertFalse(result);
     }
 
     @Test

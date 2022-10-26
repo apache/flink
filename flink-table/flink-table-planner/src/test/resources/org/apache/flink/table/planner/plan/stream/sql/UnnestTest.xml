@@ -285,4 +285,40 @@ Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1(
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestWithNestedFilter">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+   SELECT a, b1, b2 FROM
+       (SELECT a, b FROM MyTable) T
+       CROSS JOIN
+       UNNEST(T.b) AS S(b1, b2)
+       WHERE S.b1 >= 12
+   ) tmp
+WHERE b2 <> 'Hello'
+    ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b1=[$1], b2=[$2])
++- LogicalFilter(condition=[<>($2, _UTF-16LE'Hello')])
+   +- LogicalProject(a=[$0], b1=[$2], b2=[$3])
+      +- LogicalFilter(condition=[>=($2, 12)])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+            :- LogicalProject(a=[$0], b=[$1])
+            :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
+            +- LogicalProject(b1=[$0], b2=[$1])
+               +- Uncollect
+                  +- LogicalProject(b=[$cor0.b])
+                     +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, _1 AS b1, _2 AS b2])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER], condition=[AND(>=($0, 12), <>($1, _UTF-16LE'Hello'))])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

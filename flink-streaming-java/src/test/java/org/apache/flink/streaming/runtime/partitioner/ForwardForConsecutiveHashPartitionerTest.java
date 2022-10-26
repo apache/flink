@@ -19,24 +19,22 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-
 /** Test for {@link ForwardForConsecutiveHashPartitioner}. */
-public class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
+class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
 
     @Test
-    public void testConvertToForwardPartitioner() {
+    void testConvertToForwardPartitioner() {
         testConvertToForwardPartitioner(StreamExchangeMode.BATCH);
         testConvertToForwardPartitioner(StreamExchangeMode.PIPELINED);
         testConvertToForwardPartitioner(StreamExchangeMode.UNDEFINED);
@@ -50,16 +48,16 @@ public class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
                         new ForwardForConsecutiveHashPartitioner<>(
                                 new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-        assertThat(jobVertices.size(), is(1));
+        Assertions.assertThat(jobVertices.size()).isEqualTo(1);
         JobVertex vertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 
         StreamConfig sourceConfig = new StreamConfig(vertex.getConfiguration());
         StreamEdge edge = sourceConfig.getChainedOutputs(getClass().getClassLoader()).get(0);
-        assertThat(edge.getPartitioner(), instanceOf(ForwardPartitioner.class));
+        Assertions.assertThat(edge.getPartitioner()).isInstanceOf(ForwardPartitioner.class);
     }
 
     @Test
-    public void testConvertToHashPartitioner() {
+    void testConvertToHashPartitioner() {
         testConvertToHashPartitioner(StreamExchangeMode.BATCH);
         testConvertToHashPartitioner(StreamExchangeMode.PIPELINED);
         testConvertToHashPartitioner(StreamExchangeMode.UNDEFINED);
@@ -73,11 +71,13 @@ public class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
                         new ForwardForConsecutiveHashPartitioner<>(
                                 new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-        assertThat(jobVertices.size(), is(2));
+        Assertions.assertThat(jobVertices.size()).isEqualTo(2);
         JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 
         StreamConfig sourceConfig = new StreamConfig(sourceVertex.getConfiguration());
-        StreamEdge edge = sourceConfig.getNonChainedOutputs(getClass().getClassLoader()).get(0);
-        assertThat(edge.getPartitioner(), instanceOf(KeyGroupStreamPartitioner.class));
+        NonChainedOutput output =
+                sourceConfig.getOperatorNonChainedOutputs(getClass().getClassLoader()).get(0);
+        Assertions.assertThat(output.getPartitioner())
+                .isInstanceOf(KeyGroupStreamPartitioner.class);
     }
 }

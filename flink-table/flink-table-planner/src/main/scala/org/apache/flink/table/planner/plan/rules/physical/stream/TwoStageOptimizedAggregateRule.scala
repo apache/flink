@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, ModifyKindSetTrait, UpdateKindTrait}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -27,62 +26,66 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 
 import java.util
 
 /**
-  * Rule that matches [[StreamPhysicalGroupAggregate]] on [[StreamPhysicalExchange]]
-  * with the following condition:
-  * 1. mini-batch is enabled in given TableConfig,
-  * 2. two-phase aggregation is enabled in given TableConfig,
-  * 3. all aggregate functions are mergeable,
-  * 4. the input of exchange does not satisfy the shuffle distribution,
-  *
-  * and converts them to
-  * {{{
-  *   StreamPhysicalGlobalGroupAggregate
-  *   +- StreamPhysicalExchange
-  *      +- StreamPhysicalLocalGroupAggregate
-  *         +- input of exchange
-  * }}}
-  */
-class TwoStageOptimizedAggregateRule extends RelOptRule(
-  operand(classOf[StreamPhysicalGroupAggregate],
-    operand(classOf[StreamPhysicalExchange],
-      operand(classOf[RelNode], any))),
-  "TwoStageOptimizedAggregateRule") {
+ * Rule that matches [[StreamPhysicalGroupAggregate]] on [[StreamPhysicalExchange]] with the
+ * following condition:
+ *   1. mini-batch is enabled in given TableConfig, 2. two-phase aggregation is enabled in given
+ *      TableConfig, 3. all aggregate functions are mergeable, 4. the input of exchange does not
+ *      satisfy the shuffle distribution,
+ *
+ * and converts them to
+ * {{{
+ *   StreamPhysicalGlobalGroupAggregate
+ *   +- StreamPhysicalExchange
+ *      +- StreamPhysicalLocalGroupAggregate
+ *         +- input of exchange
+ * }}}
+ */
+class TwoStageOptimizedAggregateRule
+  extends RelOptRule(
+    operand(
+      classOf[StreamPhysicalGroupAggregate],
+      operand(classOf[StreamPhysicalExchange], operand(classOf[RelNode], any))),
+    "TwoStageOptimizedAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = unwrapTableConfig(call)
     val agg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 
-    val needRetraction = !ChangelogPlanUtils.isInsertOnly(
-      realInput.asInstanceOf[StreamPhysicalRel])
+    val needRetraction = !ChangelogPlanUtils.isInsertOnly(realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
     val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
-      agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
+      agg.grouping.length,
+      agg.aggCalls,
+      needRetraction,
+      monotonicity)
 
     val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType( agg.getInput.getRowType),
+      unwrapTypeFactory(agg),
+      FlinkTypeFactory.toLogicalRowType(agg.getInput.getRowType),
       agg.aggCalls,
       needRetractionArray,
       needRetraction,
-      isStateBackendDataViews = true)
+      isStateBackendDataViews = true
+    )
 
-    val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    val isMiniBatchEnabled = tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
     val isTwoPhaseEnabled = getAggPhaseStrategy(tableConfig) != AggregatePhaseStrategy.ONE_PHASE
 
     isMiniBatchEnabled && isTwoPhaseEnabled &&
-      AggregateUtil.doAllSupportPartialMerge(aggInfoList.aggInfos) &&
-      !isInputSatisfyRequiredDistribution(realInput, agg.grouping)
+    AggregateUtil.doAllSupportPartialMerge(aggInfoList.aggInfos) &&
+    !isInputSatisfyRequiredDistribution(realInput, agg.grouping)
   }
 
   private def isInputSatisfyRequiredDistribution(input: RelNode, keys: Array[Int]): Boolean = {
@@ -94,12 +97,14 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val originalAgg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
-    val needRetraction = !ChangelogPlanUtils.isInsertOnly(
-      realInput.asInstanceOf[StreamPhysicalRel])
+    val needRetraction = !ChangelogPlanUtils.isInsertOnly(realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(originalAgg)
     val aggCallNeedRetractions = AggregateUtil.deriveAggCallNeedRetractions(
-      originalAgg.grouping.length, originalAgg.aggCalls, needRetraction, monotonicity)
+      originalAgg.grouping.length,
+      originalAgg.aggCalls,
+      needRetraction,
+      monotonicity)
 
     // local agg shouldn't produce insert only messages
     val localAggTraitSet = realInput.getTraitSet
@@ -119,11 +124,11 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
     val globalGrouping = originalAgg.grouping.indices.toArray
     val globalDistribution = createDistribution(globalGrouping)
     // create exchange if needed
-    val newInput = satisfyDistribution(
-      FlinkConventions.STREAM_PHYSICAL, localHashAgg, globalDistribution)
+    val newInput =
+      satisfyDistribution(FlinkConventions.STREAM_PHYSICAL, localHashAgg, globalDistribution)
     val globalAggProvidedTraitSet = originalAgg.getTraitSet
 
-   val globalAgg = new StreamPhysicalGlobalGroupAggregate(
+    val globalAgg = new StreamPhysicalGlobalGroupAggregate(
       originalAgg.getCluster,
       globalAggProvidedTraitSet,
       newInput,

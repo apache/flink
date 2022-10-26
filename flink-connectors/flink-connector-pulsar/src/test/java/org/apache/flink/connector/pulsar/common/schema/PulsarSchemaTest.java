@@ -36,6 +36,8 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.junit.jupiter.api.Test;
 
+import java.io.Serializable;
+
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -117,9 +119,35 @@ class PulsarSchemaTest {
         assertPulsarSchemaIsSerializable(new PulsarSchema<>(KV, Foo.class, FA.class));
     }
 
+    @Test
+    void largeAvroSchemaSerialization() throws Exception {
+        Schema<LargeMessage> largeMessageSchema = Schema.AVRO(LargeMessage.class);
+        assertPulsarSchemaIsSerializable(
+                new PulsarSchema<>(largeMessageSchema, LargeMessage.class));
+    }
+
     private <T> void assertPulsarSchemaIsSerializable(PulsarSchema<T> schema) throws Exception {
         PulsarSchema<T> clonedSchema = InstantiationUtil.clone(schema);
         assertEquals(clonedSchema.getSchemaInfo(), schema.getSchemaInfo());
         assertEquals(clonedSchema.getRecordClass(), schema.getRecordClass());
+    }
+
+    /** A POJO Class which would generate a large schema by Avro. */
+    public static class LargeMessage implements Serializable {
+        private static final long serialVersionUID = 5364494369740402518L;
+
+        public String
+                aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+        public String
+                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
+        public String
+                cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc;
+        public String
+                dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd;
+        public String
+                eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
+        // the problem begins
+        public String
+                ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     }
 }

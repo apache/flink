@@ -99,14 +99,18 @@ public final class NFATestHarness {
     public Collection<Map<String, List<Event>>> consumeRecord(StreamRecord<Event> inputEvent)
             throws Exception {
         try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
-            nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp());
-            return nfa.process(
-                    sharedBufferAccessor,
-                    nfaState,
-                    inputEvent.getValue(),
-                    inputEvent.getTimestamp(),
-                    afterMatchSkipStrategy,
-                    timerService);
+            Collection<Map<String, List<Event>>> pendingMatches =
+                    nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp()).f0;
+            Collection<Map<String, List<Event>>> matchedPatterns =
+                    nfa.process(
+                            sharedBufferAccessor,
+                            nfaState,
+                            inputEvent.getValue(),
+                            inputEvent.getTimestamp(),
+                            afterMatchSkipStrategy,
+                            timerService);
+            matchedPatterns.addAll(pendingMatches);
+            return matchedPatterns;
         }
     }
 

@@ -140,11 +140,11 @@ public class FileSink<IN>
 
     @Override
     public FileWriter<IN> createWriter(InitContext context) throws IOException {
-        return bucketsBuilder.createWriter(context);
+        return restoreWriter(context, Collections.emptyList());
     }
 
     @Override
-    public StatefulSinkWriter<IN, FileWriterBucketState> restoreWriter(
+    public FileWriter<IN> restoreWriter(
             InitContext context, Collection<FileWriterBucketState> recoveredState)
             throws IOException {
         FileWriter<IN> writer = bucketsBuilder.createWriter(context);

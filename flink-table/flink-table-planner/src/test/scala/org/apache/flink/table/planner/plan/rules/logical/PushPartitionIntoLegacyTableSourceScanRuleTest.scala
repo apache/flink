@@ -25,21 +25,20 @@ import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtil
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Test for [[PushPartitionIntoLegacyTableSourceScanRule]].
-  */
+/** Test for [[PushPartitionIntoLegacyTableSourceScanRule]]. */
 @RunWith(classOf[Parameterized])
 class PushPartitionIntoLegacyTableSourceScanRuleTest(
     val sourceFetchPartitions: Boolean,
-    val useCatalogFilter: Boolean) extends TableTestBase {
+    val useCatalogFilter: Boolean)
+  extends TableTestBase {
   protected val util: BatchTableTestUtil = batchTestUtil()
 
   @throws(classOf[Exception])
@@ -52,19 +51,23 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
-          CoreRules.FILTER_PROJECT_TRANSPOSE))
+        .add(
+          RuleSets.ofList(
+            PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
+            CoreRules.FILTER_PROJECT_TRANSPOSE))
         .build()
     )
 
-    val tableSchema = TableSchema.builder()
+    val tableSchema = TableSchema
+      .builder()
       .field("id", DataTypes.INT())
       .field("name", DataTypes.STRING())
       .field("part1", DataTypes.STRING())
       .field("part2", DataTypes.INT())
       .build()
 
-    val tableSchema2 = TableSchema.builder()
+    val tableSchema2 = TableSchema
+      .builder()
       .field("id", DataTypes.INT())
       .field("name", DataTypes.STRING())
       .field("part1", DataTypes.STRING())
@@ -72,10 +75,16 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
       .field("virtualField", DataTypes.INT(), "`part2` + 1")
       .build()
 
-    TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "MyTable",
-      tableSchema = tableSchema, isBounded = true)
-    TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "VirtualTable",
-      tableSchema = tableSchema2, isBounded = true)
+    TestPartitionableSourceFactory.createTemporaryTable(
+      util.tableEnv,
+      "MyTable",
+      tableSchema = tableSchema,
+      isBounded = true)
+    TestPartitionableSourceFactory.createTemporaryTable(
+      util.tableEnv,
+      "VirtualTable",
+      tableSchema = tableSchema2,
+      isBounded = true)
   }
 
   @Test

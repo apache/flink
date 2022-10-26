@@ -260,7 +260,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 
     /** Test base for {@link LastValueWithRetractAggFunction} without order. */
     public abstract static class LastValueWithRetractAggFunctionWithoutOrderTestBase<T>
-            extends AggFunctionTestBase<T, LastValueWithRetractAccumulator<T>> {
+            extends AggFunctionTestBase<T, T, LastValueWithRetractAccumulator<T>> {
 
         @Override
         protected Class<?> getAccClass() {

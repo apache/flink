@@ -18,25 +18,18 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
-import org.apache.flink.runtime.metrics.ReporterSetup;
-import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.util.NetUtils;
+
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
 
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -47,53 +40,47 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
-import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Basic test for {@link PrometheusReporter}. */
 class PrometheusReporterTest {
 
-    private static final String HOST_NAME = "hostname";
-    private static final String TASK_MANAGER = "tm";
+    private static final String[] LABEL_NAMES = {"label1", "label2"};
+    private static final String[] LABEL_VALUES = new String[] {"value1", "value2"};
+    private static final String LOGICAL_SCOPE = "logical_scope";
 
-    private static final String HELP_PREFIX = "# HELP ";
-    private static final String TYPE_PREFIX = "# TYPE ";
     private static final String DIMENSIONS =
-            "host=\"" + HOST_NAME + "\",tm_id=\"" + TASK_MANAGER + "\"";
+            String.format(
+                    "%s=\"%s\",%s=\"%s\"",
+                    LABEL_NAMES[0], LABEL_VALUES[0], LABEL_NAMES[1], LABEL_VALUES[1]);
     private static final String DEFAULT_LABELS = "{" + DIMENSIONS + ",}";
-    private static final String SCOPE_PREFIX = "flink_taskmanager_";
+    private static final String SCOPE_PREFIX =
+            PrometheusReporter.SCOPE_PREFIX + LOGICAL_SCOPE + PrometheusReporter.SCOPE_SEPARATOR;
 
-    private static final PrometheusReporterFactory prometheusReporterFactory =
-            new PrometheusReporterFactory();
     private static final PortRangeProvider portRangeProvider = new PortRangeProvider();
 
-    private MetricRegistryImpl registry;
-    private FrontMetricGroup<TaskManagerMetricGroup> metricGroup;
+    private MetricGroup metricGroup;
     private PrometheusReporter reporter;
 
     @BeforeEach
     void setupReporter() {
-        registry =
-                new MetricRegistryImpl(
-                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
-                        Collections.singletonList(
-                                createReporterSetup("test1", portRangeProvider.next())));
+        reporter = new PrometheusReporter(portRangeProvider.next());
+
         metricGroup =
-                new FrontMetricGroup<>(
-                        createReporterScopedSettings(),
-                        TaskManagerMetricGroup.createTaskManagerMetricGroup(
-                                registry, HOST_NAME, new ResourceID(TASK_MANAGER)));
-        reporter = (PrometheusReporter) registry.getReporters().get(0);
+                TestUtils.createTestMetricGroup(
+                        LOGICAL_SCOPE, TestUtils.toMap(LABEL_NAMES, LABEL_VALUES));
     }
 
     @AfterEach
-    void shutdownRegistry() throws Exception {
-        if (registry != null) {
-            registry.shutdown().get();
+    void teardown() throws Exception {
+        if (reporter != null) {
+            reporter.close();
         }
     }
 
@@ -134,23 +121,8 @@ class PrometheusReporterTest {
 
     private void assertThatGaugeIsExported(Metric metric, String name, String expectedValue)
             throws UnirestException {
-        final String prometheusName = SCOPE_PREFIX + name;
         assertThat(addMetricAndPollResponse(metric, name))
-                .contains(
-                        HELP_PREFIX
-                                + prometheusName
-                                + " "
-                                + name
-                                + " (scope: taskmanager)\n"
-                                + TYPE_PREFIX
-                                + prometheusName
-                                + " gauge"
-                                + "\n"
-                                + prometheusName
-                                + DEFAULT_LABELS
-                                + " "
-                                + expectedValue
-                                + "\n");
+                .contains(createExpectedPollResponse(name, "", "gauge", expectedValue));
     }
 
     @Test
@@ -162,21 +134,7 @@ class PrometheusReporterTest {
 
         String response = addMetricAndPollResponse(testHistogram, histogramName);
         assertThat(response)
-                .contains(
-                        HELP_PREFIX
-                                + summaryName
-                                + " "
-                                + histogramName
-                                + " (scope: taskmanager)\n"
-                                + TYPE_PREFIX
-                                + summaryName
-                                + " summary"
-                                + "\n"
-                                + summaryName
-                                + "_count"
-                                + DEFAULT_LABELS
-                                + " 1.0"
-                                + "\n");
+                .contains(createExpectedPollResponse(histogramName, "_count", "summary", "1.0"));
         for (String quantile : Arrays.asList("0.5", "0.75", "0.95", "0.98", "0.99", "0.999")) {
             assertThat(response)
                     .contains(
@@ -191,32 +149,31 @@ class PrometheusReporterTest {
         }
     }
 
+    /**
+     * Metrics with the same name are stored by the reporter in a shared data-structure. This test
+     * ensures that a metric is unregistered from Prometheus even if other metrics with the same
+     * name still exist.
+     */
     @Test
-    void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
-        JobManagerMetricGroup jmMetricGroup =
-                JobManagerMetricGroup.createJobManagerMetricGroup(registry, HOST_NAME);
-
+    void metricIsRemovedWhileOtherMetricsWithSameNameExist() throws UnirestException {
         String metricName = "metric";
 
         Counter metric1 = new SimpleCounter();
-        FrontMetricGroup<JobManagerJobMetricGroup> metricGroup1 =
-                new FrontMetricGroup<>(
-                        createReporterScopedSettings(),
-                        jmMetricGroup.addJob(JobID.generate(), "job_1"));
-        reporter.notifyOfAddedMetric(metric1, metricName, metricGroup1);
-
         Counter metric2 = new SimpleCounter();
-        FrontMetricGroup<JobManagerJobMetricGroup> metricGroup2 =
-                new FrontMetricGroup<>(
-                        createReporterScopedSettings(),
-                        jmMetricGroup.addJob(JobID.generate(), "job_2"));
-        reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
 
-        reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup1);
+        final Map<String, String> variables2 = new HashMap<>(metricGroup.getAllVariables());
+        final Map.Entry<String, String> entryToModify = variables2.entrySet().iterator().next();
+        final String labelValueThatShouldBeRemoved = entryToModify.getValue();
+        variables2.put(entryToModify.getKey(), "some_value");
+        final MetricGroup metricGroup2 = TestUtils.createTestMetricGroup(LOGICAL_SCOPE, variables2);
+
+        reporter.notifyOfAddedMetric(metric1, metricName, metricGroup);
+        reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
+        reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup);
 
         String response = pollMetrics(reporter.getPort()).getBody();
 
-        assertThat(response).doesNotContain("job_1");
+        assertThat(response).contains("some_value").doesNotContain(labelValueThatShouldBeRemoved);
     }
 
     @Test
@@ -269,35 +226,20 @@ class PrometheusReporterTest {
     }
 
     @Test
-    void addingUnknownMetricTypeDoesNotThrowException() {
-        class SomeMetricType implements Metric {}
-
-        reporter.notifyOfAddedMetric(new SomeMetricType(), "name", metricGroup);
+    void cannotStartTwoReportersOnSamePort() {
+        assertThatThrownBy(
+                        () ->
+                                new PrometheusReporter(
+                                        Collections.singleton(reporter.getPort()).iterator()))
+                .isInstanceOf(Exception.class);
     }
 
     @Test
-    void cannotStartTwoReportersOnSamePort() throws Exception {
-        ReporterSetup setup1 = createReporterSetup("test1", portRangeProvider.next());
-
-        int usedPort = ((PrometheusReporter) setup1.getReporter()).getPort();
-
-        try {
-            assertThatThrownBy(() -> createReporterSetup("test2", String.valueOf(usedPort)))
-                    .isInstanceOf(Exception.class);
-        } finally {
-            setup1.getReporter().close();
-        }
-    }
-
-    @Test
-    void canStartTwoReportersWhenUsingPortRange() throws Exception {
-        String portRange = portRangeProvider.next();
-
-        ReporterSetup setup1 = createReporterSetup("test1", portRange);
-        ReporterSetup setup2 = createReporterSetup("test2", portRange);
-
-        setup1.getReporter().close();
-        setup2.getReporter().close();
+    void canStartTwoReportersWhenUsingPortRange() {
+        final Iterator<Integer> portRange =
+                Iterators.concat(
+                        Iterators.singletonIterator(reporter.getPort()), portRangeProvider.next());
+        new PrometheusReporter(portRange).close();
     }
 
     private String addMetricAndPollResponse(Metric metric, String metricName)
@@ -310,18 +252,17 @@ class PrometheusReporterTest {
         return Unirest.get("http://localhost:" + port + "/metrics").asString();
     }
 
-    static ReporterSetup createReporterSetup(String reporterName, String portString) {
-        MetricConfig metricConfig = new MetricConfig();
-        metricConfig.setProperty(ARG_PORT, portString);
-
-        PrometheusReporter metricReporter =
-                prometheusReporterFactory.createMetricReporter(metricConfig);
-
-        return ReporterSetup.forReporter(reporterName, metricConfig, metricReporter);
+    private static String createExpectedPollResponse(
+            String name, String nameSuffix, String type, String value) {
+        final String scopedName = SCOPE_PREFIX + name;
+        return ""
+                + String.format("# HELP %s %s (scope: %s)\n", scopedName, name, LOGICAL_SCOPE)
+                + String.format("# TYPE %s %s\n", scopedName, type)
+                + String.format("%s%s%s %s\n", scopedName, nameSuffix, DEFAULT_LABELS, value);
     }
 
     /** Utility class providing distinct port ranges. */
-    private static class PortRangeProvider implements Iterator<String> {
+    private static class PortRangeProvider implements Iterator<Iterator<Integer>> {
 
         private int base = 9000;
 
@@ -335,18 +276,14 @@ class PrometheusReporterTest {
          *
          * @return next port range
          */
-        public String next() {
+        public Iterator<Integer> next() {
             if (!hasNext()) {
                 throw new NoSuchElementException();
             }
             int lowEnd = base;
             int highEnd = base + 99;
             base += 100;
-            return String.valueOf(lowEnd) + "-" + String.valueOf(highEnd);
+            return NetUtils.getPortRangeFromString(lowEnd + "-" + highEnd);
         }
-    }
-
-    private static ReporterScopedSettings createReporterScopedSettings() {
-        return new ReporterScopedSettings(0, ',', Collections.emptySet(), Collections.emptyMap());
     }
 }

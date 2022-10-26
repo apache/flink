@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableException;
@@ -70,6 +71,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
     public CommonExecLegacySink(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             TableSink<T> tableSink,
             @Nullable String[] upsertKeys,
             boolean needRetraction,
@@ -77,7 +79,13 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
             InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(id, context, Collections.singletonList(inputProperty), outputType, description);
+        super(
+                id,
+                context,
+                persistedConfig,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.tableSink = tableSink;
         this.upsertKeys = upsertKeys;
         this.needRetraction = needRetraction;
@@ -193,7 +201,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
 
             final CodeGenOperatorFactory<T> converterOperator =
                     SinkCodeGenerator.generateRowConverterOperator(
-                            new CodeGeneratorContext(config),
+                            new CodeGeneratorContext(
+                                    config, planner.getFlinkContext().getClassLoader()),
                             convertedInputRowType,
                             tableSink,
                             physicalOutputType,

@@ -15,11 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.table
-
-import java.time.{LocalDateTime, ZoneOffset}
-import java.util.TimeZone
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
@@ -28,17 +24,18 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.TestSinkContextTableSink
-import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestSinkUtil, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestingRetractSink, TestSinkUtil}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+import java.time.{LocalDateTime, ZoneOffset}
+import java.util.TimeZone
+
 import scala.collection.JavaConversions._
 
-/**
- * Test the conversion between [[Table]] and [[DataStream]] should
- * not loss row time attribute.
- */
+/** Test the conversion between [[Table]] and [[DataStream]] should not loss row time attribute. */
 final class TableToDataStreamITCase extends StreamingTestBase {
 
   @Test
@@ -72,7 +69,8 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       "+I[B, 1970-01-01T00:00:02], 2000",
       "+I[C, 1970-01-01T00:00:03], 3000",
       "+I[D, 1970-01-01T00:00:04], 4000",
-      "+I[E, 1970-01-01T00:00:07], 7000")
+      "+I[E, 1970-01-01T00:00:07], 7000"
+    )
 
     val sink = new StringWithTimestampSink[Row]
     dataStream.addSink(sink)
@@ -105,17 +103,19 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       """.stripMargin
 
     tEnv.executeSql(sourceDDL)
-    val dataStream = tEnv.sqlQuery(
-      """
-        |SELECT a, ts
-        |FROM (
-        |  SELECT *,
-        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY ts DESC) as rowNum
-        |  FROM src
-        |)
-        |WHERE rowNum = 1
+    val dataStream = tEnv
+      .sqlQuery(
+        """
+          |SELECT a, ts
+          |FROM (
+          |  SELECT *,
+          |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY ts DESC) as rowNum
+          |  FROM src
+          |)
+          |WHERE rowNum = 1
       """.stripMargin
-    ).toRetractStream[Row]
+      )
+      .toRetractStream[Row]
 
     val sink = new StringWithTimestampRetractSink[Row]
     dataStream.addSink(sink)
@@ -134,38 +134,38 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       "(true,A,1970-01-01T00:00:02,2000)",
       "(true,C,1970-01-01T00:00:03,3000)",
       "(true,D,1970-01-01T00:00:04,4000)",
-      "(true,E,1970-01-01T00:00:07,7000)")
+      "(true,E,1970-01-01T00:00:07,7000)"
+    )
     assertEquals(expectedRetract.sorted, sink.getRawResults.sorted)
   }
 
   @Test
   def testHasRowtimeFromDataStreamToTableBackDataStream(): Unit = {
-    val data = Seq(
-      (1L, "A"),
-      (2L, "B"),
-      (3L, "C"),
-      (4L, "D"),
-      (7L, "E"))
+    val data = Seq((1L, "A"), (2L, "B"), (3L, "C"), (4L, "D"), (7L, "E"))
 
-    val ds1 = env.fromCollection(data)
+    val ds1 = env
+      .fromCollection(data)
       // second to millisecond
       .assignAscendingTimestamps(_._1 * 1000L)
     val table = ds1.toTable(tEnv, 'ts, 'a, 'rowtime.rowtime)
     tEnv.registerTable("t1", table)
 
-    val ds2 = tEnv.sqlQuery(
-      """
-        | SELECT CONCAT(a, '_'), ts, rowtime
-        | FROM t1
+    val ds2 = tEnv
+      .sqlQuery(
+        """
+          | SELECT CONCAT(a, '_'), ts, rowtime
+          | FROM t1
       """.stripMargin
-    ).toAppendStream[Row]
+      )
+      .toAppendStream[Row]
 
     val expected = List(
       "+I[A_, 1, 1970-01-01T00:00:01], 1000",
       "+I[B_, 2, 1970-01-01T00:00:02], 2000",
       "+I[C_, 3, 1970-01-01T00:00:03], 3000",
       "+I[D_, 4, 1970-01-01T00:00:04], 4000",
-      "+I[E_, 7, 1970-01-01T00:00:07], 7000")
+      "+I[E_, 7, 1970-01-01T00:00:07], 7000"
+    )
 
     val sink = new StringWithTimestampSink[Row]
     ds2.addSink(sink)
@@ -182,7 +182,8 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       rowOf("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
       rowOf("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
       rowOf("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
-      rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
+      rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d)
+    )
 
     val dataId: String = TestValuesTableFactory.registerData(data)
 
@@ -216,9 +217,9 @@ final class TableToDataStreamITCase extends StreamingTestBase {
     tEnv.executeSql(sourceDDL)
     tEnv.executeSql(sinkDDL)
 
-    //---------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------
     // Verify writing out a source directly with the rowtime attribute
-    //---------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------
 
     tEnv.executeSql("INSERT INTO sink SELECT * FROM src").await()
 
@@ -237,20 +238,22 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(sinkDDL2)
 
-    //---------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------
     // Verify writing out with additional operator to generate a new rowtime attribute
-    //---------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------
 
-    tEnv.executeSql(
-      """
-        |INSERT INTO sink2
-        |SELECT
-        |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND),
-        |  SUM(b)
-        |FROM src
-        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
-        |""".stripMargin
-    ).await()
+    tEnv
+      .executeSql(
+        """
+          |INSERT INTO sink2
+          |SELECT
+          |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND),
+          |  SUM(b)
+          |FROM src
+          |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
+          |""".stripMargin
+      )
+      .await()
 
     val expected2 = List(4999, 9999, 19999)
     assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
@@ -285,32 +288,32 @@ final class TableToDataStreamITCase extends StreamingTestBase {
   def testHasFromDataStreamToTableBackDataStreamWithProctime(): Unit = {
     val data = Seq((1L, "A"))
 
-    val ds1 = env.fromCollection(data)
+    val ds1 = env
+      .fromCollection(data)
       // second to millisecond
       .assignAscendingTimestamps(_._1 * 1000L)
     val table = ds1.toTable(tEnv, 'ts, 'a, 'proctime.proctime())
     tEnv.registerTable("t1", table)
 
-    val ds2 = tEnv.sqlQuery(
-      """
-        | SELECT CONCAT(a, '_'), ts, proctime
-        | FROM t1
+    val ds2 = tEnv
+      .sqlQuery(
+        """
+          | SELECT CONCAT(a, '_'), ts, proctime
+          | FROM t1
       """.stripMargin
-    ).toAppendStream[Row]
+      )
+      .toAppendStream[Row]
 
     val expected = "Row(EXPR$0: String, ts: Long, proctime: Instant)"
     assertEquals(expected, ds2.dataType.toString)
   }
-
 
   private def localDateTime(epochSecond: Long): LocalDateTime = {
     LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
   }
 }
 
-/**
- * Append test Sink that outputs record with timestamp.
- */
+/** Append test Sink that outputs record with timestamp. */
 final class StringWithTimestampSink[T] extends AbstractExactlyOnceSink[T]() {
 
   override def invoke(value: T, context: SinkFunction.Context): Unit = {
@@ -320,11 +323,8 @@ final class StringWithTimestampSink[T] extends AbstractExactlyOnceSink[T]() {
   override def getResults: List[String] = super.getResults
 }
 
-/**
- * Retract test Sink that outputs record with timestamp.
- */
-final class StringWithTimestampRetractSink[T](tz: TimeZone) extends
-  TestingRetractSink(tz) {
+/** Retract test Sink that outputs record with timestamp. */
+final class StringWithTimestampRetractSink[T](tz: TimeZone) extends TestingRetractSink(tz) {
 
   def this() {
     this(TimeZone.getTimeZone("UTC"))
@@ -343,9 +343,10 @@ final class StringWithTimestampRetractSink[T](tz: TimeZone) extends
         if (index >= 0) {
           localRetractResults.remove(index)
         } else {
-          throw new RuntimeException("Tried to retract a value that wasn't added first. " +
-            "This is probably an incorrectly implemented test. " +
-            "Try to set the parallelism of the sink to 1.")
+          throw new RuntimeException(
+            "Tried to retract a value that wasn't added first. " +
+              "This is probably an incorrectly implemented test. " +
+              "Try to set the parallelism of the sink to 1.")
         }
       }
     }

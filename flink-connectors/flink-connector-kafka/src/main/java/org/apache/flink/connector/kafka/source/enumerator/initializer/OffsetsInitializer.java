@@ -125,9 +125,9 @@ public interface OffsetsInitializer extends Serializable {
     /**
      * Get an {@link OffsetsInitializer} which initializes the offsets in each partition so that the
      * initialized offset is the offset of the first record whose record timestamp is greater than
-     * or equals the give timestamp.
+     * or equals the give timestamp (milliseconds).
      *
-     * @param timestamp the timestamp to start the consumption.
+     * @param timestamp the timestamp (milliseconds) to start the consumption.
      * @return an {@link OffsetsInitializer} which initializes the offsets based on the given
      *     timestamp.
      * @see KafkaAdminClient#listOffsets(Map)

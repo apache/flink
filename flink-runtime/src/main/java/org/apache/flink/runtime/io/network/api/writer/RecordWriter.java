@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -122,6 +123,14 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
         }
     }
 
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        targetPartition.alignedBarrierTimeout(checkpointId);
+    }
+
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        targetPartition.abortCheckpoint(checkpointId, cause);
+    }
+
     @VisibleForTesting
     public static ByteBuffer serializeRecord(
             DataOutputSerializer serializer, IOReadableWritable record) throws IOException {
@@ -206,6 +215,11 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
                 >= VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT) {
             volatileFlusherExceptionCheckSkipCount = 0;
         }
+    }
+
+    /** Sets the max overdraft buffer size of per gate. */
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        targetPartition.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
     }
 
     // ------------------------------------------------------------------------

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.windowing
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
@@ -47,15 +46,13 @@ import java.time.Duration
  * --slide <n>
  * }}}
  *
- * If no parameters are provided, the program is run with default data from
- * [[WordCountData]].
+ * If no parameters are provided, the program is run with default data from [[WordCountData]].
  *
  * This example shows how to:
  *
- *  - write a simple Flink Streaming program,
- *  - use tuple data types,
- *  - use basic windowing abstractions.
- *
+ *   - write a simple Flink Streaming program,
+ *   - use tuple data types,
+ *   - use basic windowing abstractions.
  */
 object WindowWordCount {
 
@@ -95,15 +92,16 @@ object WindowWordCount {
       case Some(input) =>
         // Create a new file source that will read files from a given set of directories.
         // Each file will be processed as plain text and split based on newlines.
-        val builder = FileSource.forRecordStreamFormat(new TextLineInputFormat, input:_*)
-        params.discoveryInterval.foreach { duration =>
-          // If a discovery interval is provided, the source will
-          // continuously watch the given directories for new files.
-          builder.monitorContinuously(duration)
+        val builder = FileSource.forRecordStreamFormat(new TextLineInputFormat, input: _*)
+        params.discoveryInterval.foreach {
+          duration =>
+            // If a discovery interval is provided, the source will
+            // continuously watch the given directories for new files.
+            builder.monitorContinuously(duration)
         }
         env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "file-input")
       case None =>
-        env.fromElements(WordCountData.WORDS:_*).name("in-memory-input")
+        env.fromElements(WordCountData.WORDS: _*).name("in-memory-input")
     }
 
     val windowSize = params.getInt("window").getOrElse(250)
@@ -113,7 +111,8 @@ object WindowWordCount {
       // The text lines read from the source are split into words
       // using a user-defined function. The tokenizer, implemented below,
       // will output each words as a (2-tuple) containing (word, 1)
-      text.flatMap(new Tokenizer)
+      text
+        .flatMap(new Tokenizer)
         .name("tokenizer")
         // keyBy groups tuples based on the "_1" field, the word.
         // Using a keyBy allows performing aggregations and other
@@ -134,12 +133,17 @@ object WindowWordCount {
         // Given an output directory, Flink will write the results to a file
         // using a simple string encoding. In a production environment, this might
         // be something more structured like CSV, Avro, JSON, or Parquet.
-        counts.sinkTo(FileSink.forRowFormat[(String, Int)](output, new SimpleStringEncoder())
-          .withRollingPolicy(DefaultRollingPolicy.builder()
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .build())
-          .build())
+        counts
+          .sinkTo(
+            FileSink
+              .forRowFormat[(String, Int)](output, new SimpleStringEncoder())
+              .withRollingPolicy(
+                DefaultRollingPolicy
+                  .builder()
+                  .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                  .withRolloverInterval(Duration.ofSeconds(10))
+                  .build())
+              .build())
           .name("file-sink")
 
       case None => counts.print().name("print-sink")

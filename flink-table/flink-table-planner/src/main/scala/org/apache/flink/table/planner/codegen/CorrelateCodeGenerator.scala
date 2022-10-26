@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.Function
@@ -52,15 +51,14 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       opName: String,
-      transformationMeta: TransformationMetadata)
-  : Transformation[RowData] = {
+      transformationMeta: TransformationMetadata): Transformation[RowData] = {
 
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
     invocation.getOperator match {
       case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
       case _: TableSqlFunction => // ok
-      case f@_ =>
+      case f @ _ =>
         throw new ValidationException(
           s"Invalid use of function '$f'. " +
             s"Currently, only table functions can be used in a correlate operation.")
@@ -93,9 +91,7 @@ object CorrelateCodeGenerator {
       0)
   }
 
-  /**
-    * Generates the flat map operator to run the user-defined table function.
-    */
+  /** Generates the flat map operator to run the user-defined table function. */
   private[flink] def generateOperator[T <: Function](
       ctx: CodeGeneratorContext,
       tableConfig: ReadableConfig,
@@ -105,8 +101,7 @@ object CorrelateCodeGenerator {
       joinType: FlinkJoinType,
       rexCall: RexCall,
       ruleDescription: String,
-      retainHeader: Boolean = true)
-    : CodeGenOperatorFactory[RowData] = {
+      retainHeader: Boolean = true): CodeGenOperatorFactory[RowData] = {
 
     val functionResultType = FlinkTypeFactory.toLogicalRowType(rexCall.getType)
 
@@ -131,7 +126,7 @@ object CorrelateCodeGenerator {
       s"""
          |$correlateCollectorTerm.setCollector(
          | new ${classOf[StreamRecordCollector[_]].getCanonicalName}(
-         |     ${CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM }));
+         |     ${CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM}));
          |$resultCollectorTerm.setCollector($correlateCollectorTerm);
          |""".stripMargin
     ctx.addReusableOpenStatement(setCollectors)
@@ -172,7 +167,10 @@ object CorrelateCodeGenerator {
     }
 
     val genOperator = OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
-      ctx, ruleDescription, body, inputType)
+      ctx,
+      ruleDescription,
+      body,
+      inputType)
     new CodeGenOperatorFactory(genOperator)
   }
 
@@ -187,14 +185,13 @@ object CorrelateCodeGenerator {
       functionResultType: RowType,
       resultType: RowType,
       condition: Option[RexNode],
-      retainHeader: Boolean = true)
-    : String = {
+      retainHeader: Boolean = true): String = {
 
     val correlateCollectorTerm = newName("correlateCollector")
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val collectorCtx = CodeGeneratorContext(tableConfig)
+    val collectorCtx = new CodeGeneratorContext(tableConfig, ctx.classLoader)
 
     val body = {
       // completely output left input + right
@@ -207,9 +204,9 @@ object CorrelateCodeGenerator {
         ""
       }
       s"""
-        |$joinedRowTerm.replace($inputTerm, $udtfInputTerm);
-        |$header
-        |outputResult($joinedRowTerm);
+         |$joinedRowTerm.replace($inputTerm, $udtfInputTerm);
+         |$header
+         |outputResult($joinedRowTerm);
       """.stripMargin
     }
 

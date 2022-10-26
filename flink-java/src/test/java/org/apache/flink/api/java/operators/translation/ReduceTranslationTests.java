@@ -37,19 +37,17 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for translation of reduce operation. */
 @SuppressWarnings("serial")
-public class ReduceTranslationTests implements java.io.Serializable {
+class ReduceTranslationTests implements java.io.Serializable {
 
     @Test
-    public void translateNonGroupedReduce() {
+    void translateNonGroupedReduce() {
         try {
             final int parallelism = 8;
             ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
@@ -74,18 +72,21 @@ public class ReduceTranslationTests implements java.io.Serializable {
             ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
             // check types
-            assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
-            assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(initialData.getType());
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(initialData.getType());
 
             // check keys
-            assertTrue(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0);
+            assertThat(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0)
+                    .isTrue();
 
             // parallelism was not configured on the operator
-            assertTrue(
-                    reducer.getParallelism() == 1
-                            || reducer.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT);
+            assertThat(
+                            reducer.getParallelism() == 1
+                                    || reducer.getParallelism()
+                                            == ExecutionConfig.PARALLELISM_DEFAULT)
+                    .isTrue();
 
-            assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
+            assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -94,7 +95,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
     }
 
     @Test
-    public void translateGroupedReduceNoMapper() {
+    void translateGroupedReduceNoMapper() {
         try {
             final int parallelism = 8;
             ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
@@ -120,18 +121,17 @@ public class ReduceTranslationTests implements java.io.Serializable {
             ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
             // check types
-            assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
-            assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(initialData.getType());
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(initialData.getType());
 
             // parallelism was not configured on the operator
-            assertTrue(
-                    reducer.getParallelism() == parallelism
-                            || reducer.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT);
+            assertThat(reducer.getParallelism())
+                    .isIn(parallelism, ExecutionConfig.PARALLELISM_DEFAULT);
 
             // check keys
-            assertArrayEquals(new int[] {2}, reducer.getKeyColumns(0));
+            assertThat(reducer.getKeyColumns(0)).containsExactly(2);
 
-            assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
+            assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -140,7 +140,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
     }
 
     @Test
-    public void translateGroupedReduceWithkeyExtractor() {
+    void translateGroupedReduceWithkeyExtractor() {
         try {
             final int parallelism = 8;
             ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
@@ -176,9 +176,9 @@ public class ReduceTranslationTests implements java.io.Serializable {
             MapOperatorBase<?, ?, ?> keyExtractor = (MapOperatorBase<?, ?, ?>) reducer.getInput();
 
             // check the parallelisms
-            assertEquals(1, keyExtractor.getParallelism());
-            assertEquals(4, reducer.getParallelism());
-            assertEquals(4, keyProjector.getParallelism());
+            assertThat(keyExtractor.getParallelism()).isOne();
+            assertThat(reducer.getParallelism()).isEqualTo(4);
+            assertThat(keyProjector.getParallelism()).isEqualTo(4);
 
             // check types
             TypeInformation<?> keyValueInfo =
@@ -186,21 +186,22 @@ public class ReduceTranslationTests implements java.io.Serializable {
                             new ValueTypeInfo<StringValue>(StringValue.class),
                             initialData.getType());
 
-            assertEquals(initialData.getType(), keyExtractor.getOperatorInfo().getInputType());
-            assertEquals(keyValueInfo, keyExtractor.getOperatorInfo().getOutputType());
+            assertThat(keyExtractor.getOperatorInfo().getInputType())
+                    .isEqualTo(initialData.getType());
+            assertThat(keyExtractor.getOperatorInfo().getOutputType()).isEqualTo(keyValueInfo);
 
-            assertEquals(keyValueInfo, reducer.getOperatorInfo().getInputType());
-            assertEquals(keyValueInfo, reducer.getOperatorInfo().getOutputType());
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(keyValueInfo);
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(keyValueInfo);
 
-            assertEquals(keyValueInfo, keyProjector.getOperatorInfo().getInputType());
-            assertEquals(initialData.getType(), keyProjector.getOperatorInfo().getOutputType());
+            assertThat(keyProjector.getOperatorInfo().getInputType()).isEqualTo(keyValueInfo);
+            assertThat(keyProjector.getOperatorInfo().getOutputType())
+                    .isEqualTo(initialData.getType());
 
             // check keys
-            assertEquals(
-                    KeyExtractingMapper.class,
-                    keyExtractor.getUserCodeWrapper().getUserCodeClass());
+            assertThat(keyExtractor.getUserCodeWrapper().getUserCodeClass())
+                    .isEqualTo(KeyExtractingMapper.class);
 
-            assertTrue(keyExtractor.getInput() instanceof GenericDataSourceBase<?, ?>);
+            assertThat(keyExtractor.getInput()).isInstanceOf(GenericDataSourceBase.class);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -212,8 +213,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
     private static DataSet<Tuple3<Double, StringValue, LongValue>> getSourceDataSet(
             ExecutionEnvironment env) {
         return env.fromElements(
-                        new Tuple3<Double, StringValue, LongValue>(
-                                3.141592, new StringValue("foobar"), new LongValue(77)))
+                        new Tuple3<>(3.141592, new StringValue("foobar"), new LongValue(77)))
                 .setParallelism(1);
     }
 }

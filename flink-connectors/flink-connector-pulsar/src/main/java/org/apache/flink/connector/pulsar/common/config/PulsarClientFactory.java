@@ -153,7 +153,7 @@ public final class PulsarClientFactory {
 
     /**
      * PulsarAdmin shares almost the same configuration with PulsarClient, but we separate this
-     * create method for directly creating it.
+     * creating method for directly use it.
      */
     public static PulsarAdmin createAdmin(PulsarConfiguration configuration) {
         PulsarAdminBuilder builder = PulsarAdmin.builder();
@@ -200,15 +200,17 @@ public final class PulsarClientFactory {
                 String authParamsString = configuration.get(PULSAR_AUTH_PARAMS);
                 return sneakyClient(
                         () -> AuthenticationFactory.create(authPluginClassName, authParamsString));
-            } else if (configuration.contains(PULSAR_AUTH_PARAM_MAP)) {
-                Map<String, String> paramsMap = configuration.get(PULSAR_AUTH_PARAM_MAP);
+            } else {
+                Map<String, String> paramsMap = configuration.getProperties(PULSAR_AUTH_PARAM_MAP);
+                if (paramsMap.isEmpty()) {
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "No %s or %s provided",
+                                    PULSAR_AUTH_PARAMS.key(), PULSAR_AUTH_PARAM_MAP.key()));
+                }
+
                 return sneakyClient(
                         () -> AuthenticationFactory.create(authPluginClassName, paramsMap));
-            } else {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "No %s or %s provided",
-                                PULSAR_AUTH_PARAMS.key(), PULSAR_AUTH_PARAM_MAP.key()));
             }
         }
 

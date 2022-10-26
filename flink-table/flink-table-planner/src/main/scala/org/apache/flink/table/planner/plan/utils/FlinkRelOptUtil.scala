@@ -17,19 +17,19 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.JBoolean
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rel.{RelFieldCollation, RelNode}
+import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
+import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.SqlKind._
-import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
@@ -41,32 +41,37 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-/**
-  * FlinkRelOptUtil provides utility methods for use in optimizing RelNodes.
-  */
+/** FlinkRelOptUtil provides utility methods for use in optimizing RelNodes. */
 object FlinkRelOptUtil {
 
   /**
-    * Converts a relational expression to a string.
-    * This is different from [[RelOptUtil]]#toString on two points:
-    * 1. Generated string by this method is in a tree style
-    * 2. Generated string by this method may have more information about RelNode, such as
-    * RelNode id, retractionTraits.
-    *
-    * @param rel                the RelNode to convert
-    * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
-    * @param withIdPrefix       whether including ID of RelNode as prefix
-    * @param withChangelogTraits  whether including changelog traits of RelNode (only applied to
-    *                             StreamPhysicalRel node at present)
-    * @param withRowType        whether including output rowType
-    * @return explain plan of RelNode
-    */
+   * Converts a relational expression to a string. This is different from [[RelOptUtil]]#toString on
+   * two points:
+   *   1. Generated string by this method is in a tree style 2. Generated string by this method may
+   *      have more information about RelNode, such as RelNode id, retractionTraits.
+   *
+   * @param rel
+   *   the RelNode to convert
+   * @param detailLevel
+   *   detailLevel defines detail levels for EXPLAIN PLAN.
+   * @param withIdPrefix
+   *   whether including ID of RelNode as prefix
+   * @param withChangelogTraits
+   *   whether including changelog traits of RelNode (only applied to StreamPhysicalRel node at
+   *   present)
+   * @param withRowType
+   *   whether including output rowType
+   * @return
+   *   explain plan of RelNode
+   */
   def toString(
       rel: RelNode,
       detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withIdPrefix: Boolean = false,
       withChangelogTraits: Boolean = false,
-      withRowType: Boolean = false): String = {
+      withRowType: Boolean = false,
+      withUpsertKey: Boolean = false,
+      withQueryBlockAlias: Boolean = false): String = {
     if (rel == null) {
       return null
     }
@@ -77,76 +82,83 @@ object FlinkRelOptUtil {
       withIdPrefix,
       withChangelogTraits,
       withRowType,
-      withTreeStyle = true)
+      withTreeStyle = true,
+      withUpsertKey,
+      withJoinHint = true,
+      withQueryBlockAlias)
     rel.explain(planWriter)
     sw.toString
   }
 
   /**
-    * Gets the digest for a rel tree.
-    *
-    * The digest of RelNode should contain the result of RelNode#explain method, retraction traits
-    * (for StreamPhysicalRel) and RelNode's row type.
-    *
-    * Row type is part of the digest for the rare occasion that similar
-    * expressions have different types, e.g.
-    * "WITH
-    * t1 AS (SELECT CAST(a as BIGINT) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as BIGINT)),
-    * t2 AS (SELECT CAST(a as DOUBLE) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as DOUBLE))
-    * SELECT t1.*, t2.* FROM t1, t2 WHERE t1.b = t2.b"
-    *
-    * the physical plan is:
-    * {{{
-    *  HashJoin(where=[=(b, b0)], join=[a, b, a0, b0], joinType=[InnerJoin],
-    *    isBroadcast=[true], build=[right])
-    *  :- HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
-    *  :  +- Exchange(distribution=[hash[a]])
-    *  :     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
-    *  :        +- Calc(select=[CAST(a) AS a, b])
-    *  :           +- ScanTable(table=[[builtin, default, x]], fields=[a, b, c])
-    *  +- Exchange(distribution=[broadcast])
-    *     +- HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
-    *        +- Exchange(distribution=[hash[a]])
-    *           +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
-    *              +- Calc(select=[CAST(a) AS a, b])
-    *                 +- ScanTable(table=[[builtin, default, x]], fields=[a, b, c])
-    * }}}
-    *
-    * The sub-plan of `HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])`
-    * are different because `CAST(a) AS a` has different types, where one is BIGINT type
-    * and another is DOUBLE type.
-    *
-    * If use the result of `RelOptUtil.toString(aggregate, SqlExplainLevel.DIGEST_ATTRIBUTES)`
-    * on `HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])` as digest,
-    * we will get incorrect result. So rewrite `explain_` method of `RelWriterImpl` to
-    * add row-type to digest value.
-    *
-    * @param rel rel node tree
-    * @return The digest of given rel tree.
-    */
+   * Gets the digest for a rel tree.
+   *
+   * The digest of RelNode should contain the result of RelNode#explain method, retraction traits
+   * (for StreamPhysicalRel) and RelNode's row type.
+   *
+   * Row type is part of the digest for the rare occasion that similar expressions have different
+   * types, e.g. "WITH t1 AS (SELECT CAST(a as BIGINT) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as
+   * BIGINT)), t2 AS (SELECT CAST(a as DOUBLE) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as DOUBLE))
+   * SELECT t1.*, t2.* FROM t1, t2 WHERE t1.b = t2.b"
+   *
+   * the physical plan is:
+   * {{{
+   *  HashJoin(where=[=(b, b0)], join=[a, b, a0, b0], joinType=[InnerJoin],
+   *    isBroadcast=[true], build=[right])
+   *  :- HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
+   *  :  +- Exchange(distribution=[hash[a]])
+   *  :     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+   *  :        +- Calc(select=[CAST(a) AS a, b])
+   *  :           +- ScanTable(table=[[builtin, default, x]], fields=[a, b, c])
+   *  +- Exchange(distribution=[broadcast])
+   *     +- HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
+   *        +- Exchange(distribution=[hash[a]])
+   *           +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+   *              +- Calc(select=[CAST(a) AS a, b])
+   *                 +- ScanTable(table=[[builtin, default, x]], fields=[a, b, c])
+   * }}}
+   *
+   * The sub-plan of `HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])` are different
+   * because `CAST(a) AS a` has different types, where one is BIGINT type and another is DOUBLE
+   * type.
+   *
+   * If use the result of `RelOptUtil.toString(aggregate, SqlExplainLevel.DIGEST_ATTRIBUTES)` on
+   * `HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])` as digest, we will get
+   * incorrect result. So rewrite `explain_` method of `RelWriterImpl` to add row-type to digest
+   * value.
+   *
+   * @param rel
+   *   rel node tree
+   * @return
+   *   The digest of given rel tree.
+   */
   def getDigest(rel: RelNode): String = {
     val sw = new StringWriter
-    rel.explain(new RelTreeWriterImpl(
-      new PrintWriter(sw),
-      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
-      // ignore id, only contains RelNode's attributes
-      withIdPrefix = false,
-      // add retraction traits to digest for StreamPhysicalRel node
-      withChangelogTraits = true,
-      // add row type to digest to avoid corner case that similar
-      // expressions have different types
-      withRowType = true,
-      // ignore tree style, only contains RelNode's attributes
-      withTreeStyle = false))
+    rel.explain(
+      new RelTreeWriterImpl(
+        new PrintWriter(sw),
+        explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+        // ignore id, only contains RelNode's attributes
+        withIdPrefix = false,
+        // add retraction traits to digest for StreamPhysicalRel node
+        withChangelogTraits = true,
+        // add row type to digest to avoid corner case that similar
+        // expressions have different types
+        withRowType = true,
+        // ignore tree style, only contains RelNode's attributes
+        withTreeStyle = false,
+        withJoinHint = true))
     sw.toString
   }
 
   /**
-    * Returns the null direction if not specified.
-    *
-    * @param direction Direction that a field is ordered in.
-    * @return default null direction
-    */
+   * Returns the null direction if not specified.
+   *
+   * @param direction
+   *   Direction that a field is ordered in.
+   * @return
+   *   default null direction
+   */
   def defaultNullDirection(direction: Direction): NullDirection = {
     FlinkPlannerImpl.defaultNullCollation match {
       case NullCollation.FIRST => NullDirection.FIRST
@@ -167,11 +179,13 @@ object FlinkRelOptUtil {
   }
 
   /**
-    * Creates a field collation with default direction.
-    *
-    * @param fieldIndex 0-based index of field being sorted
-    * @return the field collation with default direction and given field index.
-    */
+   * Creates a field collation with default direction.
+   *
+   * @param fieldIndex
+   *   0-based index of field being sorted
+   * @return
+   *   the field collation with default direction and given field index.
+   */
   def ofRelFieldCollation(fieldIndex: Int): RelFieldCollation = {
     new RelFieldCollation(
       fieldIndex,
@@ -180,13 +194,17 @@ object FlinkRelOptUtil {
   }
 
   /**
-    * Creates a field collation.
-    *
-    * @param fieldIndex    0-based index of field being sorted
-    * @param direction     Direction of sorting
-    * @param nullDirection Direction of sorting of nulls
-    * @return the field collation.
-    */
+   * Creates a field collation.
+   *
+   * @param fieldIndex
+   *   0-based index of field being sorted
+   * @param direction
+   *   Direction of sorting
+   * @param nullDirection
+   *   Direction of sorting of nulls
+   * @return
+   *   the field collation.
+   */
   def ofRelFieldCollation(
       fieldIndex: Int,
       direction: RelFieldCollation.Direction,
@@ -194,25 +212,22 @@ object FlinkRelOptUtil {
     new RelFieldCollation(fieldIndex, direction, nullDirection)
   }
 
-  def getTableConfigFromContext(rel: RelNode): TableConfig = {
-    rel.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-  }
-
   /** Get max cnf node limit by context of rel */
   def getMaxCnfNodeCount(rel: RelNode): Int = {
-    val tableConfig = getTableConfigFromContext(rel)
-    tableConfig.getConfiguration.getInteger(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
+    unwrapTableConfig(rel).get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
   }
 
   /**
-    * Gets values of [[RexLiteral]] by its broad type.
+   * Gets values of [[RexLiteral]] by its broad type.
    *
-   * <p> All number value (TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE, DECIMAL)
-   * will be converted to BigDecimal
-    *
-    * @param literal input RexLiteral
-    * @return value of the input RexLiteral
-    */
+   * <p> All number value (TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE, DECIMAL) will be
+   * converted to BigDecimal
+   *
+   * @param literal
+   *   input RexLiteral
+   * @return
+   *   value of the input RexLiteral
+   */
   def getLiteralValueByBroadType(literal: RexLiteral): Comparable[_] = {
     if (literal.isNull) {
       null
@@ -238,30 +253,33 @@ object FlinkRelOptUtil {
   }
 
   /**
-    * Partitions the [[RexNode]] in two [[RexNode]] according to a predicate.
-    * The result is a pair of RexNode: the first RexNode consists of RexNode that satisfy the
-    * predicate and the second RexNode consists of RexNode that don't.
-    *
-    * For simple condition which is not AND, OR, NOT, it is completely satisfy the predicate or not.
-    *
-    * For complex condition Ands, partition each operands of ANDS recursively, then
-    * merge the RexNode which satisfy the predicate as the first part, merge the rest parts as the
-    * second part.
-    *
-    * For complex condition ORs, try to pull up common factors among ORs first, if the common
-    * factors is not A ORs, then simplify the question to partition the common factors expression;
-    * else the input condition is completely satisfy the predicate or not based on whether all
-    * its operands satisfy the predicate or not.
-    *
-    * For complex condition NOT, it is completely satisfy the predicate or not based on whether its
-    * operand satisfy the predicate or not.
-    *
-    * @param expr            the expression to partition
-    * @param rexBuilder      rexBuilder
-    * @param predicate       the specified predicate on which to partition
-    * @return a pair of RexNode: the first RexNode consists of RexNode that satisfy the predicate
-    *         and the second RexNode consists of RexNode that don't
-    */
+   * Partitions the [[RexNode]] in two [[RexNode]] according to a predicate. The result is a pair of
+   * RexNode: the first RexNode consists of RexNode that satisfy the predicate and the second
+   * RexNode consists of RexNode that don't.
+   *
+   * For simple condition which is not AND, OR, NOT, it is completely satisfy the predicate or not.
+   *
+   * For complex condition Ands, partition each operands of ANDS recursively, then merge the RexNode
+   * which satisfy the predicate as the first part, merge the rest parts as the second part.
+   *
+   * For complex condition ORs, try to pull up common factors among ORs first, if the common factors
+   * is not A ORs, then simplify the question to partition the common factors expression; else the
+   * input condition is completely satisfy the predicate or not based on whether all its operands
+   * satisfy the predicate or not.
+   *
+   * For complex condition NOT, it is completely satisfy the predicate or not based on whether its
+   * operand satisfy the predicate or not.
+   *
+   * @param expr
+   *   the expression to partition
+   * @param rexBuilder
+   *   rexBuilder
+   * @param predicate
+   *   the specified predicate on which to partition
+   * @return
+   *   a pair of RexNode: the first RexNode consists of RexNode that satisfy the predicate and the
+   *   second RexNode consists of RexNode that don't
+   */
   def partition(
       expr: RexNode,
       rexBuilder: RexBuilder,
@@ -269,8 +287,8 @@ object FlinkRelOptUtil {
     val condition = pushNotToLeaf(expr, rexBuilder)
     val (left: Option[RexNode], right: Option[RexNode]) = condition.getKind match {
       case AND =>
-        val (leftExprs, rightExprs) = partition(
-          condition.asInstanceOf[RexCall].operands, rexBuilder, predicate)
+        val (leftExprs, rightExprs) =
+          partition(condition.asInstanceOf[RexCall].operands, rexBuilder, predicate)
         if (leftExprs.isEmpty) {
           (None, Option(condition))
         } else {
@@ -286,8 +304,8 @@ object FlinkRelOptUtil {
         val e = RexUtil.pullFactors(rexBuilder, condition)
         e.getKind match {
           case OR =>
-            val (leftExprs, rightExprs) = partition(
-              condition.asInstanceOf[RexCall].operands, rexBuilder, predicate)
+            val (leftExprs, rightExprs) =
+              partition(condition.asInstanceOf[RexCall].operands, rexBuilder, predicate)
             if (leftExprs.isEmpty || rightExprs.nonEmpty) {
               (None, Option(condition))
             } else {
@@ -326,15 +344,17 @@ object FlinkRelOptUtil {
       predicate: RexNode => JBoolean): (Iterable[RexNode], Iterable[RexNode]) = {
     val leftExprs = mutable.ListBuffer[RexNode]()
     val rightExprs = mutable.ListBuffer[RexNode]()
-    exprs.foreach(expr => partition(expr, rexBuilder, predicate) match {
-      case (Some(first), Some(second)) =>
-        leftExprs += first
-        rightExprs += second
-      case (None, Some(rest)) =>
-        rightExprs += rest
-      case (Some(interested), None) =>
-        leftExprs += interested
-    })
+    exprs.foreach(
+      expr =>
+        partition(expr, rexBuilder, predicate) match {
+          case (Some(first), Some(second)) =>
+            leftExprs += first
+            rightExprs += second
+          case (None, Some(rest)) =>
+            rightExprs += rest
+          case (Some(interested), None) =>
+            leftExprs += interested
+        })
     (leftExprs, rightExprs)
   }
 
@@ -345,15 +365,20 @@ object FlinkRelOptUtil {
     }
   }
 
-  private def pushNotToLeaf(expr: RexNode,
+  private def pushNotToLeaf(
+      expr: RexNode,
       rexBuilder: RexBuilder,
       needReverse: Boolean = false): RexNode = (expr.getKind, needReverse) match {
     case (AND, true) | (OR, false) =>
-      val convertedExprs = expr.asInstanceOf[RexCall].operands
+      val convertedExprs = expr
+        .asInstanceOf[RexCall]
+        .operands
         .map(pushNotToLeaf(_, rexBuilder, needReverse))
       RexUtil.composeDisjunction(rexBuilder, convertedExprs, false)
     case (AND, false) | (OR, true) =>
-      val convertedExprs = expr.asInstanceOf[RexCall].operands
+      val convertedExprs = expr
+        .asInstanceOf[RexCall]
+        .operands
         .map(pushNotToLeaf(_, rexBuilder, needReverse))
       RexUtil.composeConjunction(rexBuilder, convertedExprs, false)
     case (NOT, _) =>
@@ -366,9 +391,7 @@ object FlinkRelOptUtil {
     case (_, false) => expr
   }
 
-  /**
-    * An RexVisitor to judge whether the RexNode is related to the specified index InputRef
-    */
+  /** An RexVisitor to judge whether the RexNode is related to the specified index InputRef */
   class ColumnRelatedVisitor(index: Int) extends RexVisitorImpl[JBoolean](true) {
 
     override def visitInputRef(inputRef: RexInputRef): JBoolean = inputRef.getIndex == index
@@ -376,16 +399,15 @@ object FlinkRelOptUtil {
     override def visitLiteral(literal: RexLiteral): JBoolean = true
 
     override def visitCall(call: RexCall): JBoolean = {
-      call.operands.forall(operand => {
-        val isRelated = operand.accept(this)
-        isRelated != null && isRelated
-      })
+      call.operands.forall(
+        operand => {
+          val isRelated = operand.accept(this)
+          isRelated != null && isRelated
+        })
     }
   }
 
-  /**
-    * An RexVisitor to find whether this is a call on a time indicator field.
-    */
+  /** An RexVisitor to find whether this is a call on a time indicator field. */
   class TimeIndicatorExprFinder extends RexVisitorImpl[Boolean](true) {
     override def visitInputRef(inputRef: RexInputRef): Boolean = {
       FlinkTypeFactory.isTimeIndicatorType(inputRef.getType)
@@ -393,42 +415,34 @@ object FlinkRelOptUtil {
   }
 
   /**
-    * Merge two MiniBatchInterval as a new one.
-    *
-    * The Merge Logic:  MiniBatchMode: (R: rowtime, P: proctime, N: None), I: Interval
-    * Possible values:
-    * - (R, I = 0): operators that require watermark (window excluded).
-    * - (R, I > 0): window / operators that require watermark with minibatch enabled.
-    * - (R, I = -1): existing window aggregate
-    * - (P, I > 0): unbounded agg with minibatch enabled.
-    * - (N, I = 0): no operator requires watermark, minibatch disabled
-    * ------------------------------------------------
-    * |    A        |    B        |   merged result
-    * ------------------------------------------------
-    * | R, I_a == 0 | R, I_b      |  R, gcd(I_a, I_b)
-    * ------------------------------------------------
-    * | R, I_a == 0 | P, I_b      |  R, I_b
-    * ------------------------------------------------
-    * | R, I_a > 0  | R, I_b      |  R, gcd(I_a, I_b)
-    * ------------------------------------------------
-    * | R, I_a > 0  | P, I_b      |  R, I_a
-    * ------------------------------------------------
-    * | R, I_a = -1 | R, I_b      |  R, I_a
-    * ------------------------------------------------
-    * | R, I_a = -1 | P, I_b      |  R, I_a
-    * ------------------------------------------------
-    * | P, I_a      | R, I_b == 0 |  R, I_a
-    * ------------------------------------------------
-    * | P, I_a      | R, I_b > 0  |  R, I_b
-    * ------------------------------------------------
-    * | P, I_a      | P, I_b > 0  |  P, I_a
-    * ------------------------------------------------
-    */
+   * Merge two MiniBatchInterval as a new one.
+   *
+   * The Merge Logic: MiniBatchMode: (R: rowtime, P: proctime, N: None), I: Interval Possible
+   * values:
+   *   - (R, I = 0): operators that require watermark (window excluded).
+   *   - (R, I > 0): window / operators that require watermark with minibatch enabled.
+   *   - (R, I = -1): existing window aggregate
+   *   - (P, I > 0): unbounded agg with minibatch enabled.
+   *   - (N, I = 0): no operator requires watermark, minibatch disabled
+   * ------------------------------------------------ \| A | B | merged result
+   * ------------------------------------------------ \| R, I_a == 0 | R, I_b | R, gcd(I_a, I_b)
+   * ------------------------------------------------ \| R, I_a == 0 | P, I_b | R, I_b
+   * ------------------------------------------------ \| R, I_a > 0 | R, I_b | R, gcd(I_a, I_b)
+   * ------------------------------------------------ \| R, I_a > 0 | P, I_b | R, I_a
+   * ------------------------------------------------ \| R, I_a = -1 | R, I_b | R, I_a
+   * ------------------------------------------------ \| R, I_a = -1 | P, I_b | R, I_a
+   * ------------------------------------------------ \| P, I_a | R, I_b == 0 | R, I_a
+   * ------------------------------------------------ \| P, I_a | R, I_b > 0 | R, I_b
+   * ------------------------------------------------ \| P, I_a | P, I_b > 0 | P, I_a
+   * ------------------------------------------------
+   */
   def mergeMiniBatchInterval(
       interval1: MiniBatchInterval,
       interval2: MiniBatchInterval): MiniBatchInterval = {
-    if (interval1 == MiniBatchInterval.NO_MINIBATCH ||
-      interval2 == MiniBatchInterval.NO_MINIBATCH) {
+    if (
+      interval1 == MiniBatchInterval.NO_MINIBATCH ||
+      interval2 == MiniBatchInterval.NO_MINIBATCH
+    ) {
       return MiniBatchInterval.NO_MINIBATCH
     }
     interval1.getMode match {

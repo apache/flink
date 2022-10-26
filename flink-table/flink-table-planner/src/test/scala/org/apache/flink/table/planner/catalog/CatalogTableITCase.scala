@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api._
@@ -23,28 +22,34 @@ import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOpt
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.planner.expressions.utils.Func0
+import org.apache.flink.table.planner.factories.TestValuesCatalog
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
+import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-import org.apache.flink.util.FileUtils
+import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
+
+import org.junit.{Before, Rule, Test}
 import org.junit.Assert.{assertEquals, assertNotEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Rule, Test}
 
 import java.io.File
 import java.math.{BigDecimal => JBigDecimal}
 import java.net.URI
 import java.util
+import java.util.UUID
+
 import scala.collection.JavaConversions._
+import scala.util.Random
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
 class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
-  //~ Instance fields --------------------------------------------------------
+  // ~ Instance fields --------------------------------------------------------
 
   private val settings = if (isStreamingMode) {
     EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -65,47 +70,47 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     TestCollectionTableFactory.reset()
 
-    val func = new CatalogFunctionImpl(
-      classOf[JavaFunc0].getName)
-    tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().createFunction(
-      new ObjectPath(tableEnv.getCurrentDatabase, "myfunc"),
-      func,
-      true)
+    val func = new CatalogFunctionImpl(classOf[JavaFunc0].getName)
+    tableEnv
+      .getCatalog(tableEnv.getCurrentCatalog)
+      .get()
+      .createFunction(new ObjectPath(tableEnv.getCurrentDatabase, "myfunc"), func, true)
   }
 
-  //~ Tools ------------------------------------------------------------------
+  // ~ Tools ------------------------------------------------------------------
 
-  implicit def rowOrdering: Ordering[Row] = Ordering.by((r : Row) => {
-    val builder = new StringBuilder
-    0 until r.getArity foreach(idx => builder.append(r.getField(idx)))
-    builder.toString()
-  })
+  implicit def rowOrdering: Ordering[Row] = Ordering.by(
+    (r: Row) => {
+      val builder = new StringBuilder
+      (0 until r.getArity).foreach(idx => builder.append(r.getField(idx)))
+      builder.toString()
+    })
 
-  def toRow(args: Any*):Row = {
+  def toRow(args: Any*): Row = {
     val row = new Row(args.length)
-    0 until args.length foreach {
-      i => row.setField(i, args(i))
-    }
+    (0 until args.length).foreach(i => row.setField(i, args(i)))
     row
   }
 
   def getTableOptions(tableName: String): java.util.Map[String, String] = {
-    tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    tableEnv
+      .getCatalog(tableEnv.getCurrentCatalog)
+      .get()
       .getTable(new ObjectPath(tableEnv.getCurrentDatabase, tableName))
       .getOptions
   }
 
-  //~ Tests ------------------------------------------------------------------
+  // ~ Tests ------------------------------------------------------------------
 
   private def testUdf(funcPrefix: String): Unit = {
     val sinkDDL =
       s"""
-        |create table sinkT(
-        |  a bigint
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = '$isStreamingMode'
-        |)
+         |create table sinkT(
+         |  a bigint
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = '$isStreamingMode'
+         |)
       """.stripMargin
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(s"insert into sinkT select ${funcPrefix}myfunc(cast(1 as bigint))").await()
@@ -189,41 +194,39 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       "3.1,Euro,2019-12-12 00:00:05.005001",
       "5.33,US Dollar,2019-12-12 00:00:06.006001"
     )
-    val tempFilePath = createTempFile(
-      "csv-order-test",
-      csvRecords.mkString("#"))
+    val tempFilePath = createTempFile("csv-order-test", csvRecords.mkString("#"))
     val sourceDDL =
       s"""
-       |CREATE TABLE T1 (
-       |  price DECIMAL(10, 2),
-       |  currency STRING,
-       |  ts6 TIMESTAMP(6),
-       |  ts AS CAST(ts6 AS TIMESTAMP(3)),
-       |  WATERMARK FOR ts AS ts
-       |) WITH (
-       |  'connector.type' = 'filesystem',
-       |  'connector.path' = '$tempFilePath',
-       |  'format.type' = 'csv',
-       |  'format.field-delimiter' = ',',
-       |  'format.line-delimiter' = '#'
-       |)
+         |CREATE TABLE T1 (
+         |  price DECIMAL(10, 2),
+         |  currency STRING,
+         |  ts6 TIMESTAMP(6),
+         |  ts AS CAST(ts6 AS TIMESTAMP(3)),
+         |  WATERMARK FOR ts AS ts
+         |) WITH (
+         |  'connector.type' = 'filesystem',
+         |  'connector.path' = '$tempFilePath',
+         |  'format.type' = 'csv',
+         |  'format.field-delimiter' = ',',
+         |  'format.line-delimiter' = '#'
+         |)
      """.stripMargin
     tableEnv.executeSql(sourceDDL)
 
     val sinkFilePath = getTempFilePath("csv-order-sink")
     val sinkDDL =
       s"""
-        |CREATE TABLE T2 (
-        |  window_end TIMESTAMP(3),
-        |  max_ts TIMESTAMP(6),
-        |  counter BIGINT,
-        |  total_price DECIMAL(10, 2)
-        |) with (
-        |  'connector.type' = 'filesystem',
-        |  'connector.path' = '$sinkFilePath',
-        |  'format.type' = 'csv',
-        |  'format.field-delimiter' = ','
-        |)
+         |CREATE TABLE T2 (
+         |  window_end TIMESTAMP(3),
+         |  max_ts TIMESTAMP(6),
+         |  counter BIGINT,
+         |  total_price DECIMAL(10, 2)
+         |) with (
+         |  'connector.type' = 'filesystem',
+         |  'connector.path' = '$sinkFilePath',
+         |  'format.type' = 'csv',
+         |  'format.field-delimiter' = ','
+         |)
       """.stripMargin
     tableEnv.executeSql(sinkDDL)
 
@@ -242,7 +245,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     val expected =
       "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
-      "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
+        "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 
@@ -255,9 +258,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       "3.1,Euro,2019-12-12 00:00:05.005001",
       "5.33,US Dollar,2019-12-12 00:00:06.006001"
     )
-    val tempFilePath = createTempFile(
-      "csv-order-test",
-      csvRecords.mkString("#"))
+    val tempFilePath = createTempFile("csv-order-test", csvRecords.mkString("#"))
     val sourceDDL =
       s"""
          |CREATE TABLE T1 (
@@ -740,7 +741,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |)
       """.stripMargin
 
-
     val permanentData = List(
       toRow(1, "1000", 2),
       toRow(2, "1", 3),
@@ -901,9 +901,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(createTable2)
 
     expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Temporary table with identifier "
-      + "'`default_catalog`.`default_database`.`t1`' exists. "
-      + "Drop it first before removing the permanent table.")
+    expectedEx.expectMessage(
+      "Temporary table with identifier "
+        + "'`default_catalog`.`default_database`.`t1`' exists. "
+        + "Drop it first before removing the permanent table.")
     tableEnv.executeSql("drop table t1")
   }
 
@@ -922,8 +923,9 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(createTable1)
 
     expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("View with identifier "
-      + "'default_catalog.default_database.t1' does not exist.")
+    expectedEx.expectMessage(
+      "View with identifier "
+        + "'default_catalog.default_database.t1' does not exist.")
     tableEnv.executeSql("drop view t1")
   }
 
@@ -979,17 +981,22 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val currentCatalog = tableEnv.getCurrentCatalog
     val currentDB = tableEnv.getCurrentDatabase
     tableEnv.executeSql("alter table t2 add constraint ct1 primary key(a) not enforced")
-    val tableSchema1 = tableEnv.getCatalog(currentCatalog).get()
-      .getTable(ObjectPath.fromString(s"${currentDB}.t2"))
+    val tableSchema1 = tableEnv
+      .getCatalog(currentCatalog)
+      .get()
+      .getTable(ObjectPath.fromString(s"$currentDB.t2"))
       .getSchema
     assert(tableSchema1.getPrimaryKey.isPresent)
-    assertEquals("CONSTRAINT ct1 PRIMARY KEY (a)",
+    assertEquals(
+      "CONSTRAINT ct1 PRIMARY KEY (a)",
       tableSchema1.getPrimaryKey.get().asSummaryString())
 
     // alter table drop constraint
     tableEnv.executeSql("alter table t2 drop constraint ct1")
-    val tableSchema2 = tableEnv.getCatalog(currentCatalog).get()
-      .getTable(ObjectPath.fromString(s"${currentDB}.t2"))
+    val tableSchema2 = tableEnv
+      .getCatalog(currentCatalog)
+      .get()
+      .getTable(ObjectPath.fromString(s"$currentDB.t2"))
       .getSchema
     assertEquals(false, tableSchema2.getPrimaryKey.isPresent)
   }
@@ -1022,26 +1029,26 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     val expectedDDL =
       """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
-          |  `a` BIGINT NOT NULL,
-          |  `h` VARCHAR(2147483647),
-          |  `g` AS 2 * (`a` + 1),
-          |  `b` VARCHAR(2147483647) NOT NULL,
-          |  `c` BIGINT METADATA VIRTUAL,
-          |  `e` ROW<`name` VARCHAR(2147483647), `age` INT, `flag` BOOLEAN>,
-          |  `f` AS `default_catalog`.`default_database`.`myfunc`(`a`),
-          |  `ts1` TIMESTAMP(3),
-          |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp',
-          |  `__source__` VARCHAR(255),
-          |  `proc` AS PROCTIME(),
-          |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
-          |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
-          |) COMMENT 'test show create table statement'
-          |PARTITIONED BY (`b`, `h`)
-          |WITH (
-          |  'connector' = 'kafka',
-          |  'kafka.topic' = 'log.test'
-          |)
-          |""".stripMargin
+        |  `a` BIGINT NOT NULL,
+        |  `h` VARCHAR(2147483647),
+        |  `g` AS 2 * (`a` + 1),
+        |  `b` VARCHAR(2147483647) NOT NULL,
+        |  `c` BIGINT METADATA VIRTUAL,
+        |  `e` ROW<`name` VARCHAR(2147483647), `age` INT, `flag` BOOLEAN>,
+        |  `f` AS `default_catalog`.`default_database`.`myfunc`(`a`),
+        |  `ts1` TIMESTAMP(3),
+        |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp',
+        |  `__source__` VARCHAR(255),
+        |  `proc` AS PROCTIME(),
+        |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
+        |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
+        |) COMMENT 'test show create table statement'
+        |PARTITIONED BY (`b`, `h`)
+        |WITH (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
     tableEnv.executeSql(executedDDL)
     val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
     assertEquals(expectedDDL, row.getField(0))
@@ -1057,19 +1064,19 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   def testCreateViewAndShowCreateTable(): Unit = {
     val createTableDDL =
       """ |create table `source` (
-          |  `id` bigint not null,
-          | `group` string not null,
-          | `score` double
-          |) with (
-          |  'connector' = 'source-only'
-          |)
-          |""".stripMargin
+        |  `id` bigint not null,
+        | `group` string not null,
+        | `score` double
+        |) with (
+        |  'connector' = 'source-only'
+        |)
+        |""".stripMargin
     val createViewDDL =
       """ |create view `tmp` as
-          |select `group`, avg(`score`) as avg_score
-          |from `source`
-          |group by `group`
-          |""".stripMargin
+        |select `group`, avg(`score`) as avg_score
+        |from `source`
+        |group by `group`
+        |""".stripMargin
     tableEnv.executeSql(createTableDDL)
     tableEnv.executeSql(createViewDDL)
     expectedEx.expect(classOf[TableException])
@@ -1082,14 +1089,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testAlterViewRename(): Unit = {
-    tableEnv.executeSql(
-      """
-        | CREATE TABLE T (
-        |   id INT
-        | ) WITH (
-        |   'connector' = 'source-only'
-        | )
-        |""".stripMargin)
+    tableEnv.executeSql("""
+                          | CREATE TABLE T (
+                          |   id INT
+                          | ) WITH (
+                          |   'connector' = 'source-only'
+                          | )
+                          |""".stripMargin)
     tableEnv.executeSql("CREATE VIEW V AS SELECT * FROM T")
 
     tableEnv.executeSql("ALTER VIEW V RENAME TO V2")
@@ -1098,21 +1104,23 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testAlterViewAs(): Unit = {
-    tableEnv.executeSql(
-      """
-        | CREATE TABLE T (
-        |   a INT,
-        |   b INT
-        | ) WITH (
-        |   'connector' = 'source-only'
-        | )
-        |""".stripMargin)
+    tableEnv.executeSql("""
+                          | CREATE TABLE T (
+                          |   a INT,
+                          |   b INT
+                          | ) WITH (
+                          |   'connector' = 'source-only'
+                          | )
+                          |""".stripMargin)
     tableEnv.executeSql("CREATE VIEW V AS SELECT a FROM T")
 
     tableEnv.executeSql("ALTER VIEW V AS SELECT b FROM T")
 
     val objectPath = new ObjectPath(tableEnv.getCurrentDatabase, "V")
-    val view = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().getTable(objectPath)
+    val view = tableEnv
+      .getCatalog(tableEnv.getCurrentCatalog)
+      .get()
+      .getTable(objectPath)
       .asInstanceOf[CatalogView]
     assertEquals("SELECT `b`\nFROM `T`", view.getOriginalQuery)
   }
@@ -1157,10 +1165,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       tableEnv.executeSql("create database db1 ")
       fail("ValidationException expected")
     } catch {
-      case _: ValidationException => //ignore
+      case _: ValidationException => // ignore
     }
-    tableEnv.executeSql("create database cat2.db1 comment 'test_comment'" +
-                         " with ('k1' = 'v1', 'k2' = 'v2')")
+    tableEnv.executeSql(
+      "create database cat2.db1 comment 'test_comment'" +
+        " with ('k1' = 'v1', 'k2' = 'v2')")
     val database = tableEnv.getCatalog("cat2").get().getDatabase("db1")
     assertEquals("test_comment", database.getComment)
     assertEquals(2, database.getProperties.size())
@@ -1181,7 +1190,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       tableEnv.executeSql("drop database db1")
       fail("ValidationException expected")
     } catch {
-      case _: ValidationException => //ignore
+      case _: ValidationException => // ignore
     }
     tableEnv.executeSql("create database db1")
     tableEnv.executeSql("use db1")
@@ -1211,7 +1220,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       tableEnv.executeSql("drop database db1")
       fail("ValidationException expected")
     } catch {
-      case _: ValidationException => //ignore
+      case _: ValidationException => // ignore
     }
     tableEnv.executeSql("drop database db1 cascade")
   }
@@ -1229,6 +1238,40 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     expectedProperty.put("k1", "a")
     expectedProperty.put("k2", "b")
     assertEquals(expectedProperty, database.getProperties)
+  }
+
+  @Test
+  def testLoadFunction(): Unit = {
+    tableEnv.registerCatalog("cat2", new TestValuesCatalog("cat2", "default", true))
+    tableEnv.executeSql("use catalog cat2")
+    // test load customer function packaged in a jar
+    val random = new Random();
+    val udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50)
+    val jarPath = UserClassLoaderJarTestUtils
+      .createJarFile(
+        AbstractTestBase.TEMPORARY_FOLDER.newFolder(String.format("test-jar-%s", UUID.randomUUID)),
+        "test-classloader-udf.jar",
+        udfClassName,
+        String.format(GENERATED_LOWER_UDF_CODE, udfClassName)
+      )
+      .toURI
+      .toString
+    tableEnv.executeSql(s"""create function lowerUdf as '$udfClassName' using jar '$jarPath'""")
+
+    TestCollectionTableFactory.reset()
+    TestCollectionTableFactory.initData(List(Row.of("BoB")))
+    val ddl1 =
+      """
+        |create table t1(
+        |  a varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(ddl1)
+    assertEquals(
+      "+I[bob]",
+      tableEnv.executeSql("select lowerUdf(a) from t1").collect().next().toString)
   }
 }
 

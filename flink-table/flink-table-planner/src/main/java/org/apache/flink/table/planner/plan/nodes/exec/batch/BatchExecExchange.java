@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -66,10 +67,15 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     // if it's None, use value from configuration
     @Nullable private StreamExchangeMode requiredExchangeMode;
 
-    public BatchExecExchange(InputProperty inputProperty, RowType outputType, String description) {
+    public BatchExecExchange(
+            ReadableConfig tableConfig,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecExchange.class),
+                ExecNodeContext.newPersistedConfig(BatchExecExchange.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -152,7 +158,10 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
             case HASH:
                 partitioner =
                         createHashPartitioner(
-                                ((HashDistribution) requiredDistribution), inputType, config);
+                                ((HashDistribution) requiredDistribution),
+                                inputType,
+                                config,
+                                planner.getFlinkContext().getClassLoader());
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
                 break;
             case KEEP_INPUT_AS_IS:
@@ -175,7 +184,8 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                                     createHashPartitioner(
                                             ((HashDistribution) inputDistribution),
                                             inputType,
-                                            config));
+                                            config,
+                                            planner.getFlinkContext().getClassLoader()));
                 }
                 parallelism = inputTransform.getParallelism();
                 break;
@@ -195,7 +205,10 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     }
 
     private BinaryHashPartitioner createHashPartitioner(
-            HashDistribution hashDistribution, RowType inputType, ExecNodeConfig config) {
+            HashDistribution hashDistribution,
+            RowType inputType,
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
         int[] keys = hashDistribution.getKeys();
         String[] fieldNames =
                 Arrays.stream(keys)
@@ -203,7 +216,10 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                         .toArray(String[]::new);
         return new BinaryHashPartitioner(
                 HashCodeGenerator.generateRowHash(
-                        new CodeGeneratorContext(config), inputType, "HashPartitioner", keys),
+                        new CodeGeneratorContext(config, classLoader),
+                        inputType,
+                        "HashPartitioner",
+                        keys),
                 fieldNames);
     }
 

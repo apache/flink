@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
@@ -30,47 +29,26 @@ class DecimalTypeTest extends ExpressionTestBase {
   @Test
   def testDecimalLiterals(): Unit = {
     // implicit double
-    testAllApis(
-      11.2,
-      "11.2",
-      "11.2")
+    testAllApis(11.2, "11.2", "11.2")
 
     // implicit double
-    testAllApis(
-      0.7623533651719233,
-      "0.7623533651719233",
-      "0.7623533651719233")
+    testAllApis(0.7623533651719233, "0.7623533651719233", "0.7623533651719233")
 
     // explicit decimal (with precision of 19)
-    testAllApis(
-      BigDecimal("1234567891234567891"),
-      "1234567891234567891",
-      "1234567891234567891")
+    testAllApis(BigDecimal("1234567891234567891"), "1234567891234567891", "1234567891234567891")
 
     // explicit decimal (high precision, not SQL compliant)
-    testTableApi(
-      BigDecimal("123456789123456789123456789"),
-      "123456789123456789123456789p",
-      "123456789123456789123456789")
+    testTableApi(BigDecimal("123456789123456789123456789"), "123456789123456789123456789")
 
     // explicit decimal (high precision, not SQL compliant)
-    testTableApi(
-      BigDecimal("12.3456789123456789123456789"),
-      "12.3456789123456789123456789p",
-      "12.3456789123456789123456789")
+    testTableApi(BigDecimal("12.3456789123456789123456789"), "12.3456789123456789123456789")
   }
 
   @Test
   def testDecimalBorders(): Unit = {
-    testAllApis(
-      Double.MaxValue,
-      Double.MaxValue.toString,
-      Double.MaxValue.toString)
+    testAllApis(Double.MaxValue, Double.MaxValue.toString, Double.MaxValue.toString)
 
-    testAllApis(
-      Double.MinValue,
-      Double.MinValue.toString,
-      Double.MinValue.toString)
+    testAllApis(Double.MinValue, Double.MinValue.toString, Double.MinValue.toString)
   }
 
   @Test
@@ -81,16 +59,10 @@ class DecimalTypeTest extends ExpressionTestBase {
     // Decimal+Double => Double.
 
     // implicit cast to decimal
-    testAllApis(
-      'f1 + 12,
-      "f1 + 12",
-      "123456789123456789123456801")
+    testAllApis('f1 + 12, "f1 + 12", "123456789123456789123456801")
 
     // implicit cast to decimal
-    testAllApis(
-      lit(12) + 'f1,
-      "12 + f1",
-      "123456789123456789123456801")
+    testAllApis(lit(12) + 'f1, "12 + f1", "123456789123456789123456801")
 
     testAllApis(
       'f1 + BigDecimal("12.3"),
@@ -103,15 +75,9 @@ class DecimalTypeTest extends ExpressionTestBase {
       "12.3 + f1",
       "123456789123456789123456801.3")
 
-    testAllApis(
-      'f1 + 'f1,
-      "f1 + f1",
-      "246913578246913578246913578")
+    testAllApis('f1 + 'f1, "f1 + f1", "246913578246913578246913578")
 
-    testAllApis(
-      'f1 - 'f1,
-      "f1 - f1",
-      "0")
+    testAllApis('f1 - 'f1, "f1 - f1", "0")
 
     // exceeds max precision 38.
     //      'f1 * 'f1,
@@ -119,44 +85,23 @@ class DecimalTypeTest extends ExpressionTestBase {
     //      "f1 * f1",
     //      "15241578780673678546105778281054720515622620750190521")
 
-    testAllApis(
-      'f1 / 'f1,
-      "f1 / f1",
-      "1.00000000")
+    testAllApis('f1 / 'f1, "f1 / f1", "1.00000000")
     // Decimal(30,0) / Decimal(30, 0) => Decimal(61,31) => Decimal(38,8)
 
-    testAllApis(
-      'f1 % 'f1,
-      "MOD(f1, f1)",
-      "0")
+    testAllApis('f1 % 'f1, "MOD(f1, f1)", "0")
 
-    testAllApis(
-      -'f0,
-      "-f0",
-      "-123456789.123456789123456789")
+    testAllApis(-'f0, "-f0", "-123456789.123456789123456789")
   }
 
   @Test
   def testDecimalComparison(): Unit = {
-    testAllApis(
-      'f1 < 12,
-      "f1 < 12",
-      "FALSE")
+    testAllApis('f1 < 12, "f1 < 12", "FALSE")
 
-    testAllApis(
-      'f1 > 12,
-      "f1 > 12",
-      "TRUE")
+    testAllApis('f1 > 12, "f1 > 12", "TRUE")
 
-    testAllApis(
-      'f1 === 12,
-      "f1 = 12",
-      "FALSE")
+    testAllApis('f1 === 12, "f1 = 12", "FALSE")
 
-    testAllApis(
-      'f5 === 0,
-      "f5 = 0",
-      "TRUE")
+    testAllApis('f5 === 0, "f5 = 0", "TRUE")
 
     testAllApis(
       'f1 === BigDecimal("123456789123456789123456789"),
@@ -168,120 +113,58 @@ class DecimalTypeTest extends ExpressionTestBase {
       "f1 <> CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
       "FALSE")
 
-    testAllApis(
-      'f4 < 'f0,
-      "f4 < f0",
-      "TRUE")
+    testAllApis('f4 < 'f0, "f4 < f0", "TRUE")
 
-    testAllApis(
-      12.toExpr < 'f1,
-      "12 < f1",
-      "TRUE")
+    testAllApis(12.toExpr < 'f1, "12 < f1", "TRUE")
 
-    testAllApis(
-      12.toExpr > 'f1,
-      "12 > f1",
-      "12 > f1",
-      "FALSE")
+    testAllApis(12.toExpr > 'f1, "12 > f1", "FALSE")
 
-    testAllApis(
-      12.toExpr - 'f37,
-      "12 - f37",
-      "10")
+    testAllApis(12.toExpr - 'f37, "12 - f37", "10")
 
-    testAllApis(
-      12.toExpr + 'f37,
-      "12 + f37",
-      "14")
+    testAllApis(12.toExpr + 'f37, "12 + f37", "14")
 
-    testAllApis(
-      12.toExpr * 'f37,
-      "12 * f37",
-      "24")
+    testAllApis(12.toExpr * 'f37, "12 * f37", "24")
 
-    testAllApis(
-      12.toExpr / 'f37,
-      "12 / f37",
-      "6")
+    testAllApis(12.toExpr / 'f37, "12 / f37", "6")
   }
 
   @Test
   def testFieldAccess(): Unit = {
 
     // the most basic case
-    testAllApis(
-      'f6,
-      "f6",
-      "123")
+    testAllApis('f6, "f6", "123")
 
-    testAllApis(
-      'f7,
-      "f7",
-      "123.45")
+    testAllApis('f7, "f7", "123.45")
 
     // data from source are rounded to their declared scale before entering next step
-    testAllApis(
-      'f8,
-      "f8",
-      "100.00")
+    testAllApis('f8, "f8", "100.00")
 
-    testAllApis(
-      'f8 + 'f8,
-      "f8 + f8",
-      "200.00")
+    testAllApis('f8 + 'f8, "f8 + f8", "200.00")
 
     // trailing zeros are padded to the scale
-    testAllApis(
-      'f9,
-      "f9",
-      "100.10")
+    testAllApis('f9, "f9", "100.10")
 
-    testAllApis(
-      'f9 + 'f9,
-      "f9 + f9",
-      "200.20")
+    testAllApis('f9 + 'f9, "f9 + f9", "200.20")
 
     // source data is within precision after rounding
-    testAllApis(
-      'f10,
-      "f10",
-      "100.00")
+    testAllApis('f10, "f10", "100.00")
 
-    testAllApis(
-      'f10 + 'f10,
-      "f10 + f10",
-      "200.00")
+    testAllApis('f10 + 'f10, "f10 + f10", "200.00")
 
     // source data overflows over precision (after rounding)
-    testAllApis(
-      'f11,
-      "f11",
-      "NULL")
+    testAllApis('f11, "f11", "NULL")
 
-    testAllApis(
-      'f12,
-      "f12",
-      "NULL")
+    testAllApis('f12, "f12", "NULL")
   }
 
   @Test
   def testUnaryPlusMinus(): Unit = {
 
-    testAllApis(
-      + 'f6,
-      "+f6",
-      "123")
+    testAllApis(+'f6, "+f6", "123")
 
-    testAllApis(
-      - 'f7,
-      "-f7",
-      "-f7",
-      "-123.45")
+    testAllApis(-'f7, "-f7", "-123.45")
 
-    testAllApis(
-      - (( + 'f6) - ( - 'f7)),
-      "- (( + f6) - ( - f7))",
-      "-246.45")
+    testAllApis(-((+'f6) - (-'f7)), "- (( + f6) - ( - f7))", "-246.45")
   }
 
   @Test
@@ -290,72 +173,36 @@ class DecimalTypeTest extends ExpressionTestBase {
     // see calcite ReturnTypes.DECIMAL_SUM
     // s = max(s1,s2), p-s = max(p1-s1, p2-s2) + 1
     // p then is capped at 38
-    testAllApis(
-      'f13 + 'f14,
-      "f13 + f14",
-      "300.2434")
+    testAllApis('f13 + 'f14, "f13 + f14", "300.2434")
 
-    testAllApis(
-      'f13 - 'f14,
-      "f13 - f14",
-      "-100.0034")
+    testAllApis('f13 - 'f14, "f13 - f14", "-100.0034")
 
     // INT => DECIMAL(10,0)
     // approximate + exact => approximate
-    testAllApis(
-      'f7 + 'f2,
-      "f7 + f2",
-      "165.45")
+    testAllApis('f7 + 'f2, "f7 + f2", "165.45")
 
-    testAllApis(
-      'f2 + 'f7,
-      "f2 + f7",
-      "165.45")
+    testAllApis('f2 + 'f7, "f2 + f7", "165.45")
 
-    testAllApis(
-      'f7 + 'f3,
-      "f7 + f3",
-      "127.65")
+    testAllApis('f7 + 'f3, "f7 + f3", "127.65")
 
-    testAllApis(
-      'f3 + 'f7,
-      "f3 + f7",
-      "127.65")
+    testAllApis('f3 + 'f7, "f3 + f7", "127.65")
 
     // T-SQL -- scale may be reduced to keep the integral part. approximation may occur
     //   (38,10)+(38,28)=>(57,28)=>(38,9)
-    testAllApis(
-      'f15 + 'f16,
-      "f15 + f16",
-      "300.024691358")
+    testAllApis('f15 + 'f16, "f15 + f16", "300.024691358")
 
-    testAllApis(
-      'f15 - 'f16,
-      "f15 - f16",
-      "-100.000000000")
+    testAllApis('f15 - 'f16, "f15 - f16", "-100.000000000")
 
     // 10 digits integral part
-    testAllApis(
-      'f17 + 'f18,
-      "f17 + f18",
-      "10000000000.000000000")
+    testAllApis('f17 + 'f18, "f17 + f18", "10000000000.000000000")
 
-    testAllApis(
-      'f17 - 'f18,
-      "f17 - f18",
-      "10000000000.000000000")
+    testAllApis('f17 - 'f18, "f17 - f18", "10000000000.000000000")
 
     // requires 39 digits
-    testAllApis(
-      'f19 + 'f19,
-      "f19 + f19",
-      "NULL")
+    testAllApis('f19 + 'f19, "f19 + f19", "NULL")
 
     // overflows in subexpression
-    testAllApis(
-      'f19 + 'f19 - 'f19,
-      "f19 + f19 - f19",
-      "NULL")
+    testAllApis('f19 + 'f19 - 'f19, "f19 + f19 - f19", "NULL")
   }
 
   @Test
@@ -364,49 +211,25 @@ class DecimalTypeTest extends ExpressionTestBase {
     // see calcite ReturnTypes.DECIMAL_PRODUCT
     // s = s1+s2, p = p1+p2
     // both p&s are capped at 38
-    testAllApis(
-      'f20 * 'f20,
-      "f20 * f20",
-      "1.0000")
+    testAllApis('f20 * 'f20, "f20 * f20", "1.0000")
 
-    testAllApis(
-      'f20 * 'f21,
-      "f20 * f21",
-      "2.000000")
+    testAllApis('f20 * 'f21, "f20 * f21", "2.000000")
 
     // INT => DECIMAL(10,0)
     // approximate * exact => approximate
-    testAllApis(
-      'f20 * 'f22,
-      "f20 * f22",
-      "200.00")
+    testAllApis('f20 * 'f22, "f20 * f22", "200.00")
 
-    testAllApis(
-      'f22 * 'f20,
-      "f22 * f20",
-      "200.00")
+    testAllApis('f22 * 'f20, "f22 * f20", "200.00")
 
-    testAllApis(
-      'f20 * 'f23,
-      "f20 * f23",
-      "3.14")
+    testAllApis('f20 * 'f23, "f20 * f23", "3.14")
 
-    testAllApis(
-      'f23 * 'f20,
-      "f23 * f20",
-      "3.14")
+    testAllApis('f23 * 'f20, "f23 * f20", "3.14")
 
     // (60,12) => (38,6), minimum scale 6 is preserved
     // while sacrificing scale for more space for integral part
-    testAllApis(
-      'f24 * 'f24,
-      "f24 * f24",
-      "1.000000")
+    testAllApis('f24 * 'f24, "f24 * f24", "1.000000")
 
-    testAllApis(
-      'f24 * 'f25,
-      "f24 * f25",
-      "2.000000")
+    testAllApis('f24 * 'f25, "f24 * f25", "2.000000")
 
     testAllApis(
       'f26 * 'f26,
@@ -430,7 +253,7 @@ class DecimalTypeTest extends ExpressionTestBase {
       "NULL"
     )
 
-    //(60,40) => (38,17), scale part is reduced to make more space for integral part
+    // (60,40) => (38,17), scale part is reduced to make more space for integral part
     testAllApis(
       'f30 * 'f30,
       "f30 * f30",
@@ -443,117 +266,57 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     // the default impl of Calcite apparently borrows from T-SQL, but differs in details.
     // Flink overrides it to follow T-SQL exactly. See FlinkTypeFactory.createDecimalQuotient()
-    testAllApis(
-      'f31 / 'f32,
-      "f31 / f32",
-      "0.333333")
+    testAllApis('f31 / 'f32, "f31 / f32", "0.333333")
 
-    testAllApis(
-      'f31 / 'f33,
-      "f31 / f33",
-      "0.3333333")
+    testAllApis('f31 / 'f33, "f31 / f33", "0.3333333")
 
-    testAllApis(
-      'f31 / 'f34,
-      "f31 / f34",
-      "f31 / f34",
-      "0.3333333333")
+    testAllApis('f31 / 'f34, "f31 / f34", "0.3333333333")
 
-    testAllApis(
-      'f31 / 'f35,
-      "f31 / f35",
-      "0.333333")
+    testAllApis('f31 / 'f35, "f31 / f35", "0.333333")
 
     // INT => DECIMAL(10,0)
     // approximate / exact => approximate
-    testAllApis(
-      'f36 / 'f37,
-      "f36 / f37",
-      "0.5000000000000")
+    testAllApis('f36 / 'f37, "f36 / f37", "0.5000000000000")
 
+    testAllApis('f37 / 'f36, "f37 / f36", "2.00000000000")
 
-    testAllApis(
-      'f37 / 'f36,
-      "f37 / f36",
-      "2.00000000000")
+    testAllApis('f36 / 'f38, "f36 / f38", (1.0 / 3.0).toString)
 
-
-    testAllApis(
-      'f36 / 'f38,
-      "f36 / f38",
-      (1.0/3.0).toString)
-
-    testAllApis(
-      'f38 / 'f36,
-      "f38 / f36",
-      (3.0/1.0).toString)
+    testAllApis('f38 / 'f36, "f38 / f36", (3.0 / 1.0).toString)
 
     // result overflow, because result type integral part is reduced
-    testAllApis(
-      'f39 / 'f40,
-      "f39 / f40",
-      "NULL")
+    testAllApis('f39 / 'f40, "f39 / f40", "NULL")
   }
 
   @Test
   def testMod(): Unit = {
     // MOD(Exact1, Exact2) => Exact2
-    testAllApis(
-      'f41 % 'f42,
-      "mod(f41, f42)",
-      "3.0000")
+    testAllApis('f41 % 'f42, "mod(f41, f42)", "3.0000")
 
-    testAllApis(
-      'f42 % 'f41,
-      "mod(f42, f41)",
-      "2.0000")
+    testAllApis('f42 % 'f41, "mod(f42, f41)", "2.0000")
 
-    testAllApis(
-      'f41 % 'f43,
-      "mod(f41, f43)",
-      "3.00")
+    testAllApis('f41 % 'f43, "mod(f41, f43)", "3.00")
 
-    testAllApis(
-      'f43 % 'f41,
-      "mod(f43, f41)",
-      "1.00")
+    testAllApis('f43 % 'f41, "mod(f43, f41)", "1.00")
 
     // signs. consistent with Java's % operator.
-    testAllApis(
-      'f44 % 'f45,
-      "mod(f44, f45)",
-      (3%5).toString)
+    testAllApis('f44 % 'f45, "mod(f44, f45)", (3 % 5).toString)
 
-    testAllApis(
-      -'f44 % 'f45,
-      "mod(-f44, f45)",
-      ((-3)%5).toString)
+    testAllApis(-'f44 % 'f45, "mod(-f44, f45)", ((-3) % 5).toString)
 
-    testAllApis(
-      'f44 % -'f45,
-      "mod(f44, -f45)",
-      (3%(-5)).toString)
+    testAllApis('f44 % -'f45, "mod(f44, -f45)", (3 % (-5)).toString)
 
-    testAllApis(
-      -'f44 % -'f45,
-      "mod(-f44, -f45)",
-      ((-3)%(-5)).toString)
+    testAllApis(-'f44 % -'f45, "mod(-f44, -f45)", ((-3) % (-5)).toString)
 
     // rounding in case s1>s2. note that SQL2003 requires s1=s2=0.
     // (In T-SQL, s2 is expanded to s1, so that there's no rounding.)
-    testAllApis(
-      'f46 % 'f47,
-      "mod(f46, f47)",
-      "3.1234")
+    testAllApis('f46 % 'f47, "mod(f46, f47)", "3.1234")
   }
 
-  @Test  // functions that treat Decimal as exact value
+  @Test // functions that treat Decimal as exact value
   def testExactionFunctions(): Unit = {
 
-    testAllApis(
-      ifThenElse('f48 > 'f49, 'f48, 'f49),
-      "if(f48 > f49, f48, f49)",
-      "3.14")
+    testAllApis(ifThenElse('f48 > 'f49, 'f48, 'f49), "if(f48 > f49, f48, f49)", "3.14")
 
     testAllApis(
       'f48.abs(),
@@ -598,81 +361,35 @@ class DecimalTypeTest extends ExpressionTestBase {
     )
 
     // ROUND(Decimal(p,s)[,INT])
-    testAllApis(
-      'f50.round(0),
-      "round(f50)",
-      "647")
+    testAllApis('f50.round(0), "round(f50)", "647")
 
-    testAllApis(
-      'f50.round(0),
-      "round(f50,0)",
-      "647")
+    testAllApis('f50.round(0), "round(f50,0)", "647")
 
-    testAllApis(
-      'f50.round(1),
-      "round(f50,1)",
-      "646.6")
+    testAllApis('f50.round(1), "round(f50,1)", "646.6")
 
-    testAllApis(
-      'f50.round(2),
-      "f50.round(2)",
-      "round(f50,2)",
-      "646.65")
+    testAllApis('f50.round(2), "round(f50,2)", "646.65")
 
-    testAllApis(
-      'f50.round(3),
-      "round(f50,3)",
-      "646.646")
+    testAllApis('f50.round(3), "round(f50,3)", "646.646")
 
-    testAllApis(
-      'f50.round(4),
-      "round(f50,4)",
-      "646.646")
+    testAllApis('f50.round(4), "round(f50,4)", "646.646")
 
-    testAllApis(
-      'f50.round(-1),
-      "round(f50,-1)",
-      "650")
+    testAllApis('f50.round(-1), "round(f50,-1)", "650")
 
-    testAllApis(
-      'f50.round(-2),
-      "round(f50,-2)",
-      "600")
+    testAllApis('f50.round(-2), "round(f50,-2)", "600")
 
-    testAllApis(
-      'f50.round(-3),
-      "round(f50,-3)",
-      "1000")
+    testAllApis('f50.round(-3), "round(f50,-3)", "1000")
 
-    testAllApis(
-      'f50.round(-4),
-      "round(f50,-4)",
-      "0")
+    testAllApis('f50.round(-4), "round(f50,-4)", "0")
 
-    testAllApis(
-      'f51.round(1),
-      "round(f51,1)",
-      "100.0")
+    testAllApis('f51.round(1), "round(f51,1)", "100.0")
 
-    testAllApis(
-      (-'f51).round(1),
-      "round(-f51,1)",
-      "-100.0")
+    testAllApis((-'f51).round(1), "round(-f51,1)", "-100.0")
 
-    testAllApis(
-      ('f51).round(-1),
-      "round(f51,-1)",
-      "100")
+    testAllApis(('f51).round(-1), "round(f51,-1)", "100")
 
-    testAllApis(
-      (-'f51).round(-1),
-      "round(-f51,-1)",
-      "-100")
+    testAllApis((-'f51).round(-1), "round(-f51,-1)", "-100")
 
-    testAllApis(
-      ('f52).round(-1),
-      "round(f52,-1)",
-      "NULL")
+    testAllApis(('f52).round(-1), "round(f52,-1)", "NULL")
   }
 
   @Test // functions e.g. sin() that treat Decimal as double
@@ -686,17 +403,11 @@ class DecimalTypeTest extends ExpressionTestBase {
   def testCaseWhen(): Unit = {
 
     // result type: SQL2003 $9.23, calcite RelDataTypeFactory.leastRestrictive()
-    testSqlApi(
-       "case f53 when 0 then f53 else f54 end",
-      "0.0100")
+    testSqlApi("case f53 when 0 then f53 else f54 end", "0.0100")
 
-    testSqlApi(
-      "case f53 when 0 then f53 else f2 end",
-      "42.0000")
+    testSqlApi("case f53 when 0 then f53 else f2 end", "42.0000")
 
-    testSqlApi(
-      "case f53 when 0 then f23 else f53 end",
-      BigDecimal("0.0001").doubleValue().toString)
+    testSqlApi("case f53 when 0 then f23 else f53 end", BigDecimal("0.0001").doubleValue().toString)
   }
 
   @Test
@@ -704,77 +415,41 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     // expressions that test equality.
     //   =, CASE, NULLIF, IN, IS DISTINCT FROM
-    testSqlApi(
-      "f63=f64",
-      "TRUE")
+    testSqlApi("f63=f64", "TRUE")
 
-    testSqlApi(
-      "f63=f65",
-      "TRUE")
+    testSqlApi("f63=f65", "TRUE")
 
-    testSqlApi(
-      "f63=f66",
-      "TRUE")
+    testSqlApi("f63=f66", "TRUE")
 
-    testSqlApi(
-      "f64=f63",
-      "TRUE")
+    testSqlApi("f64=f63", "TRUE")
 
-    testSqlApi(
-      "f65=f63",
-      "TRUE")
+    testSqlApi("f65=f63", "TRUE")
 
-    testSqlApi(
-      "f66=f63",
-      "TRUE")
+    testSqlApi("f66=f63", "TRUE")
 
-    testSqlApi(
-      "f63 IN(f64)",
-      "TRUE")
+    testSqlApi("f63 IN(f64)", "TRUE")
 
-    testSqlApi(
-      "f63 IN(f65)",
-      "TRUE")
+    testSqlApi("f63 IN(f65)", "TRUE")
 
-    testSqlApi(
-      "f63 IN(f66)",
-      "TRUE")
+    testSqlApi("f63 IN(f66)", "TRUE")
 
-    testSqlApi(
-      "f64 IN(f63)",
-      "TRUE")
+    testSqlApi("f64 IN(f63)", "TRUE")
 
-    testSqlApi(
-      "f65 IN(f63)",
-      "TRUE")
+    testSqlApi("f65 IN(f63)", "TRUE")
 
-    testSqlApi(
-      "f66 IN(f63)",
-      "TRUE")
+    testSqlApi("f66 IN(f63)", "TRUE")
 
-    testSqlApi(
-      "f63 IS DISTINCT FROM f64",
-      "FALSE")
+    testSqlApi("f63 IS DISTINCT FROM f64", "FALSE")
 
-    testSqlApi(
-      "f64 IS DISTINCT FROM f63",
-      "FALSE")
+    testSqlApi("f64 IS DISTINCT FROM f63", "FALSE")
 
-    testSqlApi(
-      "f63 IS DISTINCT FROM f65",
-      "FALSE")
+    testSqlApi("f63 IS DISTINCT FROM f65", "FALSE")
 
-    testSqlApi(
-      "f65 IS DISTINCT FROM f63",
-      "FALSE")
+    testSqlApi("f65 IS DISTINCT FROM f63", "FALSE")
 
-    testSqlApi(
-      "f63 IS DISTINCT FROM f66",
-      "FALSE")
+    testSqlApi("f63 IS DISTINCT FROM f66", "FALSE")
 
-    testSqlApi(
-      "f66 IS DISTINCT FROM f63",
-      "FALSE")
+    testSqlApi("f66 IS DISTINCT FROM f63", "FALSE")
 
     testSqlApi(
       "NULLIF(f63,f64)",
@@ -844,103 +519,55 @@ class DecimalTypeTest extends ExpressionTestBase {
 
   @Test
   def testComparison(): Unit = {
-    testSqlApi(
-      "f63 < f64",
-      "FALSE")
+    testSqlApi("f63 < f64", "FALSE")
 
-    testSqlApi(
-      "f63 < f65",
-      "FALSE")
+    testSqlApi("f63 < f65", "FALSE")
 
-    testSqlApi(
-      "f63 < f66",
-      "FALSE")
+    testSqlApi("f63 < f66", "FALSE")
 
-    testSqlApi(
-      "f64 < f63",
-      "FALSE")
+    testSqlApi("f64 < f63", "FALSE")
 
-    testSqlApi(
-      "f65 < f63",
-      "FALSE")
+    testSqlApi("f65 < f63", "FALSE")
 
-    testSqlApi(
-      "f66 < f63",
-      "FALSE")
+    testSqlApi("f66 < f63", "FALSE")
 
     // no overflow during type conversion.
     // conceptually both operands are promoted to infinite precision before comparison.
-    testSqlApi(
-      "f67 < f68",
-      "TRUE")
+    testSqlApi("f67 < f68", "TRUE")
 
-    testSqlApi(
-      "f67 < f69",
-      "TRUE")
+    testSqlApi("f67 < f69", "TRUE")
 
-    testSqlApi(
-      "f67 < f70",
-      "TRUE")
+    testSqlApi("f67 < f70", "TRUE")
 
-    testSqlApi(
-      "f68 < f67",
-      "FALSE")
+    testSqlApi("f68 < f67", "FALSE")
 
-    testSqlApi(
-      "f69 < f67",
-      "FALSE")
+    testSqlApi("f69 < f67", "FALSE")
 
-    testSqlApi(
-      "f70 < f67",
-      "FALSE")
+    testSqlApi("f70 < f67", "FALSE")
 
-    testSqlApi(
-      "f63 between f64 and 1",
-      "TRUE")
+    testSqlApi("f63 between f64 and 1", "TRUE")
 
-    testSqlApi(
-      "f64 between f63 and 1",
-      "TRUE")
+    testSqlApi("f64 between f63 and 1", "TRUE")
 
-    testSqlApi(
-      "f63 between f65 and 1",
-      "TRUE")
+    testSqlApi("f63 between f65 and 1", "TRUE")
 
-    testSqlApi(
-      "f65 between f63 and 1",
-      "TRUE")
+    testSqlApi("f65 between f63 and 1", "TRUE")
 
-    testSqlApi(
-      "f63 between f66 and 1",
-      "TRUE")
+    testSqlApi("f63 between f66 and 1", "TRUE")
 
-    testSqlApi(
-      "f66 between f63 and 1",
-      "TRUE")
+    testSqlApi("f66 between f63 and 1", "TRUE")
 
-    testSqlApi(
-      "f63 between 0 and f64",
-      "TRUE")
+    testSqlApi("f63 between 0 and f64", "TRUE")
 
-    testSqlApi(
-      "f64 between 0 and f63",
-      "TRUE")
+    testSqlApi("f64 between 0 and f63", "TRUE")
 
-    testSqlApi(
-      "f63 between 0 and f65",
-      "TRUE")
+    testSqlApi("f63 between 0 and f65", "TRUE")
 
-    testSqlApi(
-      "f65 between 0 and f63",
-      "TRUE")
+    testSqlApi("f65 between 0 and f63", "TRUE")
 
-    testSqlApi(
-      "f63 between 0 and f66",
-      "TRUE")
+    testSqlApi("f63 between 0 and f66", "TRUE")
 
-    testSqlApi(
-      "f66 between 0 and f63",
-      "TRUE")
+    testSqlApi("f66 between 0 and f63", "TRUE")
   }
 
   @Test

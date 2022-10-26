@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
@@ -26,9 +25,9 @@ import org.apache.flink.table.runtime.functions.table.UnnestRowsFunction
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.hep.HepRelVertex
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
@@ -36,13 +35,11 @@ import org.apache.calcite.rel.logical._
 import java.util.Collections
 
 /**
-  * Planner rule that rewrites UNNEST to explode function.
-  *
-  * Note: This class can only be used in HepPlanner.
-  */
-class LogicalUnnestRule(
-    operand: RelOptRuleOperand,
-    description: String)
+ * Planner rule that rewrites UNNEST to explode function.
+ *
+ * Note: This class can only be used in HepPlanner.
+ */
+class LogicalUnnestRule(operand: RelOptRuleOperand, description: String)
   extends RelOptRule(operand, description) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -54,10 +51,11 @@ class LogicalUnnestRule(
       case filter: LogicalFilter =>
         getRel(filter.getInput) match {
           case u: Uncollect => !u.withOrdinality
-          case p: LogicalProject => getRel(p.getInput) match {
-            case u: Uncollect => !u.withOrdinality
-            case _ => false
-          }
+          case p: LogicalProject =>
+            getRel(p.getInput) match {
+              case u: Uncollect => !u.withOrdinality
+              case _ => false
+            }
           case _ => false
         }
       case project: LogicalProject =>
@@ -93,15 +91,15 @@ class LogicalUnnestRule(
           val relDataType = uc.getInput.getRowType.getFieldList.get(0).getValue
           val logicalType = FlinkTypeFactory.toLogicalType(relDataType)
 
-          val sqlFunction = BridgingSqlFunction.of(
-            cluster,
-            BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS)
+          val sqlFunction =
+            BridgingSqlFunction.of(cluster, BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS)
 
           val rexCall = cluster.getRexBuilder.makeCall(
             typeFactory.createFieldTypeFromLogicalType(
               toRowType(UnnestRowsFunction.getUnnestedType(logicalType))),
             sqlFunction,
-            getRel(uc.getInput).asInstanceOf[LogicalProject].getProjects)
+            getRel(uc.getInput).asInstanceOf[LogicalProject].getProjects
+          )
 
           new LogicalTableFunctionScan(
             cluster,
@@ -131,7 +129,5 @@ class LogicalUnnestRule(
 }
 
 object LogicalUnnestRule {
-  val INSTANCE = new LogicalUnnestRule(
-    operand(classOf[LogicalCorrelate], any),
-    "LogicalUnnestRule")
+  val INSTANCE = new LogicalUnnestRule(operand(classOf[LogicalCorrelate], any), "LogicalUnnestRule")
 }

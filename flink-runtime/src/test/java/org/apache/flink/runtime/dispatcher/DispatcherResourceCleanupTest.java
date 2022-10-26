@@ -79,13 +79,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.runtime.dispatcher.AbstractDispatcherTest.awaitStatus;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /** Tests the resource cleanup by the {@link Dispatcher}. */
@@ -165,7 +167,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
             TestingDispatcher.Builder dispatcherBuilder,
             JobManagerRunnerFactory jobManagerRunnerFactory)
             throws Exception {
-        dispatcher = dispatcherBuilder.setJobManagerRunnerFactory(jobManagerRunnerFactory).build();
+        dispatcher =
+                dispatcherBuilder
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .build(rpcService);
 
         dispatcher.start();
 
@@ -176,7 +181,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final JobManagerRunnerRegistry jobManagerRunnerRegistry =
                 new DefaultJobManagerRunnerRegistry(2);
         return TestingDispatcher.builder()
-                .setRpcService(rpcService)
                 .setBlobServer(blobServer)
                 .setJobManagerRunnerRegistry(jobManagerRunnerRegistry)
                 .setFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())
@@ -213,7 +217,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     @AfterClass
     public static void teardownClass() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 
@@ -526,14 +530,14 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private void assertLocalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
-        assertThat(localCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
+        assertThat(localCleanupFuture.get(), equalTo(jobId));
         assertThat(globalCleanupFuture.isDone(), is(false));
     }
 
     private void assertGlobalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
         assertThat(localCleanupFuture.isDone(), is(false));
-        assertThat(globalCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
+        assertThat(globalCleanupFuture.get(), equalTo(jobId));
     }
 
     @Test
@@ -649,6 +653,58 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         // Ensure job is running
         awaitStatus(dispatcherGateway, jobId, JobStatus.RUNNING);
+    }
+
+    @Test
+    public void testArchivingFinishedJobToHistoryServer() throws Exception {
+
+        final CompletableFuture<Acknowledge> archiveFuture = new CompletableFuture<>();
+
+        final TestingDispatcher.Builder testingDispatcherBuilder =
+                createTestingDispatcherBuilder()
+                        .setHistoryServerArchivist(executionGraphInfo -> archiveFuture);
+
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitJob(testingDispatcherBuilder, 0);
+
+        finishJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        // Before the archiving is finished, the cleanup is not finished and the job is not
+        // terminated
+        assertThatNoCleanupWasTriggered();
+        final CompletableFuture<Void> jobTerminationFuture =
+                dispatcher.getJobTerminationFuture(jobId, Time.hours(1));
+        assertFalse(jobTerminationFuture.isDone());
+
+        archiveFuture.complete(Acknowledge.get());
+
+        // Once the archive is finished, the cleanup is finished and the job is terminated.
+        assertGlobalCleanupTriggered(jobId);
+        jobTerminationFuture.join();
+    }
+
+    @Test
+    public void testNotArchivingSuspendedJobToHistoryServer() throws Exception {
+
+        final AtomicBoolean isArchived = new AtomicBoolean(false);
+
+        final TestingDispatcher.Builder testingDispatcherBuilder =
+                createTestingDispatcherBuilder()
+                        .setHistoryServerArchivist(
+                                executionGraphInfo -> {
+                                    isArchived.set(true);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                });
+
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitJob(testingDispatcherBuilder, 0);
+
+        suspendJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        assertLocalCleanupTriggered(jobId);
+        dispatcher.getJobTerminationFuture(jobId, Time.hours(1)).join();
+
+        assertFalse(isArchived.get());
     }
 
     private static final class BlockingJobManagerRunnerFactory

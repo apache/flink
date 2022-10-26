@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
@@ -36,9 +35,26 @@ class GroupingSetsTest extends TableTestBase {
   util.addTableSource[(Int, String)]("dept", 'deptno, 'dname)
   util.addTableSource[(Long, String, Int, String, String, Long, Int, Boolean, Boolean, Date)](
     "emps",
-    'empno, 'name, 'deptno, 'gender, 'city, 'empid, 'age, 'slacker, 'manager, 'joinedat)
+    'empno,
+    'name,
+    'deptno,
+    'gender,
+    'city,
+    'empid,
+    'age,
+    'slacker,
+    'manager,
+    'joinedat)
   util.addTableSource[(Int, String, String, Int, Date, Double, Double, Int)](
-    "scott_emp", 'empno, 'ename, 'job, 'mgr, 'hiredate, 'sal, 'comm, 'deptno)
+    "scott_emp",
+    'empno,
+    'ename,
+    'job,
+    'mgr,
+    'hiredate,
+    'sal,
+    'comm,
+    'deptno)
 
   @Test
   def testGroupingSets(): Unit = {

@@ -25,7 +25,7 @@ import org.apache.flink.types.ShortValue;
 
 import java.util.Random;
 
-public class ShortValueComparatorTest extends ComparatorTestBase<ShortValue> {
+class ShortValueComparatorTest extends ComparatorTestBase<ShortValue> {
 
     @Override
     protected TypeComparator<ShortValue> createComparator(boolean ascending) {

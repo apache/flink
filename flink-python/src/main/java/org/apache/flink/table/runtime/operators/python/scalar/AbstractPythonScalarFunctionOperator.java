@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -34,6 +34,9 @@ import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunction
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 
 /**
  * Base class for all stream operators to execute Python {@link ScalarFunction}s. It executes the
@@ -114,16 +117,11 @@ public abstract class AbstractPythonScalarFunctionOperator
 
     /** Gets the proto representation of the Python user-defined functions to be executed. */
     @Override
-    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-        FlinkFnApi.UserDefinedFunctions.Builder builder =
-                FlinkFnApi.UserDefinedFunctions.newBuilder();
-        // add udf proto
-        for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-            builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
-        }
-        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
-        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
-        return builder.build();
+    public FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto() {
+        return ProtoUtils.createUserDefinedFunctionsProto(
+                scalarFunctions,
+                config.get(PYTHON_METRIC_ENABLED),
+                config.get(PYTHON_PROFILE_ENABLED));
     }
 
     @Override

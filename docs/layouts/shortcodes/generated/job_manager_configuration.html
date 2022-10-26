@@ -33,6 +33,24 @@
             <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded up to a power of 2 automatically.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Controls how long an detected slow node should be blocked for.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Controls whether to enable speculative execution.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Integer</td>
+            <td>Controls the maximum number of execution attempts of each operator that can execute concurrently, including the original one and speculative ones.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -66,7 +84,7 @@
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>Integer</td>
-            <td>The maximum number of prior execution attempts kept in history.</td>
+            <td>The maximum number of historical execution attempts kept in history.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.execution.failover-strategy</h5></td>
@@ -169,6 +187,12 @@
             <td style="word-wrap: break-word;">6123</td>
             <td>Integer</td>
             <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.scheduler</h5></td>
+            <td style="word-wrap: break-word;">Default</td>
+            <td><p>Enum</p></td>
+            <td>Determines which scheduler implementation is used to schedule tasks. Accepted values are:<ul><li>'Default': Default scheduler</li><li>'Adaptive': Adaptive scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler">here</a>.</li><li>'AdaptiveBatch': Adaptive batch scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler">here</a>.</li></ul><br /><br />Possible values:<ul><li>"Default"</li><li>"Adaptive"</li><li>"AdaptiveBatch"</li></ul></td>
         </tr>
         <tr>
             <td><h5>jobstore.cache-size</h5></td>

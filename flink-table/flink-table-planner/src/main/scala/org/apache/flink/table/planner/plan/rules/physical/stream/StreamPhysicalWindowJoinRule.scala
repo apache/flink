@@ -15,26 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowJoin
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.{satisfyWindowJoin, excludeWindowStartEqualityAndEndEqualityFromWindowJoinCondition, getChildWindowProperties}
+import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.{excludeWindowStartEqualityAndEndEqualityFromWindowJoinCondition, getChildWindowProperties, satisfyWindowJoin}
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 
-/**
- * Rule to convert a [[FlinkLogicalJoin]] into a [[StreamPhysicalWindowJoin]].
- */
+/** Rule to convert a [[FlinkLogicalJoin]] into a [[StreamPhysicalWindowJoin]]. */
 class StreamPhysicalWindowJoinRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalJoin],
+    operand(
+      classOf[FlinkLogicalJoin],
       operand(classOf[FlinkLogicalRel], any()),
       operand(classOf[FlinkLogicalRel], any())),
     "StreamPhysicalWindowJoinRule") {
@@ -46,9 +44,7 @@ class StreamPhysicalWindowJoinRule
 
   override def onMatch(call: RelOptRuleCall): Unit = {
 
-    def toHashTraitByColumns(
-        columns: Array[Int],
-        inputTraitSet: RelTraitSet): RelTraitSet = {
+    def toHashTraitByColumns(columns: Array[Int], inputTraitSet: RelTraitSet): RelTraitSet = {
       val distribution = if (columns.isEmpty) {
         FlinkRelDistribution.SINGLETON
       } else {

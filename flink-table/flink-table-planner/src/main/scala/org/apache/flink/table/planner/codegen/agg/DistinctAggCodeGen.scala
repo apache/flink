@@ -15,23 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, _}
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateFieldAccess, generateInputAccess}
-import org.apache.flink.table.planner.codegen.GeneratedExpression._
-import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, _}
+import org.apache.flink.table.planner.codegen.GeneratedExpression._
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateFieldAccess, generateInputAccess}
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.DistinctInfo
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.util.Preconditions
 import org.apache.flink.util.Preconditions.checkArgument
 
@@ -40,41 +39,54 @@ import org.apache.calcite.tools.RelBuilder
 import java.lang.{Long => JLong}
 
 /**
-  * It is for code generate distinct aggregate. The distinct aggregate buffer is a MapView which
-  * is used to store the unique keys and the frequency of appearance. When a key is been seen the
-  * first time, we will trigger the inner aggregate function's accumulate() function.
-  *
-  * @param ctx  the code gen context
-  * @param distinctInfo the distinct information
-  * @param distinctIndex  the index of this distinct in all distincts
-  * @param innerAggCodeGens the code generator of inner aggregate
-  * @param filterExpressions filter argument access expression, none if no filter
-  * @param mergedAccOffset   the mergedAcc may come from local aggregate,
-  *                          this is the first buffer offset in the row
-  * @param aggBufferOffset   the offset in the buffers of this aggregate
-  * @param aggBufferSize     the total size of aggregate buffers
-  * @param hasNamespace      whether the accumulators state has namespace
-  * @param mergedAccOnHeap   whether the merged accumulator is on heap, otherwise is on state
-  * @param consumeRetraction whether the distinct consumes retraction
-  * @param inputFieldCopy    copy input field element if true (only mutable type will be copied)
-  * @param relBuilder        the rel builder to translate expressions to calcite rex nodes
-  */
+ * It is for code generate distinct aggregate. The distinct aggregate buffer is a MapView which is
+ * used to store the unique keys and the frequency of appearance. When a key is been seen the first
+ * time, we will trigger the inner aggregate function's accumulate() function.
+ *
+ * @param ctx
+ *   the code gen context
+ * @param distinctInfo
+ *   the distinct information
+ * @param distinctIndex
+ *   the index of this distinct in all distincts
+ * @param innerAggCodeGens
+ *   the code generator of inner aggregate
+ * @param filterExpressions
+ *   filter argument access expression, none if no filter
+ * @param mergedAccOffset
+ *   the mergedAcc may come from local aggregate, this is the first buffer offset in the row
+ * @param aggBufferOffset
+ *   the offset in the buffers of this aggregate
+ * @param aggBufferSize
+ *   the total size of aggregate buffers
+ * @param hasNamespace
+ *   whether the accumulators state has namespace
+ * @param mergedAccOnHeap
+ *   whether the merged accumulator is on heap, otherwise is on state
+ * @param consumeRetraction
+ *   whether the distinct consumes retraction
+ * @param inputFieldCopy
+ *   copy input field element if true (only mutable type will be copied)
+ * @param relBuilder
+ *   the rel builder to translate expressions to calcite rex nodes
+ */
 class DistinctAggCodeGen(
-  ctx: CodeGeneratorContext,
-  distinctInfo: DistinctInfo,
-  distinctIndex: Int,
-  innerAggCodeGens: Array[AggCodeGen],
-  filterExpressions: Array[Option[Expression]],
-  constantExpressions: Seq[GeneratedExpression],
-  mergedAccOffset: Int,
-  aggBufferOffset: Int,
-  aggBufferSize: Int,
-  hasNamespace: Boolean,
-  needMerge: Boolean,
-  mergedAccOnHeap: Boolean,
-  consumeRetraction: Boolean,
-  inputFieldCopy: Boolean,
-  relBuilder: RelBuilder) extends AggCodeGen {
+    ctx: CodeGeneratorContext,
+    distinctInfo: DistinctInfo,
+    distinctIndex: Int,
+    innerAggCodeGens: Array[AggCodeGen],
+    filterExpressions: Array[Option[Expression]],
+    constantExpressions: Seq[GeneratedExpression],
+    mergedAccOffset: Int,
+    aggBufferOffset: Int,
+    aggBufferSize: Int,
+    hasNamespace: Boolean,
+    needMerge: Boolean,
+    mergedAccOnHeap: Boolean,
+    consumeRetraction: Boolean,
+    inputFieldCopy: Boolean,
+    relBuilder: RelBuilder)
+  extends AggCodeGen {
 
   val MAP_VIEW: String = className[MapView[_, _]]
   val MAP_ENTRY: String = className[java.util.Map.Entry[_, _]]
@@ -96,9 +108,7 @@ class DistinctAggCodeGen(
 
   addReusableDistinctAccumulator()
 
-  /**
-    * Add the distinct accumulator to the member variable and open close methods.
-    */
+  /** Add the distinct accumulator to the member variable and open close methods. */
   private def addReusableDistinctAccumulator(): Unit = {
     // sanity check
     if (distinctInfo.excludeAcc) {
@@ -115,7 +125,6 @@ class DistinctAggCodeGen(
       distinctInfo.dataViewSpec.toArray,
       hasNamespace,
       enableBackupDataView)
-
 
     // add distinctAccTerm to member field
     ctx.addReusableMember(s"private $MAP_VIEW $distinctAccTerm;")
@@ -183,11 +192,7 @@ class DistinctAggCodeGen(
            |$BINARY_RAW_VALUE $accTerm = $BINARY_RAW_VALUE.fromObject($distinctAccTerm);
          """.stripMargin
 
-      Seq(GeneratedExpression(
-        accTerm,
-        NEVER_NULL,
-        code,
-        internalAccType))
+      Seq(GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType))
     }
   }
 
@@ -315,7 +320,8 @@ class DistinctAggCodeGen(
     val retractCodes = if (consumeRetraction) {
       innerAggCodeGens.map(_.retract(exprGenerator))
     } else {
-      innerAggCodeGens.map(_ =>
+      innerAggCodeGens.map(
+        _ =>
           "throw new RuntimeException(\"This distinct aggregate do not consume retractions, " +
             "but received retract message, which should never happen.\");")
     }
@@ -364,7 +370,7 @@ class DistinctAggCodeGen(
     if (needMerge) {
       // see merge method for more information
       innerAggCodeGens
-      .foreach(_.checkNeededMethods(needAccumulate = true, needRetract = consumeRetraction))
+        .foreach(_.checkNeededMethods(needAccumulate = true, needRetract = consumeRetraction))
     } else {
       innerAggCodeGens.foreach(
         _.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset, needEmitValue))
@@ -374,29 +380,29 @@ class DistinctAggCodeGen(
   private def generateKeyExpression(
       ctx: CodeGeneratorContext,
       generator: ExprCodeGenerator): GeneratedExpression = {
-    val fieldExprs = distinctInfo.argIndexes.map(argIndex => {
-      val inputFieldCount = LogicalTypeChecks.getFieldCount(generator.input1Type)
-      if (argIndex >= inputFieldCount) {
-        // arg index to constant
-        constantExpressions(argIndex - inputFieldCount)
-      } else {
-        // arg index to input field
-        generateInputAccess(
-          ctx,
-          generator.input1Type,
-          generator.input1Term,
-          argIndex,
-          nullableInput = false,
-          deepCopy = inputFieldCopy)
-      }
-    })
+    val fieldExprs = distinctInfo.argIndexes.map(
+      argIndex => {
+        val inputFieldCount = LogicalTypeChecks.getFieldCount(generator.input1Type)
+        if (argIndex >= inputFieldCount) {
+          // arg index to constant
+          constantExpressions(argIndex - inputFieldCount)
+        } else {
+          // arg index to input field
+          generateInputAccess(
+            ctx,
+            generator.input1Type,
+            generator.input1Term,
+            argIndex,
+            nullableInput = false,
+            deepCopy = inputFieldCopy)
+        }
+      })
 
     // the key expression of MapView
     if (fieldExprs.length > 1) {
       val keyTerm = newName(DISTINCT_KEY_TERM)
       val outRowWriter = newName(DEFAULT_OUT_RECORD_WRITER_TERM)
-      val valueType = RowType.of(
-        fieldExprs.map(_.resultType): _*)
+      val valueType = RowType.of(fieldExprs.map(_.resultType): _*)
 
       // always create a new result row
       generator.generateResultExpression(
@@ -423,13 +429,13 @@ class DistinctAggCodeGen(
   }
 
   private def generateAccumulatorAccess(
-    ctx: CodeGeneratorContext,
-    inputType: LogicalType,
-    inputTerm: String,
-    index: Int,
-    useStateDataView: Boolean,
-    useBackupDataView: Boolean,
-    nullableInput: Boolean = false): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      inputType: LogicalType,
+      inputTerm: String,
+      index: Int,
+      useStateDataView: Boolean,
+      useBackupDataView: Boolean,
+      nullableInput: Boolean = false): GeneratedExpression = {
 
     val distinctSpec = distinctInfo.dataViewSpec
 
@@ -441,7 +447,6 @@ class DistinctAggCodeGen(
 
       // generate input access and unboxing if necessary
       case None =>
-
         val expr = if (distinctSpec.nonEmpty && useStateDataView) {
           val spec = distinctSpec.get
           val dataViewTerm = if (useBackupDataView) {
@@ -509,55 +514,54 @@ class DistinctAggCodeGen(
   // ---------------------------- Distinct Value Code Generator ---------------------------
 
   /**
-    * The [[DistinctValueGenerator]] is an abstraction for generating codes about the
-    * distinct value.
-    *
-    * The value of distinct state maybe long or long[] depends on the input stream
-    * and the number of the distinct aggregates.
-    *
-    * 1. when the input is not a retraction stream, and the distinct agg number <= 64,
-    *   then long is used as the value, each bit indicate whether each condition is satisfied.
-    *
-    * 2. when the input is not a retraction stream, and the distinct agg number > 64,
-    *   then long[] is used as the value, each bit indicate whether each condition is satisfied.
-    *
-    * 3. when the input is a retraction stream, and the distinct agg number == 1,
-    *   then long is used as the value, the long indicates the number of elements
-    *   satisfy the aggregate condition.
-    *
-    * 4. when the input is a retraction stream, and the distinct agg number > 1,
-    *   then long[] is used as the value, each long indicate the number of elements
-    * *   satisfy each aggregate condition.
-    */
+   * The [[DistinctValueGenerator]] is an abstraction for generating codes about the distinct value.
+   *
+   * The value of distinct state maybe long or long[] depends on the input stream and the number of
+   * the distinct aggregates.
+   *
+   *   1. when the input is not a retraction stream, and the distinct agg number <= 64, then long is
+   *      used as the value, each bit indicate whether each condition is satisfied.
+   *
+   * 2. when the input is not a retraction stream, and the distinct agg number > 64, then long[] is
+   * used as the value, each bit indicate whether each condition is satisfied.
+   *
+   * 3. when the input is a retraction stream, and the distinct agg number == 1, then long is used
+   * as the value, the long indicates the number of elements satisfy the aggregate condition.
+   *
+   * 4. when the input is a retraction stream, and the distinct agg number > 1, then long[] is used
+   * as the value, each long indicate the number of elements * satisfy each aggregate condition.
+   */
   trait DistinctValueGenerator {
+
     /** the type of value of distinct state */
     def valueTypeTerm: String
 
     /** the default value of value of distinct state */
     def initialValue: String
 
-    /** Accumulate the value of distinct state,
-      * and generates each accumulate codes for every aggregates. */
+    /**
+     * Accumulate the value of distinct state, and generates each accumulate codes for every
+     * aggregates.
+     */
     def foreachAccumulate(
-      valueTerm: String,
-      innerAccumulateCodes: Array[String],
-      filterResults: Array[Option[String]]): String
+        valueTerm: String,
+        innerAccumulateCodes: Array[String],
+        filterResults: Array[Option[String]]): String
 
     /**
-      * Retract the value of distinct state,
-      * and generates each retract codes for every aggregates. */
+     * Retract the value of distinct state, and generates each retract codes for every aggregates.
+     */
     def foreachRetract(
-      valueTerm: String,
-      innerRetractCodes: Array[String],
-      filterResults: Array[Option[String]]): String
+        valueTerm: String,
+        innerRetractCodes: Array[String],
+        filterResults: Array[Option[String]]): String
 
-    /** Merge the value of distinct state,
-      * and generates accumulate/retract codes when needed. */
+    /** Merge the value of distinct state, and generates accumulate/retract codes when needed. */
     def foreachMerge(
-      thisValueTerm: String,
-      otherValueTerm: String,
-      innerAccumulateCodes: Array[String],
-      innerRetractCodes: Array[String]): String
+        thisValueTerm: String,
+        otherValueTerm: String,
+        innerAccumulateCodes: Array[String],
+        innerRetractCodes: Array[String]): String
   }
 
   /** Create a [[DistinctValueGenerator]] instance for current [[DistinctAggCodeGen]] */
@@ -619,8 +623,9 @@ class DistinctAggCodeGen(
         valueTerm: String,
         innerRetractCodes: Array[String],
         filterResults: Array[Option[String]]): String = {
-      throw new TableException("LongValueAppendGenerator do not support retract, " +
-                                 "this method should never be called, please file a issue.")
+      throw new TableException(
+        "LongValueAppendGenerator do not support retract, " +
+          "this method should never be called, please file a issue.")
     }
 
     override def foreachMerge(
@@ -696,8 +701,9 @@ class DistinctAggCodeGen(
         valueTerm: String,
         innerRetractCodes: Array[String],
         filterResults: Array[Option[String]]): String = {
-      throw new TableException("LongArrayValueAppendGenerator do not support retract, " +
-                                 "this method should never be called, please file a issue.")
+      throw new TableException(
+        "LongArrayValueAppendGenerator do not support retract, " +
+          "this method should never be called, please file a issue.")
     }
 
     override def foreachMerge(
@@ -835,24 +841,24 @@ class DistinctAggCodeGen(
     override def initialValue: String = s"new long[$aggCount]"
 
     override def foreachAccumulate(
-      valueTerm: String,
-      innerAccumulateCodes: Array[String],
-      filterResults: Array[Option[String]]): String = {
+        valueTerm: String,
+        innerAccumulateCodes: Array[String],
+        filterResults: Array[Option[String]]): String = {
       foreachAction(isAccumulate = true, valueTerm, innerAccumulateCodes, filterResults)
     }
 
     override def foreachRetract(
-      valueTerm: String,
-      innerRetractCodes: Array[String],
-      filterResults: Array[Option[String]]): String = {
+        valueTerm: String,
+        innerRetractCodes: Array[String],
+        filterResults: Array[Option[String]]): String = {
       foreachAction(isAccumulate = false, valueTerm, innerRetractCodes, filterResults)
     }
 
     private def foreachAction(
-      isAccumulate: Boolean,
-      valueTerm: String,
-      innerCodes: Array[String],
-      filterResults: Array[Option[String]]): String = {
+        isAccumulate: Boolean,
+        valueTerm: String,
+        innerCodes: Array[String],
+        filterResults: Array[Option[String]]): String = {
 
       val codes = for (index <- filterResults.indices) yield {
         val countTerm = newName("count")
@@ -948,5 +954,10 @@ class DistinctAggCodeGen(
          |$isEmptyCode
        """.stripMargin
     }
+  }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    throw new TableException(
+      "Distinct shouldn't set window size, this is a bug, please file a issue.")
   }
 }

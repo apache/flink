@@ -17,7 +17,7 @@
 
 package org.apache.flink.connectors.hive.read;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -36,7 +36,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for HiveInputFormatPartitionReader. */
 public class HiveInputFormatPartitionReaderITCase {
@@ -62,7 +62,7 @@ public class HiveInputFormatPartitionReaderITCase {
         // create partition reader
         HiveInputFormatPartitionReader partitionReader =
                 new HiveInputFormatPartitionReader(
-                        new Configuration(),
+                        HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.defaultValue(),
                         new JobConf(hiveCatalog.getHiveConf()),
                         hiveCatalog.getHiveVersion(),
                         tablePath,
@@ -86,11 +86,11 @@ public class HiveInputFormatPartitionReaderITCase {
         while (partitionReader.read(reuse) != null) {
             count++;
         }
-        assertEquals(
-                CollectionUtil.iteratorToList(
-                                tableEnv.executeSql("select * from " + tableName).collect())
-                        .size(),
-                count);
+        assertThat(count)
+                .isEqualTo(
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select * from " + tableName).collect())
+                                .size());
     }
 
     private String prepareData(TableEnvironment tableEnv, String format) throws Exception {

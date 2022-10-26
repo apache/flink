@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.reader.fetcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -26,11 +27,13 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.source.reader.split.PulsarUnorderedPartitionSplitReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
 
 import org.apache.pulsar.client.api.Consumer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.toCollection;
@@ -47,21 +50,24 @@ public class PulsarUnorderedFetcherManager<T> extends PulsarFetcherManagerBase<T
 
     public PulsarUnorderedFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<T>>> elementsQueue,
-            Supplier<SplitReader<PulsarMessage<T>, PulsarPartitionSplit>> splitReaderSupplier) {
-        super(elementsQueue, splitReaderSupplier);
+            Supplier<SplitReader<PulsarMessage<T>, PulsarPartitionSplit>> splitReaderSupplier,
+            Configuration configuration) {
+        super(elementsQueue, splitReaderSupplier, configuration);
     }
 
-    public List<PulsarPartitionSplit> snapshotState(long checkpointId) {
+    public List<PulsarPartitionSplit> snapshotState() {
         return fetchers.values().stream()
                 .map(SplitFetcher::getSplitReader)
-                .map(splitReader -> snapshotReader(checkpointId, splitReader))
+                .map(this::snapshotReader)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
                 .collect(toCollection(() -> new ArrayList<>(fetchers.size())));
     }
 
-    private PulsarPartitionSplit snapshotReader(
-            long checkpointId, SplitReader<PulsarMessage<T>, PulsarPartitionSplit> splitReader) {
+    private Optional<PulsarPartitionSplit> snapshotReader(
+            SplitReader<PulsarMessage<T>, PulsarPartitionSplit> splitReader) {
         return ((PulsarUnorderedPartitionSplitReader<T>) splitReader)
-                .snapshotState(checkpointId)
-                .toPulsarPartitionSplit();
+                .snapshotState()
+                .map(PulsarPartitionSplitState::toPulsarPartitionSplit);
     }
 }

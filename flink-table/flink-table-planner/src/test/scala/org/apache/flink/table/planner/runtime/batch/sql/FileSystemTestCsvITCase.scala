@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.core.fs.Path
@@ -24,9 +23,7 @@ import org.apache.flink.testutils.TestFileSystem
 import org.junit.After
 import org.junit.Assert.assertEquals
 
-/**
-  * Test for file system table factory with testcsv format.
-  */
+/** Test for file system table factory with testcsv format. */
 class FileSystemTestCsvITCase extends BatchFileSystemITCaseBase {
 
   override def formatProperties(): Array[String] = {

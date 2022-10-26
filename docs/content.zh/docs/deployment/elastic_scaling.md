@@ -145,7 +145,6 @@ Adaptive 调度器可以通过[所有在名字包含 `adaptive-scheduler` 的配
 - **只支持流式 Job**：Adaptive 调度器的第一个版本仅支持流式 Job。当提交的是一个批处理 Job 时，我们会自动换回默认调度器。
 - **不支持[本地恢复]({{< ref "docs/ops/state/large_state_tuning">}}#task-local-recovery)**：本地恢复是将 Task 调度到状态尽可能的被重用的机器上的功能。不支持这个功能意味着 Adaptive 调度器需要每次从 Checkpoint 的存储中下载整个 State。
 - **不支持部分故障恢复**: 部分故障恢复意味着调度器可以只重启失败 Job 其中某一部分（在 Flink 的内部结构中被称之为 Region）而不是重启整个 Job。这个限制只会影响那些独立并行（Embarrassingly Parallel）Job的恢复时长，默认的调度器可以重启失败的部分，然而 Adaptive 将需要重启整个 Job。
-- **与 Flink Web UI 的集成受限**: Adaptive 调度器会在 Job 的生命周期中改变它的并行度。Web UI 上只显示 Job 当前的并行度。
 - **空闲 Slot**: 如果 Slot 共享组的最大并行度不相等，提供给 Adaptive 调度器所使用的的 Slot 可能不会被使用。
 - 扩缩容事件会触发 Job 和 Task 重启，Task 重试的次数也会增加。
 
@@ -164,7 +163,7 @@ Adaptive Batch Scheduler 是一种可以自动推导每个算子并行度的批�
 
 #### 启用 Adaptive Batch Scheduler
 为了启用 Adaptive Batch Scheduler, 你需要：
-- 配置 `jobmanager.scheduler: AdpaptiveBatch`
+- 配置 `jobmanager.scheduler: AdaptiveBatch`
 - 由于 ["只支持所有数据交换都为 BLOCKING 模式的作业"](#局限性-2), 需要将 [`execution.batch-shuffle-mode`]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode) 配置为 `ALL-EXCHANGES-BLOCKING`(默认值) 。
 
 除此之外，使用 Adaptive Batch Scheduler 时，以下相关配置也可以调整:

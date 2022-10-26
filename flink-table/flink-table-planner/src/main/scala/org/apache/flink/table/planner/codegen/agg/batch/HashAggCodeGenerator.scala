@@ -15,29 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.operators.aggregate.BytesHashMapSpillMemorySegmentPool
 import org.apache.flink.table.runtime.util.collections.binary.BytesMap
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+
 import org.apache.calcite.tools.RelBuilder
 
 /**
-  * Operator code generator for HashAggregation, Only deal with [[DeclarativeAggregateFunction]]
-  * and aggregateBuffers should be update(e.g.: setInt) in [[BinaryRowData]].
-  * (Hash Aggregate performs much better than Sort Aggregate).
-  */
+ * Operator code generator for HashAggregation, Only deal with [[DeclarativeAggregateFunction]] and
+ * aggregateBuffers should be update(e.g.: setInt) in [[BinaryRowData]]. (Hash Aggregate performs
+ * much better than Sort Aggregate).
+ */
 class HashAggCodeGenerator(
     ctx: CodeGeneratorContext,
     builder: RelBuilder,
@@ -57,12 +58,10 @@ class HashAggCodeGenerator(
   private lazy val aggBufferNames: Array[Array[String]] =
     AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
 
-  private lazy val aggBufferTypes: Array[Array[LogicalType]] = AggCodeGenHelper.getAggBufferTypes(
-    inputType,
-    auxGrouping,
-    aggInfos)
+  private lazy val aggBufferTypes: Array[Array[LogicalType]] =
+    AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
 
-  private lazy val groupKeyRowType = AggCodeGenHelper.projectRowType(inputType, grouping)
+  private lazy val groupKeyRowType = RowTypeUtils.projectRowType(inputType, grouping)
   private lazy val aggBufferRowType = RowType.of(aggBufferTypes.flatten, aggBufferNames.flatten)
 
   def genWithKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
@@ -76,29 +75,33 @@ class HashAggCodeGenerator(
     // gen code to do group key projection from input
     val currentKeyTerm = CodeGenUtils.newName("currentKey")
     val currentKeyWriterTerm = CodeGenUtils.newName("currentKeyWriter")
-    val keyProjectionCode = ProjectionCodeGenerator.generateProjectionExpression(
-      ctx,
-      inputType,
-      groupKeyRowType,
-      grouping,
-      inputTerm = inputTerm,
-      outRecordTerm = currentKeyTerm,
-      outRecordWriterTerm = currentKeyWriterTerm).code
+    val keyProjectionCode = ProjectionCodeGenerator
+      .generateProjectionExpression(
+        ctx,
+        inputType,
+        groupKeyRowType,
+        grouping,
+        inputTerm = inputTerm,
+        outRecordTerm = currentKeyTerm,
+        outRecordWriterTerm = currentKeyWriterTerm)
+      .code
 
     // gen code to create groupKey, aggBuffer Type array
     // it will be used in BytesHashMap and BufferedKVExternalSorter if enable fallback
     val groupKeyTypesTerm = CodeGenUtils.newName("groupKeyTypes")
     val aggBufferTypesTerm = CodeGenUtils.newName("aggBufferTypes")
     HashAggCodeGenHelper.prepareHashAggKVTypes(
-      ctx, groupKeyTypesTerm, aggBufferTypesTerm, groupKeyRowType, aggBufferRowType)
+      ctx,
+      groupKeyTypesTerm,
+      aggBufferTypesTerm,
+      groupKeyRowType,
+      aggBufferRowType)
 
     val binaryRowTypeTerm = classOf[BinaryRowData].getName
     // gen code to aggregate and output using hash map
     val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
     val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
-    val lookupInfo = ctx.addReusableLocalVariable(
-      lookupInfoTypeTerm,
-      "lookupInfo")
+    val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
       ctx,
       groupKeyTypesTerm,
@@ -129,15 +132,25 @@ class HashAggCodeGenerator(
       outputTerm,
       outputType,
       reuseGroupKeyTerm,
-      reuseAggBufferTerm)
+      reuseAggBufferTerm
+    )
 
     val outputResultFromMap = HashAggCodeGenHelper.genAggMapIterationAndOutput(
-      ctx, isFinal, aggregateMapTerm, reuseGroupKeyTerm, reuseAggBufferTerm, outputExpr)
+      ctx,
+      isFinal,
+      aggregateMapTerm,
+      reuseGroupKeyTerm,
+      reuseAggBufferTerm,
+      outputExpr)
 
     // gen code to deal with hash map oom, if enable fallback we will use sort agg strategy
     val sorterTerm = CodeGenUtils.newName("sorter")
     val retryAppend = HashAggCodeGenHelper.genRetryAppendToMap(
-      aggregateMapTerm, currentKeyTerm, initedAggBuffer, lookupInfo, currentAggBufferTerm)
+      aggregateMapTerm,
+      currentKeyTerm,
+      initedAggBuffer,
+      lookupInfo,
+      currentAggBufferTerm)
 
     val (dealWithAggHashMapOOM, fallbackToSortAggCode) = HashAggCodeGenHelper.genAggMapOOMHandling(
       isFinal,
@@ -156,7 +169,8 @@ class HashAggCodeGenerator(
       outputType,
       outputResultFromMap,
       sorterTerm,
-      retryAppend)
+      retryAppend
+    )
 
     HashAggCodeGenHelper.prepareMetrics(ctx, aggregateMapTerm, if (isFinal) sorterTerm else null)
 

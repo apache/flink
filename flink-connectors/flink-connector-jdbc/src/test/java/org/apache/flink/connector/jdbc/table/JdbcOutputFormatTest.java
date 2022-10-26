@@ -52,12 +52,8 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOK
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS_3;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test suite for {@link JdbcOutputFormatBuilder}. */
 public class JdbcOutputFormatTest extends JdbcDataTestBase {
@@ -91,181 +87,191 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
     @Test
     public void testInvalidDriver() {
         String expectedMsg = "unable to open JDBC writer";
-        try {
-            JdbcConnectorOptions jdbcOptions =
-                    JdbcConnectorOptions.builder()
-                            .setDriverName("org.apache.derby.jdbc.idontexist")
-                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
-                            .setTableName(INPUT_TABLE)
-                            .build();
-            JdbcDmlOptions dmlOptions =
-                    JdbcDmlOptions.builder()
-                            .withTableName(jdbcOptions.getTableName())
-                            .withDialect(jdbcOptions.getDialect())
-                            .withFieldNames(fieldNames)
-                            .build();
+        assertThatThrownBy(
+                        () -> {
+                            JdbcConnectorOptions jdbcOptions =
+                                    JdbcConnectorOptions.builder()
+                                            .setDriverName("org.apache.derby.jdbc.idontexist")
+                                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                                            .setTableName(INPUT_TABLE)
+                                            .build();
+                            JdbcDmlOptions dmlOptions =
+                                    JdbcDmlOptions.builder()
+                                            .withTableName(jdbcOptions.getTableName())
+                                            .withDialect(jdbcOptions.getDialect())
+                                            .withFieldNames(fieldNames)
+                                            .build();
 
-            outputFormat =
-                    new JdbcOutputFormatBuilder()
-                            .setJdbcOptions(jdbcOptions)
-                            .setFieldDataTypes(fieldDataTypes)
-                            .setJdbcDmlOptions(dmlOptions)
-                            .setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
-                            .build();
-            outputFormat.open(0, 1);
-            fail("Expected exception is not thrown.");
-        } catch (Exception e) {
-            assertTrue(findThrowable(e, IOException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
-        }
+                            outputFormat =
+                                    new JdbcOutputFormatBuilder()
+                                            .setJdbcOptions(jdbcOptions)
+                                            .setFieldDataTypes(fieldDataTypes)
+                                            .setJdbcDmlOptions(dmlOptions)
+                                            .setJdbcExecutionOptions(
+                                                    JdbcExecutionOptions.builder().build())
+                                            .build();
+                            outputFormat.open(0, 1);
+                        })
+                .isInstanceOf(IOException.class)
+                .hasMessage(expectedMsg);
     }
 
     @Test
     public void testInvalidURL() {
-        try {
-            JdbcConnectorOptions jdbcOptions =
-                    JdbcConnectorOptions.builder()
-                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
-                            .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
-                            .setTableName(INPUT_TABLE)
-                            .build();
-            JdbcDmlOptions dmlOptions =
-                    JdbcDmlOptions.builder()
-                            .withTableName(jdbcOptions.getTableName())
-                            .withDialect(jdbcOptions.getDialect())
-                            .withFieldNames(fieldNames)
-                            .build();
+        assertThatThrownBy(
+                        () -> {
+                            JdbcConnectorOptions jdbcOptions =
+                                    JdbcConnectorOptions.builder()
+                                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+                                            .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
+                                            .setTableName(INPUT_TABLE)
+                                            .build();
+                            JdbcDmlOptions dmlOptions =
+                                    JdbcDmlOptions.builder()
+                                            .withTableName(jdbcOptions.getTableName())
+                                            .withDialect(jdbcOptions.getDialect())
+                                            .withFieldNames(fieldNames)
+                                            .build();
 
-            outputFormat =
-                    new JdbcOutputFormatBuilder()
-                            .setJdbcOptions(jdbcOptions)
-                            .setFieldDataTypes(fieldDataTypes)
-                            .setJdbcDmlOptions(dmlOptions)
-                            .setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
-                            .build();
-            outputFormat.open(0, 1);
-            fail("Expected exception is not thrown.");
-        } catch (Exception e) {
-            assertTrue(findThrowable(e, IllegalStateException.class).isPresent());
-        }
+                            outputFormat =
+                                    new JdbcOutputFormatBuilder()
+                                            .setJdbcOptions(jdbcOptions)
+                                            .setFieldDataTypes(fieldDataTypes)
+                                            .setJdbcDmlOptions(dmlOptions)
+                                            .setJdbcExecutionOptions(
+                                                    JdbcExecutionOptions.builder().build())
+                                            .build();
+                            outputFormat.open(0, 1);
+                        })
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     public void testIncompatibleTypes() {
-        try {
-            JdbcConnectorOptions jdbcOptions =
-                    JdbcConnectorOptions.builder()
-                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
-                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
-                            .setTableName(INPUT_TABLE)
-                            .build();
-            JdbcDmlOptions dmlOptions =
-                    JdbcDmlOptions.builder()
-                            .withTableName(jdbcOptions.getTableName())
-                            .withDialect(jdbcOptions.getDialect())
-                            .withFieldNames(fieldNames)
-                            .build();
+        assertThatThrownBy(
+                        () -> {
+                            JdbcConnectorOptions jdbcOptions =
+                                    JdbcConnectorOptions.builder()
+                                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+                                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                                            .setTableName(INPUT_TABLE)
+                                            .build();
+                            JdbcDmlOptions dmlOptions =
+                                    JdbcDmlOptions.builder()
+                                            .withTableName(jdbcOptions.getTableName())
+                                            .withDialect(jdbcOptions.getDialect())
+                                            .withFieldNames(fieldNames)
+                                            .build();
 
-            outputFormat =
-                    new JdbcOutputFormatBuilder()
-                            .setJdbcOptions(jdbcOptions)
-                            .setFieldDataTypes(fieldDataTypes)
-                            .setJdbcDmlOptions(dmlOptions)
-                            .setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
-                            .setRowDataTypeInfo(rowDataTypeInfo)
-                            .build();
+                            outputFormat =
+                                    new JdbcOutputFormatBuilder()
+                                            .setJdbcOptions(jdbcOptions)
+                                            .setFieldDataTypes(fieldDataTypes)
+                                            .setJdbcDmlOptions(dmlOptions)
+                                            .setJdbcExecutionOptions(
+                                                    JdbcExecutionOptions.builder().build())
+                                            .setRowDataTypeInfo(rowDataTypeInfo)
+                                            .build();
 
-            setRuntimeContext(outputFormat, false);
-            outputFormat.open(0, 1);
+                            setRuntimeContext(outputFormat, false);
+                            outputFormat.open(0, 1);
 
-            RowData row = buildGenericData(4, "hello", "world", 0.99, "imthewrongtype");
-            outputFormat.writeRecord(row);
-            outputFormat.close();
-            fail("Expected exception is not thrown.");
-        } catch (Exception e) {
-            assertTrue(findThrowable(e, ClassCastException.class).isPresent());
-        }
+                            RowData row =
+                                    buildGenericData(4, "hello", "world", 0.99, "imthewrongtype");
+                            outputFormat.writeRecord(row);
+                            outputFormat.close();
+                        })
+                .rootCause()
+                .isInstanceOf(ClassCastException.class);
     }
 
     @Test
     public void testExceptionOnInvalidType() {
-        try {
-            JdbcConnectorOptions jdbcOptions =
-                    JdbcConnectorOptions.builder()
-                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
-                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
-                            .setTableName(OUTPUT_TABLE)
-                            .build();
-            JdbcDmlOptions dmlOptions =
-                    JdbcDmlOptions.builder()
-                            .withTableName(jdbcOptions.getTableName())
-                            .withDialect(jdbcOptions.getDialect())
-                            .withFieldNames(fieldNames)
-                            .build();
+        assertThatThrownBy(
+                        () -> {
+                            JdbcConnectorOptions jdbcOptions =
+                                    JdbcConnectorOptions.builder()
+                                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+                                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                                            .setTableName(OUTPUT_TABLE)
+                                            .build();
+                            JdbcDmlOptions dmlOptions =
+                                    JdbcDmlOptions.builder()
+                                            .withTableName(jdbcOptions.getTableName())
+                                            .withDialect(jdbcOptions.getDialect())
+                                            .withFieldNames(fieldNames)
+                                            .build();
 
-            outputFormat =
-                    new JdbcOutputFormatBuilder()
-                            .setJdbcOptions(jdbcOptions)
-                            .setFieldDataTypes(fieldDataTypes)
-                            .setJdbcDmlOptions(dmlOptions)
-                            .setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
-                            .setRowDataTypeInfo(rowDataTypeInfo)
-                            .build();
-            setRuntimeContext(outputFormat, false);
-            outputFormat.open(0, 1);
+                            outputFormat =
+                                    new JdbcOutputFormatBuilder()
+                                            .setJdbcOptions(jdbcOptions)
+                                            .setFieldDataTypes(fieldDataTypes)
+                                            .setJdbcDmlOptions(dmlOptions)
+                                            .setJdbcExecutionOptions(
+                                                    JdbcExecutionOptions.builder().build())
+                                            .setRowDataTypeInfo(rowDataTypeInfo)
+                                            .build();
+                            setRuntimeContext(outputFormat, false);
+                            outputFormat.open(0, 1);
 
-            TestEntry entry = TEST_DATA[0];
-            RowData row = buildGenericData(entry.id, entry.title, entry.author, 0L, entry.qty);
-            outputFormat.writeRecord(row);
-            outputFormat.close();
-            fail("Expected exception is not thrown.");
-        } catch (Exception e) {
-            assertTrue(findThrowable(e, ClassCastException.class).isPresent());
-        }
+                            TestEntry entry = TEST_DATA[0];
+                            RowData row =
+                                    buildGenericData(
+                                            entry.id, entry.title, entry.author, 0L, entry.qty);
+                            outputFormat.writeRecord(row);
+                            outputFormat.close();
+                        })
+                .rootCause()
+                .isInstanceOf(ClassCastException.class);
     }
 
     @Test
     public void testExceptionOnClose() {
         String expectedMsg = "Writing records to JDBC failed.";
-        try {
-            JdbcConnectorOptions jdbcOptions =
-                    JdbcConnectorOptions.builder()
-                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
-                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
-                            .setTableName(OUTPUT_TABLE)
-                            .build();
-            JdbcDmlOptions dmlOptions =
-                    JdbcDmlOptions.builder()
-                            .withTableName(jdbcOptions.getTableName())
-                            .withDialect(jdbcOptions.getDialect())
-                            .withFieldNames(fieldNames)
-                            .build();
+        assertThatThrownBy(
+                        () -> {
+                            JdbcConnectorOptions jdbcOptions =
+                                    JdbcConnectorOptions.builder()
+                                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+                                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                                            .setTableName(OUTPUT_TABLE)
+                                            .build();
+                            JdbcDmlOptions dmlOptions =
+                                    JdbcDmlOptions.builder()
+                                            .withTableName(jdbcOptions.getTableName())
+                                            .withDialect(jdbcOptions.getDialect())
+                                            .withFieldNames(fieldNames)
+                                            .build();
 
-            outputFormat =
-                    new JdbcOutputFormatBuilder()
-                            .setJdbcOptions(jdbcOptions)
-                            .setFieldDataTypes(fieldDataTypes)
-                            .setJdbcDmlOptions(dmlOptions)
-                            .setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
-                            .setRowDataTypeInfo(rowDataTypeInfo)
-                            .build();
-            setRuntimeContext(outputFormat, true);
-            outputFormat.open(0, 1);
+                            outputFormat =
+                                    new JdbcOutputFormatBuilder()
+                                            .setJdbcOptions(jdbcOptions)
+                                            .setFieldDataTypes(fieldDataTypes)
+                                            .setJdbcDmlOptions(dmlOptions)
+                                            .setJdbcExecutionOptions(
+                                                    JdbcExecutionOptions.builder().build())
+                                            .setRowDataTypeInfo(rowDataTypeInfo)
+                                            .build();
+                            setRuntimeContext(outputFormat, true);
+                            outputFormat.open(0, 1);
 
-            TestEntry entry = TEST_DATA[0];
-            RowData row =
-                    buildGenericData(entry.id, entry.title, entry.author, entry.price, entry.qty);
+                            TestEntry entry = TEST_DATA[0];
+                            RowData row =
+                                    buildGenericData(
+                                            entry.id,
+                                            entry.title,
+                                            entry.author,
+                                            entry.price,
+                                            entry.qty);
 
-            outputFormat.writeRecord(row);
-            outputFormat.writeRecord(
-                    row); // writing the same record twice must yield a unique key violation.
-            outputFormat.close();
-
-            fail("Expected exception is not thrown.");
-        } catch (Exception e) {
-            assertTrue(findThrowable(e, RuntimeException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
-        }
+                            outputFormat.writeRecord(row);
+                            outputFormat.writeRecord(
+                                    row); // writing the same record twice must yield a unique key
+                            // violation.
+                            outputFormat.close();
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage(expectedMsg);
     }
 
     @Test
@@ -309,15 +315,15 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                 ResultSet resultSet = statement.executeQuery()) {
             int recordCount = 0;
             while (resultSet.next()) {
-                assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                assertThat(resultSet.getObject("title")).isEqualTo(TEST_DATA[recordCount].title);
+                assertThat(resultSet.getObject("author")).isEqualTo(TEST_DATA[recordCount].author);
+                assertThat(resultSet.getObject("price")).isEqualTo(TEST_DATA[recordCount].price);
+                assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
 
                 recordCount++;
             }
-            assertEquals(TEST_DATA.length, recordCount);
+            assertThat(recordCount).isEqualTo(TEST_DATA.length);
         }
     }
 
@@ -362,7 +368,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                                 TEST_DATA[i].qty));
             }
             try (ResultSet resultSet = statement.executeQuery()) {
-                assertFalse(resultSet.next());
+                assertThat(resultSet.next()).isFalse();
             }
             outputFormat.writeRecord(
                     buildGenericData(
@@ -374,14 +380,17 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
             try (ResultSet resultSet = statement.executeQuery()) {
                 int recordCount = 0;
                 while (resultSet.next()) {
-                    assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                    assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                    assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                    assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                    assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                    assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                    assertThat(resultSet.getObject("title"))
+                            .isEqualTo(TEST_DATA[recordCount].title);
+                    assertThat(resultSet.getObject("author"))
+                            .isEqualTo(TEST_DATA[recordCount].author);
+                    assertThat(resultSet.getObject("price"))
+                            .isEqualTo(TEST_DATA[recordCount].price);
+                    assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
                     recordCount++;
                 }
-                assertEquals(3, recordCount);
+                assertThat(recordCount).isEqualTo(3);
             }
         } finally {
             outputFormat.close();
@@ -428,7 +437,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                                 TEST_DATA[i].qty));
             }
             try (ResultSet resultSet = statement.executeQuery()) {
-                assertFalse(resultSet.next());
+                assertThat(resultSet.next()).isFalse();
             }
         } finally {
             outputFormat.close();
@@ -485,15 +494,15 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                 ResultSet resultSet = statement.executeQuery()) {
             int recordCount = 0;
             while (resultSet.next()) {
-                assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                assertThat(resultSet.getObject("title")).isEqualTo(TEST_DATA[recordCount].title);
+                assertThat(resultSet.getObject("author")).isEqualTo(TEST_DATA[recordCount].author);
+                assertThat(resultSet.getObject("price")).isEqualTo(TEST_DATA[recordCount].price);
+                assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
 
                 recordCount++;
             }
-            assertEquals(TEST_DATA.length, recordCount);
+            assertThat(recordCount).isEqualTo(TEST_DATA.length);
         }
     }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -35,10 +36,15 @@ import java.util.List;
 /** Batch {@link ExecNode} that read records from given values. */
 public class BatchExecValues extends CommonExecValues implements BatchExecNode<RowData> {
 
-    public BatchExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
+    public BatchExecValues(
+            ReadableConfig tableConfig,
+            List<List<RexLiteral>> tuples,
+            RowType outputType,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecValues.class),
+                ExecNodeContext.newPersistedConfig(BatchExecValues.class, tableConfig),
                 tuples,
                 outputType,
                 description);

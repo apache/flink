@@ -19,7 +19,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.CleanupOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResul
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -50,7 +50,6 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.CoreMatchers;
@@ -60,7 +59,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -87,7 +85,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         super.setUp();
         haServices.setCheckpointRecoveryFactory(
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
-                        (maxCheckpoints, previous, sharedStateRegistryFactory, ioExecutor) -> {
+                        (maxCheckpoints,
+                                previous,
+                                sharedStateRegistryFactory,
+                                ioExecutor,
+                                restoreMode) -> {
                             if (previous != null) {
                                 // First job cleanup still succeeded for the
                                 // CompletedCheckpointStore because the JobGraph cleanup happens
@@ -98,13 +100,17 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         maxCheckpoints,
                                         previous.getAllCheckpoints(),
                                         sharedStateRegistryFactory.create(
-                                                ioExecutor, previous.getAllCheckpoints()));
+                                                ioExecutor,
+                                                previous.getAllCheckpoints(),
+                                                restoreMode));
                             }
                             return new EmbeddedCompletedCheckpointStore(
                                     maxCheckpoints,
                                     Collections.emptyList(),
                                     sharedStateRegistryFactory.create(
-                                            ioExecutor, Collections.emptyList()));
+                                            ioExecutor,
+                                            Collections.emptyList(),
+                                            RestoreMode.DEFAULT));
                         }));
     }
 
@@ -113,7 +119,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         while (!toTerminate.isEmpty()) {
             final RpcEndpoint endpoint = toTerminate.poll();
             try {
-                RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+                RpcUtils.terminateRpcEndpoint(endpoint);
             } catch (Exception e) {
                 // Ignore.
             }
@@ -171,7 +177,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         haServices,
                                         UnregisteredMetricGroups
                                                 .createUnregisteredJobManagerMetricGroup()))
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
 
         toTerminate.add(dispatcher);
@@ -192,9 +198,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 IsEmptyCollection.empty());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasJobResultEntry(jobId),
-                Deadline.fromNow(Duration.ofMinutes(5)),
-                "The JobResultStore should have this job marked as clean.");
+                () -> haServices.getJobResultStore().hasJobResultEntry(jobId));
     }
 
     @Test
@@ -219,15 +223,12 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final Dispatcher dispatcher =
                 createTestingDispatcherBuilder()
                         .setJobManagerRunnerRegistry(jobManagerRunnerRegistry)
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
 
         toTerminate.add(dispatcher);
 
-        CommonTestUtils.waitUntilCondition(
-                () -> jobManagerRunnerEntry.get() != null,
-                Deadline.fromNow(Duration.ofSeconds(10)),
-                "JobManagerRunner wasn't loaded in time.");
+        CommonTestUtils.waitUntilCondition(() -> jobManagerRunnerEntry.get() != null);
 
         assertThat(
                 "The JobResultStore should have this job still marked as dirty.",
@@ -246,9 +247,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobManagerRunnerCleanupFuture.complete(null);
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId),
-                Deadline.fromNow(Duration.ofSeconds(60)),
-                "The JobResultStore should have this job marked as clean now.");
+                () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId));
     }
 
     @Test
@@ -291,7 +290,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         configuration.set(
                 CleanupOptions.CLEANUP_STRATEGY,
                 CleanupOptions.NONE_PARAM_VALUES.iterator().next());
-        final Dispatcher dispatcher = createTestingDispatcherBuilder().build();
+        final Dispatcher dispatcher = createTestingDispatcherBuilder().build(rpcService);
         dispatcher.start();
 
         toTerminate.add(dispatcher);
@@ -333,15 +332,14 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final Dispatcher secondDispatcher =
                 createTestingDispatcherBuilder()
                         .setRecoveredDirtyJobs(haServices.getJobResultStore().getDirtyResults())
-                        .build();
+                        .build(rpcService);
         secondDispatcher.start();
 
         toTerminate.add(secondDispatcher);
         leaderElectionService.isLeader(UUID.randomUUID());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().getDirtyResults().isEmpty(),
-                Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)));
+                () -> haServices.getJobResultStore().getDirtyResults().isEmpty());
 
         assertThat(
                 "The JobGraph is not stored in the JobGraphStore.",

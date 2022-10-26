@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
@@ -37,13 +38,15 @@ public interface CheckpointRecoveryFactory {
      * @param sharedStateRegistryFactory Simple factory to produce {@link SharedStateRegistry}
      *     objects.
      * @param ioExecutor Executor used to run (async) deletes.
+     * @param restoreMode the restore mode with which the job is restoring.
      * @return {@link CompletedCheckpointStore} instance for the job
      */
     CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            RestoreMode restoreMode)
             throws Exception;
 
     /**

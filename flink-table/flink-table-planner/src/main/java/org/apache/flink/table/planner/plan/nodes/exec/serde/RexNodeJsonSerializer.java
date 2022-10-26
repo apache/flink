@@ -116,6 +116,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     static final String FIELD_NAME_SYSTEM_NAME = "systemName";
     static final String FIELD_NAME_CATALOG_NAME = "catalogName";
     static final String FIELD_NAME_SYNTAX = "syntax";
+    static final String FIELD_NAME_SQL_KIND = "sqlKind";
     static final String FIELD_NAME_CLASS = "class";
 
     RexNodeJsonSerializer() {
@@ -393,10 +394,15 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                 || operator instanceof AggSqlFunction) {
             throw legacyException(operator.toString());
         } else {
-            // We assume that all regular SqlOperators are internal. Only the function definitions
-            // stack is exposed to the user and can thus be external.
-            gen.writeStringField(
-                    FIELD_NAME_INTERNAL_NAME, BuiltInSqlOperator.toQualifiedName(operator));
+            if (operator.getName().isEmpty()) {
+                gen.writeStringField(FIELD_NAME_SQL_KIND, operator.getKind().name());
+            } else {
+                // We assume that all regular SqlOperators are internal. Only the function
+                // definitions
+                // stack is exposed to the user and can thus be external.
+                gen.writeStringField(
+                        FIELD_NAME_INTERNAL_NAME, BuiltInSqlOperator.toQualifiedName(operator));
+            }
         }
     }
 

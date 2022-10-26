@@ -111,6 +111,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     }
 
     @Override
+    public PhysicalStateHandleID getStreamStateHandleID() {
+        return stateHandle.getStreamStateHandleID();
+    }
+
+    @Override
     public KeyGroupRange getKeyGroupRange() {
         return groupRangeOffsets.getKeyGroupRange();
     }

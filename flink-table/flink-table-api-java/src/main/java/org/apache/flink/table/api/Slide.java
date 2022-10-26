@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
 
 /**
@@ -45,24 +44,6 @@ import org.apache.flink.table.expressions.Expression;
  */
 @PublicEvolving
 public final class Slide {
-
-    /**
-     * Creates a sliding window. Sliding windows have a fixed size and slide by a specified slide
-     * interval. If the slide interval is smaller than the window size, sliding windows are
-     * overlapping. Thus, an element can be assigned to multiple windows.
-     *
-     * <p>For example, a sliding window of size 15 minutes with 5 minutes sliding interval groups
-     * elements of 15 minutes and evaluates every five minutes. Each element is contained in three
-     * consecutive window evaluations.
-     *
-     * @param size the size of the window as time or row-count interval
-     * @return a partially specified sliding window
-     * @deprecated use {@link #over(Expression)}
-     */
-    @Deprecated
-    public static SlideWithSize over(String size) {
-        return over(ExpressionParser.INSTANCE.parseExpression(size));
-    }
 
     /**
      * Creates a sliding window. Sliding windows have a fixed size and slide by a specified slide

@@ -67,29 +67,26 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     TaskMetricGroup(
             MetricRegistry registry,
             TaskManagerJobMetricGroup parent,
-            JobVertexID vertexId,
             ExecutionAttemptID executionId,
-            String taskName,
-            int subtaskIndex,
-            int attemptNumber) {
+            String taskName) {
         super(
                 registry,
                 registry.getScopeFormats()
                         .getTaskFormat()
                         .formatScope(
                                 checkNotNull(parent),
-                                vertexId,
+                                checkNotNull(executionId).getJobVertexId(),
                                 checkNotNull(executionId),
                                 taskName,
-                                subtaskIndex,
-                                attemptNumber),
+                                checkNotNull(executionId).getSubtaskIndex(),
+                                checkNotNull(executionId).getAttemptNumber()),
                 parent);
 
         this.executionId = checkNotNull(executionId);
-        this.vertexId = checkNotNull(vertexId);
+        this.vertexId = executionId.getJobVertexId();
         this.taskName = checkNotNull(taskName);
-        this.subtaskIndex = subtaskIndex;
-        this.attemptNumber = attemptNumber;
+        this.subtaskIndex = executionId.getSubtaskIndex();
+        this.attemptNumber = executionId.getAttemptNumber();
 
         this.ioMetrics = new TaskIOMetricGroup(this);
     }
@@ -137,7 +134,10 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     protected QueryScopeInfo.TaskQueryScopeInfo createQueryServiceMetricInfo(
             CharacterFilter filter) {
         return new QueryScopeInfo.TaskQueryScopeInfo(
-                this.parent.jobId.toString(), String.valueOf(this.vertexId), this.subtaskIndex);
+                this.parent.jobId.toString(),
+                String.valueOf(this.vertexId),
+                this.subtaskIndex,
+                this.attemptNumber);
     }
 
     // ------------------------------------------------------------------------

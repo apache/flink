@@ -282,7 +282,7 @@ public class EnumSerializerTest extends TestLogger {
         final Class<T> clazz = (Class<T>) data.getClass().getComponentType();
 
         SerializerTestInstance<T> tester =
-                new SerializerTestInstance<>(new EnumSerializer<T>(clazz), clazz, 4, data);
+                new SerializerTestInstance<T>(new EnumSerializer<T>(clazz), clazz, 4, data) {};
 
         tester.testAll();
     }

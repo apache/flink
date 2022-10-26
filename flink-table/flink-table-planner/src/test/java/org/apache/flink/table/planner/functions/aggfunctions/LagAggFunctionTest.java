@@ -34,7 +34,7 @@ import static org.apache.flink.table.data.StringData.fromString;
 
 /** Test for {@link LagAggFunction}. */
 public class LagAggFunctionTest
-        extends AggFunctionTestBase<StringData, LagAggFunction.LagAcc<StringData>> {
+        extends AggFunctionTestBase<StringData, StringData, LagAggFunction.LagAcc<StringData>> {
 
     @Override
     protected List<List<StringData>> getInputValueSets() {

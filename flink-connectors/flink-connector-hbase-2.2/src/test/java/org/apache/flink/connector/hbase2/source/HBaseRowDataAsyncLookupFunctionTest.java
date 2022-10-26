@@ -18,18 +18,16 @@
 
 package org.apache.flink.connector.hbase2.source;
 
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase2.util.HBaseTestBase;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.source.lookup.LookupOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,15 +46,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Test suite for {@link HBaseRowDataAsyncLookupFunction}. */
-@RunWith(Parameterized.class)
 public class HBaseRowDataAsyncLookupFunctionTest extends HBaseTestBase {
-    @Parameterized.Parameter public boolean useCache;
-
-    @Parameterized.Parameters(name = "use cache = {0}")
-    public static Object[] parameters() {
-        return new Object[][] {new Object[] {true}, new Object[] {false}};
-    }
-
     @Test
     public void testEval() throws Exception {
         HBaseRowDataAsyncLookupFunction lookupFunction = buildRowDataAsyncLookupFunction();
@@ -99,11 +89,6 @@ public class HBaseRowDataAsyncLookupFunctionTest extends HBaseTestBase {
     }
 
     private HBaseRowDataAsyncLookupFunction buildRowDataAsyncLookupFunction() {
-        HBaseLookupOptions lookupOptions = HBaseLookupOptions.builder().build();
-        if (useCache) {
-            lookupOptions =
-                    HBaseLookupOptions.builder().setCacheMaxSize(4).setCacheExpireMs(10000).build();
-        }
         DataType dataType =
                 ROW(
                         FIELD(ROW_KEY, INT()),
@@ -117,6 +102,10 @@ public class HBaseRowDataAsyncLookupFunctionTest extends HBaseTestBase {
                                         FIELD(F3COL3, STRING()))));
         HBaseTableSchema hbaseSchema = HBaseTableSchema.fromDataType(dataType);
         return new HBaseRowDataAsyncLookupFunction(
-                getConf(), TEST_TABLE_1, hbaseSchema, "null", lookupOptions);
+                getConf(),
+                TEST_TABLE_1,
+                hbaseSchema,
+                "null",
+                LookupOptions.MAX_RETRIES.defaultValue());
     }
 }

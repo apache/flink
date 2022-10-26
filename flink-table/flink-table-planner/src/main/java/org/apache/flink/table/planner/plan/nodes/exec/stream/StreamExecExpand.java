@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -45,6 +46,7 @@ import java.util.List;
 public class StreamExecExpand extends CommonExecExpand implements StreamExecNode<RowData> {
 
     public StreamExecExpand(
+            ReadableConfig tableConfig,
             List<List<RexNode>> projects,
             InputProperty inputProperty,
             RowType outputType,
@@ -52,6 +54,7 @@ public class StreamExecExpand extends CommonExecExpand implements StreamExecNode
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecExpand.class),
+                ExecNodeContext.newPersistedConfig(StreamExecExpand.class, tableConfig),
                 projects,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -62,6 +65,7 @@ public class StreamExecExpand extends CommonExecExpand implements StreamExecNode
     public StreamExecExpand(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_PROJECTS) List<List<RexNode>> projects,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -69,6 +73,7 @@ public class StreamExecExpand extends CommonExecExpand implements StreamExecNode
         super(
                 id,
                 context,
+                persistedConfig,
                 projects,
                 true, // retainHeader
                 inputProperties,

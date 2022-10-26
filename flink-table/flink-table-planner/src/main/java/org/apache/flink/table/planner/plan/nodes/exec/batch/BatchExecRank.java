@@ -20,6 +20,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
@@ -51,6 +52,7 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedE
     private final boolean outputRankNumber;
 
     public BatchExecRank(
+            ReadableConfig tableConfig,
             int[] partitionFields,
             int[] sortFields,
             long rankStart,
@@ -62,6 +64,7 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedE
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecRank.class),
+                ExecNodeContext.newPersistedConfig(BatchExecRank.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -89,11 +92,13 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedE
                 new RankOperator(
                         ComparatorCodeGenerator.gen(
                                 config,
+                                planner.getFlinkContext().getClassLoader(),
                                 "PartitionByComparator",
                                 inputType,
                                 SortUtil.getAscendingSortSpec(partitionFields)),
                         ComparatorCodeGenerator.gen(
                                 config,
+                                planner.getFlinkContext().getClassLoader(),
                                 "OrderByComparator",
                                 inputType,
                                 SortUtil.getAscendingSortSpec(sortFields)),

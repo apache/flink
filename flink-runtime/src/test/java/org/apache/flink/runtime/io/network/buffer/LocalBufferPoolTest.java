@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -35,7 +37,9 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -44,6 +48,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -65,7 +70,9 @@ public class LocalBufferPoolTest extends TestLogger {
 
     private BufferPool localBufferPool;
 
-    private static final ExecutorService executor = Executors.newCachedThreadPool();
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newCachedThreadPool());
 
     @Before
     public void setupLocalBufferPool() throws Exception {
@@ -86,11 +93,6 @@ public class LocalBufferPoolTest extends TestLogger {
         // no other local buffer pools used than the one above, but call just in case
         networkBufferPool.destroyAllBufferPools();
         networkBufferPool.destroy();
-    }
-
-    @AfterClass
-    public static void shutdownExecutor() {
-        executor.shutdownNow();
     }
 
     @Test
@@ -367,8 +369,11 @@ public class LocalBufferPoolTest extends TestLogger {
         Future<Boolean>[] taskResults = new Future[numConcurrentTasks];
         for (int i = 0; i < numConcurrentTasks; i++) {
             taskResults[i] =
-                    executor.submit(
-                            new BufferRequesterTask(localBufferPool, numBuffersToRequestPerTask));
+                    EXECUTOR_RESOURCE
+                            .getExecutor()
+                            .submit(
+                                    new BufferRequesterTask(
+                                            localBufferPool, numBuffersToRequestPerTask));
         }
 
         for (int i = 0; i < numConcurrentTasks; i++) {
@@ -438,7 +443,7 @@ public class LocalBufferPoolTest extends TestLogger {
     @Test
     public void testMaxBuffersPerChannelAndAvailability() throws Exception {
         localBufferPool.lazyDestroy();
-        localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 2);
+        localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 2, 0);
         localBufferPool.setNumBuffers(10);
 
         assertTrue(localBufferPool.getAvailableFuture().isDone());
@@ -452,7 +457,11 @@ public class LocalBufferPoolTest extends TestLogger {
         final BufferBuilder bufferBuilder02 = localBufferPool.requestBufferBuilderBlocking(0);
         assertFalse(localBufferPool.getAvailableFuture().isDone());
 
-        assertNull(localBufferPool.requestBufferBuilder(0));
+        // When this channel reaches maxBuffersPerChannel, LocalBufferPool will be unavailable. But
+        // when a memory segment is requested from LocalBufferPool and availableMemorySegments isn't
+        // empty, maxBuffersPerChannel will be ignored and buffers will continue to be allocated.
+        // Check FLINK-27522 for more information.
+        final BufferBuilder bufferBuilder03 = localBufferPool.requestBufferBuilderBlocking(0);
         final BufferBuilder bufferBuilder21 = localBufferPool.requestBufferBuilderBlocking(2);
         final BufferBuilder bufferBuilder22 = localBufferPool.requestBufferBuilderBlocking(2);
         assertFalse(localBufferPool.getAvailableFuture().isDone());
@@ -463,8 +472,10 @@ public class LocalBufferPoolTest extends TestLogger {
         bufferBuilder21.close();
         assertFalse(localBufferPool.getAvailableFuture().isDone());
         bufferBuilder02.close();
-        assertTrue(localBufferPool.getAvailableFuture().isDone());
+        assertFalse(localBufferPool.getAvailableFuture().isDone());
         bufferBuilder01.close();
+        assertTrue(localBufferPool.getAvailableFuture().isDone());
+        bufferBuilder03.close();
         assertTrue(localBufferPool.getAvailableFuture().isDone());
         bufferBuilder22.close();
         assertTrue(localBufferPool.getAvailableFuture().isDone());
@@ -540,6 +551,105 @@ public class LocalBufferPoolTest extends TestLogger {
         } finally {
             globalPool.destroy();
         }
+    }
+
+    @Test
+    public void testOverdraftBufferAndAvailability() throws Exception {
+        for (int maxOverdraftBuffers = 0; maxOverdraftBuffers < 3; maxOverdraftBuffers++) {
+            useAllOverdraftBuffersAndCheckIsLegal(4, 3, maxOverdraftBuffers, 2, 1);
+            useAllOverdraftBuffersAndCheckIsLegal(4, 3, maxOverdraftBuffers, 2, 2);
+            useAllOverdraftBuffersAndCheckIsLegal(4, 3, maxOverdraftBuffers, 3, 2);
+
+            useAllOverdraftBuffersAndCheckIsLegal(8, 5, maxOverdraftBuffers, 2, 1);
+            useAllOverdraftBuffersAndCheckIsLegal(8, 5, maxOverdraftBuffers, 2, 2);
+            useAllOverdraftBuffersAndCheckIsLegal(8, 5, maxOverdraftBuffers, 3, 2);
+
+            useAllOverdraftBuffersAndCheckIsLegal(12, 10, maxOverdraftBuffers, 2, 1);
+            useAllOverdraftBuffersAndCheckIsLegal(12, 10, maxOverdraftBuffers, 2, 2);
+            useAllOverdraftBuffersAndCheckIsLegal(12, 10, maxOverdraftBuffers, 3, 2);
+        }
+    }
+
+    private void useAllOverdraftBuffersAndCheckIsLegal(
+            int poolSize,
+            int maxBuffersPerChannel,
+            int maxOverdraftBuffers,
+            int numberOfChannels,
+            int availableChannels)
+            throws Exception {
+        checkArgument(maxBuffersPerChannel > poolSize / numberOfChannels);
+        checkArgument(numberOfChannels >= availableChannels);
+        LocalBufferPool bufferPool =
+                new LocalBufferPool(
+                        networkBufferPool,
+                        1,
+                        Integer.MAX_VALUE,
+                        numberOfChannels,
+                        maxBuffersPerChannel,
+                        maxOverdraftBuffers);
+        bufferPool.setNumBuffers(poolSize);
+
+        // Request all buffers inside the buffer pool
+        Map<Integer, AutoCloseableRegistry> closeableRegistryMap = new HashMap<>();
+        for (int i = 0; i < poolSize; i++) {
+            int targetChannel = i % availableChannels;
+            BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
+            assertNotNull(bufferBuilder);
+            closeableRegistryMap
+                    .computeIfAbsent(targetChannel, channel -> new AutoCloseableRegistry())
+                    .registerCloseable(bufferBuilder);
+            boolean isAvailable =
+                    (i + 1 < poolSize) && i < availableChannels * (maxBuffersPerChannel - 1);
+            assertRequestedBufferAndIsAvailable(bufferPool, 0, i + 1, isAvailable);
+        }
+
+        // request overdraft buffer
+        AutoCloseableRegistry overdraftCloseableRegistry = new AutoCloseableRegistry();
+        for (int i = 0; i < maxOverdraftBuffers; i++) {
+            int targetChannel = i % availableChannels;
+            BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
+            assertNotNull(bufferBuilder);
+            overdraftCloseableRegistry.registerCloseable(bufferBuilder);
+            int numberOfRequestedOverdraftBuffer = i + 1;
+            assertRequestedBufferAndIsAvailable(
+                    bufferPool,
+                    numberOfRequestedOverdraftBuffer,
+                    poolSize + numberOfRequestedOverdraftBuffer,
+                    false);
+        }
+
+        for (int i = 0; i < numberOfChannels; i++) {
+            assertNull(bufferPool.requestBufferBuilder(i));
+            assertRequestedBufferAndIsAvailable(
+                    bufferPool, maxOverdraftBuffers, poolSize + maxOverdraftBuffers, false);
+        }
+
+        // release all bufferBuilder
+        overdraftCloseableRegistry.close();
+        assertRequestedBufferAndIsAvailable(bufferPool, 0, poolSize, false);
+        int numberOfRequestedBuffer = poolSize;
+        for (AutoCloseableRegistry closeableRegistry : closeableRegistryMap.values()) {
+            numberOfRequestedBuffer =
+                    numberOfRequestedBuffer - closeableRegistry.getNumberOfRegisteredCloseables();
+            closeableRegistry.close();
+            assertRequestedBufferAndIsAvailable(bufferPool, 0, numberOfRequestedBuffer, true);
+        }
+        bufferPool.lazyDestroy();
+    }
+
+    private void assertRequestedBufferAndIsAvailable(
+            LocalBufferPool bufferPool,
+            int numberOfRequestedOverdraftBuffer,
+            int numberOfRequestedBuffer,
+            boolean isAvailable) {
+        if (numberOfRequestedOverdraftBuffer > 0) {
+            checkArgument(!isAvailable);
+        }
+        assertEquals(
+                numberOfRequestedOverdraftBuffer,
+                bufferPool.getNumberOfRequestedOverdraftMemorySegments());
+        assertEquals(numberOfRequestedBuffer, bufferPool.bestEffortGetNumOfUsedBuffers());
+        assertEquals(isAvailable, bufferPool.getAvailableFuture().isDone());
     }
 
     // ------------------------------------------------------------------------

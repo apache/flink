@@ -21,31 +21,28 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
 
 import org.hamcrest.Matchers;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -57,6 +54,10 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link MemoryExecutionGraphInfoStore}. */
 public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /**
      * Tests that we can put {@link ExecutionGraphInfo} into the {@link
@@ -232,28 +233,6 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
         }
     }
 
-    /** Tests that a session cluster can terminate gracefully when jobs are still running. */
-    @Test
-    public void testPutSuspendedJobOnClusterShutdown() throws Exception {
-        Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.JOB_STORE_TYPE, JobManagerOptions.JobStoreType.Memory);
-        try (final MiniCluster miniCluster =
-                new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
-                        new MiniClusterConfiguration.Builder()
-                                .setConfiguration(configuration)
-                                .build())) {
-            miniCluster.start();
-            final JobVertex vertex = new JobVertex("blockingVertex");
-            // The adaptive scheduler expects that every vertex has a configured parallelism
-            vertex.setParallelism(1);
-            vertex.setInvokableClass(
-                    ExecutionGraphInfoStoreTestUtils.SignallingBlockingNoOpInvokable.class);
-            final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
-            miniCluster.submitJob(jobGraph);
-            ExecutionGraphInfoStoreTestUtils.SignallingBlockingNoOpInvokable.LATCH.await();
-        }
-    }
-
     private void assertPutJobGraphWithStatus(JobStatus jobStatus) throws IOException {
         final ExecutionGraphInfo dummyExecutionGraphInfo =
                 new ExecutionGraphInfo(
@@ -285,7 +264,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
         return new MemoryExecutionGraphInfoStore(
                 expirationTime,
                 maximumCapacity,
-                TestingUtils.defaultScheduledExecutor(),
+                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
                 Ticker.systemTicker());
     }
 }

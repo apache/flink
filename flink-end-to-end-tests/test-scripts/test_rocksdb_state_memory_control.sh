@@ -51,7 +51,7 @@ set_config_key "state.backend.rocksdb.metrics.num-immutable-mem-table" "true"
 set_config_key "state.backend.rocksdb.metrics.block-cache-usage" "true"
 set_config_key "state.backend.rocksdb.metrics.estimate-table-readers-mem" "true"
 set_config_key "metrics.fetcher.update-interval" "1000"
-setup_flink_slf4j_metric_reporter
+setup_flink_slf4j_metric_reporter "numRecordsIn,block-cache-usage"
 start_cluster
 
 echo "Running RocksDB state backend memory control test"

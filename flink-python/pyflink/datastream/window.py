@@ -19,12 +19,13 @@ import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
-from typing import TypeVar, Generic, Iterable, Collection, Any, cast
+from typing import TypeVar, Generic, Iterable, Collection, Any, cast, Optional
 
 from pyflink.common import Time, Types
 from pyflink.common.constants import MAX_LONG_VALUE, MIN_LONG_VALUE
 from pyflink.common.serializer import TypeSerializer
-from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction
+from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction, ReduceFunction
+from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.state import StateDescriptor, ReducingStateDescriptor, \
     ValueStateDescriptor, State, ReducingState
 from pyflink.metrics import MetricGroup
@@ -32,6 +33,8 @@ from pyflink.metrics import MetricGroup
 __all__ = ['Window',
            'TimeWindow',
            'CountWindow',
+           'GlobalWindow',
+           'WindowAssigner',
            'TumblingProcessingTimeWindows',
            'TumblingEventTimeWindows',
            'SlidingProcessingTimeWindows',
@@ -40,7 +43,7 @@ __all__ = ['Window',
            'EventTimeSessionWindows',
            'DynamicProcessingTimeSessionWindows',
            'DynamicEventTimeSessionWindows',
-           'WindowAssigner',
+           'GlobalWindows',
            'MergingWindowAssigner',
            'CountTumblingWindowAssigner',
            'CountSlidingWindowAssigner',
@@ -48,9 +51,14 @@ __all__ = ['Window',
            'Trigger',
            'EventTimeTrigger',
            'ProcessingTimeTrigger',
+           'ContinuousEventTimeTrigger',
+           'ContinuousProcessingTimeTrigger',
+           'NeverTrigger',
+           'PurgingTrigger',
            'CountTrigger',
            'TimeWindowSerializer',
            'CountWindowSerializer',
+           'GlobalWindowSerializer',
            'SessionWindowTimeGapExtractor']
 
 
@@ -193,6 +201,30 @@ class CountWindow(Window):
         return "CountWindow(id={})".format(self.id)
 
 
+class GlobalWindow(Window):
+    """
+    The default window into which all data is placed GlobalWindows.
+    """
+    def __init__(self):
+        super(GlobalWindow, self).__init__()
+
+    @staticmethod
+    def get() -> 'GlobalWindow':
+        return GlobalWindow()
+
+    def max_timestamp(self) -> int:
+        return MAX_LONG_VALUE
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__
+
+    def __hash__(self):
+        return 0
+
+    def __repr__(self):
+        return "GlobalWindow"
+
+
 class TimeWindowSerializer(TypeSerializer[TimeWindow]):
     """
     The serializer used to write the TimeWindow type.
@@ -238,6 +270,31 @@ class CountWindowSerializer(TypeSerializer[CountWindow]):
     def _get_coder(self):
         from pyflink.fn_execution import coders
         return coders.CountWindowCoder()
+
+
+class GlobalWindowSerializer(TypeSerializer[GlobalWindow]):
+    """
+    A TypeSerializer for GlobalWindow.
+    """
+
+    def __init__(self):
+        self._underlying_coder = None
+
+    def serialize(self, element: GlobalWindow, stream: BytesIO) -> None:
+        if self._underlying_coder is None:
+            self._underlying_coder = self._get_coder().get_impl()
+        bytes_data = self._underlying_coder.encode(element)
+        stream.write(bytes_data)
+
+    def deserialize(self, stream: BytesIO) -> GlobalWindow:
+        if self._underlying_coder is None:
+            self._underlying_coder = self._get_coder().get_impl()
+        bytes_data = stream.read(8)
+        return self._underlying_coder.decode(bytes_data)
+
+    def _get_coder(self):
+        from pyflink.fn_execution import coders
+        return coders.GlobalWindowCoder()
 
 
 T = TypeVar('T')
@@ -557,15 +614,24 @@ class WindowOperationDescriptor(object):
                  assigner: WindowAssigner,
                  trigger: Trigger,
                  allowed_lateness: int,
+                 late_data_output_tag: Optional[OutputTag],
                  window_state_descriptor: StateDescriptor,
                  window_serializer: TypeSerializer,
                  internal_window_function: InternalWindowFunction):
         self.assigner = assigner
         self.trigger = trigger
         self.allowed_lateness = allowed_lateness
+        self.late_data_output_tag = late_data_output_tag
         self.window_state_descriptor = window_state_descriptor
         self.internal_window_function = internal_window_function
         self.window_serializer = window_serializer
+
+    def generate_op_name(self):
+        return type(self.assigner).__name__
+
+    def generate_op_desc(self, windowed_stream_type, func_desc):
+        return "%s(%s, %s, %s)" % (
+            windowed_stream_type, self.assigner, type(self.trigger).__name__, func_desc)
 
 
 class SessionWindowTimeGapExtractor(ABC):
@@ -634,6 +700,96 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
               ctx: 'Trigger.TriggerContext') -> None:
         ctx.delete_event_time_timer(window.max_timestamp())
 
+    @staticmethod
+    def create() -> 'EventTimeTrigger':
+        return EventTimeTrigger()
+
+
+class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
+    """
+    A Trigger that continuously fires based on a given time interval. This fires based Watermarks.
+    """
+
+    def __init__(self, interval: int):
+        self.interval = interval
+        self.state_desc = ReducingStateDescriptor("fire-time", Min, Types.LONG())
+        self.fire_timestamp_state = None
+
+    @staticmethod
+    def of(interval: Time) -> 'ContinuousEventTimeTrigger':
+        return ContinuousEventTimeTrigger(interval.to_milliseconds())
+
+    def on_element(self,
+                   element: T,
+                   timestamp: int,
+                   window: TimeWindow,
+                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        if window.max_timestamp() <= ctx.get_current_watermark():
+            # if the watermark is already past the window fire immediately
+            return TriggerResult.FIRE
+        else:
+            ctx.register_event_time_timer(window.max_timestamp())
+
+        fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
+        if fire_timestamp_state.get() is None:
+            self.register_next_fire_timestamp(timestamp - (timestamp % self.interval), window, ctx,
+                                              fire_timestamp_state)
+
+        return TriggerResult.CONTINUE
+
+    def on_processing_time(self,
+                           time: int,
+                           window: TimeWindow,
+                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_event_time(self,
+                      time: int,
+                      window: TimeWindow,
+                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        if time == window.max_timestamp():
+            return TriggerResult.FIRE
+
+        fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
+        fire_timestamp = fire_timestamp_state.get()
+        if fire_timestamp is not None and fire_timestamp == time:
+            fire_timestamp_state.clear()
+            self.register_next_fire_timestamp(time, window, ctx, fire_timestamp_state)
+            return TriggerResult.FIRE
+
+        return TriggerResult.CONTINUE
+
+    def on_merge(self, window: TimeWindow, ctx: 'Trigger.OnMergeContext') -> None:
+        ctx.merge_partitioned_state(self.state_desc)
+        next_fire_timestamp = cast(ReducingState, ctx.get_partitioned_state(self.state_desc)).get()
+        if next_fire_timestamp is not None:
+            ctx.register_event_time_timer(next_fire_timestamp)
+
+    def clear(self, window: TimeWindow, ctx: 'Trigger.TriggerContext') -> None:
+        fire_timestamp = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
+        timestamp = fire_timestamp.get()
+        if timestamp is not None:
+            ctx.delete_event_time_timer(timestamp)
+            fire_timestamp.clear()
+
+    def can_merge(self) -> bool:
+        return True
+
+    def register_next_fire_timestamp(self,
+                                     time: int,
+                                     window: TimeWindow,
+                                     ctx: 'Trigger.TriggerContext',
+                                     fire_timestamp_state: ReducingState):
+        next_fire_timestamp = min(time + self.interval, window.max_timestamp())
+        fire_timestamp_state.add(next_fire_timestamp)
+        ctx.register_event_time_timer(next_fire_timestamp)
+
+
+class Min(ReduceFunction):
+
+    def reduce(self, value1, value2):
+        return min(value1, value2)
+
 
 class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
     """
@@ -676,6 +832,143 @@ class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
               ctx: 'Trigger.TriggerContext') -> None:
         ctx.delete_processing_time_timer(window.max_timestamp())
 
+    @staticmethod
+    def create() -> 'ProcessingTimeTrigger':
+        return ProcessingTimeTrigger()
+
+
+class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
+    """
+    A Trigger that continuously fires based on a given time interval as measured by the clock of the
+    machine on which the job is running.
+    """
+
+    def __init__(self, interval: int):
+        self.interval = interval
+        self.state_desc = ReducingStateDescriptor("fire-time", Min, Types.LONG())
+        self.fire_timestamp_state = None
+
+    @staticmethod
+    def of(interval: Time) -> 'ContinuousProcessingTimeTrigger':
+        return ContinuousProcessingTimeTrigger(interval.to_milliseconds())
+
+    def on_element(self,
+                   element: T,
+                   timestamp: int,
+                   window: TimeWindow,
+                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
+        timestamp = ctx.get_current_processing_time()
+        if fire_timestamp_state.get() is None:
+            self.register_next_fire_timestamp(timestamp - (timestamp % self.interval), window, ctx,
+                                              fire_timestamp_state)
+
+        return TriggerResult.CONTINUE
+
+    def on_processing_time(self,
+                           time: int,
+                           window: TimeWindow,
+                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
+        if fire_timestamp_state.get() == time:
+            fire_timestamp_state.clear()
+            self.register_next_fire_timestamp(time, window, ctx, fire_timestamp_state)
+            return TriggerResult.FIRE
+
+        return TriggerResult.CONTINUE
+
+    def on_event_time(self,
+                      time: int,
+                      window: TimeWindow,
+                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_merge(self, window: TimeWindow, ctx: 'Trigger.OnMergeContext') -> None:
+        # States for old windows will lose after the call.
+        ctx.merge_partitioned_state(self.state_desc)
+
+        # Register timer for this new window.
+        next_fire_timestamp = cast(ReducingState, ctx.get_partitioned_state(self.state_desc)).get()
+        if next_fire_timestamp is not None:
+            ctx.register_processing_time_timer(next_fire_timestamp)
+
+    def clear(self, window: TimeWindow, ctx: 'Trigger.TriggerContext') -> None:
+        fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
+        timestamp = fire_timestamp_state.get()
+        if timestamp is not None:
+            ctx.delete_processing_time_timer(timestamp)
+            fire_timestamp_state.clear()
+
+    def can_merge(self) -> bool:
+        return True
+
+    def register_next_fire_timestamp(self,
+                                     time: int,
+                                     window: TimeWindow,
+                                     ctx: 'Trigger.TriggerContext',
+                                     fire_timestamp_state: ReducingState):
+        next_fire_timestamp = min(time + self.interval, window.max_timestamp())
+        fire_timestamp_state.add(next_fire_timestamp)
+        ctx.register_processing_time_timer(next_fire_timestamp)
+
+
+class PurgingTrigger(Trigger[T, Window]):
+    """
+    A trigger that can turn any Trigger into a purging Trigger.
+    When the nested trigger fires, this will return a FIRE_AND_PURGE TriggerResult.
+    """
+
+    def __init__(self, nested_trigger: Trigger[T, Window]):
+        self.nested_trigger = nested_trigger
+
+    @staticmethod
+    def of(nested_trigger: Trigger[T, Window]) -> 'PurgingTrigger':
+        return PurgingTrigger(nested_trigger)
+
+    def on_element(self,
+                   element: T,
+                   timestamp: int,
+                   window: Window,
+                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        trigger_result = self.nested_trigger.on_element(element, timestamp, window, ctx)
+        if trigger_result.is_fire() is True:
+            return TriggerResult.FIRE_AND_PURGE
+        else:
+            return trigger_result
+
+    def on_event_time(self,
+                      time: int,
+                      window: Window,
+                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        trigger_result = self.nested_trigger.on_event_time(time, window, ctx)
+        if trigger_result.is_fire() is True:
+            return TriggerResult.FIRE_AND_PURGE
+        else:
+            return trigger_result
+
+    def on_processing_time(self,
+                           time: int,
+                           window: Window,
+                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        trigger_result = self.nested_trigger.on_processing_time(time, window, ctx)
+        if trigger_result.is_fire() is True:
+            return TriggerResult.FIRE_AND_PURGE
+        else:
+            return trigger_result
+
+    def clear(self,
+              window: Window,
+              ctx: 'Trigger.TriggerContext') -> None:
+        self.nested_trigger.clear(window, ctx)
+
+    def can_merge(self) -> bool:
+        return self.nested_trigger.can_merge()
+
+    def on_merge(self,
+                 window: Window,
+                 ctx: 'Trigger.OnMergeContext') -> None:
+        self.nested_trigger.on_merge(window, ctx)
+
 
 class CountTrigger(Trigger[T, CountWindow]):
     """
@@ -686,6 +979,10 @@ class CountTrigger(Trigger[T, CountWindow]):
         self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
             "count", lambda a, b: a + b, Types.LONG())
+
+    @staticmethod
+    def of(window_size: int) -> 'CountTrigger':
+        return CountTrigger(window_size)
 
     def on_element(self,
                    element: T,
@@ -726,6 +1023,41 @@ class CountTrigger(Trigger[T, CountWindow]):
     def clear(self, window: CountWindow, ctx: Trigger.TriggerContext) -> None:
         count_state = ctx.get_partitioned_state(self._count_state_descriptor)
         count_state.clear()
+
+
+class NeverTrigger(Trigger[T, GlobalWindow]):
+    """
+    A trigger that never fires, as default Trigger for GlobalWindows.
+    """
+
+    def on_element(self,
+                   element: T,
+                   timestamp: int,
+                   window: GlobalWindow,
+                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_processing_time(self,
+                           time: int,
+                           window: GlobalWindow,
+                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_event_time(self,
+                      time: int,
+                      window: GlobalWindow,
+                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_merge(self,
+                 window: GlobalWindow,
+                 ctx: 'Trigger.OnMergeContext') -> None:
+        pass
+
+    def clear(self,
+              window: GlobalWindow,
+              ctx: 'Trigger.TriggerContext') -> None:
+        pass
 
 
 class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
@@ -1169,7 +1501,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         return False
 
     def __repr__(self):
-        return "ProcessingTimeSessionWindows(%s, %s)" % self._session_gap
+        return "ProcessingTimeSessionWindows(%s)" % self._session_gap
 
 
 class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
@@ -1235,7 +1567,7 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         return True
 
     def __repr__(self):
-        return "EventTimeSessionWindows(%s, %s)" % self._session_gap
+        return "EventTimeSessionWindows(%s)" % self._session_gap
 
 
 class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
@@ -1352,3 +1684,38 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     def __repr__(self):
         return "DynamicEventTimeSessionWindows(%s)" % self._session_gap
+
+
+class GlobalWindows(WindowAssigner[T, GlobalWindow]):
+    """
+    A WindowAssigner that assigns all elements to the same GlobalWindow.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def assign_windows(self,
+                       element: T,
+                       timestamp: int,
+                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[GlobalWindow]:
+        return [GlobalWindow.get()]
+
+    @staticmethod
+    def create() -> 'GlobalWindows':
+        """
+        Creates a new GlobalWindows WindowAssigner that assigns all elements to the
+        same GlobalWindow.
+        """
+        return GlobalWindows()
+
+    def get_default_trigger(self, env) -> Trigger[T, GlobalWindow]:
+        return NeverTrigger()
+
+    def get_window_serializer(self) -> TypeSerializer[GlobalWindow]:
+        return GlobalWindowSerializer()
+
+    def is_event_time(self) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return "GlobalWindows()"

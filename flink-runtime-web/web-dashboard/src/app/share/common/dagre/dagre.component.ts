@@ -30,10 +30,9 @@ import {
   ViewChildren
 } from '@angular/core';
 
+import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
 import { select } from 'd3-selection';
 import { zoomIdentity } from 'd3-zoom';
-
-import { NodesItemCorrect, NodesItemLink } from 'interfaces';
 
 import { LayoutNode, NzGraph } from './graph';
 import { NodeComponent } from './node.component';

@@ -15,21 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, RexNodeExtractor}
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapContext, unwrapTableConfig}
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.sources.FilterableTableSource
 
-import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalTableScan
@@ -39,18 +39,17 @@ import java.util.TimeZone
 
 import scala.collection.JavaConversions._
 
-/**
-  * Planner rule that tries to push a filter into a [[FilterableTableSource]].
-  */
-class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
-  operand(classOf[Filter],
-    operand(classOf[LogicalTableScan], none)),
-  "PushFilterIntoLegacyTableSourceScanRule") {
+/** Planner rule that tries to push a filter into a [[FilterableTableSource]]. */
+class PushFilterIntoLegacyTableSourceScanRule
+  extends RelOptRule(
+    operand(classOf[Filter], operand(classOf[LogicalTableScan], none)),
+    "PushFilterIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val config = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    if (!config.getConfiguration.getBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
+    val tableConfig = unwrapTableConfig(call)
+    if (
+      !tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)
+    ) {
       return false
     }
 
@@ -84,7 +83,7 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
       relOptTable: FlinkPreparingTableBase): Unit = {
 
     val relBuilder = call.builder()
-    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val context = unwrapContext(call)
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
     val (predicates, unconvertedRexNodes) =
       RexNodeExtractor.extractConjunctiveConditions(
@@ -94,8 +93,8 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
         relBuilder.getRexBuilder,
         context.getFunctionCatalog,
         context.getCatalogManager,
-        TimeZone.getTimeZone(scan.getCluster.getPlanner.getContext
-            .unwrap(classOf[FlinkContext]).getTableConfig.getLocalTimeZone))
+        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(unwrapTableConfig(scan)))
+      )
 
     if (predicates.isEmpty) {
       // no condition can be translated to expression
@@ -110,11 +109,14 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
     val newTableSource = newRelOptTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
     val oldTableSource = relOptTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
 
-    if (newTableSource.asInstanceOf[FilterableTableSource[_]].isFilterPushedDown
-      && newTableSource.explainSource().equals(oldTableSource.explainSource)) {
-      throw new TableException("Failed to push filter into table source! "
-        + "table source with pushdown capability must override and change "
-        + "explainSource() API to explain the pushdown applied!")
+    if (
+      newTableSource.asInstanceOf[FilterableTableSource[_]].isFilterPushedDown
+      && newTableSource.explainSource().equals(oldTableSource.explainSource)
+    ) {
+      throw new TableException(
+        "Failed to push filter into table source! "
+          + "table source with pushdown capability must override and change "
+          + "explainSource() API to explain the pushdown applied!")
     }
 
     val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newRelOptTable)
@@ -159,7 +161,6 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
   }
 
 }
-
 
 object PushFilterIntoLegacyTableSourceScanRule {
   val INSTANCE: RelOptRule = new PushFilterIntoLegacyTableSourceScanRule

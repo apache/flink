@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api.TableException
@@ -24,28 +23,25 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 
-/**
- * Tests for window deduplicate.
- */
+/** Tests for window deduplicate. */
 class WindowDeduplicateTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
-  util.tableEnv.executeSql(
-    s"""
-       |CREATE TABLE MyTable (
-       |  a INT,
-       |  b BIGINT,
-       |  c STRING NOT NULL,
-       |  d DECIMAL(10, 3),
-       |  e BIGINT,
-       |  rowtime TIMESTAMP(3),
-       |  proctime as PROCTIME(),
-       |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
-       |) with (
-       |  'connector' = 'values'
-       |)
-       |""".stripMargin)
+  util.tableEnv.executeSql(s"""
+                              |CREATE TABLE MyTable (
+                              |  a INT,
+                              |  b BIGINT,
+                              |  c STRING NOT NULL,
+                              |  d DECIMAL(10, 3),
+                              |  e BIGINT,
+                              |  rowtime TIMESTAMP(3),
+                              |  proctime as PROCTIME(),
+                              |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+                              |) with (
+                              |  'connector' = 'values'
+                              |)
+                              |""".stripMargin)
 
   // ----------------------------------------------------------------------------------------
   // Tests for queries Deduplicate on window TVF
@@ -122,15 +118,15 @@ class WindowDeduplicateTest extends TableTestBase {
     // the query would be translated to window topN instead of window deduplicate because of
     // unmatched order key
     val sql =
-    """
-      |SELECT *
-      |FROM (
-      |  SELECT *,
-      |    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
-      |    ORDER BY b DESC) as rownum
-      |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
-      |)
-      |WHERE rownum <= 1
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+        |    ORDER BY b DESC) as rownum
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum <= 1
       """.stripMargin
     util.verifyRelPlan(sql)
   }

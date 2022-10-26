@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nullable;
 
@@ -98,6 +99,10 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
     @Nullable private final String checkpointStorageName;
 
+    @Nullable private final TernaryBoolean stateChangelogEnabled;
+
+    @Nullable private final String changelogStorageName;
+
     public ArchivedExecutionGraph(
             JobID jobID,
             String jobName,
@@ -114,7 +119,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             @Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
             @Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
             @Nullable String stateBackendName,
-            @Nullable String checkpointStorageName) {
+            @Nullable String checkpointStorageName,
+            @Nullable TernaryBoolean stateChangelogEnabled,
+            @Nullable String changelogStorageName) {
 
         this.jobID = Preconditions.checkNotNull(jobID);
         this.jobName = Preconditions.checkNotNull(jobName);
@@ -132,6 +139,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.checkpointStatsSnapshot = checkpointStatsSnapshot;
         this.stateBackendName = stateBackendName;
         this.checkpointStorageName = checkpointStorageName;
+        this.stateChangelogEnabled = stateChangelogEnabled;
+        this.changelogStorageName = changelogStorageName;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -262,6 +271,16 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return Optional.ofNullable(checkpointStorageName);
     }
 
+    @Override
+    public TernaryBoolean isChangelogStateBackendEnabled() {
+        return stateChangelogEnabled;
+    }
+
+    @Override
+    public Optional<String> getChangelogStorageName() {
+        return Optional.ofNullable(changelogStorageName);
+    }
+
     /**
      * Create a {@link ArchivedExecutionGraph} from the given {@link ExecutionGraph}.
      *
@@ -327,7 +346,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 executionGraph.getCheckpointCoordinatorConfiguration(),
                 executionGraph.getCheckpointStatsSnapshot(),
                 executionGraph.getStateBackendName().orElse(null),
-                executionGraph.getCheckpointStorageName().orElse(null));
+                executionGraph.getCheckpointStorageName().orElse(null),
+                executionGraph.isChangelogStateBackendEnabled(),
+                executionGraph.getChangelogStorageName().orElse(null));
     }
 
     /**
@@ -380,6 +401,10 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                         : checkpointingSettings.getCheckpointCoordinatorConfiguration(),
                 checkpointingSettings == null ? null : CheckpointStatsSnapshot.empty(),
                 checkpointingSettings == null ? null : "Unknown",
+                checkpointingSettings == null ? null : "Unknown",
+                checkpointingSettings == null
+                        ? TernaryBoolean.UNDEFINED
+                        : checkpointingSettings.isChangelogStateBackendEnabled(),
                 checkpointingSettings == null ? null : "Unknown");
     }
 }

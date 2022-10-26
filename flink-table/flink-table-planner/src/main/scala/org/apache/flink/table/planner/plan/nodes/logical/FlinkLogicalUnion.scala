@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -32,9 +31,9 @@ import java.util.{List => JList}
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Union]] that is a relational expression
-  * which returns the union of the rows of its inputs in Flink.
-  */
+ * Sub-class of [[Union]] that is a relational expression which returns the union of the rows of its
+ * inputs in Flink.
+ */
 class FlinkLogicalUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -48,7 +47,7 @@ class FlinkLogicalUnion(
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    val rowCnt = this.getInputs.foldLeft(0D) {
+    val rowCnt = this.getInputs.foldLeft(0d) {
       (rows, input) =>
         val inputRowCount = mq.getRowCount(input)
         rows + inputRowCount
@@ -65,9 +64,7 @@ private class FlinkLogicalUnionConverter
     FlinkConventions.LOGICAL,
     "FlinkLogicalUnionConverter") {
 
-  /**
-    * Only translate UNION ALL.
-    */
+  /** Only translate UNION ALL. */
   override def matches(call: RelOptRuleCall): Boolean = {
     val union: LogicalUnion = call.rel(0)
     union.all

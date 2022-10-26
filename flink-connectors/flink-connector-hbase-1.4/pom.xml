@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-hbase-1.4</artifactId>
@@ -36,19 +35,6 @@ under the License.
 	<properties>
 		<hbase.version>1.4.3</hbase.version>
 	</properties>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
-					<forkCount>1</forkCount>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 
 	<dependencies>
 
@@ -289,7 +275,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-minicluster</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -325,7 +311,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-hdfs</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 			<exclusions>

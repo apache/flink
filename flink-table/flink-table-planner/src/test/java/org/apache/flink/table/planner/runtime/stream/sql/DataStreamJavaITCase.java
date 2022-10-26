@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -44,6 +45,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Column;
@@ -53,6 +55,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -66,9 +69,11 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -100,6 +105,10 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.sourceWatermark;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for connecting to the {@link DataStream} API. */
@@ -120,8 +129,35 @@ public class DataStreamJavaITCase extends AbstractTestBase {
 
     @Parameter public ObjectReuse objectReuse;
 
+    private static String udfClassName1;
+    private static String jarPath1;
+    private static String udfClassName2;
+    private static String jarPath2;
+
+    @BeforeClass
+    public static void beforeClass() throws IOException {
+        udfClassName1 = GENERATED_LOWER_UDF_CLASS;
+        jarPath1 =
+                UserClassLoaderJarTestUtils.createJarFile(
+                                TEMPORARY_FOLDER.newFolder("test-jar1"),
+                                "test-classloader-udf1.jar",
+                                udfClassName1,
+                                String.format(GENERATED_LOWER_UDF_CODE, udfClassName1))
+                        .toURI()
+                        .toString();
+        udfClassName2 = GENERATED_UPPER_UDF_CLASS;
+        jarPath2 =
+                UserClassLoaderJarTestUtils.createJarFile(
+                                TEMPORARY_FOLDER.newFolder("test-jar2"),
+                                "test-classloader-udf2.jar",
+                                udfClassName2,
+                                String.format(GENERATED_UPPER_UDF_CODE, udfClassName2))
+                        .toURI()
+                        .toString();
+    }
+
     @Before
-    public void before() {
+    public void before() throws IOException {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         env.setParallelism(4);
@@ -130,6 +166,9 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         } else if (objectReuse == ObjectReuse.DISABLED) {
             env.getConfig().disableObjectReuse();
         }
+        final Configuration defaultConfig = new Configuration();
+        defaultConfig.set(PipelineOptions.JARS, Collections.emptyList());
+        env.configure(defaultConfig);
     }
 
     @Test
@@ -529,7 +568,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         final TableConfig tableConfig = tableEnv.getConfig();
 
         // session time zone should not have an impact on the conversion
-        final ZoneId originalZone = tableConfig.getLocalTimeZone();
+        final ZoneId originalZone = TableConfigUtils.getLocalTimeZone(tableConfig);
         tableConfig.setLocalTimeZone(ZoneId.of("Europe/Berlin"));
 
         final LocalDateTime localDateTime1 = LocalDateTime.parse("1970-01-01T00:00:00.000");
@@ -763,9 +802,63 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 resultStream, 0, Row.of(2, null, null, null), Row.of(1, 11.0, "1", "A"));
     }
 
+    @Test
+    public void testResourcePropagation() throws Exception {
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        assertStreamJarsOf(0);
+        assertTableJarsOf(tableEnv, 0);
+
+        tableEnv.executeSql(
+                String.format(
+                        "CREATE TEMPORARY SYSTEM FUNCTION myLower AS '%s' USING JAR '%s'",
+                        udfClassName1, jarPath1));
+        assertStreamJarsOf(0);
+        assertTableJarsOf(tableEnv, 0);
+
+        // This is not recommended, usually this option should be set before
+        // but just for testing proper merging.
+        final Configuration customConfig = new Configuration();
+        customConfig.set(PipelineOptions.JARS, Collections.singletonList(jarPath2));
+        env.configure(customConfig);
+        assertStreamJarsOf(1);
+        assertTableJarsOf(tableEnv, 1);
+
+        final DataStream<String> resultStream =
+                tableEnv.toDataStream(
+                        tableEnv.sqlQuery(
+                                "SELECT myLower(s) FROM (VALUES ('Bob'), ('Alice')) AS T(s)"),
+                        String.class);
+        assertStreamJarsOf(2);
+        assertTableJarsOf(tableEnv, 2);
+
+        testResult(resultStream, "bob", "alice");
+
+        tableEnv.executeSql(
+                String.format(
+                        "CREATE TEMPORARY SYSTEM FUNCTION myUpper AS '%s' USING JAR '%s'",
+                        udfClassName2, jarPath2));
+        assertStreamJarsOf(2);
+        assertTableJarsOf(tableEnv, 2);
+
+        final TableResult tableResult =
+                tableEnv.executeSql("SELECT myUpper(s) FROM (VALUES ('Bob'), ('Alice')) AS T(s)");
+        assertStreamJarsOf(2);
+        assertTableJarsOf(tableEnv, 2);
+
+        testResult(tableResult, Row.of("BOB"), Row.of("ALICE"));
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
+
+    private static void assertTableJarsOf(TableEnvironment tableEnv, int size) {
+        assertThat(tableEnv.getConfig().get(PipelineOptions.JARS)).hasSize(size);
+    }
+
+    private void assertStreamJarsOf(int size) {
+        assertThat(env.getConfiguration().get(PipelineOptions.JARS)).hasSize(size);
+    }
 
     private Table getComplexUnifiedPipeline(StreamExecutionEnvironment env) {
 

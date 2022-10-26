@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -52,18 +51,13 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "fruit,3,44",
-      "fruit,4,33")
+    val expected = Seq("fruit,3,44", "fruit,4,33")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
   def testRetractSortLimit(): Unit = {
-    val data = List(
-      (1, 1), (1, 2), (1, 3),
-      (2, 2), (2, 3), (2, 4),
-      (3, 3), (3, 4), (3, 5))
+    val data = List((1, 1), (1, 2), (1, 3), (2, 2), (2, 3), (2, 4), (3, 3), (3, 4), (3, 5))
 
     val ds = failingDataSource(data).toTable(tEnv, 'a, 'b)
     tEnv.registerTable("T", ds)
@@ -75,18 +69,13 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "1,3",
-      "2,4")
+    val expected = Seq("1,3", "2,4")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
   def testRetractSortLimitWithOffset(): Unit = {
-    val data = List(
-      (1, 1), (1, 2), (1, 3),
-      (2, 2), (2, 3), (2, 4),
-      (3, 3), (3, 4), (3, 5))
+    val data = List((1, 1), (1, 2), (1, 3), (2, 2), (2, 3), (2, 4), (3, 3), (3, 4), (3, 5))
 
     val ds = failingDataSource(data).toTable(tEnv, 'a, 'b)
     tEnv.registerTable("T", ds)
@@ -98,9 +87,7 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "2,4",
-      "3,5")
+    val expected = Seq("2,4", "3,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

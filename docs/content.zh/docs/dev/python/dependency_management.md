@@ -51,15 +51,15 @@ If third-party JARs are used, you can specify the JARs in the Python Table API a
 # Specify a list of jar URLs via "pipeline.jars". The jars are separated by ";"
 # and will be uploaded to the cluster.
 # NOTE: Only local file URLs (start with "file://") are supported.
-table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 
 # It looks like the following on Windows:
-table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///E:/my/jar/path/connector.jar;file:///E:/my/jar/path/udf.jar")
+table_env.get_config().set("pipeline.jars", "file:///E:/my/jar/path/connector.jar;file:///E:/my/jar/path/udf.jar")
 
 # Specify a list of URLs via "pipeline.classpaths". The URLs are separated by ";" 
 # and will be added to the classpath during job execution.
 # NOTE: The paths must specify a protocol (e.g. file://) and users should ensure that the URLs are accessible on both the client and the cluster.
-table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().set("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 ```
 
 or in the Python DataStream API as following:
@@ -175,7 +175,7 @@ or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyf
 `-pyreq` or `--pyRequirements` when submitting the job.
 
 <span class="label label-info">Note</span> It will install the packages specified in the
-`requirements.txt` file using pip, so please make sure that pip (version >= 7.1.0)
+`requirements.txt` file using pip, so please make sure that pip (version >= 20.3)
 and setuptools (version >= 37.0.0) are available.
 
 ### Archives

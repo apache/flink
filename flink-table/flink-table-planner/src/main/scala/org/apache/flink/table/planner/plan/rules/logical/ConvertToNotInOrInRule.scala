@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.types.logical.LogicalTypeRoot
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlBinaryOperator
@@ -33,18 +32,15 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Rule for converting a cascade of predicates to [[IN]] or [[NOT_IN]].
-  *
-  * For example,
-  * 1. convert predicate: (x = 1 OR x = 2 OR x = 3 OR x = 4) AND y = 5
-  * to predicate: x IN (1, 2, 3, 4) AND y = 5.
-  * 2. convert predicate: (x <> 1 AND x <> 2 AND x <> 3 AND x <> 4) AND y = 5
-  * to predicate: x NOT IN (1, 2, 3, 4) AND y = 5.
-  */
+ * Rule for converting a cascade of predicates to [[IN]] or [[NOT_IN]].
+ *
+ * For example,
+ *   1. convert predicate: (x = 1 OR x = 2 OR x = 3 OR x = 4) AND y = 5 to predicate: x IN (1, 2, 3,
+ *      4) AND y = 5. 2. convert predicate: (x <> 1 AND x <> 2 AND x <> 3 AND x <> 4) AND y = 5 to
+ *      predicate: x NOT IN (1, 2, 3, 4) AND y = 5.
+ */
 class ConvertToNotInOrInRule
-  extends RelOptRule(
-    operand(classOf[Filter], any),
-    "ConvertToNotInOrInRule") {
+  extends RelOptRule(operand(classOf[Filter], any), "ConvertToNotInOrInRule") {
 
   // these threshold values are set by OptimizableHashSet benchmark test on different type.
   // threshold for non-float and non-double type
@@ -76,9 +72,7 @@ class ConvertToNotInOrInRule
     }
   }
 
-  /**
-    * Returns a condition decomposed by [[AND]] or [[OR]].
-    */
+  /** Returns a condition decomposed by [[AND]] or [[OR]]. */
   private def decomposedBy(rex: RexNode, operator: SqlBinaryOperator): Seq[RexNode] = {
     operator match {
       case AND => RelOptUtil.conjunctions(rex)
@@ -87,12 +81,15 @@ class ConvertToNotInOrInRule
   }
 
   /**
-    * Convert a cascade predicates to [[IN]] or [[NOT_IN]].
-    *
-    * @param builder The [[RelBuilder]] to build the [[RexNode]].
-    * @param rex     The predicates to be converted.
-    * @return The converted predicates.
-    */
+   * Convert a cascade predicates to [[IN]] or [[NOT_IN]].
+   *
+   * @param builder
+   *   The [[RelBuilder]] to build the [[RexNode]].
+   * @param rex
+   *   The predicates to be converted.
+   * @return
+   *   The converted predicates.
+   */
   private def convertToNotInOrIn(
       builder: RelBuilder,
       rex: RexNode,
@@ -129,13 +126,14 @@ class ConvertToNotInOrInRule
 
           // process sub predicates
           case `composedOperator` =>
-            val newRex = decomposedBy(call, composedOperator).map { r =>
-              convertToNotInOrIn(builder, r, toOperator) match {
-                case Some(ex) =>
-                  beenConverted = true
-                  ex
-                case None => r
-              }
+            val newRex = decomposedBy(call, composedOperator).map {
+              r =>
+                convertToNotInOrIn(builder, r, toOperator) match {
+                  case Some(ex) =>
+                    beenConverted = true
+                    ex
+                  case None => r
+                }
             }
             composedOperator match {
               case AND => rexBuffer += builder.and(newRex)
@@ -148,24 +146,25 @@ class ConvertToNotInOrInRule
       case rex => rexBuffer += rex
     }
 
-    combineMap.values.foreach { list =>
-      if (needConvert(list.toList)) {
-        val inputRef = list.head.getOperands.head
-        val values = list.map(_.getOperands.last)
-        val call = toOperator match {
-          case IN => builder.getRexBuilder.makeIn(inputRef, values)
-          case NOT_IN => builder
-            .getRexBuilder
-            .makeCall(NOT, builder.getRexBuilder.makeIn(inputRef, values))
+    combineMap.values.foreach {
+      list =>
+        if (needConvert(list.toList)) {
+          val inputRef = list.head.getOperands.head
+          val values = list.map(_.getOperands.last)
+          val call = toOperator match {
+            case IN => builder.getRexBuilder.makeIn(inputRef, values)
+            case NOT_IN =>
+              builder.getRexBuilder
+                .makeCall(NOT, builder.getRexBuilder.makeIn(inputRef, values))
+          }
+          rexBuffer += call
+          beenConverted = true
+        } else {
+          connectOperator match {
+            case AND => rexBuffer += builder.and(list)
+            case OR => rexBuffer += builder.or(list)
+          }
         }
-        rexBuffer += call
-        beenConverted = true
-      } else {
-        connectOperator match {
-          case AND => rexBuffer += builder.and(list)
-          case OR => rexBuffer += builder.or(list)
-        }
-      }
     }
 
     if (beenConverted) {

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
@@ -31,22 +30,21 @@ import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] with empty sort fields,
-  * and converts it to
-  * {{{
-  * BatchPhysicalLimit (global)
-  * +- BatchPhysicalExchange (singleton)
-  *    +- BatchPhysicalLimit (local)
-  *       +- input of sort
-  * }}}
-  * when fetch is not null, or
-  * {{{
-  * BatchPhysicalLimit
-  * +- BatchPhysicalExchange (singleton)
-  *    +- input of sort
-  * }}}
-  * when fetch is null.
-  */
+ * Rule that matches [[FlinkLogicalSort]] with empty sort fields, and converts it to
+ * {{{
+ * BatchPhysicalLimit (global)
+ * +- BatchPhysicalExchange (singleton)
+ *    +- BatchPhysicalLimit (local)
+ *       +- input of sort
+ * }}}
+ * when fetch is not null, or
+ * {{{
+ * BatchPhysicalLimit
+ * +- BatchPhysicalExchange (singleton)
+ *    +- input of sort
+ * }}}
+ * when fetch is null.
+ */
 class BatchPhysicalLimitRule
   extends ConverterRule(
     classOf[FlinkLogicalSort],
@@ -59,7 +57,7 @@ class BatchPhysicalLimitRule
     // only matches Sort with empty sort fields and non-null fetch
     val fetch = sort.fetch
     sort.getCollation.getFieldCollations.isEmpty &&
-      (fetch == null || fetch != null && RexLiteral.intValue(fetch) < Long.MaxValue)
+    (fetch == null || fetch != null && RexLiteral.intValue(fetch) < Long.MaxValue)
   }
 
   override def convert(rel: RelNode): RelNode = {

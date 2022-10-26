@@ -31,22 +31,16 @@ functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) which process d
 [vectorized Python user-defined functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})
 which process data one batch at a time.
 
-## Bundling UDFs
+## 打包 UDFs
 
-To run Python UDFs (as well as Pandas UDFs) in any non-local mode, it is strongly recommended
-bundling your Python UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files),
-if your Python UDFs live outside the file where the `main()` function is defined.
-Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'`
-if you define Python UDFs in a file called `my_udf.py`.
+如果你在非 local 模式下运行 Python UDFs 和 Pandas UDFs，且 Python UDFs 没有定义在含 `main()` 入口的 Python 主文件中，强烈建议你通过 [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files) 配置项指定 Python UDF 的定义。
+否则，如果你将 Python UDFs 定义在名为 `my_udf.py` 的文件中，你可能会遇到 `ModuleNotFoundError: No module named 'my_udf'` 这样的报错。
 
-## Loading resources in UDFs
+## 在 UDF 中载入资源
 
-There are scenarios when you want to load some resources in UDFs first, then running computation
-(i.e., `eval`) over and over again, without having to re-load the resources.
-For example, you may want to load a large deep learning model only once,
-then run batch prediction against the model multiple times.
+有时候，我们想在 UDF 中只载入一次资源，然后反复使用该资源进行计算。例如，你想在 UDF 中首先载入一个巨大的深度学习模型，然后使用该模型多次进行预测。
 
-Overriding the `open` method of `UserDefinedFunction` is exactly what you need.
+你要做的是重载 `UserDefinedFunction` 类的 `open` 方法。
 
 ```python
 class Predict(ScalarFunction):

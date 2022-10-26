@@ -27,6 +27,8 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Integration tests for {@link DataSet#project}. */
 public class ProjectITCase extends JavaProgramTestBase {
 

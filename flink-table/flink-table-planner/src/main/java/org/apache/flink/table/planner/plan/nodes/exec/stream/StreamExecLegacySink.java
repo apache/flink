@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -44,6 +45,7 @@ import java.util.stream.Collectors;
 public class StreamExecLegacySink<T> extends CommonExecLegacySink<T> implements StreamExecNode<T> {
 
     public StreamExecLegacySink(
+            ReadableConfig tableConfig,
             TableSink<T> tableSink,
             @Nullable String[] upsertKeys,
             boolean needRetraction,
@@ -53,6 +55,7 @@ public class StreamExecLegacySink<T> extends CommonExecLegacySink<T> implements 
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLegacySink.class),
+                ExecNodeContext.newPersistedConfig(StreamExecLegacySink.class, tableConfig),
                 tableSink,
                 upsertKeys,
                 needRetraction,

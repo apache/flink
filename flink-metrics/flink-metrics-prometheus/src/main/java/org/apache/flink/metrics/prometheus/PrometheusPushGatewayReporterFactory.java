@@ -19,7 +19,6 @@ package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.StringUtils;
@@ -43,8 +42,6 @@ import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterO
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
 
 /** {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}. */
-@InterceptInstantiationViaReflection(
-        reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter")
 public class PrometheusPushGatewayReporterFactory implements MetricReporterFactory {
 
     private static final Logger LOG =

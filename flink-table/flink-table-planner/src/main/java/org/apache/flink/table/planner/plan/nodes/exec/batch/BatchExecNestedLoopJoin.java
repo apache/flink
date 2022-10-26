@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -51,6 +52,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
     private final boolean singleRowJoin;
 
     public BatchExecNestedLoopJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             RexNode condition,
             boolean leftIsBuild,
@@ -62,6 +64,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecNestedLoopJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecNestedLoopJoin.class, tableConfig),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -89,7 +92,8 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
 
         CodeGenOperatorFactory<RowData> operator =
                 new NestedLoopJoinCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(
+                                        config, planner.getFlinkContext().getClassLoader()),
                                 singleRowJoin,
                                 leftIsBuild,
                                 leftType,

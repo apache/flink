@@ -18,25 +18,23 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ParallelismQueryParameter}. */
-public class ParallelismQueryParameterTest extends TestLogger {
+class ParallelismQueryParameterTest {
 
     private final ParallelismQueryParameter parallelismQueryParameter =
             new ParallelismQueryParameter();
 
     @Test
-    public void testConvertStringToValue() {
-        assertEquals("42", parallelismQueryParameter.convertValueToString(42));
+    void testConvertStringToValue() {
+        assertThat(parallelismQueryParameter.convertValueToString(42)).isEqualTo("42");
     }
 
     @Test
-    public void testConvertValueFromString() {
-        assertEquals(42, (int) parallelismQueryParameter.convertStringToValue("42"));
+    void testConvertValueFromString() {
+        assertThat((int) parallelismQueryParameter.convertStringToValue("42")).isEqualTo(42);
     }
 }

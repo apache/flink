@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -98,7 +99,15 @@ public class AvroParquetReaders {
      */
     public static StreamFormat<GenericRecord> forGenericRecord(final Schema schema) {
         return new AvroParquetRecordFormat<>(
-                new GenericRecordAvroTypeInfo(schema), () -> GenericData.get());
+                new GenericRecordAvroTypeInfo(schema),
+                // Must override the lambda representation because of a bug in shading lambda
+                // serialization, see FLINK-28043 for more details.
+                new SerializableSupplier<GenericData>() {
+                    @Override
+                    public GenericData get() {
+                        return GenericData.get();
+                    }
+                });
     }
 
     // ------------------------------------------------------------------------

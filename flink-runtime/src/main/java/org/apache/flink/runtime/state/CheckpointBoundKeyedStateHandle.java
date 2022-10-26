@@ -17,8 +17,16 @@
 package org.apache.flink.runtime.state;
 
 /** {@link KeyedStateHandle} that is bound to a specific checkpoint. */
-public interface CheckpointBoundKeyedStateHandle {
+public interface CheckpointBoundKeyedStateHandle extends KeyedStateHandle {
 
     /** Returns the ID of the checkpoint for which the handle was created or used. */
     long getCheckpointId();
+
+    /**
+     * Returns a new {@link CheckpointBoundKeyedStateHandle} Rebounding checkpoint id to a specific
+     * checkpoint id.
+     *
+     * @param checkpointId rebounded checkpoint id.
+     */
+    CheckpointBoundKeyedStateHandle rebound(long checkpointId);
 }

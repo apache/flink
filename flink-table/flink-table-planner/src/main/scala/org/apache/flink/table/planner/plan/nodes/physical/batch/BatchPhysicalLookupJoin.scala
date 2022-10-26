@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, JoinTypeUtil}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
@@ -35,9 +34,7 @@ import java.util
 
 import scala.collection.JavaConverters._
 
-/**
-  * Batch physical RelNode for temporal table join that implements by lookup.
-  */
+/** Batch physical RelNode for temporal table join that implements by lookup. */
 class BatchPhysicalLookupJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -77,12 +74,14 @@ class BatchPhysicalLookupJoin(
     }
 
     new BatchExecLookupJoin(
+      tableConfig,
       JoinTypeUtil.getFlinkJoinType(joinType),
       remainingCondition.orNull,
       new TemporalTableSourceSpec(temporalTable),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,
       filterOnTemporalTable,
+      asyncOptions.orNull,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

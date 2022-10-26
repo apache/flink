@@ -15,27 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rex._
 
 /**
-  * Planner rule that apply various simplifying transformations on join condition.
-  * e.g.
-  * reduce same expressions: a=b AND b=a -> a=b,
-  * simplify boolean expressions: x = 1 AND FALSE -> FALSE,
-  * simplify cast expressions: CAST('123' as integer) -> 123
-  */
+ * Planner rule that apply various simplifying transformations on join condition. e.g. reduce same
+ * expressions: a=b AND b=a -> a=b, simplify boolean expressions: x = 1 AND FALSE -> FALSE, simplify
+ * cast expressions: CAST('123' as integer) -> 123
+ */
 class SimplifyJoinConditionRule
-  extends RelOptRule(
-    operand(classOf[LogicalJoin], any()),
-    "SimplifyJoinConditionRule") {
+  extends RelOptRule(operand(classOf[LogicalJoin], any()), "SimplifyJoinConditionRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join: LogicalJoin = call.rel(0)

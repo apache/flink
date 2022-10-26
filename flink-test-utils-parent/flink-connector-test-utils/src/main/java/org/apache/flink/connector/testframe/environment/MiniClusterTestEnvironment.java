@@ -19,7 +19,6 @@
 package org.apache.flink.connector.testframe.environment;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
@@ -38,7 +37,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -132,8 +130,7 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
             throws Exception {
         terminateTaskManager();
         CommonTestUtils.waitForNoTaskRunning(
-                () -> miniCluster.getRestClusterClient().getJobDetails(jobClient.getJobID()).get(),
-                Deadline.fromNow(Duration.ofMinutes(5)));
+                () -> miniCluster.getRestClusterClient().getJobDetails(jobClient.getJobID()).get());
         afterFailAction.run();
         startTaskManager();
     }

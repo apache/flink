@@ -232,6 +232,10 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
     "grouping" : [ 0, 3, 4 ],
     "aggCalls" : [ {
       "name" : null,
@@ -281,6 +285,10 @@
   }, {
     "id" : 8,
     "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
@@ -316,6 +324,12 @@
   }, {
     "id" : 9,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -351,6 +365,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL, `$f2` VARCHAR(2147483647)>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, $f1, $f2])"
   } ],
   "edges" : [ {

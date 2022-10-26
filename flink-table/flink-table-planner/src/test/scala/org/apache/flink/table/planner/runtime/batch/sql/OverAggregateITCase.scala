@@ -46,8 +46,12 @@ class OverAggregateITCase extends BatchTestBase {
   override def before(): Unit = {
     super.before()
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
-    registerCollection("ShuflledTable5",
-      Random.shuffle(data5), type5, "sd, se, sf, sg, sh", nullablesOfData5)
+    registerCollection(
+      "ShuflledTable5",
+      Random.shuffle(data5),
+      type5,
+      "sd, se, sf, sg, sh",
+      nullablesOfData5)
     registerCollection("Table6", data6, type6, "a, b, c, d, e, f", nullablesOfData6)
     registerCollection("NullTable5", nullData5, type5, "d, e, f, g, h", nullablesOfNullData5)
   }
@@ -59,8 +63,8 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT sd, sf, sh, countFun(sh) " +
-          "over (partition by sh order by sh rows between 0 PRECEDING and 0 FOLLOWING) " +
-          "FROM ShuflledTable5",
+        "over (partition by sh order by sh rows between 0 PRECEDING and 0 FOLLOWING) " +
+        "FROM ShuflledTable5",
       Seq(
         row(1, 0, 1, 1),
         row(2, 2, 1, 1),
@@ -80,9 +84,7 @@ class OverAggregateITCase extends BatchTestBase {
       )
     )
 
-    /**
-      * sum over range ubounded preceding and current row is not supported right now
-      */
+    /** sum over range ubounded preceding and current row is not supported right now */
     // last_value, first_value
     checkResult(
       "SELECT sh, SUM(sh) over (partition by sh order by sh) FROM ShuflledTable5",
@@ -101,7 +103,8 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 14),
         row(3, 9),
         row(3, 9),
-        row(3, 9)))
+        row(3, 9))
+    )
 
   }
 
@@ -109,8 +112,8 @@ class OverAggregateITCase extends BatchTestBase {
   def testSingleRowOverWindowFrameAggregate(): Unit = {
     checkResult(
       "SELECT sh, count(*) " +
-          "over (partition by sh order by sh rows between 0 PRECEDING and 0 FOLLOWING) " +
-          "FROM ShuflledTable5",
+        "over (partition by sh order by sh rows between 0 PRECEDING and 0 FOLLOWING) " +
+        "FROM ShuflledTable5",
       Seq(
         row(1, 1),
         row(1, 1),
@@ -132,8 +135,8 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT sh, count(*) " +
-          "over (partition by sh order by sh rows between 0 PRECEDING and CURRENT ROW) " +
-          "FROM ShuflledTable5",
+        "over (partition by sh order by sh rows between 0 PRECEDING and CURRENT ROW) " +
+        "FROM ShuflledTable5",
       Seq(
         row(1, 1),
         row(1, 1),
@@ -155,8 +158,8 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT sh, count(*) " +
-          "over (partition by sh order by sh rows between CURRENT ROW and 0 FOLLOWING) " +
-          "FROM ShuflledTable5",
+        "over (partition by sh order by sh rows between CURRENT ROW and 0 FOLLOWING) " +
+        "FROM ShuflledTable5",
       Seq(
         row(1, 1),
         row(1, 1),
@@ -178,8 +181,8 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT sh, count(*) " +
-          "over (partition by sh order by sh rows between CURRENT ROW and CURRENT ROW) " +
-          "FROM ShuflledTable5",
+        "over (partition by sh order by sh rows between CURRENT ROW and CURRENT ROW) " +
+        "FROM ShuflledTable5",
       Seq(
         row(1, 1),
         row(1, 1),
@@ -202,76 +205,67 @@ class OverAggregateITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationNormalWindowAgg(): Unit = {
+
     /**
-      * sum,count,max,min
-      * over range ubounded preceding and current row is not supported right now
-      * row_number
-      * over rows ubounded preceding and current row is supported right now
-      */
+     * sum,count,max,min over range ubounded preceding and current row is not supported right now
+     * row_number over rows ubounded preceding and current row is supported right now
+     */
     checkResult(
       "SELECT d, e, row_number() over (partition by d order by e desc), " +
-          "rank() over (partition by d order by e desc)," +
-          "dense_rank() over (partition by d order by e desc), " +
-          "sum(e) over (partition by d order by e desc)," +
-          "count(*) over (partition by d order by e desc)," +
-          "avg(e) over (partition by d order by e desc)," +
-          "max(e) over (partition by d order by e)," +
-          "max(e) over (partition by d order by e desc)," +
-          "min(e) over (partition by d order by e)," +
-          "min(e) over (partition by d order by e desc) FROM Table5",
+        "rank() over (partition by d order by e desc)," +
+        "dense_rank() over (partition by d order by e desc), " +
+        "sum(e) over (partition by d order by e desc)," +
+        "count(*) over (partition by d order by e desc)," +
+        "avg(e) over (partition by d order by e desc)," +
+        "max(e) over (partition by d order by e)," +
+        "max(e) over (partition by d order by e desc)," +
+        "min(e) over (partition by d order by e)," +
+        "min(e) over (partition by d order by e desc) FROM Table5",
       Seq(
         // d  e  r  r  d  s  c  a  ma m mi m
-        row( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-
-        row( 2, 2, 2, 2, 2, 5, 2, 2, 2, 3, 2, 2),
-        row( 2, 3, 1, 1, 1, 3, 1, 3, 3, 3, 2, 3),
-
-        row( 3, 4, 3, 3, 3,15, 3, 5, 4, 6, 4, 4),
-        row( 3, 5, 2, 2, 2,11, 2, 5, 5, 6, 4, 5),
-        row( 3, 6, 1, 1, 1, 6, 1, 6, 6, 6, 4, 6),
-
-        row( 4, 7, 4, 4, 4,34, 4, 8, 7,10, 7, 7),
-        row( 4, 8, 3, 3, 3,27, 3, 9, 8,10, 7, 8),
-        row( 4, 9, 2, 2, 2,19, 2, 9, 9,10, 7, 9),
-        row( 4,10, 1, 1, 1,10, 1,10,10,10, 7,10),
-
-        row( 5,11, 5, 5, 5,65, 5,13,11,15,11,11),
-        row( 5,12, 4, 4, 4,54, 4,13,12,15,11,12),
-        row( 5,13, 3, 3, 3,42, 3,14,13,15,11,13),
-        row( 5,14, 2, 2, 2,29, 2,14,14,15,11,14),
-        row( 5,15, 1, 1, 1,15, 1,15,15,15,11,15)
-      ))
+        row(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+        row(2, 2, 2, 2, 2, 5, 2, 2, 2, 3, 2, 2),
+        row(2, 3, 1, 1, 1, 3, 1, 3, 3, 3, 2, 3),
+        row(3, 4, 3, 3, 3, 15, 3, 5, 4, 6, 4, 4),
+        row(3, 5, 2, 2, 2, 11, 2, 5, 5, 6, 4, 5),
+        row(3, 6, 1, 1, 1, 6, 1, 6, 6, 6, 4, 6),
+        row(4, 7, 4, 4, 4, 34, 4, 8, 7, 10, 7, 7),
+        row(4, 8, 3, 3, 3, 27, 3, 9, 8, 10, 7, 8),
+        row(4, 9, 2, 2, 2, 19, 2, 9, 9, 10, 7, 9),
+        row(4, 10, 1, 1, 1, 10, 1, 10, 10, 10, 7, 10),
+        row(5, 11, 5, 5, 5, 65, 5, 13, 11, 15, 11, 11),
+        row(5, 12, 4, 4, 4, 54, 4, 13, 12, 15, 11, 12),
+        row(5, 13, 3, 3, 3, 42, 3, 14, 13, 15, 11, 13),
+        row(5, 14, 2, 2, 2, 29, 2, 14, 14, 15, 11, 14),
+        row(5, 15, 1, 1, 1, 15, 1, 15, 15, 15, 11, 15)
+      )
+    )
 
     checkResult(
       "SELECT d, g, rank() over (partition by d order by g ) FROM Table5",
       Seq(
         // d  g rank
-        row( 1, "Hallo", 1),
-
-        row( 2, "Hallo Welt", 1),
-        row( 2, "Hallo Welt wie", 2),
-
-        row( 3, "ABC", 1),
-        row( 3, "BCD", 2),
-        row( 3, "Hallo Welt wie gehts?", 3),
-
-        row( 4, "CDE", 1),
-        row( 4, "DEF", 2),
-        row( 4, "EFG", 3),
-        row( 4, "FGH", 4),
-
-        row( 5, "GHI", 1),
-        row( 5, "HIJ", 2),
-        row( 5, "IJK", 3),
-        row( 5, "JKL", 4),
-        row( 5, "KLM", 5)
+        row(1, "Hallo", 1),
+        row(2, "Hallo Welt", 1),
+        row(2, "Hallo Welt wie", 2),
+        row(3, "ABC", 1),
+        row(3, "BCD", 2),
+        row(3, "Hallo Welt wie gehts?", 3),
+        row(4, "CDE", 1),
+        row(4, "DEF", 2),
+        row(4, "EFG", 3),
+        row(4, "FGH", 4),
+        row(5, "GHI", 1),
+        row(5, "HIJ", 2),
+        row(5, "IJK", 3),
+        row(5, "JKL", 4),
+        row(5, "KLM", 5)
       )
     )
   }
 
   @Test
   def testWindowAggregationRank2(): Unit = {
-
     checkResult(
       "SELECT d, e, rank() over (order by e desc), dense_rank() over (order by e desc) FROM Table5",
       Seq(
@@ -298,7 +292,7 @@ class OverAggregateITCase extends BatchTestBase {
   def testRankByDecimal(): Unit = {
     checkResult(
       "SELECT d, de, rank() over (order by de desc), dense_rank() over (order by de desc) FROM" +
-          " (select d, cast(e as decimal(10, 0)) as de from Table5)",
+        " (select d, cast(e as decimal(10, 0)) as de from Table5)",
       Seq(
         row(5, 15, 1, 1),
         row(5, 14, 2, 2),
@@ -465,9 +459,8 @@ class OverAggregateITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationSumWithoutOrderBy(): Unit = {
-    /**
-      * sum over range unbounded preceding and current row is not supported
-      */
+
+    /** sum over range unbounded preceding and current row is not supported */
     checkResult(
       "SELECT d, sum(e) over (partition by d) FROM Table5",
       Seq(
@@ -617,7 +610,7 @@ class OverAggregateITCase extends BatchTestBase {
     // order by string type field
     checkResult(
       "SELECT d, g, count(e) over (partition by d order by g desc rows between UNBOUNDED " +
-          "PRECEDING and CURRENT ROW) FROM Table5",
+        "PRECEDING and CURRENT ROW) FROM Table5",
       Seq(
         row(1, "Hallo", 1),
         row(2, "Hallo Welt wie", 1),
@@ -640,7 +633,7 @@ class OverAggregateITCase extends BatchTestBase {
     // order by string type field
     checkResult(
       "SELECT d, g, count(e) over (partition by d order by g rows between UNBOUNDED PRECEDING and" +
-          " CURRENT ROW) FROM Table5",
+        " CURRENT ROW) FROM Table5",
       Seq(
         row(1, "Hallo", 1),
         row(2, "Hallo Welt wie", 2),
@@ -662,7 +655,7 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT a, c, count(e) over (partition by a order by c, d rows between UNBOUNDED PRECEDING " +
-          "and CURRENT ROW) FROM Table6",
+        "and CURRENT ROW) FROM Table6",
       Seq(
         row(1, "a", 1),
         row(2, "abc", 1),
@@ -713,7 +706,7 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc " +
-          "rows between UNBOUNDED PRECEDING and CURRENT ROW) FROM Table5",
+        "rows between UNBOUNDED PRECEDING and CURRENT ROW) FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 3, 3),
@@ -739,22 +732,18 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc " +
-          "rows between CURRENT ROW and UNBOUNDED FOLLOWING) FROM Table5",
+        "rows between CURRENT ROW and UNBOUNDED FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
-
         row(2, 3, 5),
         row(2, 2, 2),
-
         row(3, 6, 15),
         row(3, 5, 9),
         row(3, 4, 4),
-
         row(4, 10, 34),
         row(4, 9, 24),
         row(4, 8, 15),
         row(4, 7, 7),
-
         row(5, 15, 65),
         row(5, 14, 50),
         row(5, 13, 36),
@@ -765,22 +754,18 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc " +
-          "rows between CURRENT ROW and 2147483648 FOLLOWING) FROM Table5",
+        "rows between CURRENT ROW and 2147483648 FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
-
         row(2, 3, 5),
         row(2, 2, 2),
-
         row(3, 6, 15),
         row(3, 5, 9),
         row(3, 4, 4),
-
         row(4, 10, 34),
         row(4, 9, 24),
         row(4, 8, 15),
         row(4, 7, 7),
-
         row(5, 15, 65),
         row(5, 14, 50),
         row(5, 13, 36),
@@ -793,28 +778,25 @@ class OverAggregateITCase extends BatchTestBase {
   @Test
   def testWindowAggregationSumWithOrderByWithRowsBetween_2(): Unit = {
 
-    checkResult("SELECT d, e, f, " +
+    checkResult(
+      "SELECT d, e, f, " +
         "sum(e) over (partition by d order by e rows between 5 PRECEDING and 2 FOLLOWING)," +
         "count(*) over (partition by d order by e desc rows between 6 PRECEDING and 2 FOLLOWING)," +
         "max(f) over (partition by d order by e rows between UNBOUNDED PRECEDING and CURRENT ROW),"
         + "min(h) over (partition by d order by e desc rows between CURRENT ROW and " +
         "UNBOUNDED FOLLOWING),h FROM Table5",
       Seq(
-        //d   e   f sum cnt max min h
+        // d   e   f sum cnt max min h
         row(1, 1, 0, 1, 1, 0, 1, 1),
-
         row(2, 2, 1, 5, 2, 1, 2, 2),
         row(2, 3, 2, 5, 2, 2, 1, 1),
-
         row(3, 4, 3, 15, 3, 3, 2, 2),
         row(3, 5, 4, 15, 3, 4, 2, 2),
         row(3, 6, 5, 15, 3, 5, 2, 3),
-
         row(4, 7, 6, 24, 4, 6, 2, 2),
         row(4, 8, 7, 34, 4, 7, 1, 1),
         row(4, 9, 8, 34, 4, 8, 1, 1),
         row(4, 10, 9, 34, 3, 9, 1, 2),
-
         row(5, 11, 10, 36, 5, 10, 1, 1),
         row(5, 12, 11, 50, 5, 11, 1, 3),
         row(5, 13, 12, 65, 5, 12, 1, 3),
@@ -832,27 +814,23 @@ class OverAggregateITCase extends BatchTestBase {
         "sum(e) over (partition by d order by e desc rows between 10 PRECEDING and 1 FOLLOWING)," +
         "sum(e) over (partition by d order by e desc rows between 2 PRECEDING and 3 FOLLOWING)," +
         "sum(e) over (partition by d order by e desc range between UNBOUNDED PRECEDING " +
-          "and CURRENT ROW), " +
+        "and CURRENT ROW), " +
         "sum(e) over (partition by d order by e desc range between CURRENT ROW and UNBOUNDED " +
-          "FOLLOWING)," +
+        "FOLLOWING)," +
         "sum(e) over (partition by d order by e desc range between 1 PRECEDING and 2 FOLLOWING), " +
         "sum(e) over (partition by d order by e range between 3 PRECEDING and 3 FOLLOWING), f " +
-      "FROM Table5",
+        "FROM Table5",
       Seq(
         row(1, 1, 1, 1, 1, 1, 1, 1, 0),
-
         row(2, 3, 5, 5, 3, 5, 5, 5, 2),
         row(2, 2, 5, 5, 5, 2, 5, 5, 1),
-
         row(3, 6, 11, 15, 6, 15, 15, 15, 5),
         row(3, 5, 15, 15, 11, 9, 15, 15, 4),
         row(3, 4, 15, 15, 15, 4, 9, 15, 3),
-
         row(4, 10, 19, 34, 10, 34, 27, 34, 9),
         row(4, 9, 27, 34, 19, 24, 34, 34, 8),
         row(4, 8, 34, 34, 27, 15, 24, 34, 7),
         row(4, 7, 34, 24, 34, 7, 15, 34, 6),
-
         row(5, 15, 29, 54, 15, 65, 42, 54, 14),
         row(5, 14, 42, 65, 29, 50, 54, 65, 13),
         row(5, 13, 54, 65, 42, 36, 50, 65, 12),
@@ -1014,7 +992,7 @@ class OverAggregateITCase extends BatchTestBase {
     // test tinyint and smallint.
     checkResult(
       "SELECT d, h, dense_rank() over (order by cast(d as tinyint), cast(h as smallint) desc)" +
-          " FROM Table5",
+        " FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 2),
@@ -1040,26 +1018,22 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, e, h, rank() over (order by d), " +
-          "dense_rank() over (order by d), " +
-          "row_number() over (order by d, e desc), " +
-          "sum(e) over(partition by d order by h desc, e rows BETWEEN unbounded preceding AND 0 " +
-          "FOLLOWING ) FROM Table5",
+        "dense_rank() over (order by d), " +
+        "row_number() over (order by d, e desc), " +
+        "sum(e) over(partition by d order by h desc, e rows BETWEEN unbounded preceding AND 0 " +
+        "FOLLOWING ) FROM Table5",
       Seq(
-        //d  e h  rank dense_rank rowN  sum
+        // d  e h  rank dense_rank rowN  sum
         row(1, 1, 1, 1, 1, 1, 1),
-
         row(2, 2, 2, 2, 2, 3, 2),
         row(2, 3, 1, 2, 2, 2, 5),
-
         row(3, 6, 3, 4, 3, 4, 6),
         row(3, 4, 2, 4, 3, 6, 10),
         row(3, 5, 2, 4, 3, 5, 15),
-
         row(4, 7, 2, 7, 4, 10, 7),
         row(4, 10, 2, 7, 4, 7, 17),
         row(4, 8, 1, 7, 4, 9, 25),
         row(4, 9, 1, 7, 4, 8, 34),
-
         row(5, 12, 3, 11, 5, 14, 12),
         row(5, 13, 3, 11, 5, 13, 25),
         row(5, 14, 2, 11, 5, 12, 39),
@@ -1074,31 +1048,26 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, e, h, rank() over (order by d nulls first), " +
-          "dense_rank() over (order by d nulls first), " +
-          "row_number() over (order by d nulls first, e desc, h desc), " +
-          "sum(d) over(partition by d order by e), " +
-          "min(d) over(partition by d order by e), " +
-          "max(e) over(partition by d order by h desc, e rows BETWEEN unbounded preceding AND " +
-          "CURRENT ROW) FROM NullTable5",
+        "dense_rank() over (order by d nulls first), " +
+        "row_number() over (order by d nulls first, e desc, h desc), " +
+        "sum(d) over(partition by d order by e), " +
+        "min(d) over(partition by d order by e), " +
+        "max(e) over(partition by d order by h desc, e rows BETWEEN unbounded preceding AND " +
+        "CURRENT ROW) FROM NullTable5",
       Seq(
         //   d      e    h   rank   drank r_n sumd     min   sume
         row(null, 999, 999, 1, 1, 2, null, null, 999),
         row(null, 999, 999, 1, 1, 1, null, null, 999),
-
         row(1, 1, 1, 3, 2, 3, 1, 1, 1),
-
         row(2, 2, 2, 4, 3, 5, 2, 2, 2),
         row(2, 3, 1, 4, 3, 4, 4, 2, 3),
-
         row(3, 6, 3, 6, 4, 6, 9, 3, 6),
         row(3, 4, 2, 6, 4, 8, 3, 3, 6),
         row(3, 5, 2, 6, 4, 7, 6, 3, 6),
-
         row(4, 7, 2, 9, 5, 12, 4, 4, 7),
         row(4, 10, 2, 9, 5, 9, 16, 4, 10),
         row(4, 8, 1, 9, 5, 11, 8, 4, 10),
         row(4, 9, 1, 9, 5, 10, 12, 4, 10),
-
         row(5, 12, 3, 13, 6, 16, 10, 5, 12),
         row(5, 13, 3, 13, 6, 15, 15, 5, 13),
         row(5, 14, 2, 13, 6, 14, 20, 5, 14),
@@ -1113,46 +1082,177 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT a,b,c,d,e,f,rank() over (partition by a order by d), " +
-          "dense_rank() over (partition by a order by e desc), " +
-          "row_number() over (partition by a order by f), " +
-          "max(b) over(partition by a order by c rows BETWEEN unbounded preceding AND 0 " +
-          "FOLLOWING) FROM Table6",
+        "dense_rank() over (partition by a order by e desc), " +
+        "row_number() over (partition by a order by f), " +
+        "max(b) over(partition by a order by c rows BETWEEN unbounded preceding AND 0 " +
+        "FOLLOWING) FROM Table6",
       Seq(
         //  a  b      c       d            e             f
-        row(1, 1.1, "a", localDate("2017-04-08"), localTime("12:00:59"),
-          localDateTime("2015-05-20 10:00:00"), 1, 1, 1, 1.1),
-
-        row(2, 2.5, "abc", localDate("2017-04-09"), localTime("12:00:59"),
-          localDateTime("2019-09-19 08:03:09"), 2, 1, 2, 2.5),
-        row(2, -2.4, "abcd", localDate("2017-04-08"), localTime("00:00:00"),
-          localDateTime("2016-09-01 23:07:06"), 1, 2, 1, 2.5),
-
-        row(3, -9.77, "ABC", localDate("2016-08-08"), localTime("04:15:00"),
-          localDateTime("1999-12-12 10:00:02"), 1, 2, 2, -9.77),
-        row(3, 0.08, "BCD", localDate("2017-04-10"), localTime("02:30:00"),
-          localDateTime("1999-12-12 10:03:00"), 2, 3, 3, 0.08),
-        row(3, 0.0, "abc?", localDate("2017-10-11"), localTime("23:59:59"),
-          localDateTime("1999-12-12 10:00:00"), 3, 1, 1, 0.08),
-
-        row(4, 3.14, "CDE", localDate("2017-11-11"), localTime("02:30:00"),
-          localDateTime("2017-11-20 09:00:00"), 4, 4, 4, 3.14),
-        row(4, 3.15, "DEF", localDate("2017-02-06"), localTime("06:00:00"),
-          localDateTime("2015-11-19 10:00:00"), 1, 3, 1, 3.15),
-        row(4, 3.14, "EFG", localDate("2017-05-20"), localTime("09:46:18"),
-          localDateTime("2015-11-19 10:00:01"), 3, 2, 2, 3.15),
-        row(4, 3.16, "FGH", localDate("2017-05-19"), localTime("11:11:11"),
-          localDateTime("2015-11-20 08:59:59"), 2, 1, 3, 3.16),
-
-        row(5, -5.9, "GHI", localDate("2017-07-20"), localTime("22:22:22"),
-          localDateTime("1989-06-04 10:00:00.78"), 3, 1, 2, -5.9),
-        row(5, 2.71, "HIJ", localDate("2017-09-08"), localTime("20:09:09"),
-          localDateTime("1997-07-01 09:00:00.99"), 4, 2, 3, 2.71),
-        row(5, 3.9, "IJK", localDate("2017-02-02"), localTime("03:03:03"),
-          localDateTime("2000-01-01 00:00:00.09"), 1, 5, 4, 3.9),
-        row(5, 0.7, "JKL", localDate("2017-10-01"), localTime("19:00:00"),
-          localDateTime("2010-06-01 10:00:00.999"), 5, 3, 5, 3.9),
-        row(5, -2.8, "KLM", localDate("2017-07-01"), localTime("12:00:59"),
-          localDateTime("1937-07-07 08:08:08.888"), 2, 4, 1, 3.9)
+        row(
+          1,
+          1.1,
+          "a",
+          localDate("2017-04-08"),
+          localTime("12:00:59"),
+          localDateTime("2015-05-20 10:00:00"),
+          1,
+          1,
+          1,
+          1.1),
+        row(
+          2,
+          2.5,
+          "abc",
+          localDate("2017-04-09"),
+          localTime("12:00:59"),
+          localDateTime("2019-09-19 08:03:09"),
+          2,
+          1,
+          2,
+          2.5),
+        row(
+          2,
+          -2.4,
+          "abcd",
+          localDate("2017-04-08"),
+          localTime("00:00:00"),
+          localDateTime("2016-09-01 23:07:06"),
+          1,
+          2,
+          1,
+          2.5),
+        row(
+          3,
+          -9.77,
+          "ABC",
+          localDate("2016-08-08"),
+          localTime("04:15:00"),
+          localDateTime("1999-12-12 10:00:02"),
+          1,
+          2,
+          2,
+          -9.77),
+        row(
+          3,
+          0.08,
+          "BCD",
+          localDate("2017-04-10"),
+          localTime("02:30:00"),
+          localDateTime("1999-12-12 10:03:00"),
+          2,
+          3,
+          3,
+          0.08),
+        row(
+          3,
+          0.0,
+          "abc?",
+          localDate("2017-10-11"),
+          localTime("23:59:59"),
+          localDateTime("1999-12-12 10:00:00"),
+          3,
+          1,
+          1,
+          0.08),
+        row(
+          4,
+          3.14,
+          "CDE",
+          localDate("2017-11-11"),
+          localTime("02:30:00"),
+          localDateTime("2017-11-20 09:00:00"),
+          4,
+          4,
+          4,
+          3.14),
+        row(
+          4,
+          3.15,
+          "DEF",
+          localDate("2017-02-06"),
+          localTime("06:00:00"),
+          localDateTime("2015-11-19 10:00:00"),
+          1,
+          3,
+          1,
+          3.15),
+        row(
+          4,
+          3.14,
+          "EFG",
+          localDate("2017-05-20"),
+          localTime("09:46:18"),
+          localDateTime("2015-11-19 10:00:01"),
+          3,
+          2,
+          2,
+          3.15),
+        row(
+          4,
+          3.16,
+          "FGH",
+          localDate("2017-05-19"),
+          localTime("11:11:11"),
+          localDateTime("2015-11-20 08:59:59"),
+          2,
+          1,
+          3,
+          3.16),
+        row(
+          5,
+          -5.9,
+          "GHI",
+          localDate("2017-07-20"),
+          localTime("22:22:22"),
+          localDateTime("1989-06-04 10:00:00.78"),
+          3,
+          1,
+          2,
+          -5.9),
+        row(
+          5,
+          2.71,
+          "HIJ",
+          localDate("2017-09-08"),
+          localTime("20:09:09"),
+          localDateTime("1997-07-01 09:00:00.99"),
+          4,
+          2,
+          3,
+          2.71),
+        row(
+          5,
+          3.9,
+          "IJK",
+          localDate("2017-02-02"),
+          localTime("03:03:03"),
+          localDateTime("2000-01-01 00:00:00.09"),
+          1,
+          5,
+          4,
+          3.9),
+        row(
+          5,
+          0.7,
+          "JKL",
+          localDate("2017-10-01"),
+          localTime("19:00:00"),
+          localDateTime("2010-06-01 10:00:00.999"),
+          5,
+          3,
+          5,
+          3.9),
+        row(
+          5,
+          -2.8,
+          "KLM",
+          localDate("2017-07-01"),
+          localTime("12:00:59"),
+          localDateTime("1937-07-07 08:08:08.888"),
+          2,
+          4,
+          1,
+          3.9)
       )
     )
   }
@@ -1166,7 +1266,10 @@ class OverAggregateITCase extends BatchTestBase {
       row("fruit", 4, 33),
       row("fruit", 3, 44),
       row("fruit", 5, 22))
-    registerCollection("T", data, new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
       "category, shopId, num")
     checkResult(
       """
@@ -1182,20 +1285,23 @@ class OverAggregateITCase extends BatchTestBase {
         row("book", 1, 12, 2),
         row("fruit", 3, 44, 1),
         row("fruit", 4, 33, 2)
-      ))
+      )
+    )
   }
 
   @Test
   def testAvg(): Unit = {
     val data = Seq(
-      row("book", 1, 12.0D),
-      row("book", 2, 19.0D),
-      row("book", 4, 11.0D),
-      row("fruit", 4, 33.0D),
-      row("fruit", 3, 44.0D),
-      row("fruit", 5, 22.0D))
-    registerCollection("T",
-      data, new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, DOUBLE_TYPE_INFO),
+      row("book", 1, 12.0d),
+      row("book", 2, 19.0d),
+      row("book", 4, 11.0d),
+      row("fruit", 4, 33.0d),
+      row("fruit", 3, 44.0d),
+      row("fruit", 5, 22.0d))
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, DOUBLE_TYPE_INFO),
       "category, shopId, num")
     checkResult(
       """
@@ -1212,7 +1318,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 22.0, 27.5),
         row("fruit", 33.0, 33.0),
         row("fruit", 44.0, 33.0)
-      ))
+      )
+    )
   }
 
   @Test
@@ -1224,7 +1331,10 @@ class OverAggregateITCase extends BatchTestBase {
       row("fruit", 4, 33),
       row("fruit", 3, 44),
       row("fruit", 5, 22))
-    registerCollection("T", data, new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
       "category, shopId, num")
     // sliding frame case: 1 - 1
     checkResult(
@@ -1241,7 +1351,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 22, 22),
         row("fruit", 33, 33),
         row("fruit", 44, 44)
-      ))
+      )
+    )
     // sliding frame case: unbounded - 1
     checkResult(
       """
@@ -1258,7 +1369,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 22, 22),
         row("fruit", 33, 55),
         row("fruit", 44, 99)
-      ))
+      )
+    )
     // sliding frame case: 1 - unbounded
     checkResult(
       """
@@ -1275,7 +1387,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 22, 99),
         row("fruit", 33, 77),
         row("fruit", 44, 44)
-      ))
+      )
+    )
   }
 
   @Test
@@ -1287,7 +1400,10 @@ class OverAggregateITCase extends BatchTestBase {
       row("fruit", 4, 33),
       row("fruit", 3, 44),
       row("fruit", 5, 22))
-    registerCollection("T", data, new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
       "category, shopId, num")
     // sliding frame case: unbounded - 1
     checkResult(
@@ -1305,7 +1421,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 22, 55),
         row("fruit", 33, 99),
         row("fruit", 44, 99)
-      ))
+      )
+    )
     // sliding frame case: 1 - unbounded
     checkResult(
       """
@@ -1322,7 +1439,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 22, 99),
         row("fruit", 33, 99),
         row("fruit", 44, 77)
-      ))
+      )
+    )
   }
 
   @Test
@@ -1334,7 +1452,10 @@ class OverAggregateITCase extends BatchTestBase {
       row("fruit", 4, null),
       row("fruit", 3, 44),
       row("fruit", 5, null))
-    registerCollection("T", data, new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
       "category, shopId, num")
     checkResult(
       """
@@ -1350,7 +1471,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 44, 44),
         row("fruit", null, null),
         row("fruit", null, null)
-      ))
+      )
+    )
 
     checkResult(
       """
@@ -1366,7 +1488,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 44, 44),
         row("fruit", null, null),
         row("fruit", null, null)
-      ))
+      )
+    )
   }
 
   @Test
@@ -1378,7 +1501,10 @@ class OverAggregateITCase extends BatchTestBase {
       row("fruit", 4f, null),
       row("fruit", 3f, 44),
       row("fruit", 5f, null))
-    registerCollection("T", data, new RowTypeInfo(STRING_TYPE_INFO, FLOAT_TYPE_INFO, INT_TYPE_INFO),
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(STRING_TYPE_INFO, FLOAT_TYPE_INFO, INT_TYPE_INFO),
       "category, money, num")
     checkResult(
       """
@@ -1394,7 +1520,8 @@ class OverAggregateITCase extends BatchTestBase {
         row("fruit", 3.0, 12.0),
         row("fruit", 4.0, 12.0),
         row("fruit", 5.0, 12.0)
-      ))
+      )
+    )
   }
 
   @Test
@@ -1417,7 +1544,8 @@ class OverAggregateITCase extends BatchTestBase {
         row(0),
         row(0),
         row(0),
-        row(0)))
+        row(0))
+    )
 
     checkResult(
       "SELECT COUNT(1) OVER () FROM Table5",
@@ -1436,13 +1564,14 @@ class OverAggregateITCase extends BatchTestBase {
         row(15),
         row(15),
         row(15),
-        row(15)))
+        row(15))
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e range between -1 FOLLOWING and 10 " +
-          "FOLLOWING)" +
-          ", count(1) over (partition by d order by e range between -1 FOLLOWING and 10 " +
-          "FOLLOWING)  FROM Table5",
+        "FOLLOWING)" +
+        ", count(1) over (partition by d order by e range between -1 FOLLOWING and 10 " +
+        "FOLLOWING)  FROM Table5",
       Seq(
         row(1, 1, 1, 1),
         row(2, 2, 5, 2),
@@ -1458,13 +1587,15 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 65, 5),
         row(5, 13, 54, 4),
         row(5, 14, 42, 3),
-        row(5, 15, 29, 2)))
+        row(5, 15, 29, 2)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc range between -1 FOLLOWING and 10" +
-          " FOLLOWING)" +
-          ", count(1) over (partition by d order by e desc range between -1 FOLLOWING and 10 " +
-          "FOLLOWING)  FROM Table5",
+        " FOLLOWING)" +
+        ", count(1) over (partition by d order by e desc range between -1 FOLLOWING and 10 " +
+        "FOLLOWING)  FROM Table5",
       Seq(
         row(1, 1, 1, 1),
         row(2, 2, 5, 2),
@@ -1480,13 +1611,15 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 36, 3),
         row(5, 13, 50, 4),
         row(5, 14, 65, 5),
-        row(5, 15, 65, 5)))
+        row(5, 15, 65, 5)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc range between 1 FOLLOWING and 10 " +
-          "FOLLOWING)" +
-          ", count(1) over (partition by d order by e desc range between 1 FOLLOWING and 10 " +
-          "FOLLOWING)  FROM Table5",
+        "FOLLOWING)" +
+        ", count(1) over (partition by d order by e desc range between 1 FOLLOWING and 10 " +
+        "FOLLOWING)  FROM Table5",
       Seq(
         row(1, 1, null, 0),
         row(2, 2, null, 0),
@@ -1502,14 +1635,16 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 11, 1),
         row(5, 13, 23, 2),
         row(5, 14, 36, 3),
-        row(5, 15, 50, 4)))
+        row(5, 15, 50, 4)
+      )
+    )
   }
 
   @Test
   def testWindowAggWithPreceding(): Unit = {
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc range between 5 PRECEDING and 4 " +
-          "PRECEDING) FROM Table5",
+        "PRECEDING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1525,11 +1660,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, null)))
+        row(5, 15, null)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e range between 5 PRECEDING and 4 " +
-          "PRECEDING) FROM Table5",
+        "PRECEDING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1545,11 +1682,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, 11)))
+        row(5, 15, 11)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc rows between 5 PRECEDING and 4 " +
-          "PRECEDING) FROM Table5",
+        "PRECEDING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1565,11 +1704,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, null)))
+        row(5, 15, null)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e rows between 5 PRECEDING and 4 " +
-          "PRECEDING) FROM Table5",
+        "PRECEDING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1585,7 +1726,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, 11)))
+        row(5, 15, 11)
+      )
+    )
   }
 
   @Test
@@ -1593,7 +1736,7 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc range between 4 FOLLOWING and 5 " +
-          "FOLLOWING) FROM Table5",
+        "FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1609,11 +1752,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, 11)))
+        row(5, 15, 11)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e range between 4 FOLLOWING and 5 " +
-          "FOLLOWING) FROM Table5",
+        "FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1629,11 +1774,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, null)))
+        row(5, 15, null)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc rows between 4 FOLLOWING and 5 " +
-          "FOLLOWING) FROM Table5",
+        "FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1649,11 +1796,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, 11)))
+        row(5, 15, 11)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e rows between 4 FOLLOWING and 5 " +
-          "FOLLOWING) FROM Table5",
+        "FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, null),
         row(2, 2, null),
@@ -1669,7 +1818,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, null),
         row(5, 13, null),
         row(5, 14, null),
-        row(5, 15, null)))
+        row(5, 15, null)
+      )
+    )
   }
 
   @Test
@@ -1683,7 +1834,7 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d range between 0 PRECEDING and " +
-          "UNBOUNDED FOLLOWING) FROM NullTable",
+        "UNBOUNDED FOLLOWING) FROM NullTable",
       Seq(
         row(1, 1, 5),
         row(1, 2, 4),
@@ -1701,11 +1852,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, null, 5),
         row(3, 3, 3),
         row(3, 5, 2),
-        row(3, 5, 2)))
+        row(3, 5, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d desc range between 0 PRECEDING and " +
-          "UNBOUNDED FOLLOWING) FROM NullTable",
+        "UNBOUNDED FOLLOWING) FROM NullTable",
       Seq(
         row(1, 5, 5),
         row(1, 4, 4),
@@ -1723,11 +1876,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 5),
         row(3, 3, 3),
         row(3, null, 2),
-        row(3, null, 2)))
+        row(3, null, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d range between current row and " +
-          "UNBOUNDED FOLLOWING) FROM NullTable",
+        "UNBOUNDED FOLLOWING) FROM NullTable",
       Seq(
         row(1, 1, 5),
         row(1, 2, 4),
@@ -1745,11 +1900,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, null, 5),
         row(3, 3, 3),
         row(3, 5, 2),
-        row(3, 5, 2)))
+        row(3, 5, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d desc range between current row and " +
-          "UNBOUNDED FOLLOWING) FROM NullTable",
+        "UNBOUNDED FOLLOWING) FROM NullTable",
       Seq(
         row(1, 5, 5),
         row(1, 4, 4),
@@ -1767,14 +1924,16 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 5),
         row(3, 3, 3),
         row(3, null, 2),
-        row(3, null, 2)))
+        row(3, null, 2)
+      )
+    )
   }
 
   @Test
   def testUnboundedWindowAgg(): Unit = {
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc range between Unbounded PRECEDING" +
-          " and Unbounded FOLLOWING) FROM Table5",
+        " and Unbounded FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 5),
@@ -1790,11 +1949,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 65),
         row(5, 13, 65),
         row(5, 14, 65),
-        row(5, 15, 65)))
+        row(5, 15, 65)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e desc rows between Unbounded PRECEDING " +
-          "and Unbounded FOLLOWING) FROM Table5",
+        "and Unbounded FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 5),
@@ -1810,11 +1971,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 65),
         row(5, 13, 65),
         row(5, 14, 65),
-        row(5, 15, 65)))
+        row(5, 15, 65)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e range between Unbounded PRECEDING and " +
-          "2 FOLLOWING) FROM Table5",
+        "2 FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 5),
@@ -1830,11 +1993,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 50),
         row(5, 13, 65),
         row(5, 14, 65),
-        row(5, 15, 65)))
+        row(5, 15, 65)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e rows between Unbounded PRECEDING and 2" +
-          " FOLLOWING) FROM Table5",
+        " FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 5),
@@ -1850,11 +2015,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 50),
         row(5, 13, 65),
         row(5, 14, 65),
-        row(5, 15, 65)))
+        row(5, 15, 65)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e range between 3 PRECEDING and " +
-          "Unbounded FOLLOWING) FROM Table5",
+        "Unbounded FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 5),
@@ -1870,11 +2037,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 65),
         row(5, 13, 65),
         row(5, 14, 65),
-        row(5, 15, 54)))
+        row(5, 15, 54)
+      )
+    )
 
     checkResult(
       "SELECT d, e, sum(e) over (partition by d order by e rows between 3 PRECEDING and Unbounded" +
-          " FOLLOWING) FROM Table5",
+        " FOLLOWING) FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 5),
@@ -1890,7 +2059,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12, 65),
         row(5, 13, 65),
         row(5, 14, 65),
-        row(5, 15, 54)))
+        row(5, 15, 54)
+      )
+    )
   }
 
   @Test
@@ -1902,7 +2073,7 @@ class OverAggregateITCase extends BatchTestBase {
     registerCollection("NullTable", nullData, type5, "d, e, f, g, h", nullablesOfNullData5)
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d range between 1 PRECEDING and 2 " +
-          "FOLLOWING) FROM NullTable",
+        "FOLLOWING) FROM NullTable",
       Seq(
         row(1, 1, 2),
         row(1, 2, 4),
@@ -1920,7 +2091,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 2),
         row(3, 5, 2),
         row(3, null, 2),
-        row(3, null, 2)))
+        row(3, null, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d) FROM NullTable",
@@ -1941,7 +2114,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 5),
         row(3, 5, 5),
         row(3, null, 2),
-        row(3, null, 2)))
+        row(3, null, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d nulls first) FROM NullTable",
@@ -1962,8 +2137,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 5),
         row(3, 5, 5),
         row(3, null, 2),
-        row(3, null, 2)))
-
+        row(3, null, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, rank() over (partition by h order by d) FROM NullTable",
@@ -1984,7 +2160,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 4),
         row(3, 5, 4),
         row(3, null, 1),
-        row(3, null, 1)))
+        row(3, null, 1)
+      )
+    )
 
     checkResult(
       "SELECT h, d, rank() over (partition by h order by d nulls first) FROM NullTable",
@@ -2005,11 +2183,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 4),
         row(3, 5, 4),
         row(3, null, 1),
-        row(3, null, 1)))
+        row(3, null, 1)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d desc range between 1 PRECEDING and 2" +
-          " FOLLOWING) FROM NullTable",
+        " FOLLOWING) FROM NullTable",
       Seq(
         row(1, 1, 2),
         row(1, 2, 2),
@@ -2027,11 +2207,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 3),
         row(3, 5, 3),
         row(3, null, 2),
-        row(3, null, 2)))
+        row(3, null, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d desc nulls first range between 1 " +
-          "PRECEDING and 2 FOLLOWING) FROM NullTable",
+        "PRECEDING and 2 FOLLOWING) FROM NullTable",
       Seq(
         row(1, 1, 2),
         row(1, 2, 2),
@@ -2049,11 +2231,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 3),
         row(3, 5, 3),
         row(3, null, 2),
-        row(3, null, 2)))
+        row(3, null, 2)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d range between 1 FOLLOWING and 2 " +
-          "FOLLOWING) FROM NullTable",
+        "FOLLOWING) FROM NullTable",
       Seq(
         row(1, 1, 1),
         row(1, 2, 2),
@@ -2071,11 +2255,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 0),
         row(3, 5, 0),
         row(3, null, 0),
-        row(3, null, 0)))
+        row(3, null, 0)
+      )
+    )
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d desc range between 1 FOLLOWING and 2" +
-          " FOLLOWING) FROM NullTable",
+        " FOLLOWING) FROM NullTable",
       Seq(
         row(1, 1, 0),
         row(1, 2, 1),
@@ -2093,7 +2279,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(3, 5, 1),
         row(3, 5, 1),
         row(3, null, 0),
-        row(3, null, 0)))
+        row(3, null, 0)
+      )
+    )
   }
 
   @Test
@@ -2101,7 +2289,7 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT a,d, count(*) over (partition by a order by d RANGE between INTERVAL '0' DAY " +
-          "FOLLOWING and INTERVAL '2' DAY FOLLOWING) FROM Table6",
+        "FOLLOWING and INTERVAL '2' DAY FOLLOWING) FROM Table6",
       Seq(
         row(1, localDate("2017-04-08"), 1),
         row(2, localDate("2017-04-08"), 2),
@@ -2127,7 +2315,7 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT a, count(*) over (partition by a order by e RANGE between INTERVAL '0' HOUR " +
-          "FOLLOWING and INTERVAL '2' HOUR FOLLOWING) FROM Table6",
+        "FOLLOWING and INTERVAL '2' HOUR FOLLOWING) FROM Table6",
       Seq(
         row(1, 1),
         row(2, 1),
@@ -2153,7 +2341,7 @@ class OverAggregateITCase extends BatchTestBase {
 
     checkResult(
       "SELECT count(*) over (partition by a order by b RANGE between " +
-          "CURRENT ROW and 3.1 FOLLOWING) FROM Table6",
+        "CURRENT ROW and 3.1 FOLLOWING) FROM Table6",
       Seq(
         row(1),
         row(1),
@@ -2193,7 +2381,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, "abcd", 2),
         row(3, "ABC", 1),
         row(3, "BCD", 2),
-        row(3, "abc?", 3)))
+        row(3, "abc?", 3)
+      )
+    )
 
     checkResult(
       "SELECT a, c, count(*) over (partition by a order by c desc) FROM Table6",
@@ -2212,7 +2402,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, "abcd", 1),
         row(3, "ABC", 3),
         row(3, "BCD", 2),
-        row(3, "abc?", 1)))
+        row(3, "abc?", 1)
+      )
+    )
   }
 
   @Test
@@ -2234,15 +2426,18 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, "abc", 2),
         row(3, -9.77, "ABC", 1),
         row(3, 0.0, "abc?", 2),
-        row(3, 0.08, "BCD", 3)))
+        row(3, 0.08, "BCD", 3)
+      )
+    )
   }
 
   @Test
   def testTopNBasedShort(): Unit = {
-    val data = Seq(
-      row("book", 1, 1.asInstanceOf[Short]),
-      row("book", 2, 3.asInstanceOf[Short]))
-    registerCollection("T", data, new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, SHORT_TYPE_INFO),
+    val data = Seq(row("book", 1, 1.asInstanceOf[Short]), row("book", 2, 3.asInstanceOf[Short]))
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, SHORT_TYPE_INFO),
       "category, shopId, num")
     checkResult(
       """
@@ -2253,9 +2448,8 @@ class OverAggregateITCase extends BatchTestBase {
         |  FROM T)
         |WHERE rank_num <= 2
       """.stripMargin,
-      Seq(
-        row("book", 1, 1, 2),
-        row("book", 2, 3, 1)))
+      Seq(row("book", 1, 1, 2), row("book", 2, 3, 1))
+    )
   }
 
   @Test
@@ -2278,11 +2472,13 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, "abcd", "abc"),
         row(3, "ABC", null),
         row(3, "BCD", "ABC"),
-        row(3, "abc?", "BCD")))
+        row(3, "abc?", "BCD")
+      )
+    )
 
     checkResult(
       "SELECT a, b, lead(b, 2, 3) over (partition by a order by b), lag(b, 1, 3) over (partition " +
-          "by a order by b) FROM Table6",
+        "by a order by b) FROM Table6",
       Seq(
         row(1, 1.1, 3.0, 3.0),
         row(5, -5.9, 0.7, 3.0),
@@ -2298,7 +2494,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, 3.0, -2.4),
         row(3, -9.77, 0.08, 3.0),
         row(3, 0.0, 3.0, -9.77),
-        row(3, 0.08, 3.0, 0.0)))
+        row(3, 0.08, 3.0, 0.0)
+      )
+    )
 
     checkResult(
       "SELECT a, b, lead(b, 2, 3) over (partition by a order by b) FROM Table6",
@@ -2317,7 +2515,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, 3.0),
         row(3, -9.77, 0.08),
         row(3, 0.0, 3.0),
-        row(3, 0.08, 3.0)))
+        row(3, 0.08, 3.0)
+      )
+    )
 
     checkResult(
       "SELECT a, b, lead(b, -2, 3) over (partition by a order by b) FROM Table6",
@@ -2336,26 +2536,30 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, 3.0),
         row(3, -9.77, 3.0),
         row(3, 0.0, 3.0),
-        row(3, 0.08, -9.77)))
+        row(3, 0.08, -9.77)
+      )
+    )
 
-      checkResult(
-        "SELECT a, b, lead(b, -2, 3.0) over (partition by a order by b) FROM Table6",
-        Seq(
-          row(1, 1.1, 3.0),
-          row(5, -5.9, 3.0),
-          row(5, -2.8, 3.0),
-          row(5, 0.7, -5.9),
-          row(5, 2.71, -2.8),
-          row(5, 3.9, 0.7),
-          row(4, 3.14, 3.0),
-          row(4, 3.14, 3.0),
-          row(4, 3.15, 3.14),
-          row(4, 3.16, 3.14),
-          row(2, -2.4, 3.0),
-          row(2, 2.5, 3.0),
-          row(3, -9.77, 3.0),
-          row(3, 0.0, 3.0),
-          row(3, 0.08, -9.77)))
+    checkResult(
+      "SELECT a, b, lead(b, -2, 3.0) over (partition by a order by b) FROM Table6",
+      Seq(
+        row(1, 1.1, 3.0),
+        row(5, -5.9, 3.0),
+        row(5, -2.8, 3.0),
+        row(5, 0.7, -5.9),
+        row(5, 2.71, -2.8),
+        row(5, 3.9, 0.7),
+        row(4, 3.14, 3.0),
+        row(4, 3.14, 3.0),
+        row(4, 3.15, 3.14),
+        row(4, 3.16, 3.14),
+        row(2, -2.4, 3.0),
+        row(2, 2.5, 3.0),
+        row(3, -9.77, 3.0),
+        row(3, 0.0, 3.0),
+        row(3, 0.08, -9.77)
+      )
+    )
 
     checkResult(
       "SELECT a-2, b, lead(b, a-2, 3.0) over (partition by a order by b) FROM Table6",
@@ -2374,7 +2578,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(0, 2.5, 2.5),
         row(1, -9.77, 0.0),
         row(1, 0.0, 0.08),
-        row(1, 0.08, 3.0)))
+        row(1, 0.08, 3.0)
+      )
+    )
   }
 
   @Test
@@ -2396,7 +2602,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, 3.0),
         row(3, -9.77, 3.0),
         row(3, 0.0, 3.0),
-        row(3, 0.08, -9.77)))
+        row(3, 0.08, -9.77)
+      )
+    )
 
     checkResult(
       "SELECT a, b, lag(b, -2, 3) over (partition by a order by b) FROM Table6",
@@ -2415,7 +2623,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, 3.0),
         row(3, -9.77, 0.08),
         row(3, 0.0, 3.0),
-        row(3, 0.08, 3.0)))
+        row(3, 0.08, 3.0)
+      )
+    )
 
     checkResult(
       "SELECT a, b, lag(b, -2, b) over (partition by a order by b) FROM Table6",
@@ -2434,7 +2644,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, 2.5),
         row(3, -9.77, 0.08),
         row(3, 0.0, 0.0),
-        row(3, 0.08, 0.08)))
+        row(3, 0.08, 0.08)
+      )
+    )
 
     checkResult(
       "SELECT a, b, lag(b, a, 3) over (partition by a order by b) FROM Table6",
@@ -2453,7 +2665,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(2, 2.5, 3.0),
         row(3, -9.77, 3.0),
         row(3, 0.0, 3.0),
-        row(3, 0.08, 3.0)))
+        row(3, 0.08, 3.0)
+      )
+    )
 
     checkResult(
       "SELECT a-1, b, lag(b, a-1, 3) over (partition by a order by b) FROM Table6",
@@ -2472,14 +2686,16 @@ class OverAggregateITCase extends BatchTestBase {
         row(1, 2.5, -2.4),
         row(2, -9.77, 3.0),
         row(2, 0.0, 3.0),
-        row(2, 0.08, -9.77)))
+        row(2, 0.08, -9.77)
+      )
+    )
   }
 
   @Test
   def testMultiOverWindowRangeType(): Unit = {
     val sqlQuery = "SELECT a, c, count(*) over (partition by a, c)," +
-        "rank() over (partition by a order by c) FROM" +
-        " Table6 WHERE a = 5"
+      "rank() over (partition by a order by c) FROM" +
+      " Table6 WHERE a = 5"
     checkResult(
       sqlQuery,
       Seq(
@@ -2523,7 +2739,9 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 12L, 30, 1, 15, 1, 1, true, null, false, null),
         row(5, 13L, 30, 1, 15, 1, 1, true, null, false, null),
         row(5, 14L, 30, 1, 15, 1, 1, true, null, false, null),
-        row(5, 15L, 30, 1, 15, 1, 1, true, null, false, null)))
+        row(5, 15L, 30, 1, 15, 1, 1, true, null, false, null)
+      )
+    )
   }
 
   @Test
@@ -2531,7 +2749,8 @@ class OverAggregateITCase extends BatchTestBase {
     tEnv.unloadModule("core")
     tEnv.loadModule("test-module", new TestModule)
     tEnv.loadModule("core", CoreModule.INSTANCE)
-    registerCollection("emp",
+    registerCollection(
+      "emp",
       Seq(row("1", "A", 1), row("1", "B", 2), row("2", "C", 3)),
       new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO),
       "dep,name,salary")
@@ -2539,11 +2758,156 @@ class OverAggregateITCase extends BatchTestBase {
       "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
       Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
   }
+
+  @Test
+  def testCumeDist(): Unit = {
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by e desc)," +
+        " CUME_DIST() over (partition by d order by e) " +
+        " FROM Table5",
+      Seq(
+        row(0, 1.0, 1.0),
+        row(1, 0.9333333333333333, 0.5),
+        row(2, 0.8666666666666667, 1.0),
+        row(3, 0.8, 0.3333333333333333),
+        row(4, 0.7333333333333333, 0.6666666666666666),
+        row(5, 0.6666666666666666, 1.0),
+        row(6, 0.6, 0.25),
+        row(7, 0.5333333333333333, 0.5),
+        row(8, 0.4666666666666667, 0.75),
+        row(9, 0.4, 1.0),
+        row(10, 0.3333333333333333, 0.2),
+        row(11, 0.26666666666666666, 0.4),
+        row(12, 0.2, 0.6),
+        row(13, 0.13333333333333333, 0.8),
+        row(14, 0.06666666666666667, 1.0)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by d), CUME_DIST() over (order by d desc)" +
+        " FROM Table5",
+      Seq(
+        row(13, 1.0, 0.3333333333333333),
+        row(12, 1.0, 0.3333333333333333),
+        row(14, 1.0, 0.3333333333333333),
+        row(11, 1.0, 0.3333333333333333),
+        row(10, 1.0, 0.3333333333333333),
+        row(9, 0.6666666666666666, 0.6),
+        row(6, 0.6666666666666666, 0.6),
+        row(8, 0.6666666666666666, 0.6),
+        row(7, 0.6666666666666666, 0.6),
+        row(4, 0.4, 0.8),
+        row(5, 0.4, 0.8),
+        row(3, 0.4, 0.8),
+        row(1, 0.2, 0.9333333333333333),
+        row(2, 0.2, 0.9333333333333333),
+        row(0, 0.06666666666666667, 1.0)
+      )
+    )
+  }
+
+  @Test
+  def testPercentRank(): Unit = {
+    checkResult(
+      "SELECT f, PERCENT_RANK() over (order by e desc)," +
+        "PERCENT_RANK() over (partition by d order by e) FROM Table5",
+      Seq(
+        row(14, 0.0, 1.0),
+        row(13, 0.07142857142857142, 0.75),
+        row(12, 0.14285714285714285, 0.5),
+        row(11, 0.21428571428571427, 0.25),
+        row(10, 0.2857142857142857, 0.0),
+        row(9, 0.35714285714285715, 1.0),
+        row(8, 0.42857142857142855, 0.6666666666666666),
+        row(7, 0.5, 0.3333333333333333),
+        row(6, 0.5714285714285714, 0.0),
+        row(5, 0.6428571428571429, 1.0),
+        row(4, 0.7142857142857143, 0.5),
+        row(3, 0.7857142857142857, 0.0),
+        row(2, 0.8571428571428571, 1.0),
+        row(1, 0.9285714285714286, 0.0),
+        row(0, 1.0, 0.0)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT f, PERCENT_RANK() over (order by d), PERCENT_RANK() over (order by d desc)" +
+        " FROM Table5",
+      Seq(
+        row(0, 0.0, 1.0),
+        row(1, 0.07142857142857142, 0.8571428571428571),
+        row(2, 0.07142857142857142, 0.8571428571428571),
+        row(3, 0.21428571428571427, 0.6428571428571429),
+        row(4, 0.21428571428571427, 0.6428571428571429),
+        row(5, 0.21428571428571427, 0.6428571428571429),
+        row(6, 0.42857142857142855, 0.35714285714285715),
+        row(7, 0.42857142857142855, 0.35714285714285715),
+        row(8, 0.42857142857142855, 0.35714285714285715),
+        row(9, 0.42857142857142855, 0.35714285714285715),
+        row(10, 0.7142857142857143, 0.0),
+        row(11, 0.7142857142857143, 0.0),
+        row(12, 0.7142857142857143, 0.0),
+        row(13, 0.7142857142857143, 0.0),
+        row(14, 0.7142857142857143, 0.0)
+      )
+    )
+  }
+
+  @Test
+  def testNTILE(): Unit = {
+    checkResult(
+      "SELECT f, NTILE(4) over (order by e)," +
+        " NTILE(3) over (partition by d order by e desc) FROM Table5",
+      Seq(
+        row(0, 1, 1),
+        row(1, 1, 2),
+        row(2, 1, 1),
+        row(3, 1, 3),
+        row(4, 2, 2),
+        row(5, 2, 1),
+        row(6, 2, 3),
+        row(7, 2, 2),
+        row(8, 3, 1),
+        row(9, 3, 1),
+        row(10, 3, 3),
+        row(11, 3, 2),
+        row(12, 4, 2),
+        row(13, 4, 1),
+        row(14, 4, 1)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT d,  NTILE(4) over (order by d)" +
+        " FROM Table5",
+      Seq(
+        row(5, 3),
+        row(5, 3),
+        row(5, 4),
+        row(5, 4),
+        row(5, 4),
+        row(4, 2),
+        row(4, 2),
+        row(4, 3),
+        row(4, 3),
+        row(3, 1),
+        row(3, 2),
+        row(3, 2),
+        row(2, 1),
+        row(2, 1),
+        row(1, 1)
+      )
+    )
+  }
 }
 
 /** The initial accumulator for count aggregate function */
 class CountAccumulator extends JTuple1[Long] {
-  f0 = 0L //count
+  f0 = 0L // count
 }
 
 class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {

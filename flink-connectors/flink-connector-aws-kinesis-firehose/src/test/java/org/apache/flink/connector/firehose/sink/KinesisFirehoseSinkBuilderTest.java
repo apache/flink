@@ -22,18 +22,18 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSinkBuilder}. */
-public class KinesisFirehoseSinkBuilderTest {
+class KinesisFirehoseSinkBuilderTest {
 
     private static final SerializationSchema<String> SERIALIZATION_SCHEMA =
             new SimpleStringSchema();
 
     @Test
-    public void elementConverterOfSinkMustBeSetWhenBuilt() {
+    void elementConverterOfSinkMustBeSetWhenBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(
                         () ->
@@ -45,7 +45,7 @@ public class KinesisFirehoseSinkBuilderTest {
     }
 
     @Test
-    public void streamNameOfSinkMustBeSetWhenBuilt() {
+    void streamNameOfSinkMustBeSetWhenBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(
                         () ->
@@ -57,7 +57,7 @@ public class KinesisFirehoseSinkBuilderTest {
     }
 
     @Test
-    public void streamNameOfSinkMustBeSetToNonEmptyWhenBuilt() {
+    void streamNameOfSinkMustBeSetToNonEmptyWhenBuilt() {
         Assertions.assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
                         () ->
@@ -70,7 +70,7 @@ public class KinesisFirehoseSinkBuilderTest {
     }
 
     @Test
-    public void defaultProtocolVersionInsertedToConfiguration() {
+    void defaultProtocolVersionInsertedToConfiguration() {
         Properties expectedProps = new Properties();
         expectedProps.setProperty(AWSConfigConstants.HTTP_PROTOCOL_VERSION, "HTTP1_1");
         Properties defaultProperties =

@@ -73,7 +73,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * following changes:
  *
  * <pre>{@code
- * state.backend: hashmap
+ * state.backend.type: hashmap
  * state.checkpoint-storage: jobmanager
  * }</pre>
  *

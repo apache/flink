@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.logical
 
 import org.apache.flink.table.expressions._
@@ -28,8 +27,10 @@ import java.util.Objects
 /**
  * Logical super class for group windows.
  *
- * @param aliasAttribute window alias
- * @param timeAttribute time field indicating event-time or processing-time
+ * @param aliasAttribute
+ *   window alias
+ * @param timeAttribute
+ *   time field indicating event-time or processing-time
  */
 abstract class LogicalWindow(
     val aliasAttribute: WindowReference,
@@ -41,11 +42,12 @@ abstract class LogicalWindow(
     }
     val that = o.asInstanceOf[LogicalWindow]
     Objects.equals(aliasAttribute, that.aliasAttribute) &&
-      Objects.equals(timeAttribute, that.timeAttribute)
+    Objects.equals(timeAttribute, that.timeAttribute)
   }
 
   protected def isValueLiteralExpressionEqual(
-      l1: ValueLiteralExpression, l2: ValueLiteralExpression): Boolean = {
+      l1: ValueLiteralExpression,
+      l2: ValueLiteralExpression): Boolean = {
     if (l1 == null && l2 == null) {
       true
     } else if (l1 == null || l2 == null) {
@@ -78,9 +80,7 @@ case class TumblingGroupWindow(
     alias: WindowReference,
     timeField: FieldReferenceExpression,
     size: ValueLiteralExpression)
-  extends LogicalWindow(
-    alias,
-    timeField) {
+  extends LogicalWindow(alias, timeField) {
 
   override def equals(o: Any): Boolean = {
     if (super.equals(o)) {
@@ -102,14 +102,12 @@ case class SlidingGroupWindow(
     timeField: FieldReferenceExpression,
     size: ValueLiteralExpression,
     slide: ValueLiteralExpression)
-  extends LogicalWindow(
-    alias,
-    timeField) {
+  extends LogicalWindow(alias, timeField) {
 
   override def equals(o: Any): Boolean = {
     if (super.equals(o)) {
       isValueLiteralExpressionEqual(size, o.asInstanceOf[SlidingGroupWindow].size) &&
-        isValueLiteralExpressionEqual(slide, o.asInstanceOf[SlidingGroupWindow].slide)
+      isValueLiteralExpressionEqual(slide, o.asInstanceOf[SlidingGroupWindow].slide)
     } else {
       false
     }
@@ -126,9 +124,7 @@ case class SessionGroupWindow(
     alias: WindowReference,
     timeField: FieldReferenceExpression,
     gap: ValueLiteralExpression)
-  extends LogicalWindow(
-    alias,
-    timeField) {
+  extends LogicalWindow(alias, timeField) {
 
   override def equals(o: Any): Boolean = {
     if (super.equals(o)) {

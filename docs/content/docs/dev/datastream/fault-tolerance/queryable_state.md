@@ -125,7 +125,7 @@ In a program like the following, all records of the keyed stream will be used to
 `ValueState.update(value)`:
 
 ```java
-stream.keyBy(value -> value.f0).asQueryableState("query-name")
+stream.keyBy(value -> value.f0).asQueryableState("query-name");
 ```
 
 This acts like the Scala API's `flatMapWithState`.

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -30,14 +29,15 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexCall
 
 /**
- * Rule to convert a [[FlinkLogicalTableFunctionScan]] with window table function call
- * into a [[StreamPhysicalWindowTableFunction]].
+ * Rule to convert a [[FlinkLogicalTableFunctionScan]] with window table function call into a
+ * [[StreamPhysicalWindowTableFunction]].
  */
-class StreamPhysicalWindowTableFunctionRule  extends ConverterRule(
-  classOf[FlinkLogicalTableFunctionScan],
-  FlinkConventions.LOGICAL,
-  FlinkConventions.STREAM_PHYSICAL,
-  "StreamPhysicalWindowTableFunctionRule") {
+class StreamPhysicalWindowTableFunctionRule
+  extends ConverterRule(
+    classOf[FlinkLogicalTableFunctionScan],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.STREAM_PHYSICAL,
+    "StreamPhysicalWindowTableFunctionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)

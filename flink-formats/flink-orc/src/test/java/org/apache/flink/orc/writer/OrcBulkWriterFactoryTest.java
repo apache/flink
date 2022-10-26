@@ -35,8 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the behavior of {@link OrcBulkWriterFactory}. */
 public class OrcBulkWriterFactoryTest {
@@ -53,8 +52,8 @@ public class OrcBulkWriterFactoryTest {
         factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
 
         List<Path> addedWriterPath = memoryManager.getAddedWriterPath();
-        assertEquals(2, addedWriterPath.size());
-        assertNotEquals(addedWriterPath.get(0), addedWriterPath.get(1));
+        assertThat(addedWriterPath).hasSize(2);
+        assertThat(addedWriterPath.get(1)).isNotEqualTo(addedWriterPath.get(0));
     }
 
     private static class TestOrcBulkWriterFactory<T> extends OrcBulkWriterFactory<T> {

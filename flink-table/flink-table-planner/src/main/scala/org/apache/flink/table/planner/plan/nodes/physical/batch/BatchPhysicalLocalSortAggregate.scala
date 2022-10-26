@@ -15,20 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
-import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.util.ImmutableIntList
 
@@ -39,7 +39,8 @@ import scala.collection.JavaConversions._
 /**
  * Batch physical RelNode for local sort-based aggregate operator.
  *
- * @see [[BatchPhysicalGroupAggregateBase]] for more info.
+ * @see
+ *   [[BatchPhysicalGroupAggregateBase]] for more info.
  */
 class BatchPhysicalLocalSortAggregate(
     cluster: RelOptCluster,
@@ -74,19 +75,23 @@ class BatchPhysicalLocalSortAggregate(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .itemIf("groupBy",
-        RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
-      .itemIf("auxGrouping",
-        RelExplainUtil.fieldToString(auxGrouping, inputRowType), auxGrouping.nonEmpty)
-      .item("select", RelExplainUtil.groupAggregationToString(
-        inputRowType,
-        outputRowType,
-        grouping,
-        auxGrouping,
-        aggCallToAggFunction,
-        isMerge = false,
-        isGlobal = false))
+    super
+      .explainTerms(pw)
+      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
+      .itemIf(
+        "auxGrouping",
+        RelExplainUtil.fieldToString(auxGrouping, inputRowType),
+        auxGrouping.nonEmpty)
+      .item(
+        "select",
+        RelExplainUtil.groupAggregationToString(
+          inputRowType,
+          outputRowType,
+          grouping,
+          auxGrouping,
+          aggCallToAggFunction,
+          isMerge = false,
+          isGlobal = false))
   }
 
   override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
@@ -129,6 +134,7 @@ class BatchPhysicalLocalSortAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecSortAggregate(
+      unwrapTableConfig(this),
       grouping,
       auxGrouping,
       getAggCallList.toArray,
@@ -137,8 +143,7 @@ class BatchPhysicalLocalSortAggregate(
       false, // isFinal is always false
       getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   private def getInputProperty: InputProperty = {

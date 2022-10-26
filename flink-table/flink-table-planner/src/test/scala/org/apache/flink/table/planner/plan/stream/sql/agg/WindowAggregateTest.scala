@@ -15,27 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvgWithMerge, WeightedAvg}
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc1
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
-import org.junit.Assume.assumeTrue
+
 import org.junit.{Before, Test}
+import org.junit.Assume.assumeTrue
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import java.util
 
-/**
- * Tests for window aggregates based on window table-valued function.
- */
+/** Tests for window aggregates based on window table-valued function. */
 @RunWith(classOf[Parameterized])
 class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends TableTestBase {
 
@@ -52,26 +50,24 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   def before(): Unit = {
     util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
     util.addTemporarySystemFunction("weightedAvgWithoutMerge", classOf[WeightedAvg])
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  a INT,
-         |  b BIGINT,
-         |  c STRING NOT NULL,
-         |  d DECIMAL(10, 3),
-         |  e BIGINT,
-         |  rowtime TIMESTAMP(3),
-         |  proctime as PROCTIME(),
-         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
-         |) with (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable (
+                                |  a INT,
+                                |  b BIGINT,
+                                |  c STRING NOT NULL,
+                                |  d DECIMAL(10, 3),
+                                |  e BIGINT,
+                                |  rowtime TIMESTAMP(3),
+                                |  proctime as PROCTIME(),
+                                |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+                                |) with (
+                                |  'connector' = 'values'
+                                |)
+                                |""".stripMargin)
 
     // set agg-phase strategy
-    util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      aggPhaseEnforcer.toString)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
   }
 
   @Test
@@ -284,8 +280,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testTumble_DistinctSplitEnabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT
@@ -304,8 +300,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testTumble_DistinctOnWindowColumns(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     // window_time is used in agg arg, thus we shouldn't merge WindowTVF into WindowAggregate.
     // actually, after expanded, there's HASH_CODE(window_time),
     // and thus we shouldn't transpose WindowTVF and Expand too.
@@ -328,8 +324,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   def testTumble_DoNotSplitProcessingTimeWindow(): Unit = {
     assumeTrue(isTwoPhase)
     // the processing-time window aggregate with distinct shouldn't be split into two-level agg
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT
@@ -426,8 +422,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testCumulate_DistinctSplitEnabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT
@@ -488,8 +484,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testHop_DistinctSplitEnabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT
@@ -515,38 +511,35 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |SELECT * FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
         |""".stripMargin)
     val statementSet = util.tableEnv.createStatementSet()
-    util.tableEnv.executeSql(
-      """
-        |CREATE TABLE s1 (
-        |  wstart TIMESTAMP(3),
-        |  wend TIMESTAMP(3),
-        |  `result` BIGINT
-        |) WITH (
-        |  'connector' = 'values'
-        |)
-        |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE s1 (
+                               |  wstart TIMESTAMP(3),
+                               |  wend TIMESTAMP(3),
+                               |  `result` BIGINT
+                               |) WITH (
+                               |  'connector' = 'values'
+                               |)
+                               |""".stripMargin)
 
-    statementSet.addInsertSql(
-      """
-        |INSERT INTO s1
-        |SELECT
-        |   window_start,
-        |   window_end,
-        |   weightedAvg(b, e) AS wAvg
-        |FROM tvf
-        |GROUP BY window_start, window_end
-        |""".stripMargin)
+    statementSet.addInsertSql("""
+                                |INSERT INTO s1
+                                |SELECT
+                                |   window_start,
+                                |   window_end,
+                                |   weightedAvg(b, e) AS wAvg
+                                |FROM tvf
+                                |GROUP BY window_start, window_end
+                                |""".stripMargin)
 
-    statementSet.addInsertSql(
-      """
-        |INSERT INTO s1
-        |SELECT
-        |   window_start,
-        |   window_end,
-        |   count(*)
-        |FROM tvf
-        |GROUP BY window_start, window_end
-        |""".stripMargin)
+    statementSet.addInsertSql("""
+                                |INSERT INTO s1
+                                |SELECT
+                                |   window_start,
+                                |   window_end,
+                                |   count(*)
+                                |FROM tvf
+                                |GROUP BY window_start, window_end
+                                |""".stripMargin)
 
     util.verifyExecPlan(statementSet)
   }
@@ -657,9 +650,10 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Currently, window table function based aggregate doesn't support " +
-      "early-fire and late-fire configuration 'table.exec.emit.early-fire.enabled' and " +
-      "'table.exec.emit.late-fire.enabled'.")
+    thrown.expectMessage(
+      "Currently, window table function based aggregate doesn't support " +
+        "early-fire and late-fire configuration 'table.exec.emit.early-fire.enabled' and " +
+        "'table.exec.emit.late-fire.enabled'.")
     util.verifyExecPlan(sql)
   }
 
@@ -686,9 +680,10 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Currently, window table function based aggregate doesn't support " +
-      "early-fire and late-fire configuration 'table.exec.emit.early-fire.enabled' and " +
-      "'table.exec.emit.late-fire.enabled'.")
+    thrown.expectMessage(
+      "Currently, window table function based aggregate doesn't support " +
+        "early-fire and late-fire configuration 'table.exec.emit.early-fire.enabled' and " +
+        "'table.exec.emit.late-fire.enabled'.")
     util.verifyExecPlan(sql)
   }
 
@@ -707,8 +702,9 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("HOP table function based aggregate requires size must be an " +
-      "integral multiple of slide, but got size 600000 ms and slide 240000 ms")
+    thrown.expectMessage(
+      "HOP table function based aggregate requires size must be an " +
+        "integral multiple of slide, but got size 600000 ms and slide 240000 ms")
     util.verifyExplain(sql)
   }
 
@@ -727,8 +723,9 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("CUMULATE table function based aggregate requires maxSize " +
-      "must be an integral multiple of step, but got maxSize 3600000 ms and step 1500000 ms")
+    thrown.expectMessage(
+      "CUMULATE table function based aggregate requires maxSize " +
+        "must be an integral multiple of step, but got maxSize 3600000 ms and step 1500000 ms")
     util.verifyExplain(sql)
   }
 
@@ -792,8 +789,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testTumble_GroupingSetsDistinctSplitEnabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT
@@ -855,21 +852,21 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testCantMergeWindowTVF_GroupingSetsDistinctOnWindowColumns(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     // window_time is used in agg arg, thus we shouldn't merge WindowTVF into WindowAggregate.
     // actually, after expanded, there's HASH_CODE(window_time),
     // and thus we shouldn't transpose WindowTVF and Expand too.
     val sql =
-    """
-      |SELECT
-      |   a,
-      |   b,
-      |   count(*),
-      |   max(d) filter (where b > 1000),
-      |   count(distinct window_time) AS uv
-      |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
-      |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(*),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct window_time) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
   }
@@ -891,8 +888,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testHop_GroupingSets_DistinctSplitEnabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT
@@ -954,8 +951,8 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @Test
   def testCumulate_GroupingSets_DistinctSplitEnabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT

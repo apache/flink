@@ -15,29 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.sql.`type`.BasicSqlType
+import org.apache.calcite.sql.`type`.SqlTypeName.TIMESTAMP
 
 import java.lang
 
-import org.apache.calcite.sql.`type`.SqlTypeName.TIMESTAMP
-
 /**
-  * Creates a time indicator type for event-time or processing-time, but with similar properties
-  * as a basic SQL type.
-  */
+ * Creates a time indicator type for event-time or processing-time, but with similar properties as a
+ * basic SQL type.
+ */
 class TimeIndicatorRelDataType(
     val typeSystem: RelDataTypeSystem,
     val originalType: BasicSqlType,
     val nullable: Boolean,
     val isEventTime: Boolean)
-  extends BasicSqlType(
-    typeSystem,
-    originalType.getSqlTypeName,
-    originalType.getPrecision) {
+  extends BasicSqlType(typeSystem, originalType.getSqlTypeName, originalType.getPrecision) {
 
   this.isNullable = nullable
   computeDigest()

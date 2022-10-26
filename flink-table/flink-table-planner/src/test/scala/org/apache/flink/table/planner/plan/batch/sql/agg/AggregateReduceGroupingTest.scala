@@ -19,6 +19,4 @@ package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.table.planner.plan.common.AggregateReduceGroupingTestBase
 
-class AggregateReduceGroupingTest extends AggregateReduceGroupingTestBase(true) {
-
-}
+class AggregateReduceGroupingTest extends AggregateReduceGroupingTestBase(true) {}

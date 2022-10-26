@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -33,51 +32,74 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<glue.schema.registry.version>1.1.8</glue.schema.registry.version>
-		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
+		<glue.schema.registry.version>1.1.14</glue.schema.registry.version>
+		<aws.sdkv2.version>2.17.247</aws.sdkv2.version>
 		<netty.version>4.1.68.Final</netty.version>
-		<kotlin.version>1.3.50</kotlin.version>
+		<kotlin.version>1.7.10</kotlin.version>
 		<classgraph.version>4.8.120</classgraph.version>
 	</properties>
 
-	<!-- ============================= -->
-	<!-- DEPENDENCY MANAGEMENT -->
-	<!-- ============================= -->
 	<dependencyManagement>
 		<dependencies>
-			<!-- dependencies to solve enforcer check issue -->
-			<!-- can be removed once new version of Glue Schema Registry releases -->
-
 			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-handler</artifactId>
-				<version>${netty.version}</version>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdkv2.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 
+			<!-- For dependency convergence -->
 			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-codec-http</artifactId>
-				<version>${netty.version}</version>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+				<version>3.21.7</version>
 			</dependency>
-
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>30.0-jre</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-reflect</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-stdlib</artifactId>
 				<version>${kotlin.version}</version>
 			</dependency>
-
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-stdlib-common</artifactId>
 				<version>${kotlin.version}</version>
 			</dependency>
-
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk8</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-scripting-compiler-embeddable</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlinx</groupId>
+				<artifactId>kotlinx-serialization-core-jvm</artifactId>
+				<version>1.0.1</version>
+			</dependency>
 			<dependency>
 				<groupId>io.github.classgraph</groupId>
 				<artifactId>classgraph</artifactId>
-				<version>${classgraph.version}</version>
+				<version>4.8.120</version>
 			</dependency>
-
+			<dependency>
+				<groupId>org.jetbrains</groupId>
+				<artifactId>annotations</artifactId>
+				<version>17.0.0</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -117,30 +139,18 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>aws-core</artifactId>
-			<version>${aws.sdkv2.version}</version>
-		</dependency>
-
-		<dependency>
 			<groupId>com.kjetland</groupId>
 			<artifactId>mbknor-jackson-jsonschema_${scala.binary.version}</artifactId>
 			<version>1.0.39</version>
-			<exclusions>
-				<!-- Testcontainers dependency includes a newer version -->
-				<exclusion>
-					<groupId>org.jetbrains</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
+
+		<!-- ArchUit test dependencies -->
 
 		<dependency>
-			<groupId>com.github.erosb</groupId>
-			<artifactId>everit-json-schema</artifactId>
-			<version>1.12.2</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
 		</dependency>
-
 	</dependencies>
 
 </project>

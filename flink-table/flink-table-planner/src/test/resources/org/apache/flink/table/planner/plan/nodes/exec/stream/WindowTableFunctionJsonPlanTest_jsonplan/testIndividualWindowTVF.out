@@ -168,6 +168,9 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-window-table-function_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "windowing" : {
       "strategy" : "TimeAttribute",
       "window" : {
@@ -261,6 +264,12 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

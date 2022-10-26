@@ -30,12 +30,18 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractDataStreamPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.PythonCoProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedCoProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
+import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.AbstractEmbeddedDataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonKeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonWindowOperator;
+import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonProcessOperator;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
@@ -66,6 +72,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+
+import static org.apache.flink.python.util.PythonConfigUtil.getOperatorFactory;
 
 /**
  * A util class which attempts to chain all available Python functions.
@@ -256,18 +264,23 @@ public class PythonOperatorChainingOptimizer {
         return chainInfo;
     }
 
+    @SuppressWarnings("unchecked")
     private static Transformation<?> createChainedTransformation(
             Transformation<?> upTransform, Transformation<?> downTransform) {
-        final AbstractDataStreamPythonFunctionOperator<?> upOperator =
-                (AbstractDataStreamPythonFunctionOperator<?>)
+        DataStreamPythonFunctionOperator<?> upOperator =
+                (DataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
-        final PythonProcessOperator<?, ?> downOperator =
-                (PythonProcessOperator<?, ?>)
+
+        DataStreamPythonFunctionOperator<?> downOperator =
+                (DataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
                                 .getOperator();
 
+        assert arePythonOperatorsInSameExecutionEnvironment(upOperator, downOperator);
+
         final DataStreamPythonFunctionInfo upPythonFunctionInfo =
                 upOperator.getPythonFunctionInfo().copy();
+
         final DataStreamPythonFunctionInfo downPythonFunctionInfo =
                 downOperator.getPythonFunctionInfo().copy();
 
@@ -280,15 +293,14 @@ public class PythonOperatorChainingOptimizer {
         headPythonFunctionInfoOfDownOperator.setInputs(
                 new DataStreamPythonFunctionInfo[] {upPythonFunctionInfo});
 
-        final AbstractDataStreamPythonFunctionOperator<?> chainedOperator =
-                upOperator.copy(downPythonFunctionInfo, downOperator.getProducedType());
-
-        // set partition custom flag
-        chainedOperator.setContainsPartitionCustom(
-                downOperator.containsPartitionCustom() || upOperator.containsPartitionCustom());
+        final DataStreamPythonFunctionOperator chainedOperator =
+                upOperator.copy(
+                        downPythonFunctionInfo,
+                        ((DataStreamPythonFunctionOperator) downOperator).getProducedType());
+        chainedOperator.addSideOutputTags(downOperator.getSideOutputTags());
 
         PhysicalTransformation<?> chainedTransformation;
-        if (upOperator instanceof AbstractOneInputPythonFunctionOperator) {
+        if (upOperator instanceof OneInputStreamOperator) {
             chainedTransformation =
                     new OneInputTransformation(
                             upTransform.getInputs().get(0),
@@ -394,19 +406,39 @@ public class PythonOperatorChainingOptimizer {
             return false;
         }
 
-        final AbstractDataStreamPythonFunctionOperator<?> upOperator =
-                (AbstractDataStreamPythonFunctionOperator<?>)
+        DataStreamPythonFunctionOperator<?> upOperator =
+                (DataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
-        final AbstractDataStreamPythonFunctionOperator<?> downOperator =
-                (AbstractDataStreamPythonFunctionOperator<?>)
+
+        DataStreamPythonFunctionOperator<?> downOperator =
+                (DataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
                                 .getOperator();
 
-        return downOperator instanceof PythonProcessOperator
-                && (upOperator instanceof PythonKeyedProcessOperator
-                        || upOperator instanceof PythonKeyedCoProcessOperator
-                        || upOperator instanceof PythonProcessOperator
-                        || upOperator instanceof PythonCoProcessOperator);
+        if (!arePythonOperatorsInSameExecutionEnvironment(upOperator, downOperator)) {
+            return false;
+        }
+
+        return (downOperator instanceof ExternalPythonProcessOperator
+                        && (upOperator instanceof ExternalPythonKeyedProcessOperator
+                                || upOperator instanceof ExternalPythonKeyedCoProcessOperator
+                                || upOperator instanceof ExternalPythonProcessOperator
+                                || upOperator instanceof ExternalPythonCoProcessOperator))
+                || (downOperator instanceof EmbeddedPythonProcessOperator
+                        && (upOperator instanceof EmbeddedPythonKeyedProcessOperator
+                                || upOperator instanceof EmbeddedPythonKeyedCoProcessOperator
+                                || upOperator instanceof EmbeddedPythonProcessOperator
+                                || upOperator instanceof EmbeddedPythonCoProcessOperator
+                                || upOperator instanceof EmbeddedPythonWindowOperator));
+    }
+
+    private static boolean arePythonOperatorsInSameExecutionEnvironment(
+            DataStreamPythonFunctionOperator<?> upOperator,
+            DataStreamPythonFunctionOperator<?> downOperator) {
+        return upOperator instanceof AbstractExternalDataStreamPythonFunctionOperator
+                        && downOperator instanceof AbstractExternalDataStreamPythonFunctionOperator
+                || upOperator instanceof AbstractEmbeddedDataStreamPythonFunctionOperator
+                        && downOperator instanceof AbstractEmbeddedDataStreamPythonFunctionOperator;
     }
 
     private static boolean areOperatorsChainableByChainingStrategy(
@@ -453,18 +485,6 @@ public class PythonOperatorChainingOptimizer {
     }
 
     // ----------------------- Utility Methods -----------------------
-
-    private static StreamOperatorFactory<?> getOperatorFactory(Transformation<?> transform) {
-        if (transform instanceof OneInputTransformation) {
-            return ((OneInputTransformation<?, ?>) transform).getOperatorFactory();
-        } else if (transform instanceof TwoInputTransformation) {
-            return ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory();
-        } else if (transform instanceof AbstractMultipleInputTransformation) {
-            return ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory();
-        } else {
-            return null;
-        }
-    }
 
     private static void replaceInput(
             Transformation<?> transformation,

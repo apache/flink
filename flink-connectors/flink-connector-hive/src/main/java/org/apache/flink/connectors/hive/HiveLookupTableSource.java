@@ -242,7 +242,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
 
         PartitionReader<HiveTablePartition, RowData> partitionReader =
                 new HiveInputFormatPartitionReader(
-                        flinkConf,
+                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM),
                         jobConf,
                         hiveVersion,
                         tablePath,

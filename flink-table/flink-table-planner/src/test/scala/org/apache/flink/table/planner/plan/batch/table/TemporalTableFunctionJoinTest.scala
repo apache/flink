@@ -30,11 +30,11 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
 
   val util: TableTestUtil = batchTestUtil()
 
-  val orders = util.addDataStream[(Long, String, Timestamp)](
-    "Orders", 'o_amount, 'o_currency, 'rowtime)
+  val orders =
+    util.addDataStream[(Long, String, Timestamp)]("Orders", 'o_amount, 'o_currency, 'rowtime)
 
-  val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
-    "RatesHistory", 'currency, 'rate, 'rowtime)
+  val ratesHistory =
+    util.addDataStream[(String, Int, Timestamp)]("RatesHistory", 'currency, 'rate, 'rowtime)
 
   val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
   util.addTemporarySystemFunction("Rates", rates)
@@ -47,7 +47,8 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
     val result = orders
       .as("o_amount", "o_currency", "o_rowtime")
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select($"o_amount" * $"rate").as("rate")
+      .select($"o_amount" * $"rate")
+      .as("rate")
 
     util.verifyExecPlan(result)
   }
@@ -55,8 +56,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
   @Test
   def testUncorrelatedJoin(): Unit = {
     expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      containsString("Cannot generate a valid execution plan"))
+    expectedException.expectMessage(containsString("Cannot generate a valid execution plan"))
 
     val result = orders
       .as("o_amount", "o_currency", "o_rowtime")

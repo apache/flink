@@ -18,7 +18,7 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
@@ -30,7 +30,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
  * access to the previously accepted elements in the pattern. Conditions that extend this class are
  * simple {@code filter(...)} functions that decide based on the properties of the element at hand.
  */
-@Internal
+@PublicEvolving
 public abstract class SimpleCondition<T> extends IterativeCondition<T>
         implements FilterFunction<T> {
 
@@ -39,5 +39,14 @@ public abstract class SimpleCondition<T> extends IterativeCondition<T>
     @Override
     public boolean filter(T value, Context<T> ctx) throws Exception {
         return filter(value);
+    }
+
+    public static <T> SimpleCondition<T> of(FilterFunction<T> filters) {
+        return new SimpleCondition<T>() {
+            @Override
+            public boolean filter(T value) throws Exception {
+                return filters.filter(value);
+            }
+        };
     }
 }

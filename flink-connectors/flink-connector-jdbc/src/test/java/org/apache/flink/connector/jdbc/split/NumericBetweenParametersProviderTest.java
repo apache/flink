@@ -22,7 +22,7 @@ import org.junit.Test;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JdbcNumericBetweenParametersProvider}. */
 public class NumericBetweenParametersProviderTest {
@@ -116,10 +116,10 @@ public class NumericBetweenParametersProviderTest {
     }
 
     private void check(long[][] expected, Serializable[][] actual) {
-        assertEquals(expected.length, actual.length);
+        assertThat(actual).hasDimensions(expected.length, expected[0].length);
         for (int i = 0; i < expected.length; i++) {
-            for (int j = 0; j < 2; j++) {
-                assertEquals(expected[i][j], ((Long) actual[i][j]).longValue());
+            for (int j = 0; j < expected[i].length; j++) {
+                assertThat(((Long) actual[i][j]).longValue()).isEqualTo(expected[i][j]);
             }
         }
     }

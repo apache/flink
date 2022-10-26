@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -33,17 +32,16 @@ import org.apache.flink.table.runtime.context.ExecutionContext
 import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
+import org.powermock.api.mockito.PowerMockito.{mock, when}
 
-/**
-  * Agg test base to mock agg information and etc.
-  */
+/** Agg test base to mock agg information and etc. */
 abstract class AggTestBase(isBatchMode: Boolean) {
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  val typeFactory: FlinkTypeFactory =
+    new FlinkTypeFactory(Thread.currentThread().getContextClassLoader, FlinkTypeSystem.INSTANCE)
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
   private val tEnv = if (isBatchMode) {
     val settings = EnvironmentSettings.newInstance().inBatchMode().build()
@@ -57,12 +55,15 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val inputNames = Array("f0", "f1", "f2", "f3", "f4")
   val inputTypes: Array[LogicalType] = Array(
-    VarCharType.STRING_TYPE, new BigIntType(), new DoubleType(), new BigIntType(),
+    VarCharType.STRING_TYPE,
+    new BigIntType(),
+    new DoubleType(),
+    new BigIntType(),
     VarCharType.STRING_TYPE)
   val inputType: RowType = RowType.of(inputTypes, inputNames)
 
-  val relBuilder: RelBuilder = planner.getRelBuilder.values(
-    typeFactory.buildRelNodeRowType(inputNames, inputTypes))
+  val relBuilder: RelBuilder =
+    planner.createRelBuilder.values(typeFactory.buildRelNodeRowType(inputNames, inputTypes))
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
@@ -108,9 +109,9 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     aggInfo
   }
 
-  val aggInfoList = AggregateInfoList(
-    Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
-  val ctx = new CodeGeneratorContext(tEnv.getConfig.getConfiguration)
+  val aggInfoList =
+    AggregateInfoList(Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
+  val ctx = new CodeGeneratorContext(tEnv.getConfig, Thread.currentThread().getContextClassLoader)
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])
   when(context, "getRuntimeContext").thenReturn(mock(classOf[RuntimeContext]))

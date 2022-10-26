@@ -23,28 +23,29 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 
-/**
-  * Test for [[PruneAggregateCallRule]]#CALC_ON_AGGREGATE.
-  */
+/** Test for [[PruneAggregateCallRule]]#CALC_ON_AGGREGATE. */
 class CalcPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
 
   override def setup(): Unit = {
     super.setup()
     util.buildBatchProgram(FlinkBatchProgram.LOGICAL)
     val programs = util.getBatchProgram()
-    programs.addLast("rules",
+    programs.addLast(
+      "rules",
       FlinkHepRuleSetProgramBuilder.newBuilder
-      .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-      .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-      .add(RuleSets.ofList(
-        AggregateReduceGroupingRule.INSTANCE,
-        CoreRules.FILTER_CALC_MERGE,
-        CoreRules.PROJECT_CALC_MERGE,
-        CoreRules.FILTER_TO_CALC,
-        CoreRules.PROJECT_TO_CALC,
-        FlinkCalcMergeRule.INSTANCE,
-        PruneAggregateCallRule.CALC_ON_AGGREGATE)
-      ).build())
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(RuleSets.ofList(
+          AggregateReduceGroupingRule.INSTANCE,
+          CoreRules.FILTER_CALC_MERGE,
+          CoreRules.PROJECT_CALC_MERGE,
+          CoreRules.FILTER_TO_CALC,
+          CoreRules.PROJECT_TO_CALC,
+          FlinkCalcMergeRule.INSTANCE,
+          PruneAggregateCallRule.CALC_ON_AGGREGATE
+        ))
+        .build()
+    )
     util.replaceBatchProgram(programs)
   }
 }

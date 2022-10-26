@@ -24,13 +24,32 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+{{< hint warning >}}
+Starting with Flink 1.12 the DataSet API has been soft deprecated.
+
+We recommend that you check out [Flink ML Iterations](https://nightlies.apache.org/flink/flink-ml-docs-stable/docs/development/iteration/)
+as a potential replacement.
+
+We recommend that you use the [Table API and SQL]({{< ref "docs/dev/table/overview" >}}) to run efficient
+batch pipelines in a fully unified API. Table API is well integrated with common batch connectors and
+catalogs.
+
+Alternatively, you can also use the DataStream API with `BATCH` [execution mode]({{< ref "docs/dev/datastream/execution_mode" >}}).
+The linked section also outlines cases where it makes sense to use the DataSet API but those cases will
+become rarer as development progresses and the DataSet API will eventually be removed. Please also
+see [FLIP-131](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741) for
+background information on this decision.
+{{< /hint >}}
+
 # 迭代
 
 Iterative algorithms occur in many domains of data analysis, such as *machine learning* or *graph analysis*. Such algorithms are crucial in order to realize the promise of Big Data to extract meaningful information out of your data. With increasing interest to run these kinds of algorithms on very large data sets, there is a need to execute iterations in a massively parallel fashion.
 
 Flink programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
 
-Here, we provide background on both operator variants and outline their usage. The [programming guide](index.html) explains how to implement the operators in both Scala and Java. We also support both **vertex-centric and gather-sum-apply iterations** through Flink's graph processing API, [Gelly]({{< ref "docs/libs/gelly/overview" >}}).
+Here, we provide background on both operator variants and outline their usage.
+The [programming guide]({{< ref "docs/dev/dataset/overview" >}}) explains how to implement the
+operators in both Scala and Java.
 
 The following table provides an overview of both operators:
 
@@ -171,7 +190,7 @@ IterationState solution = getInitialSolution();
 while (!terminationCriterion()) {
 	(delta, workset) = step(workset, solution);
 
-	solution.update(delta)
+	solution.update(delta);
 }
 
 setFinalState(solution);

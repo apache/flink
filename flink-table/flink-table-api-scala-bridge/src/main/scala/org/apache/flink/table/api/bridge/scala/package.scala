@@ -18,14 +18,14 @@
 package org.apache.flink.table.api.bridge
 
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.{ImplicitExpressionConversions, ImplicitExpressionOperations, Table, ValidationException}
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.types.Row
 
 import _root_.scala.language.implicitConversions
 
 /**
- * == Table & SQL API with Flink's DataStream API ==
+ * ==Table & SQL API with Flink's DataStream API==
  *
  * This package contains the API of the Table & SQL API that bridges to Flink's [[DataStream]] API
  * for the Scala programming language. Users can create [[Table]]s from [[DataStream]]s on which
@@ -51,9 +51,7 @@ import _root_.scala.language.implicitConversions
  */
 package object scala {
 
-  /**
-   * Conversions from [[Table]] to [[DataStream]].
-   */
+  /** Conversions from [[Table]] to [[DataStream]]. */
   implicit def tableConversions(table: Table): TableConversions = {
     new TableConversions(table)
   }
@@ -70,14 +68,12 @@ package object scala {
     if (!tableEnv.isInstanceOf[StreamTableEnvironment]) {
       throw new ValidationException(
         "Table cannot be converted into a Scala DataStream. " +
-        "It is not part of a Scala StreamTableEnvironment.")
+          "It is not part of a Scala StreamTableEnvironment.")
     }
     tableEnv.asInstanceOf[StreamTableEnvironment].toChangelogStream(table)
   }
 
-  /**
-   * Conversions from [[DataStream]] to [[Table]].
-   */
+  /** Conversions from [[DataStream]] to [[Table]]. */
   implicit def dataStreamConversions[T](set: DataStream[T]): DataStreamConversions[T] = {
     new DataStreamConversions[T](set)
   }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
@@ -39,9 +38,7 @@ import org.apache.calcite.rex.{RexInputRef, RexProgram}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-/**
- * Rule to convert a [[FlinkLogicalAggregate]] into a [[StreamPhysicalWindowAggregate]].
- */
+/** Rule to convert a [[FlinkLogicalAggregate]] into a [[StreamPhysicalWindowAggregate]]. */
 class StreamPhysicalWindowAggregateRule
   extends ConverterRule(
     classOf[FlinkLogicalAggregate],
@@ -111,7 +108,8 @@ class StreamPhysicalWindowAggregateRule
       FlinkRelDistribution.SINGLETON
     }
 
-    val requiredTraitSet = agg.getCluster.getPlanner.emptyTraitSet()
+    val requiredTraitSet = agg.getCluster.getPlanner
+      .emptyTraitSet()
       .replace(requiredDistribution)
       .replace(FlinkConventions.STREAM_PHYSICAL)
     val providedTraitSet = agg.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
@@ -123,11 +121,8 @@ class StreamPhysicalWindowAggregateRule
       startColumns.head,
       endColumns.head)
 
-    val windowProperties = createPlannerNamedWindowProperties(
-      windowingStrategy,
-      startColumns,
-      endColumns,
-      timeColumns)
+    val windowProperties =
+      createPlannerNamedWindowProperties(windowingStrategy, startColumns, endColumns, timeColumns)
 
     new StreamPhysicalWindowAggregate(
       agg.getCluster,
@@ -208,27 +203,24 @@ class StreamPhysicalWindowAggregateRule
       timeColumns: Array[Int],
       windowProperties: Seq[NamedWindowProperty],
       aggCount: Int): Array[Int] = {
-    val (startPos, endPos, timePos) = windowPropertyPositions(
-      windowProperties,
-      newGrouping,
-      aggCount)
-    val keyMapping = grouping.map { key =>
-      if (newGrouping.contains(key)) {
-        newGrouping.indexOf(key)
-      } else if (startColumns.contains(key)) {
-        startPos
-      } else if (endColumns.contains(key)) {
-        endPos
-      } else if (timeColumns.contains(key)) {
-        timePos
-      } else {
-        throw new IllegalArgumentException(
-          s"Can't find grouping key $$$key, this should never happen.")
-      }
+    val (startPos, endPos, timePos) =
+      windowPropertyPositions(windowProperties, newGrouping, aggCount)
+    val keyMapping = grouping.map {
+      key =>
+        if (newGrouping.contains(key)) {
+          newGrouping.indexOf(key)
+        } else if (startColumns.contains(key)) {
+          startPos
+        } else if (endColumns.contains(key)) {
+          endPos
+        } else if (timeColumns.contains(key)) {
+          timePos
+        } else {
+          throw new IllegalArgumentException(
+            s"Can't find grouping key $$$key, this should never happen.")
+        }
     }
-    val aggMapping = (0 until aggCount).map { aggIndex =>
-      newGrouping.length + aggIndex
-    }
+    val aggMapping = (0 until aggCount).map(aggIndex => newGrouping.length + aggIndex)
     keyMapping ++ aggMapping
   }
 
@@ -240,14 +232,15 @@ class StreamPhysicalWindowAggregateRule
     var startPos = -1
     var endPos = -1
     var timePos = -1
-    windowProperties.zipWithIndex.foreach { case (p, idx) =>
-      if (WINDOW_START.equals(p.getName)) {
-        startPos = windowPropsIndexOffset + idx
-      } else if (WINDOW_END.equals(p.getName)) {
-        endPos = windowPropsIndexOffset + idx
-      } else if (WINDOW_TIME.equals(p.getName)) {
-        timePos = windowPropsIndexOffset + idx
-      }
+    windowProperties.zipWithIndex.foreach {
+      case (p, idx) =>
+        if (WINDOW_START.equals(p.getName)) {
+          startPos = windowPropsIndexOffset + idx
+        } else if (WINDOW_END.equals(p.getName)) {
+          endPos = windowPropsIndexOffset + idx
+        } else if (WINDOW_TIME.equals(p.getName)) {
+          timePos = windowPropsIndexOffset + idx
+        }
     }
     (startPos, endPos, timePos)
   }

@@ -23,14 +23,17 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-fs-hadoop-shaded</artifactId>
 	<name>Flink : FileSystems : Hadoop FS shaded</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
 
 	<dependencyManagement>
 		<dependencies>
@@ -156,10 +159,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-compress</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
 					<artifactId>commons-math3</artifactId>
 				</exclusion>
 				<exclusion>
@@ -169,6 +168,14 @@ under the License.
 				<exclusion>
 					<groupId>net.minidev</groupId>
 					<artifactId>json-smart</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

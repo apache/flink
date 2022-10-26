@@ -94,7 +94,8 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .withDescription(
                             "The directory for RocksDB's information logging files. "
                                     + "If empty (Flink default setting), log files will be in the same directory as the Flink log. "
-                                    + "If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name.");
+                                    + "If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name. "
+                                    + "If setting this option as a non-existing location, e.g '/dev/null', RocksDB will then create the log under its own database folder as before.");
 
     public static final ConfigOption<InfoLogLevel> LOG_LEVEL =
             key("state.backend.rocksdb.log.level")
@@ -258,11 +259,12 @@ public class RocksDBConfigurableOptions implements Serializable {
     public static final ConfigOption<Double> RESTORE_OVERLAP_FRACTION_THRESHOLD =
             key("state.backend.rocksdb.restore-overlap-fraction-threshold")
                     .doubleType()
-                    .defaultValue(0.75)
+                    .defaultValue(0.0)
                     .withDescription(
-                            "The threshold of the overlap fraction between the handle's key-group range and target key-group range. "
-                                    + "When restore base DB, only the handle which overlap fraction greater than or equal to *threshold* "
-                                    + "has a chance to be an initial handle.");
+                            "The threshold of overlap fraction between the handle's key-group range and target key-group range. "
+                                    + "When restore base DB, only the handle which overlap fraction greater than or equal to threshold "
+                                    + "has a chance to be an initial handle. "
+                                    + "The default value is 0.0, there is always a handle will be selected for initialization. ");
 
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {

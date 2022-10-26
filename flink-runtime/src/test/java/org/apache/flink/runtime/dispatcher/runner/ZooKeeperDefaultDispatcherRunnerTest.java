@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -56,6 +55,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -71,10 +71,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.is;
@@ -88,11 +88,13 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 
     private static final Time TESTING_TIMEOUT = Time.seconds(10L);
 
-    private static final Duration VERIFICATION_TIMEOUT = Duration.ofSeconds(10L);
-
     @ClassRule public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @ClassRule
     public static TestingRpcServiceResource testingRpcServiceResource =
@@ -225,9 +227,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 final JobGraphStore submittedJobGraphStore = createZooKeeperJobGraphStore(client);
 
                 CommonTestUtils.waitUntilCondition(
-                        () -> submittedJobGraphStore.getJobIds().isEmpty(),
-                        Deadline.fromNow(VERIFICATION_TIMEOUT),
-                        20L);
+                        () -> submittedJobGraphStore.getJobIds().isEmpty(), 20L);
             }
         }
 
@@ -246,7 +246,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 dispatcherLeaderElectionService,
                 fatalErrorHandler,
                 jobPersistenceComponentFactory,
-                TestingUtils.defaultExecutor(),
+                EXECUTOR_RESOURCE.getExecutor(),
                 rpcService,
                 partialDispatcherServices);
     }

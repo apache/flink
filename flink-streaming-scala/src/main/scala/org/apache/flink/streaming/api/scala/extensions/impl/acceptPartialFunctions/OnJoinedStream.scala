@@ -23,26 +23,33 @@ import org.apache.flink.streaming.api.scala.{DataStream, JoinedStreams}
 import org.apache.flink.streaming.api.windowing.windows.Window
 
 /**
-  * Wraps a joined data stream, allowing to use anonymous partial functions to
-  * perform extraction of items in a tuple, case class instance or collection
-  *
-  * @param stream The wrapped data stream
-  * @tparam L The type of the data stream items from the left side of the join
-  * @tparam R The type of the data stream items from the right input of the join
-  * @tparam K The type of key
-  * @tparam W The type of the window
-  */
+ * Wraps a joined data stream, allowing to use anonymous partial functions to perform extraction of
+ * items in a tuple, case class instance or collection
+ *
+ * @param stream
+ *   The wrapped data stream
+ * @tparam L
+ *   The type of the data stream items from the left side of the join
+ * @tparam R
+ *   The type of the data stream items from the right input of the join
+ * @tparam K
+ *   The type of key
+ * @tparam W
+ *   The type of the window
+ */
 class OnJoinedStream[L, R, K, W <: Window](
     stream: JoinedStreams[L, R]#Where[K]#EqualTo#WithWindow[W]) {
 
   /**
-    * Completes the join operation with the user function that is executed
-    * for windowed groups.
-    *
-    * @param fun The function that defines the projection of the join
-    * @tparam O The return type of the projection, for which type information must be known
-    * @return A fully joined data set of Os
-    */
+   * Completes the join operation with the user function that is executed for windowed groups.
+   *
+   * @param fun
+   *   The function that defines the projection of the join
+   * @tparam O
+   *   The return type of the projection, for which type information must be known
+   * @return
+   *   A fully joined data set of Os
+   */
   @PublicEvolving
   def projecting[O: TypeInformation](fun: (L, R) => O): DataStream[O] =
     stream.apply(fun)

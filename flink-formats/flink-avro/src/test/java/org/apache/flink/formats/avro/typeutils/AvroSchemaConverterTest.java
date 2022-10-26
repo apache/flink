@@ -25,7 +25,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -76,12 +77,13 @@ class AvroSchemaConverterTest {
 
         Schema newSchema =
                 AvroSchemaConverter.convertToSchema(
-                        TableSchema.builder()
-                                .field("category_id", DataTypes.BIGINT().notNull())
-                                .field("name", DataTypes.STRING().nullable())
-                                .field("description", DataTypes.STRING().nullable())
-                                .build()
-                                .toRowDataType()
+                        ResolvedSchema.of(
+                                        Column.physical(
+                                                "category_id", DataTypes.BIGINT().notNull()),
+                                        Column.physical("name", DataTypes.STRING().nullable()),
+                                        Column.physical(
+                                                "description", DataTypes.STRING().nullable()))
+                                .toSourceRowDataType()
                                 .getLogicalType());
 
         byte[] serializedRecord =
@@ -111,11 +113,12 @@ class AvroSchemaConverterTest {
     void testInvalidRawTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING())
-                                .field("b", DataTypes.RAW(Void.class, VoidSerializer.INSTANCE))
-                                .build()
-                                .toRowDataType()
+                        ResolvedSchema.of(
+                                        Column.physical("a", DataTypes.STRING()),
+                                        Column.physical(
+                                                "b",
+                                                DataTypes.RAW(Void.class, VoidSerializer.INSTANCE)))
+                                .toSourceRowDataType()
                                 .getLogicalType();
 
         assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
@@ -127,11 +130,10 @@ class AvroSchemaConverterTest {
     void testInvalidTimestampTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING())
-                                .field("b", DataTypes.TIMESTAMP(9))
-                                .build()
-                                .toRowDataType()
+                        ResolvedSchema.of(
+                                        Column.physical("a", DataTypes.STRING()),
+                                        Column.physical("b", DataTypes.TIMESTAMP(9)))
+                                .toSourceRowDataType()
                                 .getLogicalType();
 
         assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
@@ -145,11 +147,10 @@ class AvroSchemaConverterTest {
     void testInvalidTimeTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING())
-                                .field("b", DataTypes.TIME(6))
-                                .build()
-                                .toRowDataType()
+                        ResolvedSchema.of(
+                                        Column.physical("a", DataTypes.STRING()),
+                                        Column.physical("b", DataTypes.TIME(6)))
+                                .toSourceRowDataType()
                                 .getLogicalType();
 
         assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
@@ -162,23 +163,26 @@ class AvroSchemaConverterTest {
     void testRowTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
-                        TableSchema.builder()
-                                .field(
-                                        "row1",
-                                        DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING())))
-                                .field(
-                                        "row2",
-                                        DataTypes.ROW(DataTypes.FIELD("b", DataTypes.STRING())))
-                                .field(
-                                        "row3",
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD(
-                                                        "row3",
-                                                        DataTypes.ROW(
-                                                                DataTypes.FIELD(
-                                                                        "c", DataTypes.STRING())))))
-                                .build()
-                                .toRowDataType()
+                        ResolvedSchema.of(
+                                        Column.physical(
+                                                "row1",
+                                                DataTypes.ROW(
+                                                        DataTypes.FIELD("a", DataTypes.STRING()))),
+                                        Column.physical(
+                                                "row2",
+                                                DataTypes.ROW(
+                                                        DataTypes.FIELD("b", DataTypes.STRING()))),
+                                        Column.physical(
+                                                "row3",
+                                                DataTypes.ROW(
+                                                        DataTypes.FIELD(
+                                                                "row3",
+                                                                DataTypes.ROW(
+                                                                        DataTypes.FIELD(
+                                                                                "c",
+                                                                                DataTypes
+                                                                                        .STRING()))))))
+                                .toSourceRowDataType()
                                 .getLogicalType();
         Schema schema = AvroSchemaConverter.convertToSchema(rowType);
         assertThat(schema.toString(true))
@@ -186,6 +190,7 @@ class AvroSchemaConverterTest {
                         "{\n"
                                 + "  \"type\" : \"record\",\n"
                                 + "  \"name\" : \"record\",\n"
+                                + "  \"namespace\" : \"org.apache.flink.avro.generated\",\n"
                                 + "  \"fields\" : [ {\n"
                                 + "    \"name\" : \"row1\",\n"
                                 + "    \"type\" : [ \"null\", {\n"
@@ -322,6 +327,7 @@ class AvroSchemaConverterTest {
                 "{\n"
                         + "  \"type\" : \"record\",\n"
                         + "  \"name\" : \"record\",\n"
+                        + "  \"namespace\" : \"org.apache.flink.avro.generated\",\n"
                         + "  \"fields\" : [ {\n"
                         + "    \"name\" : \"f_null\",\n"
                         + "    \"type\" : \"null\",\n"
@@ -431,6 +437,7 @@ class AvroSchemaConverterTest {
                 "{\n"
                         + "  \"type\" : \"record\",\n"
                         + "  \"name\" : \"record\",\n"
+                        + "  \"namespace\" : \"org.apache.flink.avro.generated\",\n"
                         + "  \"fields\" : [ {\n"
                         + "    \"name\" : \"f_boolean\",\n"
                         + "    \"type\" : \"boolean\"\n"

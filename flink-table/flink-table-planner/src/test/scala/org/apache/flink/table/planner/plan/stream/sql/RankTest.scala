@@ -27,8 +27,8 @@ import org.junit.Test
 class RankTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  util
+    .addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test
   def testRankEndMustSpecified(): Unit = {
@@ -639,22 +639,23 @@ class RankTest extends TableTestBase {
 
   @Test
   def testCreateViewWithRowNumber(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE test_source (
-        |  name STRING,
-        |  eat STRING,
-        |  age BIGINT
-        |) WITH (
-        |  'connector' = 'values',
-        |  'bounded' = 'false'
-        |)
+    util.addTable("""
+                    |CREATE TABLE test_source (
+                    |  name STRING,
+                    |  eat STRING,
+                    |  age BIGINT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'false'
+                    |)
       """.stripMargin)
-    util.tableEnv.executeSql("create view view1 as select name, eat ,sum(age) as cnt\n"
-      + "from test_source group by name, eat")
-    util.tableEnv.executeSql("create view view2 as\n"
-      + "select *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY cnt DESC) as row_num\n"
-      + "from view1")
+    util.tableEnv.executeSql(
+      "create view view1 as select name, eat ,sum(age) as cnt\n"
+        + "from test_source group by name, eat")
+    util.tableEnv.executeSql(
+      "create view view2 as\n"
+        + "select *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY cnt DESC) as row_num\n"
+        + "from view1")
     util.addTable(
       s"""
          |create table sink (
@@ -667,8 +668,9 @@ class RankTest extends TableTestBase {
          |)
          |""".stripMargin
     )
-    util.verifyExecPlanInsert("insert into sink select name, eat, cnt\n"
-      + "from view2 where row_num <= 3")
+    util.verifyExecPlanInsert(
+      "insert into sink select name, eat, cnt\n"
+        + "from view2 where row_num <= 3")
   }
 
   @Test
@@ -692,7 +694,13 @@ class RankTest extends TableTestBase {
   @Test
   def testCorrelateSortToRankWithMultipleGroupKeys(): Unit = {
     util.addDataStream[(Int, String, Long, Long)](
-      "T", 'a, 'b, 'c, 'd, 'proctime.proctime, 'rowtime.rowtime)
+      "T",
+      'a,
+      'b,
+      'c,
+      'd,
+      'proctime.proctime,
+      'rowtime.rowtime)
     val query =
       s"""
          |SELECT a, b, c
@@ -729,7 +737,11 @@ class RankTest extends TableTestBase {
   @Test
   def testRedundantRankNumberColumnRemove(): Unit = {
     util.addDataStream[(String, Long, Long, Long)](
-      "MyTable1", 'uri, 'reqcount, 'start_time, 'bucket_id)
+      "MyTable1",
+      'uri,
+      'reqcount,
+      'start_time,
+      'bucket_id)
     val sql =
       """
         |SELECT
@@ -779,42 +791,38 @@ class RankTest extends TableTestBase {
 
   @Test
   def testUpdatableRankWithDeduplicate(): Unit = {
-    util.tableEnv.executeSql(
-      """
-        |CREATE VIEW v0 AS
-        |SELECT *
-        |FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY `c`
-        |        ORDER BY `PROCTIME`()) AS `rowNum`
-        |        FROM MyTable)
-        |WHERE `rowNum` = 1
-        |""".stripMargin)
-    util.tableEnv.executeSql(
-      """
-        |CREATE VIEW v1 AS
-        |SELECT c, b, SUM(a) FILTER (WHERE a > 0) AS d FROM v0 GROUP BY c, b
-        |""".stripMargin)
-    util.verifyRelPlan(
-      """
-        |SELECT c, b, d
-        |FROM (
-        |    SELECT
-        |       c, b, d,
-        |       ROW_NUMBER() OVER (PARTITION BY c, b ORDER BY d DESC) AS rn FROM v1
-        |) WHERE rn < 10
-        |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE VIEW v0 AS
+                               |SELECT *
+                               |FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY `c`
+                               |        ORDER BY `PROCTIME`()) AS `rowNum`
+                               |        FROM MyTable)
+                               |WHERE `rowNum` = 1
+                               |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE VIEW v1 AS
+                               |SELECT c, b, SUM(a) FILTER (WHERE a > 0) AS d FROM v0 GROUP BY c, b
+                               |""".stripMargin)
+    util.verifyRelPlan("""
+                         |SELECT c, b, d
+                         |FROM (
+                         |    SELECT
+                         |       c, b, d,
+                         |       ROW_NUMBER() OVER (PARTITION BY c, b ORDER BY d DESC) AS rn FROM v1
+                         |) WHERE rn < 10
+                         |""".stripMargin)
   }
   @Test
   def testUpdatableRankAfterLookupJoin(): Unit = {
-    util.addTable(
-      s"""
-         |CREATE TABLE LookupTable (
-         |  `id` INT,
-         |  `name` STRING,
-         |  `age` INT
-         |) WITH (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE LookupTable (
+                     |  `id` INT,
+                     |  `name` STRING,
+                     |  `age` INT
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
     util.tableEnv.executeSql(
       """
         |CREATE VIEW V1 AS
@@ -840,60 +848,56 @@ class RankTest extends TableTestBase {
 
   @Test
   def testUpdatableRankAfterIntermediateScan(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
-    util.tableEnv.executeSql(
-      """
-        |CREATE VIEW v1 AS
-        |SELECT a, MAX(b) AS b, MIN(c) AS c
-        |FROM MyTable GROUP BY a
-        |""".stripMargin)
+    util.tableEnv.getConfig.set(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
+    util.tableEnv.executeSql("""
+                               |CREATE VIEW v1 AS
+                               |SELECT a, MAX(b) AS b, MIN(c) AS c
+                               |FROM MyTable GROUP BY a
+                               |""".stripMargin)
 
-    util.addTable(
-      s"""
-         |CREATE TABLE sink(
-         |  `id` INT,
-         |  `name` STRING,
-         |  `age` BIGINT,
-         |   primary key (id) not enforced
-         |) WITH (
-         |  'connector' = 'values',
-         |  'sink-insert-only' = 'false'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE sink(
+                     |  `id` INT,
+                     |  `name` STRING,
+                     |  `age` BIGINT,
+                     |   primary key (id) not enforced
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
 
     val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql(
-      """
-        |INSERT INTO sink
-        |SELECT * FROM v1
-        |""".stripMargin)
-    stmtSet.addInsertSql(
-      """
-        |INSERT INTO sink
-        |SELECT a, b, c FROM (
-        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) AS rn
-        |  FROM v1
-        |) WHERE rn < 3
-        |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |INSERT INTO sink
+                           |SELECT * FROM v1
+                           |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |INSERT INTO sink
+                           |SELECT a, b, c FROM (
+                           |  SELECT *, ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) AS rn
+                           |  FROM v1
+                           |) WHERE rn < 3
+                           |""".stripMargin)
     util.verifyExecPlan(stmtSet)
   }
 
   @Test
   def testRankOutputUpsertKeyNotMatchSinkPk(): Unit = {
     // test for FLINK-20370
-    util.tableEnv.executeSql(
-      """
-        |CREATE TABLE sink (
-        | a INT,
-        | b VARCHAR,
-        | c BIGINT,
-        | PRIMARY KEY (a) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values'
-        | ,'sink-insert-only' = 'false'
-        |)
-        |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE sink (
+                               | a INT,
+                               | b VARCHAR,
+                               | c BIGINT,
+                               | PRIMARY KEY (a) NOT ENFORCED
+                               |) WITH (
+                               | 'connector' = 'values'
+                               | ,'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
 
     val sql =
       """
@@ -912,18 +916,17 @@ class RankTest extends TableTestBase {
   @Test
   def testRankOutputUpsertKeyInSinkPk(): Unit = {
     // test for FLINK-20370
-    util.tableEnv.executeSql(
-      """
-        |CREATE TABLE sink (
-        | a INT,
-        | b VARCHAR,
-        | c BIGINT,
-        | PRIMARY KEY (a, b) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values'
-        | ,'sink-insert-only' = 'false'
-        |)
-        |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE sink (
+                               | a INT,
+                               | b VARCHAR,
+                               | c BIGINT,
+                               | PRIMARY KEY (a, b) NOT ENFORCED
+                               |) WITH (
+                               | 'connector' = 'values'
+                               | ,'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
 
     val sql =
       """
@@ -943,18 +946,17 @@ class RankTest extends TableTestBase {
   @Test
   def testRankOutputLostUpsertKeyWithSinkPk(): Unit = {
     // test for FLINK-20370
-    util.tableEnv.executeSql(
-      """
-        |CREATE TABLE sink (
-        | a INT,
-        | c BIGINT,
-        | rn BIGINT,
-        | PRIMARY KEY (a) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values'
-        | ,'sink-insert-only' = 'false'
-        |)
-        |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE sink (
+                               | a INT,
+                               | c BIGINT,
+                               | rn BIGINT,
+                               | PRIMARY KEY (a) NOT ENFORCED
+                               |) WITH (
+                               | 'connector' = 'values'
+                               | ,'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
 
     val sql =
       """

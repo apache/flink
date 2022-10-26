@@ -27,7 +27,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /** Test for {@link WritableTypeInfo}. */
-public class WritableTypeInfoTest extends TypeInformationTestBase<WritableTypeInfo<?>> {
+class WritableTypeInfoTest extends TypeInformationTestBase<WritableTypeInfo<?>> {
 
     @Override
     protected WritableTypeInfo<?>[] getTestData() {

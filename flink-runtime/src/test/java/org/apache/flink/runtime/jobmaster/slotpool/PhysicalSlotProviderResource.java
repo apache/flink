@@ -40,9 +40,9 @@ import java.util.function.Function;
  */
 public class PhysicalSlotProviderResource extends ExternalResource {
 
-    private final ScheduledExecutorService singleThreadScheduledExecutorService;
+    private ScheduledExecutorService singleThreadScheduledExecutorService;
 
-    private final ComponentMainThreadExecutor mainThreadExecutor;
+    private ComponentMainThreadExecutor mainThreadExecutor;
 
     private final SlotSelectionStrategy slotSelectionStrategy;
 
@@ -51,15 +51,15 @@ public class PhysicalSlotProviderResource extends ExternalResource {
     private PhysicalSlotProvider physicalSlotProvider;
 
     public PhysicalSlotProviderResource(@Nonnull SlotSelectionStrategy slotSelectionStrategy) {
-        this.singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-        this.mainThreadExecutor =
-                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
-                        singleThreadScheduledExecutorService);
         this.slotSelectionStrategy = slotSelectionStrategy;
     }
 
     @Override
     protected void before() throws Throwable {
+        this.singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        this.mainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        singleThreadScheduledExecutorService);
         slotPool = new DeclarativeSlotPoolBridgeBuilder().buildAndStart(mainThreadExecutor);
         physicalSlotProvider = new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
     }
@@ -67,6 +67,7 @@ public class PhysicalSlotProviderResource extends ExternalResource {
     @Override
     protected void after() {
         CompletableFuture.runAsync(() -> slotPool.close(), mainThreadExecutor).join();
+        singleThreadScheduledExecutorService.shutdown();
     }
 
     public CompletableFuture<PhysicalSlotRequest.Result> allocateSlot(PhysicalSlotRequest request) {

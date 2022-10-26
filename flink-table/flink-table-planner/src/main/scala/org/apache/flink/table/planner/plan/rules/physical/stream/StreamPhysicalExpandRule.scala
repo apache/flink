@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -26,9 +25,7 @@ import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
-/**
-  * Rule that converts [[FlinkLogicalExpand]] to [[StreamPhysicalExpand]].
-  */
+/** Rule that converts [[FlinkLogicalExpand]] to [[StreamPhysicalExpand]]. */
 class StreamPhysicalExpandRule
   extends ConverterRule(
     classOf[FlinkLogicalExpand],

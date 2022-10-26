@@ -22,7 +22,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.firehose.model.Record;
 
 import java.io.IOException;
@@ -31,7 +31,7 @@ import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUti
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUtils.getTestState;
 
 /** Test class for {@link KinesisFirehoseStateSerializer}. */
-public class KinesisFirehoseStateSerializerTest {
+class KinesisFirehoseStateSerializerTest {
 
     private static final ElementConverter<String, Record> ELEMENT_CONVERTER =
             KinesisFirehoseSinkElementConverter.<String>builder()
@@ -39,7 +39,7 @@ public class KinesisFirehoseStateSerializerTest {
                     .build();
 
     @Test
-    public void testSerializeAndDeserialize() throws IOException {
+    void testSerializeAndDeserialize() throws IOException {
         BufferedRequestState<Record> expectedState =
                 getTestState(ELEMENT_CONVERTER, this::getRequestSize);
 

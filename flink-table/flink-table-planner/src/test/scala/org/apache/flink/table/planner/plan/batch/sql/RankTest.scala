@@ -87,7 +87,7 @@ class RankTest extends TableTestBase {
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
   }
-  
+
   @Test
   def testRankValueFilterWithUpperValue(): Unit = {
     val sqlQuery =
@@ -170,22 +170,23 @@ class RankTest extends TableTestBase {
 
   @Test
   def testCreateViewWithRowNumber(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE test_source (
-        |  name STRING,
-        |  eat STRING,
-        |  age BIGINT
-        |) WITH (
-        |  'connector' = 'values',
-        |  'bounded' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE test_source (
+                    |  name STRING,
+                    |  eat STRING,
+                    |  age BIGINT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'true'
+                    |)
       """.stripMargin)
-    util.tableEnv.executeSql("create view view1 as select name, eat ,sum(age) as cnt\n"
-      + "from test_source group by name, eat")
-    util.tableEnv.executeSql("create view view2 as\n"
-      + "select *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY cnt DESC) as row_num\n"
-      + "from view1")
+    util.tableEnv.executeSql(
+      "create view view1 as select name, eat ,sum(age) as cnt\n"
+        + "from test_source group by name, eat")
+    util.tableEnv.executeSql(
+      "create view view2 as\n"
+        + "select *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY cnt DESC) as row_num\n"
+        + "from view1")
     util.addTable(
       s"""
          |create table sink (
@@ -198,8 +199,9 @@ class RankTest extends TableTestBase {
          |)
          |""".stripMargin
     )
-    util.verifyExecPlanInsert("insert into sink select name, eat, cnt\n"
-      + "from view2 where row_num <= 3")
+    util.verifyExecPlanInsert(
+      "insert into sink select name, eat, cnt\n"
+        + "from view2 where row_num <= 3")
   }
 
   @Test
@@ -222,7 +224,11 @@ class RankTest extends TableTestBase {
   @Test
   def testRedundantRankNumberColumnRemove(): Unit = {
     util.addDataStream[(String, Long, Long, Long)](
-      "MyTable1", 'uri, 'reqcount, 'start_time, 'bucket_id)
+      "MyTable1",
+      'uri,
+      'reqcount,
+      'start_time,
+      'bucket_id)
     val sql =
       """
         |SELECT

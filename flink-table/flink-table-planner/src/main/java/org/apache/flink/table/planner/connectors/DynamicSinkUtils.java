@@ -66,9 +66,9 @@ import org.apache.calcite.rex.RexNode;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -327,7 +327,8 @@ public final class DynamicSinkUtils {
                                         Function.identity()));
 
         final List<Integer> metadataColumns =
-                createRequiredMetadataKeys(schema, sink).stream()
+                createRequiredMetadataColumns(schema, sink).stream()
+                        .map(col -> col.getMetadataKey().orElse(col.getName()))
                         .map(keyToMetadataColumn::get)
                         .collect(Collectors.toList());
 
@@ -402,28 +403,31 @@ public final class DynamicSinkUtils {
     }
 
     /**
-     * Returns a list of required metadata keys. Ordered by the iteration order of {@link
+     * Returns a list of required metadata columns. Ordered by the iteration order of {@link
      * SupportsWritingMetadata#listWritableMetadata()}.
      *
      * <p>This method assumes that sink and schema have been validated via {@link
      * #prepareDynamicSink}.
      */
-    private static List<String> createRequiredMetadataKeys(
+    private static List<MetadataColumn> createRequiredMetadataColumns(
             ResolvedSchema schema, DynamicTableSink sink) {
         final List<Column> tableColumns = schema.getColumns();
         final List<Integer> metadataColumns = extractPersistedMetadataColumns(schema);
 
-        final Set<String> requiredMetadataKeys =
-                metadataColumns.stream()
-                        .map(tableColumns::get)
-                        .map(MetadataColumn.class::cast)
-                        .map(c -> c.getMetadataKey().orElse(c.getName()))
-                        .collect(Collectors.toSet());
+        Map<String, MetadataColumn> metadataKeysToMetadataColumns = new HashMap<>();
+
+        for (Integer columnIndex : metadataColumns) {
+            MetadataColumn metadataColumn = (MetadataColumn) tableColumns.get(columnIndex);
+            String metadataKey = metadataColumn.getMetadataKey().orElse(metadataColumn.getName());
+            // After resolving, every metadata column has the unique metadata key.
+            metadataKeysToMetadataColumns.put(metadataKey, metadataColumn);
+        }
 
         final Map<String, DataType> metadataMap = extractMetadataMap(sink);
 
         return metadataMap.keySet().stream()
-                .filter(requiredMetadataKeys::contains)
+                .filter(metadataKeysToMetadataColumns::containsKey)
+                .map(metadataKeysToMetadataColumns::get)
                 .collect(Collectors.toList());
     }
 
@@ -623,7 +627,9 @@ public final class DynamicSinkUtils {
 
         sinkAbilitySpecs.add(
                 new WritingMetadataSpec(
-                        createRequiredMetadataKeys(schema, sink),
+                        createRequiredMetadataColumns(schema, sink).stream()
+                                .map(col -> col.getMetadataKey().orElse(col.getName()))
+                                .collect(Collectors.toList()),
                         createConsumedType(schema, sink)));
     }
 
@@ -641,8 +647,18 @@ public final class DynamicSinkUtils {
                         .map(c -> new RowField(c.getName(), c.getDataType().getLogicalType()));
 
         final Stream<RowField> metadataFields =
-                createRequiredMetadataKeys(schema, sink).stream()
-                        .map(k -> new RowField(k, metadataMap.get(k).getLogicalType()));
+                createRequiredMetadataColumns(schema, sink).stream()
+                        .map(
+                                column ->
+                                        new RowField(
+                                                // Use alias to ensures that physical and metadata
+                                                // columns don't collide.
+                                                column.getName(),
+                                                metadataMap
+                                                        .get(
+                                                                column.getMetadataKey()
+                                                                        .orElse(column.getName()))
+                                                        .getLogicalType()));
 
         final List<RowField> rowFields =
                 Stream.concat(physicalFields, metadataFields).collect(Collectors.toList());

@@ -96,12 +96,6 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
         when(keyedStateHandle3.getKeyGroupRange()).thenReturn(new KeyGroupRange(8, 12));
         keyedStateHandles.add(keyedStateHandle3);
 
-        Assert.assertNull(
-                RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-                        keyedStateHandles,
-                        new KeyGroupRange(3, 5),
-                        RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()));
-
         // this should choose keyedStateHandle2, because keyedStateHandle2's key-group range
         // satisfies the overlap fraction demand.
         Assert.assertEquals(
@@ -185,8 +179,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                     Collections.singletonList(columnFamilyHandle),
                     targetGroupRange,
                     currentGroupRange,
-                    keyGroupPrefixBytes,
-                    RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes());
+                    keyGroupPrefixBytes);
 
             for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
                 for (int j = 0; j < 100; ++j) {

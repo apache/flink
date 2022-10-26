@@ -84,10 +84,12 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
     public ArrayData copy(ArrayData from) {
         if (from instanceof GenericArrayData) {
             return copyGenericArray((GenericArrayData) from);
+        } else if (from instanceof ColumnarArrayData) {
+            return copyColumnarArray((ColumnarArrayData) from);
         } else if (from instanceof BinaryArrayData) {
             return ((BinaryArrayData) from).copy();
         } else {
-            return copyColumnarArray((ColumnarArrayData) from);
+            return toBinaryArray(from);
         }
     }
 

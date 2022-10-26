@@ -111,9 +111,9 @@ $ mvn archetype:generate \
 
 {{< unstable >}}
 {{< hint warning >}}
-    Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
-    请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
-    如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
+Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
+如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
 ```xml
 <settings>
   <activeProfiles>
@@ -348,7 +348,7 @@ val transactions: DataStream[Transaction] = env
 
 #### 对事件分区 & 欺诈检测
 
-`transactions` 这个数据流包含了大量的用户交易数据，需要被划分到多个并发上进行欺诈检测处理。由于欺诈行为的发生是基于某一个账户的，所以，必须要要保证同一个账户的所有交易行为数据要被同一个并发的 task 进行处理。
+`transactions` 这个数据流包含了大量的用户交易数据，需要被划分到多个并发上进行欺诈检测处理。由于欺诈行为的发生是基于某一个账户的，所以，必须要保证同一个账户的所有交易行为数据要被同一个并发的 task 进行处理。
 
 为了保证同一个 task 处理同一个 key 的所有数据，你可以使用 `DataStream#keyBy` 对流进行分区。
 `process()` 函数对流绑定了一个操作，这个操作将会对流上的每一个消息调用所定义好的函数。

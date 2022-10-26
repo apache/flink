@@ -17,32 +17,31 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
-import static java.util.Arrays.asList;
 import static org.apache.flink.changelog.fs.FsStateChangelogWriterSqnTest.WriterSqnTestSettings.of;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test of incrementing {@link SequenceNumber sequence numbers} by {@link FsStateChangelogWriter}.
  */
-@RunWith(Parameterized.class)
 public class FsStateChangelogWriterSqnTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static List<WriterSqnTestSettings> getSettings() {
-        return asList(
+    private static Stream<WriterSqnTestSettings> getSettings() {
+        return Stream.of(
                 of(StateChangelogWriter::nextSequenceNumber, "nextSequenceNumber")
                         .withAppendCall(false)
                         .expectIncrement(false),
@@ -72,41 +71,31 @@ public class FsStateChangelogWriterSqnTest {
                         .expectIncrement(true));
     }
 
-    private final WriterSqnTestSettings test;
-
-    public FsStateChangelogWriterSqnTest(WriterSqnTestSettings test) {
-        this.test = test;
-    }
-
-    @Test
-    public void runTest() throws IOException {
+    @MethodSource("getSettings")
+    @ParameterizedTest(name = "writerSqnTestSettings = {0}")
+    void runTest(WriterSqnTestSettings writerSqnTestSettings) throws IOException {
         try (FsStateChangelogWriter writer =
                 new FsStateChangelogWriter(
                         UUID.randomUUID(),
                         KeyGroupRange.of(0, 0),
                         StateChangeUploadScheduler.directScheduler(
                                 new TestingStateChangeUploader()),
-                        Long.MAX_VALUE)) {
-            if (test.withAppend) {
+                        Long.MAX_VALUE,
+                        new SyncMailboxExecutor(),
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled(),
+                        LocalChangelogRegistry.NO_OP)) {
+            if (writerSqnTestSettings.withAppend) {
                 append(writer);
             }
-            test.action.accept(writer);
-            assertEquals(
-                    getMessage(),
-                    test.expectIncrement
-                            ? writer.initialSequenceNumber().next()
-                            : writer.initialSequenceNumber(),
-                    writer.lastAppendedSqnUnsafe());
+            writerSqnTestSettings.action.accept(writer);
+            assertThat(writer.lastAppendedSqnUnsafe())
+                    .as(writerSqnTestSettings.getMessage())
+                    .isEqualTo(
+                            writerSqnTestSettings.expectIncrement
+                                    ? writer.initialSequenceNumber().next()
+                                    : writer.initialSequenceNumber());
         }
-    }
-
-    private String getMessage() {
-        return test.name
-                + " should"
-                + (test.expectIncrement ? " " : " NOT ")
-                + "increment SQN"
-                + (test.expectIncrement ? " after " : " without ")
-                + "appends";
     }
 
     static class WriterSqnTestSettings {
@@ -119,6 +108,15 @@ public class FsStateChangelogWriterSqnTest {
                 String name, ThrowingConsumer<FsStateChangelogWriter, IOException> action) {
             this.name = name;
             this.action = action;
+        }
+
+        public String getMessage() {
+            return this.name
+                    + " should"
+                    + (this.expectIncrement ? " " : " NOT ")
+                    + "increment SQN"
+                    + (this.expectIncrement ? " after " : " without ")
+                    + "appends";
         }
 
         public static WriterSqnTestSettings of(

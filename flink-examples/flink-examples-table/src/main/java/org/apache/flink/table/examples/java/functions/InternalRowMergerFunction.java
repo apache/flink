@@ -80,11 +80,8 @@ public final class InternalRowMergerFunction extends ScalarFunction {
                                 if (arg0.getLogicalType().getTypeRoot() != LogicalTypeRoot.ROW
                                         || arg1.getLogicalType().getTypeRoot()
                                                 != LogicalTypeRoot.ROW) {
-                                    if (throwOnFailure) {
-                                        throw callContext.newValidationError(
-                                                "Two row arguments expected.");
-                                    }
-                                    return Optional.empty();
+                                    return callContext.fail(
+                                            throwOnFailure, "Two row arguments expected.");
                                 }
                                 // keep the original logical type but express that both arguments
                                 // should use internal data structures
@@ -99,7 +96,9 @@ public final class InternalRowMergerFunction extends ScalarFunction {
                                     FunctionDefinition definition) {
                                 // this helps in printing nice error messages
                                 return Collections.singletonList(
-                                        Signature.of(Argument.of("ROW"), Argument.of("ROW")));
+                                        Signature.of(
+                                                Argument.ofGroup(LogicalTypeRoot.ROW),
+                                                Argument.ofGroup(LogicalTypeRoot.ROW)));
                             }
                         })
                 .outputTypeStrategy(

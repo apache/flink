@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonEncoding;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
@@ -47,7 +48,7 @@ public class FsJobArchivist {
 
     private static final Logger LOG = LoggerFactory.getLogger(FsJobArchivist.class);
     private static final JsonFactory jacksonFactory = new JsonFactory();
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
     private static final String ARCHIVE = "archive";
     private static final String PATH = "path";

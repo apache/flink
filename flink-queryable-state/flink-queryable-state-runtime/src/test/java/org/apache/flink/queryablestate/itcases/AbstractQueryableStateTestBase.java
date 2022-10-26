@@ -37,7 +37,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -61,7 +60,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.testutils.ClassLoaderUtils;
-import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -112,8 +111,12 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(200L);
     private static final long RETRY_TIMEOUT = 50L;
 
-    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
-    private final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newScheduledThreadPool(4));
+
+    private final ScheduledExecutor executor =
+            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
 
     /** State backend to use. */
     private StateBackend stateBackend;
@@ -1339,10 +1342,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
             CompletableFuture<JobStatus> jobStatusFuture =
                     FutureUtils.retrySuccessfulWithDelay(
                             () -> clusterClient.getJobStatus(jobId),
-                            Time.milliseconds(50),
+                            Duration.ofMillis(50),
                             deadline,
                             (jobStatus) -> jobStatus.equals(JobStatus.CANCELED),
-                            TestingUtils.defaultScheduledExecutor());
+                            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
             assertEquals(
                     JobStatus.CANCELED,
                     jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));

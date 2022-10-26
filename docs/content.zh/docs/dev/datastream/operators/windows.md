@@ -35,6 +35,9 @@ under the License.
 
 **Keyed Windows**
 
+{{< tabs "Keyed Windows" >}}
+
+{{< tab "Java/Scala" >}}
     stream
            .keyBy(...)               <-  仅 keyed 窗口需要
            .window(...)              <-  必填项："assigner"
@@ -45,8 +48,26 @@ under the License.
            .reduce/aggregate/apply()      <-  必填项："function"
           [.getSideOutput(...)]      <-  可选项："output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .key_by(...)                  <-  仅 keyed 窗口需要
+           .window(...)                  <-  必填项："assigner"
+          [.trigger(...)]                <-  可选项："trigger" (省略则使用默认 trigger)
+          [.allowed_lateness(...)]       <-  可选项："lateness" (省略则为 0)
+          [.side_output_late_data(...)]  <-  可选项："output tag" (省略则不对迟到数据使用 side output)
+           .reduce/aggregate/apply()     <-  必填项："function"
+          [.get_side_output(...)]        <-  可选项："output tag"
+
+{{< /tab >}}
+{{< /tabs >}}
+
 **Non-Keyed Windows**
 
+{{< tabs "Non-Keyed Windows" >}}
+
+{{< tab "Java/Scala" >}}
     stream
            .windowAll(...)           <-  必填项："assigner"
           [.trigger(...)]            <-  可选项："trigger" (else default trigger)
@@ -56,8 +77,23 @@ under the License.
            .reduce/aggregate/apply()      <-  必填项："function"
           [.getSideOutput(...)]      <-  可选项："output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .window_all(...)             <-  必填项："assigner"
+          [.trigger(...)]               <-  可选项："trigger" (else default trigger)
+          [.allowed_lateness(...)]      <-  可选项："lateness" (else zero)
+          [.side_output_late_data(...)] <-  可选项："output tag" (else no side output for late data)
+           .reduce/aggregate/apply()    <-  必填项："function"
+          [.get_side_output(...)]       <-  可选项："output tag"
+
+{{< /tab >}}
+
+{{< /tabs >}}
+
 上面方括号（[...]）中的命令是可选的。也就是说，Flink 允许你自定义多样化的窗口操作来满足你的需求。
-{{< hint info >}} Note: Non-Keyed windows 在 Python DataStream API 中还不支持. {{< /hint >}}
+{{< hint info >}} Note: `Evictor` 在 Python DataStream API 中还不支持. {{< /hint >}}
 
 
 ## 窗口的生命周期
@@ -470,6 +506,16 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(GlobalWindows.create()) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## 窗口函数（Window Functions）
@@ -611,6 +657,32 @@ input
     .aggregate(new AverageAggregate)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+class AverageAggregate(AggregateFunction):
+ 
+    def create_accumulator(self) -> Tuple[int, int]:
+        return 0, 0
+
+    def add(self, value: Tuple[str, int], accumulator: Tuple[int, int]) -> Tuple[int, int]:
+        return accumulator[0] + value[1], accumulator[1] + 1
+
+    def get_result(self, accumulator: Tuple[int, int]) -> float:
+        return accumulator[0] / accumulator[1]
+
+    def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+        return a[0] + b[0], a[1] + b[1]
+
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .aggregate(AverageAggregate(),
+               accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+               output_type=Types.DOUBLE())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 上例计算了窗口内所有元素第二个属性的平均值。
@@ -645,34 +717,43 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
             Iterable<IN> elements,
             Collector<OUT> out) throws Exception;
 
-   	/**
-   	 * The context holding window metadata.
-   	 */
-   	public abstract class Context implements java.io.Serializable {
-   	    /**
-   	     * Returns the window that is being evaluated.
-   	     */
-   	    public abstract W window();
+    /**
+     * Deletes any state in the {@code Context} when the Window expires (the watermark passes its
+     * {@code maxTimestamp} + {@code allowedLateness}).
+     *
+     * @param context The context to which the window is being evaluated
+     * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+     */
+    public void clear(Context context) throws Exception {}
 
-   	    /** Returns the current processing time. */
-   	    public abstract long currentProcessingTime();
+    /**
+     * The context holding window metadata.
+     */
+    public abstract class Context implements java.io.Serializable {
+        /**
+         * Returns the window that is being evaluated.
+         */
+        public abstract W window();
 
-   	    /** Returns the current event-time watermark. */
-   	    public abstract long currentWatermark();
+        /** Returns the current processing time. */
+        public abstract long currentProcessingTime();
 
-   	    /**
-   	     * State accessor for per-key and per-window state.
-   	     *
-   	     * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
-   	     * by implementing {@link ProcessWindowFunction#clear(Context)}.
-   	     */
-   	    public abstract KeyedStateStore windowState();
+        /** Returns the current event-time watermark. */
+        public abstract long currentWatermark();
 
-   	    /**
-   	     * State accessor for per-key global state.
-   	     */
-   	    public abstract KeyedStateStore globalState();
-   	}
+        /**
+         * State accessor for per-key and per-window state.
+         *
+         * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
+         * by implementing {@link ProcessWindowFunction#clear(Context)}.
+         */
+        public abstract KeyedStateStore windowState();
+
+        /**
+         * State accessor for per-key global state.
+         */
+        public abstract KeyedStateStore globalState();
+    }
 
 }
 ```
@@ -695,6 +776,16 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
       context: Context,
       elements: Iterable[IN],
       out: Collector[OUT])
+
+  /**
+   * Deletes any state in the [[Context]] when the Window expires
+   * (the watermark passes its `maxTimestamp` + `allowedLateness`).
+   *
+   * @param context The context to which the window is being evaluated
+   * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+   */
+  @throws[Exception]
+  def clear(context: Context) {}
 
   /**
     * The context holding window metadata
@@ -727,6 +818,82 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
   }
 
 }
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
+
+    @abstractmethod
+    def process(self,
+                key: KEY,
+                context: 'ProcessWindowFunction.Context',
+                elements: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+    
+        :param key: The key for which this window is evaluated.
+        :param context: The context in which the window is being evaluated.
+        :param elements: The elements in the window being evaluated.
+        :return: The iterable object which produces the elements to emit.
+        """
+        pass
+
+    @abstractmethod
+    def clear(self, context: 'ProcessWindowFunction.Context') -> None:
+        """
+        Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
+        max_timestamp + allowed_lateness).
+    
+        :param context: The context to which the window is being evaluated.
+        """
+        pass
+
+    class Context(ABC, Generic[W2]):
+        """
+        The context holding window metadata.
+        """
+    
+        @abstractmethod
+        def window(self) -> W2:
+            """
+            :return: The window that is being evaluated.
+            """
+            pass
+    
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            """
+            :return: The current processing time.
+            """
+            pass
+    
+        @abstractmethod
+        def current_watermark(self) -> int:
+            """
+            :return: The current event-time watermark.
+            """
+            pass
+    
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key and per-window state.
+      
+            .. note::
+                If you use per-window state you have to ensure that you clean it up by implementing
+                :func:`~ProcessWindowFunction.clear`.
+      
+            :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+            """
+            pass
+    
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key global state.
+            """
+            pass
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -785,6 +952,27 @@ class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), Stri
     out.collect(s"Window ${context.window} count: $count")
   }
 }
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(lambda v: v[0]) \
+    .window(TumblingEventTimeWindows.of(Time.minutes(5))) \
+    .process(MyProcessWindowFunction())
+
+# ...
+
+class MyProcessWindowFunction(ProcessWindowFunction):
+
+    def process(self, key: str, context: ProcessWindowFunction.Context,
+                elements: Iterable[Tuple[str, int]]) -> Iterable[str]:
+        count = 0
+        for _ in elements:
+            count += 1
+        yield "Window: {} count: {}".format(context.window(), count)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -862,6 +1050,27 @@ input
       }
   )
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .reduce(lambda r1, r2: r2 if r1.value > r2.value else r1,
+            window_function=MyProcessWindowFunction(),
+            output_type=Types.TUPLE([Types.STRING(), Types.LONG()]))
+
+# Function definition
+
+class MyProcessWindowFunction(ProcessWindowFunction):
+
+    def process(self, key: str, context: ProcessWindowFunction.Context,
+                min_readings: Iterable[SensorReading]) -> Iterable[Tuple[int, SensorReading]]:
+        min = next(iter(min_readings))
+        yield context.window().start, min
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -961,6 +1170,47 @@ class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Dou
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .aggregate(AverageAggregate(),
+               window_function=MyProcessWindowFunction(),
+               accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+               output_type=Types.TUPLE([Types.STRING(), Types.DOUBLE()]))
+
+# Function definitions
+
+class AverageAggregate(AggregateFunction):
+    """
+    The accumulator is used to keep a running sum and a count. The :func:`get_result` method
+    computes the average.
+    """
+
+    def create_accumulator(self) -> Tuple[int, int]:
+        return 0, 0
+
+    def add(self, value: Tuple[str, int], accumulator: Tuple[int, int]) -> Tuple[int, int]:
+        return accumulator[0] + value[1], accumulator[1] + 1
+
+    def get_result(self, accumulator: Tuple[int, int]) -> float:
+        return accumulator[0] / accumulator[1]
+
+    def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+        return a[0] + b[0], a[1] + b[1]
+
+class MyProcessWindowFunction(ProcessWindowFunction):
+
+    def process(self, key: str, context: ProcessWindowFunction.Context,
+                averages: Iterable[float]) -> Iterable[Tuple[str, float]]:
+        average = next(iter(averages))
+        yield key, average
+
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### 在 ProcessWindowFunction 中使用 per-window state
@@ -1032,6 +1282,22 @@ trait WindowFunction[IN, OUT, KEY, W <: Window] extends Function with Serializab
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
+
+    @abstractmethod
+    def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+    
+        :param key: The key for which this window is evaluated.
+        :param window: The window that is being evaluated.
+        :param inputs: The elements in the window being evaluated.
+        """
+        pass
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 它可以像下例这样使用：
@@ -1055,6 +1321,16 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .apply(new MyWindowFunction())
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .apply(MyWindowFunction())
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1173,6 +1449,8 @@ Flink 内置有三个 evictor：
 指定一个 evictor 可以避免预聚合，因为窗口中的所有元素在计算前都必须经过 evictor。
 {{< /hint >}}
 
+{{< hint info >}} Note: `Evictor` 在 Python DataStream API 中还不支持. {{< /hint >}}
+
 Flink 不对窗口中元素的顺序做任何保证。也就是说，即使 evictor 从窗口缓存的开头移除一个元素，这个元素也不一定是最先或者最后到达窗口的。
 
 
@@ -1216,6 +1494,16 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .allowedLateness(<time>)
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .allowed_lateness(<time>) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -1263,6 +1551,22 @@ val result = input
     .<windowed transformation>(<window function>)
 
 val lateStream = result.getSideOutput(lateOutputTag)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+late_output_tag = OutputTag("late-data", type_info)
+
+input = ...  # type: DataStream
+
+result = input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .allowed_lateness(<time>) \
+    .side_output_late_data(late_output_tag) \
+    .<windowed transformation>(<window function>)
+
+late_stream = result.get_side_output(late_output_tag)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1336,6 +1640,20 @@ val resultsPerKey = input
 val globalResults = resultsPerKey
     .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
     .process(new TopKWindowFunction())
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+results_per_key = input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(Summer())
+
+global_results = results_per_key \
+    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .process(TopKWindowFunction())
 ```
 {{< /tab >}}
 {{< /tabs >}}

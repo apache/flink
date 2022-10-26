@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -622,7 +623,8 @@ public class CheckpointResourcesCleanupRunnerTest {
                 JobID jobId,
                 int maxNumberOfCheckpointsToRetain,
                 SharedStateRegistryFactory sharedStateRegistryFactory,
-                Executor ioExecutor)
+                Executor ioExecutor,
+                RestoreMode restoreMode)
                 throws Exception {
             creationLatch.await();
             return completedCheckpointStore;

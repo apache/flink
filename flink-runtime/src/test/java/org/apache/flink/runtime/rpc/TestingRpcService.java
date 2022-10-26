@@ -23,11 +23,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -84,8 +81,8 @@ public class TestingRpcService implements RpcService {
     // ------------------------------------------------------------------------
 
     @Override
-    public CompletableFuture<Void> stopService() {
-        final CompletableFuture<Void> terminationFuture = backingRpcService.stopService();
+    public CompletableFuture<Void> closeAsync() {
+        final CompletableFuture<Void> terminationFuture = backingRpcService.closeAsync();
 
         terminationFuture.whenComplete(
                 (Void ignored, Throwable throwable) -> {
@@ -193,13 +190,13 @@ public class TestingRpcService implements RpcService {
     }
 
     @Override
-    public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
-        return backingRpcService.startServer(rpcEndpoint);
+    public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType, RpcServer rpcServer) {
+        return backingRpcService.getSelfGateway(selfGatewayType, rpcServer);
     }
 
     @Override
-    public <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken) {
-        return backingRpcService.fenceRpcServer(rpcServer, fencingToken);
+    public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
+        return backingRpcService.startServer(rpcEndpoint);
     }
 
     @Override
@@ -208,27 +205,7 @@ public class TestingRpcService implements RpcService {
     }
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return backingRpcService.getTerminationFuture();
-    }
-
-    @Override
     public ScheduledExecutor getScheduledExecutor() {
         return backingRpcService.getScheduledExecutor();
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
-        return backingRpcService.scheduleRunnable(runnable, delay, unit);
-    }
-
-    @Override
-    public void execute(Runnable runnable) {
-        backingRpcService.execute(runnable);
-    }
-
-    @Override
-    public <T> CompletableFuture<T> execute(Callable<T> callable) {
-        return backingRpcService.execute(callable);
     }
 }

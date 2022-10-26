@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -67,6 +68,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
     private final boolean isFinal;
 
     public BatchExecHashWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -84,6 +86,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecHashWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecHashWindowAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -110,6 +113,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
 
         final AggregateInfoList aggInfos =
                 AggregateUtil.transformToBatchAggregateInfoList(
+                        planner.getTypeFactory(),
                         aggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         null, // aggCallNeedRetractions
@@ -117,8 +121,9 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final HashWindowCodeGenerator hashWindowCodeGenerator =
                 new HashWindowCodeGenerator(
-                        new CodeGeneratorContext(config),
-                        planner.getRelBuilder(),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
+                        planner.createRelBuilder(),
                         window,
                         inputTimeFieldIndex,
                         inputTimeIsDate,

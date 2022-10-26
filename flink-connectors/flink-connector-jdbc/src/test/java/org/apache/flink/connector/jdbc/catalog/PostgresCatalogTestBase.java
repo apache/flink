@@ -82,6 +82,7 @@ public class PostgresCatalogTestBase {
 
         catalog =
                 new PostgresCatalog(
+                        Thread.currentThread().getContextClassLoader(),
                         TEST_CATALOG_NAME,
                         PostgresCatalog.DEFAULT_DATABASE,
                         TEST_USERNAME,

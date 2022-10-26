@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
@@ -26,7 +27,7 @@ import org.apache.flink.configuration.description.LinkElement;
 import org.apache.flink.configuration.description.TextElement;
 
 /** Config options for the {@link PrometheusPushGatewayReporter}. */
-@Documentation.SuffixOption
+@Documentation.SuffixOption(ConfigConstants.METRICS_REPORTER_PREFIX + "prometheus")
 public class PrometheusPushGatewayReporterOptions {
 
     @Deprecated

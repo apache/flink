@@ -33,6 +33,18 @@
             <td>Whether to enable compression when serializing changelog.</td>
         </tr>
         <tr>
+            <td><h5>dstl.dfs.discard.num-threads</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Number of threads to use to discard changelog (e.g. pre-emptively uploaded unused state).</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.download.local-cache.idle-timeout-ms</h5></td>
+            <td style="word-wrap: break-word;">10 min</td>
+            <td>Duration</td>
+            <td>Maximum idle time for cache files of distributed changelog file, after which the cache files will be deleted.</td>
+        </tr>
+        <tr>
             <td><h5>dstl.dfs.preemptive-persist-threshold</h5></td>
             <td style="word-wrap: break-word;">5 mb</td>
             <td>MemorySize</td>

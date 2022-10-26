@@ -43,16 +43,18 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
@@ -70,6 +72,7 @@ import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -96,14 +99,17 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -125,6 +131,10 @@ public class RestServerEndpointITCase extends TestLogger {
     private static final String JOB_ID_KEY = "jobid";
     private static final Time timeout = Time.seconds(10L);
     private static final int TEST_REST_MAX_CONTENT_LENGTH = 4096;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -240,8 +250,9 @@ public class RestServerEndpointITCase extends TestLogger {
                         .withHandler(
                                 WebContentHandlerSpecification.getInstance(),
                                 staticFileServerHandler)
+                        .withHandler(new TestUnavailableHandler(mockGatewayRetriever))
                         .buildAndStart();
-        restClient = new TestRestClient(config);
+        restClient = new RestClient(config, EXECUTOR_RESOURCE.getExecutor());
 
         serverAddress = serverEndpoint.getServerAddress();
     }
@@ -471,7 +482,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         EmptyMessageParameters.getInstance(),
                         EmptyRequestBody.getInstance(),
                         Collections.emptyList(),
-                        RestAPIVersion.V1);
+                        RuntimeRestAPIVersion.V1);
 
         specifiedVersionResponse.get(5, TimeUnit.SECONDS);
     }
@@ -486,7 +497,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         EmptyMessageParameters.getInstance(),
                         EmptyRequestBody.getInstance(),
                         Collections.emptyList(),
-                        RestAPIVersion.V0);
+                        RuntimeRestAPIVersion.V0);
 
         try {
             version1Response.get(5, TimeUnit.SECONDS);
@@ -504,7 +515,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         EmptyMessageParameters.getInstance(),
                         EmptyRequestBody.getInstance(),
                         Collections.emptyList(),
-                        RestAPIVersion.V1);
+                        RuntimeRestAPIVersion.V1);
 
         try {
             version2Response.get(5, TimeUnit.SECONDS);
@@ -697,6 +708,21 @@ public class RestServerEndpointITCase extends TestLogger {
                 });
     }
 
+    @Test
+    public void testOnUnavailableRpcEndpointReturns503() throws IOException {
+        CompletableFuture<EmptyResponseBody> response =
+                restClient.sendRequest(
+                        serverAddress.getHostName(),
+                        serverAddress.getPort(),
+                        TestUnavailableHeaders.INSTANCE);
+
+        assertThatThrownBy(response::get)
+                .extracting(x -> ExceptionUtils.findThrowable(x, RestClientException.class))
+                .extracting(Optional::get)
+                .extracting(RestClientException::getHttpResponseStatus)
+                .isEqualTo(HttpResponseStatus.SERVICE_UNAVAILABLE);
+    }
+
     private static File getTestResource(final String fileName) {
         final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
         final URL resource = classLoader.getResource(fileName);
@@ -780,13 +806,6 @@ public class RestServerEndpointITCase extends TestLogger {
         return parameters;
     }
 
-    static class TestRestClient extends RestClient {
-
-        TestRestClient(Configuration configuration) throws ConfigurationException {
-            super(configuration, TestingUtils.defaultExecutor());
-        }
-    }
-
     private static class TestRequest implements RequestBody {
         public final int id;
 
@@ -822,7 +841,7 @@ public class RestServerEndpointITCase extends TestLogger {
     }
 
     private static class TestHeaders
-            implements MessageHeaders<TestRequest, TestResponse, TestParameters> {
+            implements RuntimeMessageHeaders<TestRequest, TestResponse, TestParameters> {
 
         @Override
         public HttpMethodWrapper getHttpMethod() {
@@ -1019,7 +1038,9 @@ public class RestServerEndpointITCase extends TestLogger {
     }
 
     enum TestVersionHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements
+                    RuntimeMessageHeaders<
+                            EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
         INSTANCE;
 
         @Override
@@ -1058,8 +1079,8 @@ public class RestServerEndpointITCase extends TestLogger {
         }
 
         @Override
-        public Collection<RestAPIVersion> getSupportedAPIVersions() {
-            return Collections.singleton(RestAPIVersion.V1);
+        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+            return Collections.singleton(RuntimeRestAPIVersion.V1);
         }
     }
 
@@ -1106,8 +1127,8 @@ public class RestServerEndpointITCase extends TestLogger {
         INSTANCE;
 
         @Override
-        public Collection<RestAPIVersion> getSupportedAPIVersions() {
-            return Collections.singleton(RestAPIVersion.V0);
+        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+            return Collections.singleton(RuntimeRestAPIVersion.V0);
         }
     }
 
@@ -1115,13 +1136,15 @@ public class RestServerEndpointITCase extends TestLogger {
         INSTANCE;
 
         @Override
-        public Collection<RestAPIVersion> getSupportedAPIVersions() {
-            return Collections.singleton(RestAPIVersion.V1);
+        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+            return Collections.singleton(RuntimeRestAPIVersion.V1);
         }
     }
 
     private enum TestUploadHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements
+                    RuntimeMessageHeaders<
+                            EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
         INSTANCE;
 
         @Override
@@ -1162,6 +1185,61 @@ public class RestServerEndpointITCase extends TestLogger {
         @Override
         public boolean acceptsFileUploads() {
             return true;
+        }
+    }
+
+    private enum TestUnavailableHeaders
+            implements
+                    RuntimeMessageHeaders<
+                            EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+        INSTANCE;
+
+        @Override
+        public HttpMethodWrapper getHttpMethod() {
+            return HttpMethodWrapper.GET;
+        }
+
+        @Override
+        public String getTargetRestEndpointURL() {
+            return "/unavailable";
+        }
+
+        @Override
+        public Class<EmptyRequestBody> getRequestClass() {
+            return EmptyRequestBody.class;
+        }
+
+        @Override
+        public Class<EmptyResponseBody> getResponseClass() {
+            return EmptyResponseBody.class;
+        }
+
+        @Override
+        public HttpResponseStatus getResponseStatusCode() {
+            return HttpResponseStatus.OK;
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+
+        @Override
+        public EmptyMessageParameters getUnresolvedMessageParameters() {
+            return EmptyMessageParameters.getInstance();
+        }
+    }
+
+    private static class TestUnavailableHandler
+            extends TestRestHandler<
+                    RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+        protected TestUnavailableHandler(GatewayRetriever<RestfulGateway> leaderRetriever) {
+            super(
+                    leaderRetriever,
+                    TestUnavailableHeaders.INSTANCE,
+                    FutureUtils.completedExceptionally(
+                            new EndpointNotStartedException("test exception")));
         }
     }
 }

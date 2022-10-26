@@ -37,6 +37,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+
 /** Builder for {@link TaskDeploymentDescriptor}. */
 public class TaskDeploymentDescriptorBuilder {
     private JobID jobId;
@@ -44,8 +46,6 @@ public class TaskDeploymentDescriptorBuilder {
     private MaybeOffloaded<TaskInformation> serializedTaskInformation;
     private ExecutionAttemptID executionId;
     private AllocationID allocationId;
-    private int subtaskIndex;
-    private int attemptNumber;
     private List<ResultPartitionDeploymentDescriptor> producedPartitions;
     private List<InputGateDeploymentDescriptor> inputGates;
 
@@ -67,10 +67,8 @@ public class TaskDeploymentDescriptorBuilder {
                 new NonOffloaded<>(
                         new SerializedValue<>(new DummyJobInformation(jobId, "DummyJob")));
         this.serializedTaskInformation = new NonOffloaded<>(new SerializedValue<>(taskInformation));
-        this.executionId = new ExecutionAttemptID();
+        this.executionId = createExecutionAttemptId(taskInformation.getJobVertexId());
         this.allocationId = new AllocationID();
-        this.subtaskIndex = 0;
-        this.attemptNumber = 0;
         this.producedPartitions = Collections.emptyList();
         this.inputGates = Collections.emptyList();
         this.taskRestore = null;
@@ -103,16 +101,6 @@ public class TaskDeploymentDescriptorBuilder {
         return this;
     }
 
-    public TaskDeploymentDescriptorBuilder setSubtaskIndex(int subtaskIndex) {
-        this.subtaskIndex = subtaskIndex;
-        return this;
-    }
-
-    public TaskDeploymentDescriptorBuilder setAttemptNumber(int attemptNumber) {
-        this.attemptNumber = attemptNumber;
-        return this;
-    }
-
     public TaskDeploymentDescriptorBuilder setProducedPartitions(
             List<ResultPartitionDeploymentDescriptor> producedPartitions) {
         this.producedPartitions = producedPartitions;
@@ -138,8 +126,6 @@ public class TaskDeploymentDescriptorBuilder {
                 serializedTaskInformation,
                 executionId,
                 allocationId,
-                subtaskIndex,
-                attemptNumber,
                 taskRestore,
                 producedPartitions,
                 inputGates);

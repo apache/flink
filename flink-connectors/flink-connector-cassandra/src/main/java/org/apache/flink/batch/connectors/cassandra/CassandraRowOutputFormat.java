@@ -20,11 +20,24 @@ package org.apache.flink.batch.connectors.cassandra;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import org.apache.flink.types.Row;
 
-/** OutputFormat to write Flink {@link Row}s into a Cassandra cluster. */
-public class CassandraRowOutputFormat extends CassandraOutputFormatBase<Row> {
+import java.time.Duration;
+
+/**
+ * OutputFormat to write Flink {@link Row}s into a Cassandra cluster. * Please read the
+ * recommendations in {@linkplain CassandraOutputFormatBase}.
+ */
+public class CassandraRowOutputFormat extends CassandraColumnarOutputFormatBase<Row> {
 
     public CassandraRowOutputFormat(String insertQuery, ClusterBuilder builder) {
-        super(insertQuery, builder);
+        this(insertQuery, builder, Integer.MAX_VALUE, Duration.ofMillis(Long.MAX_VALUE));
+    }
+
+    public CassandraRowOutputFormat(
+            String insertQuery,
+            ClusterBuilder builder,
+            int maxConcurrentRequests,
+            Duration maxConcurrentRequestsTimeout) {
+        super(insertQuery, builder, maxConcurrentRequests, maxConcurrentRequestsTimeout);
     }
 
     @Override

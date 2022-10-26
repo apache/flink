@@ -575,6 +575,53 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+### Cache
+#### DataStream &rarr; CachedDataStream
+
+Cache the intermediate result of the transformation. Currently, only jobs that run with batch 
+execution mode are supported. The cache intermediate result is generated lazily at the first time 
+the intermediate result is computed so that the result can be reused by later jobs. If the cache is 
+lost, it will be recomputed using the original transformations.
+
+{{< tabs cache >}}
+{{< tab "Java" >}}
+```java
+DataStream<Integer> dataStream = //...
+CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+cachedDataStream.print(); // Do anything with the cachedDataStream
+...
+env.execute(); // Execute and create cache.
+        
+cachedDataStream.print(); // Consume cached result.
+env.execute();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val dataStream : DataStream[Int] = //...
+val cachedDataStream = dataStream.cache()
+cachedDataStream.print() // Do anything with the cachedDataStream
+...
+env.execute() // Execute and create cache.
+
+cachedDataStream.print() // Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ... # DataStream
+cached_data_stream = data_stream.cache()
+cached_data_stream.print()
+# ...
+env.execute() # Execute and create cache.
+
+cached_data_stream.print() # Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< /tabs>}}
+
 ## Physical Partitioning
 
 Flink also gives low-level control (if desired) on the exact stream partitioning after a transformation, via the following functions.
@@ -773,7 +820,7 @@ The description can contain detail information about operators to facilitate deb
 {{< tabs namedescription >}}
 {{< tab "Java" >}}
 ```java
-someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}

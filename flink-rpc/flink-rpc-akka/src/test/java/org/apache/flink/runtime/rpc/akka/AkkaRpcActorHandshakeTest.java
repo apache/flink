@@ -18,41 +18,33 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.exceptions.HandshakeException;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import akka.actor.ActorSystem;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the handshake between rpc endpoints. */
-public class AkkaRpcActorHandshakeTest extends TestLogger {
-
-    private static final Time timeout = Time.seconds(10L);
+class AkkaRpcActorHandshakeTest {
 
     private static AkkaRpcService akkaRpcService1;
     private static AkkaRpcService akkaRpcService2;
     private static WrongVersionAkkaRpcService wrongVersionAkkaRpcService;
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    static void setupClass() {
         final ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
         final ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
         final ActorSystem wrongVersionActorSystem = AkkaUtils.createDefaultActorSystem();
@@ -67,20 +59,19 @@ public class AkkaRpcActorHandshakeTest extends TestLogger {
                         AkkaRpcServiceConfiguration.defaultConfiguration());
     }
 
-    @AfterClass
-    public static void teardownClass() throws Exception {
+    @AfterAll
+    static void teardownClass() throws Exception {
         final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(3);
 
-        terminationFutures.add(akkaRpcService1.stopService());
-        terminationFutures.add(akkaRpcService2.stopService());
-        terminationFutures.add(wrongVersionAkkaRpcService.stopService());
+        terminationFutures.add(akkaRpcService1.closeAsync());
+        terminationFutures.add(akkaRpcService2.closeAsync());
+        terminationFutures.add(wrongVersionAkkaRpcService.closeAsync());
 
-        FutureUtils.waitForAll(terminationFutures)
-                .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+        FutureUtils.waitForAll(terminationFutures).get();
     }
 
     @Test
-    public void testVersionMatchBetweenRpcComponents() throws Exception {
+    void testVersionMatchBetweenRpcComponents() throws Exception {
         AkkaRpcActorTest.DummyRpcEndpoint rpcEndpoint =
                 new AkkaRpcActorTest.DummyRpcEndpoint(akkaRpcService1);
         final int value = 42;
@@ -96,32 +87,31 @@ public class AkkaRpcActorHandshakeTest extends TestLogger {
                                     AkkaRpcActorTest.DummyRpcGateway.class)
                             .get();
 
-            assertThat(dummyRpcGateway.foobar().get(), equalTo(value));
+            assertThat(dummyRpcGateway.foobar().get()).isEqualTo(value);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
     @Test
-    public void testVersionMismatchBetweenRpcComponents() throws Exception {
+    void testVersionMismatchBetweenRpcComponents() throws Exception {
         AkkaRpcActorTest.DummyRpcEndpoint rpcEndpoint =
                 new AkkaRpcActorTest.DummyRpcEndpoint(akkaRpcService1);
 
         rpcEndpoint.start();
 
         try {
-            try {
-                wrongVersionAkkaRpcService
-                        .connect(rpcEndpoint.getAddress(), AkkaRpcActorTest.DummyRpcGateway.class)
-                        .get();
-                fail("Expected HandshakeException.");
-            } catch (ExecutionException ee) {
-                assertThat(
-                        ExceptionUtils.stripExecutionException(ee),
-                        instanceOf(HandshakeException.class));
-            }
+            assertThatThrownBy(
+                            () ->
+                                    wrongVersionAkkaRpcService
+                                            .connect(
+                                                    rpcEndpoint.getAddress(),
+                                                    AkkaRpcActorTest.DummyRpcGateway.class)
+                                            .get())
+                    .extracting(ExceptionUtils::stripExecutionException)
+                    .isInstanceOf(HandshakeException.class);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -130,7 +120,7 @@ public class AkkaRpcActorHandshakeTest extends TestLogger {
      * support the requested rpc gateway.
      */
     @Test
-    public void testWrongGatewayEndpointConnection() throws Exception {
+    void testWrongGatewayEndpointConnection() throws Exception {
         AkkaRpcActorTest.DummyRpcEndpoint rpcEndpoint =
                 new AkkaRpcActorTest.DummyRpcEndpoint(akkaRpcService1);
 
@@ -140,14 +130,12 @@ public class AkkaRpcActorHandshakeTest extends TestLogger {
                 akkaRpcService2.connect(rpcEndpoint.getAddress(), WrongRpcGateway.class);
 
         try {
-            futureGateway.get(timeout.getSize(), timeout.getUnit());
-            fail("We expected a HandshakeException.");
-        } catch (ExecutionException executionException) {
-            assertThat(
-                    ExceptionUtils.stripExecutionException(executionException),
-                    instanceOf(HandshakeException.class));
+            assertThatThrownBy(() -> futureGateway.get())
+                    .extracting(ExceptionUtils::stripExecutionException)
+                    .isInstanceOf(HandshakeException.class);
+
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 

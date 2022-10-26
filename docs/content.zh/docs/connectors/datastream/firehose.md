@@ -33,6 +33,8 @@ To use the connector, add the following Maven dependency to your project:
 
 {{< artifact flink-connector-aws-kinesis-firehose >}}
 
+{{< py_download_link "aws-kinesis-firehose" >}}
+
 The `KinesisFirehoseSink` uses [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) to write data from a Flink stream into a Firehose delivery stream.
 
 {{< tabs "42vs28vdth5-nm76-6dz1-5m7s-5y345bu56se5u66je" >}}
@@ -86,6 +88,30 @@ val kdfSink =
         .build()
 
 flinkStream.sinkTo(kdfSink)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+sink_properties = {
+    # Required
+    'aws.region': 'eu-west-1',
+    # Optional, provide via alternative routes e.g. environment variables
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key'
+}
+
+kdf_sink = KinesisFirehoseSink.builder() \
+    .set_firehose_client_properties(sink_properties) \     # Required
+    .set_serialization_schema(SimpleStringSchema())  \     # Required
+    .set_delivery_stream_name('your-stream-name') \        # Required
+    .set_fail_on_error(False) \                            # Optional
+    .set_max_batch_size(500) \                             # Optional
+    .set_max_in_flight_requests(50) \                      # Optional
+    .set_max_buffered_requests(10000) \                    # Optional
+    .set_max_batch_size_in_bytes(5 * 1024 * 1024) \        # Optional
+    .set_max_time_in_buffer_ms(5000) \                     # Optional
+    .set_max_record_size_in_bytes(1 * 1024 * 1024) \       # Optional
+    .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -154,6 +180,16 @@ producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
 producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4566")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+producer_config = {
+    'aws.region': 'us-east-1',
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key',
+    'aws.endpoint': 'http://localhost:4566'
+}
 ```
 {{< /tab >}}
 {{< /tabs >}}

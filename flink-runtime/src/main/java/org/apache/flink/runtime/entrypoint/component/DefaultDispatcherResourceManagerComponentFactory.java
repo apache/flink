@@ -54,6 +54,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -108,6 +109,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             HighAvailabilityServices highAvailabilityServices,
             BlobServer blobServer,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             MetricRegistry metricRegistry,
             ExecutionGraphInfoStore executionGraphInfoStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
@@ -184,6 +186,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             rpcService,
                             highAvailabilityServices,
                             heartbeatServices,
+                            delegationTokenManager,
                             fatalErrorHandler,
                             new ClusterInformation(hostname, blobServer.getPort()),
                             webMonitorEndpoint.getRestBaseUrl(),

@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -306,10 +305,14 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final BridgingSqlFunction sqlFunction =
                     BridgingSqlFunction.of(relBuilder.getCluster(), resolvedFunction);
 
-            return relBuilder
-                    .functionScan(sqlFunction, 0, parameters)
-                    .rename(calculatedTable.getResolvedSchema().getColumnNames())
-                    .build();
+            FlinkRelBuilder.pushFunctionScan(
+                    relBuilder,
+                    sqlFunction,
+                    0,
+                    parameters,
+                    calculatedTable.getResolvedSchema().getColumnNames());
+
+            return relBuilder.build();
         }
 
         private RelNode convertLegacyTableFunction(
@@ -527,10 +530,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 boolean isTopLevelRecord,
                 ChangelogMode changelogMode) {
             final FlinkContext flinkContext = ShortcutUtils.unwrapContext(relBuilder);
-            final ReadableConfig config = flinkContext.getTableConfig().getConfiguration();
             return DynamicSourceUtils.convertDataStreamToRel(
                     flinkContext.isBatchMode(),
-                    config,
+                    flinkContext.getTableConfig(),
                     relBuilder,
                     contextResolvedTable,
                     dataStream,

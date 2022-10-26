@@ -19,6 +19,7 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -71,8 +72,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final SqlCharStringLiteral comment;
 
-    private final SqlTableLike tableLike;
-
     private final boolean isTemporary;
 
     public SqlCreateTable(
@@ -84,10 +83,35 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
-            @Nullable SqlTableLike tableLike,
             boolean isTemporary,
             boolean ifNotExists) {
-        super(OPERATOR, pos, false, ifNotExists);
+        this(
+                OPERATOR,
+                pos,
+                tableName,
+                columnList,
+                tableConstraints,
+                propertyList,
+                partitionKeyList,
+                watermark,
+                comment,
+                isTemporary,
+                ifNotExists);
+    }
+
+    protected SqlCreateTable(
+            SqlSpecialOperator operator,
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList columnList,
+            List<SqlTableConstraint> tableConstraints,
+            SqlNodeList propertyList,
+            SqlNodeList partitionKeyList,
+            @Nullable SqlWatermark watermark,
+            @Nullable SqlCharStringLiteral comment,
+            boolean isTemporary,
+            boolean ifNotExists) {
+        super(operator, pos, false, ifNotExists);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
         this.columnList = requireNonNull(columnList, "columnList should not be null");
         this.tableConstraints =
@@ -97,7 +121,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.watermark = watermark;
         this.comment = comment;
-        this.tableLike = tableLike;
         this.isTemporary = isTemporary;
     }
 
@@ -115,8 +138,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 propertyList,
                 partitionKeyList,
                 watermark,
-                comment,
-                tableLike);
+                comment);
     }
 
     public SqlIdentifier getTableName() {
@@ -145,10 +167,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     public Optional<SqlCharStringLiteral> getComment() {
         return Optional.ofNullable(comment);
-    }
-
-    public Optional<SqlTableLike> getTableLike() {
-        return Optional.ofNullable(tableLike);
     }
 
     public boolean isIfNotExists() {
@@ -183,10 +201,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                     regularColumn.setType(notNullType);
                 }
             }
-        }
-
-        if (tableLike != null) {
-            tableLike.validate();
         }
     }
 
@@ -267,25 +281,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         }
         tableName.unparse(writer, leftPrec, rightPrec);
         if (columnList.size() > 0 || tableConstraints.size() > 0 || watermark != null) {
-            SqlWriter.Frame frame =
-                    writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-            for (SqlNode column : columnList) {
-                printIndent(writer);
-                column.unparse(writer, leftPrec, rightPrec);
-            }
-            if (tableConstraints.size() > 0) {
-                for (SqlTableConstraint constraint : tableConstraints) {
-                    printIndent(writer);
-                    constraint.unparse(writer, leftPrec, rightPrec);
-                }
-            }
-            if (watermark != null) {
-                printIndent(writer);
-                watermark.unparse(writer, leftPrec, rightPrec);
-            }
-
-            writer.newlineAndIndent();
-            writer.endList(frame);
+            SqlUnparseUtils.unparseTableSchema(
+                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
         }
 
         if (comment != null) {
@@ -307,23 +304,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
             for (SqlNode property : propertyList) {
-                printIndent(writer);
+                SqlUnparseUtils.printIndent(writer);
                 property.unparse(writer, leftPrec, rightPrec);
             }
             writer.newlineAndIndent();
             writer.endList(withFrame);
         }
-
-        if (this.tableLike != null) {
-            writer.newlineAndIndent();
-            this.tableLike.unparse(writer, leftPrec, rightPrec);
-        }
-    }
-
-    protected void printIndent(SqlWriter writer) {
-        writer.sep(",", false);
-        writer.newlineAndIndent();
-        writer.print("  ");
     }
 
     /** Table creation context. */

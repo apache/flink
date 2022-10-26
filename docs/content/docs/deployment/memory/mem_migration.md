@@ -279,10 +279,10 @@ The direct or native off-heap memory consumers can now be addressed by the follo
 This section describes the changes of the default `flink-conf.yaml` shipped with Flink.
 
 The total memory for TaskManagers (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size)
-in the default `flink-conf.yaml`. The value increased from 1024Mb to 1728Mb.
+in the default `flink-conf.yaml`. The value increased from 1024MB to 1728MB.
 
 The total memory for JobManagers (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)
-in the default `flink-conf.yaml`. The value increased from 1024Mb to 1600Mb.
+in the default `flink-conf.yaml`. The value increased from 1024MB to 1600MB.
 
 See also [how to configure total memory now]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory).
 

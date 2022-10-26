@@ -1,12 +1,12 @@
 flink-gs-fs-hadoop
-Copyright 2014-2021 The Apache Software Foundation
+Copyright 2014-2022 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-core:2.13.0
+- com.fasterxml.jackson.core:jackson-core:2.13.4
 - com.google.android:annotations:4.1.1.4
 - com.google.api-client:google-api-client-jackson2:1.32.2
 - com.google.api-client:google-api-client:1.33.0

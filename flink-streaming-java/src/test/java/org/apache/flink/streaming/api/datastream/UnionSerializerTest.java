@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.CoGroupedStreams.UnionSerialize
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 /** Serializer tests for {@link UnionSerializer}. */
-public class UnionSerializerTest extends SerializerTestBase<TaggedUnion<Object, Object>> {
+class UnionSerializerTest extends SerializerTestBase<TaggedUnion<Object, Object>> {
 
     public UnionSerializerTest() {
         super(

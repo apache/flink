@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.influxdb;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -28,7 +29,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.influxdb.InfluxDB;
 
 /** Config options for {@link InfluxdbReporter}. */
-@Documentation.SuffixOption
+@Documentation.SuffixOption(ConfigConstants.METRICS_REPORTER_PREFIX + "influxdb")
 public class InfluxdbReporterOptions {
 
     public static final ConfigOption<String> HOST =
@@ -125,7 +126,7 @@ public class InfluxdbReporterOptions {
     }
 
     /** Supported URL schemes for the {@link InfluxdbReporter}. */
-    enum Scheme {
+    public enum Scheme {
         HTTP("http"),
         HTTPS("https");
 

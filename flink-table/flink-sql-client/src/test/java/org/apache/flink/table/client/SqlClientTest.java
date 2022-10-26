@@ -23,13 +23,10 @@ import org.apache.flink.table.client.cli.TerminalUtils;
 import org.apache.flink.util.FileUtils;
 
 import org.jline.terminal.Terminal;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -39,6 +36,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
@@ -46,30 +44,26 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SqlClient}. */
-public class SqlClientTest {
+class SqlClientTest {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private Path tempFolder;
 
     private Map<String, String> originalEnv;
 
     private String historyPath;
 
-    @Rule public Timeout timeout = new Timeout(1000, TimeUnit.SECONDS);
-
-    @Before
-    public void before() throws IOException {
+    @BeforeEach
+    void before() throws IOException {
         originalEnv = System.getenv();
 
         // prepare conf dir
-        File confFolder = tempFolder.newFolder("conf");
+        File confFolder = Files.createTempDirectory(tempFolder, "conf").toFile();
         File confYaml = new File(confFolder, "flink-conf.yaml");
         if (!confYaml.createNewFile()) {
             throw new IOException("Can't create testing flink-conf.yaml file.");
@@ -80,52 +74,52 @@ public class SqlClientTest {
         map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
         CommonTestUtils.setEnv(map);
 
-        historyPath = tempFolder.newFile("history").toString();
+        historyPath = Files.createTempFile(tempFolder, "history", "").toFile().getPath();
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         CommonTestUtils.setEnv(originalEnv);
     }
 
     @Test
-    public void testEmbeddedWithOptions() throws Exception {
+    void testEmbeddedWithOptions() throws Exception {
         String[] args = new String[] {"embedded", "-hist", historyPath};
         String actual = runSqlClient(args);
         assertThat(actual).contains("Command history file path: " + historyPath);
     }
 
     @Test
-    public void testEmbeddedWithLongOptions() throws Exception {
+    void testEmbeddedWithLongOptions() throws Exception {
         String[] args = new String[] {"embedded", "--history", historyPath};
         String actual = runSqlClient(args);
         assertThat(actual).contains("Command history file path: " + historyPath);
     }
 
     @Test
-    public void testEmbeddedWithoutOptions() throws Exception {
+    void testEmbeddedWithoutOptions() throws Exception {
         String[] args = new String[] {"embedded"};
         String actual = runSqlClient(args);
         assertThat(actual).contains("Command history file path: ");
     }
 
     @Test
-    public void testEmptyOptions() throws Exception {
+    void testEmptyOptions() throws Exception {
         String[] args = new String[] {};
         String actual = runSqlClient(args);
         assertThat(actual).contains("Command history file path");
     }
 
     @Test
-    public void testUnsupportedGatewayMode() {
+    void testUnsupportedGatewayMode() {
         String[] args = new String[] {"gateway"};
-        thrown.expect(SqlClientException.class);
-        thrown.expectMessage("Gateway mode is not supported yet.");
-        SqlClient.main(args);
+        assertThatThrownBy(() -> SqlClient.main(args))
+                .isInstanceOf(SqlClientException.class)
+                .hasMessage("Gateway mode is not supported yet.");
     }
 
     @Test
-    public void testErrorMessage() throws Exception {
+    void testErrorMessage() throws Exception {
         // prepare statements which will throw exception
         String stmts =
                 "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
@@ -149,7 +143,7 @@ public class SqlClientTest {
     }
 
     @Test
-    public void testVerboseErrorMessage() throws Exception {
+    void testVerboseErrorMessage() throws Exception {
         // prepare statements which will throw exception
         String stmts =
                 "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
@@ -170,7 +164,7 @@ public class SqlClientTest {
     }
 
     @Test
-    public void testInitFile() throws Exception {
+    void testInitFile() throws Exception {
         List<String> statements =
                 Arrays.asList(
                         "-- define table \n"
@@ -189,7 +183,7 @@ public class SqlClientTest {
     }
 
     @Test
-    public void testExecuteSqlFile() throws Exception {
+    void testExecuteSqlFile() throws Exception {
         List<String> statements = Collections.singletonList("HELP;\n");
         String sqlFilePath = createSqlFile(statements, "test-sql.sql");
         String[] args = new String[] {"-f", sqlFilePath};
@@ -203,11 +197,11 @@ public class SqlClientTest {
     }
 
     @Test
-    public void testExecuteSqlWithHDFSFile() throws Exception {
+    void testExecuteSqlWithHDFSFile() {
         String[] args = new String[] {"-f", "hdfs://path/to/file/test.sql"};
-        thrown.expect(SqlClientException.class);
-        thrown.expectMessage("SQL Client only supports to load files in local.");
-        runSqlClient(args);
+        assertThatThrownBy(() -> runSqlClient(args))
+                .isInstanceOf(SqlClientException.class)
+                .hasMessage("SQL Client only supports to load files in local.");
     }
 
     private String runSqlClient(String[] args) throws Exception {
@@ -228,7 +222,7 @@ public class SqlClientTest {
 
     private String createSqlFile(List<String> statements, String name) throws IOException {
         // create sql file
-        File sqlFileFolder = tempFolder.newFolder("sql-file");
+        File sqlFileFolder = Files.createTempDirectory(tempFolder, "sql-file").toFile();
         File sqlFile = new File(sqlFileFolder, name);
         if (!sqlFile.createNewFile()) {
             throw new IOException(String.format("Can't create testing %s.", name));

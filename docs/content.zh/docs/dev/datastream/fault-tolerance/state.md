@@ -383,6 +383,8 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 - 当前开启 TTL 的 map state 仅在用户值序列化器支持 null 的情况下，才支持用户值为 null。如果用户值序列化器不支持 null，
 可以用 `NullableSerializer` 包装一层。
+  
+- 启用 TTL 配置后，`StateDescriptor` 中的 `defaultValue`（已被标记 `deprecated`）将会失效。这个设计的目的是为了确保语义更加清晰，在此基础上，用户需要手动管理那些实际值为 null 或已过期的状态默认值。
 
 #### 过期数据的清理
 

@@ -21,15 +21,16 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 /**
  * Batch physical RelNode for sort-based aggregate operator.
  *
- * @see [[BatchPhysicalGroupAggregateBase]] for more info.
+ * @see
+ *   [[BatchPhysicalGroupAggregateBase]] for more info.
  */
 abstract class BatchPhysicalSortAggregateBase(
     cluster: RelOptCluster,

@@ -19,31 +19,26 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
-import static org.hamcrest.Matchers.arrayWithSize;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.taskexecutor.IdleTestTask.executeWithTerminationGuarantee;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ThreadInfoSampleService}. */
 public class ThreadInfoSampleServiceTest extends TestLogger {
@@ -56,17 +51,15 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
             new ThreadInfoSamplesRequest(
                     1, NUMBER_OF_SAMPLES, DELAY_BETWEEN_SAMPLES, MAX_STACK_TRACK_DEPTH);
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
     private ThreadInfoSampleService threadInfoSampleService;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         threadInfoSampleService =
                 new ThreadInfoSampleService(Executors.newSingleThreadScheduledExecutor());
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         if (threadInfoSampleService != null) {
             threadInfoSampleService.close();
@@ -74,102 +67,106 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
     }
 
     /** Tests successful thread info samples request. */
-    @Test(timeout = 10000L)
+    @Test
     public void testSampleTaskThreadInfo() throws Exception {
-        final List<ThreadInfoSample> threadInfoSamples =
-                threadInfoSampleService
-                        .requestThreadInfoSamples(new TestTask(), requestParams)
-                        .get();
+        Set<IdleTestTask> tasks = new HashSet<>();
+        executeWithTerminationGuarantee(
+                () -> {
+                    tasks.add(new IdleTestTask());
+                    tasks.add(new IdleTestTask());
+                    Thread.sleep(2000);
+                    final Collection<ThreadInfoSample> threadInfoSamples =
+                            threadInfoSampleService
+                                    .requestThreadInfoSamples(tasks, requestParams)
+                                    .get();
 
-        assertThat(threadInfoSamples, hasSize(NUMBER_OF_SAMPLES));
+                    assertThat(threadInfoSamples).hasSize(NUMBER_OF_SAMPLES * 2);
 
-        for (ThreadInfoSample sample : threadInfoSamples) {
-            StackTraceElement[] traces = sample.getStackTrace();
-            assertTrue(sample.getStackTrace().length <= MAX_STACK_TRACK_DEPTH);
-            assertThat(traces, is(arrayWithSize(lessThanOrEqualTo(MAX_STACK_TRACK_DEPTH))));
-        }
+                    for (ThreadInfoSample sample : threadInfoSamples) {
+                        StackTraceElement[] traces = sample.getStackTrace();
+                        assertThat(traces).hasSizeLessThanOrEqualTo(MAX_STACK_TRACK_DEPTH);
+                    }
+                },
+                tasks);
     }
 
     /** Tests that stack traces are truncated when exceeding the configured depth. */
-    @Test(timeout = 10000L)
+    @Test
     public void testTruncateStackTraceIfLimitIsSpecified() throws Exception {
-        final List<ThreadInfoSample> threadInfoSamples1 =
-                threadInfoSampleService
-                        .requestThreadInfoSamples(new TestTask(), requestParams)
-                        .get();
+        Set<IdleTestTask> tasks = new HashSet<>();
+        executeWithTerminationGuarantee(
+                () -> {
+                    tasks.add(new IdleTestTask());
+                    final Collection<ThreadInfoSample> threadInfoSamples1 =
+                            threadInfoSampleService
+                                    .requestThreadInfoSamples(tasks, requestParams)
+                                    .get();
 
-        final List<ThreadInfoSample> threadInfoSamples2 =
-                threadInfoSampleService
-                        .requestThreadInfoSamples(
-                                new TestTask(),
-                                new ThreadInfoSamplesRequest(
-                                        1,
-                                        NUMBER_OF_SAMPLES,
-                                        DELAY_BETWEEN_SAMPLES,
-                                        MAX_STACK_TRACK_DEPTH - 5))
-                        .get();
+                    final Collection<ThreadInfoSample> threadInfoSamples2 =
+                            threadInfoSampleService
+                                    .requestThreadInfoSamples(
+                                            tasks,
+                                            new ThreadInfoSamplesRequest(
+                                                    1,
+                                                    NUMBER_OF_SAMPLES,
+                                                    DELAY_BETWEEN_SAMPLES,
+                                                    MAX_STACK_TRACK_DEPTH - 6))
+                                    .get();
 
-        for (ThreadInfoSample sample : threadInfoSamples1) {
-            assertThat(
-                    sample.getStackTrace(),
-                    is(arrayWithSize(lessThanOrEqualTo(MAX_STACK_TRACK_DEPTH))));
-            assertTrue(sample.getStackTrace().length <= MAX_STACK_TRACK_DEPTH);
-        }
+                    for (ThreadInfoSample sample : threadInfoSamples1) {
+                        assertThat(sample.getStackTrace())
+                                .hasSizeLessThanOrEqualTo(MAX_STACK_TRACK_DEPTH);
+                    }
 
-        for (ThreadInfoSample sample : threadInfoSamples2) {
-            assertThat(sample.getStackTrace(), is(arrayWithSize(MAX_STACK_TRACK_DEPTH - 5)));
-        }
+                    for (ThreadInfoSample sample : threadInfoSamples2) {
+                        assertThat(sample.getStackTrace()).hasSize(MAX_STACK_TRACK_DEPTH - 6);
+                    }
+                },
+                tasks);
     }
 
     /** Test that negative numSamples parameter is handled. */
     @Test
     public void testThrowExceptionIfNumSamplesIsNegative() {
-        try {
-            threadInfoSampleService.requestThreadInfoSamples(
-                    new TestTask(),
-                    new ThreadInfoSamplesRequest(
-                            1, -1, DELAY_BETWEEN_SAMPLES, MAX_STACK_TRACK_DEPTH));
-            fail("Expected exception not thrown");
-        } catch (final IllegalArgumentException e) {
-            assertThat(e.getMessage(), is(equalTo("numSamples must be positive")));
-        }
+        Set<IdleTestTask> tasks = new HashSet<>();
+        assertThatThrownBy(
+                        () ->
+                                executeWithTerminationGuarantee(
+                                        () -> {
+                                            tasks.add(new IdleTestTask());
+                                            threadInfoSampleService.requestThreadInfoSamples(
+                                                    tasks,
+                                                    new ThreadInfoSamplesRequest(
+                                                            1,
+                                                            -1,
+                                                            DELAY_BETWEEN_SAMPLES,
+                                                            MAX_STACK_TRACK_DEPTH));
+                                        },
+                                        tasks))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("numSamples must be positive");
     }
 
     /** Test that sampling a non-running task throws an exception. */
     @Test
-    public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
-        final CompletableFuture<List<ThreadInfoSample>> sampleFuture =
-                threadInfoSampleService.requestThreadInfoSamples(
-                        new NotRunningTask(), requestParams);
-        assertThat(
-                sampleFuture,
-                FlinkMatchers.futureWillCompleteExceptionally(
-                        IllegalStateException.class, Duration.ofSeconds(10)));
+    public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling()
+            throws ExecutionException, InterruptedException {
+        Set<SampleableTask> tasks = new HashSet<>();
+        tasks.add(new NotRunningTask());
+        final CompletableFuture<Collection<ThreadInfoSample>> sampleFuture =
+                threadInfoSampleService.requestThreadInfoSamples(tasks, requestParams);
+
+        assertThat(sampleFuture).failsWithin(Duration.ofSeconds(10));
+        assertThat(sampleFuture.handle((ignored, e) -> e).get())
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    private static class TestTask implements SampleableTask {
+    private static class NotRunningTask implements SampleableTask {
 
-        private final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
-
-        @Override
-        public Thread getExecutingThread() {
-            return Thread.currentThread();
-        }
-
-        @Override
-        public ExecutionAttemptID getExecutionId() {
-            return executionAttemptID;
-        }
-    }
-
-    private static class NotRunningTask extends TestTask {
-
-        @Override
         public Thread getExecutingThread() {
             return new Thread();
         }
 
-        @Override
         public ExecutionAttemptID getExecutionId() {
             return null;
         }

@@ -17,11 +17,12 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { ActivatedRoute } from '@angular/router';
+import { of, Subject } from 'rxjs';
+import { catchError, mergeMap, startWith, takeUntil } from 'rxjs/operators';
 
-import { TaskManagerDetail } from 'interfaces';
-import { TaskManagerService } from 'services';
+import { MetricMap, TaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-task-manager-metrics',
@@ -30,37 +31,59 @@ import { TaskManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
-  public taskManagerDetail: TaskManagerDetail;
+  public taskManagerDetail?: TaskManagerDetail;
   public metrics: { [id: string]: number } = {};
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly taskManagerService: TaskManagerService,
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly statusService: StatusService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.taskManagerService
-        .getMetrics(data.id, [
-          'Status.JVM.Memory.Heap.Used',
-          'Status.JVM.Memory.Heap.Max',
-          'Status.Shuffle.Netty.UsedMemory',
-          'Status.Shuffle.Netty.TotalMemory',
-          'Status.Flink.Memory.Managed.Used',
-          'Status.Flink.Memory.Managed.Total',
-          'Status.JVM.Memory.Metaspace.Used',
-          'Status.JVM.Memory.Metaspace.Max'
-        ])
-        .subscribe(metrics => {
-          this.metrics = metrics;
-          this.cdr.markForCheck();
-        });
-      this.cdr.markForCheck();
-    });
+    const taskManagerId = this.activatedRoute.parent!.snapshot.params.taskManagerId;
+    this.statusService.refresh$
+      .pipe(
+        startWith(true),
+        mergeMap(() => this.taskManagerService.loadManager(taskManagerId).pipe(catchError(() => of(undefined)))),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        if (data) {
+          this.reload(data.id);
+        }
+        this.taskManagerDetail = data;
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private reload(id: string): void {
+    this.taskManagerService
+      .loadMetrics(id, [
+        'Status.JVM.Memory.Heap.Used',
+        'Status.JVM.Memory.Heap.Max',
+        'Status.Shuffle.Netty.UsedMemory',
+        'Status.Shuffle.Netty.TotalMemory',
+        'Status.Flink.Memory.Managed.Used',
+        'Status.Flink.Memory.Managed.Total',
+        'Status.JVM.Memory.Metaspace.Used',
+        'Status.JVM.Memory.Metaspace.Max'
+      ])
+      .pipe(
+        catchError(() => of({} as MetricMap)),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(metrics => {
+        this.metrics = metrics;
+        this.cdr.markForCheck();
+      });
   }
 }

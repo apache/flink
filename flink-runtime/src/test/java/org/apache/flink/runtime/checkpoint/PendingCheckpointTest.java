@@ -64,6 +64,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -85,7 +86,7 @@ public class PendingCheckpointTest {
 
     private static final List<Execution> ACK_TASKS = new ArrayList<>();
     private static final List<ExecutionVertex> TASKS_TO_COMMIT = new ArrayList<>();
-    private static final ExecutionAttemptID ATTEMPT_ID = new ExecutionAttemptID();
+    private static final ExecutionAttemptID ATTEMPT_ID = createExecutionAttemptId();
 
     public static final OperatorID OPERATOR_ID = new OperatorID();
 
@@ -644,7 +645,8 @@ public class PendingCheckpointTest {
                         masterStateIdentifiers,
                         props,
                         new CompletableFuture<>(),
-                        null);
+                        null,
+                        new CompletableFuture<>());
         pendingCheckpoint.setCheckpointTargetLocation(location);
         return pendingCheckpoint;
     }

@@ -36,7 +36,7 @@ RUN set -x \
 # install dev tools
 RUN set -x \
     && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl tar sudo openssh-server openssh-client rsync unzip krb5-user net-tools
+    curl tar sudo openssh-server openssh-client rsync unzip krb5-user net-tools build-essential
 
 # Kerberos client
 RUN set -x \

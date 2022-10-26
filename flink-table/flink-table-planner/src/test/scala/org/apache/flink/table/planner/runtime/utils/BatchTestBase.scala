@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.BatchShuffleMode
@@ -43,36 +42,37 @@ import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.runtime.CalciteContextException
-import org.apache.calcite.sql.SqlExplainLevel
-import org.apache.calcite.sql.parser.SqlParseException
-import org.junit.Assert._
-import org.junit.{After, Assert, Before}
-
 import _root_.java.lang.{Iterable => JIterable}
 import _root_.java.util.regex.Pattern
-
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.Seq
 import _root_.scala.collection.mutable.ArrayBuffer
 import _root_.scala.util.Sorting
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.runtime.CalciteContextException
+import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.calcite.sql.parser.SqlParseException
+import org.junit.{After, Assert, Before}
+import org.junit.Assert._
 
 class BatchTestBase extends BatchAbstractTestBase {
 
-  private val settings = EnvironmentSettings.newInstance().inBatchMode().build()
-  private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
+  protected var settings = EnvironmentSettings.newInstance().inBatchMode().build()
+  protected var testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
     .create(settings, catalogManager = None, TableConfig.getDefault)
-  val tEnv: TableEnvironment = testingTableEnv
-  private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-  val env: StreamExecutionEnvironment = planner.getExecEnv
+  protected var tEnv: TableEnvironment = testingTableEnv
+  protected var planner =
+    tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+  protected var env: StreamExecutionEnvironment = planner.getExecEnv
   env.getConfig.enableObjectReuse()
-  val tableConfig: TableConfig = tEnv.getConfig
+  protected var tableConfig: TableConfig = tEnv.getConfig
 
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
-  val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile("(?s)From line ([0-9]+),"
-    + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
+  val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile(
+    "(?s)From line ([0-9]+),"
+      + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
+  @throws(classOf[Exception])
   @Before
   def before(): Unit = {
     BatchTestBase.configForMiniCluster(tableConfig)
@@ -84,11 +84,13 @@ class BatchTestBase extends BatchAbstractTestBase {
   }
 
   /**
-    * Explain ast tree nodes of table and the logical plan after optimization.
-    *
-    * @param table table to explain for
-    * @return string presentation of of explaining
-    */
+   * Explain ast tree nodes of table and the logical plan after optimization.
+   *
+   * @param table
+   *   table to explain for
+   * @return
+   *   string presentation of of explaining
+   */
   def explainLogical(table: Table): String = {
     val ast = TableTestUtil.toRelNode(table)
     val logicalPlan = getPlan(ast)
@@ -111,22 +113,24 @@ class BatchTestBase extends BatchAbstractTestBase {
   }
 
   def checkSize(sqlQuery: String, expectedSize: Int): Unit = {
-    check(sqlQuery, (result: Seq[Row]) => {
-      if (result.size != expectedSize) {
-        val errorMessage =
-          s"""
-             |Results
-             |${
-            sideBySide(
-              s"== Correct Result - $expectedSize ==" +:
-                prepareResult(Seq(), isSorted = false),
-              s"== Actual Result - ${result.size} ==" +:
-                prepareResult(result, isSorted = false)).mkString("\n")
-          }
+    check(
+      sqlQuery,
+      (result: Seq[Row]) => {
+        if (result.size != expectedSize) {
+          val errorMessage =
+            s"""
+               |Results
+               |${sideBySide(
+                s"== Correct Result - $expectedSize ==" +:
+                  prepareResult(Seq(), isSorted = false),
+                s"== Actual Result - ${result.size} ==" +:
+                  prepareResult(result, isSorted = false)
+              ).mkString("\n")}
         """.stripMargin
-        Some(errorMessage)
-      } else None
-    })
+          Some(errorMessage)
+        } else None
+      }
+    )
   }
 
   private def getPlan(relNode: RelNode): String = {
@@ -139,15 +143,15 @@ class BatchTestBase extends BatchAbstractTestBase {
     val table = parseQuery(sqlQuery)
     val result = executeQuery(table)
 
-    checkFunc(result).foreach { results =>
-      val plan = explainLogical(table)
-      Assert.fail(
-        s"""
-           |Results do not match for query:
-           |  $sqlQuery
-           |$results
-           |Plan:
-           |  $plan
+    checkFunc(result).foreach {
+      results =>
+        val plan = explainLogical(table)
+        Assert.fail(s"""
+                       |Results do not match for query:
+                       |  $sqlQuery
+                       |$results
+                       |Plan:
+                       |  $plan
        """.stripMargin)
     }
   }
@@ -155,14 +159,14 @@ class BatchTestBase extends BatchAbstractTestBase {
   def checkTable(table: Table, checkFunc: Seq[Row] => Option[String]): Unit = {
     val result = executeQuery(table)
 
-    checkFunc(result).foreach { results =>
-      val plan = explainLogical(table)
-      Assert.fail(
-        s"""
-           |Results do not match:
-           |$results
-           |Plan:
-           |  $plan
+    checkFunc(result).foreach {
+      results =>
+        val plan = explainLogical(table)
+        Assert.fail(s"""
+                       |Results do not match:
+                       |$results
+                       |Plan:
+                       |  $plan
        """.stripMargin)
     }
   }
@@ -173,9 +177,10 @@ class BatchTestBase extends BatchAbstractTestBase {
       val _ = executeQuery(table)
       // If got here, no exception is thrown.
       if (expectedMsgPattern != null) {
-        throw new AssertionError(s"Expected query to throw exception, but it did not;"
-          + s" query [$sqlQuery ];"
-          + s" expected [$expectedMsgPattern]")
+        throw new AssertionError(
+          s"Expected query to throw exception, but it did not;"
+            + s" query [$sqlQuery ];"
+            + s" expected [$expectedMsgPattern]")
       }
     } catch {
       case spe: SqlParserException =>
@@ -183,8 +188,10 @@ class BatchTestBase extends BatchAbstractTestBase {
         if (null == expectedMsgPattern) {
           throw new RuntimeException(s"Error while parsing query: $sqlQuery", spe)
         } else if (null == errMsg || !errMsg.matches(expectedMsgPattern)) {
-          throw new RuntimeException(s"Error did not match expected [$expectedMsgPattern] while "
-            + s"parsing query [$sqlQuery]", spe)
+          throw new RuntimeException(
+            s"Error did not match expected [$expectedMsgPattern] while "
+              + s"parsing query [$sqlQuery]",
+            spe)
         }
       case thrown: Throwable =>
         var actualExp = thrown
@@ -251,8 +258,7 @@ class BatchTestBase extends BatchAbstractTestBase {
               actualEndLine = matcher.group(3).toInt
               actualEndColumn = matcher.group(4).toInt
               actualMsg = matcher.group(5)
-            }
-            else {
+            } else {
               matcher = LINE_COL_PATTERN.matcher(message)
               if (matcher.matches) {
                 actualLine = matcher.group(1).toInt
@@ -263,20 +269,22 @@ class BatchTestBase extends BatchAbstractTestBase {
         }
         if (null == expectedMsgPattern) {
           actualExp.printStackTrace()
-          fail(s"Validator threw unexpected exception; query [$sqlQuery];" +
-            s" exception [$actualMsg]; class [$actualExp.getClass];" +
-            s" pos [line $actualLine col $actualColumn thru line $actualLine col $actualColumn]")
+          fail(
+            s"Validator threw unexpected exception; query [$sqlQuery];" +
+              s" exception [$actualMsg]; class [$actualExp.getClass];" +
+              s" pos [line $actualLine col $actualColumn thru line $actualLine col $actualColumn]")
         }
         if (actualMsg == null || !actualMsg.matches(expectedMsgPattern)) {
           actualExp.printStackTrace()
-          fail(s"Validator threw different "
-            + s"exception than expected; query [$sqlQuery];\n"
-            + s" expected pattern [$expectedMsgPattern];\n"
-            + s" actual [$actualMsg];\n"
-            + s" pos [$actualLine"
-            + s" col $actualColumn"
-            + s" thru line $actualEndLine"
-            + s" col $actualEndColumn].")
+          fail(
+            s"Validator threw different "
+              + s"exception than expected; query [$sqlQuery];\n"
+              + s" expected pattern [$expectedMsgPattern];\n"
+              + s" actual [$actualMsg];\n"
+              + s" pos [$actualLine"
+              + s" col $actualColumn"
+              + s" thru line $actualEndLine"
+              + s" col $actualEndColumn].")
         }
     }
   }
@@ -285,11 +293,11 @@ class BatchTestBase extends BatchAbstractTestBase {
     val table = parseQuery(sqlQuery)
     val result = executeQuery(table)
 
-    checkEmpty(result).foreach { results =>
-      Assert.fail(
-        s"""
-           |Results do not match for query:
-           |$results
+    checkEmpty(result).foreach {
+      results =>
+        Assert.fail(s"""
+                       |Results do not match for query:
+                       |$results
        """.stripMargin)
     }
   }
@@ -313,18 +321,19 @@ class BatchTestBase extends BatchAbstractTestBase {
       expectedResult: Seq[Row],
       result: Seq[Row],
       isSorted: Boolean = false): Option[String] = {
-    if (expectedResult.size != result.size
-      || !prepareResult(expectedResult, isSorted).equals(prepareResult(result, isSorted))) {
+    if (
+      expectedResult.size != result.size
+      || !prepareResult(expectedResult, isSorted).equals(prepareResult(result, isSorted))
+    ) {
       val errorMessage =
         s"""
            |Results
-           |${
-          sideBySide(
+           |${sideBySide(
             s"== Correct Result - ${expectedResult.size} ==" +:
               prepareResult(expectedResult, isSorted),
             s"== Actual Result - ${result.size} ==" +:
-              prepareResult(result, isSorted)).mkString("\n")
-        }
+              prepareResult(result, isSorted)
+          ).mkString("\n")}
         """.stripMargin
       Some(errorMessage)
     } else None
@@ -371,7 +380,13 @@ class BatchTestBase extends BatchAbstractTestBase {
       fields: String,
       fieldNullables: Array[Boolean]): Unit = {
     BatchTableEnvUtil.registerCollection(
-      tEnv, tableName, data, typeInfo, fields, fieldNullables, None)
+      tEnv,
+      tableName,
+      data,
+      typeInfo,
+      fields,
+      fieldNullables,
+      None)
   }
 
   def registerCollection[T](
@@ -382,27 +397,28 @@ class BatchTestBase extends BatchAbstractTestBase {
       fieldNullables: Array[Boolean],
       statistic: FlinkStatistic): Unit = {
     BatchTableEnvUtil.registerCollection(
-      tEnv, tableName, data, typeInfo, fields, fieldNullables, Some(statistic))
+      tEnv,
+      tableName,
+      data,
+      typeInfo,
+      fields,
+      fieldNullables,
+      Some(statistic))
   }
 
   def registerTemporarySystemFunction(
       name: String,
-      functionClass: Class[_ <: UserDefinedFunction])
-    : Unit = {
+      functionClass: Class[_ <: UserDefinedFunction]): Unit = {
     testingTableEnv.createTemporarySystemFunction(name, functionClass)
   }
 
-  /**
-   * @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference.
-   */
+  /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   def registerFunction(name: String, function: ScalarFunction): Unit = {
     testingTableEnv.registerFunction(name, function)
   }
 
-  /**
-   * @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference.
-   */
+  /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
@@ -410,9 +426,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     testingTableEnv.registerFunction(name, f)
   }
 
-  /**
-   * @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference.
-   */
+  /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     testingTableEnv.registerFunction(name, tf)
@@ -424,7 +438,12 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def registerRange(name: String, start: Long, end: Long): Unit = {
     BatchTableEnvUtil.registerBoundedStreamInternal(
-      tEnv, name, newRangeSource(start, end), Some[Array[String]](Array[String]("id")), None, None)
+      tEnv,
+      name,
+      newRangeSource(start, end),
+      Some(Array($"id")),
+      None,
+      None)
   }
 
   def newRangeSource(start: Long, end: Long): DataStream[RowData] = {
@@ -435,14 +454,12 @@ class BatchTestBase extends BatchAbstractTestBase {
   }
 
   /**
-   * Creates a new Row and assigns the given values to the Row's fields.
-   * We use [[rowOf()]] here to avoid conflicts with [[ImplicitExpressionConversions.row]].
+   * Creates a new Row and assigns the given values to the Row's fields. We use [[rowOf()]] here to
+   * avoid conflicts with [[ImplicitExpressionConversions.row]].
    */
   protected def rowOf(args: Any*): Row = {
     val row = new Row(args.length)
-    0 until args.length foreach {
-      i => row.setField(i, args(i))
-    }
+    (0 until args.length).foreach(i => row.setField(i, args(i)))
     row
   }
 }
@@ -461,45 +478,46 @@ object BatchTestBase {
   }
 
   def binaryRow(types: Array[LogicalType], fields: Any*): BinaryRowData = {
-    assertEquals(
-      "Filed count inconsistent with type information",
-      fields.length,
-      types.length)
+    assertEquals("Filed count inconsistent with type information", fields.length, types.length)
     val row = new BinaryRowData(fields.length)
     val writer = new BinaryRowWriter(row)
     writer.reset()
-    fields.zipWithIndex.foreach { case (field, index) =>
-      if (field == null) writer.setNullAt(index)
-      else RowDataTestUtil.write(writer, index, field, types(index))
+    fields.zipWithIndex.foreach {
+      case (field, index) =>
+        if (field == null) writer.setNullAt(index)
+        else RowDataTestUtil.write(writer, index, field, types(index))
     }
     writer.complete()
     row
   }
 
-  def compareResult[T](expectedStrings: Array[String],
+  def compareResult[T](
+      expectedStrings: Array[String],
       result: Array[T],
       sort: Boolean,
       asTuples: Boolean = false): Unit = {
     val resultStringsBuffer: ArrayBuffer[String] = new ArrayBuffer[String](result.length)
-    result.foreach { v =>
-      v match {
-        case t0: Tuple if asTuples =>
-          val first: Any = t0.getField(0)
-          val bld: StringBuilder = new StringBuilder(if (first == null) "null" else first.toString)
-          (1 until t0.getArity).foreach {
-            idx =>
-              val next = t0.getField(idx)
-              bld.append(',').append(if (next == null) "null" else next.toString)
-              resultStringsBuffer += bld.toString()
-          }
-        case _ =>
-      }
-      if (asTuples && !v.isInstanceOf[Tuple]) {
-        throw new IllegalArgumentException(v + " is no tuple")
-      }
-      if (!asTuples) {
-        resultStringsBuffer += (if (v == null) "null" else v.toString)
-      }
+    result.foreach {
+      v =>
+        v match {
+          case t0: Tuple if asTuples =>
+            val first: Any = t0.getField(0)
+            val bld: StringBuilder =
+              new StringBuilder(if (first == null) "null" else first.toString)
+            (1 until t0.getArity).foreach {
+              idx =>
+                val next = t0.getField(idx)
+                bld.append(',').append(if (next == null) "null" else next.toString)
+                resultStringsBuffer += bld.toString()
+            }
+          case _ =>
+        }
+        if (asTuples && !v.isInstanceOf[Tuple]) {
+          throw new IllegalArgumentException(v + " is no tuple")
+        }
+        if (!asTuples) {
+          resultStringsBuffer += (if (v == null) "null" else v.toString)
+        }
     }
     val resultStrings = resultStringsBuffer.toArray
     if (sort) {

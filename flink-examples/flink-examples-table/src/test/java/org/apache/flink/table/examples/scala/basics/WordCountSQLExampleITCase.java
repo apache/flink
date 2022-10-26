@@ -20,21 +20,19 @@ package org.apache.flink.table.examples.scala.basics;
 
 import org.apache.flink.table.examples.utils.ExampleOutputTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for Scala {@link WordCountSQLExample}. */
-public class WordCountSQLExampleITCase extends ExampleOutputTestBase {
+class WordCountSQLExampleITCase extends ExampleOutputTestBase {
 
     @Test
-    public void testExample() {
+    void testExample() {
         WordCountSQLExample.main(new String[0]);
         final String consoleOutput = getOutputString();
-        assertThat(
-                consoleOutput, containsString("|                           Ciao |           1 |"));
-        assertThat(
-                consoleOutput, containsString("|                          Hello |           3 |"));
+        assertThat(consoleOutput)
+                .contains("|                           Ciao |           1 |")
+                .contains("|                          Hello |           3 |");
     }
 }

@@ -36,6 +36,8 @@ PyFlink 支持将 Pandas DataFrame 转换成 PyFlink Table。在内部实现上�
 以下示例显示如何从 Pandas DataFrame 创建 PyFlink Table：
 
 ```python
+from pyflink.table import DataTypes
+
 import pandas as pd
 import numpy as np
 
@@ -54,7 +56,7 @@ table = t_env.from_pandas(pdf, [DataTypes.DOUBLE(), DataTypes.DOUBLE()])
 # 由Pandas DataFrame创建列名和列类型的PyFlink表
 table = t_env.from_pandas(pdf,
                           DataTypes.ROW([DataTypes.FIELD("f0", DataTypes.DOUBLE()),
-                                         DataTypes.FIELD("f1", DataTypes.DOUBLE())])
+                                         DataTypes.FIELD("f1", DataTypes.DOUBLE())]))
 ```
 
 ## 将 PyFlink Table 转换为 Pandas DataFrame
@@ -68,6 +70,8 @@ table = t_env.from_pandas(pdf,
 以下示例显示了如何将 PyFlink Table 转换为 Pandas DataFrame：
 
 ```python
+from pyflink.table.expressions import col
+
 import pandas as pd
 import numpy as np
 

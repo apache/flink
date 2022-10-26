@@ -112,7 +112,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                             leaderElectionDriver.publishLeaderInformation(
                                     componentId, leaderInformation);
 
-                            leaderRetrievalListener.waitForNewLeader(10_000L);
+                            leaderRetrievalListener.waitForNewLeader();
 
                             assertThat(leaderRetrievalListener.getLeader())
                                     .isEqualTo(leaderInformation);
@@ -146,12 +146,12 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                     componentId,
                                     LeaderInformation.known(UUID.randomUUID(), "foobar"));
 
-                            leaderRetrievalListener.waitForNewLeader(10_000L);
+                            leaderRetrievalListener.waitForNewLeader();
 
                             leaderElectionDriver.publishLeaderInformation(
                                     componentId, LeaderInformation.empty());
 
-                            leaderRetrievalListener.waitForEmptyLeaderInformation(10_000L);
+                            leaderRetrievalListener.waitForEmptyLeaderInformation();
 
                             assertThat(leaderRetrievalListener.getLeader())
                                     .isEqualTo(LeaderInformation.empty());
@@ -262,6 +262,24 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                                 ElectionDriver::hasLeadership, Collectors.toSet()));
 
                 assertThat(leaderAndRest.get(true)).hasSize(1);
+
+                // TODO: remove this line after CURATOR-645 is resolved
+                // CURATOR-645 covers a bug in the LeaderLatch implementation that causes a race
+                // condition if a child node, participating in the leader election, is removed too
+                // fast. This results in a different code branch being executed which triggers a
+                // reset of the LeaderLatch instead of re-collecting the children to determine the
+                // next leader.
+                // The issue occurs because LeaderLatch#checkLeadership is not executed
+                // transactionally, i.e. retrieving the children and setting up the watcher for the
+                // predecessor is not done atomically. This leads to the race condition where a
+                // children (the previous leader's node) is removed before setting up the watcher
+                // which results in an invalid handling of the situation using reset.
+                // Adding some sleep here (simulating the leader actually doing something) will
+                // reduce the risk of falling into the race condition because it will give the
+                // concurrently running LeaderLatch instances more time to set up the watchers
+                // properly.
+                Thread.sleep(100);
+
                 Iterables.getOnlyElement(leaderAndRest.get(true)).close();
 
                 electionDrivers = leaderAndRest.get(false);

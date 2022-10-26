@@ -27,19 +27,16 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.junit.Test;
 
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /** Tests for {@link DefaultLeaderElectionService}. */
 public class DefaultLeaderElectionServiceTest extends TestLogger {
 
     private static final String TEST_URL = "akka//user/jobmanager";
-    private static final long timeout = 50L;
 
     @Test
     public void testOnGrantAndRevokeLeadership() throws Exception {
@@ -50,7 +47,7 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
                             // grant leadership
                             testingLeaderElectionDriver.isLeader();
 
-                            testingContender.waitForLeader(timeout);
+                            testingContender.waitForLeader();
                             assertThat(testingContender.getDescription(), is(TEST_URL));
                             assertThat(
                                     testingContender.getLeaderSessionID(),
@@ -65,7 +62,7 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
 
                             // revoke leadership
                             testingLeaderElectionDriver.notLeader();
-                            testingContender.waitForRevokeLeader(timeout);
+                            testingContender.waitForRevokeLeader();
                             assertThat(testingContender.getLeaderSessionID(), is(nullValue()));
                             assertThat(leaderElectionService.getLeaderSessionID(), is(nullValue()));
                             // External storage should be cleared
@@ -238,7 +235,7 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
 
                             testingLeaderElectionDriver.onFatalError(testException);
 
-                            testingContender.waitForError(timeout);
+                            testingContender.waitForError();
                             assertThat(testingContender.getError(), is(notNullValue()));
                             assertThat(
                                     testingContender.getError(),
@@ -258,15 +255,6 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
 
                             leaderElectionService.stop();
                             testingLeaderElectionDriver.onFatalError(testException);
-
-                            try {
-                                testingContender.waitForError(timeout);
-                                fail(
-                                        "We expect to have a timeout here because there's no error should be passed to contender.");
-                            } catch (TimeoutException ex) {
-                                // noop
-                            }
-
                             assertThat(testingContender.getError(), is(nullValue()));
                         });
             }

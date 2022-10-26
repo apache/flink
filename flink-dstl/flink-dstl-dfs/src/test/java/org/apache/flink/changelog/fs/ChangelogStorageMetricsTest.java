@@ -18,25 +18,31 @@ package org.apache.flink.changelog.fs;
  */
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -46,43 +52,54 @@ import static org.apache.flink.changelog.fs.ChangelogStorageMetricGroup.CHANGELO
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup;
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup;
 import static org.apache.flink.runtime.state.KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link ChangelogStorageMetricGroup} test. */
 public class ChangelogStorageMetricsTest {
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @TempDir java.nio.file.Path tempFolder;
 
     @Test
-    public void testUploadsCounter() throws Exception {
+    void testUploadsCounter() throws Exception {
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
-                        Path.fromLocalFile(temporaryFolder.newFolder()), false, 100, metrics)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
-
+                        JobID.generate(),
+                        Path.fromLocalFile(tempFolder.toFile()),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled())) {
+            FsStateChangelogWriter writer = createWriter(storage);
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
                 SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0, 1, 2, 3});
                 writer.persist(from).get();
             }
-            assertEquals(numUploads, metrics.getUploadsCounter().getCount());
-            assertTrue(metrics.getUploadLatenciesNanos().getStatistics().getMin() > 0);
+            assertThat(metrics.getUploadsCounter().getCount()).isEqualTo(numUploads);
+            assertThat(metrics.getUploadLatenciesNanos().getStatistics().getMin()).isGreaterThan(0);
         }
     }
 
     @Test
-    public void testUploadSizes() throws Exception {
+    void testUploadSizes() throws Exception {
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
-                        Path.fromLocalFile(temporaryFolder.newFolder()), false, 100, metrics)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+                        JobID.generate(),
+                        Path.fromLocalFile(tempFolder.toFile()),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled())) {
+            FsStateChangelogWriter writer = createWriter(storage);
 
             // upload single byte to infer header size
             SequenceNumber from = writer.nextSequenceNumber();
@@ -97,18 +114,26 @@ public class ChangelogStorageMetricsTest {
                 writer.persist(from).get();
             }
             long expected = upload.length + headerSize;
-            assertEquals(expected, metrics.getUploadSizes().getStatistics().getMax());
+            assertThat(metrics.getUploadSizes().getStatistics().getMax()).isEqualTo(expected);
         }
     }
 
     @Test
-    public void testUploadFailuresCounter() throws Exception {
-        File file = temporaryFolder.newFile(); // using file instead of folder will cause a failure
+    void testUploadFailuresCounter() throws Exception {
+        // using file instead of folder will cause a failure
+        File file = Files.createTempFile(tempFolder, UUID.randomUUID().toString(), "").toFile();
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
         try (FsStateChangelogStorage storage =
-                new FsStateChangelogStorage(Path.fromLocalFile(file), false, 100, metrics)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+                new FsStateChangelogStorage(
+                        JobID.generate(),
+                        Path.fromLocalFile(file),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled())) {
+            FsStateChangelogWriter writer = createWriter(storage);
 
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
@@ -120,19 +145,26 @@ public class ChangelogStorageMetricsTest {
                     // ignore
                 }
             }
-            assertEquals(numUploads, metrics.getUploadFailuresCounter().getCount());
+            assertThat(metrics.getUploadFailuresCounter().getCount()).isEqualTo(numUploads);
         }
     }
 
     @Test
-    public void testUploadBatchSizes() throws Exception {
+    void testUploadBatchSizes() throws Exception {
         int numWriters = 5, numUploads = 5;
 
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
-        Path basePath = Path.fromLocalFile(temporaryFolder.newFolder());
+        Path basePath = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader uploader =
-                new StateChangeFsUploader(basePath, basePath.getFileSystem(), false, 100, metrics);
+                new StateChangeFsUploader(
+                        JobID.generate(),
+                        basePath,
+                        basePath.getFileSystem(),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP);
         ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
         BatchingStateChangeUploadScheduler batcher =
@@ -143,13 +175,23 @@ public class ChangelogStorageMetricsTest {
                         RetryPolicy.NONE,
                         uploader,
                         scheduler,
-                        new RetryingExecutor(1, metrics.getAttemptsPerUpload()),
+                        new RetryingExecutor(
+                                1,
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
                         metrics);
 
-        FsStateChangelogStorage storage = new FsStateChangelogStorage(batcher, Integer.MAX_VALUE);
+        FsStateChangelogStorage storage =
+                new FsStateChangelogStorage(
+                        batcher,
+                        Integer.MAX_VALUE,
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled());
         FsStateChangelogWriter[] writers = new FsStateChangelogWriter[numWriters];
         for (int i = 0; i < numWriters; i++) {
-            writers[i] = storage.createWriter(Integer.toString(i), EMPTY_KEY_GROUP_RANGE);
+            writers[i] =
+                    storage.createWriter(
+                            Integer.toString(i), EMPTY_KEY_GROUP_RANGE, new SyncMailboxExecutor());
         }
 
         try {
@@ -164,15 +206,17 @@ public class ChangelogStorageMetricsTest {
                 // now the uploads should be grouped and executed at once
                 scheduler.triggerScheduledTasks();
             }
-            assertEquals(numWriters, metrics.getUploadBatchSizes().getStatistics().getMin());
-            assertEquals(numWriters, metrics.getUploadBatchSizes().getStatistics().getMax());
+            assertThat(metrics.getUploadBatchSizes().getStatistics().getMin())
+                    .isEqualTo(numWriters);
+            assertThat(metrics.getUploadBatchSizes().getStatistics().getMax())
+                    .isEqualTo(numWriters);
         } finally {
             storage.close();
         }
     }
 
     @Test
-    public void testAttemptsPerUpload() throws Exception {
+    void testAttemptsPerUpload() throws Exception {
         int numUploads = 7, maxAttempts = 3;
 
         ChangelogStorageMetricGroup metrics =
@@ -186,11 +230,19 @@ public class ChangelogStorageMetricsTest {
                         RetryPolicy.fixed(maxAttempts, Long.MAX_VALUE, 0),
                         new MaxAttemptUploader(maxAttempts),
                         newSingleThreadScheduledExecutor(),
-                        new RetryingExecutor(1, metrics.getAttemptsPerUpload()),
+                        new RetryingExecutor(
+                                1,
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
                         metrics);
 
-        FsStateChangelogStorage storage = new FsStateChangelogStorage(batcher, Integer.MAX_VALUE);
-        FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+        FsStateChangelogStorage storage =
+                new FsStateChangelogStorage(
+                        batcher,
+                        Integer.MAX_VALUE,
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled());
+        FsStateChangelogWriter writer = createWriter(storage);
 
         try {
             for (int upload = 0; upload < numUploads; upload++) {
@@ -198,16 +250,62 @@ public class ChangelogStorageMetricsTest {
                 writer.append(0, new byte[] {0, 1, 2, 3});
                 writer.persist(from).get();
             }
-            HistogramStatistics histogram = metrics.getAttemptsPerUpload().getStatistics();
-            assertEquals(maxAttempts, histogram.getMin());
-            assertEquals(maxAttempts, histogram.getMax());
         } finally {
             storage.close();
         }
+        HistogramStatistics histogram = metrics.getAttemptsPerUpload().getStatistics();
+        assertThat(histogram.getMin()).isEqualTo(maxAttempts);
+        assertThat(histogram.getMax()).isEqualTo(maxAttempts);
     }
 
     @Test
-    public void testQueueSize() throws Exception {
+    void testTotalAttemptsPerUpload() throws Exception {
+        int numUploads = 20, maxAttempts = 3;
+        long timeout = 20;
+        int numUploadThreads = 4; // must bigger or equal than maxAttempts
+
+        ChangelogStorageMetricGroup metrics =
+                new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
+
+        BatchingStateChangeUploadScheduler batcher =
+                new BatchingStateChangeUploadScheduler(
+                        Long.MAX_VALUE,
+                        1,
+                        Long.MAX_VALUE,
+                        RetryPolicy.fixed(maxAttempts, timeout, 0),
+                        new WaitingMaxAttemptUploader(maxAttempts),
+                        newSingleThreadScheduledExecutor(),
+                        new RetryingExecutor(
+                                numUploadThreads,
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
+                        metrics);
+
+        FsStateChangelogStorage storage =
+                new FsStateChangelogStorage(
+                        batcher,
+                        Integer.MAX_VALUE,
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled());
+        FsStateChangelogWriter writer = createWriter(storage);
+
+        try {
+            for (int upload = 0; upload < numUploads; upload++) {
+                SequenceNumber from = writer.nextSequenceNumber();
+                writer.append(0, new byte[] {0, 1, 2, 3});
+                writer.persist(from).get();
+            }
+        } finally {
+            storage.close();
+        }
+        HistogramStatistics histogram = metrics.getTotalAttemptsPerUpload().getStatistics();
+        assertThat(histogram.getMin()).isEqualTo(maxAttempts);
+        assertThat(histogram.getMax()).isEqualTo(maxAttempts);
+    }
+
+    @Test
+    void testQueueSize() throws Exception {
+        JobID jobID = JobID.generate();
         AtomicReference<Gauge<Integer>> queueSizeGauge = new AtomicReference<>();
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(
@@ -222,12 +320,19 @@ public class ChangelogStorageMetricsTest {
                                                 })
                                         .build(),
                                 createUnregisteredTaskManagerMetricGroup(),
-                                new JobID(),
+                                jobID,
                                 "test"));
 
-        Path path = Path.fromLocalFile(temporaryFolder.newFolder());
+        Path path = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader delegate =
-                new StateChangeFsUploader(path, path.getFileSystem(), false, 100, metrics);
+                new StateChangeFsUploader(
+                        jobID,
+                        path,
+                        path.getFileSystem(),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP);
         ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
         BatchingStateChangeUploadScheduler batcher =
@@ -238,20 +343,27 @@ public class ChangelogStorageMetricsTest {
                         RetryPolicy.NONE,
                         delegate,
                         scheduler,
-                        new RetryingExecutor(1, metrics.getAttemptsPerUpload()),
+                        new RetryingExecutor(
+                                1,
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
                         metrics);
         try (FsStateChangelogStorage storage =
-                new FsStateChangelogStorage(batcher, Long.MAX_VALUE)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+                new FsStateChangelogStorage(
+                        batcher,
+                        Long.MAX_VALUE,
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled())) {
+            FsStateChangelogWriter writer = createWriter(storage);
             int numUploads = 11;
             for (int i = 0; i < numUploads; i++) {
                 SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0});
                 writer.persist(from);
             }
-            assertEquals(numUploads, (int) queueSizeGauge.get().getValue());
+            assertThat((int) queueSizeGauge.get().getValue()).isEqualTo(numUploads);
             scheduler.triggerScheduledTasks();
-            assertEquals(0, (int) queueSizeGauge.get().getValue());
+            assertThat((int) queueSizeGauge.get().getValue()).isEqualTo(0);
         }
     }
 
@@ -266,7 +378,7 @@ public class ChangelogStorageMetricsTest {
 
         @Override
         public UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException {
-            Map<UploadTask, Map<StateChangeSet, Long>> map = new HashMap<>();
+            Map<UploadTask, Map<StateChangeSet, Tuple2<Long, Long>>> map = new HashMap<>();
             for (UploadTask uploadTask : tasks) {
                 int currentAttempt = 1 + attemptsPerTask.getOrDefault(uploadTask, 0);
                 if (currentAttempt == maxAttempts) {
@@ -274,7 +386,10 @@ public class ChangelogStorageMetricsTest {
                     map.put(
                             uploadTask,
                             uploadTask.changeSets.stream()
-                                    .collect(Collectors.toMap(Function.identity(), ign -> 0L)));
+                                    .collect(
+                                            Collectors.toMap(
+                                                    Function.identity(),
+                                                    ign -> Tuple2.of(0L, 0L))));
                 } else {
                     attemptsPerTask.put(uploadTask, currentAttempt);
                     throw new IOException();
@@ -287,5 +402,64 @@ public class ChangelogStorageMetricsTest {
         public void close() {
             attemptsPerTask.clear();
         }
+    }
+
+    private static class WaitingMaxAttemptUploader implements StateChangeUploader {
+        private final ConcurrentHashMap<UploadTask, CountDownLatch> remainingAttemptsPerTask;
+        private final Map<UploadTask, Integer> attemptsPerTask;
+        private final int maxAttempts;
+
+        public WaitingMaxAttemptUploader(int maxAttempts) {
+            if (maxAttempts < 1) {
+                throw new IllegalArgumentException("maxAttempts < 0");
+            }
+            this.maxAttempts = maxAttempts;
+            this.remainingAttemptsPerTask = new ConcurrentHashMap<>();
+            this.attemptsPerTask = new ConcurrentHashMap<>();
+        }
+
+        @Override
+        public UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException {
+            int currentAttempt = 0;
+            for (UploadTask uploadTask : tasks) {
+                remainingAttemptsPerTask
+                        .computeIfAbsent(uploadTask, ign -> new CountDownLatch(maxAttempts))
+                        .countDown();
+                currentAttempt = 1 + attemptsPerTask.getOrDefault(uploadTask, 0);
+                attemptsPerTask.put(uploadTask, currentAttempt);
+            }
+            if (currentAttempt > 1 && currentAttempt < maxAttempts) {
+                throw new IOException();
+            }
+
+            for (UploadTask uploadTask : tasks) {
+                try {
+                    remainingAttemptsPerTask.get(uploadTask).await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException(e);
+                }
+            }
+
+            Map<UploadTask, Map<StateChangeSet, Tuple2<Long, Long>>> map = new HashMap<>();
+            for (UploadTask uploadTask : tasks) {
+                map.put(
+                        uploadTask,
+                        uploadTask.changeSets.stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                Function.identity(), ign -> Tuple2.of(0L, 0L))));
+            }
+            return new UploadTasksResult(map, new EmptyStreamStateHandle());
+        }
+
+        @Override
+        public void close() throws Exception {
+            // nothing to close
+        }
+    }
+
+    private FsStateChangelogWriter createWriter(FsStateChangelogStorage storage) {
+        return storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE, new SyncMailboxExecutor());
     }
 }

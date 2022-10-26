@@ -15,30 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
-
-import java.util
 
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, ObjectPath}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.factories.TestValuesCatalog
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import java.util
+
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class PartitionableSourceTest(
-  val sourceFetchPartitions: Boolean,
-  val useCatalogFilter: Boolean) extends TableTestBase{
+class PartitionableSourceTest(val sourceFetchPartitions: Boolean, val useCatalogFilter: Boolean)
+  extends TableTestBase {
 
   private val util = streamTestUtil()
 
   @Before
-  def setup() : Unit = {
+  def setup(): Unit = {
     val partitionableTable =
       """
         |CREATE TABLE PartitionableTable (
@@ -91,19 +90,26 @@ class PartitionableSourceTest(
 
       // partition map
       val partitions = Seq(
-        Map("part1"->"A", "part2"->"1"),
-        Map("part1"->"A", "part2"->"2"),
-        Map("part1"->"B", "part2"->"3"),
-        Map("part1"->"C", "part2"->"1"))
-      partitions.foreach(partition => {
-        val catalogPartitionSpec = new CatalogPartitionSpec(partition)
-        val catalogPartition = new CatalogPartitionImpl(
-          new java.util.HashMap[String, String](), "")
-        catalog.createPartition(
-          partitionableTablePath, catalogPartitionSpec, catalogPartition, true)
-        catalog.createPartition(
-          partitionableAndFilterableTablePath, catalogPartitionSpec, catalogPartition, true)
-      })
+        Map("part1" -> "A", "part2" -> "1"),
+        Map("part1" -> "A", "part2" -> "2"),
+        Map("part1" -> "B", "part2" -> "3"),
+        Map("part1" -> "C", "part2" -> "1"))
+      partitions.foreach(
+        partition => {
+          val catalogPartitionSpec = new CatalogPartitionSpec(partition)
+          val catalogPartition =
+            new CatalogPartitionImpl(new java.util.HashMap[String, String](), "")
+          catalog.createPartition(
+            partitionableTablePath,
+            catalogPartitionSpec,
+            catalogPartition,
+            true)
+          catalog.createPartition(
+            partitionableAndFilterableTablePath,
+            catalogPartitionSpec,
+            catalogPartition,
+            true)
+        })
     }
   }
 

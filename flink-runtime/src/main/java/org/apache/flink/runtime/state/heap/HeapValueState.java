@@ -102,4 +102,14 @@ class HeapValueState<K, N, V> extends AbstractHeapState<K, N, V>
                         stateTable.getNamespaceSerializer(),
                         stateDesc.getDefaultValue());
     }
+
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState) {
+        return (IS)
+                ((HeapValueState<K, N, SV>) existingState)
+                        .setNamespaceSerializer(stateTable.getNamespaceSerializer())
+                        .setValueSerializer(stateTable.getStateSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
+    }
 }

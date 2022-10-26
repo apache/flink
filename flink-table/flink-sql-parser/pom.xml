@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>
@@ -48,6 +48,12 @@ under the License.
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
@@ -56,11 +62,11 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.26.0:
+				"mvn dependency:tree" as of Calcite 1.27.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
-				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.27.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.18.0:compile
+				[INFO] |  \- org.checkerframework:checker-qual:jar:3.10.0:compile
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
@@ -161,6 +167,10 @@ under the License.
 					<groupId>org.apiguardian</groupId>
 					<artifactId>apiguardian-api</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
@@ -193,9 +203,17 @@ under the License.
 					<groupId>org.apiguardian</groupId>
 					<artifactId>apiguardian-api</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
+				</exclusion>
 			</exclusions>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 	</dependencies>
 
@@ -300,14 +318,6 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<forkCount>1</forkCount>
-					<reuseForks>false</reuseForks>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>

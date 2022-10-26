@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.windowing
-
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.serialization.SimpleStringEncoder
@@ -42,12 +40,10 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 /**
- * An example of grouped stream windowing where different eviction and 
- * trigger policies can be used. A source fetches events from cars 
- * every 100 msec containing their id, their current speed (kmh),
- * overall elapsed distance (m) and a timestamp. The streaming
- * example triggers the top speed of each car every x meters elapsed 
- * for the last y seconds.
+ * An example of grouped stream windowing where different eviction and trigger policies can be used.
+ * A source fetches events from cars every 100 msec containing their id, their current speed (kmh),
+ * overall elapsed distance (m) and a timestamp. The streaming example triggers the top speed of
+ * each car every x meters elapsed for the last y seconds.
  */
 object TopSpeedWindowing {
 
@@ -97,11 +93,12 @@ object TopSpeedWindowing {
       case Some(input) =>
         // Create a new file source that will read files from a given set of directories.
         // Each file will be processed as plain text and split based on newlines.
-        val builder = FileSource.forRecordStreamFormat(new TextLineInputFormat, input:_*)
-        params.discoveryInterval.foreach { duration =>
-          // If a discovery interval is provided, the source will
-          // continuously watch the given directories for new files.
-          builder.monitorContinuously(duration)
+        val builder = FileSource.forRecordStreamFormat(new TextLineInputFormat, input: _*)
+        params.discoveryInterval.foreach {
+          duration =>
+            // If a discovery interval is provided, the source will
+            // continuously watch the given directories for new files.
+            builder.monitorContinuously(duration)
         }
         env
           .fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "file-input")
@@ -112,13 +109,17 @@ object TopSpeedWindowing {
     }
 
     val topSpeeds = cars
-      .assignAscendingTimestamps( _.time )
+      .assignAscendingTimestamps(_.time)
       .keyBy(_.carId)
       .window(GlobalWindows.create)
       .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))
-      .trigger(DeltaTrigger.of(triggerMeters, new DeltaFunction[CarEvent] {
-        def getDelta(oldSp: CarEvent, newSp: CarEvent): Double = newSp.distance - oldSp.distance
-      }, cars.dataType.createSerializer(env.getConfig)))
+      .trigger(DeltaTrigger.of(
+        triggerMeters,
+        new DeltaFunction[CarEvent] {
+          def getDelta(oldSp: CarEvent, newSp: CarEvent): Double = newSp.distance - oldSp.distance
+        },
+        cars.dataType.createSerializer(env.getConfig)
+      ))
 //      .window(Time.of(evictionSec * 1000, (car : CarEvent) => car.time))
 //      .every(Delta.of[CarEvent](triggerMeters,
 //          (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))
@@ -129,12 +130,17 @@ object TopSpeedWindowing {
         // Given an output directory, Flink will write the results to a file
         // using a simple string encoding. In a production environment, this might
         // be something more structured like CSV, Avro, JSON, or Parquet.
-        topSpeeds.sinkTo(FileSink.forRowFormat[CarEvent](output, new SimpleStringEncoder())
-          .withRollingPolicy(DefaultRollingPolicy.builder()
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .build())
-          .build())
+        topSpeeds
+          .sinkTo(
+            FileSink
+              .forRowFormat[CarEvent](output, new SimpleStringEncoder())
+              .withRollingPolicy(
+                DefaultRollingPolicy
+                  .builder()
+                  .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                  .withRolloverInterval(Duration.ofSeconds(10))
+                  .build())
+              .build())
           .name("file-sink")
 
       case None => topSpeeds.print().name("print-sink")
@@ -148,7 +154,7 @@ object TopSpeedWindowing {
   // USER FUNCTIONS
   // *************************************************************************
 
-  def parseMap(line : String): CarEvent = {
+  def parseMap(line: String): CarEvent = {
     val record = line.substring(1, line.length - 1).split(",")
     CarEvent(record(0).toInt, record(1).toInt, record(2).toDouble, record(3).toLong)
   }

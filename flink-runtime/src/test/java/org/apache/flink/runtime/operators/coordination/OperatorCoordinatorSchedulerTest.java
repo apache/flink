@@ -37,17 +37,23 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -60,14 +66,15 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.hamcrest.Matcher;
 import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -76,7 +83,6 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -85,22 +91,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
-import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.setExecutionToState;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests for the integration of the {@link OperatorCoordinator} with the scheduler, to ensure the
@@ -110,6 +105,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private final JobVertexID testVertexId = new JobVertexID();
     private final OperatorID testOperatorId = new OperatorID();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private final ManuallyTriggeredScheduledExecutorService executor =
             new ManuallyTriggeredScheduledExecutorService();
@@ -132,7 +131,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler = createAndStartScheduler();
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
-        assertTrue(coordinator.isStarted());
+        assertThat(coordinator.isStarted()).isTrue();
     }
 
     @Test
@@ -142,7 +141,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         closeScheduler(scheduler);
 
-        assertTrue(coordinator.isClosed());
+        assertThat(coordinator.isClosed()).isTrue();
     }
 
     @Test
@@ -173,7 +172,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         } catch (Exception ignored) {
         }
 
-        assertTrue(coordinator.isClosed());
+        assertThat(coordinator.isClosed()).isTrue();
     }
 
     @Test
@@ -183,9 +182,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failTask(scheduler, 1);
 
-        assertEquals(1, coordinator.getFailedTasks().size());
-        assertThat(coordinator.getFailedTasks(), contains(1));
-        assertThat(coordinator.getFailedTasks(), not(contains(0)));
+        assertThat(coordinator.getFailedTasks()).hasSize(1).containsExactly(1);
     }
 
     @Test
@@ -195,9 +192,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failTask(scheduler, 1);
 
-        assertEquals(1, coordinator.getFailedTasks().size());
-        assertThat(coordinator.getFailedTasks(), contains(1));
-        assertThat(coordinator.getFailedTasks(), not(contains(0)));
+        assertThat(coordinator.getFailedTasks()).hasSize(1).containsExactly(1);
     }
 
     @Test
@@ -207,8 +202,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failTask(scheduler, 1);
 
-        assertEquals(2, coordinator.getFailedTasks().size());
-        assertThat(coordinator.getFailedTasks(), containsInAnyOrder(0, 1));
+        assertThat(coordinator.getFailedTasks()).hasSize(2).containsExactlyInAnyOrder(0, 1);
     }
 
     @Test
@@ -219,8 +213,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failAndRestartTask(scheduler, 0);
         failAndRestartTask(scheduler, 0);
 
-        assertEquals(2, coordinator.getFailedTasks().size());
-        assertThat(coordinator.getFailedTasks(), contains(0, 0));
+        assertThat(coordinator.getFailedTasks()).hasSize(2).containsExactly(0, 0);
     }
 
     @Test
@@ -229,7 +222,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
         final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
 
-        assertNull(gateway);
+        assertThat(gateway).isNull();
     }
 
     @Test
@@ -238,7 +231,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
         final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
 
-        assertNotNull(gateway);
+        assertThat(gateway).isNotNull();
     }
 
     @Test
@@ -252,7 +245,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final CompletableFuture<?> result = gateway.sendEvent(new TestOperatorEvent());
         executor.triggerAll(); // process event sending
 
-        assertThat(result, futureFailedWith(TestException.class));
+        assertThatThrownBy(result::get).satisfies(anyCauseMatches(TestException.class));
     }
 
     // THESE TESTS BELOW SHOULD LEGITIMATELY WORK, BUT THE SCHEDULER ITSELF SEEMS TO NOT HANDLE
@@ -267,9 +260,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         cancelTask(scheduler, 1);
 
-        assertEquals(1, coordinator.getFailedTasks().size());
-        assertThat(coordinator.getFailedTasks(), contains(1));
-        assertThat(coordinator.getFailedTasks(), not(contains(0)));
+        assertThat(coordinator.getFailedTasks()).hasSize(1).containsExactly(1);
     }
 
     @Ignore
@@ -280,9 +271,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         cancelTask(scheduler, 0);
 
-        assertEquals(1, coordinator.getFailedTasks().size());
-        assertThat(coordinator.getFailedTasks(), contains(0));
-        assertThat(coordinator.getFailedTasks(), not(contains(1)));
+        assertThat(coordinator.getFailedTasks()).hasSize(1).containsExactly(0);
     }
 
     // ------------------------------------------------------------------------
@@ -300,10 +289,18 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final CompletableFuture<CompletedCheckpoint> checkpointFuture =
                 triggerCheckpoint(scheduler);
         coordinator.getLastTriggeredCheckpoint().complete(checkpointData);
+        executor.triggerAll();
+        OperatorEvent event =
+                new AcknowledgeCheckpointEvent(coordinator.getLastTriggeredCheckpointId());
+        OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
+        for (int i = 0; i < holder.currentParallelism(); i++) {
+            holder.handleEventFromOperator(i, 0, event);
+        }
         acknowledgeCurrentCheckpoint(scheduler);
 
         final OperatorState state = checkpointFuture.get().getOperatorStates().get(testOperatorId);
-        assertArrayEquals(checkpointData, getStateHandleContents(state.getCoordinatorState()));
+        assertThat(getStateHandleContents(state.getCoordinatorState()))
+                .containsExactly(checkpointData);
     }
 
     @Test
@@ -316,7 +313,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         final CompletableFuture<?> checkpointFuture = triggerCheckpoint(scheduler);
 
-        assertThat(checkpointFuture, futureWillCompleteWithTestException());
+        assertThatThrownBy(checkpointFuture::get).satisfies(anyCauseMatches(TestException.class));
     }
 
     @Test
@@ -331,7 +328,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         coordinatorStateFuture.completeExceptionally(new TestException());
         waitForCompletionToPropagate(checkpointFuture);
 
-        assertThat(checkpointFuture, futureWillCompleteWithTestException());
+        assertThatThrownBy(checkpointFuture::get).satisfies(anyCauseMatches(TestException.class));
     }
 
     @Test
@@ -344,7 +341,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
         final byte[] restoredState = coordinator.getLastRestoredCheckpointState();
-        assertArrayEquals(testCoordinatorState, restoredState);
+        assertThat(restoredState).containsExactly(testCoordinatorState);
     }
 
     @Test
@@ -356,10 +353,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         takeCompleteCheckpoint(scheduler, coordinator, coordinatorState);
         failGlobalAndRestart(scheduler, new TestException());
 
-        assertArrayEquals(
-                "coordinator should have a restored checkpoint",
-                coordinatorState,
-                coordinator.getLastRestoredCheckpointState());
+        assertThat(coordinator.getLastRestoredCheckpointState())
+                .as("coordinator should have a restored checkpoint")
+                .containsExactly(coordinatorState);
     }
 
     @Test
@@ -369,11 +365,11 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failGlobalAndRestart(scheduler, new TestException());
 
-        assertSame(
-                "coordinator should have null restored state",
-                TestingOperatorCoordinator.NULL_RESTORE_VALUE,
-                coordinator.getLastRestoredCheckpointState());
-        assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
+        assertThat(coordinator.getLastRestoredCheckpointState())
+                .as("coordinator should have null restored state")
+                .isEqualTo(TestingOperatorCoordinator.NULL_RESTORE_VALUE);
+        assertThat(coordinator.getLastRestoredCheckpointId())
+                .isEqualTo(OperatorCoordinator.NO_CHECKPOINT);
     }
 
     @Test
@@ -384,7 +380,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         takeCompleteCheckpoint(scheduler, coordinator, new byte[0]);
         failGlobalAndRestart(scheduler, new TestException());
 
-        assertThat(coordinator.getRestoredTasks(), empty());
+        assertThat(coordinator.getRestoredTasks()).isEmpty();
     }
 
     @Test
@@ -395,11 +391,11 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final long checkpointId = takeCompleteCheckpoint(scheduler, coordinator, new byte[0]);
         failAndRestartTask(scheduler, 1);
 
-        assertEquals(1, coordinator.getRestoredTasks().size());
+        assertThat(coordinator.getRestoredTasks()).hasSize(1);
         final TestingOperatorCoordinator.SubtaskAndCheckpoint restoredTask =
                 coordinator.getRestoredTasks().get(0);
-        assertEquals(1, restoredTask.subtaskIndex);
-        assertEquals(checkpointId, restoredTask.checkpointId);
+        assertThat(restoredTask.subtaskIndex).isEqualTo(1);
+        assertThat(restoredTask.checkpointId).isEqualTo(checkpointId);
     }
 
     @Test
@@ -409,11 +405,11 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failAndRestartTask(scheduler, 1);
 
-        assertEquals(1, coordinator.getRestoredTasks().size());
+        assertThat(coordinator.getRestoredTasks()).hasSize(1);
         final TestingOperatorCoordinator.SubtaskAndCheckpoint restoredTask =
                 coordinator.getRestoredTasks().get(0);
-        assertEquals(1, restoredTask.subtaskIndex);
-        assertEquals(OperatorCoordinator.NO_CHECKPOINT, restoredTask.checkpointId);
+        assertThat(restoredTask.subtaskIndex).isEqualTo(1);
+        assertThat(restoredTask.checkpointId).isEqualTo(OperatorCoordinator.NO_CHECKPOINT);
     }
 
     @Test
@@ -424,9 +420,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         takeCompleteCheckpoint(scheduler, coordinator, new byte[] {37, 11, 83, 4});
         failAndRestartTask(scheduler, 0);
 
-        assertNull(
-                "coordinator should not have a restored checkpoint",
-                coordinator.getLastRestoredCheckpointState());
+        assertThat(coordinator.getLastRestoredCheckpointState())
+                .as("coordinator should not have a restored checkpoint")
+                .isNull();
     }
 
     @Test
@@ -437,10 +433,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final long checkpointId =
                 takeCompleteCheckpoint(scheduler, coordinator, new byte[] {37, 11, 83, 4});
 
-        assertEquals(
-                "coordinator should be notified of completed checkpoint",
-                checkpointId,
-                coordinator.getLastCheckpointComplete());
+        assertThat(coordinator.getLastCheckpointComplete())
+                .as("coordinator should be notified of completed checkpoint")
+                .isEqualTo(checkpointId);
     }
 
     // ------------------------------------------------------------------------
@@ -454,11 +449,11 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failGlobalAndRestart(scheduler, new TestException());
 
-        assertSame(
-                "coordinator should have null restored state",
-                TestingOperatorCoordinator.NULL_RESTORE_VALUE,
-                coordinator.getLastRestoredCheckpointState());
-        assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
+        assertThat(coordinator.getLastRestoredCheckpointState())
+                .as("coordinator should have null restored state")
+                .isEqualTo(TestingOperatorCoordinator.NULL_RESTORE_VALUE);
+        assertThat(coordinator.getLastRestoredCheckpointId())
+                .isEqualTo(OperatorCoordinator.NO_CHECKPOINT);
     }
 
     @Test
@@ -468,7 +463,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failGlobalAndRestart(scheduler, new TestException());
 
-        assertThat(coordinator.getRestoredTasks(), empty());
+        assertThat(coordinator.getRestoredTasks()).isEmpty();
     }
 
     @Test
@@ -478,11 +473,11 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failAndRestartTask(scheduler, 1);
 
-        assertEquals(1, coordinator.getRestoredTasks().size());
+        assertThat(coordinator.getRestoredTasks()).hasSize(1);
         final TestingOperatorCoordinator.SubtaskAndCheckpoint restoredTask =
                 coordinator.getRestoredTasks().get(0);
-        assertEquals(1, restoredTask.subtaskIndex);
-        assertEquals(OperatorCoordinator.NO_CHECKPOINT, restoredTask.checkpointId);
+        assertThat(restoredTask.subtaskIndex).isEqualTo(1);
+        assertThat(restoredTask.checkpointId).isEqualTo(OperatorCoordinator.NO_CHECKPOINT);
     }
 
     @Test
@@ -492,9 +487,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failAndRestartTask(scheduler, 0);
 
-        assertNull(
-                "coordinator should not have a restored checkpoint",
-                coordinator.getLastRestoredCheckpointState());
+        assertThat(coordinator.getLastRestoredCheckpointState())
+                .as("coordinator should not have a restored checkpoint")
+                .isNull();
     }
 
     // ------------------------------------------------------------------------
@@ -517,7 +512,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                                 .deliverCoordinationRequestToCoordinator(testOperatorId, request)
                                 .get();
 
-        assertEquals(payload, response.getPayload());
+        assertThat(response.getPayload()).isEqualTo(payload);
     }
 
     @Test
@@ -568,9 +563,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         executor.triggerAll();
 
         // guard test assumptions: this brings tasks into DEPLOYING state
-        assertEquals(
-                ExecutionState.DEPLOYING,
-                SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+        assertThat(SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0))
+                .isEqualTo(ExecutionState.DEPLOYING);
 
         return scheduler;
     }
@@ -599,7 +593,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                         false);
 
         // guard test assumptions: this must set up a scheduler without checkpoints
-        assertNull(scheduler.getExecutionGraph().getCheckpointCoordinator());
+        assertThat(scheduler.getExecutionGraph().getCheckpointCoordinator()).isNull();
 
         scheduleAllTasksToRunning(scheduler);
         return scheduler;
@@ -687,11 +681,15 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 new ComponentMainThreadExecutorServiceAdapter(
                         (ScheduledExecutorService) executor, Thread.currentThread());
 
-        final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder =
+        final DefaultSchedulerBuilder schedulerBuilder =
                 taskExecutorOperatorEventGateway == null
-                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
-                        : SchedulerTestingUtils.createSchedulerBuilder(
-                                jobGraph, mainThreadExecutor, taskExecutorOperatorEventGateway);
+                        ? createSchedulerBuilder(
+                                jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                        : createSchedulerBuilder(
+                                jobGraph,
+                                mainThreadExecutor,
+                                taskExecutorOperatorEventGateway,
+                                EXECUTOR_RESOURCE.getExecutor());
         if (restartAllOnFailover) {
             schedulerBuilder.setFailoverStrategyFactory(new RestartAllFailoverStrategy.Factory());
         }
@@ -703,6 +701,46 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         return scheduler;
     }
 
+    private static DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            ScheduledExecutorService scheduledExecutorService) {
+
+        return createSchedulerBuilder(
+                jobGraph,
+                mainThreadExecutor,
+                new SimpleAckingTaskManagerGateway(),
+                scheduledExecutorService);
+    }
+
+    private static DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            TaskExecutorOperatorEventGateway operatorEventGateway,
+            ScheduledExecutorService scheduledExecutorService) {
+
+        final TaskManagerGateway gateway =
+                operatorEventGateway instanceof TaskManagerGateway
+                        ? (TaskManagerGateway) operatorEventGateway
+                        : new TaskExecutorOperatorEventGatewayAdapter(operatorEventGateway);
+
+        return createSchedulerBuilder(
+                jobGraph, mainThreadExecutor, gateway, scheduledExecutorService);
+    }
+
+    private static DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            TaskManagerGateway taskManagerGateway,
+            ScheduledExecutorService executorService) {
+
+        return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, executorService)
+                .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
+                .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
+                .setExecutionSlotAllocatorFactory(
+                        new TestExecutionSlotAllocatorFactory(taskManagerGateway));
+    }
+
     private void scheduleAllTasksToRunning(DefaultScheduler scheduler) {
         scheduler.startScheduling();
         executor.triggerAll();
@@ -710,9 +748,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         SchedulerTestingUtils.setAllExecutionsToRunning(scheduler);
 
         // guard test assumptions: this brings tasks into RUNNING state
-        assertEquals(
-                ExecutionState.RUNNING,
-                SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+        assertThat(SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0))
+                .isEqualTo(ExecutionState.RUNNING);
 
         // trigger actions depending on the switch to running, like the notifications
         // that the task is reads and the task gateway setup
@@ -720,19 +757,25 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     }
 
     private TestingOperatorCoordinator getCoordinator(DefaultScheduler scheduler) {
+        OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
+
+        final OperatorCoordinator coordinator = holder.coordinator();
+        assertThat(coordinator).isInstanceOf(TestingOperatorCoordinator.class);
+
+        return (TestingOperatorCoordinator) coordinator;
+    }
+
+    private OperatorCoordinatorHolder getCoordinatorHolder(DefaultScheduler scheduler) {
         final ExecutionJobVertex vertexWithCoordinator = getJobVertex(scheduler, testVertexId);
-        assertNotNull("vertex for coordinator not found", vertexWithCoordinator);
+        assertThat(vertexWithCoordinator).as("vertex for coordinator not found").isNotNull();
 
         final Optional<OperatorCoordinatorHolder> coordinatorOptional =
                 vertexWithCoordinator.getOperatorCoordinators().stream()
                         .filter((holder) -> holder.operatorId().equals(testOperatorId))
                         .findFirst();
-        assertTrue("vertex does not contain coordinator", coordinatorOptional.isPresent());
+        assertThat(coordinatorOptional).as("vertex does not contain coordinator").isPresent();
 
-        final OperatorCoordinator coordinator = coordinatorOptional.get().coordinator();
-        assertThat(coordinator, instanceOf(TestingOperatorCoordinator.class));
-
-        return (TestingOperatorCoordinator) coordinator;
+        return coordinatorOptional.get();
     }
 
     // ------------------------------------------------------------------------
@@ -745,9 +788,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         // guard the test assumptions: This must not lead to a restart, but must keep the task in
         // FAILED state
-        assertEquals(
-                ExecutionState.FAILED,
-                SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
+        assertThat(SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask))
+                .isEqualTo(ExecutionState.FAILED);
     }
 
     private void failAndRedeployTask(DefaultScheduler scheduler, int subtask) {
@@ -758,9 +800,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         executor.triggerAll();
 
         // guard the test assumptions: This must lead to a restarting and redeploying
-        assertEquals(
-                ExecutionState.DEPLOYING,
-                SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
+        assertThat(SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask))
+                .isEqualTo(ExecutionState.DEPLOYING);
     }
 
     private void failAndRestartTask(DefaultScheduler scheduler, int subtask) {
@@ -769,9 +810,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         setExecutionToState(ExecutionState.RUNNING, scheduler, testVertexId, subtask);
 
         // guard the test assumptions: This must bring the task back to RUNNING
-        assertEquals(
-                ExecutionState.RUNNING,
-                SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
+        assertThat(SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask))
+                .isEqualTo(ExecutionState.RUNNING);
     }
 
     private void failGlobalAndRestart(DefaultScheduler scheduler, Throwable reason)
@@ -779,8 +819,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         scheduler.handleGlobalFailure(reason);
         SchedulerTestingUtils.setAllExecutionsToCancelled(scheduler);
 
-        // make sure the checkpoint is no longer triggering (this means that the operator event
-        // valve has been closed)
+        // make sure the checkpoint is no longer triggering (this means that the subtask
+        // gateway has been closed)
         final CheckpointCoordinator checkpointCoordinator =
                 scheduler.getExecutionGraph().getCheckpointCoordinator();
         while (checkpointCoordinator != null && checkpointCoordinator.isTriggering()) {
@@ -796,9 +836,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         executor.triggerAll();
 
         // guard the test assumptions: This must bring the tasks back to RUNNING
-        assertEquals(
-                ExecutionState.RUNNING,
-                SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+        assertThat(SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0))
+                .isEqualTo(ExecutionState.RUNNING);
     }
 
     private void cancelTask(DefaultScheduler scheduler, int subtask) {
@@ -807,9 +846,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         // guard the test assumptions: This must not lead to a restart, but must keep the task in
         // FAILED state
-        assertEquals(
-                ExecutionState.CANCELED,
-                SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
+        assertThat(SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask))
+                .isEqualTo(ExecutionState.CANCELED);
     }
 
     private CompletableFuture<CompletedCheckpoint> triggerCheckpoint(DefaultScheduler scheduler)
@@ -863,6 +901,14 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 triggerCheckpoint(scheduler);
 
         testingOperatorCoordinator.getLastTriggeredCheckpoint().complete(coordinatorState);
+        executor.triggerAll();
+        OperatorEvent event =
+                new AcknowledgeCheckpointEvent(
+                        testingOperatorCoordinator.getLastTriggeredCheckpointId());
+        OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
+        for (int i = 0; i < holder.currentParallelism(); i++) {
+            holder.handleEventFromOperator(i, 0, event);
+        }
         acknowledgeCurrentCheckpoint(scheduler);
 
         // wait until checkpoint has completed
@@ -909,18 +955,6 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         Checkpoints.storeCheckpointMetadata(metadata, out);
         return out.toByteArray();
-    }
-
-    private static <T> Matcher<CompletableFuture<T>> futureWillCompleteWithTestException() {
-        return futureWillCompleteExceptionally(
-                (e) ->
-                        ExceptionUtils.findThrowableSerializedAware(
-                                        e,
-                                        TestException.class,
-                                        OperatorCoordinatorSchedulerTest.class.getClassLoader())
-                                .isPresent(),
-                Duration.ofSeconds(10),
-                "A TestException in the cause chain");
     }
 
     private static byte[] getStateHandleContents(StreamStateHandle stateHandle) {
@@ -1001,6 +1035,23 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 CloseableRegistry cancelStreamRegistry)
                 throws Exception {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class TaskExecutorOperatorEventGatewayAdapter
+            extends SimpleAckingTaskManagerGateway {
+
+        private final TaskExecutorOperatorEventGateway operatorGateway;
+
+        private TaskExecutorOperatorEventGatewayAdapter(
+                TaskExecutorOperatorEventGateway operatorGateway) {
+            this.operatorGateway = operatorGateway;
+        }
+
+        @Override
+        public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+                ExecutionAttemptID task, OperatorID operator, SerializedValue<OperatorEvent> evt) {
+            return operatorGateway.sendOperatorEventToTask(task, operator, evt);
         }
     }
 }

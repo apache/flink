@@ -29,6 +29,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -144,6 +145,7 @@ public class TestingMiniCluster extends MiniCluster {
                     RpcServiceFactory rpcServiceFactory,
                     BlobServer blobServer,
                     HeartbeatServices heartbeatServices,
+                    DelegationTokenManager delegationTokenManager,
                     MetricRegistry metricRegistry,
                     MetricQueryServiceRetriever metricQueryServiceRetriever,
                     FatalErrorHandler fatalErrorHandler)
@@ -170,6 +172,7 @@ public class TestingMiniCluster extends MiniCluster {
                             thisHaServices,
                             blobServer,
                             heartbeatServices,
+                            delegationTokenManager,
                             metricRegistry,
                             new MemoryExecutionGraphInfoStore(),
                             metricQueryServiceRetriever,

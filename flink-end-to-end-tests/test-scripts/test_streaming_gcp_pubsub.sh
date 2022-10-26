@@ -18,7 +18,4 @@
 ################################################################################
 
 # This test is a Java end to end test, but it requires Docker. Therefore, we run it from bash.
-
-cd "${END_TO_END_DIR}/flink-connector-gcp-pubsub-emulator-tests"
-
-run_mvn test -DskipTests=false
+run_mvn test -DskipTests=false -pl flink-end-to-end-tests/flink-connector-gcp-pubsub-emulator-tests

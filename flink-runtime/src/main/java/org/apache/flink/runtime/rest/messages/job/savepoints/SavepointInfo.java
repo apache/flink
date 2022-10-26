@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer
 import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -67,11 +68,13 @@ public class SavepointInfo implements ResponseBody {
     }
 
     @Nullable
+    @JsonIgnore
     public String getLocation() {
         return location;
     }
 
     @Nullable
+    @JsonIgnore
     public SerializedThrowable getFailureCause() {
         return failureCause;
     }

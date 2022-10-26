@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.scala._
@@ -31,46 +30,46 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
 
   private val util = if (isBatch) batchTestUtil() else streamTestUtil()
   util.addTableSource[(Int, String, String, String, Double)]("MyTable", 'a, 'b, 'c, 'd, 'e)
-  util.tableEnv.executeSql(
-    s"""
-       |create table sink (
-       |  `a` INT,
-       |  `b` STRING,
-       |  `c` STRING,
-       |  `d` STRING,
-       |  `e` DOUBLE,
-       |  `f` BIGINT,
-       |  `g` INT
-       |) with (
-       |  'connector' = 'values',
-       |  'sink-insert-only' = 'false'
-       |)
-       |""".stripMargin)
-  util.tableEnv.executeSql(
-    s"""
-       |create table partitioned_sink (
-       |  `a` INT,
-       |  `b` AS `a` + 1,
-       |  `c` STRING,
-       |  `d` STRING,
-       |  `e` DOUBLE,
-       |  `f` BIGINT,
-       |  `g` INT
-       |) PARTITIONED BY (`c`, `d`) with (
-       |  'connector' = 'values',
-       |  'sink-insert-only' = 'false'
-       |)
-       |""".stripMargin)
+  util.tableEnv.executeSql(s"""
+                              |create table sink (
+                              |  `a` INT,
+                              |  `b` STRING,
+                              |  `c` STRING,
+                              |  `d` STRING,
+                              |  `e` DOUBLE,
+                              |  `f` BIGINT,
+                              |  `g` INT
+                              |) with (
+                              |  'connector' = 'values',
+                              |  'sink-insert-only' = 'false'
+                              |)
+                              |""".stripMargin)
+  util.tableEnv.executeSql(s"""
+                              |create table partitioned_sink (
+                              |  `a` INT,
+                              |  `b` AS `a` + 1,
+                              |  `c` STRING,
+                              |  `d` STRING,
+                              |  `e` DOUBLE,
+                              |  `f` BIGINT,
+                              |  `g` INT
+                              |) PARTITIONED BY (`c`, `d`) with (
+                              |  'connector' = 'values',
+                              |  'sink-insert-only' = 'false'
+                              |)
+                              |""".stripMargin)
 
   @Test
   def testPartialInsertWithComplexReorder(): Unit = {
-    util.verifyRelPlanInsert("INSERT INTO sink (b,e,a,g,f,c,d) " +
+    util.verifyRelPlanInsert(
+      "INSERT INTO sink (b,e,a,g,f,c,d) " +
         "SELECT b,e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e")
   }
 
   @Test
   def testPartialInsertWithComplexReorderAndComputedColumn(): Unit = {
-    util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+    util.verifyRelPlanInsert(
+      "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e")
   }
 
@@ -95,7 +94,8 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
   }
 
   private def testPartialInsertWithSetOperator(operator: String): Unit = {
-    util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+    util.verifyRelPlanInsert(
+      "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e " +
         operator + " " +
         "SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ")
@@ -103,7 +103,8 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
 
   @Test
   def testPartialInsertWithUnionAllNested(): Unit = {
-    util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+    util.verifyRelPlanInsert(
+      "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e " +
         "UNION ALL " +
         "SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e " +
@@ -113,7 +114,8 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
 
   @Test
   def testPartialInsertWithOrderBy(): Unit = {
-    util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+    util.verifyRelPlanInsert(
+      "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d")
   }
 }

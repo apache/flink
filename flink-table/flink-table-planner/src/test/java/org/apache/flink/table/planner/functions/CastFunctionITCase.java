@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AbstractDataType;
@@ -30,8 +29,6 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Row;
-
-import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
 import java.time.DateTimeException;
@@ -48,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -77,7 +75,6 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,26 +114,22 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     private static final int[] DEFAULT_ARRAY = new int[] {0, 1, 2};
 
     @Override
-    protected Configuration configuration() {
-        return super.configuration()
-                .set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId())
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                        LegacyCastBehaviour.DISABLED);
+    Configuration getConfiguration() {
+        return super.getConfiguration().set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId());
     }
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        final List<TestSpec> specs = new ArrayList<>();
+    @Override
+    Stream<TestSetSpec> getTestSetSpecs() {
+        final List<TestSetSpec> specs = new ArrayList<>();
         specs.addAll(allTypesBasic());
         specs.addAll(toStringCasts());
         specs.addAll(decimalCasts());
         specs.addAll(numericBounds());
         specs.addAll(constructedTypes());
-        return specs;
+        return specs.stream();
     }
 
-    public static List<TestSpec> allTypesBasic() {
+    private static List<TestSetSpec> allTypesBasic() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
@@ -188,11 +181,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
                         .fromCase(BINARY(5), null, null)
-                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
-                        .fromCase(STRING(), "AAbbcCdD", new byte[] {-86, -69})
-                        .fromCase(VARCHAR(4), "FC", new byte[] {-4, 0})
-                        .fromCase(STRING(), "df", new byte[] {-33, 0})
+                        .fromCase(CHAR(4), "666F", new byte[] {54, 54})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {54, 54})
+                        .fromCase(STRING(), "a", new byte[] {97, 0})
+                        .fromCase(VARCHAR(4), "FC", new byte[] {70, 67})
+                        .fromCase(STRING(), "foobar", new byte[] {102, 111})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
                         //
@@ -226,9 +219,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
                         .fromCase(VARBINARY(5), null, null)
-                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
-                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {-86, -69, -52, -35})
+                        .fromCase(CHAR(4), "foo", new byte[] {102, 111, 111, 32})
+                        .fromCase(VARCHAR(8), "foobar", new byte[] {102, 111, 111, 98})
+                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {65, 65, 98, 98})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
                         //
@@ -260,9 +253,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(BYTES(), null, null)
-                        .fromCase(CHAR(4), "666f", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666F", new byte[] {102, 111})
-                        .fromCase(STRING(), "aaBBCcDdEe", new byte[] {-86, -69, -52, -35, -18})
+                        .fromCase(CHAR(4), "foo", new byte[] {102, 111, 111, 32})
+                        .fromCase(VARCHAR(8), "foobar", new byte[] {102, 111, 111, 98, 97, 114})
+                        .fromCase(
+                                STRING(),
+                                "Apache Flink",
+                                new byte[] {65, 112, 97, 99, 104, 101, 32, 70, 108, 105, 110, 107})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
                         //
@@ -961,7 +957,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 );
     }
 
-    public static List<TestSpec> toStringCasts() {
+    private static List<TestSetSpec> toStringCasts() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(CHAR(3))
                         .fromCase(CHAR(5), null, null)
@@ -992,11 +988,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "Apache Flink", "Apache Flink")
                         .fromCase(STRING(), null, null)
                         .fromCase(BOOLEAN(), true, "TRUE")
-                        .fromCase(BINARY(2), DEFAULT_BINARY, "0001")
-                        .fromCase(BINARY(3), DEFAULT_BINARY, "000100")
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "000102")
-                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "000102")
-                        .fromCase(BYTES(), DEFAULT_BYTES, "0001020304")
+                        .fromCase(BINARY(2), DEFAULT_BINARY, "\u0000\u0001")
+                        .fromCase(BINARY(3), DEFAULT_BINARY, "\u0000\u0001\u0000")
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
+                        .fromCase(BYTES(), DEFAULT_BYTES, "\u0000\u0001\u0002\u0003\u0004")
                         .fromCase(DECIMAL(4, 3), 9.87, "9.870")
                         .fromCase(DECIMAL(10, 5), 1, "1.00000")
                         .fromCase(
@@ -1078,9 +1074,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
                         .fromCase(ARRAY(INT().nullable()), new Integer[] {null, 456}, "[NULL, 456]")
                         .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH()).nullable()),
-                                map(entry("a", -123), entry("b", null)),
-                                "{a=-10-03, b=NULL}")
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                map(entry("a", -123)),
+                                "{a=-10-03}")
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 Row.of(null, "abc"),
@@ -1090,7 +1086,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
-    public static List<TestSpec> decimalCasts() {
+    private static List<TestSetSpec> decimalCasts() {
         return Collections.singletonList(
                 CastTestSpecBuilder.testCastTo(DECIMAL(8, 4))
                         .fromCase(STRING(), null, null)
@@ -1106,7 +1102,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     @SuppressWarnings("NumericOverflow")
-    public static List<TestSpec> numericBounds() {
+    private static List<TestSetSpec> numericBounds() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(TINYINT())
                         .fromCase(TINYINT(), Byte.MIN_VALUE, Byte.MIN_VALUE)
@@ -1161,7 +1157,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
-    public static List<TestSpec> constructedTypes() {
+    private static List<TestSetSpec> constructedTypes() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING()))
                         .fromCase(MAP(FLOAT(), DOUBLE()), null, null)
@@ -1218,13 +1214,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
-    static class CastTestSpecBuilder {
-        private TestSpec testSpec;
+    private static class CastTestSpecBuilder {
+        private TestSetSpec testSetSpec;
         private DataType targetType;
         private final List<Object> columnData = new ArrayList<>();
         private final List<DataType> columnTypes = new ArrayList<>();
         private final List<Object> expectedValues = new ArrayList<>();
-        private final List<Class<? extends Throwable>> expectedFailureClasses = new ArrayList<>();
         private final List<TestType> testTypes = new ArrayList<>();
 
         private enum TestType {
@@ -1237,8 +1232,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         private static CastTestSpecBuilder testCastTo(DataType targetType) {
             CastTestSpecBuilder tsb = new CastTestSpecBuilder();
             tsb.targetType = targetType;
-            tsb.testSpec =
-                    TestSpec.forFunction(
+            tsb.testSetSpec =
+                    TestSetSpec.forFunction(
                             BuiltInFunctionDefinitions.CAST, "To " + targetType.toString());
             return tsb;
         }
@@ -1285,7 +1280,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             return this;
         }
 
-        private TestSpec build() {
+        private TestSetSpec build() {
             List<ResultSpec> testSpecs = new ArrayList<>(columnData.size());
             // expectedValues may contain less elements if there are also error test cases
             int idxOffset = 0;
@@ -1304,14 +1299,15 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                                         + ", "
                                                         + targetType.toString()
                                                         + ")"));
-                        testSpec.testTableApiValidationError($(colName).cast(targetType), errorMsg);
+                        testSetSpec.testTableApiValidationError(
+                                $(colName).cast(targetType), errorMsg);
                         idxOffset++;
                         break;
                     case ERROR_SQL:
                         errorMsg =
                                 specificErrorMsg(
                                         colType, "Cast function cannot convert value of type ");
-                        testSpec.testSqlValidationError(
+                        testSetSpec.testSqlValidationError(
                                 "CAST(" + colName + " AS " + targetType.toString() + ")", errorMsg);
                         idxOffset++;
                         break;
@@ -1319,10 +1315,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         @SuppressWarnings("unchecked")
                         Class<? extends Throwable> throwableClazz =
                                 (Class<? extends Throwable>) expectedValues.get(i - idxOffset);
-                        testSpec.testSqlRuntimeError(
+                        testSetSpec.testSqlRuntimeError(
                                 "CAST(" + colName + " AS " + targetType.toString() + ")",
                                 throwableClazz);
-                        testSpec.testTableApiRuntimeError(
+                        testSetSpec.testTableApiRuntimeError(
                                 $(colName).cast(targetType), throwableClazz);
                         break;
                     case RESULT:
@@ -1335,10 +1331,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         break;
                 }
             }
-            testSpec.onFieldsWithData(columnData.toArray())
+            testSetSpec
+                    .onFieldsWithData(columnData.toArray())
                     .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}))
                     .testResult(testSpecs.toArray(new ResultSpec[0]));
-            return testSpec;
+            return testSetSpec;
         }
 
         private String specificErrorMsg(LogicalType colType, String defaultMsg) {

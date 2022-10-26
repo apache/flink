@@ -15,19 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 
-/**
-  * AggregateITCase using HashAgg Operator.
-  */
-class HashAggITCase
-    extends AggregateITCaseBase("HashAggregate") {
+/** AggregateITCase using HashAgg Operator. */
+class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
 
   override def prepareAggOp(): Unit = {
-    tEnv.getConfig.set(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
+    tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
   }
 }

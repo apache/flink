@@ -27,29 +27,26 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link OggJsonFormatFactory}. */
-public class OggJsonFormatFactoryTest extends TestLogger {
-    @Rule public ExpectedException thrown = ExpectedException.none();
+class OggJsonFormatFactoryTest {
 
     @Test
-    public void testSeDeSchema() {
+    void testSeDeSchema() {
         final Map<String, String> options = getAllOptions();
 
         final OggJsonSerializationSchema expectedSer =
@@ -69,46 +66,48 @@ public class OggJsonFormatFactoryTest extends TestLogger {
                 sinkMock.valueFormat.createRuntimeEncoder(
                         new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
 
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
-    public void testInvalidIgnoreParseError() {
-        thrown.expect(
-                containsCause(
-                        new IllegalArgumentException(
-                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
-
+    void testInvalidIgnoreParseError() {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("ogg-json.ignore-parse-errors", "abc"));
 
-        createTableSource(SCHEMA, options);
+        assertThatThrownBy(() -> createTableSource(SCHEMA, options))
+                .satisfies(
+                        anyCauseMatches(
+                                IllegalArgumentException.class,
+                                "Unrecognized option for boolean: abc. "
+                                        + "Expected either true or false(case insensitive)"));
     }
 
     @Test
-    public void testInvalidOptionForTimestampFormat() {
+    void testInvalidOptionForTimestampFormat() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(opts -> opts.put("ogg-json.timestamp-format.standard", "test"));
 
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
-        createTableSource(SCHEMA, tableOptions);
+        assertThatThrownBy(() -> createTableSource(SCHEMA, tableOptions))
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported value 'test' for timestamp-format.standard. "
+                                        + "Supported values are [SQL, ISO-8601]."));
     }
 
     @Test
-    public void testInvalidOptionForMapNullKeyMode() {
+    void testInvalidOptionForMapNullKeyMode() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(opts -> opts.put("ogg-json.map-null-key.mode", "invalid"));
 
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
-        createTableSink(SCHEMA, tableOptions);
+        assertThatThrownBy(() -> createTableSink(SCHEMA, tableOptions))
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported value 'invalid' for option map-null-key.mode. "
+                                        + "Supported values are [LITERAL, FAIL, DROP]."));
     }
 
     // ------------------------------------------------------------------------

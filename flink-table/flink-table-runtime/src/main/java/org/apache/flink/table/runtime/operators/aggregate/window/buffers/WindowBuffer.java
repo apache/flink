@@ -93,7 +93,7 @@ public interface WindowBuffer {
          * @param windowState the window state to flush buffered data into.
          * @param isEventTime indicates whether the operator works in event-time or processing-time
          *     mode, used for register corresponding timers.
-         * @param shiftTimeZone the shit timezone of the window
+         * @param shiftTimeZone the shift timezone of the window
          * @throws IOException thrown if the buffer can't be opened
          */
         WindowBuffer create(
@@ -121,7 +121,7 @@ public interface WindowBuffer {
          * @param memoryManager the manager that governs memory by Flink framework
          * @param memorySize the managed memory size can be used by this operator
          * @param collector collector to emit records
-         * @param shiftTimeZone the shit timezone of the window
+         * @param shiftTimeZone the shift timezone of the window
          * @throws IOException thrown if the buffer can't be opened
          */
         WindowBuffer create(

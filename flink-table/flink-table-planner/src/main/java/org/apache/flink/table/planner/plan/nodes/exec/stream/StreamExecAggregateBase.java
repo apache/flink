@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -43,10 +44,11 @@ public abstract class StreamExecAggregateBase extends ExecNodeBase<RowData>
     protected StreamExecAggregateBase(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
     }
 }

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
@@ -41,7 +41,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -92,7 +91,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                 checkpointStoreUtil,
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         checkpointsInZooKeeper, checkpointStoreUtil),
-                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList()),
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT),
                 executor);
     }
 
@@ -383,8 +383,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         CommonTestUtils.waitUntilCondition(
                 () ->
                         checkpointsCleaner.getNumberOfCheckpointsToClean()
-                                == nbCheckpointsSubmittedForCleaning,
-                Deadline.fromNow(Duration.ofSeconds(3)));
+                                == nbCheckpointsSubmittedForCleaning);
         assertEquals(
                 nbCheckpointsSubmittedForCleaning,
                 checkpointsCleaner.getNumberOfCheckpointsToClean());
@@ -401,8 +400,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         CommonTestUtils.waitUntilCondition(
                 () ->
                         checkpointsCleaner.getNumberOfCheckpointsToClean()
-                                < nbCheckpointsSubmittedForCleaning,
-                Deadline.fromNow(Duration.ofSeconds(3)));
+                                < nbCheckpointsSubmittedForCleaning);
         // some checkpoints were cleaned
         assertTrue(
                 checkpointsCleaner.getNumberOfCheckpointsToClean()

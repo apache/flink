@@ -33,7 +33,7 @@ under the License.
 
 ```bash
 $ python --version
-# the version printed here must be 3.6, 3.7 or 3.8
+# the version printed here must be 3.6, 3.7, 3.8 or 3.9
 ```
 
 ## 环境设置

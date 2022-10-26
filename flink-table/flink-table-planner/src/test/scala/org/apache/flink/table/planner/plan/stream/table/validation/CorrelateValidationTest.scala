@@ -29,13 +29,12 @@ import org.junit.Test
 class CorrelateValidationTest extends TableTestBase {
 
   @Test
-  def testRegisterFunctionException(): Unit ={
+  def testRegisterFunctionException(): Unit = {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('a, 'b, 'c)
 
     // check scala object is forbidden
-    expectExceptionThrown(
-      util.addFunction("func3", ObjectTableFunction), "Scala object")
+    expectExceptionThrown(util.addFunction("func3", ObjectTableFunction), "Scala object")
     expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
   }
 
@@ -44,37 +43,32 @@ class CorrelateValidationTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    //=================== check scala object is forbidden =====================
+    // =================== check scala object is forbidden =====================
     // Scala table environment register
     expectExceptionThrown(util.addFunction("udtf", ObjectTableFunction), "Scala object")
     // Java table environment register
-    expectExceptionThrown(
-      util.addFunction("udtf", ObjectTableFunction), "Scala object")
+    expectExceptionThrown(util.addFunction("udtf", ObjectTableFunction), "Scala object")
     // Scala Table API directly call
     expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
 
-
-    //============ throw exception when table function is not registered =========
+    // ============ throw exception when table function is not registered =========
     // Java Table API call
-    expectExceptionThrown(
-      t.joinLateral(call("nonexist", $"a")), "Undefined function: nonexist")
+    expectExceptionThrown(t.joinLateral(call("nonexist", $"a")), "Undefined function: nonexist")
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
       "No match found for function signature nonexist(<NUMERIC>)")
 
-
-    //========= throw exception when the called function is a scalar function ====
+    // ========= throw exception when the called function is a scalar function ====
     util.addFunction("func0", Func0)
 
     // SQL API call
-    // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func0(a))"),
       null,
-      classOf[AssertionError])
+      classOf[ValidationException])
 
-    //========== throw exception when the parameters is not correct ===============
+    // ========== throw exception when the parameters is not correct ===============
     // Java Table API call
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
@@ -87,19 +81,20 @@ class CorrelateValidationTest extends TableTestBase {
   }
 
   /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicate can only be empty or literal true (the restriction should be removed in
-    * FLINK-7865).
-    */
-  @Test (expected = classOf[ValidationException])
+   * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the join
+   * predicate can only be empty or literal true (the restriction should be removed in FLINK-7865).
+   */
+  @Test(expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc1
     util.addFunction("func1", function)
 
-    val result = table.leftOuterJoinLateral(function('c) as 's, 'c === 's)
-      .select('c, 's).where('a > 10)
+    val result = table
+      .leftOuterJoinLateral(function('c).as('s), 'c === 's)
+      .select('c, 's)
+      .where('a > 10)
 
     util.verifyExecPlan(result)
   }
@@ -107,8 +102,8 @@ class CorrelateValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidMapFunctionTypeAggregation(): Unit = {
     val util = streamTestUtil()
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
+    util
+      .addTableSource[(Int)]("MyTable", 'int)
       .flatMap('int.sum) // do not support AggregateFunction as input
   }
 
@@ -117,8 +112,8 @@ class CorrelateValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     val weightedAvg = new WeightedAvg
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
+    util
+      .addTableSource[(Int)]("MyTable", 'int)
       .flatMap(weightedAvg('int, 'int)) // do not support AggregateFunction as input
   }
 
@@ -127,8 +122,8 @@ class CorrelateValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     util.addFunction("weightedAvg", new WeightedAvg)
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
+    util
+      .addTableSource[(Int)]("MyTable", 'int)
       .flatMap(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
   }
 
@@ -136,8 +131,8 @@ class CorrelateValidationTest extends TableTestBase {
   def testInvalidMapFunctionTypeScalarFunction(): Unit = {
     val util = streamTestUtil()
 
-    util.addTableSource[(String)](
-      "MyTable", 'string)
+    util
+      .addTableSource[(String)]("MyTable", 'string)
       .flatMap(Func15('string)) // do not support ScalarFunction as input
   }
 
@@ -145,8 +140,8 @@ class CorrelateValidationTest extends TableTestBase {
   def testInvalidFlatMapFunctionTypeFieldReference(): Unit = {
     val util = batchTestUtil()
 
-    util.addTableSource[(String)](
-      "MyTable", 'string)
+    util
+      .addTableSource[(String)]("MyTable", 'string)
       .flatMap('string) // Only TableFunction can be used in flatMap
   }
 
@@ -155,8 +150,7 @@ class CorrelateValidationTest extends TableTestBase {
   private def expectExceptionThrown(
       function: => Unit,
       keywords: String,
-      clazz: Class[_ <: Throwable] = classOf[ValidationException])
-    : Unit = {
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
     try {
       function
       fail(s"Expected a $clazz, but no exception is thrown.")

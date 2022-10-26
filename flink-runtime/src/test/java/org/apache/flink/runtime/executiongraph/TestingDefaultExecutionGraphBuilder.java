@@ -41,13 +41,11 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
-import org.apache.flink.testutils.TestingUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder of {@link ExecutionGraph} used in testing. */
@@ -60,8 +58,6 @@ public class TestingDefaultExecutionGraphBuilder {
         return new TestingDefaultExecutionGraphBuilder();
     }
 
-    private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-    private Executor ioExecutor = TestingUtils.defaultExecutor();
     private Time rpcTimeout = Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
     private ClassLoader userClassLoader = DefaultExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
@@ -77,6 +73,7 @@ public class TestingDefaultExecutionGraphBuilder {
     private ExecutionStateUpdateListener executionStateUpdateListener =
             (execution, previousState, newState) -> {};
     private VertexParallelismStore vertexParallelismStore;
+    private ExecutionJobVertex.Factory executionJobVertexFactory = new ExecutionJobVertex.Factory();
 
     private TestingDefaultExecutionGraphBuilder() {}
 
@@ -87,17 +84,6 @@ public class TestingDefaultExecutionGraphBuilder {
 
     public TestingDefaultExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
         this.jobGraph = jobGraph;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setFutureExecutor(
-            ScheduledExecutorService futureExecutor) {
-        this.futureExecutor = futureExecutor;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setIoExecutor(Executor ioExecutor) {
-        this.ioExecutor = ioExecutor;
         return this;
     }
 
@@ -157,13 +143,20 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    private DefaultExecutionGraph build(boolean isDynamicGraph)
+    public TestingDefaultExecutionGraphBuilder setExecutionJobVertexFactory(
+            ExecutionJobVertex.Factory executionJobVertexFactory) {
+        this.executionJobVertexFactory = executionJobVertexFactory;
+        return this;
+    }
+
+    private DefaultExecutionGraph build(
+            boolean isDynamicGraph, ScheduledExecutorService executorService)
             throws JobException, JobExecutionException {
         return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfig,
-                futureExecutor,
-                ioExecutor,
+                executorService,
+                executorService,
                 userClassLoader,
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
@@ -182,14 +175,17 @@ public class TestingDefaultExecutionGraphBuilder {
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
                 () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()),
-                isDynamicGraph);
+                isDynamicGraph,
+                executionJobVertexFactory);
     }
 
-    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
-        return build(false);
+    public DefaultExecutionGraph build(ScheduledExecutorService executorService)
+            throws JobException, JobExecutionException {
+        return build(false, executorService);
     }
 
-    public DefaultExecutionGraph buildDynamicGraph() throws JobException, JobExecutionException {
-        return build(true);
+    public DefaultExecutionGraph buildDynamicGraph(ScheduledExecutorService executorService)
+            throws JobException, JobExecutionException {
+        return build(true, executorService);
     }
 }

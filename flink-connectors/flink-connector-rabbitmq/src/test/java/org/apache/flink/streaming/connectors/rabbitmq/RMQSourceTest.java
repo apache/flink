@@ -42,9 +42,10 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.Envelope;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mockito;
 import org.mockito.internal.stubbing.answers.CallsRealMethods;
 import org.mockito.invocation.InvocationOnMock;
@@ -55,17 +56,12 @@ import java.util.ArrayDeque;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 
@@ -79,7 +75,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
  * <p>This tests assumes that the message ids are increasing monotonously. That doesn't have to be
  * the case. The correlation id is used to uniquely identify messages.
  */
-public class RMQSourceTest {
+class RMQSourceTest {
 
     private RMQSource<String> source;
 
@@ -108,8 +104,8 @@ public class RMQSourceTest {
         return mockContext;
     }
 
-    @Before
-    public void beforeTest() throws Exception {
+    @BeforeEach
+    void beforeTest() throws Exception {
         FunctionInitializationContext mockContext = getMockContext();
 
         source = new RMQTestSource();
@@ -134,14 +130,14 @@ public class RMQSourceTest {
                         });
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         source.cancel();
         sourceThread.join();
     }
 
     @Test
-    public void throwExceptionIfConnectionFactoryReturnNull() throws Exception {
+    void throwExceptionIfConnectionFactoryReturnNull() throws Exception {
         RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
         ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
         Connection connection = Mockito.mock(Connection.class);
@@ -152,15 +148,13 @@ public class RMQSourceTest {
         RMQSource<String> rmqSource =
                 new RMQSource<>(
                         connectionConfig, "queueDummy", true, new StringDeserializationScheme());
-        try {
-            rmqSource.open(new Configuration());
-        } catch (RuntimeException ex) {
-            assertEquals("None of RabbitMQ channels are available", ex.getMessage());
-        }
+        assertThatThrownBy(() -> rmqSource.open(new Configuration()))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("None of RabbitMQ channels are available");
     }
 
     @Test
-    public void testResourceCleanupOnOpenFailure() throws Exception {
+    void testResourceCleanupOnOpenFailure() throws Exception {
         RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
         ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
         Connection connection = Mockito.mock(Connection.class);
@@ -172,14 +166,14 @@ public class RMQSourceTest {
         RMQSource<String> rmqSource =
                 new RMQSource<>(
                         connectionConfig, "queueDummy", true, new StringDeserializationScheme());
-        RuntimeException ex =
-                assertThrows(RuntimeException.class, () -> rmqSource.open(new Configuration()));
-        assertEquals("Cannot create RMQ connection with queueDummy at hostDummy", ex.getMessage());
+        assertThatThrownBy(() -> rmqSource.open(new Configuration()))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Cannot create RMQ connection with queueDummy at hostDummy");
         Mockito.verify(rmqSource.connection, Mockito.atLeastOnce()).close();
     }
 
     @Test
-    public void testOpenCallDeclaresQueueInStandardMode() throws Exception {
+    void testOpenCallDeclaresQueueInStandardMode() throws Exception {
         FunctionInitializationContext mockContext = getMockContext();
 
         RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
@@ -199,7 +193,7 @@ public class RMQSourceTest {
     }
 
     @Test
-    public void testResourceCleanupOnClose() throws Exception {
+    void testResourceCleanupOnClose() throws Exception {
         FunctionInitializationContext mockContext = getMockContext();
 
         RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
@@ -219,20 +213,23 @@ public class RMQSourceTest {
         rmqSource.initializeState(mockContext);
         rmqSource.open(new Configuration());
 
-        Exception ex = assertThrows(RuntimeException.class, rmqSource::close);
-        assertEquals(
-                "Error while cancelling RMQ consumer on queueDummy at hostDummy", ex.getMessage());
-        assertEquals(1, ex.getSuppressed().length);
-        assertEquals(
-                "Error while closing RMQ source with queueDummy at hostDummy",
-                ex.getSuppressed()[0].getMessage());
+        assertThatThrownBy(rmqSource::close)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Error while cancelling RMQ consumer on queueDummy at hostDummy")
+                .extracting(Throwable::getSuppressed)
+                .satisfies(t -> assertThat(t).hasSize(1))
+                .satisfies(
+                        t ->
+                                assertThat(t[0])
+                                        .hasMessage(
+                                                "Error while closing RMQ source with queueDummy at hostDummy"));
         Mockito.verify(rmqSource.channel, Mockito.atLeastOnce()).basicCancel(any());
         Mockito.verify(rmqSource.channel, Mockito.atLeastOnce()).close();
         Mockito.verify(rmqSource.connection, Mockito.atLeastOnce()).close();
     }
 
     @Test
-    public void testCheckpointing() throws Exception {
+    void testCheckpointing() throws Exception {
         source.autoAck = false;
 
         StreamSource<String, RMQSource<String>> src = new StreamSource<>(source);
@@ -278,9 +275,9 @@ public class RMQSourceTest {
             ArrayDeque<Tuple2<Long, Set<String>>> deque = sourceCopy.getRestoredState();
             Set<String> messageIds = deque.getLast().f1;
 
-            assertEquals(numIds, messageIds.size());
+            assertThat(messageIds).hasSize((int) numIds);
             if (messageIds.size() > 0) {
-                assertTrue(messageIds.contains(Long.toString(lastSnapshotId - 1)));
+                assertThat(messageIds).contains(Long.toString(lastSnapshotId - 1));
             }
 
             // check if the messages are being acknowledged and the transaction committed
@@ -297,7 +294,7 @@ public class RMQSourceTest {
 
     /** Checks whether recurring ids are processed again (they shouldn't be). */
     @Test
-    public void testDuplicateId() throws Exception {
+    void testDuplicateId() throws Exception {
         source.autoAck = false;
         sourceThread.start();
 
@@ -318,8 +315,8 @@ public class RMQSourceTest {
         }
 
         synchronized (DummySourceContext.lock) {
-            assertEquals(
-                    Math.max(messageId, oldMessageId), DummySourceContext.numElementsCollected);
+            assertThat(Math.max(messageId, oldMessageId))
+                    .isEqualTo(DummySourceContext.numElementsCollected);
         }
     }
 
@@ -328,7 +325,7 @@ public class RMQSourceTest {
      * acknowledged ids.
      */
     @Test
-    public void testCheckpointingDisabled() throws Exception {
+    void testCheckpointingDisabled() throws Exception {
         source.autoAck = true;
         sourceThread.start();
 
@@ -338,25 +335,24 @@ public class RMQSourceTest {
         }
 
         // verify if RMQTestSource#addId was never called
-        assertEquals(0, ((RMQTestSource) source).addIdCalls);
+        assertThat(((RMQTestSource) source).addIdCalls).isEqualTo(0);
     }
 
     /** Tests error reporting in case of invalid correlation ids. */
     @Test
-    public void testCorrelationIdNotSet() throws InterruptedException {
+    void testCorrelationIdNotSet() throws InterruptedException {
         generateCorrelationIds = false;
         source.autoAck = false;
         sourceThread.start();
 
         sourceThread.join();
 
-        assertNotNull(exception);
-        assertTrue(exception instanceof NullPointerException);
+        assertThat(exception).isInstanceOf(NullPointerException.class);
     }
 
     /** Tests whether redelivered messages are acknowledged properly. */
     @Test
-    public void testRedeliveredSessionIDsAck() throws Exception {
+    void testRedeliveredSessionIDsAck() throws Exception {
         source.autoAck = false;
 
         StreamSource<String, RMQSource<String>> src = new StreamSource<>(source);
@@ -392,8 +388,8 @@ public class RMQSourceTest {
 
             // check if all the messages are being collected and acknowledged
             long totalNumberOfAcks = numMsgRedelivered + lastMessageId;
-            assertEquals(lastMessageId, DummySourceContext.numElementsCollected);
-            assertEquals(totalNumberOfAcks, ((RMQTestSource) source).addIdCalls);
+            assertThat(lastMessageId).isEqualTo(DummySourceContext.numElementsCollected);
+            assertThat(totalNumberOfAcks).isEqualTo(((RMQTestSource) source).addIdCalls);
         }
 
         // check if all the acks are being sent
@@ -405,7 +401,7 @@ public class RMQSourceTest {
 
     /** Tests whether constructor params are passed correctly. */
     @Test
-    public void testConstructorParams() throws Exception {
+    void testConstructorParams() throws Exception {
         // verify construction params
         RMQConnectionConfig.Builder builder = new RMQConnectionConfig.Builder();
         builder.setHost("hostTest")
@@ -423,25 +419,26 @@ public class RMQSourceTest {
             // connection fails but check if args have been passed correctly
         }
 
-        assertEquals("hostTest", testObj.getFactory().getHost());
-        assertEquals(999, testObj.getFactory().getPort());
-        assertEquals("userTest", testObj.getFactory().getUsername());
-        assertEquals("passTest", testObj.getFactory().getPassword());
+        assertThat(testObj.getFactory().getHost()).isEqualTo("hostTest");
+        assertThat(testObj.getFactory().getPort()).isEqualTo(999);
+        assertThat(testObj.getFactory().getUsername()).isEqualTo("userTest");
+        assertThat(testObj.getFactory().getPassword()).isEqualTo("passTest");
     }
 
-    @Test(timeout = 30000L)
-    public void testCustomIdentifiers() throws Exception {
+    @Test
+    @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
+    void testCustomIdentifiers() throws Exception {
         source = new RMQTestSource(new CustomDeserializationSchema());
         source.initializeState(getMockContext());
         source.open(config);
         sourceThread.start();
         sourceThread.join();
 
-        assertThat(DummySourceContext.numElementsCollected, equalTo(2L));
+        assertThat(DummySourceContext.numElementsCollected).isEqualTo(2L);
     }
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() throws Exception {
         MockDeserializationSchema<String> deserializationSchema = new MockDeserializationSchema<>();
 
         RMQSource<String> consumer = new RMQTestSource(deserializationSchema);
@@ -449,11 +446,11 @@ public class RMQSourceTest {
                 new AbstractStreamOperatorTestHarness<>(new StreamSource<>(consumer), 1, 1, 0);
 
         testHarness.open();
-        assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
+        assertThat(deserializationSchema.isOpenCalled()).as("Open method was not called").isTrue();
     }
 
     @Test
-    public void testOverrideConnection() throws Exception {
+    void testOverrideConnection() throws Exception {
         final Connection mockConnection = Mockito.mock(Connection.class);
         Channel channel = Mockito.mock(Channel.class);
         Mockito.when(mockConnection.createChannel()).thenReturn(channel);
@@ -474,7 +471,7 @@ public class RMQSourceTest {
     }
 
     @Test
-    public void testSetPrefetchCount() throws Exception {
+    void testSetPrefetchCount() throws Exception {
         RMQConnectionConfig connectionConfig =
                 new RMQConnectionConfig.Builder()
                         .setHost("localhost")
@@ -505,7 +502,7 @@ public class RMQSourceTest {
     }
 
     @Test
-    public void testUnsetPrefetchCount() throws Exception {
+    void testUnsetPrefetchCount() throws Exception {
         final Connection mockConnection = Mockito.mock(Connection.class);
         Channel channel = Mockito.mock(Channel.class);
         Mockito.when(mockConnection.createChannel()).thenReturn(channel);
@@ -527,7 +524,7 @@ public class RMQSourceTest {
     }
 
     @Test
-    public void testDeliveryTimeout() throws Exception {
+    void testDeliveryTimeout() throws Exception {
         source.autoAck = false;
         // mock not delivering messages
         CallsRealMethodsWithLatch delivery = new CallsRealMethodsWithLatch();
@@ -541,7 +538,7 @@ public class RMQSourceTest {
         sourceThread.join();
         Mockito.verify(source.consumer, Mockito.never()).nextDelivery();
         Mockito.verify(source.consumer, Mockito.atLeastOnce()).nextDelivery(any(Long.class));
-        assertNull(exception);
+        assertThat(exception).isNull();
     }
 
     private static class CallsRealMethodsWithLatch extends CallsRealMethods {
@@ -811,7 +808,7 @@ public class RMQSourceTest {
         @Override
         protected boolean addId(String uid) {
             addIdCalls++;
-            assertEquals(false, autoAck);
+            assertThat(autoAck).isFalse();
             return super.addId(uid);
         }
     }

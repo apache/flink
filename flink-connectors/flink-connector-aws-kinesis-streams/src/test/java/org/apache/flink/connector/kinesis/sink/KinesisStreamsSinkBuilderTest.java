@@ -21,17 +21,17 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Covers construction, defaults and sanity checking of KinesisStreamsSinkBuilder. */
-public class KinesisStreamsSinkBuilderTest {
+class KinesisStreamsSinkBuilderTest {
     private static final SerializationSchema<String> SERIALIZATION_SCHEMA =
             new SimpleStringSchema();
     private static final PartitionKeyGenerator<String> PARTITION_KEY_GENERATOR =
             element -> String.valueOf(element.hashCode());
 
     @Test
-    public void elementConverterOfSinkMustBeSetWhenBuilt() {
+    void elementConverterOfSinkMustBeSetWhenBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> KinesisStreamsSink.builder().setStreamName("stream").build())
                 .withMessageContaining(
@@ -39,7 +39,7 @@ public class KinesisStreamsSinkBuilderTest {
     }
 
     @Test
-    public void streamNameOfSinkMustBeSetWhenBuilt() {
+    void streamNameOfSinkMustBeSetWhenBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(
                         () ->
@@ -52,7 +52,7 @@ public class KinesisStreamsSinkBuilderTest {
     }
 
     @Test
-    public void streamNameOfSinkMustBeSetToNonEmptyWhenBuilt() {
+    void streamNameOfSinkMustBeSetToNonEmptyWhenBuilt() {
         Assertions.assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
                         () ->
@@ -66,7 +66,7 @@ public class KinesisStreamsSinkBuilderTest {
     }
 
     @Test
-    public void serializationSchemaMustBeSetWhenSinkIsBuilt() {
+    void serializationSchemaMustBeSetWhenSinkIsBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(
                         () ->
@@ -79,7 +79,7 @@ public class KinesisStreamsSinkBuilderTest {
     }
 
     @Test
-    public void partitionKeyGeneratorMustBeSetWhenSinkIsBuilt() {
+    void partitionKeyGeneratorMustBeSetWhenSinkIsBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(
                         () ->

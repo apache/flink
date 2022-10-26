@@ -54,8 +54,7 @@ import java.util.stream.IntStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -83,6 +82,11 @@ public class FakeKinesisFanOutBehavioursFactory {
 
     public static KinesisProxyV2Interface singletonShard(final SubscribeToShardEvent event) {
         return new SingletonEventFanOutKinesisV2(event);
+    }
+
+    public static AbstractSingleShardFanOutKinesisV2 singleShardWithEvents(
+            final List<SubscribeToShardEvent> events) {
+        return new EventFanOutKinesisV2(events);
     }
 
     public static SingleShardFanOutKinesisV2 emptyShard() {
@@ -263,6 +267,21 @@ public class FakeKinesisFanOutBehavioursFactory {
         }
     }
 
+    private static class EventFanOutKinesisV2 extends AbstractSingleShardFanOutKinesisV2 {
+
+        private final List<SubscribeToShardEvent> events;
+
+        private EventFanOutKinesisV2(List<SubscribeToShardEvent> events) {
+            super(1);
+            this.events = events;
+        }
+
+        @Override
+        List<SubscribeToShardEvent> getEventsToSend() {
+            return events;
+        }
+    }
+
     private static class MultipleEventsForSingleRequest extends AbstractSingleShardFanOutKinesisV2 {
 
         private MultipleEventsForSingleRequest() {
@@ -417,8 +436,8 @@ public class FakeKinesisFanOutBehavioursFactory {
         }
 
         public StartingPosition getStartingPositionForSubscription(final int subscriptionIndex) {
-            assertTrue(subscriptionIndex >= 0);
-            assertTrue(subscriptionIndex < getNumberOfSubscribeToShardInvocations());
+            assertThat(subscriptionIndex).isGreaterThanOrEqualTo(0);
+            assertThat(subscriptionIndex).isLessThan(getNumberOfSubscribeToShardInvocations());
 
             return requests.get(subscriptionIndex).startingPosition();
         }
@@ -519,7 +538,7 @@ public class FakeKinesisFanOutBehavioursFactory {
         public RegisterStreamConsumerResponse registerStreamConsumer(
                 String streamArn, String consumerName)
                 throws InterruptedException, ExecutionException {
-            assertEquals(STREAM_ARN, streamArn);
+            assertThat(streamArn).isEqualTo(STREAM_ARN);
 
             streamConsumerNotFound = false;
             streamConsumerArn = STREAM_CONSUMER_ARN_NEW;
@@ -544,7 +563,7 @@ public class FakeKinesisFanOutBehavioursFactory {
         public DescribeStreamConsumerResponse describeStreamConsumer(
                 final String streamArn, final String consumerName)
                 throws InterruptedException, ExecutionException {
-            assertEquals(STREAM_ARN, streamArn);
+            assertThat(streamArn).isEqualTo(STREAM_ARN);
 
             numberOfDescribeStreamConsumerInvocations++;
 
@@ -574,7 +593,7 @@ public class FakeKinesisFanOutBehavioursFactory {
         @Override
         public DescribeStreamConsumerResponse describeStreamConsumer(String streamConsumerArn)
                 throws InterruptedException, ExecutionException {
-            assertEquals(this.streamConsumerArn, streamConsumerArn);
+            assertThat(streamConsumerArn).isEqualTo(this.streamConsumerArn);
             return describeStreamConsumer(STREAM_ARN, "consumer-name");
         }
 

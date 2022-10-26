@@ -23,9 +23,8 @@ import org.apache.flink.docs.rest.data.TestEmptyMessageHeaders;
 import org.apache.flink.docs.rest.data.TestExcludeMessageHeaders;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -37,14 +36,34 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
-class OpenApiSpecGeneratorTest extends TestLogger {
+/** Test class for {@link OpenApiSpecGenerator}. */
+class OpenApiSpecGeneratorTest {
+
+    @Test
+    void testTitle() throws Exception {
+        final String title = "Funky title";
+
+        File file = File.createTempFile("rest_v0_", ".html");
+        OpenApiSpecGenerator.createDocumentationFile(
+                title,
+                new TestExcludeDocumentingRestEndpoint(),
+                RuntimeRestAPIVersion.V0,
+                file.toPath());
+        String actual = FileUtils.readFile(file, "UTF-8");
+
+        assertThat(actual).contains("title: " + title);
+    }
 
     @Test
     void testExcludeFromDocumentation() throws Exception {
         File file = File.createTempFile("rest_v0_", ".html");
         OpenApiSpecGenerator.createDocumentationFile(
-                new TestExcludeDocumentingRestEndpoint(), RestAPIVersion.V0, file.toPath());
+                "title",
+                new TestExcludeDocumentingRestEndpoint(),
+                RuntimeRestAPIVersion.V0,
+                file.toPath());
         String actual = FileUtils.readFile(file, "UTF-8");
 
         assertThat(actual).contains("/test/empty1");
@@ -84,6 +103,32 @@ class OpenApiSpecGeneratorTest extends TestLogger {
                                     "/test/exclude2",
                                     "This REST API should also not appear in the generated documentation."),
                             null));
+        }
+    }
+
+    @Test
+    void testDuplicateOperationIdsAreRejected() throws Exception {
+        File file = File.createTempFile("rest_v0_", ".html");
+        assertThatThrownBy(
+                        () ->
+                                OpenApiSpecGenerator.createDocumentationFile(
+                                        "title",
+                                        new TestDuplicateOperationIdDocumentingRestEndpoint(),
+                                        RuntimeRestAPIVersion.V0,
+                                        file.toPath()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Duplicate OperationId");
+    }
+
+    private static class TestDuplicateOperationIdDocumentingRestEndpoint
+            implements DocumentingRestEndpoint {
+
+        @Override
+        public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
+                CompletableFuture<String> localAddressFuture) {
+            return Arrays.asList(
+                    Tuple2.of(new TestEmptyMessageHeaders("operation1"), null),
+                    Tuple2.of(new TestEmptyMessageHeaders("operation1"), null));
         }
     }
 }

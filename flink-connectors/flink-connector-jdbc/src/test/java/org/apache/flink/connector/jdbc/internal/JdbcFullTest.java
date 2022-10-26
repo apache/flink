@@ -35,7 +35,6 @@ import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvide
 import org.apache.flink.types.Row;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -57,7 +56,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
 /** Tests using both {@link JdbcInputFormat} and {@link JdbcOutputFormat}. */
@@ -106,8 +105,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
             jdbcOutputFormat.writeRecord(Tuple2.of(true, inputRow));
             jdbcOutputFormat.close();
         } catch (Exception e) {
-            assertTrue(findThrowable(e, ClassCastException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, ClassCastException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -170,7 +169,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
             while (resultSet.next()) {
                 count++;
             }
-            Assert.assertEquals(TEST_DATA.length, count);
+            assertThat(count).isEqualTo(TEST_DATA.length);
         }
     }
 

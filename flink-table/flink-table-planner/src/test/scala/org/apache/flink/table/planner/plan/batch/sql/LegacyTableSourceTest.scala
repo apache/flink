@@ -15,38 +15,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
+
 import org.junit.{Before, Test}
 
 class LegacyTableSourceTest extends TableTestBase {
 
   private val util = batchTestUtil()
-  private val tableSchema = TableSchema.builder().fields(
-    Array("a", "b", "c"),
-    Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
+  private val tableSchema = TableSchema
+    .builder()
+    .fields(Array("a", "b", "c"), Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()))
+    .build()
 
   @Before
   def setup(): Unit = {
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "ProjectableTable", new TestLegacyProjectableTableSource(
-      true,
-      tableSchema,
-      new RowTypeInfo(
-        tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
-        tableSchema.getFieldNames),
-      Seq.empty[Row])
-    )
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "ProjectableTable",
+        new TestLegacyProjectableTableSource(
+          true,
+          tableSchema,
+          new RowTypeInfo(
+            tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
+            tableSchema.getFieldNames),
+          Seq.empty[Row])
+      )
 
     TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
@@ -105,9 +109,11 @@ class LegacyTableSourceTest extends TableTestBase {
       Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestNestedProjectableTableSource(true, tableSchema, returnType, Seq()))
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestNestedProjectableTableSource(true, tableSchema, returnType, Seq()))
 
     val sqlQuery =
       """
@@ -182,7 +188,8 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testTimeLiteralExpressionPushDown(): Unit = {
-    val schema = TableSchema.builder()
+    val schema = TableSchema
+      .builder()
       .field("id", DataTypes.INT)
       .field("dv", DataTypes.DATE)
       .field("tv", DataTypes.TIME)
@@ -228,30 +235,27 @@ class LegacyTableSourceTest extends TableTestBase {
          |)
        """.stripMargin
     util.tableEnv.executeSql(ddl)
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MySink (
-         |  `a` BIGINT,
-         |  `b` INT,
-         |  `c` DOUBLE
-         |) WITH (
-         |  'connector' = 'filesystem',
-         |  'format' = 'testcsv',
-         |  'path' = '/tmp/test'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MySink (
+                                |  `a` BIGINT,
+                                |  `b` INT,
+                                |  `c` DOUBLE
+                                |) WITH (
+                                |  'connector' = 'filesystem',
+                                |  'format' = 'testcsv',
+                                |  'path' = '/tmp/test'
+                                |)
        """.stripMargin)
 
     val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable1
-        |  /*+ OPTIONS('source.num-element-to-skip'='31') */
-        |""".stripMargin)
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable1
-        |  /*+ OPTIONS('source.num-element-to-skip'='32') */
-        |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable1
+                           |  /*+ OPTIONS('source.num-element-to-skip'='31') */
+                           |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable1
+                           |  /*+ OPTIONS('source.num-element-to-skip'='32') */
+                           |""".stripMargin)
 
     util.verifyExecPlan(stmtSet)
   }

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
@@ -43,6 +43,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -70,7 +73,7 @@ public class MetricGroupTest extends TestLogger {
 
     @After
     public void shutdownRegistry() throws Exception {
-        this.registry.shutdown().get();
+        this.registry.closeAsync().get();
         this.registry = null;
     }
 
@@ -240,14 +243,11 @@ public class MetricGroupTest extends TestLogger {
     @Test
     public void testLogicalScopeShouldIgnoreValueGroupName() throws Exception {
         Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                TestReporter.class.getName());
 
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(config));
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Arrays.asList(ReporterSetup.forReporter("test", new TestReporter())));
         try {
             GenericMetricGroup root =
                     new GenericMetricGroup(
@@ -266,7 +266,7 @@ public class MetricGroupTest extends TestLogger {
             assertThat(
                     "Value is present in logical scope.", logicalScope, not(containsString(value)));
         } finally {
-            registry.shutdown().get();
+            registry.closeAsync().get();
         }
     }
 
@@ -336,13 +336,13 @@ public class MetricGroupTest extends TestLogger {
     public void testCreateQueryServiceMetricInfo() {
         JobID jid = new JobID();
         JobVertexID vid = new JobVertexID();
-        ExecutionAttemptID eid = new ExecutionAttemptID();
+        ExecutionAttemptID eid = createExecutionAttemptId(vid, 4, 5);
         MetricRegistryImpl registry = new MetricRegistryImpl(defaultMetricRegistryConfiguration);
         TaskManagerMetricGroup tm =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
 
-        TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(vid, eid, "taskName", 4, 5);
+        TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(eid, "taskName");
         GenericMetricGroup userGroup1 = new GenericMetricGroup(registry, task, "hello");
         GenericMetricGroup userGroup2 = new GenericMetricGroup(registry, userGroup1, "world");
 
@@ -401,7 +401,7 @@ public class MetricGroupTest extends TestLogger {
 
         @Override
         protected String getGroupName(CharacterFilter filter) {
-            return "";
+            return "foo";
         }
 
         @Override

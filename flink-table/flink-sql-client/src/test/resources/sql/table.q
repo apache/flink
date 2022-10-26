@@ -556,6 +556,20 @@ CREATE TABLE IF NOT EXISTS orders2 (
 [INFO] Execute statement succeed.
 !info
 
+CREATE TABLE IF NOT EXISTS daily_orders (
+ `user` BIGINT NOT NULl,
+ product STRING,
+ amount INT,
+ dt STRING NOT NULL,
+ PRIMARY KEY(dt, `user`) NOT ENFORCED
+) PARTITIONED BY (dt) WITH (
+ 'connector' = 'filesystem',
+ 'path' = '$VAR_BATCH_PATH',
+ 'format' = 'csv'
+);
+[INFO] Execute statement succeed.
+!info
+
 # test explain plan for select
 explain plan for select `user`, product from orders;
 == Abstract Syntax Tree ==
@@ -596,6 +610,45 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
 Sink(table=[default_catalog.default_database.orders2], fields=[user, product, amount, ts])
 +- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
    +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
+
+!ok
+
+# test explain plan for insert into with static partition
+explain plan for insert into daily_orders partition (dt = '2022-06-12') values (123, 'toothpick', 1);
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.daily_orders], fields=[user, product, amount, dt])
++- LogicalProject(user=[123:BIGINT], product=[_UTF-16LE'toothpick':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], amount=[1], dt=[_UTF-16LE'2022-06-12':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+   +- LogicalValues(tuples=[[{ 0 }]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.daily_orders], fields=[user, product, amount, dt])
++- Calc(select=[123:BIGINT AS user, _UTF-16LE'toothpick':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS product, 1 AS amount, _UTF-16LE'2022-06-12':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS dt])
+   +- Values(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.daily_orders], fields=[user, product, amount, dt])
++- Calc(select=[123 AS user, 'toothpick' AS product, 1 AS amount, '2022-06-12' AS dt])
+   +- Values(tuples=[[{ 0 }]])
+
+!ok
+
+# test explain plan for insert overwrite with static partition
+explain plan for insert into daily_orders partition (dt = '2022-06-12') select `user`, product, amount from daily_orders where dt = '2022-06-12';
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.daily_orders], fields=[user, product, amount, EXPR$3])
++- LogicalProject(user=[$0], product=[$1], amount=[$2], EXPR$3=[_UTF-16LE'2022-06-12':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+   +- LogicalFilter(condition=[=($3, _UTF-16LE'2022-06-12')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, daily_orders]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.daily_orders], fields=[user, product, amount, EXPR$3])
++- Calc(select=[user, product, amount, _UTF-16LE'2022-06-12':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS EXPR$3])
+   +- TableSourceScan(table=[[default_catalog, default_database, daily_orders, partitions=[], project=[user, product, amount], metadata=[]]], fields=[user, product, amount])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.daily_orders], fields=[user, product, amount, EXPR$3])
++- Calc(select=[user, product, amount, '2022-06-12' AS EXPR$3])
+   +- TableSourceScan(table=[[default_catalog, default_database, daily_orders, partitions=[], project=[user, product, amount], metadata=[]]], fields=[user, product, amount])
 
 !ok
 

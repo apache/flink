@@ -69,6 +69,10 @@ public final class SpecificInputTypeStrategies {
                     logical(LogicalTypeRoot.BOOLEAN),
                     logical(LogicalTypeFamily.NUMERIC));
 
+    /** Argument type derived from the array element type. */
+    public static final ArgumentTypeStrategy ARRAY_ELEMENT_ARG =
+            new ArrayElementArgumentTypeStrategy();
+
     /**
      * Input strategy for {@link BuiltInFunctionDefinitions#JSON_OBJECT}.
      *
@@ -82,6 +86,13 @@ public final class SpecificInputTypeStrategies {
                             repeatingSequence(
                                     and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
                                     JSON_ARGUMENT));
+
+    /** See {@link ExtractInputTypeStrategy}. */
+    public static final InputTypeStrategy EXTRACT = new ExtractInputTypeStrategy();
+
+    /** See {@link TemporalOverlapsInputTypeStrategy}. */
+    public static final InputTypeStrategy TEMPORAL_OVERLAPS =
+            new TemporalOverlapsInputTypeStrategy();
 
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.DbMetadata;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 
@@ -61,6 +62,10 @@ public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
                         .setOptions(
                                 JdbcConnectorOptions.builder()
                                         .setDBUrl(getDbMetadata().getUrl())
+                                        .setDialect(
+                                                JdbcDialectLoader.load(
+                                                        getDbMetadata().getUrl(),
+                                                        getClass().getClassLoader()))
                                         .setTableName(OUTPUT_TABLE)
                                         .build())
                         .setFieldNames(fieldNames)

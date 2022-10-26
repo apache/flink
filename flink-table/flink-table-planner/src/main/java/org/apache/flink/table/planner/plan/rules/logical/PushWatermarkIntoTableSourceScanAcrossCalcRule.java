@@ -37,6 +37,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall;
+
 /**
  * Rule to push the {@link FlinkLogicalWatermarkAssigner} across the {@link FlinkLogicalCalc} to the
  * {@link FlinkLogicalTableSourceScan}. The rule will first look for the computed column in the
@@ -62,7 +64,10 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
     @Override
     public boolean matches(RelOptRuleCall call) {
         FlinkLogicalTableSourceScan scan = call.rel(2);
-        return supportsWatermarkPushDown(scan);
+        FlinkLogicalCalc calc = call.rel(1);
+        return supportsWatermarkPushDown(scan)
+                && calc.getProgram().getExprList().stream()
+                        .noneMatch(rexNode -> containsPythonCall(rexNode, null));
     }
 
     @Override

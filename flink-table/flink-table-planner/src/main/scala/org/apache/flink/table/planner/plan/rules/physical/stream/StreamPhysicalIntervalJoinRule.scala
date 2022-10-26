@@ -15,25 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntervalJoin
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil.satisfyIntervalJoin
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
 
 import java.util
+
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts non-SEMI/ANTI [[FlinkLogicalJoin]] with window bounds in join condition
-  * to [[StreamPhysicalIntervalJoin]].
-  */
+ * Rule that converts non-SEMI/ANTI [[FlinkLogicalJoin]] with window bounds in join condition to
+ * [[StreamPhysicalIntervalJoin]].
+ */
 class StreamPhysicalIntervalJoinRule
   extends StreamPhysicalJoinRuleBase("StreamPhysicalIntervalJoinRule") {
 
@@ -48,17 +49,20 @@ class StreamPhysicalIntervalJoinRule
     val windowBounds = extractWindowBounds(join)._1.get
 
     if (windowBounds.isEventTime) {
-      val leftTimeAttributeType = join.getLeft.getRowType
-        .getFieldList
-        .get(windowBounds.getLeftTimeIdx).getType
-      val rightTimeAttributeType = join.getRight.getRowType
-        .getFieldList
-        .get(windowBounds.getRightTimeIdx).getType
+      val leftTimeAttributeType = join.getLeft.getRowType.getFieldList
+        .get(windowBounds.getLeftTimeIdx)
+        .getType
+      val rightTimeAttributeType = join.getRight.getRowType.getFieldList
+        .get(windowBounds.getRightTimeIdx)
+        .getType
       if (leftTimeAttributeType.getSqlTypeName != rightTimeAttributeType.getSqlTypeName) {
         throw new ValidationException(
-          String.format("Interval join with rowtime attribute requires same rowtime types," +
-            " but the types are %s and %s.",
-            leftTimeAttributeType.toString, rightTimeAttributeType.toString))
+          String.format(
+            "Interval join with rowtime attribute requires same rowtime types," +
+              " but the types are %s and %s.",
+            leftTimeAttributeType.toString,
+            rightTimeAttributeType.toString
+          ))
       }
     } else {
       // Check that no event-time attributes are in the input because the processing time window
@@ -77,14 +81,18 @@ class StreamPhysicalIntervalJoinRule
 
   override protected def computeJoinLeftKeys(join: FlinkLogicalJoin): util.Collection[Integer] = {
     val (windowBounds, _) = extractWindowBounds(join)
-    join.analyzeCondition().leftKeys
+    join
+      .analyzeCondition()
+      .leftKeys
       .filter(k => windowBounds.get.getLeftTimeIdx != k)
       .toList
   }
 
   override protected def computeJoinRightKeys(join: FlinkLogicalJoin): util.Collection[Integer] = {
     val (windowBounds, _) = extractWindowBounds(join)
-    join.analyzeCondition().rightKeys
+    join
+      .analyzeCondition()
+      .rightKeys
       .filter(k => windowBounds.get.getRightTimeIdx != k)
       .toList
   }

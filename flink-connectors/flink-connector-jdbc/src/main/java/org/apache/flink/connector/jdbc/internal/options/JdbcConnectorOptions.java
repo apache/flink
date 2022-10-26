@@ -105,6 +105,7 @@ public class JdbcConnectorOptions extends JdbcConnectionOptions {
 
     /** Builder of {@link JdbcConnectorOptions}. */
     public static class Builder {
+        private ClassLoader classLoader;
         private String dbURL;
         private String tableName;
         private String driverName;
@@ -113,6 +114,19 @@ public class JdbcConnectorOptions extends JdbcConnectionOptions {
         private JdbcDialect dialect;
         private Integer parallelism;
         private int connectionCheckTimeoutSeconds = 60;
+
+        /**
+         * optional, specifies the classloader to use in the planner for load the class in user jar.
+         *
+         * <p>By default, this is configured using {@code
+         * Thread.currentThread().getContextClassLoader()}.
+         *
+         * <p>Modify the {@link ClassLoader} only if you know what you're doing.
+         */
+        public Builder setClassLoader(ClassLoader classLoader) {
+            this.classLoader = classLoader;
+            return this;
+        }
 
         /** required, table name. */
         public Builder setTableName(String tableName) {
@@ -171,7 +185,10 @@ public class JdbcConnectorOptions extends JdbcConnectionOptions {
             checkNotNull(dbURL, "No dbURL supplied.");
             checkNotNull(tableName, "No tableName supplied.");
             if (this.dialect == null) {
-                this.dialect = JdbcDialectLoader.load(dbURL);
+                if (classLoader == null) {
+                    classLoader = Thread.currentThread().getContextClassLoader();
+                }
+                this.dialect = JdbcDialectLoader.load(dbURL, classLoader);
             }
             if (this.driverName == null) {
                 Optional<String> optional = dialect.defaultDriverName();
@@ -181,7 +198,7 @@ public class JdbcConnectorOptions extends JdbcConnectionOptions {
             }
 
             return new JdbcConnectorOptions(
-                    dbURL,
+                    dialect.appendDefaultUrlProperties(dbURL),
                     tableName,
                     driverName,
                     username,

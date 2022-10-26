@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<name>Flink : Examples : Table</name>
@@ -57,7 +56,7 @@ under the License.
 
 		In particular, here we're forced to use flink-table-planner_${scala.binary.version} instead of
 		flink-table-planner-loader, because otherwise we hit this bug https://youtrack.jetbrains.com/issue/IDEA-93855
-		when trying to run the examples from within Intellij IDEA. This is only relevant to this specific
+		when trying to run the examples from within IntelliJ IDEA. This is only relevant to this specific
 		examples project, as it's in the same build tree of flink-parent.
 
 		In a real environment, you need flink-table-runtime and flink-table-planner-loader either
@@ -97,6 +96,22 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>

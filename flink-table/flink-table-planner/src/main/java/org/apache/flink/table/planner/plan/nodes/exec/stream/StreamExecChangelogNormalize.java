@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -64,7 +65,6 @@ import java.util.List;
         name = "stream-exec-changelog-normalize",
         version = 1,
         consumedOptions = {
-            "table.exec.state.ttl",
             "table.exec.mini-batch.enabled",
             "table.exec.mini-batch.size",
         },
@@ -86,6 +86,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     private final boolean generateUpdateBefore;
 
     public StreamExecChangelogNormalize(
+            ReadableConfig tableConfig,
             int[] uniqueKeys,
             boolean generateUpdateBefore,
             InputProperty inputProperty,
@@ -94,6 +95,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecChangelogNormalize.class),
+                ExecNodeContext.newPersistedConfig(StreamExecChangelogNormalize.class, tableConfig),
                 uniqueKeys,
                 generateUpdateBefore,
                 Collections.singletonList(inputProperty),
@@ -105,12 +107,13 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     public StreamExecChangelogNormalize(
             @JsonProperty(FIELD_NAME_ID) Integer id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_UNIQUE_KEYS) int[] uniqueKeys,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.uniqueKeys = uniqueKeys;
         this.generateUpdateBefore = generateUpdateBefore;
     }
@@ -131,7 +134,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
 
         GeneratedRecordEqualiser generatedEqualiser =
-                new EqualiserCodeGenerator(rowTypeInfo.toRowType())
+                new EqualiserCodeGenerator(
+                                rowTypeInfo.toRowType(), planner.getFlinkContext().getClassLoader())
                         .generateRecordEqualiser("DeduplicateRowEqualiser");
 
         if (isMiniBatchEnabled) {
@@ -169,7 +173,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                         inputTransform.getParallelism());
 
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(uniqueKeys, rowTypeInfo);
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(), uniqueKeys, rowTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 

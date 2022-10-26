@@ -23,10 +23,15 @@ export interface JobBackpressure {
   subtasks: JobBackpressureSubtask[];
 }
 
-export interface JobBackpressureSubtask {
+export interface JobBackpressureSubtaskData {
   subtask: number;
+  'attempt-number'?: number;
   'backpressure-level': string;
   ratio: number;
   idleRatio: number;
   busyRatio: number;
+}
+
+export interface JobBackpressureSubtask extends JobBackpressureSubtaskData {
+  'other-concurrent-attempts'?: JobBackpressureSubtaskData[];
 }

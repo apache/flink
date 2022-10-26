@@ -26,6 +26,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.StopCondition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
@@ -49,13 +50,15 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode.JOIN;
+import static org.apache.pulsar.client.api.KeySharedPolicy.stickyHashRange;
 
 /**
  * The common partition split reader.
@@ -70,7 +73,6 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     protected final PulsarAdmin pulsarAdmin;
     protected final SourceConfiguration sourceConfiguration;
     protected final PulsarDeserializationSchema<OUT> deserializationSchema;
-    protected final AtomicBoolean wakeup;
 
     protected Consumer<byte[]> pulsarConsumer;
     protected PulsarPartitionSplit registeredSplit;
@@ -84,7 +86,6 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         this.pulsarAdmin = pulsarAdmin;
         this.sourceConfiguration = sourceConfiguration;
         this.deserializationSchema = deserializationSchema;
-        this.wakeup = new AtomicBoolean(false);
     }
 
     @Override
@@ -96,9 +97,6 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
             return builder.build();
         }
 
-        // Set wakeup to false for start consuming.
-        wakeup.compareAndSet(true, false);
-
         StopCursor stopCursor = registeredSplit.getStopCursor();
         String splitId = registeredSplit.splitId();
         PulsarMessageCollector<OUT> collector = new PulsarMessageCollector<>(splitId, builder);
@@ -106,9 +104,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         // Consume message from pulsar until it was woke up by flink reader.
         for (int messageNum = 0;
-                messageNum < sourceConfiguration.getMaxFetchRecords()
-                        && deadline.hasTimeLeft()
-                        && isNotWakeup();
+                messageNum < sourceConfiguration.getMaxFetchRecords() && deadline.hasTimeLeft();
                 messageNum++) {
             try {
                 Duration timeout = deadline.timeLeftIfAny();
@@ -117,14 +113,18 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
                     break;
                 }
 
-                // Deserialize message.
-                collector.setMessage(message);
-                deserializationSchema.deserialize(message, collector);
+                StopCondition condition = stopCursor.shouldStop(message);
 
-                // Acknowledge message if need.
-                finishedPollMessage(message);
+                if (condition == StopCondition.CONTINUE || condition == StopCondition.EXACTLY) {
+                    // Deserialize message.
+                    collector.setMessage(message);
+                    deserializationSchema.deserialize(message, collector);
 
-                if (stopCursor.shouldStop(message)) {
+                    // Acknowledge message if need.
+                    finishedPollMessage(message);
+                }
+
+                if (condition == StopCondition.EXACTLY || condition == StopCondition.TERMINATE) {
                     builder.addFinishedSplit(splitId);
                     break;
                 }
@@ -162,26 +162,43 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         List<PulsarPartitionSplit> newSplits = splitsChanges.splits();
         Preconditions.checkArgument(
-                newSplits.size() == 1, "This pulsar split reader only support one split.");
-        PulsarPartitionSplit newSplit = newSplits.get(0);
+                newSplits.size() == 1, "This pulsar split reader only supports one split.");
+        this.registeredSplit = newSplits.get(0);
+
+        // Open stop cursor.
+        registeredSplit.open(pulsarAdmin);
+
+        // Before creating the consumer.
+        beforeCreatingConsumer(registeredSplit);
 
         // Create pulsar consumer.
-        Consumer<byte[]> consumer = createPulsarConsumer(newSplit);
+        this.pulsarConsumer = createPulsarConsumer(registeredSplit);
 
-        // Open start & stop cursor.
-        newSplit.open(pulsarAdmin);
+        // After creating the consumer.
+        afterCreatingConsumer(registeredSplit, pulsarConsumer);
 
-        // Start Consumer.
-        startConsumer(newSplit, consumer);
+        LOG.info("Register split {} consumer for current reader.", registeredSplit);
+    }
 
-        LOG.info("Register split {} consumer for current reader.", newSplit);
-        this.registeredSplit = newSplit;
-        this.pulsarConsumer = consumer;
+    @Override
+    public void pauseOrResumeSplits(
+            Collection<PulsarPartitionSplit> splitsToPause,
+            Collection<PulsarPartitionSplit> splitsToResume) {
+        // This shouldn't happen but just in case...
+        Preconditions.checkState(
+                splitsToPause.size() + splitsToResume.size() <= 1,
+                "This pulsar split reader only supports one split.");
+
+        if (!splitsToPause.isEmpty()) {
+            pulsarConsumer.pause();
+        } else if (!splitsToResume.isEmpty()) {
+            pulsarConsumer.resume();
+        }
     }
 
     @Override
     public void wakeUp() {
-        wakeup.compareAndSet(false, true);
+        // Nothing to do on this method.
     }
 
     @Override
@@ -197,13 +214,15 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
     protected abstract void finishedPollMessage(Message<byte[]> message);
 
-    protected abstract void startConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer);
+    protected void beforeCreatingConsumer(PulsarPartitionSplit split) {
+        // Nothing to do by default.
+    }
+
+    protected void afterCreatingConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
+        // Nothing to do by default.
+    }
 
     // --------------------------- Helper Methods -----------------------------
-
-    protected boolean isNotWakeup() {
-        return !wakeup.get();
-    }
 
     /** Create a specified {@link Consumer} by the given split information. */
     protected Consumer<byte[]> createPulsarConsumer(PulsarPartitionSplit split) {
@@ -219,9 +238,17 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         // Add KeySharedPolicy for Key_Shared subscription.
         if (sourceConfiguration.getSubscriptionType() == SubscriptionType.Key_Shared) {
-            KeySharedPolicy policy =
-                    KeySharedPolicy.stickyHashRange().ranges(partition.getPulsarRange());
+            KeySharedPolicy policy = stickyHashRange().ranges(partition.getPulsarRanges());
+            // We may enable out of order delivery for speeding up. It was turned off by default.
+            policy.setAllowOutOfOrderDelivery(
+                    sourceConfiguration.isAllowKeySharedOutOfOrderDelivery());
             consumerBuilder.keySharedPolicy(policy);
+
+            if (partition.getMode() == JOIN) {
+                // Override the key shared subscription into exclusive for making it behaviors like
+                // a Pulsar Reader which supports partial key hash ranges.
+                consumerBuilder.subscriptionType(SubscriptionType.Exclusive);
+            }
         }
 
         // Create the consumer configuration by using common utils.

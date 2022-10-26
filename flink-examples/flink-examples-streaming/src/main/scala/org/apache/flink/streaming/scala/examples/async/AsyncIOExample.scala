@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.async
-
 
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.scala.async.{ResultFuture, RichAsyncFunction}
 import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.scala.async.{ResultFuture, RichAsyncFunction}
 import org.apache.flink.streaming.examples.async.util.SimpleSource
 
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 

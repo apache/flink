@@ -20,31 +20,28 @@ package org.apache.flink.table.planner.plan.rules.physical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalSort, BatchPhysicalExchange, BatchPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalRel, BatchPhysicalSort}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 
-import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan._
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.volcano.AbstractConverter
+import org.apache.calcite.rel.{RelCollation, RelCollations, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.RelDistribution.Type._
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelCollations, RelNode}
 
-/**
-  * Rule which converts an [[AbstractConverter]] to a RelNode which satisfies the target traits.
-  */
+/** Rule which converts an [[AbstractConverter]] to a RelNode which satisfies the target traits. */
 class FlinkExpandConversionRule(flinkConvention: Convention)
   extends RelOptRule(
-    operand(classOf[AbstractConverter],
-      operand(classOf[RelNode], any)),
+    operand(classOf[AbstractConverter], operand(classOf[RelNode], any)),
     "FlinkExpandConversionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val toTraitSet = call.rel(0).asInstanceOf[AbstractConverter].getTraitSet
     val fromTraitSet = call.rel(1).asInstanceOf[RelNode].getTraitSet
     toTraitSet.contains(flinkConvention) &&
-      fromTraitSet.contains(flinkConvention) &&
-      !fromTraitSet.satisfies(toTraitSet)
+    fromTraitSet.contains(flinkConvention) &&
+    !fromTraitSet.satisfies(toTraitSet)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -118,8 +115,8 @@ object FlinkExpandConversionRule {
     val fromDistribution = fromTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     if (!fromDistribution.satisfies(requiredDistribution)) {
       requiredDistribution.getType match {
-        case SINGLETON | HASH_DISTRIBUTED | RANGE_DISTRIBUTED |
-             BROADCAST_DISTRIBUTED | RANDOM_DISTRIBUTED =>
+        case SINGLETON | HASH_DISTRIBUTED | RANGE_DISTRIBUTED | BROADCAST_DISTRIBUTED |
+            RANDOM_DISTRIBUTED =>
           flinkConvention match {
             case FlinkConventions.BATCH_PHYSICAL =>
               // replace collation with empty since distribution destroy collation

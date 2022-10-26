@@ -135,9 +135,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
         testHarness.close();
 
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(insertRecord("book", 2L, 12));
         expectedOutput.add(insertRecord("book", 2L, 19));
-        expectedOutput.add(insertRecord("fruit", 1L, 33));
         expectedOutput.add(insertRecord("fruit", 1L, 44));
         assertorWithRowNumber.assertOutputEquals(
                 "output wrong.", expectedOutput, testHarness.getOutput());

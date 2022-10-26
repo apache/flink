@@ -66,16 +66,7 @@ public class NFAStatusChangeITCase {
     public void testNFAChange() throws Exception {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            1858562682635302605L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .followedByAny("middle")
                         .where(
                                 new IterativeCondition<Event>() {
@@ -210,7 +201,7 @@ public class NFAStatusChangeITCase {
         // be removed from eventSharedBuffer as the timeout happens
         nfaState.resetStateChanged();
         Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutResults =
-                nfa.advanceTime(sharedBufferAccessor, nfaState, 12L);
+                nfa.advanceTime(sharedBufferAccessor, nfaState, 12L).f1;
         assertTrue(
                 "NFA status should change as timeout happens",
                 nfaState.isStateChanged() && !timeoutResults.isEmpty());
@@ -220,24 +211,9 @@ public class NFAStatusChangeITCase {
     public void testNFAChangedOnOneNewComputationState() throws Exception {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedBy("a*")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            1858562682635302605L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .optional()
                         .next("end")

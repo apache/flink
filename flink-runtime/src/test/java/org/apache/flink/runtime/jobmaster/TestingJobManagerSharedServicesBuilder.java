@@ -24,16 +24,12 @@ import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibrary
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
-import org.apache.flink.testutils.TestingUtils;
 
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder for the {@link JobManagerSharedServices}. */
 public class TestingJobManagerSharedServicesBuilder {
-
-    private ScheduledExecutorService futureExecutor;
-
-    private ScheduledExecutorService ioExecutor;
 
     private LibraryCacheManager libraryCacheManager;
 
@@ -42,22 +38,9 @@ public class TestingJobManagerSharedServicesBuilder {
     private BlobWriter blobWriter;
 
     public TestingJobManagerSharedServicesBuilder() {
-        futureExecutor = TestingUtils.defaultExecutor();
-        ioExecutor = TestingUtils.defaultExecutor();
         libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
         shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
         blobWriter = VoidBlobWriter.getInstance();
-    }
-
-    public TestingJobManagerSharedServicesBuilder futureExecutor(
-            ScheduledExecutorService futureExecutor) {
-        this.futureExecutor = futureExecutor;
-        return this;
-    }
-
-    public TestingJobManagerSharedServicesBuilder ioExecutor(ScheduledExecutorService ioExecutor) {
-        this.ioExecutor = ioExecutor;
-        return this;
     }
 
     public TestingJobManagerSharedServicesBuilder setShuffleMaster(ShuffleMaster<?> shuffleMaster) {
@@ -76,7 +59,10 @@ public class TestingJobManagerSharedServicesBuilder {
     }
 
     public JobManagerSharedServices build() {
+        final ScheduledExecutorService executorService =
+                Executors.newSingleThreadScheduledExecutor();
+
         return new JobManagerSharedServices(
-                futureExecutor, ioExecutor, libraryCacheManager, shuffleMaster, blobWriter);
+                executorService, executorService, libraryCacheManager, shuffleMaster, blobWriter);
     }
 }

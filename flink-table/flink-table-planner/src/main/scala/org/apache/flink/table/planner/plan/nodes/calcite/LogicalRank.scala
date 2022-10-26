@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
@@ -30,10 +29,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Rank]] that is a relational expression which returns
-  * the rows in which the rank function value of each row is in the given range.
-  * This class corresponds to Calcite logical rel.
-  */
+ * Sub-class of [[Rank]] that is a relational expression which returns the rows in which the rank
+ * function value of each row is in the given range. This class corresponds to Calcite logical rel.
+ */
 final class LogicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

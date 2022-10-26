@@ -24,47 +24,21 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.zookeeper.MockZooKeeperSession;
 
 import java.util.function.Supplier;
 
 /** A Mock pulsar service which would use the mocked zookeeper and bookkeeper. */
 public class MockPulsarService extends PulsarService {
 
-    private final int brokerServicePort;
-
-    private final MockZooKeeperClientFactory zooKeeperClientFactory =
-            new MockZooKeeperClientFactory();
-
-    private final MockZooKeeperSession zooKeeperSession =
-            MockZooKeeperSession.newInstance(zooKeeperClientFactory.getZooKeeper());
-
     private final SameThreadOrderedSafeExecutor orderedExecutor =
             new SameThreadOrderedSafeExecutor();
 
     public MockPulsarService(ServiceConfiguration config) {
         super(config);
-        this.brokerServicePort =
-                config.getBrokerServicePort().orElseThrow(IllegalArgumentException::new);
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        return zooKeeperClientFactory;
     }
 
     public BookKeeperClientFactory newBookKeeperClientFactory() {
         return new MockBookKeeperClientFactory();
-    }
-
-    public MetadataStoreExtended createLocalMetadataStore() {
-        return new ZKMetadataStore(zooKeeperSession);
-    }
-
-    public MetadataStoreExtended createConfigurationMetadataStore() {
-        return new ZKMetadataStore(zooKeeperSession);
     }
 
     public Supplier<NamespaceService> getNamespaceServiceProvider() {
@@ -79,9 +53,5 @@ public class MockPulsarService extends PulsarService {
     @Override
     public BrokerInterceptor getBrokerInterceptor() {
         return new BlankBrokerInterceptor();
-    }
-
-    public int getBrokerServicePort() {
-        return brokerServicePort;
     }
 }

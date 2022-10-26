@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY
-import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -36,14 +35,14 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.lang.{Long => JLong}
 import java.time.Duration
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.{Collection => JCollection}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -91,9 +90,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
     val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType))
+      Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -224,7 +221,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
   }
 
   private def createAggregationWithDistinct()
-    : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+      : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     val data = new mutable.MutableList[(String, String, Long)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
@@ -245,7 +242,8 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
       DataTypes.BIGINT().getLogicalType,
       DataTypes.STRING().getLogicalType,
       DataTypes.BIGINT().getLogicalType,
-      DataTypes.BIGINT().getLogicalType)
+      DataTypes.BIGINT().getLogicalType
+    )
 
     (testHarness, outputTypes)
   }

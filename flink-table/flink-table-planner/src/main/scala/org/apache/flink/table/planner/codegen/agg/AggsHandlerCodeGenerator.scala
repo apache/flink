@@ -18,14 +18,14 @@
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.ImperativeAggregateFunction
 import org.apache.flink.table.planner.JLong
+import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
@@ -37,8 +37,8 @@ import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.rex.RexLiteral
@@ -48,11 +48,12 @@ import java.time.ZoneId
 import java.util.Optional
 
 /**
-  * A code generator for generating [[AggsHandleFunction]].
-  *
-  * @param copyInputField copy input field element if true (only mutable type will be copied),
-  *                       set to true if field will be buffered (such as local aggregate)
-  */
+ * A code generator for generating [[AggsHandleFunction]].
+ *
+ * @param copyInputField
+ *   copy input field element if true (only mutable type will be copied), set to true if field will
+ *   be buffered (such as local aggregate)
+ */
 class AggsHandlerCodeGenerator(
     ctx: CodeGeneratorContext,
     relBuilder: RelBuilder,
@@ -85,60 +86,58 @@ class AggsHandlerCodeGenerator(
   private var isAccumulateNeeded = false
   private var isRetractNeeded = false
   private var isMergeNeeded = false
+  private var isWindowSizeNeeded = false
 
   var valueType: RowType = _
 
   /**
-    * The [[aggBufferCodeGens]] and [[aggActionCodeGens]] will be both created when code generate
-    * an [[AggsHandleFunction]] or [[NamespaceAggsHandleFunction]]. They both contain all the
-    * same AggCodeGens, but are different in the organizational form. The [[aggBufferCodeGens]]
-    * flatten all the AggCodeGens in a flat format. The [[aggActionCodeGens]] organize all the
-    * AggCodeGens in a tree format. If there is no distinct aggregate, the [[aggBufferCodeGens]]
-    * and [[aggActionCodeGens]] are totally the same.
-    *
-    * When different aggregate distinct on the same field but on different filter conditions,
-    * they will share the same distinct state, see DistinctAggCodeGen.DistinctValueGenerator
-    * for more information.
-    */
+   * The [[aggBufferCodeGens]] and [[aggActionCodeGens]] will be both created when code generate an
+   * [[AggsHandleFunction]] or [[NamespaceAggsHandleFunction]]. They both contain all the same
+   * AggCodeGens, but are different in the organizational form. The [[aggBufferCodeGens]] flatten
+   * all the AggCodeGens in a flat format. The [[aggActionCodeGens]] organize all the AggCodeGens in
+   * a tree format. If there is no distinct aggregate, the [[aggBufferCodeGens]] and
+   * [[aggActionCodeGens]] are totally the same.
+   *
+   * When different aggregate distinct on the same field but on different filter conditions, they
+   * will share the same distinct state, see DistinctAggCodeGen.DistinctValueGenerator for more
+   * information.
+   */
 
   /**
-    * The aggBufferCodeGens is organized according to the agg buffer order, which is in a flat
-    * format, and is only used to generate the methods relative to accumulators, Such as
-    * [[genCreateAccumulators()]], [[genGetAccumulators()]], [[genSetAccumulators()]].
-    *
-    * For example if we have :
-    * count(*), count(distinct a), count(distinct a) filter d > 5, sum(a), sum(distinct a)
-    *
-    * then the members of aggBufferCodeGens are organized looks like this:
-    * +----------+-----------+-----------+---------+---------+----------------+
-    * | count(*) | count(a') | count(a') |  sum(a) | sum(a') | distinct(a) a' |
-    * +----------+-----------+-----------+---------+---------+----------------+
-    * */
+   * The aggBufferCodeGens is organized according to the agg buffer order, which is in a flat
+   * format, and is only used to generate the methods relative to accumulators, Such as
+   * [[genCreateAccumulators()]], [[genGetAccumulators()]], [[genSetAccumulators()]].
+   *
+   * For example if we have : count(*), count(distinct a), count(distinct a) filter d > 5, sum(a),
+   * sum(distinct a)
+   *
+   * then the members of aggBufferCodeGens are organized looks like this:
+   * \+----------+-----------+-----------+---------+---------+----------------+ \| count(*) |
+   * count(a') | count(a') | sum(a) | sum(a') | distinct(a) a' |
+   * \+----------+-----------+-----------+---------+---------+----------------+
+   */
   private var aggBufferCodeGens: Array[AggCodeGen] = _
 
   /**
-    * The aggActionCodeGens is organized according to the aggregate calling order, which is in
-    * a tree format. Such as the aggregates distinct on the same fields should be accumulated
-    * together when distinct is satisfied. And this is only used to generate the methods relative
-    * to aggregate action. Such as [[genAccumulate()]], [[genRetract()]], [[genMerge()]].
-    *
-    * For example if we have :
-    * count(*), count(distinct a), count(distinct a) filter d > 5, sum(a), sum(distinct a)
-    *
-    * then the members of aggActionCodeGens are organized looks like this:
-    *
-    * +----------------------------------------------------+
-    * | count(*) | sum(a) | distinct(a) a'                 |
-    * |          |        |   |-- count(a')                |
-    * |          |        |   |-- count(a') (filter d > 5) |
-    * |          |        |   |-- sum(a')                  |
-    * +----------------------------------------------------+
-    */
+   * The aggActionCodeGens is organized according to the aggregate calling order, which is in a tree
+   * format. Such as the aggregates distinct on the same fields should be accumulated together when
+   * distinct is satisfied. And this is only used to generate the methods relative to aggregate
+   * action. Such as [[genAccumulate()]], [[genRetract()]], [[genMerge()]].
+   *
+   * For example if we have : count(*), count(distinct a), count(distinct a) filter d > 5, sum(a),
+   * sum(distinct a)
+   *
+   * then the members of aggActionCodeGens are organized looks like this:
+   *
+   * | count(*) | sum(a) | distinct(a) a' |                             |
+   * |:---------|:-------|:---------------|:----------------------------|
+   * |          |        |                | -- count(a')                |
+   * |          |        |                | -- count(a') (filter d > 5) |
+   * |          |        |                | -- sum(a')                  |
+   */
   private var aggActionCodeGens: Array[AggCodeGen] = _
 
-  /**
-    * Adds constant expressions that act like a second input in the parameter indices.
-    */
+  /** Adds constant expressions that act like a second input in the parameter indices. */
   def withConstants(literals: Seq[RexLiteral]): AggsHandlerCodeGenerator = {
     // create constants
     this.constants = literals
@@ -148,37 +147,38 @@ class AggsHandlerCodeGenerator(
     this
   }
 
-
   /**
-    * Tells the generator to generate `accumulate(..)` method for the [[AggsHandleFunction]] and
-    * [[NamespaceAggsHandleFunction]]. Default not generate `accumulate(..)` method.
-    */
+   * Tells the generator to generate `accumulate(..)` method for the [[AggsHandleFunction]] and
+   * [[NamespaceAggsHandleFunction]]. Default not generate `accumulate(..)` method.
+   */
   def needAccumulate(): AggsHandlerCodeGenerator = {
     this.isAccumulateNeeded = true
     this
   }
 
   /**
-    * Tells the generator to generate `retract(..)` method for the [[AggsHandleFunction]] and
-    * [[NamespaceAggsHandleFunction]]. Default not generate `retract(..)` method.
-    *
-    * @return
-    */
+   * Tells the generator to generate `retract(..)` method for the [[AggsHandleFunction]] and
+   * [[NamespaceAggsHandleFunction]]. Default not generate `retract(..)` method.
+   *
+   * @return
+   */
   def needRetract(): AggsHandlerCodeGenerator = {
     this.isRetractNeeded = true
     this
   }
 
   /**
-    * Tells the generator to generate `merge(..)` method with the merged accumulator information
-    * for the [[AggsHandleFunction]] and [[NamespaceAggsHandleFunction]].
-    * Default not generate `merge(..)` method.
-    *
-    * @param mergedAccOffset the mergedAcc may come from local aggregate,
-    *                         this is the first buffer offset in the row
-    * @param mergedAccOnHeap true if the mergedAcc is on heap, otherwise
-    * @param mergedAccExternalTypes the merged acc types
-    */
+   * Tells the generator to generate `merge(..)` method with the merged accumulator information for
+   * the [[AggsHandleFunction]] and [[NamespaceAggsHandleFunction]]. Default not generate
+   * `merge(..)` method.
+   *
+   * @param mergedAccOffset
+   *   the mergedAcc may come from local aggregate, this is the first buffer offset in the row
+   * @param mergedAccOnHeap
+   *   true if the mergedAcc is on heap, otherwise
+   * @param mergedAccExternalTypes
+   *   the merged acc types
+   */
   def needMerge(
       mergedAccOffset: Int,
       mergedAccOnHeap: Boolean,
@@ -190,9 +190,12 @@ class AggsHandlerCodeGenerator(
     this
   }
 
-  /**
-    * Adds window properties such as window_start, window_end
-    */
+  def needWindowSize(): AggsHandlerCodeGenerator = {
+    this.isWindowSizeNeeded = true
+    this
+  }
+
+  /** Adds window properties such as window_start, window_end */
   private def initialWindowProperties(
       windowProperties: Seq[WindowProperty],
       windowClass: Class[_],
@@ -203,13 +206,10 @@ class AggsHandlerCodeGenerator(
     this.shiftTimeZone = shiftTimeZone
   }
 
-  /**
-    * Adds aggregate infos into context
-    */
+  /** Adds aggregate infos into context */
   private def initialAggregateInformation(aggInfoList: AggregateInfoList): Unit = {
 
-    this.accTypeInfo = RowType.of(
-      aggInfoList.getAccTypes.map(fromDataTypeToLogicalType): _*)
+    this.accTypeInfo = RowType.of(aggInfoList.getAccTypes.map(fromDataTypeToLogicalType): _*)
     this.aggBufferSize = accTypeInfo.getFieldCount
     var aggBufferOffset: Int = 0
 
@@ -217,42 +217,41 @@ class AggsHandlerCodeGenerator(
       mergedAccExternalTypes = aggInfoList.getAccTypes
     }
 
-    val aggCodeGens = aggInfoList.aggInfos.map { aggInfo =>
-      val filterExpr = createFilterExpression(
-        aggInfo.agg.filterArg,
-        aggInfo.aggIndex,
-        aggInfo.agg.name)
+    val aggCodeGens = aggInfoList.aggInfos.map {
+      aggInfo =>
+        val filterExpr =
+          createFilterExpression(aggInfo.agg.filterArg, aggInfo.aggIndex, aggInfo.agg.name)
 
-      val codegen = aggInfo.function match {
-        case _: DeclarativeAggregateFunction =>
-          new DeclarativeAggCodeGen(
-            ctx,
-            aggInfo,
-            filterExpr,
-            mergedAccOffset,
-            aggBufferOffset,
-            aggBufferSize,
-            inputFieldTypes,
-            constants,
-            relBuilder)
-        case _: ImperativeAggregateFunction[_, _] =>
-          new ImperativeAggCodeGen(
-            ctx,
-            aggInfo,
-            filterExpr,
-            mergedAccOffset,
-            aggBufferOffset,
-            aggBufferSize,
-            inputFieldTypes,
-            constantExprs,
-            relBuilder,
-            hasNamespace,
-            mergedAccOnHeap,
-            mergedAccExternalTypes(aggBufferOffset),
-            copyInputField)
-      }
-      aggBufferOffset = aggBufferOffset + aggInfo.externalAccTypes.length
-      codegen
+        val codegen = aggInfo.function match {
+          case _: DeclarativeAggregateFunction =>
+            new DeclarativeAggCodeGen(
+              ctx,
+              aggInfo,
+              filterExpr,
+              mergedAccOffset,
+              aggBufferOffset,
+              aggBufferSize,
+              inputFieldTypes,
+              constants,
+              relBuilder)
+          case _: ImperativeAggregateFunction[_, _] =>
+            new ImperativeAggCodeGen(
+              ctx,
+              aggInfo,
+              filterExpr,
+              mergedAccOffset,
+              aggBufferOffset,
+              aggBufferSize,
+              inputFieldTypes,
+              constantExprs,
+              relBuilder,
+              hasNamespace,
+              mergedAccOnHeap,
+              mergedAccExternalTypes(aggBufferOffset),
+              copyInputField)
+        }
+        aggBufferOffset = aggBufferOffset + aggInfo.externalAccTypes.length
+        codegen
     }
 
     val distinctCodeGens = aggInfoList.distinctInfos.zipWithIndex.map {
@@ -300,9 +299,7 @@ class AggsHandlerCodeGenerator(
     }
   }
 
-  /**
-    * Creates filter argument access expression, none if no filter
-    */
+  /** Creates filter argument access expression, none if no filter */
   private def createFilterExpression(
       filterArg: Int,
       aggIndex: Int,
@@ -311,7 +308,8 @@ class AggsHandlerCodeGenerator(
     if (filterArg > 0) {
       val filterType = inputFieldTypes(filterArg)
       if (!filterType.isInstanceOf[BooleanType]) {
-        throw new TableException(s"filter arg must be boolean, but is $filterType, " +
+        throw new TableException(
+          s"filter arg must be boolean, but is $filterType, " +
             s"the aggregate is $aggName.")
       }
       Some(toRexInputRef(relBuilder, filterArg, inputFieldTypes(filterArg)))
@@ -320,9 +318,7 @@ class AggsHandlerCodeGenerator(
     }
   }
 
-  /**
-    * Generate [[GeneratedAggsHandleFunction]] with the given function name and aggregate infos.
-    */
+  /** Generate [[GeneratedAggsHandleFunction]] with the given function name and aggregate infos. */
   def generateAggsHandler(
       name: String,
       aggInfoList: AggregateInfoList): GeneratedAggsHandleFunction = {
@@ -330,6 +326,7 @@ class AggsHandlerCodeGenerator(
     initialAggregateInformation(aggInfoList)
 
     // generates all methods body first to add necessary reuse code to context
+    val setWindowSizeCode = genSetWindowSize()
     val createAccumulatorsCode = genCreateAccumulators()
     val getAccumulatorsCode = genGetAccumulators()
     val setAccumulatorsCode = genSetAccumulators()
@@ -361,6 +358,11 @@ class AggsHandlerCodeGenerator(
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
             this.store = store;
             ${ctx.reuseOpenCode()}
+          }
+
+          @Override
+          public void setWindowSize(int $WINDOWS_SIZE) {
+            $setWindowSizeCode
           }
 
           @Override
@@ -416,16 +418,18 @@ class AggsHandlerCodeGenerator(
       """.stripMargin
 
     new GeneratedAggsHandleFunction(
-      functionName, functionCode, ctx.references.toArray, ctx.tableConfig)
+      functionName,
+      functionCode,
+      ctx.references.toArray,
+      ctx.tableConfig)
   }
 
   /**
-    * Generate [[GeneratedTableAggsHandleFunction]] with the given function name and aggregate
-    * infos.
-    */
+   * Generate [[GeneratedTableAggsHandleFunction]] with the given function name and aggregate infos.
+   */
   def generateTableAggsHandler(
-    name: String,
-    aggInfoList: AggregateInfoList): GeneratedTableAggsHandleFunction = {
+      name: String,
+      aggInfoList: AggregateInfoList): GeneratedTableAggsHandleFunction = {
 
     initialAggregateInformation(aggInfoList)
 
@@ -568,12 +572,15 @@ class AggsHandlerCodeGenerator(
       """.stripMargin
 
     new GeneratedTableAggsHandleFunction(
-      functionName, functionCode, ctx.references.toArray, ctx.tableConfig)
+      functionName,
+      functionCode,
+      ctx.references.toArray,
+      ctx.tableConfig)
   }
 
   /**
-   * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos
-   * and window properties.
+   * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos and
+   * window properties.
    */
   def generateNamespaceAggsHandler(
       name: String,
@@ -584,18 +591,13 @@ class AggsHandlerCodeGenerator(
     this.sliceAssignerTerm = newName("sliceAssigner")
     ctx.addReusableObjectWithName(sliceAssigner, sliceAssignerTerm)
     // we use window end timestamp to indicate a window, see SliceAssigner
-    generateNamespaceAggsHandler(
-      name,
-      aggInfoList,
-      windowProperties,
-      classOf[JLong],
-      shiftTimeZone)
+    generateNamespaceAggsHandler(name, aggInfoList, windowProperties, classOf[JLong], shiftTimeZone)
   }
 
   /**
-    * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos
-    * and window properties.
-    */
+   * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos and
+   * window properties.
+   */
   def generateNamespaceAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
@@ -695,13 +697,16 @@ class AggsHandlerCodeGenerator(
       """.stripMargin
 
     new GeneratedNamespaceAggsHandleFunction[N](
-      functionName, functionCode, ctx.references.toArray, ctx.tableConfig)
+      functionName,
+      functionCode,
+      ctx.references.toArray,
+      ctx.tableConfig)
   }
 
   /**
-    * Generate [[NamespaceTableAggsHandleFunction]] with the given function name and aggregate infos
-    * and window properties.
-    */
+   * Generate [[NamespaceTableAggsHandleFunction]] with the given function name and aggregate infos
+   * and window properties.
+   */
   def generateNamespaceTableAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
@@ -848,7 +853,39 @@ class AggsHandlerCodeGenerator(
       """.stripMargin
 
     new GeneratedNamespaceTableAggsHandleFunction[N](
-      functionName, functionCode, ctx.references.toArray, ctx.tableConfig)
+      functionName,
+      functionCode,
+      ctx.references.toArray,
+      ctx.tableConfig)
+  }
+
+  private def genSetWindowSize(): String = {
+    // The generated method 'setWindowSize' in OverWindowFrame#prepare will always be called
+    // no matter window size is needed or not. If window size is not needed,
+    // the method 'setWindowSize' will do nothing.
+    // So, please make sure to set the variable 'isWindowSizeNeeded' = true
+    // if window size is needed.
+    if (isWindowSizeNeeded) {
+      val methodName = "setWindowSize"
+      ctx.startNewLocalVariableStatement(methodName)
+
+      val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+        .bindInput(DataTypes.INT().getLogicalType, WINDOWS_SIZE)
+      val body = aggBufferCodeGens
+        // ignore distinct agg codegen
+        .filter(agg => !agg.isInstanceOf[DistinctAggCodeGen])
+        .map(_.setWindowSize(exprGenerator))
+        .mkString("\n")
+
+      s"""
+         |${ctx.reuseLocalVariableCode(methodName)}
+         |${ctx.reuseInputUnboxingCode(WINDOWS_SIZE)}
+         |${ctx.reusePerRecordCode()}
+         |$body
+         |""".stripMargin
+    } else {
+      ""
+    }
   }
 
   private def genCreateAccumulators(): String = {
@@ -903,7 +940,7 @@ class AggsHandlerCodeGenerator(
 
     // bind input1 as accumulators
     val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-        .bindInput(accTypeInfo, inputTerm = ACC_TERM)
+      .bindInput(accTypeInfo, inputTerm = ACC_TERM)
     val body = aggBufferCodeGens.map(_.setAccumulator(exprGenerator)).mkString("\n")
 
     s"""
@@ -936,7 +973,7 @@ class AggsHandlerCodeGenerator(
 
       // bind input1 as inputRow
       val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-          .bindInput(inputType, inputTerm = ACCUMULATE_INPUT_TERM)
+        .bindInput(inputType, inputTerm = ACCUMULATE_INPUT_TERM)
       val body = aggActionCodeGens.map(_.accumulate(exprGenerator)).mkString("\n")
       s"""
          |${ctx.reuseLocalVariableCode(methodName)}
@@ -960,7 +997,7 @@ class AggsHandlerCodeGenerator(
 
       // bind input1 as inputRow
       val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-          .bindInput(inputType, inputTerm = RETRACT_INPUT_TERM)
+        .bindInput(inputType, inputTerm = RETRACT_INPUT_TERM)
       val body = aggActionCodeGens.map(_.retract(exprGenerator)).mkString("\n")
       s"""
          |${ctx.reuseLocalVariableCode(methodName)}
@@ -995,7 +1032,7 @@ class AggsHandlerCodeGenerator(
 
       // bind input1 as otherAcc
       val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-          .bindInput(mergedAccType, inputTerm = MERGED_ACC_TERM)
+        .bindInput(mergedAccType, inputTerm = MERGED_ACC_TERM)
       val body = aggActionCodeGens.map(_.merge(exprGenerator)).mkString("\n")
       s"""
          |${ctx.reuseLocalVariableCode(methodName)}
@@ -1004,8 +1041,7 @@ class AggsHandlerCodeGenerator(
          |$body
       """.stripMargin
     } else {
-      genThrowException(
-        "This function not require merge method, but the merge method is called.")
+      genThrowException("This function not require merge method, but the merge method is called.")
     }
   }
 
@@ -1037,7 +1073,8 @@ class AggsHandlerCodeGenerator(
                 """.stripMargin,
             "false",
             "",
-            r.getResultType)
+            r.getResultType
+          )
         case p: ProctimeAttribute =>
           // ignore this property, it will be null at the position later
           GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
@@ -1067,7 +1104,8 @@ class AggsHandlerCodeGenerator(
                 """.stripMargin,
             "false",
             "",
-            r.getResultType)
+            r.getResultType
+          )
         case p: ProctimeAttribute =>
           // ignore this property, it will be null at the position later
           GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
@@ -1076,14 +1114,14 @@ class AggsHandlerCodeGenerator(
   }
 
   private def getShiftEpochMills(itemExpr: String): String = {
-     if ("UTC".equals(shiftTimeZone.getId)) {
-       itemExpr
-     } else {
-       val timeZoneId = ctx.addReusableShiftTimeZone(shiftTimeZone)
-       s"""
-          |$TIME_WINDOW_UTIL.toEpochMills($itemExpr, $timeZoneId)
+    if ("UTC".equals(shiftTimeZone.getId)) {
+      itemExpr
+    } else {
+      val timeZoneId = ctx.addReusableShiftTimeZone(shiftTimeZone)
+      s"""
+         |$TIME_WINDOW_UTIL.toEpochMills($itemExpr, $timeZoneId)
           """.stripMargin
-     }
+    }
   }
 
   private def genGetValue(): String = {
@@ -1093,12 +1131,16 @@ class AggsHandlerCodeGenerator(
     // no need to bind input
     val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
 
-    var valueExprs = aggBufferCodeGens.zipWithIndex.filter { case (_, index) =>
-      // ignore the count1 agg codegen and distinct agg codegen
-      ignoreAggValues.isEmpty || !ignoreAggValues.contains(index)
-    }.map { case (codegen, _) =>
-      codegen.getValue(exprGenerator)
-    }
+    var valueExprs = aggBufferCodeGens.zipWithIndex
+      .filter {
+        case (_, index) =>
+          // ignore the count1 agg codegen and distinct agg codegen
+          ignoreAggValues.isEmpty || !ignoreAggValues.contains(index)
+      }
+      .map {
+        case (codegen, _) =>
+          codegen.getValue(exprGenerator)
+      }
 
     if (hasNamespace) {
       // append window property results
@@ -1163,10 +1205,12 @@ class AggsHandlerCodeGenerator(
     val resultType = fromDataTypeToLogicalType(aggExternalType)
     val resultRowType = LogicalTypeUtils.toRowType(resultType)
 
-    val newCtx = CodeGeneratorContext(ctx.tableConfig)
+    val newCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
     val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
     val resultExpr = exprGenerator.generateConverterResultExpression(
-      resultRowType, classOf[GenericRowData], "convertResult")
+      resultRowType,
+      classOf[GenericRowData],
+      "convertResult")
 
     val converterCode = CodeGenUtils.genToInternalConverter(ctx, aggExternalType, recordInputName)
     val resultTypeClass = boxedTypeTermForType(resultType)
@@ -1200,11 +1244,12 @@ class AggsHandlerCodeGenerator(
 
 object AggsHandlerCodeGenerator {
 
-  /** static terms **/
+  /** static terms * */
   val ACC_TERM = "acc"
   val MERGED_ACC_TERM = "otherAcc"
   val ACCUMULATE_INPUT_TERM = "accInput"
   val RETRACT_INPUT_TERM = "retractInput"
+  val WINDOWS_SIZE = "windowSize"
   val DISTINCT_KEY_TERM = "distinctKey"
 
   val NAMESPACE_TERM = "namespace"
@@ -1219,35 +1264,32 @@ object AggsHandlerCodeGenerator {
   val INPUT_NOT_NULL = false
 
   /**
-    * Create DataView term, for example, acc1_map_dataview.
-    *
-    * @return term to access MapView or ListView
-    */
+   * Create DataView term, for example, acc1_map_dataview.
+   *
+   * @return
+   *   term to access MapView or ListView
+   */
   def createDataViewTerm(spec: DataViewSpec): String = {
     s"${spec.getStateId}_dataview"
   }
 
-  /**
-    * Creates RawValueData term which wraps the specific DataView term.
-    */
+  /** Creates RawValueData term which wraps the specific DataView term. */
   def createDataViewRawValueTerm(spec: DataViewSpec): String = {
     s"${createDataViewTerm(spec)}_raw_value"
   }
 
   /**
-    * Create DataView backup term, for example, acc1_map_dataview_backup.
-    * The backup dataview term is used for merging two statebackend
-    * dataviews, e.g. session window.
-    *
-    * @return term to access backup MapView or ListView
-    */
+   * Create DataView backup term, for example, acc1_map_dataview_backup. The backup dataview term is
+   * used for merging two statebackend dataviews, e.g. session window.
+   *
+   * @return
+   *   term to access backup MapView or ListView
+   */
   def createDataViewBackupTerm(spec: DataViewSpec): String = {
     s"${spec.getStateId}_dataview_backup"
   }
 
-  /**
-    * Creates RawValueData term which wraps the specific DataView backup term.
-    */
+  /** Creates RawValueData term which wraps the specific DataView backup term. */
   def createDataViewBackupRawValueTerm(spec: DataViewSpec): String = {
     s"${createDataViewBackupTerm(spec)}_raw_value"
   }
@@ -1258,85 +1300,85 @@ object AggsHandlerCodeGenerator {
       hasNamespace: Boolean,
       enableBackupDataView: Boolean): Unit = {
     // add reusable dataviews to context
-    viewSpecs.foreach { spec =>
-      val stateId = '"' + spec.getStateId + '"'
-      val (viewTypeTerm, stateStoreCall) = spec match {
+    viewSpecs.foreach {
+      spec =>
+        val stateId = '"' + spec.getStateId + '"'
+        val (viewTypeTerm, stateStoreCall) = spec match {
 
-        case spec: ListViewSpec =>
-          val viewTypeTerm = className[StateListView[_, _]]
-          val elementSerializerTerm = addReusableDataViewSerializer(
-            ctx,
-            spec.getElementSerializer,
-            () => spec.getElementDataType)
-          val stateStoreCall =
-            s"getStateListView($stateId, $elementSerializerTerm)"
-          (viewTypeTerm, stateStoreCall)
+          case spec: ListViewSpec =>
+            val viewTypeTerm = className[StateListView[_, _]]
+            val elementSerializerTerm = addReusableDataViewSerializer(
+              ctx,
+              spec.getElementSerializer,
+              () => spec.getElementDataType)
+            val stateStoreCall =
+              s"getStateListView($stateId, $elementSerializerTerm)"
+            (viewTypeTerm, stateStoreCall)
 
-        case spec: MapViewSpec =>
-          val viewTypeTerm = className[StateMapView[_, _, _]]
-          val withNullKey = spec.containsNullKey()
-          val keySerializerTerm = addReusableDataViewSerializer(
-            ctx,
-            spec.getKeySerializer,
-            () => spec.getKeyDataType
-           )
-          val valueSerializerTerm = addReusableDataViewSerializer(
-            ctx,
-            spec.getValueSerializer,
-            () => spec.getValueDataType)
-          val stateStoreCall =
-            s"getStateMapView($stateId, $withNullKey, $keySerializerTerm, $valueSerializerTerm)"
-          (viewTypeTerm, stateStoreCall)
-      }
+          case spec: MapViewSpec =>
+            val viewTypeTerm = className[StateMapView[_, _, _]]
+            val withNullKey = spec.containsNullKey()
+            val keySerializerTerm = addReusableDataViewSerializer(
+              ctx,
+              spec.getKeySerializer,
+              () => spec.getKeyDataType
+            )
+            val valueSerializerTerm = addReusableDataViewSerializer(
+              ctx,
+              spec.getValueSerializer,
+              () => spec.getValueDataType)
+            val stateStoreCall =
+              s"getStateMapView($stateId, $withNullKey, $keySerializerTerm, $valueSerializerTerm)"
+            (viewTypeTerm, stateStoreCall)
+        }
 
-      val viewFieldTerm = createDataViewTerm(spec)
-      val viewFieldInternalTerm = createDataViewRawValueTerm(spec)
+        val viewFieldTerm = createDataViewTerm(spec)
+        val viewFieldInternalTerm = createDataViewRawValueTerm(spec)
 
-      ctx.addReusableMember(s"private $viewTypeTerm $viewFieldTerm;")
-      ctx.addReusableMember(s"private $BINARY_RAW_VALUE $viewFieldInternalTerm;")
+        ctx.addReusableMember(s"private $viewTypeTerm $viewFieldTerm;")
+        ctx.addReusableMember(s"private $BINARY_RAW_VALUE $viewFieldInternalTerm;")
 
-      val openCode =
-        s"""
-           |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
-           |$viewFieldInternalTerm = $BINARY_RAW_VALUE.fromObject($viewFieldTerm);
-         """.stripMargin
-      ctx.addReusableOpenStatement(openCode)
-
-      // only cleanup dataview term, do not need to cleanup backup
-      val cleanupCode = if (hasNamespace) {
-        s"""
-           |$viewFieldTerm.setCurrentNamespace($NAMESPACE_TERM);
-           |$viewFieldTerm.clear();
-        """.stripMargin
-      } else {
-        s"""
-           |$viewFieldTerm.clear();
-        """.stripMargin
-      }
-      ctx.addReusableCleanupStatement(cleanupCode)
-
-      // generate backup dataview codes
-      if (enableBackupDataView) {
-        val backupViewTerm = createDataViewBackupTerm(spec)
-        val backupViewInternalTerm = createDataViewBackupRawValueTerm(spec)
-        // create backup dataview
-        ctx.addReusableMember(s"private $viewTypeTerm $backupViewTerm;")
-        ctx.addReusableMember(s"private $BINARY_RAW_VALUE $backupViewInternalTerm;")
-        val backupOpenCode =
+        val openCode =
           s"""
-             |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
-             |$backupViewInternalTerm = $BINARY_RAW_VALUE.fromObject($backupViewTerm);
+             |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
+             |$viewFieldInternalTerm = $BINARY_RAW_VALUE.fromObject($viewFieldTerm);
+         """.stripMargin
+        ctx.addReusableOpenStatement(openCode)
+
+        // only cleanup dataview term, do not need to cleanup backup
+        val cleanupCode = if (hasNamespace) {
+          s"""
+             |$viewFieldTerm.setCurrentNamespace($NAMESPACE_TERM);
+             |$viewFieldTerm.clear();
+        """.stripMargin
+        } else {
+          s"""
+             |$viewFieldTerm.clear();
+        """.stripMargin
+        }
+        ctx.addReusableCleanupStatement(cleanupCode)
+
+        // generate backup dataview codes
+        if (enableBackupDataView) {
+          val backupViewTerm = createDataViewBackupTerm(spec)
+          val backupViewInternalTerm = createDataViewBackupRawValueTerm(spec)
+          // create backup dataview
+          ctx.addReusableMember(s"private $viewTypeTerm $backupViewTerm;")
+          ctx.addReusableMember(s"private $BINARY_RAW_VALUE $backupViewInternalTerm;")
+          val backupOpenCode =
+            s"""
+               |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
+               |$backupViewInternalTerm = $BINARY_RAW_VALUE.fromObject($backupViewTerm);
            """.stripMargin
-        ctx.addReusableOpenStatement(backupOpenCode)
-      }
+          ctx.addReusableOpenStatement(backupOpenCode)
+        }
     }
   }
 
   private def addReusableDataViewSerializer(
       ctx: CodeGeneratorContext,
       legacySerializer: Optional[TypeSerializer[_]],
-      dataType: () => DataType)
-    : String = {
+      dataType: () => DataType): String = {
     toScala(legacySerializer) match {
       case Some(serializer) =>
         ctx.addReusableObject(serializer, "serializer")

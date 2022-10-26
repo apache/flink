@@ -54,6 +54,7 @@ JDBC 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "
 | Oracle      | `com.oracle.database.jdbc` |        `ojdbc8`        | [下载](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8)
 | PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [下载](https://jdbc.postgresql.org/download.html) |
 | Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) | |
+| SQL Server | `com.microsoft.sqlserver` |        `mssql-jdbc`         | [下载](https://docs.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver16) |
 
 当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅[这里]({{< ref "docs/dev/configuration" >}})了解在集群上执行时何连接它们。
 
@@ -202,27 +203,43 @@ ON myTopic.key = MyUserTable.id;
       <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>，可能需要将此设置为 false 以便流化结果。</td>
     </tr>
     <tr>
+      <td><h5>lookup.cache</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">NONE</td>
+      <td><p>枚举类型</p>可选值: NONE, PARTIAL</td>
+      <td>维表的缓存策略。 目前支持 NONE（不缓存）和 PARTIAL（只在外部数据库中查找数据时缓存）。</td>
+    </tr>
+    <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>lookup cache 的最大行数，若超过该值，则最老的行记录将会过期。
-      默认情况下，lookup cache 是未开启的。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
+      <td>维表缓存的最大行数，若超过该值，则最老的行记录将会过期。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.ttl</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-write</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>lookup cache 中每一行记录的最大存活时间，若超过该时间，则最老的行记录将会过期。
-      默认情况下，lookup cache 是未开启的。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
+      <td>在记录写入缓存后该记录的最大保留时间。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-access</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>在缓存中的记录被访问后该记录的最大保留时间。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>标记缓存丢失的键，默认为true</td>
+      <td>是否缓存维表中不存在的键，默认为true。
+        使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -262,6 +279,47 @@ ON myTopic.key = MyUserTable.id;
     </tbody>
 </table>
 
+### 已弃用的配置
+这些弃用配置已经被上述的新配置代替，而且最终会被弃用。请优先考虑使用新配置。
+<table>
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><h5>lookup.cache.max-rows</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Integer</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.max-rows" 代替</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.ttl</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Duration</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.expire-after-write" 代替</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.caching-missing-key</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">true</td>
+          <td>Boolean</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.caching-missing-key" 代替</td>
+        </tr>
+    </tbody>
+<table>
+
 <a name="features"></a>
 
 特性
@@ -297,14 +355,14 @@ ON myTopic.key = MyUserTable.id;
 
 JDBC 连接器可以用在时态表关联中作为一个可 lookup 的 source (又称为维表)，当前只支持同步的查找模式。
 
-默认情况下，lookup cache 是未启用的，你可以设置 `lookup.cache.max-rows` and `lookup.cache.ttl` 参数来启用。
+默认情况下，lookup cache 是未启用的，你可以将 `lookup.cache` 设置为 `PARTIAL` 参数来启用。
 
 lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性能。默认情况下，lookup cache 不开启，所以所有请求都会发送到外部数据库。
 当 lookup cache 被启用时，每个进程（即 TaskManager）将维护一个缓存。Flink 将优先查找缓存，只有当缓存未查找到时才向外部数据库发送请求，并使用返回的数据更新缓存。
-当缓存命中最大缓存行 `lookup.cache.max-rows` 或当行超过最大存活时间 `lookup.cache.ttl` 时，缓存中最老的行将被设置为已过期。
-缓存中的记录可能不是最新的，用户可以将 `lookup.cache.ttl` 设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
+当缓存命中最大缓存行 `lookup.partial-cache.max-rows` 或当行超过 `lookup.partial-cache.expire-after-write` 或 `lookup.partial-cache.expire-after-access` 指定的最大存活时间时，缓存中的行将被设置为已过期。
+缓存中的记录可能不是最新的，用户可以将缓存记录超时设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
 
-默认情况下，flink 会缓存主键的空查询结果，你可以通过将 `lookup.cache.caching-missing-key` 设置为 false 来切换行为。
+默认情况下，flink 会缓存主键的空查询结果，你可以通过将 `lookup.partial-cache.caching-missing-key` 设置为 false 来切换行为。
 
 <a name="idempotent-writes"></a>
 
@@ -339,6 +397,13 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
         <tr>
             <td>PostgreSQL</td>
             <td>INSERT .. ON CONFLICT .. DO UPDATE SET ..</td>
+        </tr>
+        <tr>
+            <td>MS SQL Server</td>
+            <td>MERGE INTO .. USING (..) ON (..) <br>
+                WHEN MATCHED THEN UPDATE SET (..) <br>
+                WHEN NOT MATCHED THEN INSERT (..) <br>
+                VALUES (..)</td>
         </tr>
     </tbody>
 </table>
@@ -552,6 +617,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <th class="text-left"><a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html">MySQL type</a></th>
         <th class="text-left"><a href="https://docs.oracle.com/database/121/SQLRF/sql_elements001.htm#SQLRF30020">Oracle type</a></th>
         <th class="text-left"><a href="https://www.postgresql.org/docs/12/datatype.html">PostgreSQL type</a></th>
+        <th class="text-left"><a href="https://docs.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver16">SQL Server type</a></th>
         <th class="text-left"><a href="{{< ref "docs/dev/table/types" >}}">Flink SQL type</a></th>
       </tr>
     </thead>
@@ -560,6 +626,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
       <td><code>TINYINT</code></td>
       <td></td>
       <td></td>
+      <td><code>TINYINT</code></td>
       <td><code>TINYINT</code></td>
     </tr>
     <tr>
@@ -573,6 +640,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <code>SMALLSERIAL</code><br>
         <code>SERIAL2</code></td>
       <td><code>SMALLINT</code></td>
+      <td><code>SMALLINT</code></td>
     </tr>
     <tr>
       <td>
@@ -584,6 +652,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <code>INTEGER</code><br>
         <code>SERIAL</code></td>
       <td><code>INT</code></td>
+      <td><code>INT</code></td>
     </tr>
     <tr>
       <td>
@@ -594,9 +663,11 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <code>BIGINT</code><br>
         <code>BIGSERIAL</code></td>
       <td><code>BIGINT</code></td>
+      <td><code>BIGINT</code></td>
     </tr>
    <tr>
       <td><code>BIGINT UNSIGNED</code></td>
+      <td></td>
       <td></td>
       <td></td>
       <td><code>DECIMAL(20, 0)</code></td>
@@ -614,6 +685,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
       <td>
         <code>REAL</code><br>
         <code>FLOAT4</code></td>
+      <td><code>REAL</code></td>
       <td><code>FLOAT</code></td>
     </tr>
     <tr>
@@ -624,6 +696,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
       <td>
         <code>FLOAT8</code><br>
         <code>DOUBLE PRECISION</code></td>
+      <td><code>FLOAT</code></td>
       <td><code>DOUBLE</code></td>
     </tr>
     <tr>
@@ -640,6 +713,7 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <code>NUMERIC(p, s)</code><br>
         <code>DECIMAL(p, s)</code></td>
       <td><code>DECIMAL(p, s)</code></td>
+      <td><code>DECIMAL(p, s)</code></td>
     </tr>
     <tr>
       <td>
@@ -647,9 +721,11 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <code>TINYINT(1)</code></td>
       <td></td>
       <td><code>BOOLEAN</code></td>
+      <td><code>BIT</code></td>
       <td><code>BOOLEAN</code></td>
     </tr>
     <tr>
+      <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
@@ -659,12 +735,17 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
       <td><code>TIME [(p)]</code></td>
       <td><code>DATE</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
+      <td><code>TIME(0)</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
     <tr>
       <td><code>DATETIME [(p)]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
+      <td>
+        <code>DATETIME</code>
+        <code>DATETIME2</code>
+      </td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
     <tr>
@@ -682,6 +763,13 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <code>VARCHAR(n)</code><br>
         <code>CHARACTER VARYING(n)</code><br>
         <code>TEXT</code></td>
+      <td>
+        <code>CHAR(n)</code><br>
+        <code>NCHAR(n)</code><br>
+        <code>VARCHAR(n)</code><br>
+        <code>NVARCHAR(n)</code><br>
+        <code>TEXT</code><br>
+        <code>NTEXT</code></td>
       <td><code>STRING</code></td>
     </tr>
     <tr>
@@ -693,12 +781,16 @@ Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、O
         <code>RAW(s)</code><br>
         <code>BLOB</code></td>
       <td><code>BYTEA</code></td>
+      <td>
+        <code>BINARY(n)</code><br>
+        <code>VARBINARY(n)</code><br></td>
       <td><code>BYTES</code></td>
     </tr>
     <tr>
       <td></td>
       <td></td>
       <td><code>ARRAY</code></td>
+      <td></td>
       <td><code>ARRAY</code></td>
     </tr>
     </tbody>

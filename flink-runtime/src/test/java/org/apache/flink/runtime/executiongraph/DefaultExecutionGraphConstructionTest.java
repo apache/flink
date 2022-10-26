@@ -18,25 +18,26 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
-import org.junit.Test;
-import org.mockito.Matchers;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,37 +47,36 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link
  * ExecutionGraph} objects. It also tests that {@link EdgeManagerBuildUtil#connectVertexToResult}
  * builds {@link DistributionPattern#ALL_TO_ALL} connections correctly.
  */
-public class DefaultExecutionGraphConstructionTest {
+class DefaultExecutionGraphConstructionTest {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private ExecutionGraph createDefaultExecutionGraph(List<JobVertex> vertices) throws Exception {
         return TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setVertexParallelismStore(SchedulerBase.computeVertexParallelismStore(vertices))
-                .build();
+                .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private ExecutionGraph createDynamicExecutionGraph(List<JobVertex> vertices) throws Exception {
         return TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setVertexParallelismStore(SchedulerBase.computeVertexParallelismStore(vertices))
-                .buildDynamicGraph();
+                .buildDynamicGraph(EXECUTOR_RESOURCE.getExecutor());
     }
 
     @Test
-    public void testExecutionAttemptIdInTwoIdenticalJobsIsNotSame() throws Exception {
+    void testExecutionAttemptIdInTwoIdenticalJobsIsNotSame() throws Exception {
         JobVertex v1 = new JobVertex("vertex1");
         JobVertex v2 = new JobVertex("vertex2");
         JobVertex v3 = new JobVertex("vertex3");
@@ -97,10 +97,10 @@ public class DefaultExecutionGraphConstructionTest {
         eg2.attachJobGraph(ordered);
 
         assertThat(
-                Sets.intersection(
-                        eg1.getRegisteredExecutions().keySet(),
-                        eg2.getRegisteredExecutions().keySet()),
-                is(empty()));
+                        Sets.intersection(
+                                eg1.getRegisteredExecutions().keySet(),
+                                eg2.getRegisteredExecutions().keySet()))
+                .isEmpty();
     }
 
     /**
@@ -117,7 +117,7 @@ public class DefaultExecutionGraphConstructionTest {
      * </pre>
      */
     @Test
-    public void testCreateSimpleGraphBipartite() throws Exception {
+    void testCreateSimpleGraphBipartite() throws Exception {
         JobVertex v1 = new JobVertex("vertex1");
         JobVertex v2 = new JobVertex("vertex2");
         JobVertex v3 = new JobVertex("vertex3");
@@ -150,13 +150,7 @@ public class DefaultExecutionGraphConstructionTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
+        eg.attachJobGraph(ordered);
         verifyTestGraph(eg, v1, v2, v3, v4, v5);
     }
 
@@ -180,7 +174,7 @@ public class DefaultExecutionGraphConstructionTest {
     }
 
     @Test
-    public void testCannotConnectWrongOrder() throws Exception {
+    void testCannotConnectWrongOrder() throws Exception {
         JobVertex v1 = new JobVertex("vertex1");
         JobVertex v2 = new JobVertex("vertex2");
         JobVertex v3 = new JobVertex("vertex3");
@@ -213,88 +207,103 @@ public class DefaultExecutionGraphConstructionTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        try {
-            eg.attachJobGraph(ordered);
-            fail("Attached wrong jobgraph");
-        } catch (JobException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> eg.attachJobGraph(ordered)).isInstanceOf(JobException.class);
     }
 
     @Test
-    public void testSetupInputSplits() {
-        try {
-            final InputSplit[] emptySplits = new InputSplit[0];
+    void testSetupInputSplits() throws Exception {
+        final InputSplit[] emptySplits = new InputSplit[0];
 
-            InputSplitAssigner assigner1 = mock(InputSplitAssigner.class);
-            InputSplitAssigner assigner2 = mock(InputSplitAssigner.class);
+        InputSplitAssigner assigner1 = new TestingInputSplitAssigner();
+        InputSplitAssigner assigner2 = new TestingInputSplitAssigner();
 
-            @SuppressWarnings("unchecked")
-            InputSplitSource<InputSplit> source1 = mock(InputSplitSource.class);
-            @SuppressWarnings("unchecked")
-            InputSplitSource<InputSplit> source2 = mock(InputSplitSource.class);
+        InputSplitSource<InputSplit> source1 =
+                new TestingInputSplitSource<>(emptySplits, assigner1);
+        InputSplitSource<InputSplit> source2 =
+                new TestingInputSplitSource<>(emptySplits, assigner2);
 
-            when(source1.createInputSplits(Matchers.anyInt())).thenReturn(emptySplits);
-            when(source2.createInputSplits(Matchers.anyInt())).thenReturn(emptySplits);
-            when(source1.getInputSplitAssigner(emptySplits)).thenReturn(assigner1);
-            when(source2.getInputSplitAssigner(emptySplits)).thenReturn(assigner2);
+        JobVertex v1 = new JobVertex("vertex1");
+        JobVertex v2 = new JobVertex("vertex2");
+        JobVertex v3 = new JobVertex("vertex3");
+        JobVertex v4 = new JobVertex("vertex4");
+        JobVertex v5 = new JobVertex("vertex5");
 
-            final JobID jobId = new JobID();
-            final String jobName = "Test Job Sample Name";
-            final Configuration cfg = new Configuration();
+        v1.setParallelism(5);
+        v2.setParallelism(7);
+        v3.setParallelism(2);
+        v4.setParallelism(11);
+        v5.setParallelism(4);
 
-            JobVertex v1 = new JobVertex("vertex1");
-            JobVertex v2 = new JobVertex("vertex2");
-            JobVertex v3 = new JobVertex("vertex3");
-            JobVertex v4 = new JobVertex("vertex4");
-            JobVertex v5 = new JobVertex("vertex5");
+        v1.setInvokableClass(AbstractInvokable.class);
+        v2.setInvokableClass(AbstractInvokable.class);
+        v3.setInvokableClass(AbstractInvokable.class);
+        v4.setInvokableClass(AbstractInvokable.class);
+        v5.setInvokableClass(AbstractInvokable.class);
 
-            v1.setParallelism(5);
-            v2.setParallelism(7);
-            v3.setParallelism(2);
-            v4.setParallelism(11);
-            v5.setParallelism(4);
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        v4.connectNewDataSetAsInput(
+                v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        v4.connectNewDataSetAsInput(
+                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        v5.connectNewDataSetAsInput(
+                v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        v5.connectNewDataSetAsInput(
+                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-            v1.setInvokableClass(AbstractInvokable.class);
-            v2.setInvokableClass(AbstractInvokable.class);
-            v3.setInvokableClass(AbstractInvokable.class);
-            v4.setInvokableClass(AbstractInvokable.class);
-            v5.setInvokableClass(AbstractInvokable.class);
+        v3.setInputSplitSource(source1);
+        v5.setInputSplitSource(source2);
 
-            v2.connectNewDataSetAsInput(
-                    v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-            v4.connectNewDataSetAsInput(
-                    v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-            v4.connectNewDataSetAsInput(
-                    v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-            v5.connectNewDataSetAsInput(
-                    v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-            v5.connectNewDataSetAsInput(
-                    v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4, v5));
 
-            v3.setInputSplitSource(source1);
-            v5.setInputSplitSource(source2);
+        ExecutionGraph eg = createDefaultExecutionGraph(ordered);
+        eg.attachJobGraph(ordered);
 
-            List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
-
-            ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-            try {
-                eg.attachJobGraph(ordered);
-            } catch (JobException e) {
-                e.printStackTrace();
-                fail("Job failed with exception: " + e.getMessage());
-            }
-
-            assertEquals(assigner1, eg.getAllVertices().get(v3.getID()).getSplitAssigner());
-            assertEquals(assigner2, eg.getAllVertices().get(v5.getID()).getSplitAssigner());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(eg.getAllVertices().get(v3.getID()).getSplitAssigner()).isEqualTo(assigner1);
+        assertThat(eg.getAllVertices().get(v5.getID()).getSplitAssigner()).isEqualTo(assigner2);
     }
 
     @Test
-    public void testRegisterConsumedPartitionGroupToEdgeManager() throws Exception {
+    void testMultiConsumersForOneIntermediateResult() throws Exception {
+        JobVertex v1 = new JobVertex("vertex1");
+        JobVertex v2 = new JobVertex("vertex2");
+        JobVertex v3 = new JobVertex("vertex3");
+
+        IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING, dataSetId, false);
+        v3.connectNewDataSetAsInput(
+                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING, dataSetId, false);
+
+        List<JobVertex> vertices = new ArrayList<>(Arrays.asList(v1, v2, v3));
+        ExecutionGraph eg = createDefaultExecutionGraph(vertices);
+        eg.attachJobGraph(vertices);
+
+        ExecutionJobVertex ejv1 = checkNotNull(eg.getJobVertex(v1.getID()));
+        assertThat(ejv1.getProducedDataSets()).hasSize(1);
+        assertThat(ejv1.getProducedDataSets()[0].getId()).isEqualTo(dataSetId);
+
+        ExecutionJobVertex ejv2 = checkNotNull(eg.getJobVertex(v2.getID()));
+        assertThat(ejv2.getInputs()).hasSize(1);
+        assertThat(ejv2.getInputs().get(0).getId()).isEqualTo(dataSetId);
+
+        ExecutionJobVertex ejv3 = checkNotNull(eg.getJobVertex(v3.getID()));
+        assertThat(ejv3.getInputs()).hasSize(1);
+        assertThat(ejv3.getInputs().get(0).getId()).isEqualTo(dataSetId);
+
+        List<ConsumedPartitionGroup> partitionGroups1 =
+                ejv2.getTaskVertices()[0].getAllConsumedPartitionGroups();
+        assertThat(partitionGroups1).hasSize(1);
+        assertThat(partitionGroups1.get(0).getIntermediateDataSetID()).isEqualTo(dataSetId);
+
+        List<ConsumedPartitionGroup> partitionGroups2 =
+                ejv3.getTaskVertices()[0].getAllConsumedPartitionGroups();
+        assertThat(partitionGroups2).hasSize(1);
+        assertThat(partitionGroups2.get(0).getIntermediateDataSetID()).isEqualTo(dataSetId);
+    }
+
+    @Test
+    void testRegisterConsumedPartitionGroupToEdgeManager() throws Exception {
         JobVertex v1 = new JobVertex("source");
         JobVertex v2 = new JobVertex("sink");
 
@@ -314,9 +323,8 @@ public class DefaultExecutionGraphConstructionTest {
         IntermediateResultPartition partition1 = result.getPartitions()[0];
         IntermediateResultPartition partition2 = result.getPartitions()[1];
 
-        assertEquals(
-                partition1.getConsumedPartitionGroups().get(0),
-                partition2.getConsumedPartitionGroups().get(0));
+        assertThat(partition2.getConsumedPartitionGroups().get(0))
+                .isEqualTo(partition1.getConsumedPartitionGroups().get(0));
 
         ConsumedPartitionGroup consumedPartitionGroup =
                 partition1.getConsumedPartitionGroups().get(0);
@@ -324,13 +332,13 @@ public class DefaultExecutionGraphConstructionTest {
         for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
             partitionIds.add(partitionId);
         }
-        assertThat(
-                partitionIds,
-                containsInAnyOrder(partition1.getPartitionId(), partition2.getPartitionId()));
+        assertThat(partitionIds)
+                .containsExactlyInAnyOrder(
+                        partition1.getPartitionId(), partition2.getPartitionId());
     }
 
     @Test
-    public void testAttachToDynamicGraph() throws Exception {
+    void testAttachToDynamicGraph() throws Exception {
         JobVertex v1 = new JobVertex("source");
         JobVertex v2 = new JobVertex("sink");
 
@@ -344,9 +352,42 @@ public class DefaultExecutionGraphConstructionTest {
         ExecutionGraph eg = createDynamicExecutionGraph(ordered);
         eg.attachJobGraph(ordered);
 
-        assertThat(eg.getAllVertices().size(), is(2));
+        assertThat(eg.getAllVertices()).hasSize(2);
         Iterator<ExecutionJobVertex> jobVertices = eg.getVerticesTopologically().iterator();
-        assertThat(jobVertices.next().isInitialized(), is(false));
-        assertThat(jobVertices.next().isInitialized(), is(false));
+        assertThat(jobVertices.next().isInitialized()).isFalse();
+        assertThat(jobVertices.next().isInitialized()).isFalse();
+    }
+
+    private static final class TestingInputSplitAssigner implements InputSplitAssigner {
+
+        @Override
+        public InputSplit getNextInputSplit(String host, int taskId) {
+            return null;
+        }
+
+        @Override
+        public void returnInputSplit(List<InputSplit> splits, int taskId) {}
+    }
+
+    private static final class TestingInputSplitSource<T extends InputSplit>
+            implements InputSplitSource<T> {
+
+        private final T[] inputSplits;
+        private final InputSplitAssigner assigner;
+
+        private TestingInputSplitSource(T[] inputSplits, InputSplitAssigner assigner) {
+            this.inputSplits = inputSplits;
+            this.assigner = assigner;
+        }
+
+        @Override
+        public T[] createInputSplits(int minNumSplits) throws Exception {
+            return inputSplits;
+        }
+
+        @Override
+        public InputSplitAssigner getInputSplitAssigner(T[] inputSplits) {
+            return assigner;
+        }
     }
 }

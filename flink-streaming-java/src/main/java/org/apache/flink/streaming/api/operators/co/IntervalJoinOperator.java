@@ -100,7 +100,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
     private final long lowerBound;
     private final long upperBound;
-
+    private final OutputTag<T1> leftLateDataOutputTag;
+    private final OutputTag<T2> rightLateDataOutputTag;
     private final TypeSerializer<T1> leftTypeSerializer;
     private final TypeSerializer<T2> rightTypeSerializer;
 
@@ -129,6 +130,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
             long upperBound,
             boolean lowerBoundInclusive,
             boolean upperBoundInclusive,
+            OutputTag<T1> leftLateDataOutputTag,
+            OutputTag<T2> rightLateDataOutputTag,
             TypeSerializer<T1> leftTypeSerializer,
             TypeSerializer<T2> rightTypeSerializer,
             ProcessJoinFunction<T1, T2, OUT> udf) {
@@ -143,6 +146,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
         this.lowerBound = (lowerBoundInclusive) ? lowerBound : lowerBound + 1L;
         this.upperBound = (upperBoundInclusive) ? upperBound : upperBound - 1L;
 
+        this.leftLateDataOutputTag = leftLateDataOutputTag;
+        this.rightLateDataOutputTag = rightLateDataOutputTag;
         this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
         this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
     }
@@ -228,6 +233,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
         }
 
         if (isLate(ourTimestamp)) {
+            sideOutput(ourValue, ourTimestamp, isLeft);
             return;
         }
 
@@ -262,6 +268,19 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
     private boolean isLate(long timestamp) {
         long currentWatermark = internalTimerService.currentWatermark();
         return timestamp < currentWatermark;
+    }
+
+    /** Write skipped late arriving element to SideOutput. */
+    protected <T> void sideOutput(T value, long timestamp, boolean isLeft) {
+        if (isLeft) {
+            if (leftLateDataOutputTag != null) {
+                output.collect(leftLateDataOutputTag, new StreamRecord<>((T1) value, timestamp));
+            }
+        } else {
+            if (rightLateDataOutputTag != null) {
+                output.collect(rightLateDataOutputTag, new StreamRecord<>((T2) value, timestamp));
+            }
+        }
     }
 
     private void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp)

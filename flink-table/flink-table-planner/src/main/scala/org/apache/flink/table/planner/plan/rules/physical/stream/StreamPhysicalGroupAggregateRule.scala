@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
@@ -34,9 +33,7 @@ import org.apache.calcite.rel.core.Aggregate.Group
 
 import scala.collection.JavaConversions._
 
-/**
- * Rule to convert a [[FlinkLogicalAggregate]] into a [[StreamPhysicalGroupAggregate]].
- */
+/** Rule to convert a [[FlinkLogicalAggregate]] into a [[StreamPhysicalGroupAggregate]]. */
 class StreamPhysicalGroupAggregateRule
   extends ConverterRule(
     classOf[FlinkLogicalAggregate],
@@ -70,7 +67,8 @@ class StreamPhysicalGroupAggregateRule
     } else {
       FlinkRelDistribution.SINGLETON
     }
-    val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
+    val requiredTraitSet = rel.getCluster.getPlanner
+      .emptyTraitSet()
       .replace(requiredDistribution)
       .replace(FlinkConventions.STREAM_PHYSICAL)
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)

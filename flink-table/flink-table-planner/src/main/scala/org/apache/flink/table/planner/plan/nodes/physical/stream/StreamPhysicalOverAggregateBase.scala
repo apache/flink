@@ -23,29 +23,29 @@ import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Window.Group
-import org.apache.calcite.rel.core.{AggregateCall, Window}
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.core.Window.Group
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexLiteral
 
 import scala.collection.JavaConverters._
 
-/**
-  * Base Stream physical RelNode for time-based over [[Window]].
-  */
+/** Base Stream physical RelNode for time-based over [[Window]]. */
 abstract class StreamPhysicalOverAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    logicWindow: Window)
+    val logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = {
-    if (logicWindow.groups.size() != 1
-      || logicWindow.groups.get(0).orderKeys.getFieldCollations.size() != 1) {
+    if (
+      logicWindow.groups.size() != 1
+      || logicWindow.groups.get(0).orderKeys.getFieldCollations.size() != 1
+    ) {
       return false
     }
     val orderKey = logicWindow.groups.get(0).orderKeys.getFieldCollations.get(0)
@@ -74,16 +74,18 @@ abstract class StreamPhysicalOverAggregateBase(
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
     val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
-      .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, inputRowType),
-              partitionKeys.nonEmpty)
+    super
+      .explainTerms(pw)
+      .itemIf(
+        "partitionBy",
+        RelExplainUtil.fieldToString(partitionKeys, inputRowType),
+        partitionKeys.nonEmpty)
       .item("orderBy", RelExplainUtil.collationToString(overWindow.orderKeys, inputRowType))
       .item("window", RelExplainUtil.windowRangeToString(logicWindow, overWindow))
-      .item("select", RelExplainUtil.overAggregationToString(
-        inputRowType,
-        outputRowType,
-        constants,
-        namedAggregates))
+      .item(
+        "select",
+        RelExplainUtil
+          .overAggregationToString(inputRowType, outputRowType, constants, namedAggregates))
   }
 
   private def generateNamedAggregates: Seq[CalcitePair[AggregateCall, String]] = {

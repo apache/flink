@@ -34,7 +34,7 @@ import java.time.ZoneId;
 @Internal
 public interface CastRule<IN, OUT> {
 
-    /** @see CastRulePredicate for more details about a cast rule predicate definition */
+    /** @see CastRulePredicate for more details about a cast rule predicate definition. */
     CastRulePredicate getPredicateDefinition();
 
     /**
@@ -50,6 +50,9 @@ public interface CastRule<IN, OUT> {
 
     /** Casting context. */
     interface Context {
+
+        boolean isPrinting();
+
         @Deprecated
         boolean legacyBehaviour();
 
@@ -58,8 +61,17 @@ public interface CastRule<IN, OUT> {
         ClassLoader getClassLoader();
 
         /** Create a casting context. */
-        static Context create(boolean legacyBehaviour, ZoneId zoneId, ClassLoader classLoader) {
+        static Context create(
+                boolean isPrinting,
+                boolean legacyBehaviour,
+                ZoneId zoneId,
+                ClassLoader classLoader) {
             return new Context() {
+                @Override
+                public boolean isPrinting() {
+                    return isPrinting;
+                }
+
                 @Override
                 public boolean legacyBehaviour() {
                     return legacyBehaviour;

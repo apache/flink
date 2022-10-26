@@ -29,6 +29,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -120,6 +121,10 @@ public class TestTableResult implements TableResultInternal {
 
     @Override
     public RowDataToStringConverter getRowDataToStringConverter() {
-        return new RowDataToStringConverterImpl(resolvedSchema.toPhysicalRowDataType());
+        return new RowDataToStringConverterImpl(
+                resolvedSchema.toPhysicalRowDataType(),
+                DateTimeUtils.UTC_ZONE.toZoneId(),
+                Thread.currentThread().getContextClassLoader(),
+                false);
     }
 }

@@ -15,40 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
-
-import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.plan.RelOptUtil.InputFinder
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.core.{Calc, RelFactories}
-import org.apache.calcite.rex.{RexNode, RexOver, RexProgramBuilder, RexUtil}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.plan.RelOptUtil.InputFinder
+import org.apache.calcite.rel.core.{Calc, RelFactories}
+import org.apache.calcite.rex.{RexNode, RexOver, RexProgramBuilder, RexUtil}
 
 import scala.collection.JavaConversions._
 
 /**
-  * This rule is copied from Calcite's [[org.apache.calcite.rel.rules.CalcMergeRule]].
-  *
-  * Modification:
-  * - Condition in the merged program will be simplified if it exists.
-  * - If the two [[Calc]] can merge into one, each non-deterministic [[RexNode]] of bottom [[Calc]]
-  *   should appear at most once in the project list and filter list of top [[Calc]].
-  */
+ * This rule is copied from Calcite's [[org.apache.calcite.rel.rules.CalcMergeRule]].
+ *
+ * Modification:
+ *   - Condition in the merged program will be simplified if it exists.
+ *   - If the two [[Calc]] can merge into one, each non-deterministic [[RexNode]] of bottom [[Calc]]
+ *     should appear at most once in the project list and filter list of top [[Calc]].
+ */
 
 /**
-  * Planner rule that merges a [[Calc]] onto a [[Calc]].
-  *
-  * <p>The resulting [[Calc]] has the same project list as the upper [[Calc]],
-  * but expressed in terms of the lower [[Calc]]'s inputs.
-  */
-class FlinkCalcMergeRule[C <: Calc](calcClass: Class[C]) extends RelOptRule(
-  operand(calcClass,
-    operand(calcClass, any)),
-  RelFactories.LOGICAL_BUILDER,
-  "FlinkCalcMergeRule") {
+ * Planner rule that merges a [[Calc]] onto a [[Calc]].
+ *
+ * <p>The resulting [[Calc]] has the same project list as the upper [[Calc]], but expressed in terms
+ * of the lower [[Calc]]'s inputs.
+ */
+class FlinkCalcMergeRule[C <: Calc](calcClass: Class[C])
+  extends RelOptRule(
+    operand(calcClass, operand(calcClass, any)),
+    RelFactories.LOGICAL_BUILDER,
+    "FlinkCalcMergeRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val topCalc: Calc = call.rel(0)
@@ -95,12 +94,12 @@ class FlinkCalcMergeRule[C <: Calc](calcClass: Class[C]) extends RelOptRule(
         var nonDeterministicRexRefCnt = 0
         if (!RexUtil.isDeterministic(project)) {
           topInputIndices.foreach(
-            indices => indices.foreach(
-              ref => if (ref == index) {
-                nonDeterministicRexRefCnt += 1
-              }
-            )
-          )
+            indices =>
+              indices.foreach(
+                ref =>
+                  if (ref == index) {
+                    nonDeterministicRexRefCnt += 1
+                  }))
         }
         nonDeterministicRexRefCnt <= 1
       }
@@ -114,16 +113,14 @@ class FlinkCalcMergeRule[C <: Calc](calcClass: Class[C]) extends RelOptRule(
     val topProgram = topCalc.getProgram
     val rexBuilder = topCalc.getCluster.getRexBuilder
     // Merge the programs together.
-    val mergedProgram = RexProgramBuilder.mergePrograms(
-      topCalc.getProgram, bottomCalc.getProgram, rexBuilder)
+    val mergedProgram =
+      RexProgramBuilder.mergePrograms(topCalc.getProgram, bottomCalc.getProgram, rexBuilder)
     require(mergedProgram.getOutputRowType eq topProgram.getOutputRowType)
 
     val newMergedProgram = if (mergedProgram.getCondition != null) {
       val condition = mergedProgram.expandLocalRef(mergedProgram.getCondition)
-      val simplifiedCondition = FlinkRexUtil.simplify(
-        rexBuilder,
-        condition,
-        topCalc.getCluster.getPlanner.getExecutor)
+      val simplifiedCondition =
+        FlinkRexUtil.simplify(rexBuilder, condition, topCalc.getCluster.getPlanner.getExecutor)
       if (simplifiedCondition.equals(condition)) {
         mergedProgram
       } else {

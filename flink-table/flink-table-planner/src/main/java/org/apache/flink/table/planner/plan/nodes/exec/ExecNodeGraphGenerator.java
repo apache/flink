@@ -48,15 +48,15 @@ public class ExecNodeGraphGenerator {
         this.visitedRels = new IdentityHashMap<>();
     }
 
-    public ExecNodeGraph generate(List<FlinkPhysicalRel> relNodes) {
+    public ExecNodeGraph generate(List<FlinkPhysicalRel> relNodes, boolean isCompiled) {
         List<ExecNode<?>> rootNodes = new ArrayList<>(relNodes.size());
         for (FlinkPhysicalRel relNode : relNodes) {
-            rootNodes.add(generate(relNode));
+            rootNodes.add(generate(relNode, isCompiled));
         }
         return new ExecNodeGraph(rootNodes);
     }
 
-    private ExecNode<?> generate(FlinkPhysicalRel rel) {
+    private ExecNode<?> generate(FlinkPhysicalRel rel, boolean isCompiled) {
         ExecNode<?> execNode = visitedRels.get(rel);
         if (execNode != null) {
             return execNode;
@@ -68,10 +68,10 @@ public class ExecNodeGraphGenerator {
 
         List<ExecNode<?>> inputNodes = new ArrayList<>();
         for (RelNode input : rel.getInputs()) {
-            inputNodes.add(generate((FlinkPhysicalRel) input));
+            inputNodes.add(generate((FlinkPhysicalRel) input, isCompiled));
         }
 
-        execNode = rel.translateToExecNode();
+        execNode = rel.translateToExecNode(isCompiled);
         // connects the input nodes
         List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
         for (ExecNode<?> inputNode : inputNodes) {

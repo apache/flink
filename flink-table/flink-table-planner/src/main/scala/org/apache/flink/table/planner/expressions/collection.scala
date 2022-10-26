@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.{isArray, isMap}
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -39,7 +38,7 @@ case class ArrayElement(array: PlannerExpression) extends PlannerExpression {
   override private[flink] def validateInput(): ValidationResult = {
     array.resultType match {
       case ati: TypeInformation[_] if isArray(ati) => ValidationSuccess
-      case other@_ => ValidationFailure(s"Array expected but was '$other'.")
+      case other @ _ => ValidationFailure(s"Array expected but was '$other'.")
     }
   }
 }
@@ -56,7 +55,7 @@ case class Cardinality(container: PlannerExpression) extends PlannerExpression {
     container.resultType match {
       case mti: TypeInformation[_] if isMap(mti) => ValidationSuccess
       case ati: TypeInformation[_] if isArray(ati) => ValidationSuccess
-      case other@_ => ValidationFailure(s"Array or map expected but was '$other'.")
+      case other @ _ => ValidationFailure(s"Array or map expected but was '$other'.")
     }
   }
 }
@@ -77,7 +76,7 @@ case class ItemAt(container: PlannerExpression, key: PlannerExpression) extends 
   override private[flink] def validateInput(): ValidationResult = {
     container.resultType match {
 
-      case ati: TypeInformation[_] if isArray(ati)  =>
+      case ati: TypeInformation[_] if isArray(ati) =>
         if (key.resultType == INT_TYPE_INFO) {
           // check for common user mistake
           key match {
@@ -91,7 +90,7 @@ case class ItemAt(container: PlannerExpression, key: PlannerExpression) extends 
             s"Array element access needs an integer index but was '${key.resultType}'.")
         }
 
-      case mti: MapTypeInfo[_, _]  =>
+      case mti: MapTypeInfo[_, _] =>
         if (key.resultType == mti.getKeyTypeInfo) {
           ValidationSuccess
         } else {
@@ -100,7 +99,7 @@ case class ItemAt(container: PlannerExpression, key: PlannerExpression) extends 
               s"'${mti.getKeyTypeInfo}', found '${key.resultType}'.")
         }
 
-      case other@_ => ValidationFailure(s"Array or map expected but was '$other'.")
+      case other @ _ => ValidationFailure(s"Array or map expected but was '$other'.")
     }
   }
 }

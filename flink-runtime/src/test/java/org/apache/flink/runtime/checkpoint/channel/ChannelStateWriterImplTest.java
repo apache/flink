@@ -96,7 +96,6 @@ public class ChannelStateWriterImplTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testAbortClearsResults() throws Exception {
-        NetworkBuffer buffer = getBuffer();
         runWithSyncWorker(
                 (writer, worker) -> {
                     callStart(writer);
@@ -167,7 +166,7 @@ public class ChannelStateWriterImplTest {
     public void testAddDataNotStarted() throws Exception {
         unwrappingError(
                 IllegalArgumentException.class,
-                () -> runWithSyncWorker(writer -> callAddInputData(writer)));
+                () -> runWithSyncWorker((Consumer<ChannelStateWriter>) this::callAddInputData));
     }
 
     @Test(expected = IllegalArgumentException.class)

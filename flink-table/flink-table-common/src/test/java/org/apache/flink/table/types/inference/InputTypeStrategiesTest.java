@@ -24,11 +24,8 @@ import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrate
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import org.junit.runners.Parameterized.Parameters;
+import java.util.stream.Stream;
 
-import java.util.List;
-
-import static java.util.Arrays.asList;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL_OR_NULL;
@@ -44,11 +41,11 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.sequenc
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /** Tests for built-in {@link InputTypeStrategies}. */
-public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
+class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return asList(
+    @Override
+    protected Stream<TestSpec> testData() {
+        return Stream.of(
                 // wildcard with 2 arguments
                 TestSpec.forStrategy(WILDCARD)
                         .calledWithArgumentTypes(DataTypes.INT(), DataTypes.INT())

@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.GenerateUtils.generateNonNullLiteral
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.GenerateUtils.generateNonNullLiteral
 import org.apache.flink.table.types.logical.LogicalType
 
-/**
-  * Generates a function call which returns a constant.
-  */
+/** Generates a function call which returns a constant. */
 class ConstantCallGen(constantCode: String, constantValue: Any) extends CallGenerator {
 
   override def generate(

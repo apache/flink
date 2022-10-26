@@ -22,7 +22,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -84,12 +84,11 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
         }
 
         if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
-            if (throwOnFailure) {
-                throw callContext.newValidationError(
-                        "Unsupported argument type. Expected nullable type of family '%s' but actual type was '%s'.",
-                        expectedFamily, actualType);
-            }
-            return Optional.empty();
+            return callContext.fail(
+                    throwOnFailure,
+                    "Unsupported argument type. Expected nullable type of family '%s' but actual type was '%s'.",
+                    expectedFamily,
+                    actualType);
         }
 
         // type is part of the family
@@ -116,15 +115,13 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
     }
 
     @Override
-    public Signature.Argument getExpectedArgument(
-            FunctionDefinition functionDefinition, int argumentPos) {
-        // "< ... >" to indicate that this is not a type
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
         if (Objects.equals(expectedNullability, Boolean.TRUE)) {
-            return Signature.Argument.of("<" + expectedFamily + " NULL>");
+            return Argument.ofGroup(expectedFamily + " NULL");
         } else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
-            return Signature.Argument.of("<" + expectedFamily + " NOT NULL>");
+            return Argument.ofGroup(expectedFamily + " NOT NULL");
         }
-        return Signature.Argument.of("<" + expectedFamily + ">");
+        return Argument.ofGroup(expectedFamily);
     }
 
     @Override

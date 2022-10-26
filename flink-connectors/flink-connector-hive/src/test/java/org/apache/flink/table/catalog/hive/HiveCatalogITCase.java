@@ -218,9 +218,7 @@ public class HiveCatalogITCase {
     public void testReadWriteCsv() throws Exception {
         // similar to CatalogTableITCase::testReadWriteCsvUsingDDL but uses HiveCatalog
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
@@ -304,9 +302,7 @@ public class HiveCatalogITCase {
             settings = EnvironmentSettings.inBatchMode();
         }
         TableEnvironment tableEnv = TableEnvironment.create(settings);
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
@@ -335,9 +331,7 @@ public class HiveCatalogITCase {
     @Test
     public void testTableWithPrimaryKey() {
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         tableEnv.registerCatalog("catalog1", hiveCatalog);
         tableEnv.useCatalog("catalog1");
@@ -386,7 +380,7 @@ public class HiveCatalogITCase {
                 TableEnvironment.create(EnvironmentSettings.newInstance().inBatchMode().build());
         tEnv.registerCatalog("myhive", hiveCatalog);
         tEnv.useCatalog("myhive");
-        tEnv.getConfig().getConfiguration().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         String path = this.getClass().getResource("/csv/test.csv").getPath();
 
@@ -423,14 +417,17 @@ public class HiveCatalogITCase {
     public void testConcurrentAccessHiveCatalog() throws Exception {
         int numThreads = 5;
         ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
-        Callable<List<String>> listDBCallable = () -> hiveCatalog.listDatabases();
-        List<Future<List<String>>> listDBFutures = new ArrayList<>();
-        for (int i = 0; i < numThreads; i++) {
-            listDBFutures.add(executorService.submit(listDBCallable));
-        }
-        executorService.shutdown();
-        for (Future<List<String>> future : listDBFutures) {
-            future.get(5, TimeUnit.SECONDS);
+        try {
+            Callable<List<String>> listDBCallable = () -> hiveCatalog.listDatabases();
+            List<Future<List<String>>> listDBFutures = new ArrayList<>();
+            for (int i = 0; i < numThreads; i++) {
+                listDBFutures.add(executorService.submit(listDBCallable));
+            }
+            for (Future<List<String>> future : listDBFutures) {
+                future.get(5, TimeUnit.SECONDS);
+            }
+        } finally {
+            executorService.shutdown();
         }
     }
 

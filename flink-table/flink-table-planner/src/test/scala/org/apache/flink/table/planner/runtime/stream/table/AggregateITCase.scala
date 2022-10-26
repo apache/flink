@@ -15,33 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.DataTypes.DECIMAL
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.DataTypes.DECIMAL
+import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedAggFunctions, StreamingWithStateTestBase, TestingRetractSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedAggFunctions, StreamingWithStateTestBase, TestingRetractSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.CountMinMax
 import org.apache.flink.types.Row
 
+import org.junit.{Before, Test}
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import scala.collection.mutable
 
-/**
-  * Tests of groupby (without window) aggregations
-  */
+/** Tests of groupby (without window) aggregations */
 @RunWith(classOf[Parameterized])
 class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
@@ -53,7 +50,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDistinctUDAGG(): Unit = {
-    val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val t = failingDataSource(tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e)
       .select('e, call(classOf[DataViewTestAgg], 'd, 'e).distinct())
 
@@ -68,7 +66,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   @Test
   def testDistinctUDAGGMixedWithNonDistinctUsage(): Unit = {
     val testAgg = new WeightedAvg
-    val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val t = failingDataSource(tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e)
       .select('e, testAgg.distinct('a, 'a), testAgg('a, 'a))
 
@@ -96,10 +95,16 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((3, 2, "B"))
 
     val testAgg = new WeightedAvg
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(data)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('c)
-      .select('c, 'a.count.distinct, 'a.sum.distinct,
-        testAgg.distinct('a, 'b), testAgg.distinct('b, 'a), testAgg('a, 'b))
+      .select(
+        'c,
+        'a.count.distinct,
+        'a.sum.distinct,
+        testAgg.distinct('a, 'b),
+        testAgg.distinct('b, 'a),
+        testAgg('a, 'b))
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -111,7 +116,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDistinctAggregateMixedWithNonDistinct(): Unit = {
-    val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val t = failingDataSource(tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e)
       .select('e, 'a.count.distinct, 'b.count)
 
@@ -138,8 +144,10 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDistinct(): Unit = {
-    val t = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-      .select('b, nullOf(Types.LONG)).distinct()
+    val t = failingDataSource(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .select('b, nullOf(Types.LONG))
+      .distinct()
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -151,8 +159,11 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDistinctAfterAggregate(): Unit = {
-    val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
-      .groupBy('e).select('e, 'a.count).distinct()
+    val t = failingDataSource(tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select('e, 'a.count)
+      .distinct()
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -164,7 +175,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testNonKeyedGroupAggregate(): Unit = {
-    val t = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
       .select('a.sum, 'b.sum)
 
     val sink = new TestingRetractSink()
@@ -177,7 +189,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testGroupAggregate(): Unit = {
-    val t = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('b, 'a.sum)
 
@@ -191,11 +204,12 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDoubleGroupAggregation(): Unit = {
-    val t = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('a.count as 'cnt, 'b)
+      .select('a.count.as('cnt), 'b)
       .groupBy('cnt)
-      .select('cnt, 'b.count as 'freq, 'b.min as 'min, 'b.max as 'max)
+      .select('cnt, 'b.count.as('freq), 'b.min.as('min), 'b.max.as('max))
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -207,9 +221,10 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDoubleGroupMaxMinAggregation(): Unit = {
-    val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val t = failingDataSource(tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('a, 'e)
-      .select('a, 'e, 'b.max as 'f, 'b.min as 'g)
+      .select('a, 'e, 'b.max.as('f), 'b.min.as('g))
       .groupBy('a)
       .select('a, 'f.max, 'g.min)
 
@@ -223,24 +238,39 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testGroupAggregateWithExpression(): Unit = {
-    val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val t = failingDataSource(tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e, 'b % 3)
-      .select('c.min, 'e, 'a.avg, 'd.count)
+      .select(
+        'c.min,
+        'e,
+        'a.avg,
+        'd.count,
+        'b.firstValue(),
+        call("LAST_VALUE", col("c")),
+        'd.listAgg("-"))
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
-      s"0,1,1,1", s"7,1,4,2", s"2,1,3,2",
-      s"3,2,3,3", s"1,2,3,3", s"14,2,5,1",
-      s"12,3,5,1", s"5,3,4,2")
+      s"0,1,1,1,1,0,Hallo",
+      s"1,2,3,3,2,13,Hallo Welt-ABC-JKL",
+      s"12,3,5,1,13,12,IJK",
+      s"14,2,5,1,15,14,KLM",
+      s"2,1,3,2,3,8,Hallo Welt wie-EFG",
+      s"3,2,3,3,4,9,Hallo Welt wie gehts?-CDE-FGH",
+      s"5,3,4,2,6,11,BCD-HIJ",
+      s"7,1,4,2,8,10,DEF-GHI"
+    )
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
   def testCollect(): Unit = {
-    val t = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('b, 'a.collect)
 
@@ -275,7 +305,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((12, 5L, "B"))
 
     val distinct = new CountDistinct
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = env
+      .fromCollection(data)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
@@ -299,13 +331,14 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((4, 3L, "C"))
     data.+=((5, 3L, "C"))
 
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = env
+      .fromCollection(data)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('c)
       .select('c, 'b.max)
 
-
-    val tableSink = new TestingUpsertTableSink(Array(0)).configure(
-      Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
+    val tableSink = new TestingUpsertTableSink(Array(0))
+      .configure(Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
 
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
     t.executeInsert("testSink").await()
@@ -317,7 +350,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   @Test
   def testNonGroupedAggregate(): Unit = {
     val testAgg = new CountMinMax
-    val t = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
       .aggregate(testAgg('a))
       .select('f0, 'f1, 'f2)
 
@@ -332,7 +366,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   @Test
   def testAggregate(): Unit = {
     val testAgg = new CountMinMax
-    val t = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .aggregate(testAgg('a))
       .select('b, 'f0, 'f1, 'f2)
@@ -344,7 +379,6 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val expected = List("1,1,1,1", "2,2,2,3", "3,3,4,6", "4,4,7,10", "5,5,11,15", "6,6,16,21")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
-
 
   @Test
   def testGroupAggregateWithDataView(): Unit = {
@@ -363,7 +397,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((12, 5L, "B"))
 
     val distinct = new CountDistinct
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(data)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
@@ -384,7 +419,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val results = t
       .groupBy('b, 'c)
-      .select('b, 'c, 'a.max as 'a)
+      .select('b, 'c, 'a.max.as('a))
       .groupBy('b)
       .select('b, 'a.max)
       .toRetractStream[Row]
@@ -405,10 +440,11 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
 
     val results = t
-      .select('a.cast(DECIMAL(32, 8)).sum as 'a,
-        'b.cast(DECIMAL(30, 20)).sum as 'b,
-        'c.cast(DECIMAL(25, 20)).sum as 'c,
-        'd.cast(DECIMAL(32, 8)).sum as 'd)
+      .select(
+        'a.cast(DECIMAL(32, 8)).sum.as('a),
+        'b.cast(DECIMAL(30, 20)).sum.as('b),
+        'c.cast(DECIMAL(25, 20)).sum.as('c),
+        'd.cast(DECIMAL(32, 8)).sum.as('d))
       .toRetractStream[Row]
 
     val sink = new TestingRetractSink
@@ -429,10 +465,11 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
 
     val results = t
-      .select('a.cast(DECIMAL(32, 8)).sum0 as 'a,
-        'b.cast(DECIMAL(30, 20)).sum0 as 'b,
-        'c.cast(DECIMAL(25, 20)).sum0 as 'c,
-        'd.cast(DECIMAL(32, 8)).sum0 as 'd)
+      .select(
+        'a.cast(DECIMAL(32, 8)).sum0.as('a),
+        'b.cast(DECIMAL(30, 20)).sum0.as('b),
+        'c.cast(DECIMAL(25, 20)).sum0.as('c),
+        'd.cast(DECIMAL(32, 8)).sum0.as('d))
       .toRetractStream[Row]
 
     val sink = new TestingRetractSink
@@ -453,10 +490,11 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
 
     val results = t
-      .select('a.cast(DECIMAL(32, 8)).avg as 'a,
-        'b.cast(DECIMAL(30, 20)).avg as 'b,
-        'c.cast(DECIMAL(25, 20)).avg as 'c,
-        'd.cast(DECIMAL(32, 8)).avg as 'd)
+      .select(
+        'a.cast(DECIMAL(32, 8)).avg.as('a),
+        'b.cast(DECIMAL(30, 20)).avg.as('b),
+        'c.cast(DECIMAL(25, 20)).avg.as('c),
+        'd.cast(DECIMAL(32, 8)).avg.as('d))
       .toRetractStream[Row]
 
     val sink = new TestingRetractSink

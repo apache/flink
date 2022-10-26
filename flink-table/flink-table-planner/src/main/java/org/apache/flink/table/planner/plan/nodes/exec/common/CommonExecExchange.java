@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -38,9 +39,10 @@ public abstract class CommonExecExchange extends ExecNodeBase<RowData>
     public CommonExecExchange(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
     }
 }

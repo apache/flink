@@ -198,7 +198,7 @@ function create_ha_config() {
     # High Availability
     #==============================================================================
 
-    high-availability: zookeeper
+    high-availability.type: zookeeper
     high-availability.zookeeper.storageDir: file://${TEST_DATA_DIR}/recovery/
     high-availability.zookeeper.quorum: localhost:2181
     high-availability.zookeeper.path.root: /flink
@@ -299,12 +299,20 @@ function wait_rest_endpoint_up {
   exit 1
 }
 
+function relocate_rocksdb_logs {
+  # After FLINK-24785, RocksDB's log would be created under Flink's log directory by default,
+  # this would make e2e tests' artifacts containing too many log files.
+  # As RocksDB's log would not help much in e2e tests, move the location back to its own folder.
+  set_config_key "state.backend.rocksdb.log.dir" "/dev/null"
+}
+
 function wait_dispatcher_running {
   local query_url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
   wait_rest_endpoint_up "${query_url}" "Dispatcher" "\{\"taskmanagers\":\[.+\]\}"
 }
 
 function start_cluster {
+  relocate_rocksdb_logs
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
 }
@@ -382,7 +390,6 @@ function check_logs_for_errors {
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
       | grep -v "org.apache.commons.beanutils.FluentPropertyBeanIntrospector.*Error when creating PropertyDescriptor.*org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
       | grep -v "Error while loading kafka-version.properties :null" \
-      | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
       | grep -v "HeapDumpOnOutOfMemoryError" \
       | grep -v "error_prone_annotations" \
@@ -424,12 +431,12 @@ function check_logs_for_exceptions {
    | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
    | grep -v "java.lang.Exception: Artificial failure" \
    | grep -v "org.apache.flink.runtime.checkpoint.CheckpointException" \
-   | grep -v "org.elasticsearch.ElasticsearchException" \
-   | grep -v "Elasticsearch exception" \
    | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
    | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
    | grep -v "RecipientUnreachableException" \
    | grep -v "SerializedCheckpointException.unwrap" \
+   | grep -v "ExecutionGraphException: The execution attempt" \
+   | grep -v "Cannot find task to fail for execution" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"
@@ -628,9 +635,10 @@ function kill_random_taskmanager {
 }
 
 function setup_flink_slf4j_metric_reporter() {
-  INTERVAL="${1:-1 SECONDS}"
+  METRIC_NAME_PATTERN="${1:-"*"}"
   set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
-  set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
+  set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
 }
 
 function get_job_metric {
@@ -706,7 +714,7 @@ function wait_num_of_occurence_in_logs {
     echo "Waiting for text ${text} to appear ${number} of times in logs..."
 
     while : ; do
-      N=$(grep -o "${text}" $FLINK_LOG_DIR/*${logs}*.log* | wc -l)
+      N=$(grep -E -o "${text}" $FLINK_LOG_DIR/*${logs}*.log* | wc -l)
 
       if [ -z $N ]; then
         N=0

@@ -75,7 +75,8 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
             PulsarAdmin pulsarAdmin) {
         super(
                 elementsQueue,
-                new PulsarOrderedFetcherManager<>(elementsQueue, splitReaderSupplier::get),
+                new PulsarOrderedFetcherManager<>(
+                        elementsQueue, splitReaderSupplier::get, context.getConfiguration()),
                 context,
                 sourceConfiguration,
                 pulsarClient,
@@ -108,6 +109,9 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
 
     @Override
     protected void onSplitFinished(Map<String, PulsarPartitionSplitState> finishedSplitIds) {
+        // Close all the finished splits.
+        closeFinishedSplits(finishedSplitIds.keySet());
+
         // We don't require new splits, all the splits are pre-assigned by source enumerator.
         if (LOG.isDebugEnabled()) {
             LOG.debug("onSplitFinished event: {}", finishedSplitIds);

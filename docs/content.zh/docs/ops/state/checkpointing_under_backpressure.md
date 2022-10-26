@@ -111,8 +111,8 @@ env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ofSeconds(30));
 execution.checkpointing.aligned-checkpoint-timeout: 30 s
 ```
 
-在启动时，每个 Checkpoint 仍将作为对齐 Checkpoint 开始，但是如果全局 Checkpoint 开始的时间和某个子任务上 Checkpoint
-开始的时间相差超过了对齐 Checkpoint 的超时时间，那么 Checkpoint 将会作为非对齐 Checkpoint 处理。
+在启动时，每个 Checkpoint 仍然是 aligned checkpoint，但是当全局 Checkpoint 持续时间超过
+`aligned-checkpoint-timeout` 时， 如果 aligned checkpoint 还没完成，那么 Checkpoint 将会转换为 Unaligned Checkpoint。
 
 ### 限制
 
@@ -124,8 +124,8 @@ Checkpoint。此外，Savepoint 也不能与非对齐 Checkpoint 同时发生，
 #### 与 Watermark 的相互影响
 
 非对齐 Checkpoint 在恢复的过程中改变了关于 Watermark 的一个隐式保证。目前，Flink 确保了 Watermark 作为恢复的第一步，
-而不是将最近的 Watermark 存放在 Operator 中，以方便扩缩容。在非对齐 Checkpoint 中，这意味着当恢复时，** Flink 会在恢复
-In-flight 数据后再生成 Watermark **。如果您的 Pipeline 中使用了**对每条记录都应用最新的 Watermark 的算子**将会相对于
+而不是将最近的 Watermark 存放在 Operator 中，以方便扩缩容。在非对齐 Checkpoint 中，这意味着当恢复时，**Flink 会在恢复
+In-flight 数据后再生成 Watermark**。如果您的 Pipeline 中使用了**对每条记录都应用最新的 Watermark 的算子**将会相对于
 使用对齐 Checkpoint产生**不同的结果**。如果您的 Operator 依赖于最新的 Watermark 始终可用，解决办法是将 Watermark 
 存放在 OperatorState 中。在这种情况下，Watermark 应该使用单键 group 存放在 UnionState 以方便扩缩容。
 

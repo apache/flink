@@ -21,6 +21,7 @@ package org.apache.flink.runtime.registration;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -28,8 +29,8 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
@@ -50,7 +51,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -60,6 +60,10 @@ import static org.mockito.Mockito.when;
  * behavior.
  */
 public class RetryingRegistrationTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private TestingRpcService rpcService;
 
@@ -71,7 +75,7 @@ public class RetryingRegistrationTest extends TestLogger {
     @After
     public void tearDown() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 
@@ -147,7 +151,8 @@ public class RetryingRegistrationTest extends TestLogger {
         final String testId = "laissez les bon temps roulez";
         final UUID leaderId = UUID.randomUUID();
 
-        ScheduledExecutorService executor = TestingUtils.defaultExecutor();
+        ScheduledExecutorServiceAdapter executor =
+                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         ManualResponseTestRegistrationGateway testGateway =
                 new ManualResponseTestRegistrationGateway(new TestRegistrationSuccess(testId));
 
@@ -163,17 +168,7 @@ public class RetryingRegistrationTest extends TestLogger {
                             CompletableFuture.completedFuture(
                                     testGateway) // second connection attempt succeeds
                             );
-            when(rpc.getScheduledExecutor())
-                    .thenReturn(new ScheduledExecutorServiceAdapter(executor));
-            when(rpc.scheduleRunnable(any(Runnable.class), anyLong(), any(TimeUnit.class)))
-                    .thenAnswer(
-                            (InvocationOnMock invocation) -> {
-                                final Runnable runnable = invocation.getArgument(0);
-                                final long delay = invocation.getArgument(1);
-                                final TimeUnit timeUnit = invocation.getArgument(2);
-                                return TestingUtils.defaultScheduledExecutor()
-                                        .schedule(runnable, delay, timeUnit);
-                            });
+            when(rpc.getScheduledExecutor()).thenReturn(executor);
 
             TestRetryingRegistration registration =
                     new TestRetryingRegistration(rpc, "foobar address", leaderId);

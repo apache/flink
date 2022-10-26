@@ -28,8 +28,8 @@ import org.apache.flink.contrib.streaming.state.restore.RocksDBNoneRestoreOperat
 import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreResult;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
-import org.apache.flink.contrib.streaming.state.snapshot.RocksFullSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksIncrementalSnapshotStrategy;
+import org.apache.flink.contrib.streaming.state.snapshot.RocksNativeFullSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
@@ -114,7 +114,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     /** True if incremental checkpointing is enabled. */
     private boolean enableIncrementalCheckpointing;
 
+    /** RocksDB property-based and statistics-based native metrics options. */
     private RocksDBNativeMetricOptions nativeMetricOptions;
+
     private int numberOfTransferingThreads;
     private long writeBatchSize =
             RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
@@ -309,7 +311,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 nativeMetricMonitor =
                         nativeMetricOptions.isEnabled()
                                 ? new RocksDBNativeMetricMonitor(
-                                        nativeMetricOptions, metricGroup, db)
+                                        nativeMetricOptions, metricGroup, db, null)
                                 : null;
             } else {
                 prepareDirectories();
@@ -522,11 +524,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles,
             long lastCompletedCheckpointId) {
         RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
+        RocksDBStateUploader stateUploader =
+                injectRocksDBStateUploader == null
+                        ? new RocksDBStateUploader(numberOfTransferingThreads)
+                        : injectRocksDBStateUploader;
         if (enableIncrementalCheckpointing) {
-            RocksDBStateUploader stateUploader =
-                    injectRocksDBStateUploader == null
-                            ? new RocksDBStateUploader(numberOfTransferingThreads)
-                            : injectRocksDBStateUploader;
             checkpointSnapshotStrategy =
                     new RocksIncrementalSnapshotStrategy<>(
                             db,
@@ -544,16 +546,17 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             lastCompletedCheckpointId);
         } else {
             checkpointSnapshotStrategy =
-                    new RocksFullSnapshotStrategy<>(
+                    new RocksNativeFullSnapshotStrategy<>(
                             db,
                             rocksDBResourceGuard,
                             keySerializerProvider.currentSchemaSerializer(),
                             kvStateInformation,
-                            registeredPQStates,
                             keyGroupRange,
                             keyGroupPrefixBytes,
                             localRecoveryConfig,
-                            keyGroupCompressionDecorator);
+                            instanceBasePath,
+                            backendUID,
+                            stateUploader);
         }
         return checkpointSnapshotStrategy;
     }

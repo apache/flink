@@ -255,6 +255,22 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
 }]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertPartColumn">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.zm_test], fields=[a, m1, m2, m3, m4])
++- LogicalProject(a=[CAST($0):BIGINT], m1=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m2=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m4=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.zm_test], fields=[a, m1, m2, m3, m4], changelogMode=[NONE])
++- Calc(select=[CAST(a AS BIGINT) AS a, null:(VARCHAR(2147483647), BIGINT) MAP AS m1, null:(VARCHAR(2147483647), BIGINT) MAP AS m2, null:(VARCHAR(2147483647), BIGINT) MAP AS m3, null:(VARCHAR(2147483647), BIGINT) MAP AS m4], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAppendUpsertAndRetractSink">
     <Resource name="ast">
       <![CDATA[
@@ -489,8 +505,23 @@ LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[a, b
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, metadata_1, metadata_2])
-+- Calc(select=[a, b, c, metadata_1, CAST(CAST(metadata_2 AS INTEGER) AS BIGINT) AS metadata_2])
-   +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[a, b, c], metadata=[metadata_1, metadata_2]]], fields=[a, b, c, metadata_1, metadata_2])
++- Calc(select=[a, b, c, metadata_1, CAST(CAST(m_2 AS INTEGER) AS BIGINT) AS metadata_2])
+   +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[a, b, c], metadata=[metadata_1, metadata_2]]], fields=[a, b, c, metadata_1, m_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataColumnThatConflictsWithPhysicalColumn">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[metadata_1, metadata_2, other, metadata_23])
++- LogicalProject(metadata_1=[$0], metadata_2=[$1], other=[$2], metadata_23=[$4])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MetadataTable], fields=[metadata_1, metadata_2, other, m_2])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[metadata_1, metadata_2, other], metadata=[metadata_2]]], fields=[metadata_1, metadata_2, other, m_2])
 ]]>
     </Resource>
   </TestCase>
@@ -748,4 +779,20 @@ Sink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[person,
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testInsertWithTargetColumnsAndSqlHint">
+		<Resource name="ast">
+			<![CDATA[
+LogicalSink(table=[default_catalog.default_database.appendSink], fields=[EXPR$0, c], hints=[[[OPTIONS options:{sink.parallelism=1}]]])
++- LogicalProject(EXPR$0=[+($0, $1)], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Sink(table=[default_catalog.default_database.appendSink], fields=[EXPR$0, c], hints=[[[OPTIONS options:{sink.parallelism=1}]]], changelogMode=[NONE])
++- Calc(select=[+(a, b) AS EXPR$0, c], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

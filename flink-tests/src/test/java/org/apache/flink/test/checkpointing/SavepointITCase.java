@@ -30,7 +30,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
@@ -59,9 +58,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -89,6 +90,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.Collector;
@@ -96,12 +98,14 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -131,6 +135,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -143,10 +148,13 @@ import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.hamcrest.CoreMatchers.either;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -155,6 +163,10 @@ import static org.junit.Assert.fail;
 public class SavepointITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public final TemporaryFolder folder = new TemporaryFolder();
 
@@ -290,6 +302,79 @@ public class SavepointITCase extends TestLogger {
 
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {}
+    }
+
+    @Test
+    public void testStopWithSavepointFailsOverToSavepoint() throws Throwable {
+        int sinkParallelism = 5;
+        MiniClusterWithClientResource cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setNumberSlotsPerTaskManager(sinkParallelism + 1)
+                                .build());
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10));
+        env.setParallelism(1);
+        env.addSource(new InfiniteTestSource())
+                .name("Infinite Source")
+                .map(new FailingOnCompletedSavepointMapFunction(2))
+                .addSink(new DiscardingSink<>())
+                // different parallelism to break chaining and add some concurrent tasks
+                .setParallelism(sinkParallelism);
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        cluster.before();
+        try {
+            ClusterClient<?> client = cluster.getClusterClient();
+            client.submitJob(jobGraph).get();
+            waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
+
+            cluster.getMiniCluster().triggerCheckpoint(jobGraph.getJobID()).get();
+            final CompletableFuture<String> savepointCompleted =
+                    client.stopWithSavepoint(
+                            jobGraph.getJobID(),
+                            true,
+                            savepointDir.getAbsolutePath(),
+                            SavepointFormatType.CANONICAL);
+
+            final Throwable savepointException =
+                    assertThrows(ExecutionException.class, savepointCompleted::get).getCause();
+            assertThrowable(
+                    savepointException,
+                    throwable ->
+                            throwable instanceof StopWithSavepointStoppingException
+                                    && throwable
+                                            .getMessage()
+                                            .startsWith("A savepoint has been created at: "));
+            assertThat(
+                    client.getJobStatus(jobGraph.getJobID()).get(),
+                    either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
+        } finally {
+            cluster.after();
+        }
+    }
+
+    private static final class FailingOnCompletedSavepointMapFunction
+            extends RichMapFunction<Integer, Integer> implements CheckpointListener {
+        private final long savepointId;
+
+        private FailingOnCompletedSavepointMapFunction(long savepointId) {
+            this.savepointId = savepointId;
+        }
+
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            if (checkpointId == savepointId) {
+                throw new ExpectedTestException();
+            }
+        }
     }
 
     /**
@@ -625,10 +710,10 @@ public class SavepointITCase extends TestLogger {
 
             FutureUtils.retrySuccessfulWithDelay(
                     () -> client.getJobStatus(jobId),
-                    Time.milliseconds(50),
+                    Duration.ofMillis(50),
                     Deadline.now().plus(Duration.ofSeconds(30)),
                     status -> status == JobStatus.CANCELED,
-                    TestingUtils.defaultScheduledExecutor());
+                    new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
             postCancelChecks.check(cluster);
         } finally {
@@ -924,7 +1009,8 @@ public class SavepointITCase extends TestLogger {
                 // 1. task failure restart
                 // 2. job failover triggered by the CheckpointFailureManager
                 2,
-                assertInSnapshotCreationFailure());
+                assertInSnapshotCreationFailure(),
+                true);
     }
 
     @Test
@@ -937,8 +1023,16 @@ public class SavepointITCase extends TestLogger {
                 // two restarts expected:
                 // 1. task failure restart
                 // 2. job failover triggered by SchedulerBase.stopWithSavepoint
-                2,
-                assertAfterSnapshotCreationFailure());
+                0,
+                (jobId, actualException) -> {
+                    Optional<StopWithSavepointStoppingException> actualFlinkException =
+                            findThrowable(
+                                    actualException, StopWithSavepointStoppingException.class);
+                    return actualFlinkException
+                            .map(e -> e.getMessage().startsWith("A savepoint has been created at:"))
+                            .orElse(false);
+                },
+                false);
     }
 
     @Test
@@ -992,30 +1086,6 @@ public class SavepointITCase extends TestLogger {
     }
 
     private static BiFunction<JobID, ExecutionException, Boolean>
-            assertAfterSnapshotCreationFailure() {
-        return (jobId, actualException) -> {
-            if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
-                return actualException
-                        .getMessage()
-                        .contains("Stop with savepoint operation could not be completed");
-            } else {
-                Optional<FlinkException> actualFlinkException =
-                        findThrowable(actualException, FlinkException.class);
-                if (!actualFlinkException.isPresent()) {
-                    return false;
-                }
-                return actualFlinkException
-                        .get()
-                        .getMessage()
-                        .contains(
-                                String.format(
-                                        "A global fail-over is triggered to recover the job %s.",
-                                        jobId));
-            }
-        };
-    }
-
-    private static BiFunction<JobID, ExecutionException, Boolean>
             assertInSnapshotCreationFailure() {
         return (ignored, actualException) -> {
             if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
@@ -1051,7 +1121,8 @@ public class SavepointITCase extends TestLogger {
             InfiniteTestSource failingSource,
             File savepointDir,
             int expectedMaximumNumberOfRestarts,
-            BiFunction<JobID, ExecutionException, Boolean> exceptionAssertion)
+            BiFunction<JobID, ExecutionException, Boolean> exceptionAssertion,
+            boolean shouldRestart)
             throws Exception {
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -1107,7 +1178,9 @@ public class SavepointITCase extends TestLogger {
                 assertThrowable(e, ex -> exceptionAssertion.apply(jobGraph.getJobID(), e));
             }
 
-            waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
+            if (shouldRestart) {
+                waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
+            }
         } finally {
             cluster.after();
         }
@@ -1130,8 +1203,7 @@ public class SavepointITCase extends TestLogger {
                                         detailsInfo ->
                                                 allVerticesRunning(
                                                         detailsInfo.getJobVerticesPerState()))
-                                .get(),
-                Deadline.fromNow(Duration.ofSeconds(10)));
+                                .get());
     }
 
     private static boolean allVerticesRunning(Map<ExecutionState, Integer> states) {

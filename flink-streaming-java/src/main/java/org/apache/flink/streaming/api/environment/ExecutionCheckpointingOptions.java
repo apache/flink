@@ -141,9 +141,10 @@ public class ExecutionCheckpointingOptions {
                                     .build());
 
     public static final ConfigOption<Boolean> ENABLE_UNALIGNED =
-            ConfigOptions.key("execution.checkpointing.unaligned")
+            ConfigOptions.key("execution.checkpointing.unaligned.enabled")
                     .booleanType()
                     .defaultValue(false)
+                    .withDeprecatedKeys("execution.checkpointing.unaligned")
                     .withDescription(
                             Description.builder()
                                     .text(

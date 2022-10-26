@@ -22,9 +22,7 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
-/**
- * Serializer for [[Either]].
- */
+/** Serializer for [[Either]]. */
 @Internal
 @SerialVersionUID(9219995873023657525L)
 class EitherSerializer[A, B](
@@ -33,7 +31,7 @@ class EitherSerializer[A, B](
   extends TypeSerializer[Either[A, B]]
   with LegacySerializerSnapshotTransformer[Either[A, B]] {
 
-  override def duplicate: EitherSerializer[A,B] = {
+  override def duplicate: EitherSerializer[A, B] = {
     val leftDup = leftSerializer.duplicate()
     val rightDup = rightSerializer.duplicate()
 
@@ -50,7 +48,7 @@ class EitherSerializer[A, B](
 
   override def isImmutableType: Boolean = {
     (leftSerializer == null || leftSerializer.isImmutableType) &&
-      (rightSerializer == null || rightSerializer.isImmutableType)
+    (rightSerializer == null || rightSerializer.isImmutableType)
   }
 
   override def getLength: Int = -1

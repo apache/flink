@@ -29,12 +29,11 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Map;
 import java.util.UUID;
@@ -44,7 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /** Base class for high availability unit tests with a configured testing Kubernetes client. */
-public class KubernetesHighAvailabilityTestBase extends TestLogger {
+class KubernetesHighAvailabilityTestBase {
     private static final String CLUSTER_ID = "leader-test-cluster";
 
     public static final String LOCK_IDENTITY = UUID.randomUUID().toString();
@@ -57,15 +56,15 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
     protected ExecutorService executorService;
     protected ExecutorService watchCallbackExecutorService;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         executorService = Executors.newFixedThreadPool(4, new ExecutorThreadFactory("IO-Executor"));
         watchCallbackExecutorService =
                 Executors.newCachedThreadPool(new ExecutorThreadFactory("Watch-Callback"));
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         ExecutorUtils.gracefulShutdown(
                 TIMEOUT, TimeUnit.MILLISECONDS, watchCallbackExecutorService, executorService);
     }
@@ -118,6 +117,10 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
             return kubernetesTestFixture.createFlinkKubeClientBuilder();
         }
 
+        String getClusterId() {
+            return CLUSTER_ID;
+        }
+
         KubernetesConfigMap getLeaderConfigMap() {
             return kubernetesTestFixture.getLeaderConfigMap();
         }
@@ -125,7 +128,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         // Use the leader callback to manually grant leadership
         void leaderCallbackGrantLeadership() throws Exception {
             kubernetesTestFixture.leaderCallbackGrantLeadership();
-            electionEventHandler.waitForLeader(TIMEOUT);
+            electionEventHandler.waitForLeader();
         }
 
         FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>

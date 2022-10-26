@@ -27,8 +27,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-statebackend-rocksdb</artifactId>
@@ -100,7 +99,7 @@ under the License.
 								<include>**/org/apache/flink/contrib/streaming/state/EmbeddedRocksDBStateBackendTest*</include>
 								<!-- Exporting RocksDBStateBackendConfigTest$TestOptionsFactory for pyflink tests -->
 								<include>**/org/apache/flink/contrib/streaming/state/RocksDBStateBackendConfigTest*</include>
-								<include>**/org/apache/flink/contrib/streaming/state/benchmark/StateBackendBenchmarkUtils*</include>
+								<include>**/org/apache/flink/contrib/streaming/state/benchmark/*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>

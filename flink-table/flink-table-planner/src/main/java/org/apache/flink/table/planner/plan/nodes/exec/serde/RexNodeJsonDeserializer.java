@@ -46,8 +46,10 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
@@ -91,6 +93,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_OPERANDS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_RANGES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_SARG;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_SQL_KIND;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_SYMBOL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_SYNTAX;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_SYSTEM_NAME;
@@ -340,6 +343,9 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         } else if (jsonNode.has(FIELD_NAME_SYSTEM_NAME)) {
             return deserializeSystemFunction(
                     jsonNode.required(FIELD_NAME_SYSTEM_NAME).asText(), syntax, serdeContext);
+        } else if (jsonNode.has(FIELD_NAME_SQL_KIND)) {
+            return deserializeInternalFunction(
+                    syntax, SqlKind.valueOf(jsonNode.get(FIELD_NAME_SQL_KIND).asText()));
         } else {
             throw new TableException("Invalid function call.");
         }
@@ -375,11 +381,31 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         if (latestOperator.isPresent()) {
             return latestOperator.get();
         }
+
+        Optional<SqlOperator> sqlStdOperator =
+                lookupOptionalSqlStdOperator(publicName, syntax, null);
+        if (sqlStdOperator.isPresent()) {
+            return sqlStdOperator.get();
+        }
+
         throw new TableException(
                 String.format(
                         "Could not resolve internal system function '%s'. "
                                 + "This is a bug, please file an issue.",
                         internalName));
+    }
+
+    private static SqlOperator deserializeInternalFunction(SqlSyntax syntax, SqlKind sqlKind) {
+        final Optional<SqlOperator> stdOperator = lookupOptionalSqlStdOperator("", syntax, sqlKind);
+        if (stdOperator.isPresent()) {
+            return stdOperator.get();
+        }
+
+        throw new TableException(
+                String.format(
+                        "Could not resolve internal system function '%s'. "
+                                + "This is a bug, please file an issue.",
+                        sqlKind.name()));
     }
 
     private static SqlOperator deserializeFunctionClass(
@@ -504,6 +530,26 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             }
             return Optional.empty();
         }
+    }
+
+    private static Optional<SqlOperator> lookupOptionalSqlStdOperator(
+            String operatorName, SqlSyntax syntax, @Nullable SqlKind sqlKind) {
+        List<SqlOperator> foundOperators = new ArrayList<>();
+        // try to find operator from std operator table.
+        SqlStdOperatorTable.instance()
+                .lookupOperatorOverloads(
+                        new SqlIdentifier(operatorName, new SqlParserPos(0, 0)),
+                        null, // category
+                        syntax,
+                        foundOperators,
+                        SqlNameMatchers.liberal());
+        if (foundOperators.size() == 1) {
+            return Optional.of(foundOperators.get(0));
+        }
+        // in case different operator has the same kind, check with both name and kind.
+        return foundOperators.stream()
+                .filter(o -> sqlKind != null && o.getKind() == sqlKind)
+                .findFirst();
     }
 
     private static TableException missingSystemFunction(String systemName) {

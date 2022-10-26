@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -23,27 +22,26 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFuncti
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchPhysicalValues}
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexLiteral, RexUtil}
 
 /**
-  * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
-  * {{{
-  *                         [[BatchPhysicalCorrelate]]
-  *                            /             \
-  * empty [[BatchPhysicalValuesRule]]  [[FlinkLogicalTableFunctionScan]]
-  * }}}
-  *
-  * Add the rule to support select from a UDF directly, such as the following SQL:
-  * SELECT * FROM LATERAL TABLE(func()) as T(c)
-  *
-  * Note: [[BatchPhysicalCorrelateRule]] is responsible for converting a reasonable physical plan
-  * for the normal correlate query, such as the following SQL:
-  * example1: SELECT * FROM T, LATERAL TABLE(func()) as T(c)
-  * example2: SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)
-  */
+ * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
+ * {{{
+ *                         [[BatchPhysicalCorrelate]]
+ *                            /             \
+ * empty [[BatchPhysicalValuesRule]]  [[FlinkLogicalTableFunctionScan]]
+ * }}}
+ *
+ * Add the rule to support select from a UDF directly, such as the following SQL: SELECT * FROM
+ * LATERAL TABLE(func()) as T(c)
+ *
+ * Note: [[BatchPhysicalCorrelateRule]] is responsible for converting a reasonable physical plan for
+ * the normal correlate query, such as the following SQL: example1: SELECT * FROM T, LATERAL
+ * TABLE(func()) as T(c) example2: SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)
+ */
 class BatchPhysicalConstantTableFunctionScanRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalTableFunctionScan], any),

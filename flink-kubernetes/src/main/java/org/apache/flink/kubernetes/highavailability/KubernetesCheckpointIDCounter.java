@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.kubernetes.utils.Constants.CHECKPOINT_COUNTER_KEY;
@@ -71,25 +73,32 @@ public class KubernetesCheckpointIDCounter implements CheckpointIDCounter {
     }
 
     @Override
-    public void shutdown(JobStatus jobStatus) {
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
         if (!running) {
-            return;
+            return FutureUtils.completedVoidFuture();
         }
         running = false;
 
         LOG.info("Shutting down.");
         if (jobStatus.isGloballyTerminalState()) {
             LOG.info("Removing counter from ConfigMap {}", configMapName);
-            kubeClient.checkAndUpdateConfigMap(
-                    configMapName,
-                    configMap -> {
-                        if (isValidOperation(configMap)) {
-                            configMap.getData().remove(CHECKPOINT_COUNTER_KEY);
-                            return Optional.of(configMap);
-                        }
-                        return Optional.empty();
-                    });
+            return kubeClient
+                    .checkAndUpdateConfigMap(
+                            configMapName,
+                            configMap -> {
+                                if (isValidOperation(configMap)) {
+                                    configMap.getData().remove(CHECKPOINT_COUNTER_KEY);
+                                    return Optional.of(configMap);
+                                }
+                                return Optional.empty();
+                            })
+                    // checkAndUpdateConfigMap only returns false if the callback returned an empty
+                    // ConfigMap. We don't want to continue the cleanup in that case, i.e. we can
+                    // ignore the return value
+                    .thenApply(valueChanged -> null);
         }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     private boolean isValidOperation(KubernetesConfigMap configMap) {

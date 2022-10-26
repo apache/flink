@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS
 import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.plan.rules.logical.{AggregateReduceGroupingRule, FlinkAggregateJoinTransposeRule}
@@ -36,16 +35,16 @@ import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 class AggregateJoinTransposeITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
     super.before()
-    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig.getConfiguration)
+    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig)
     // remove FlinkAggregateJoinTransposeRule from logical program (volcano planner)
-    programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
+    programs
+      .getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
       .getOrElse(throw new TableException(s"${FlinkBatchProgram.LOGICAL} does not exist"))
       .remove(RuleSets.ofList(FlinkAggregateJoinTransposeRule.EXTENDED))
 
@@ -54,39 +53,47 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
     programs.addBefore(
       FlinkBatchProgram.LOGICAL,
       "FlinkAggregateJoinTransposeRule",
-      FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+      FlinkGroupProgramBuilder
+        .newBuilder[BatchOptimizeContext]
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(RuleSets.ofList(
               AggregateReduceGroupingRule.INSTANCE
-            )).build(), "reduce unless grouping")
+            ))
+            .build(),
+          "reduce unless grouping"
+        )
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(RuleSets.ofList(
-              AggregateReduceGroupingRule.INSTANCE,
-              CoreRules.AGGREGATE_PROJECT_MERGE,
-              FlinkAggregateJoinTransposeRule.EXTENDED
-            )).build(), "aggregate join transpose")
+            .add(
+              RuleSets.ofList(
+                AggregateReduceGroupingRule.INSTANCE,
+                CoreRules.AGGREGATE_PROJECT_MERGE,
+                FlinkAggregateJoinTransposeRule.EXTENDED
+              ))
+            .build(),
+          "aggregate join transpose"
+        )
         .build()
     )
     var calciteConfig = TableConfigUtils.getCalciteConfig(tEnv.getConfig)
-    calciteConfig = CalciteConfig.createBuilder(calciteConfig)
-      .replaceBatchProgram(programs).build()
+    calciteConfig = CalciteConfig
+      .createBuilder(calciteConfig)
+      .replaceBatchProgram(programs)
+      .build()
     tEnv.getConfig.setPlannerConfig(calciteConfig)
 
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
     tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
     registerCollection("T3", data3, type3, "a, b, c", nullablesOfData3)
 
-    registerCollection("MyTable",
-      Seq(row(1, 1L, "X"),
-        row(1, 2L, "Y"),
-        row(2, 3L, null),
-        row(2, 4L, "Z")),
+    registerCollection(
+      "MyTable",
+      Seq(row(1, 1L, "X"), row(1, 2L, "Y"), row(2, 3L, null), row(2, 4L, "Z")),
       new RowTypeInfo(Types.INT, Types.LONG, Types.STRING),
       "a2, b2, c2",
       Array(true, true, true),
@@ -115,9 +122,18 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
     checkResult(
       "SELECT MIN(a2), MIN(b2), a, b, COUNT(c2) FROM " +
         "(SELECT * FROM MyTable, T3 WHERE b2 = b) t GROUP BY b, a",
-      Seq(row(1, 1, 1, 1, 1), row(1, 2, 2, 2, 1), row(1, 2, 3, 2, 1),
-        row(2, 3, 4, 3, 0), row(2, 3, 5, 3, 0), row(2, 3, 6, 3, 0),
-        row(2, 4, 10, 4, 1), row(2, 4, 7, 4, 1), row(2, 4, 8, 4, 1), row(2, 4, 9, 4, 1))
+      Seq(
+        row(1, 1, 1, 1, 1),
+        row(1, 2, 2, 2, 1),
+        row(1, 2, 3, 2, 1),
+        row(2, 3, 4, 3, 0),
+        row(2, 3, 5, 3, 0),
+        row(2, 3, 6, 3, 0),
+        row(2, 4, 10, 4, 1),
+        row(2, 4, 7, 4, 1),
+        row(2, 4, 8, 4, 1),
+        row(2, 4, 9, 4, 1)
+      )
     )
   }
 
@@ -129,7 +145,8 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE b2 = b
         |) GROUP BY a2, b2, c2
       """.stripMargin,
-      Seq(row(1, 1, "X", 1), row(1, 2, "Y", 5), row(2, 3, null, 15), row(2, 4, "Z", 34)))
+      Seq(row(1, 1, "X", 1), row(1, 2, "Y", 5), row(2, 3, null, 15), row(2, 4, "Z", 34))
+    )
 
     checkResult(
       """
@@ -137,8 +154,8 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE b2 = b
         |) GROUP BY a2, b2, c2
       """.stripMargin,
-      Seq(row(1, 1, "X", 1, 1), row(1, 2, "Y", 5, 2),
-        row(2, 3, null, 15, 3), row(2, 4, "Z", 34, 4)))
+      Seq(row(1, 1, "X", 1, 1), row(1, 2, "Y", 5, 2), row(2, 3, null, 15, 3), row(2, 4, "Z", 34, 4))
+    )
   }
 
   @Test
@@ -149,10 +166,19 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE b2 = b
         |) GROUP BY a2, b2, c
       """.stripMargin,
-      Seq(row(1, 1, "Hi", 1), row(1, 2, "Hello world", 3), row(1, 2, "Hello", 2),
-        row(2, 3, "Hello world, how are you?", 4), row(2, 3, "I am fine.", 5),
-        row(2, 3, "Luke Skywalker", 6), row(2, 4, "Comment#1", 7), row(2, 4, "Comment#2", 8),
-        row(2, 4, "Comment#3", 9), row(2, 4, "Comment#4", 10)))
+      Seq(
+        row(1, 1, "Hi", 1),
+        row(1, 2, "Hello world", 3),
+        row(1, 2, "Hello", 2),
+        row(2, 3, "Hello world, how are you?", 4),
+        row(2, 3, "I am fine.", 5),
+        row(2, 3, "Luke Skywalker", 6),
+        row(2, 4, "Comment#1", 7),
+        row(2, 4, "Comment#2", 8),
+        row(2, 4, "Comment#3", 9),
+        row(2, 4, "Comment#4", 10)
+      )
+    )
 
     checkResult(
       """
@@ -160,10 +186,19 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE b2 = b
         |) GROUP BY a2, b2, c
       """.stripMargin,
-      Seq(row(1, 1, "Hi", 1, 1), row(1, 2, "Hello world", 3, 2), row(1, 2, "Hello", 2, 2),
-        row(2, 3, "Hello world, how are you?", 4, 3), row(2, 3, "I am fine.", 5, 3),
-        row(2, 3, "Luke Skywalker", 6, 3), row(2, 4, "Comment#1", 7, 4),
-        row(2, 4, "Comment#2", 8, 4), row(2, 4, "Comment#3", 9, 4), row(2, 4, "Comment#4", 10, 4)))
+      Seq(
+        row(1, 1, "Hi", 1, 1),
+        row(1, 2, "Hello world", 3, 2),
+        row(1, 2, "Hello", 2, 2),
+        row(2, 3, "Hello world, how are you?", 4, 3),
+        row(2, 3, "I am fine.", 5, 3),
+        row(2, 3, "Luke Skywalker", 6, 3),
+        row(2, 4, "Comment#1", 7, 4),
+        row(2, 4, "Comment#2", 8, 4),
+        row(2, 4, "Comment#3", 9, 4),
+        row(2, 4, "Comment#4", 10, 4)
+      )
+    )
   }
 
   @Test
@@ -174,7 +209,8 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE a2 = a
         |) GROUP BY a2, b2, c2
       """.stripMargin,
-      Seq(row(1, 1, "X", 1), row(1, 2, "Y", 1), row(2, 3, null, 2), row(2, 4, "Z", 2)))
+      Seq(row(1, 1, "X", 1), row(1, 2, "Y", 1), row(2, 3, null, 2), row(2, 4, "Z", 2))
+    )
 
     checkResult(
       """
@@ -182,7 +218,8 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE a2 = a
         |) GROUP BY a2, b2, c2
       """.stripMargin,
-      Seq(row(1, 1, "X", 1, 1), row(1, 2, "Y", 1, 1), row(2, 3, null, 2, 1), row(2, 4, "Z", 2, 1)))
+      Seq(row(1, 1, "X", 1, 1), row(1, 2, "Y", 1, 1), row(2, 3, null, 2, 1), row(2, 4, "Z", 2, 1))
+    )
   }
 
   @Test
@@ -193,7 +230,8 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE a2 = a
         |) GROUP BY a2, b2, c
       """.stripMargin,
-      Seq(row(1, 1, "Hi", 1), row(1, 2, "Hi", 1), row(2, 3, "Hello", 2), row(2, 4, "Hello", 2)))
+      Seq(row(1, 1, "Hi", 1), row(1, 2, "Hi", 1), row(2, 3, "Hello", 2), row(2, 4, "Hello", 2))
+    )
 
     checkResult(
       """
@@ -201,8 +239,12 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
         | SELECT * FROM MyTable, T3 WHERE a2 = a
         |) GROUP BY a2, b2, c
       """.stripMargin,
-      Seq(row(1, 1, "Hi", 1, 1), row(1, 2, "Hi", 1, 1),
-        row(2, 3, "Hello", 2, 2), row(2, 4, "Hello", 2, 2)))
+      Seq(
+        row(1, 1, "Hi", 1, 1),
+        row(1, 2, "Hi", 1, 1),
+        row(2, 3, "Hello", 2, 2),
+        row(2, 4, "Hello", 2, 2))
+    )
   }
 
 }

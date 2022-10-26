@@ -34,6 +34,23 @@ Calc(select=[f0 AS EXPR$0, CAST(2 AS INTEGER) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testExpressionReductionWithRand">
+    <Resource name="sql">
+      <![CDATA[SELECT RAND(), RAND(), RAND(1), RAND(1), RAND_INTEGER(3), RAND_INTEGER(3) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[RAND()], EXPR$1=[RAND()], EXPR$2=[RAND(1)], EXPR$3=[RAND(1)], EXPR$4=[RAND_INTEGER(3)], EXPR$5=[RAND_INTEGER(3)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[RAND() AS EXPR$0, RAND() AS EXPR$1, RAND(1) AS EXPR$2, RAND(1) AS EXPR$3, RAND_INTEGER(3) AS EXPR$4, RAND_INTEGER(3) AS EXPR$5])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExpressionReductionWithUDF">
     <Resource name="sql">
       <![CDATA[SELECT MyUdf(1) FROM MyTable]]>

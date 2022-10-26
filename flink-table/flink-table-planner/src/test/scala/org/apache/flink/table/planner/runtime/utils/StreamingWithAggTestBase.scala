@@ -32,9 +32,10 @@ import java.util
 import scala.collection.JavaConversions._
 
 class StreamingWithAggTestBase(
-  aggMode: AggMode,
-  miniBatch: MiniBatchMode,
-  backend: StateBackendMode) extends StreamingWithMiniBatchTestBase(miniBatch, backend) {
+    aggMode: AggMode,
+    miniBatch: MiniBatchMode,
+    backend: StateBackendMode)
+  extends StreamingWithMiniBatchTestBase(miniBatch, backend) {
 
   @Before
   override def before(): Unit = {
@@ -70,6 +71,7 @@ object StreamingWithAggTestBase {
       Array(LocalGlobalOn, MiniBatchOn, HEAP_BACKEND),
       Array(LocalGlobalOff, MiniBatchOff, ROCKSDB_BACKEND),
       Array(LocalGlobalOff, MiniBatchOn, ROCKSDB_BACKEND),
-      Array(LocalGlobalOn, MiniBatchOn, ROCKSDB_BACKEND))
+      Array(LocalGlobalOn, MiniBatchOn, ROCKSDB_BACKEND)
+    )
   }
 }

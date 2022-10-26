@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.reader.fetcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
@@ -57,8 +58,9 @@ public abstract class PulsarFetcherManagerBase<T>
      */
     protected PulsarFetcherManagerBase(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<T>>> elementsQueue,
-            Supplier<SplitReader<PulsarMessage<T>, PulsarPartitionSplit>> splitReaderSupplier) {
-        super(elementsQueue, splitReaderSupplier);
+            Supplier<SplitReader<PulsarMessage<T>, PulsarPartitionSplit>> splitReaderSupplier,
+            Configuration configuration) {
+        super(elementsQueue, splitReaderSupplier, configuration);
     }
 
     /**
@@ -81,6 +83,18 @@ public abstract class PulsarFetcherManagerBase<T>
         if (fetcherStatus.get(fetcher.fetcherId()) != Boolean.TRUE) {
             fetcherStatus.put(fetcher.fetcherId(), true);
             super.startFetcher(fetcher);
+        }
+    }
+
+    /** Close the finished split related fetcher. */
+    public void closeFetcher(String splitId) {
+        Integer fetchId = splitFetcherMapping.remove(splitId);
+        if (fetchId != null) {
+            fetcherStatus.remove(fetchId);
+            SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> fetcher = fetchers.remove(fetchId);
+            if (fetcher != null) {
+                fetcher.shutdown();
+            }
         }
     }
 

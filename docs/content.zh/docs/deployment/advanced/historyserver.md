@@ -81,6 +81,22 @@ historyserver.archive.fs.refresh-interval: 10000
 
 请查看配置页面以获取[配置选项的完整列表]({{< ref "docs/deployment/config" >}}#history-server)。
 
+## 日志集成
+
+Flink 本身并不提供已完成作业的日志收集功能。
+但是，如果你已经有了日志收集与浏览服务，可以配置 HistoryServer 与其集成。
+（通过[`historyserver.log.jobmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-jobmanager-url-pattern)
+和 [`historyserver.log.taskmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-taskmanager-url-pattern)）。
+如此一来，你可以从 HistoryServer 的 WebUI 直接链接到相关 JobManager / TaskManager 的日志。
+
+```yaml
+# HistoryServer 会将 <jobid> 替换为对应作业的 ID
+historyserver.log.jobmanager.url-pattern: http://my.log-browsing.url/<jobid>
+
+# HistoryServer 会将 <jobid> 和 <tmid> 替换为对应作业和 TaskManager 的 ID
+historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<tmid>
+```
+
 <a name="available-requests"></a>
 
 ## 可用的请求
@@ -105,5 +121,9 @@ historyserver.archive.fs.refresh-interval: 10000
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>/accumulators`
   - `/jobs/<jobid>/plan`
+  - `/jobs/<jobid>/jobmanager/config`
+  - `/jobs/<jobid>/jobmanager/environment`
+  - `/jobs/<jobid>/jobmanager/log-url`
+  - `/jobs/<jobid>/taskmanagers/<taskmanagerid>/log-url`
 
 {{< top >}}

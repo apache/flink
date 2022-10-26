@@ -258,6 +258,8 @@
     },
     "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
+    "lookupKeyContainsPrimaryKey" : false,
+    "inputChangelogMode" : [ "INSERT" ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -302,7 +304,7 @@
         "fieldType" : "INT"
       } ]
     },
-    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])"
+    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])"
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
@@ -378,6 +380,12 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

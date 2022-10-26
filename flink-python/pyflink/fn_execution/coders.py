@@ -18,8 +18,10 @@
 
 import os
 from abc import ABC, abstractmethod
+from typing import Union
 
 import pytz
+from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 
 from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
     TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
@@ -79,12 +81,12 @@ class LengthPrefixBaseCoder(ABC):
             field_names = [f.name for f in schema_proto.fields]
             return RowCoder(field_coders, field_names)
         elif coder_info_descriptor_proto.HasField('arrow_type'):
-            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
         elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
-            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return OverWindowArrowCoder(
@@ -585,6 +587,15 @@ class CountWindowCoder(FieldCoder):
         return coder_impl.CountWindowCoderImpl()
 
 
+class GlobalWindowCoder(FieldCoder):
+    """
+    Coder for GlobalWindow.
+    """
+
+    def get_impl(self):
+        return coder_impl.GlobalWindowCoderImpl()
+
+
 class DataViewFilterCoder(FieldCoder):
     """
     Coder for data view filter.
@@ -595,6 +606,38 @@ class DataViewFilterCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.DataViewFilterCoderImpl(self._udf_data_view_specs)
+
+
+class AvroCoder(FieldCoder):
+
+    def __init__(self, schema: Union[str, AvroSchema]):
+        if isinstance(schema, str):
+            self._schema_string = schema
+        elif isinstance(schema, AvroSchema):
+            self._schema_string = str(schema)
+        else:
+            raise ValueError('schema for AvroCoder must be string or AvroSchema')
+
+    def get_impl(self):
+        return coder_impl.AvroCoderImpl(self._schema_string)
+
+
+class LocalDateCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalDateCoderImpl()
+
+
+class LocalTimeCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalTimeCoderImpl()
+
+
+class LocalDateTimeCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalDateTimeCoderImpl()
 
 
 def from_proto(field_type):
@@ -633,7 +676,7 @@ def from_proto(field_type):
     if field_type_name == type_name.TIMESTAMP:
         return TimestampCoder(field_type.timestamp_info.precision)
     if field_type_name == type_name.LOCAL_ZONED_TIMESTAMP:
-        timezone = pytz.timezone(os.environ['table.exec.timezone'])
+        timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
         return LocalZonedTimestampCoder(field_type.local_zoned_timestamp_info.precision, timezone)
     elif field_type_name == type_name.BASIC_ARRAY:
         return GenericArrayCoder(from_proto(field_type.collection_element_type))
@@ -668,7 +711,10 @@ def from_type_info_proto(type_info):
         type_info_name.SQL_TIME: TimeCoder(),
         type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
         type_info_name.PICKLED_BYTES: CloudPickleCoder(),
-        type_info_name.INSTANT: InstantCoder()
+        type_info_name.INSTANT: InstantCoder(),
+        type_info_name.LOCAL_DATE: LocalDateCoder(),
+        type_info_name.LOCAL_TIME: LocalTimeCoder(),
+        type_info_name.LOCAL_DATETIME: LocalDateTimeCoder(),
     }
 
     field_type_name = type_info.type_name
@@ -679,13 +725,17 @@ def from_type_info_proto(type_info):
             return RowCoder(
                 [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
                 [f.field_name for f in type_info.row_type_info.fields])
-        elif field_type_name == type_info_name.PRIMITIVE_ARRAY:
+        elif field_type_name in (
+            type_info_name.PRIMITIVE_ARRAY,
+            type_info_name.LIST,
+        ):
             if type_info.collection_element_type.type_name == type_info_name.BYTE:
                 return BinaryCoder()
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
-        elif field_type_name in (type_info_name.BASIC_ARRAY,
-                                 type_info_name.OBJECT_ARRAY,
-                                 type_info_name.LIST):
+        elif field_type_name in (
+            type_info_name.BASIC_ARRAY,
+            type_info_name.OBJECT_ARRAY,
+        ):
             return GenericArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(field_type)
@@ -693,6 +743,12 @@ def from_type_info_proto(type_info):
         elif field_type_name == type_info_name.MAP:
             return MapCoder(from_type_info_proto(type_info.map_type_info.key_type),
                             from_type_info_proto(type_info.map_type_info.value_type))
+        elif field_type_name == type_info_name.AVRO:
+            return AvroCoder(type_info.avro_type_info.schema)
+        elif field_type_name == type_info_name.LOCAL_ZONED_TIMESTAMP:
+            return LocalZonedTimestampCoder(
+                3, timezone=pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
+            )
         else:
             raise ValueError("Unsupported type_info %s." % type_info)
 
@@ -750,5 +806,7 @@ def from_type_info(type_info: TypeInformation) -> FieldCoder:
             [f for f in type_info.get_field_names()])
     elif isinstance(type_info, ExternalTypeInfo):
         return from_type_info(type_info._type_info)
+    elif isinstance(type_info, GenericRecordAvroTypeInfo):
+        return AvroCoder(type_info._schema)
     else:
         raise ValueError("Unsupported type_info %s." % type_info)

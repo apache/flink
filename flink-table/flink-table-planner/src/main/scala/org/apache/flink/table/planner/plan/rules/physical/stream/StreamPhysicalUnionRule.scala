@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -28,9 +27,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 import scala.collection.JavaConversions._
 
-/**
-  * Rule that converts [[FlinkLogicalUnion]] to [[StreamPhysicalUnion]].
-  */
+/** Rule that converts [[FlinkLogicalUnion]] to [[StreamPhysicalUnion]]. */
 class StreamPhysicalUnionRule
   extends ConverterRule(
     classOf[FlinkLogicalUnion],
@@ -47,12 +44,7 @@ class StreamPhysicalUnionRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInputs = union.getInputs.map(RelOptRule.convert(_, FlinkConventions.STREAM_PHYSICAL))
 
-    new StreamPhysicalUnion(
-      rel.getCluster,
-      traitSet,
-      newInputs,
-      union.all,
-      rel.getRowType)
+    new StreamPhysicalUnion(rel.getCluster, traitSet, newInputs, union.all, rel.getRowType)
   }
 }
 

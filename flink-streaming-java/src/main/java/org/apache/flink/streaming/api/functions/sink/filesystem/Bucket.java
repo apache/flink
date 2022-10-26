@@ -142,6 +142,7 @@ public class Bucket<IN, BucketID> {
                             bucketId,
                             inProgressFileRecoverable,
                             state.getInProgressFileCreationTime());
+            inProgressFileRecoverablesPerCheckpoint.put(Long.MIN_VALUE, inProgressFileRecoverable);
         } else {
             // if the writer does not support resume, then we close the
             // in-progress part and commit it, as done in the case of pending files.

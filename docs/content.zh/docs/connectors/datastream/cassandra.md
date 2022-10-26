@@ -109,7 +109,7 @@ More details on [checkpoints docs]({{< ref "docs/dev/datastream/fault-tolerance/
 
 ## Examples
 
-The Cassandra sink currently supports both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use of those streaming data types, please refer to [Supported Data Types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#supported-data-types). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for POJO and Tuple data types respectively.
+The Cassandra sink currently supports both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use of those streaming data types, please refer to [Supported Data Types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#supported-data-types). We show two implementations based on {{< gh_link file="flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java" name="SocketWindowWordCount" >}}, for POJO and Tuple data types respectively.
 
 In all these examples, we assumed the associated Keyspace `example` and Table `wordcount` have been created.
 

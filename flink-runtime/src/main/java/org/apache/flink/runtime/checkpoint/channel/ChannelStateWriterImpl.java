@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -31,6 +32,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -172,6 +175,22 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
     }
 
     @Override
+    public void addOutputDataFuture(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            int startSeqNum,
+            CompletableFuture<List<Buffer>> dataFuture)
+            throws IllegalArgumentException {
+        LOG.trace(
+                "{} adding output data future, checkpoint {}, channel: {}, startSeqNum: {}",
+                taskName,
+                checkpointId,
+                info,
+                startSeqNum);
+        enqueue(write(checkpointId, info, dataFuture), false);
+    }
+
+    @Override
     public void finishInput(long checkpointId) {
         LOG.debug("{} finishing input data, checkpoint {}", taskName, checkpointId);
         enqueue(completeInput(checkpointId), false);
@@ -203,6 +222,12 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 result != null,
                 taskName + " channel state write result not found for checkpoint " + checkpointId);
         return result;
+    }
+
+    // just for test
+    @VisibleForTesting
+    public ChannelStateWriteResult getWriteResult(long checkpointId) {
+        return results.get(checkpointId);
     }
 
     public void open() {

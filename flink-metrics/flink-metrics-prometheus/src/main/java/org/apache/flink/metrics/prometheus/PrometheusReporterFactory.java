@@ -18,7 +18,6 @@
 package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.util.NetUtils;
 
@@ -26,8 +25,6 @@ import java.util.Iterator;
 import java.util.Properties;
 
 /** {@link MetricReporterFactory} for {@link PrometheusReporter}. */
-@InterceptInstantiationViaReflection(
-        reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusReporter")
 public class PrometheusReporterFactory implements MetricReporterFactory {
 
     static final String ARG_PORT = "port";

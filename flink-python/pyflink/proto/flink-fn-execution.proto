@@ -310,6 +310,11 @@ message TypeInfo {
     PICKLED_BYTES = 20;
     OBJECT_ARRAY = 21;
     INSTANT = 22;
+    AVRO = 23;
+    LOCAL_DATE = 24;
+    LOCAL_TIME = 25;
+    LOCAL_DATETIME = 26;
+    LOCAL_ZONED_TIMESTAMP = 27;
   }
 
   message MapTypeInfo {
@@ -329,12 +334,17 @@ message TypeInfo {
     repeated TypeInfo field_types = 1;
   }
 
+  message AvroTypeInfo {
+    string schema = 1;
+  }
+
   TypeName type_name = 1;
   oneof type_info {
     TypeInfo collection_element_type = 2;
     RowTypeInfo row_type_info = 3;
     TupleTypeInfo tuple_type_info = 4;
     MapTypeInfo map_type_info = 5;
+    AvroTypeInfo avro_type_info = 6;
   }
 }
 
@@ -346,6 +356,8 @@ message UserDefinedDataStreamFunction {
     KEYED_PROCESS = 2;
     KEYED_CO_PROCESS = 3;
     WINDOW = 4;
+    CO_BROADCAST_PROCESS = 5;
+    KEYED_CO_BROADCAST_PROCESS = 6;
     REVISE_OUTPUT = 100;
   }
 
@@ -371,6 +383,14 @@ message UserDefinedDataStreamFunction {
   bool metric_enabled = 4;
   TypeInfo key_type_info = 5;
   bool profile_enabled = 6;
+  bool has_side_output = 7;
+
+  // The state cache size.
+  int32 state_cache_size = 8;
+  // The map state read cache size.
+  int32 map_state_read_cache_size = 9;
+  // The map_state_write_cache_size.
+  int32 map_state_write_cache_size = 10;
 }
 
 // A representation of State

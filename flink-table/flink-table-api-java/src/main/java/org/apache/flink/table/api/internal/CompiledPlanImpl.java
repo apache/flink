@@ -54,10 +54,7 @@ class CompiledPlanImpl implements CompiledPlan {
         internalPlan.writeToFile(
                 file,
                 ignoreIfExists,
-                !tableEnvironment
-                        .getConfig()
-                        .getConfiguration()
-                        .get(TableConfigOptions.PLAN_FORCE_RECOMPILE));
+                !tableEnvironment.getConfig().get(TableConfigOptions.PLAN_FORCE_RECOMPILE));
     }
 
     @Override

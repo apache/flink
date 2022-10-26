@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
@@ -26,8 +25,8 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
@@ -43,7 +42,7 @@ class FlinkLogicalWindowAggregate(
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties)
   with FlinkLogicalRel {
 

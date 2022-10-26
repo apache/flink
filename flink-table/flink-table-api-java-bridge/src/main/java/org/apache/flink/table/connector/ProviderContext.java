@@ -38,8 +38,8 @@ public interface ProviderContext {
      * The {@code name} must be unique within the provider implementation. The framework will make
      * sure that the name is unique for the entire topology.
      *
-     * <p>This method returns empty if an identifier cannot be generated, i.e. because the job is in
-     * batch mode.
+     * <p>This method returns empty if an identifier cannot be generated, i.e., because the job is
+     * in batch mode, or UIDs cannot be guaranteed to be unique.
      */
     Optional<String> generateUid(String name);
 }

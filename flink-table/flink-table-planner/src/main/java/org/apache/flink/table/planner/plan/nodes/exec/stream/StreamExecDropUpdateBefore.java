@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -57,10 +58,14 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
     public static final String DROP_UPDATE_BEFORE_TRANSFORMATION = "drop-update-before";
 
     public StreamExecDropUpdateBefore(
-            InputProperty inputProperty, RowType outputType, String description) {
+            ReadableConfig tableConfig,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecDropUpdateBefore.class),
+                ExecNodeContext.newPersistedConfig(StreamExecDropUpdateBefore.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -70,10 +75,11 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
     public StreamExecDropUpdateBefore(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
     }
 
     @SuppressWarnings("unchecked")

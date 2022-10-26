@@ -34,6 +34,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
@@ -99,7 +100,9 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class RexNodeJsonSerdeTest {
 
-    private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    RexNodeJsonSerdeTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
     private static final String FUNCTION_NAME = "MyFunc";
     private static final FunctionIdentifier FUNCTION_SYS_ID = FunctionIdentifier.of(FUNCTION_NAME);
     private static final FunctionIdentifier FUNCTION_CAT_ID =

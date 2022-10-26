@@ -37,6 +37,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -56,7 +57,7 @@ public class TaskMetricGroupTest extends TestLogger {
     @After
     public void teardown() throws Exception {
         if (registry != null) {
-            registry.shutdown().get();
+            registry.closeAsync().get();
         }
     }
 
@@ -72,7 +73,7 @@ public class TaskMetricGroupTest extends TestLogger {
 
         TaskMetricGroup taskGroup =
                 tmGroup.addJob(new JobID(), "myJobName")
-                        .addTask(new JobVertexID(), new ExecutionAttemptID(), "aTaskName", 13, 2);
+                        .addTask(createExecutionAttemptId(new JobVertexID(), 13, 2), "aTaskName");
 
         assertArrayEquals(
                 new String[] {
@@ -97,14 +98,14 @@ public class TaskMetricGroupTest extends TestLogger {
 
         JobID jid = new JobID();
         JobVertexID vertexId = new JobVertexID();
-        ExecutionAttemptID executionId = new ExecutionAttemptID();
+        ExecutionAttemptID executionId = createExecutionAttemptId(vertexId, 13, 2);
 
         TaskManagerMetricGroup tmGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "theHostName", new ResourceID("test-tm-id"));
 
         TaskMetricGroup taskGroup =
-                tmGroup.addJob(jid, "myJobName").addTask(vertexId, executionId, "aTaskName", 13, 2);
+                tmGroup.addJob(jid, "myJobName").addTask(executionId, "aTaskName");
 
         assertArrayEquals(
                 new String[] {
@@ -115,7 +116,7 @@ public class TaskMetricGroupTest extends TestLogger {
         assertEquals(
                 String.format("test-tm-id.%s.%s.%s.name", jid, vertexId, executionId),
                 taskGroup.getMetricIdentifier("name"));
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -125,15 +126,14 @@ public class TaskMetricGroupTest extends TestLogger {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 
-        ExecutionAttemptID executionId = new ExecutionAttemptID();
+        ExecutionAttemptID executionId = createExecutionAttemptId(new JobVertexID(), 13, 1);
 
         TaskManagerMetricGroup tmGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "theHostName", new ResourceID("test-tm-id"));
 
         TaskMetricGroup taskGroup =
-                tmGroup.addJob(new JobID(), "myJobName")
-                        .addTask(new JobVertexID(), executionId, "aTaskName", 13, 1);
+                tmGroup.addJob(new JobID(), "myJobName").addTask(executionId, "aTaskName");
 
         assertArrayEquals(
                 new String[] {
@@ -149,19 +149,19 @@ public class TaskMetricGroupTest extends TestLogger {
         assertEquals(
                 "theHostName.taskmanager.test-tm-id.myJobName." + executionId + ".13.name",
                 taskGroup.getMetricIdentifier("name"));
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
     public void testCreateQueryServiceMetricInfo() {
         JobID jid = new JobID();
         JobVertexID vid = new JobVertexID();
-        ExecutionAttemptID eid = new ExecutionAttemptID();
+        ExecutionAttemptID eid = createExecutionAttemptId(vid, 4, 5);
         TaskManagerMetricGroup tm =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
 
-        TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(vid, eid, "taskName", 4, 5);
+        TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(eid, "taskName");
 
         QueryScopeInfo.TaskQueryScopeInfo info =
                 task.createQueryServiceMetricInfo(new DummyCharacterFilter());
@@ -182,7 +182,7 @@ public class TaskMetricGroupTest extends TestLogger {
         TaskMetricGroup taskMetricGroup =
                 taskManagerMetricGroup
                         .addJob(new JobID(), "job")
-                        .addTask(new JobVertexID(), new ExecutionAttemptID(), "task", 0, 0);
+                        .addTask(createExecutionAttemptId(), "task");
 
         // the io metric should have registered predefined metrics
         assertTrue(registry.getNumberRegisteredMetrics() > initialMetricsCount);
@@ -192,7 +192,7 @@ public class TaskMetricGroupTest extends TestLogger {
         // now all registered metrics should have been unregistered
         assertEquals(initialMetricsCount, registry.getNumberRegisteredMetrics());
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -206,8 +206,7 @@ public class TaskMetricGroupTest extends TestLogger {
                         registry, "host", new ResourceID("id"));
 
         TaskMetricGroup taskMetricGroup =
-                tm.addJob(new JobID(), "jobname")
-                        .addTask(new JobVertexID(), new ExecutionAttemptID(), "task", 0, 0);
+                tm.addJob(new JobID(), "jobname").addTask(createExecutionAttemptId(), "task");
 
         String originalName = new String(new char[100]).replace("\0", "-");
         InternalOperatorMetricGroup operatorMetricGroup =
@@ -218,7 +217,7 @@ public class TaskMetricGroupTest extends TestLogger {
         Assert.assertEquals(
                 originalName.substring(0, TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH),
                 storedName);
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     private static class CountingMetricRegistry extends MetricRegistryImpl {

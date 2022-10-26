@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -62,7 +61,6 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -886,8 +884,7 @@ public class StreamTaskFinalCheckpointsTest {
             CommonTestUtils.waitUntilCondition(
                     () ->
                             checkpointResponder.getAcknowledgeLatch().isTriggered()
-                                    || checkpointResponder.getDeclinedLatch().isTriggered(),
-                    Deadline.fromNow(Duration.ofSeconds(10)));
+                                    || checkpointResponder.getDeclinedLatch().isTriggered());
 
             assertEquals(
                     Collections.singletonList(2L),

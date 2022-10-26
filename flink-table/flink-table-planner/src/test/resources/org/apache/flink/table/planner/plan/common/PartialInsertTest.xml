@@ -127,8 +127,8 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
-+- Calc(select=[f0 AS a, f1 AS c, f2 AS d, f3 AS e, f4 AS f, f5 AS g])
-   +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,a,c,d,e,f,g))], select=[sum_vcol_marker,a,c,d,e,f,g,f0,f1,f2,f3,f4,f5], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER f0, VARCHAR(2147483647) f1, VARCHAR(2147483647) f2, DOUBLE f3, BIGINT f4, INTEGER f5)], joinType=[INNER])
++- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+   +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,a,c,d,e,f,g))], select=[sum_vcol_marker,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
       +- Calc(select=[sum_vcol_marker, a, c, d, e, f, g], where=[>(sum_vcol_marker, 0)])
          +- GroupAggregate(groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, SUM_RETRACT(vcol_marker) AS sum_vcol_marker])
             +- Exchange(distribution=[hash[a, c, d, e, f, g]])
@@ -165,8 +165,8 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a
       <![CDATA[
 Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
 +- Sort(orderBy=[c ASC, d ASC])
-   +- Calc(select=[f0 AS a, f1 AS c, f2 AS d, f3 AS e, f4 AS f, f5 AS g])
-      +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,a,c,d,e,f,g))], select=[sum_vcol_marker,a,c,d,e,f,g,f0,f1,f2,f3,f4,f5], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER f0, VARCHAR(2147483647) f1, VARCHAR(2147483647) f2, DOUBLE f3, BIGINT f4, INTEGER f5)], joinType=[INNER])
+   +- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+      +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,a,c,d,e,f,g))], select=[sum_vcol_marker,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
          +- Calc(select=[sum_vcol_marker, a, c, d, e, f, g], where=[>(sum_vcol_marker, 0)])
             +- HashAggregate(isMerge=[true], groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, Final_SUM(sum$0) AS sum_vcol_marker])
                +- Exchange(distribution=[hash[a, c, d, e, f, g]])
@@ -205,8 +205,8 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
-+- Calc(select=[f0 AS a, f1 AS c, f2 AS d, f3 AS e, f4 AS f, f5 AS g])
-   +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1($f0,a,c,d,e,f,g))], select=[$f0,a,c,d,e,f,g,f0,f1,f2,f3,f4,f5], rowType=[RecordType(BIGINT $f0, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER f0, VARCHAR(2147483647) f1, VARCHAR(2147483647) f2, DOUBLE f3, BIGINT f4, INTEGER f5)], joinType=[INNER])
++- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+   +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1($f0,a,c,d,e,f,g))], select=[$f0,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT $f0, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
       +- Calc(select=[IF(>(vcol_left_cnt, vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, a, c, d, e, f, g], where=[AND(>=(vcol_left_cnt, 1), >=(vcol_right_cnt, 1))])
          +- GroupAggregate(groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, COUNT_RETRACT(vcol_left_marker) AS vcol_left_cnt, COUNT_RETRACT(vcol_right_marker) AS vcol_right_cnt])
             +- Exchange(distribution=[hash[a, c, d, e, f, g]])
@@ -243,8 +243,8 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a
       <![CDATA[
 Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
 +- Sort(orderBy=[c ASC, d ASC])
-   +- Calc(select=[f0 AS a, f1 AS c, f2 AS d, f3 AS e, f4 AS f, f5 AS g])
-      +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1($f0,a,c,d,e,f,g))], select=[$f0,a,c,d,e,f,g,f0,f1,f2,f3,f4,f5], rowType=[RecordType(BIGINT $f0, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER f0, VARCHAR(2147483647) f1, VARCHAR(2147483647) f2, DOUBLE f3, BIGINT f4, INTEGER f5)], joinType=[INNER])
+   +- Calc(select=[a0 AS a, c0 AS c, d0 AS d, e0 AS e, f0 AS f, g0 AS g])
+      +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3, $4, $5, $6)], correlate=[table($REPLICATE_ROWS$1($f0,a,c,d,e,f,g))], select=[$f0,a,c,d,e,f,g,a0,c0,d0,e0,f0,g0], rowType=[RecordType(BIGINT $f0, INTEGER a, VARCHAR(2147483647) c, VARCHAR(2147483647) d, DOUBLE e, BIGINT f, INTEGER g, INTEGER a0, VARCHAR(2147483647) c0, VARCHAR(2147483647) d0, DOUBLE e0, BIGINT f0, INTEGER g0)], joinType=[INNER])
          +- Calc(select=[IF(>(vcol_left_cnt, vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, a, c, d, e, f, g], where=[AND(>=(vcol_left_cnt, 1), >=(vcol_right_cnt, 1))])
             +- HashAggregate(isMerge=[true], groupBy=[a, c, d, e, f, g], select=[a, c, d, e, f, g, Final_COUNT(count$0) AS vcol_left_cnt, Final_COUNT(count$1) AS vcol_right_cnt])
                +- Exchange(distribution=[hash[a, c, d, e, f, g]])

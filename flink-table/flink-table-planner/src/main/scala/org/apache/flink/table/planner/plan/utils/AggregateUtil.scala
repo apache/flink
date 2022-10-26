@@ -21,15 +21,15 @@ import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, DeclarativeAggregateFunction, Sum0AggFunction}
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, DeclarativeAggregateFunction, Sum0AggFunction}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
@@ -42,6 +42,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalR
 import org.apache.flink.table.planner.typeutils.DataViewUtils
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.runtime.groupwindow._
@@ -49,18 +50,18 @@ import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigge
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeInferenceUtil
-import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.utils.DataTypeUtils
 
 import org.apache.calcite.rel.`type`._
-import org.apache.calcite.rel.core.Aggregate.AggCallBinding
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.sql.`type`.SqlTypeUtil
+import org.apache.calcite.rel.core.Aggregate.AggCallBinding
+import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
 
 import java.time.Duration
@@ -74,44 +75,48 @@ import scala.collection.mutable.ArrayBuffer
 object AggregateUtil extends Enumeration {
 
   /**
-    * Returns whether any of the aggregates are accurate DISTINCT.
-    *
-    * @return Whether any of the aggregates are accurate DISTINCT
-    */
+   * Returns whether any of the aggregates are accurate DISTINCT.
+   *
+   * @return
+   *   Whether any of the aggregates are accurate DISTINCT
+   */
   def containsAccurateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls.exists(call => call.isDistinct && !call.isApproximate)
   }
 
   /**
-    * Returns whether any of the aggregates are approximate DISTINCT.
-    *
-    * @return Whether any of the aggregates are approximate DISTINCT
-    */
+   * Returns whether any of the aggregates are approximate DISTINCT.
+   *
+   * @return
+   *   Whether any of the aggregates are approximate DISTINCT
+   */
   def containsApproximateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls.exists(call => call.isDistinct && call.isApproximate)
   }
 
-  /**
-    * Returns indices of group functions.
-    */
+  /** Returns indices of group functions. */
   def getGroupIdExprIndexes(aggCalls: Seq[AggregateCall]): Seq[Int] = {
-    aggCalls.zipWithIndex.filter { case (call, _) =>
-      call.getAggregation.getKind match {
-        case SqlKind.GROUP_ID | SqlKind.GROUPING | SqlKind.GROUPING_ID => true
-        case _ => false
+    aggCalls.zipWithIndex
+      .filter {
+        case (call, _) =>
+          call.getAggregation.getKind match {
+            case SqlKind.GROUP_ID | SqlKind.GROUPING | SqlKind.GROUPING_ID => true
+            case _ => false
+          }
       }
-    }.map { case (_, idx) => idx }
+      .map { case (_, idx) => idx }
   }
 
   /**
-    * Check whether AUXILIARY_GROUP aggCalls is in the front of the given agg's aggCallList,
-    * and whether aggCallList contain AUXILIARY_GROUP when the given agg's groupSet is empty
-    * or the indicator is true.
-    * Returns AUXILIARY_GROUP aggCalls' args and other aggCalls.
-    *
-    * @param agg aggregate
-    * @return returns AUXILIARY_GROUP aggCalls' args and other aggCalls
-    */
+   * Check whether AUXILIARY_GROUP aggCalls is in the front of the given agg's aggCallList, and
+   * whether aggCallList contain AUXILIARY_GROUP when the given agg's groupSet is empty or the
+   * indicator is true. Returns AUXILIARY_GROUP aggCalls' args and other aggCalls.
+   *
+   * @param agg
+   *   aggregate
+   * @return
+   *   returns AUXILIARY_GROUP aggCalls' args and other aggCalls
+   */
   def checkAndSplitAggCalls(agg: Aggregate): (Array[Int], Seq[AggregateCall]) = {
     var nonAuxGroupCallsStartIdx = -1
 
@@ -123,11 +128,14 @@ object AggregateUtil extends Enumeration {
         }
         if (nonAuxGroupCallsStartIdx >= 0) {
           // the left aggCalls should not be AUXILIARY_GROUP
-          require(call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP,
+          require(
+            call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP,
             "AUXILIARY_GROUP should be in the front of aggCall list")
         }
-        if (nonAuxGroupCallsStartIdx < 0 &&
-          call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP) {
+        if (
+          nonAuxGroupCallsStartIdx < 0 &&
+          call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP
+        ) {
           nonAuxGroupCallsStartIdx = idx
         }
     }
@@ -138,7 +146,8 @@ object AggregateUtil extends Enumeration {
 
     val (auxGroupCalls, otherAggCalls) = aggCalls.splitAt(nonAuxGroupCallsStartIdx)
     if (agg.getGroupCount == 0) {
-      require(auxGroupCalls.isEmpty,
+      require(
+        auxGroupCalls.isEmpty,
         "AUXILIARY_GROUP aggCalls should be empty when groupSet is empty")
     }
 
@@ -153,11 +162,13 @@ object AggregateUtil extends Enumeration {
   }
 
   def getOutputIndexToAggCallIndexMap(
+      typeFactory: FlinkTypeFactory,
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
       isBounded: Boolean,
       orderKeyIndexes: Array[Int] = null): util.Map[Integer, Integer] = {
     val aggInfos = transformToAggregateInfoList(
+      typeFactory,
       FlinkTypeFactory.toLogicalRowType(inputType),
       aggregateCalls,
       Array.fill(aggregateCalls.size)(false),
@@ -166,7 +177,8 @@ object AggregateUtil extends Enumeration {
       Option.empty[Int],
       isStateBackedDataViews = false,
       needDistinctInfo = false,
-      isBounded).aggInfos
+      isBounded
+    ).aggInfos
 
     val map = new util.HashMap[Integer, Integer]()
     var outputIndex = 0
@@ -174,8 +186,8 @@ object AggregateUtil extends Enumeration {
       aggCallIndex =>
         val aggInfo = aggInfos(aggCallIndex)
         val aggBuffers = aggInfo.externalAccTypes
-        aggBuffers.indices.foreach { bufferIndex =>
-          map.put(outputIndex + bufferIndex, aggCallIndex)
+        aggBuffers.indices.foreach {
+          bufferIndex => map.put(outputIndex + bufferIndex, aggCallIndex)
         }
         outputIndex += aggBuffers.length
     }
@@ -183,31 +195,37 @@ object AggregateUtil extends Enumeration {
   }
 
   def createPartialAggInfoList(
+      typeFactory: FlinkTypeFactory,
       partialLocalAggInputRowType: RowType,
       partialOriginalAggCalls: Seq[AggregateCall],
       partialAggCallNeedRetractions: Array[Boolean],
       partialAggNeedRetraction: Boolean,
       isGlobal: Boolean): AggregateInfoList = {
     transformToStreamAggregateInfoList(
+      typeFactory,
       partialLocalAggInputRowType,
       partialOriginalAggCalls,
       partialAggCallNeedRetractions,
       partialAggNeedRetraction,
-      isStateBackendDataViews = isGlobal)
+      isStateBackendDataViews = isGlobal
+    )
   }
 
   def createIncrementalAggInfoList(
+      typeFactory: FlinkTypeFactory,
       partialLocalAggInputRowType: RowType,
       partialOriginalAggCalls: Seq[AggregateCall],
       partialAggCallNeedRetractions: Array[Boolean],
       partialAggNeedRetraction: Boolean): AggregateInfoList = {
     val partialLocalAggInfoList = createPartialAggInfoList(
+      typeFactory,
       partialLocalAggInputRowType,
       partialOriginalAggCalls,
       partialAggCallNeedRetractions,
       partialAggNeedRetraction,
       isGlobal = false)
     val partialGlobalAggInfoList = createPartialAggInfoList(
+      typeFactory,
       partialLocalAggInputRowType,
       partialOriginalAggCalls,
       partialAggCallNeedRetractions,
@@ -215,19 +233,20 @@ object AggregateUtil extends Enumeration {
       isGlobal = true)
 
     // pick distinct info from global which is on state, and modify excludeAcc parameter
-    val incrementalDistinctInfos = partialGlobalAggInfoList.distinctInfos.map { info =>
-      DistinctInfo(
-        info.argIndexes,
-        info.keyType,
-        info.accType,
-        // exclude distinct acc from the aggregate accumulator,
-        // because the output acc only need to contain the count
-        excludeAcc = true,
-        info.dataViewSpec,
-        info.consumeRetraction,
-        info.filterArgs,
-        info.aggIndexes
-      )
+    val incrementalDistinctInfos = partialGlobalAggInfoList.distinctInfos.map {
+      info =>
+        DistinctInfo(
+          info.argIndexes,
+          info.keyType,
+          info.accType,
+          // exclude distinct acc from the aggregate accumulator,
+          // because the output acc only need to contain the count
+          excludeAcc = true,
+          info.dataViewSpec,
+          info.consumeRetraction,
+          info.filterArgs,
+          info.aggIndexes
+        )
     }
 
     AggregateInfoList(
@@ -235,7 +254,8 @@ object AggregateUtil extends Enumeration {
       partialLocalAggInfoList.aggInfos,
       partialGlobalAggInfoList.indexOfCountStar,
       partialGlobalAggInfoList.countStarInserted,
-      incrementalDistinctInfos)
+      incrementalDistinctInfos
+    )
   }
 
   def deriveAggregateInfoList(
@@ -246,14 +266,17 @@ object AggregateUtil extends Enumeration {
     val aggCallNeedRetractions = deriveAggCallNeedRetractions(agg, groupCount, aggCalls)
     val needInputCount = needRetraction(agg)
     transformToStreamAggregateInfoList(
+      unwrapTypeFactory(agg),
       FlinkTypeFactory.toLogicalRowType(input.getRowType),
       aggCalls,
       aggCallNeedRetractions,
       needInputCount,
-      isStateBackendDataViews = true)
+      isStateBackendDataViews = true
+    )
   }
 
   def deriveStreamWindowAggregateInfoList(
+      typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggCalls: Seq[AggregateCall],
       windowSpec: WindowSpec,
@@ -270,6 +293,7 @@ object AggregateUtil extends Enumeration {
     // TODO: derive retraction flags from ChangelogMode trait when we support retraction for window
     val aggCallNeedRetractions = new Array[Boolean](aggSize)
     transformToAggregateInfoList(
+      typeFactory,
       inputRowType,
       aggCalls,
       aggCallNeedRetractions,
@@ -278,7 +302,8 @@ object AggregateUtil extends Enumeration {
       Option.empty[Int],
       isStateBackendDataViews,
       needDistinctInfo = true,
-      isBounded = false)
+      isBounded = false
+    )
   }
 
   def deriveSumAndCountFromAvg(
@@ -291,18 +316,21 @@ object AggregateUtil extends Enumeration {
       case _: FloatAvgAggFunction => (new FloatSum0AggFunction, new CountAggFunction)
       case _: DoubleAvgAggFunction => (new DoubleSum0AggFunction, new CountAggFunction)
       case _ =>
-        throw new TableException(s"Avg aggregate function does not support: ''$avgAggFunction''" +
-          s"Please re-check the function or data type.")
+        throw new TableException(
+          s"Avg aggregate function does not support: ''$avgAggFunction''" +
+            s"Please re-check the function or data type.")
     }
   }
 
   def transformToBatchAggregateFunctions(
+      typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
       orderKeyIndexes: Array[Int] = null)
-  : (Array[Array[Int]], Array[Array[DataType]], Array[UserDefinedFunction]) = {
+      : (Array[Array[Int]], Array[Array[DataType]], Array[UserDefinedFunction]) = {
 
     val aggInfos = transformToAggregateInfoList(
+      typeFactory,
       inputRowType,
       aggregateCalls,
       Array.fill(aggregateCalls.size)(false),
@@ -311,7 +339,8 @@ object AggregateUtil extends Enumeration {
       Option.empty[Int],
       isStateBackedDataViews = false,
       needDistinctInfo = false,
-      isBounded = true).aggInfos
+      isBounded = true
+    ).aggInfos
 
     val aggFields = aggInfos.map(_.argIndexes)
     val bufferTypes = aggInfos.map(_.externalAccTypes)
@@ -321,6 +350,7 @@ object AggregateUtil extends Enumeration {
   }
 
   def transformToBatchAggregateInfoList(
+      typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggCalls: Seq[AggregateCall],
       aggCallNeedRetractions: Array[Boolean] = null,
@@ -333,6 +363,7 @@ object AggregateUtil extends Enumeration {
     }
 
     transformToAggregateInfoList(
+      typeFactory,
       inputRowType,
       aggCalls,
       finalAggCallNeedRetractions,
@@ -341,10 +372,12 @@ object AggregateUtil extends Enumeration {
       Option.empty[Int],
       isStateBackedDataViews = false,
       needDistinctInfo = false,
-      isBounded = true)
+      isBounded = true
+    )
   }
 
   def transformToStreamAggregateInfoList(
+      typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
       aggCallNeedRetractions: Array[Boolean],
@@ -352,6 +385,7 @@ object AggregateUtil extends Enumeration {
       isStateBackendDataViews: Boolean,
       needDistinctInfo: Boolean = true): AggregateInfoList = {
     transformToStreamAggregateInfoList(
+      typeFactory,
       inputRowType,
       aggregateCalls,
       aggCallNeedRetractions,
@@ -362,6 +396,7 @@ object AggregateUtil extends Enumeration {
   }
 
   def transformToStreamAggregateInfoList(
+      typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
       aggCallNeedRetractions: Array[Boolean],
@@ -370,6 +405,7 @@ object AggregateUtil extends Enumeration {
       isStateBackendDataViews: Boolean,
       needDistinctInfo: Boolean): AggregateInfoList = {
     transformToAggregateInfoList(
+      typeFactory,
       inputRowType,
       aggregateCalls,
       aggCallNeedRetractions ++ Array(needInputCount), // for additional count(*)
@@ -378,24 +414,33 @@ object AggregateUtil extends Enumeration {
       indexOfExistingCountStar,
       isStateBackendDataViews,
       needDistinctInfo,
-      isBounded = false)
+      isBounded = false
+    )
   }
 
   /**
-    * Transforms calcite aggregate calls to AggregateInfos.
-    *
-    * @param inputRowType     the input's output RowType
-    * @param aggregateCalls   the calcite aggregate calls
-    * @param aggCallNeedRetractions   whether the aggregate function need retract method
-    * @param orderKeyIndexes      the index of order by field in the input, null if not over agg
-    * @param needInputCount   whether need to calculate the input counts, which is used in
-    *                         aggregation with retraction input.If needed,
-    *                         insert a count(1) aggregate into the agg list.
-    * @param indexOfExistingCountStar the index for the existing count star
-    * @param isStateBackedDataViews   whether the dataview in accumulator use state or heap
-    * @param needDistinctInfo  whether need to extract distinct information
-    */
+   * Transforms calcite aggregate calls to AggregateInfos.
+   *
+   * @param inputRowType
+   *   the input's output RowType
+   * @param aggregateCalls
+   *   the calcite aggregate calls
+   * @param aggCallNeedRetractions
+   *   whether the aggregate function need retract method
+   * @param orderKeyIndexes
+   *   the index of order by field in the input, null if not over agg
+   * @param needInputCount
+   *   whether need to calculate the input counts, which is used in aggregation with retraction
+   *   input.If needed, insert a count(1) aggregate into the agg list.
+   * @param indexOfExistingCountStar
+   *   the index for the existing count star
+   * @param isStateBackedDataViews
+   *   whether the dataview in accumulator use state or heap
+   * @param needDistinctInfo
+   *   whether need to extract distinct information
+   */
   private def transformToAggregateInfoList(
+      typeFactory: FlinkTypeFactory,
       inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
       aggCallNeedRetractions: Array[Boolean],
@@ -409,10 +454,8 @@ object AggregateUtil extends Enumeration {
     // Step-1:
     // if need inputCount, find count1 in the existed aggregate calls first,
     // if not exist, insert a new count1 and remember the index
-    val (indexOfCountStar, countStarInserted, aggCalls) = insertCountStarAggCall(
-      needInputCount,
-      indexOfExistingCountStar,
-      aggregateCalls)
+    val (indexOfCountStar, countStarInserted, aggCalls) =
+      insertCountStarAggCall(typeFactory, needInputCount, indexOfExistingCountStar, aggregateCalls)
 
     // Step-2:
     // extract distinct information from aggregate calls
@@ -421,30 +464,29 @@ object AggregateUtil extends Enumeration {
       aggCalls,
       inputRowType,
       isStateBackedDataViews,
-      needInputCount) // needInputCount means whether the aggregate consume retractions
+      needInputCount
+    ) // needInputCount means whether the aggregate consume retractions
 
     // Step-3:
     // create aggregate information
-    val factory = new AggFunctionFactory(
-      inputRowType,
-      orderKeyIndexes,
-      aggCallNeedRetractions,
-      isBounded)
-    val aggInfos = newAggCalls
-      .zipWithIndex
-      .map { case (call, index) =>
-        val argIndexes = call.getAggregation match {
-          case _: SqlRankFunction => if (orderKeyIndexes != null) orderKeyIndexes else Array[Int]()
-          case _ => call.getArgList.map(_.intValue()).toArray
-        }
-        transformToAggregateInfo(
-          inputRowType,
-          call,
-          index,
-          argIndexes,
-          factory.createAggFunction(call, index),
-          isStateBackedDataViews,
-          aggCallNeedRetractions(index))
+    val factory =
+      new AggFunctionFactory(inputRowType, orderKeyIndexes, aggCallNeedRetractions, isBounded)
+    val aggInfos = newAggCalls.zipWithIndex
+      .map {
+        case (call, index) =>
+          val argIndexes = call.getAggregation match {
+            case _: SqlRankFunction =>
+              if (orderKeyIndexes != null) orderKeyIndexes else Array[Int]()
+            case _ => call.getArgList.map(_.intValue()).toArray
+          }
+          transformToAggregateInfo(
+            inputRowType,
+            call,
+            index,
+            argIndexes,
+            factory.createAggFunction(call, index),
+            isStateBackedDataViews,
+            aggCallNeedRetractions(index))
       }
 
     AggregateInfoList(aggInfos.toArray, indexOfCountStar, countStarInserted, distinctInfos)
@@ -457,8 +499,7 @@ object AggregateUtil extends Enumeration {
       argIndexes: Array[Int],
       udf: UserDefinedFunction,
       hasStateBackedDataViews: Boolean,
-      needsRetraction: Boolean)
-    : AggregateInfo = call.getAggregation match {
+      needsRetraction: Boolean): AggregateInfo = call.getAggregation match {
 
     case _: BridgingSqlAggFunction =>
       createAggregateInfoFromBridgingFunction(
@@ -495,8 +536,7 @@ object AggregateUtil extends Enumeration {
       index: Int,
       argIndexes: Array[Int],
       hasStateBackedDataViews: Boolean,
-      needsRetraction: Boolean)
-    : AggregateInfo = {
+      needsRetraction: Boolean): AggregateInfo = {
 
     val function = call.getAggregation.asInstanceOf[BridgingSqlAggFunction]
     val definition = function.getDefinition
@@ -511,7 +551,7 @@ object AggregateUtil extends Enumeration {
         function.getTypeFactory,
         function,
         SqlTypeUtil.projectTypes(
-          FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType),
+          function.getTypeFactory.buildRelNodeRowType(inputRowType),
           argIndexes.map(Int.box).toList),
         0,
         false),
@@ -523,14 +563,14 @@ object AggregateUtil extends Enumeration {
       definition,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      null) // currently, aggregate functions have no access to configuration
+      // currently, aggregate functions have no access to FlinkContext
+      null,
+      null
+    )
     val inference = udf.getTypeInference(dataTypeFactory)
 
     // enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(
-      inference,
-      callContext,
-      null)
+    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
     val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
 
     // derive accumulator type with conversion class
@@ -539,9 +579,8 @@ object AggregateUtil extends Enumeration {
       inference.getAccumulatorTypeStrategy.orElse(inference.getOutputTypeStrategy))
 
     // enrich output types with conversion class
-    val enrichedOutputDataType = TypeInferenceUtil.inferOutputType(
-      adaptedCallContext,
-      inference.getOutputTypeStrategy)
+    val enrichedOutputDataType =
+      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
 
     createImperativeAggregateInfo(
       call,
@@ -552,7 +591,8 @@ object AggregateUtil extends Enumeration {
       enrichedAccumulatorDataType,
       enrichedOutputDataType,
       needsRetraction,
-      hasStateBackedDataViews)
+      hasStateBackedDataViews
+    )
   }
 
   private def createAggregateInfoFromInternalFunction(
@@ -561,8 +601,7 @@ object AggregateUtil extends Enumeration {
       index: Int,
       argIndexes: Array[Int],
       needsRetraction: Boolean,
-      hasStateBackedDataViews: Boolean)
-    : AggregateInfo = udf match {
+      hasStateBackedDataViews: Boolean): AggregateInfo = udf match {
 
     case imperativeFunction: BuiltInAggregateFunction[_, _] =>
       createImperativeAggregateInfo(
@@ -574,19 +613,20 @@ object AggregateUtil extends Enumeration {
         imperativeFunction.getAccumulatorDataType,
         imperativeFunction.getOutputDataType,
         needsRetraction,
-        hasStateBackedDataViews)
+        hasStateBackedDataViews
+      )
 
     case declarativeFunction: DeclarativeAggregateFunction =>
       AggregateInfo(
-          call,
-          udf,
-          index,
-          argIndexes,
-          null,
-          declarativeFunction.getAggBufferTypes,
-          Array(),
-          declarativeFunction.getResultType,
-          needsRetraction)
+        call,
+        udf,
+        index,
+        argIndexes,
+        null,
+        declarativeFunction.getAggBufferTypes,
+        Array(),
+        declarativeFunction.getResultType,
+        needsRetraction)
   }
 
   private def createImperativeAggregateInfo(
@@ -598,8 +638,7 @@ object AggregateUtil extends Enumeration {
       accumulatorDataType: DataType,
       outputDataType: DataType,
       needsRetraction: Boolean,
-      hasStateBackedDataViews: Boolean)
-    : AggregateInfo = {
+      hasStateBackedDataViews: Boolean): AggregateInfo = {
 
     // extract data views and adapt the data views in the accumulator type
     // if a view is backed by a state backend
@@ -612,15 +651,15 @@ object AggregateUtil extends Enumeration {
       DataViewUtils.adjustDataViews(accumulatorDataType, hasStateBackedDataViews)
 
     AggregateInfo(
-        call,
-        udf,
-        index,
-        argIndexes,
-        inputDataTypes,
-        Array(adjustedAccumulatorDataType),
-        dataViewSpecs,
-        outputDataType,
-        needsRetraction)
+      call,
+      udf,
+      index,
+      argIndexes,
+      inputDataTypes,
+      Array(adjustedAccumulatorDataType),
+      dataViewSpecs,
+      outputDataType,
+      needsRetraction)
   }
 
   private def createAggregateInfoFromLegacyFunction(
@@ -630,59 +669,61 @@ object AggregateUtil extends Enumeration {
       argIndexes: Array[Int],
       udf: UserDefinedFunction,
       hasStateBackedDataViews: Boolean,
-      needsRetraction: Boolean)
-    : AggregateInfo = {
-      val (externalArgTypes, externalAccTypes, viewSpecs, externalResultType) = udf match {
-        case a: ImperativeAggregateFunction[_, _] =>
-          val (implicitAccType, implicitResultType) = call.getAggregation match {
-            case aggSqlFun: AggSqlFunction =>
-              (aggSqlFun.externalAccType, aggSqlFun.externalResultType)
-            case _ => (null, null)
-          }
-          val externalAccType = getAccumulatorTypeOfAggregateFunction(a, implicitAccType)
-          val argTypes = call.getArgList
-            .map(idx => inputRowType.getChildren.get(idx))
-          val externalArgTypes: Array[DataType] = getAggUserDefinedInputTypes(
-            a,
-            externalAccType,
-            argTypes.toArray)
-          val (newExternalAccType, specs) = useNullSerializerForStateViewFieldsFromAccType(
-            index,
-            a,
-            externalAccType,
-            hasStateBackedDataViews)
-          (
-            externalArgTypes,
-            Array(newExternalAccType),
-            specs,
-            getResultTypeOfAggregateFunction(a, implicitResultType)
-          )
+      needsRetraction: Boolean): AggregateInfo = {
+    val (externalArgTypes, externalAccTypes, viewSpecs, externalResultType) = udf match {
+      case a: ImperativeAggregateFunction[_, _] =>
+        val (implicitAccType, implicitResultType) = call.getAggregation match {
+          case aggSqlFun: AggSqlFunction =>
+            (aggSqlFun.externalAccType, aggSqlFun.externalResultType)
+          case _ => (null, null)
+        }
+        val externalAccType = getAccumulatorTypeOfAggregateFunction(a, implicitAccType)
+        val argTypes = call.getArgList
+          .map(idx => inputRowType.getChildren.get(idx))
+        val externalArgTypes: Array[DataType] =
+          getAggUserDefinedInputTypes(a, externalAccType, argTypes.toArray)
+        val (newExternalAccType, specs) = useNullSerializerForStateViewFieldsFromAccType(
+          index,
+          a,
+          externalAccType,
+          hasStateBackedDataViews)
+        (
+          externalArgTypes,
+          Array(newExternalAccType),
+          specs,
+          getResultTypeOfAggregateFunction(a, implicitResultType)
+        )
 
-        case _ => throw new TableException(s"Unsupported function: $udf")
-      }
+      case _ => throw new TableException(s"Unsupported function: $udf")
+    }
 
-      AggregateInfo(
-        call,
-        udf,
-        index,
-        argIndexes,
-        externalArgTypes,
-        externalAccTypes,
-        viewSpecs,
-        externalResultType,
-        needsRetraction)
+    AggregateInfo(
+      call,
+      udf,
+      index,
+      argIndexes,
+      externalArgTypes,
+      externalAccTypes,
+      viewSpecs,
+      externalResultType,
+      needsRetraction)
   }
 
   /**
-    * Inserts an COUNT(*) aggregate call if needed. The COUNT(*) aggregate call is used
-    * to count the number of added and retracted input records.
-    *
-    * @param needInputCount whether to insert an InputCount aggregate
-    * @param aggregateCalls original aggregate calls
-    * @param indexOfExistingCountStar the index for the existing count star
-    * @return (indexOfCountStar, countStarInserted, newAggCalls)
-    */
+   * Inserts an COUNT(*) aggregate call if needed. The COUNT(*) aggregate call is used to count the
+   * number of added and retracted input records.
+   *
+   * @param needInputCount
+   *   whether to insert an InputCount aggregate
+   * @param aggregateCalls
+   *   original aggregate calls
+   * @param indexOfExistingCountStar
+   *   the index for the existing count star
+   * @return
+   *   (indexOfCountStar, countStarInserted, newAggCalls)
+   */
   private def insertCountStarAggCall(
+      typeFactory: FlinkTypeFactory,
       needInputCount: Boolean,
       indexOfExistingCountStar: Option[Int],
       aggregateCalls: Seq[AggregateCall]): (Option[Int], Boolean, Seq[AggregateCall]) = {
@@ -701,27 +742,28 @@ object AggregateUtil extends Enumeration {
     // if need inputCount, find count(*) in the existed aggregate calls first,
     // if not exist, insert a new count(*) and remember the index
     var newAggCalls = aggregateCalls
-    aggregateCalls.zipWithIndex.foreach { case (call, index) =>
-      if (call.getAggregation.isInstanceOf[SqlCountAggFunction] &&
-        call.filterArg < 0 &&
-        call.getArgList.isEmpty &&
-        !call.isApproximate &&
-        !call.isDistinct) {
-        indexOfCountStar = Some(index)
-      }
+    aggregateCalls.zipWithIndex.foreach {
+      case (call, index) =>
+        if (
+          call.getAggregation.isInstanceOf[SqlCountAggFunction] &&
+          call.filterArg < 0 &&
+          call.getArgList.isEmpty &&
+          !call.isApproximate &&
+          !call.isDistinct
+        ) {
+          indexOfCountStar = Some(index)
+        }
     }
 
     // count(*) not exist in aggregateCalls, insert a count(*) in it.
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     if (indexOfCountStar.isEmpty) {
-
       val count1 = AggregateCall.create(
         SqlStdOperatorTable.COUNT,
         false,
         false,
         new util.ArrayList[Integer](),
         -1,
-        typeFactory.createFieldTypeFromLogicalType(new BigIntType()),
+        typeFactory.createSqlType(SqlTypeName.BIGINT),
         "_$count1$_")
 
       indexOfCountStar = Some(aggregateCalls.length)
@@ -733,16 +775,22 @@ object AggregateUtil extends Enumeration {
   }
 
   /**
-    * Extracts DistinctInfo array from the aggregate calls,
-    * and change the distinct aggregate to non-distinct aggregate.
-    *
-    * @param needDistinctInfo whether to extract distinct information
-    * @param aggCalls   the original aggregate calls
-    * @param inputType  the input rel data type
-    * @param hasStateBackedDataViews whether the dataview in accumulator use state or heap
-    * @param consumeRetraction  whether the distinct aggregate consumes retraction messages
-    * @return (distinctInfoArray, newAggCalls)
-    */
+   * Extracts DistinctInfo array from the aggregate calls, and change the distinct aggregate to
+   * non-distinct aggregate.
+   *
+   * @param needDistinctInfo
+   *   whether to extract distinct information
+   * @param aggCalls
+   *   the original aggregate calls
+   * @param inputType
+   *   the input rel data type
+   * @param hasStateBackedDataViews
+   *   whether the dataview in accumulator use state or heap
+   * @param consumeRetraction
+   *   whether the distinct aggregate consumes retraction messages
+   * @return
+   *   (distinctInfoArray, newAggCalls)
+   */
   private def extractDistinctInformation(
       needDistinctInfo: Boolean,
       aggCalls: Seq[AggregateCall],
@@ -755,44 +803,45 @@ object AggregateUtil extends Enumeration {
     }
 
     val distinctMap = mutable.LinkedHashMap.empty[String, DistinctInfo]
-    val newAggCalls = aggCalls.zipWithIndex.map { case (call, index) =>
-      val argIndexes = call.getArgList.map(_.intValue()).toArray
+    val newAggCalls = aggCalls.zipWithIndex.map {
+      case (call, index) =>
+        val argIndexes = call.getArgList.map(_.intValue()).toArray
 
-      // extract distinct information and replace a new call
-      if (call.isDistinct && !call.isApproximate && argIndexes.length > 0) {
-        val argTypes: Array[LogicalType] = call
-          .getArgList
-          .map(inputType.getChildren.get(_))
-          .toArray
+        // extract distinct information and replace a new call
+        if (call.isDistinct && !call.isApproximate && argIndexes.length > 0) {
+          val argTypes: Array[LogicalType] = call.getArgList
+            .map(inputType.getChildren.get(_))
+            .toArray
 
-        val keyType = createDistinctKeyType(argTypes)
-        val keyDataType = DataTypeUtils.toInternalDataType(keyType)
-        val distinctInfo = distinctMap.getOrElseUpdate(
-          argIndexes.mkString(","),
-          DistinctInfo(
-            argIndexes,
-            keyDataType,
-            null, // later fill in
-            excludeAcc = false,
-            null, // later fill in
-            consumeRetraction,
-            ArrayBuffer.empty[Int],
-            ArrayBuffer.empty[Int]))
-        // add current agg to the distinct agg list
-        distinctInfo.filterArgs += call.filterArg
-        distinctInfo.aggIndexes += index
+          val keyType = createDistinctKeyType(argTypes)
+          val keyDataType = DataTypeUtils.toInternalDataType(keyType)
+          val distinctInfo = distinctMap.getOrElseUpdate(
+            argIndexes.mkString(","),
+            DistinctInfo(
+              argIndexes,
+              keyDataType,
+              null, // later fill in
+              excludeAcc = false,
+              null, // later fill in
+              consumeRetraction,
+              ArrayBuffer.empty[Int],
+              ArrayBuffer.empty[Int])
+          )
+          // add current agg to the distinct agg list
+          distinctInfo.filterArgs += call.filterArg
+          distinctInfo.aggIndexes += index
 
-        AggregateCall.create(
-          call.getAggregation,
-          false,
-          false,
-          call.getArgList,
-          -1, // remove filterArg
-          call.getType,
-          call.getName)
-      } else {
-        call
-      }
+          AggregateCall.create(
+            call.getAggregation,
+            false,
+            false,
+            call.getArgList,
+            -1, // remove filterArg
+            call.getType,
+            call.getName)
+        } else {
+          call
+        }
     }
 
     // fill in the acc type and data view spec
@@ -801,31 +850,30 @@ object AggregateUtil extends Enumeration {
     } else {
       64
     }
-    val distinctInfos = distinctMap.values.zipWithIndex.map { case (d, index) =>
-      val distinctViewDataType = DataViewUtils.createDistinctViewDataType(
-        d.keyType,
-        d.filterArgs.length,
-        filterArgsLimit)
+    val distinctInfos = distinctMap.values.zipWithIndex.map {
+      case (d, index) =>
+        val distinctViewDataType =
+          DataViewUtils.createDistinctViewDataType(d.keyType, d.filterArgs.length, filterArgsLimit)
 
-      // create data views and adapt the data views in the accumulator type
-      // if a view is backed by a state backend
-      val distinctViewSpec = if (hasStateBackedDataViews) {
-        Some(DataViewUtils.createDistinctViewSpec(index, distinctViewDataType))
-      } else {
-        None
-      }
-      val adjustedAccumulatorDataType =
-        DataViewUtils.adjustDataViews(distinctViewDataType, hasStateBackedDataViews)
+        // create data views and adapt the data views in the accumulator type
+        // if a view is backed by a state backend
+        val distinctViewSpec = if (hasStateBackedDataViews) {
+          Some(DataViewUtils.createDistinctViewSpec(index, distinctViewDataType))
+        } else {
+          None
+        }
+        val adjustedAccumulatorDataType =
+          DataViewUtils.adjustDataViews(distinctViewDataType, hasStateBackedDataViews)
 
-      DistinctInfo(
-        d.argIndexes,
-        d.keyType,
-        adjustedAccumulatorDataType,
-        excludeAcc = false,
-        distinctViewSpec,
-        consumeRetraction,
-        d.filterArgs,
-        d.aggIndexes)
+        DistinctInfo(
+          d.argIndexes,
+          d.keyType,
+          adjustedAccumulatorDataType,
+          excludeAcc = false,
+          distinctViewSpec,
+          consumeRetraction,
+          d.filterArgs,
+          d.aggIndexes)
     }
 
     (distinctInfos.toArray, newAggCalls)
@@ -836,53 +884,46 @@ object AggregateUtil extends Enumeration {
       argTypes(0).getTypeRoot match {
         // ordered by type root definition
         case CHAR | VARCHAR | BOOLEAN | DECIMAL | TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT |
-             DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
-             TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
+            DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
+            TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME | ARRAY =>
           argTypes(0)
-      case t =>
-        throw new TableException(s"Distinct aggregate function does not support type: $t.\n" +
-          s"Please re-check the data type.")
+        case t =>
+          throw new TableException(
+            s"Distinct aggregate function does not support type: $t.\n" +
+              s"Please re-check the data type.")
       }
     } else {
       RowType.of(argTypes: _*)
     }
   }
 
-  /**
-    * Return true if all aggregates can be partially merged. False otherwise.
-    */
+  /** Return true if all aggregates can be partially merged. False otherwise. */
   def doAllSupportPartialMerge(aggInfos: Array[AggregateInfo]): Boolean = {
     val supportMerge = aggInfos.map(_.function).forall {
       case _: DeclarativeAggregateFunction => true
       case a => ifMethodExistInFunction("merge", a)
     }
 
-    //it means grouping without aggregate functions
+    // it means grouping without aggregate functions
     aggInfos.isEmpty || supportMerge
   }
 
-  /**
-    * Return true if all aggregates can be split. False otherwise.
-    */
+  /** Return true if all aggregates can be split. False otherwise. */
   def doAllAggSupportSplit(aggCalls: util.List[AggregateCall]): Boolean = {
-    aggCalls.forall { aggCall =>
-      aggCall.getAggregation match {
-        case _: SqlCountAggFunction |
-             _: SqlAvgAggFunction |
-             _: SqlMinMaxAggFunction |
-             _: SqlSumAggFunction |
-             _: SqlSumEmptyIsZeroAggFunction |
-             _: SqlSingleValueAggFunction |
-             _: SqlListAggFunction => true
-        case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
-        case _ => false
-      }
+    aggCalls.forall {
+      aggCall =>
+        aggCall.getAggregation match {
+          case _: SqlCountAggFunction | _: SqlAvgAggFunction | _: SqlMinMaxAggFunction |
+              _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction |
+              _: SqlSingleValueAggFunction | _: SqlListAggFunction =>
+            true
+          case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
+          case _ => false
+        }
     }
   }
 
-  /**
-    * Derives output row type from stream local aggregate
-    */
+  /** Derives output row type from stream local aggregate */
   def inferStreamLocalAggRowType(
       aggInfoList: AggregateInfoList,
       inputType: RelDataType,
@@ -900,33 +941,29 @@ object AggregateUtil extends Enumeration {
       groupingTypes ++ accTypes.map(fromDataTypeToLogicalType))
   }
 
-  /**
-    * Derives accumulators names from stream aggregate
-    */
+  /** Derives accumulators names from stream aggregate */
   def inferStreamAggAccumulatorNames(aggInfoList: AggregateInfoList): Array[String] = {
     var index = -1
-    val aggBufferNames = aggInfoList.aggInfos.indices.flatMap { i =>
-      aggInfoList.aggInfos(i).function match {
-        case _: AggregateFunction[_, _] =>
-          val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
-          index += 1
-          Array(s"$name$$$index")
-        case daf: DeclarativeAggregateFunction =>
-          daf.aggBufferAttributes.map { a =>
+    val aggBufferNames = aggInfoList.aggInfos.indices.flatMap {
+      i =>
+        aggInfoList.aggInfos(i).function match {
+          case _: AggregateFunction[_, _] =>
+            val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
             index += 1
-            s"${a.getName}$$$index"
-          }
-      }
+            Array(s"$name$$$index")
+          case daf: DeclarativeAggregateFunction =>
+            daf.aggBufferAttributes.map {
+              a =>
+                index += 1
+                s"${a.getName}$$$index"
+            }
+        }
     }
-    val distinctBufferNames = aggInfoList.distinctInfos.indices.map { i =>
-      s"distinct$$$i"
-    }
+    val distinctBufferNames = aggInfoList.distinctInfos.indices.map(i => s"distinct$$$i")
     (aggBufferNames ++ distinctBufferNames).toArray
   }
 
-  /**
-   * Return true if the given agg rel needs retraction message, else false.
-   */
+  /** Return true if the given agg rel needs retraction message, else false. */
   def needRetraction(agg: StreamPhysicalRel): Boolean = {
     // need to call `retract()` if input contains update or delete
     val modifyKindSetTrait = agg.getInput(0).getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
@@ -940,8 +977,8 @@ object AggregateUtil extends Enumeration {
 
   /**
    * Return the retraction flags for each given agg calls, currently MAX and MIN are supported.
-   * MaxWithRetract can be optimized to Max if input is update increasing,
-   * MinWithRetract can be optimized to Min if input is update decreasing.
+   * MaxWithRetract can be optimized to Max if input is update increasing, MinWithRetract can be
+   * optimized to Min if input is update decreasing.
    */
   def deriveAggCallNeedRetractions(
       agg: StreamPhysicalRel,
@@ -955,8 +992,8 @@ object AggregateUtil extends Enumeration {
 
   /**
    * Return the retraction flags for each given agg calls, currently max and min are supported.
-   * MaxWithRetract can be optimized to Max if input is update increasing,
-   * MinWithRetract can be optimized to Min if input is update decreasing.
+   * MaxWithRetract can be optimized to Max if input is update increasing, MinWithRetract can be
+   * optimized to Min if input is update decreasing.
    */
   def deriveAggCallNeedRetractions(
       groupCount: Int,
@@ -965,31 +1002,32 @@ object AggregateUtil extends Enumeration {
       monotonicity: RelModifiedMonotonicity): Array[Boolean] = {
     val needRetractionArray = Array.fill(aggCalls.size)(needRetraction)
     if (monotonicity != null && needRetraction) {
-      aggCalls.zipWithIndex.foreach { case (aggCall, idx) =>
-        aggCall.getAggregation match {
-          // if monotonicity is decreasing and aggCall is min with retract,
-          // set needRetraction to false
-          case a: SqlMinMaxAggFunction
-            if a.getKind == SqlKind.MIN &&
-              monotonicity.fieldMonotonicities(groupCount + idx) == SqlMonotonicity.DECREASING =>
-            needRetractionArray(idx) = false
-          // if monotonicity is increasing and aggCall is max with retract,
-          // set needRetraction to false
-          case a: SqlMinMaxAggFunction
-            if a.getKind == SqlKind.MAX &&
-              monotonicity.fieldMonotonicities(groupCount + idx) == SqlMonotonicity.INCREASING =>
-            needRetractionArray(idx) = false
-          case _ => // do nothing
-        }
+      aggCalls.zipWithIndex.foreach {
+        case (aggCall, idx) =>
+          aggCall.getAggregation match {
+            // if monotonicity is decreasing and aggCall is min with retract,
+            // set needRetraction to false
+            case a: SqlMinMaxAggFunction
+                if a.getKind == SqlKind.MIN &&
+                  monotonicity.fieldMonotonicities(
+                    groupCount + idx) == SqlMonotonicity.DECREASING =>
+              needRetractionArray(idx) = false
+            // if monotonicity is increasing and aggCall is max with retract,
+            // set needRetraction to false
+            case a: SqlMinMaxAggFunction
+                if a.getKind == SqlKind.MAX &&
+                  monotonicity.fieldMonotonicities(
+                    groupCount + idx) == SqlMonotonicity.INCREASING =>
+              needRetractionArray(idx) = false
+            case _ => // do nothing
+          }
       }
     }
 
     needRetractionArray
   }
 
-  /**
-    * Derives output row type from local aggregate
-    */
+  /** Derives output row type from local aggregate */
   def inferLocalAggRowType(
       aggInfoList: AggregateInfoList,
       inputRowType: RelDataType,
@@ -1007,33 +1045,29 @@ object AggregateUtil extends Enumeration {
       groupingTypes ++ accTypes.map(fromDataTypeToLogicalType))
   }
 
-  /**
-    * Derives accumulators names from aggregate
-    */
+  /** Derives accumulators names from aggregate */
   def inferAggAccumulatorNames(aggInfoList: AggregateInfoList): Array[String] = {
     var index = -1
-    val aggBufferNames = aggInfoList.aggInfos.indices.flatMap { i =>
-      aggInfoList.aggInfos(i).function match {
-        case _: AggregateFunction[_, _] =>
-          val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
-          index += 1
-          Array(s"$name$$$index")
-        case daf: DeclarativeAggregateFunction =>
-          daf.aggBufferAttributes.map { a =>
+    val aggBufferNames = aggInfoList.aggInfos.indices.flatMap {
+      i =>
+        aggInfoList.aggInfos(i).function match {
+          case _: AggregateFunction[_, _] =>
+            val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
             index += 1
-            s"${a.getName}$$$index"
-          }
-      }
+            Array(s"$name$$$index")
+          case daf: DeclarativeAggregateFunction =>
+            daf.aggBufferAttributes.map {
+              a =>
+                index += 1
+                s"${a.getName}$$$index"
+            }
+        }
     }
-    val distinctBufferNames = aggInfoList.distinctInfos.indices.map { i =>
-      s"distinct$$$i"
-    }
+    val distinctBufferNames = aggInfoList.distinctInfos.indices.map(i => s"distinct$$$i")
     (aggBufferNames ++ distinctBufferNames).toArray
   }
 
-  /**
-    * Creates a MiniBatch trigger depends on the config.
-    */
+  /** Creates a MiniBatch trigger depends on the config. */
   def createMiniBatchTrigger(config: ReadableConfig): CountBundleTrigger[RowData] = {
     val size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
     if (size <= 0) {
@@ -1043,44 +1077,44 @@ object AggregateUtil extends Enumeration {
     new CountBundleTrigger[RowData](size)
   }
 
-  /**
-    * Compute field index of given timeField expression.
-    */
+  /** Compute field index of given timeField expression. */
   def timeFieldIndex(
-      inputType: RelDataType, relBuilder: RelBuilder, timeField: FieldReferenceExpression): Int = {
+      inputType: RelDataType,
+      relBuilder: RelBuilder,
+      timeField: FieldReferenceExpression): Int = {
     relBuilder.values(inputType).field(timeField.getName).getIndex
   }
 
-  /**
-    * Computes the positions of (window start, window end, row time).
-    */
+  /** Computes the positions of (window start, window end, row time). */
   private[flink] def computeWindowPropertyPos(
       properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
-    val propPos = properties.foldRight(
-      (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
-      case (p, (s, e, rt, i)) => p match {
-        case p: NamedWindowProperty =>
-          p.getProperty match {
-            case _: WindowStart if s.isDefined =>
-              throw new TableException(
-                "Duplicate window start property encountered. This is a bug.")
-            case _: WindowStart =>
-              (Some(i), e, rt, i - 1)
-            case _: WindowEnd if e.isDefined =>
-              throw new TableException("Duplicate window end property encountered. This is a bug.")
-            case _: WindowEnd =>
-              (s, Some(i), rt, i - 1)
-            case _: RowtimeAttribute if rt.isDefined =>
-              throw new TableException(
-                "Duplicate window rowtime property encountered. This is a bug.")
-            case _: RowtimeAttribute =>
-              (s, e, Some(i), i - 1)
-            case _: ProctimeAttribute =>
-              // ignore this property, it will be null at the position later
-              (s, e, rt, i - 1)
+    val propPos =
+      properties.foldRight((None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
+        case (p, (s, e, rt, i)) =>
+          p match {
+            case p: NamedWindowProperty =>
+              p.getProperty match {
+                case _: WindowStart if s.isDefined =>
+                  throw new TableException(
+                    "Duplicate window start property encountered. This is a bug.")
+                case _: WindowStart =>
+                  (Some(i), e, rt, i - 1)
+                case _: WindowEnd if e.isDefined =>
+                  throw new TableException(
+                    "Duplicate window end property encountered. This is a bug.")
+                case _: WindowEnd =>
+                  (s, Some(i), rt, i - 1)
+                case _: RowtimeAttribute if rt.isDefined =>
+                  throw new TableException(
+                    "Duplicate window rowtime property encountered. This is a bug.")
+                case _: RowtimeAttribute =>
+                  (s, e, Some(i), i - 1)
+                case _: ProctimeAttribute =>
+                  // ignore this property, it will be null at the position later
+                  (s, e, rt, i - 1)
+              }
           }
       }
-    }
     (propPos._1, propPos._2, propPos._3)
   }
 
@@ -1108,11 +1142,13 @@ object AggregateUtil extends Enumeration {
 
   def isTableAggregate(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls
-      .flatMap(call => call.getAggregation match {
-        case asf: AggSqlFunction => Some(asf.aggregateFunction)
-        case bsaf: BridgingSqlAggFunction => Some(bsaf.getDefinition)
-        case _ => None
-      })
+      .flatMap(
+        call =>
+          call.getAggregation match {
+            case asf: AggSqlFunction => Some(asf.aggregateFunction)
+            case bsaf: BridgingSqlAggFunction => Some(bsaf.getDefinition)
+            case _ => None
+          })
       .exists(_.getKind == FunctionKind.TABLE_AGGREGATE)
   }
 }

@@ -24,7 +24,6 @@ import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -35,6 +34,8 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase to test json format for {@link JsonFormatFactory}. */
 public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
@@ -88,7 +89,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         List<String> elements = new ArrayList<>();
         result.collect().forEachRemaining(r -> elements.add((String) r.getField(1)));
-        Assert.assertEquals(numRecords, elements.size());
+        assertThat(elements).hasSize(numRecords);
         elements.sort(String::compareTo);
 
         List<String> expected = new ArrayList<>();
@@ -97,7 +98,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         }
         expected.sort(String::compareTo);
 
-        Assert.assertEquals(expected, elements);
+        assertThat(elements).isEqualTo(expected);
     }
 
     private static File generateTestData(int numRecords) throws IOException {

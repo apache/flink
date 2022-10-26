@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
@@ -46,6 +45,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedClass;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceTableAggsHandleFunction;
@@ -104,7 +104,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         version = 1,
         consumedOptions = {
             "table.local-time-zone",
-            "table.exec.state.ttl",
             "table.exec.mini-batch.enabled",
             "table.exec.mini-batch.size"
         },
@@ -138,6 +137,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     private final boolean needRetraction;
 
     public StreamExecGroupWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
@@ -149,6 +149,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecGroupWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecGroupWindowAggregate.class, tableConfig),
                 grouping,
                 aggCalls,
                 window,
@@ -163,6 +165,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     public StreamExecGroupWindowAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
@@ -172,7 +175,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
@@ -210,8 +213,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         if (isRowtimeAttribute(window.timeAttribute())) {
             inputTimeFieldIndex =
                     timeFieldIndex(
-                            FlinkTypeFactory.INSTANCE().buildRelNodeRowType(inputRowType),
-                            planner.getRelBuilder(),
+                            planner.getTypeFactory().buildRelNodeRowType(inputRowType),
+                            planner.createRelBuilder(),
                             window.timeAttribute());
             if (inputTimeFieldIndex < 0) {
                 throw new TableException(
@@ -226,12 +229,13 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
                         window.timeAttribute().getOutputDataType().getLogicalType(),
-                        config.getLocalTimeZone());
+                        TableConfigUtils.getLocalTimeZone(config));
 
         final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
         Arrays.fill(aggCallNeedRetractions, needRetraction);
         final AggregateInfoList aggInfoList =
                 transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
@@ -243,7 +247,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                 createAggsHandler(
                         aggInfoList,
                         config,
-                        planner.getRelBuilder(),
+                        planner.getFlinkContext().getClassLoader(),
+                        planner.createRelBuilder(),
                         inputRowType.getChildren(),
                         shiftTimeZone);
 
@@ -254,7 +259,9 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         .toArray(LogicalType[]::new);
 
         final EqualiserCodeGenerator generator =
-                new EqualiserCodeGenerator(ArrayUtils.addAll(aggResultTypes, windowPropertyTypes));
+                new EqualiserCodeGenerator(
+                        ArrayUtils.addAll(aggResultTypes, windowPropertyTypes),
+                        planner.getFlinkContext().getClassLoader());
         final GeneratedRecordEqualiser equaliser =
                 generator.generateRecordEqualiser("WindowValueEqualiser");
 
@@ -285,7 +292,10 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
         return transform;
@@ -300,6 +310,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     private GeneratedClass<?> createAggsHandler(
             AggregateInfoList aggInfoList,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             RelBuilder relBuilder,
             List<LogicalType> fieldTypes,
             ZoneId shiftTimeZone) {
@@ -322,7 +333,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config, classLoader),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(fieldTypes),
                                 false) // copyInputField

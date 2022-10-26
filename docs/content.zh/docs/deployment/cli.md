@@ -418,6 +418,25 @@ $ ./bin/flink run \
       --python examples/python/table/word_count.py
 ```
 
+- Run a PyFlink job using a [YARN cluster in Application Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#application-mode):
+```bash
+$ ./bin/flink run-application -t yarn-application \
+      -Djobmanager.memory.process.size=1024m \
+      -Dtaskmanager.memory.process.size=1024m \
+      -Dyarn.application.name=<ApplicationName> \
+      -Dyarn.ship-files=/path/to/shipfiles \
+      -pyarch shipfiles/venv.zip \
+      -pyclientexec venv.zip/venv/bin/python3 \
+      -pyexec venv.zip/venv/bin/python3 \
+      -py shipfiles/word_count.py
+```
+<span class="label label-info">Note</span> It assumes that the Python dependencies needed to execute the job are already placed in the directory `/path/to/shipfiles`. For example, it should contain venv.zip and word_count.py for the above example.
+
+<span class="label label-info">Note</span> As it executes the job on the JobManager in YARN application mode, the paths specified in `-pyarch` and `-py` are paths relative to `shipfiles` which is the directory name of the shipped files.
+
+<span class="label label-info">Note</span> The archive files specified via `-pyarch` will be distributed to the TaskManagers through blob server where the file size limit is 2 GB.
+If the size of an archive file is more than 2 GB, you could upload it to a distributed file system and then use the path in the command line option `-pyarch`.
+
 - Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python):
 ```bash
 $ ./bin/flink run-application \
@@ -427,7 +446,7 @@ $ ./bin/flink run-application \
       -Dtaskmanager.memory.process.size=4096m \
       -Dkubernetes.taskmanager.cpu=2 \
       -Dtaskmanager.numberOfTaskSlots=4 \
-      -Dkubernetes.container.image=<PyFlinkImageName> \
+      -Dkubernetes.container.image.ref=<PyFlinkImageName> \
       --pyModule word_count \
       --pyFiles /opt/flink/examples/python/table/word_count.py
 ```
@@ -501,8 +520,8 @@ related options. Here's an overview of all the Python related options for the ac
             <td>
                 Specify the path of the python interpreter used to execute the python UDF worker
                 (e.g.: --pyExecutable /usr/local/bin/python3).
-                The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.27.0),
-                Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0).
+                The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.38.0),
+                Pip (version >= 20.3) and SetupTools (version >= 37.0.0).
                 Please ensure that the specified environment meets the above requirements.
             </td>
         </tr>

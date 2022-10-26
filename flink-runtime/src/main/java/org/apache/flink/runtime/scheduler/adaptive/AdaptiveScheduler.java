@@ -26,6 +26,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -309,7 +311,9 @@ public class AdaptiveScheduler
                     vertex.getID());
             for (JobEdge jobEdge : vertex.getInputs()) {
                 Preconditions.checkState(
-                        jobEdge.getSource().getResultType().isPipelined(),
+                        jobEdge.getSource()
+                                .getResultType()
+                                .isPipelinedOrPipelinedBoundedResultPartition(),
                         "The adaptive scheduler supports pipelined data exchanges (violated by %s -> %s).",
                         jobEdge.getSource().getProducer(),
                         jobEdge.getTarget().getID());
@@ -463,7 +467,7 @@ public class AdaptiveScheduler
         }
 
         try {
-            checkpointIdCounter.shutdown(terminalState);
+            checkpointIdCounter.shutdown(terminalState).get();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
@@ -523,15 +527,6 @@ public class AdaptiveScheduler
                                         intermediateResultId, resultPartitionId),
                         "requestPartitionState")
                 .orElseThrow(() -> new PartitionProducerDisposedException(resultPartitionId));
-    }
-
-    @Override
-    public void notifyPartitionDataAvailable(ResultPartitionID partitionID) {
-        state.tryRun(
-                StateWithExecutionGraph.class,
-                stateWithExecutionGraph ->
-                        stateWithExecutionGraph.notifyPartitionDataAvailable(partitionID),
-                "notifyPartitionDataAvailable");
     }
 
     @Override
@@ -630,10 +625,11 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public CompletableFuture<String> triggerCheckpoint() {
+    public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType) {
         return state.tryCall(
                         StateWithExecutionGraph.class,
-                        StateWithExecutionGraph::triggerCheckpoint,
+                        stateWithExecutionGraph ->
+                                stateWithExecutionGraph.triggerCheckpoint(checkpointType),
                         "triggerCheckpoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
@@ -998,8 +994,7 @@ public class AdaptiveScheduler
             final CompletableFuture<Void> registrationFuture =
                     executionVertex
                             .getCurrentExecutionAttempt()
-                            .registerProducedPartitions(
-                                    assignedSlot.getTaskManagerLocation(), false);
+                            .registerProducedPartitions(assignedSlot.getTaskManagerLocation());
             Preconditions.checkState(
                     registrationFuture.isDone(),
                     "Partition registration must be completed immediately for reactive mode");

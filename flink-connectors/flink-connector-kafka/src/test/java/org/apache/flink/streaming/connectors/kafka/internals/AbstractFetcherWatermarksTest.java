@@ -50,9 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the watermarking behaviour of {@link AbstractFetcher}. */
 @SuppressWarnings("serial")
@@ -114,42 +112,42 @@ public class AbstractFetcherWatermarksTest {
             emitRecord(fetcher, 1L, part1, 1L);
             emitRecord(fetcher, 2L, part1, 2L);
             emitRecord(fetcher, 3L, part1, 3L);
-            assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(3L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(3L);
 
             // elements for partition 2
             emitRecord(fetcher, 12L, part2, 1L);
-            assertEquals(12L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(12L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(12L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(12L);
 
             // elements for partition 3
             emitRecord(fetcher, 101L, part3, 1L);
             emitRecord(fetcher, 102L, part3, 2L);
-            assertEquals(102L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(102L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(102L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(102L);
 
             processingTimeService.setCurrentTime(10);
 
             // now, we should have a watermark (this blocks until the periodic thread emitted the
             // watermark)
-            assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(3L);
 
             // advance partition 3
             emitRecord(fetcher, 1003L, part3, 3L);
             emitRecord(fetcher, 1004L, part3, 4L);
             emitRecord(fetcher, 1005L, part3, 5L);
-            assertEquals(1005L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(1005L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(1005L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(1005L);
 
             // advance partition 1 beyond partition 2 - this bumps the watermark
             emitRecord(fetcher, 30L, part1, 4L);
-            assertEquals(30L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(30L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(30L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(30L);
 
             processingTimeService.setCurrentTime(20);
 
             // this blocks until the periodic thread emitted the watermark
-            assertEquals(12L, sourceContext.getLatestWatermark().getTimestamp());
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(12L);
 
             // advance partition 2 again - this bumps the watermark
             emitRecord(fetcher, 13L, part2, 2L);
@@ -159,7 +157,7 @@ public class AbstractFetcherWatermarksTest {
             processingTimeService.setCurrentTime(30);
             // this blocks until the periodic thread emitted the watermark
             long watermarkTs = sourceContext.getLatestWatermark().getTimestamp();
-            assertTrue(watermarkTs >= 13L && watermarkTs <= 15L);
+            assertThat(watermarkTs >= 13L && watermarkTs <= 15L).isTrue();
         }
 
         @Test
@@ -189,28 +187,28 @@ public class AbstractFetcherWatermarksTest {
             emitRecord(fetcher, 1L, partitionStateHolder, 1L);
             emitRecord(fetcher, 2L, partitionStateHolder, 2L);
             emitRecord(fetcher, 3L, partitionStateHolder, 3L);
-            assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
-            assertEquals(3L, partitionStateHolder.getOffset());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(3L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(3L);
+            assertThat(partitionStateHolder.getOffset()).isEqualTo(3L);
 
             // advance timer for watermark emitting
             processingTimeProvider.setCurrentTime(10L);
-            assertTrue(sourceContext.hasWatermark());
-            assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
+            assertThat(sourceContext.hasWatermark()).isTrue();
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(3L);
 
             // emit no records
             fetcher.emitRecordsWithTimestamps(
                     emptyQueue(), partitionStateHolder, 4L, Long.MIN_VALUE);
 
             // no elements should have been collected
-            assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(3L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(3L);
             // the offset in state still should have advanced
-            assertEquals(4L, partitionStateHolder.getOffset());
+            assertThat(partitionStateHolder.getOffset()).isEqualTo(4L);
 
             // no watermarks should be collected
             processingTimeProvider.setCurrentTime(20L);
-            assertFalse(sourceContext.hasWatermark());
+            assertThat(sourceContext.hasWatermark()).isFalse();
         }
 
         @Test
@@ -234,7 +232,7 @@ public class AbstractFetcherWatermarksTest {
             processingTimeProvider.setCurrentTime(10);
             // no partitions; when the periodic watermark emitter fires, no watermark should be
             // emitted
-            assertFalse(sourceContext.hasWatermark());
+            assertThat(sourceContext.hasWatermark()).isFalse();
 
             // counter-test that when the fetcher does actually have partitions,
             // when the periodic watermark emitter fires again, a watermark really is emitted
@@ -242,7 +240,7 @@ public class AbstractFetcherWatermarksTest {
                     Collections.singletonList(new KafkaTopicPartition(testTopic, 0)));
             emitRecord(fetcher, 100L, fetcher.subscribedPartitionStates().get(0), 3L);
             processingTimeProvider.setCurrentTime(20);
-            assertEquals(100, sourceContext.getLatestWatermark().getTimestamp());
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(100);
         }
     }
 
@@ -280,21 +278,21 @@ public class AbstractFetcherWatermarksTest {
             emitRecord(fetcher, 1L, partitionStateHolder, 1L);
             emitRecord(fetcher, 2L, partitionStateHolder, 2L);
             emitRecord(fetcher, 3L, partitionStateHolder, 3L);
-            assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
-            assertTrue(sourceContext.hasWatermark());
-            assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
-            assertEquals(3L, partitionStateHolder.getOffset());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(3L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(3L);
+            assertThat(sourceContext.hasWatermark()).isTrue();
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(3L);
+            assertThat(partitionStateHolder.getOffset()).isEqualTo(3L);
 
             // emit no records
             fetcher.emitRecordsWithTimestamps(emptyQueue(), partitionStateHolder, 4L, -1L);
 
             // no elements or watermarks should have been collected
-            assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
-            assertFalse(sourceContext.hasWatermark());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(3L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(3L);
+            assertThat(sourceContext.hasWatermark()).isFalse();
             // the offset in state still should have advanced
-            assertEquals(4L, partitionStateHolder.getOffset());
+            assertThat(partitionStateHolder.getOffset()).isEqualTo(4L);
         }
 
         @Test
@@ -340,48 +338,48 @@ public class AbstractFetcherWatermarksTest {
             emitRecords(fetcher, Arrays.asList(1L, 2L), part1, 1L);
             emitRecord(fetcher, 2L, part1, 2L);
             emitRecords(fetcher, Arrays.asList(2L, 3L), part1, 3L);
-            assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
-            assertFalse(sourceContext.hasWatermark());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(3L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(3L);
+            assertThat(sourceContext.hasWatermark()).isFalse();
 
             // elements for partition 2
             emitRecord(fetcher, 12L, part2, 1L);
-            assertEquals(12L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(12L, sourceContext.getLatestElement().getTimestamp());
-            assertFalse(sourceContext.hasWatermark());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(12L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(12L);
+            assertThat(sourceContext.hasWatermark()).isFalse();
 
             // elements for partition 3
             emitRecord(fetcher, 101L, part3, 1L);
             emitRecord(fetcher, 102L, part3, 2L);
-            assertEquals(102L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(102L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(102L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(102L);
 
             // now, we should have a watermark
-            assertTrue(sourceContext.hasWatermark());
-            assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
+            assertThat(sourceContext.hasWatermark()).isTrue();
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(3L);
 
             // advance partition 3
             emitRecord(fetcher, 1003L, part3, 3L);
             emitRecord(fetcher, 1004L, part3, 4L);
             emitRecord(fetcher, 1005L, part3, 5L);
-            assertEquals(1005L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(1005L, sourceContext.getLatestElement().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(1005L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(1005L);
 
             // advance partition 1 beyond partition 2 - this bumps the watermark
             emitRecord(fetcher, 30L, part1, 4L);
-            assertEquals(30L, sourceContext.getLatestElement().getValue().longValue());
-            assertEquals(30L, sourceContext.getLatestElement().getTimestamp());
-            assertTrue(sourceContext.hasWatermark());
-            assertEquals(12L, sourceContext.getLatestWatermark().getTimestamp());
+            assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(30L);
+            assertThat(sourceContext.getLatestElement().getTimestamp()).isEqualTo(30L);
+            assertThat(sourceContext.hasWatermark()).isTrue();
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(12L);
 
             // advance partition 2 again - this bumps the watermark
             emitRecord(fetcher, 13L, part2, 2L);
-            assertFalse(sourceContext.hasWatermark());
+            assertThat(sourceContext.hasWatermark()).isFalse();
             emitRecord(fetcher, 14L, part2, 3L);
-            assertFalse(sourceContext.hasWatermark());
+            assertThat(sourceContext.hasWatermark()).isFalse();
             emitRecord(fetcher, 15L, part2, 3L);
-            assertTrue(sourceContext.hasWatermark());
-            assertEquals(15L, sourceContext.getLatestWatermark().getTimestamp());
+            assertThat(sourceContext.hasWatermark()).isTrue();
+            assertThat(sourceContext.getLatestWatermark().getTimestamp()).isEqualTo(15L);
         }
     }
 

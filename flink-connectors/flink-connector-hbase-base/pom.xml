@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-hbase-base</artifactId>
@@ -181,6 +180,12 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<!-- test-jar is still used by JUnit4 modules -->
+								<exclude>META-INF/services/org.junit.jupiter.api.extension.Extension</exclude>
+							</excludes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

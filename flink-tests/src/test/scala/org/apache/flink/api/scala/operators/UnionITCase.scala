@@ -17,14 +17,14 @@
  */
 package org.apache.flink.api.scala.operators
 
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import org.apache.flink.api.scala._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -33,7 +33,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
   private var result: Seq[String] = null
   private var expected: String = null
 
-  private final val FULL_TUPLE_3_STRING: String = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2," +
+  final private val FULL_TUPLE_3_STRING: String = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2," +
     "Hello world)\n" + "(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3," +
     "Luke Skywalker)\n" + "(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" +
     "(10,4," +
@@ -41,7 +41,6 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     "Comment#8)\n" + "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" + "(17,6,Comment#11)\n" +
     "(18,6," +
     "Comment#12)\n" + "(19,6,Comment#13)\n" + "(20,6,Comment#14)\n" + "(21,6,Comment#15)\n"
-
 
   @After
   def after(): Unit = {
@@ -85,7 +84,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     // Don't know how to make an empty result in an other way than filtering it
-    val empty = CollectionDataSets.get3TupleDataSet(env).filter( t => false )
+    val empty = CollectionDataSets.get3TupleDataSet(env).filter(t => false)
     val unionDs = CollectionDataSets.get3TupleDataSet(env).union(empty)
     result = unionDs.collect().map(_.toString())
     expected = FULL_TUPLE_3_STRING
@@ -102,6 +101,6 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val input2 = env.fromCollection(data)
 
     result = input1.union(input2).collect().map(_.toString())
-    expected = data ++ data mkString("\n")
+    expected = (data ++ data).mkString("\n")
   }
 }

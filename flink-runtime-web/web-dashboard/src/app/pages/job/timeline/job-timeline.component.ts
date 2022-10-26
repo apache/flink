@@ -30,10 +30,10 @@ import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
 
 import * as G2 from '@antv/g2';
 import { Chart } from '@antv/g2';
+import { JobDetailCorrect, VerticesItemRange } from '@flink-runtime-web/interfaces';
+import { JobService, ColorKey, ConfigService } from '@flink-runtime-web/services';
 
-import { COLOR_MAP, ColorKey } from 'config';
-import { JobDetailCorrect, VerticesItemRange } from 'interfaces';
-import { JobService } from 'services';
+import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-timeline',
@@ -55,12 +55,18 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngAfterViewInit(): void {
     this.setUpMainChart();
     this.setUpSubTaskChart();
-    this.jobService.jobDetail$
+    this.jobLocalService
+      .jobDetailChanges()
       .pipe(
         filter(() => !!this.mainChartInstance),
         distinctUntilChanged((pre, next) => pre.jid === next.jid),
@@ -103,63 +109,66 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
 
   public updateSubTaskChart(vertexId: string): void {
     this.listOfSubTaskTimeLine = [];
-    this.jobService.loadSubTaskTimes(this.jobDetail.jid, vertexId).subscribe(data => {
-      data.subtasks.forEach(task => {
-        const listOfTimeLine: Array<{ status: string; startTime: number }> = [];
-        for (const key in task.timestamps) {
-          // @ts-ignore
-          const time = task.timestamps[key];
-          if (time > 0) {
-            listOfTimeLine.push({
-              status: key,
-              startTime: time
-            });
+    this.jobService
+      .loadSubTaskTimes(this.jobDetail.jid, vertexId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        data.subtasks.forEach(task => {
+          const listOfTimeLine: Array<{ status: string; startTime: number }> = [];
+          for (const key in task.timestamps) {
+            // @ts-ignore
+            const time = task.timestamps[key];
+            if (time > 0) {
+              listOfTimeLine.push({
+                status: key,
+                startTime: time
+              });
+            }
           }
-        }
-        listOfTimeLine.sort((pre, next) => pre.startTime - next.startTime);
-        listOfTimeLine.forEach((item, index) => {
-          if (index === listOfTimeLine.length - 1) {
-            this.listOfSubTaskTimeLine.push({
-              name: `${task.subtask} - ${task.host}`,
-              status: item.status,
-              range: [item.startTime, task.duration + listOfTimeLine[0].startTime]
-            });
-          } else {
-            this.listOfSubTaskTimeLine.push({
-              name: `${task.subtask} - ${task.host}`,
-              status: item.status,
-              range: [item.startTime, listOfTimeLine[index + 1].startTime]
-            });
+          listOfTimeLine.sort((pre, next) => pre.startTime - next.startTime);
+          listOfTimeLine.forEach((item, index) => {
+            if (index === listOfTimeLine.length - 1) {
+              this.listOfSubTaskTimeLine.push({
+                name: `${task.subtask} - ${task.host}`,
+                status: item.status,
+                range: [item.startTime, task.duration + listOfTimeLine[0].startTime]
+              });
+            } else {
+              this.listOfSubTaskTimeLine.push({
+                name: `${task.subtask} - ${task.host}`,
+                status: item.status,
+                range: [item.startTime, listOfTimeLine[index + 1].startTime]
+              });
+            }
+          });
+        });
+        this.subTaskChartInstance.changeSize(
+          this.subTaskChartInstance.width,
+          Math.max(data.subtasks.length * 50 + 100, 150)
+        );
+        this.subTaskChartInstance.data(this.listOfSubTaskTimeLine);
+        this.subTaskChartInstance.scale({
+          range: {
+            alias: 'Time',
+            type: 'time',
+            mask: 'HH:mm:ss',
+            nice: false
           }
         });
+        this.subTaskChartInstance.render();
+        this.isShowSubTaskTimeLine = true;
+        this.cdr.markForCheck();
+        setTimeout(() => {
+          try {
+            // FIXME scrollIntoViewIfNeeded is a non-standard extension and will not work everywhere
+            (
+              document.getElementById('subtask') as unknown as {
+                scrollIntoViewIfNeeded: () => void;
+              }
+            ).scrollIntoViewIfNeeded();
+          } catch (e) {}
+        });
       });
-      this.subTaskChartInstance.changeSize(
-        this.subTaskChartInstance.width,
-        Math.max(data.subtasks.length * 50 + 100, 150)
-      );
-      this.subTaskChartInstance.data(this.listOfSubTaskTimeLine);
-      this.subTaskChartInstance.scale({
-        range: {
-          alias: 'Time',
-          type: 'time',
-          mask: 'HH:mm:ss',
-          nice: false
-        }
-      });
-      this.subTaskChartInstance.render();
-      this.isShowSubTaskTimeLine = true;
-      this.cdr.markForCheck();
-      setTimeout(() => {
-        try {
-          // FIXME scrollIntoViewIfNeeded is a non-standard extension and will not work everywhere
-          (
-            document.getElementById('subtask') as unknown as {
-              scrollIntoViewIfNeeded: () => void;
-            }
-          ).scrollIntoViewIfNeeded();
-        } catch (e) {}
-      });
-    });
   }
 
   public setUpMainChart(): void {
@@ -175,7 +184,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     this.mainChartInstance
       .interval()
       .position('id*range')
-      .color('status', (type: string) => COLOR_MAP[type as ColorKey])
+      .color('status', (type: string) => this.configService.COLOR_MAP[type as ColorKey])
       .label('name', {
         offset: -20,
         position: 'right',
@@ -206,6 +215,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
         this.updateSubTaskChart(data.id);
       }
     });
+    this.cdr.markForCheck();
   }
 
   public setUpSubTaskChart(): void {
@@ -220,6 +230,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     this.subTaskChartInstance
       .interval()
       .position('name*range')
-      .color('status', (type: string) => COLOR_MAP[type as ColorKey]);
+      .color('status', (type: string) => this.configService.COLOR_MAP[type as ColorKey]);
+    this.cdr.markForCheck();
   }
 }

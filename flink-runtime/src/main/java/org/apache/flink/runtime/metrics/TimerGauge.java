@@ -47,6 +47,8 @@ public class TimerGauge implements Gauge<Long>, View {
     private long previousMaxSingleMeasurement;
     private long currentMaxSingleMeasurement;
 
+    private long accumulatedCount;
+
     public TimerGauge() {
         this(SystemClock.getInstance());
     }
@@ -66,6 +68,7 @@ public class TimerGauge implements Gauge<Long>, View {
         if (currentMeasurementStartTS != 0) {
             long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
             currentCount += currentMeasurement;
+            accumulatedCount += currentMeasurement;
             currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
             currentUpdateTS = 0;
             currentMeasurementStartTS = 0;
@@ -79,6 +82,7 @@ public class TimerGauge implements Gauge<Long>, View {
             // we adding to the current count only the time elapsed since last markStart or update
             // call
             currentCount += now - currentUpdateTS;
+            accumulatedCount += now - currentUpdateTS;
             currentUpdateTS = now;
             // on the other hand, max measurement has to be always checked against last markStart
             // call
@@ -102,6 +106,11 @@ public class TimerGauge implements Gauge<Long>, View {
      */
     public synchronized long getMaxSingleMeasurement() {
         return previousMaxSingleMeasurement;
+    }
+
+    /** @return the accumulated period by the given * TimerGauge. */
+    public synchronized long getAccumulatedCount() {
+        return accumulatedCount;
     }
 
     @VisibleForTesting

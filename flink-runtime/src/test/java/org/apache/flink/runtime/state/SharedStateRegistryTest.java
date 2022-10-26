@@ -18,23 +18,39 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.UUID;
 
+import static java.util.Collections.singleton;
 import static junit.framework.TestCase.assertFalse;
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.ChangelogStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.IncrementalStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyChangelogStateHandle;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyIncrementalStateHandle;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class SharedStateRegistryTest {
+    private static final String RESTORED_STATE_ID = "restored-state";
 
     /** Validate that all states can be correctly registered at the registry. */
     @Test
@@ -122,6 +138,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState1),
                         Collections.singletonList(nonMaterializedState1),
                         materializedStateBase1.getKeyGroupRange(),
+                        checkpointId1,
                         materializationId,
                         nonMaterializedState1.getStateSize());
         changelogStateBackendHandle1.registerSharedStates(sharedStateRegistry, checkpointId1);
@@ -136,6 +153,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState2),
                         Collections.singletonList(nonMaterializedState2),
                         materializedStateBase1.getKeyGroupRange(),
+                        checkpointId2,
                         materializationId,
                         nonMaterializedState2.getStateSize());
         changelogStateBackendHandle2.registerSharedStates(sharedStateRegistry, checkpointId2);
@@ -160,6 +178,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState3),
                         Collections.singletonList(nonMaterializedState2),
                         materializedState3.getKeyGroupRange(),
+                        checkpointId3,
                         materializationId2,
                         0L);
         changelogStateBackendHandle3.registerSharedStates(sharedStateRegistry, checkpointId3);
@@ -174,7 +193,130 @@ public class SharedStateRegistryTest {
         assertFalse(nonMaterializedState2.isDiscarded());
     }
 
-    private static class TestSharedState implements StreamStateHandle {
+    @Test
+    public void testUnregisterUnusedSavepointState() {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+
+        registerInitialCheckpoint(
+                sharedStateRegistry,
+                RESTORED_STATE_ID,
+                CheckpointProperties.forSavepoint(false, SavepointFormatType.NATIVE));
+
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey(RESTORED_STATE_ID), handle, 2L);
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey(RESTORED_STATE_ID), handle, 3L);
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("new-state"), new TestingStreamStateHandle(), 4L);
+
+        assertEquals(
+                "Only the initial checkpoint should be retained because its state is in use",
+                singleton(1L),
+                sharedStateRegistry.unregisterUnusedState(3));
+        assertTrue(
+                "The initial checkpoint state is unused so it could be discarded",
+                sharedStateRegistry.unregisterUnusedState(4).isEmpty());
+    }
+
+    @Test
+    public void testUnregisterNonInitialCheckpoint() {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("stateId"), new TestingStreamStateHandle(), 1L);
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("stateId"), new TestingStreamStateHandle(), 2L);
+        assertTrue(
+                "First (non-initial) checkpoint could be discarded",
+                sharedStateRegistry.unregisterUnusedState(2).isEmpty());
+    }
+
+    @Test
+    public void testUnregisterInitialCheckpoint() {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+
+        registerInitialCheckpoint(
+                sharedStateRegistry,
+                RESTORED_STATE_ID,
+                CheckpointProperties.forCheckpoint(RETAIN_ON_CANCELLATION));
+
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey(RESTORED_STATE_ID), handle, 2L);
+
+        assertTrue(
+                "(retained) checkpoint - should NOT be considered in use even if its state is in use",
+                sharedStateRegistry.unregisterUnusedState(2).isEmpty());
+    }
+
+    /** Emulate turning changelog on while recovering from a retained checkpoint. */
+    @Test
+    public void testUnregisterInitialCheckpointUsedInChangelog() {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+
+        // "normal" restored checkpoint
+        registerInitialCheckpoint(
+                sharedStateRegistry,
+                RESTORED_STATE_ID,
+                CheckpointProperties.forCheckpoint(RETAIN_ON_CANCELLATION));
+
+        // "changelog" checkpoint wrapping some initial state
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey(RESTORED_STATE_ID),
+                handle,
+                2L,
+                true /* should prevent deletion */);
+
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey(RESTORED_STATE_ID),
+                handle,
+                3L,
+                false /* should NOT change anything - deletion should still be prevented */);
+
+        assertEquals(
+                "(retained) checkpoint - should be considered in use as long as its state is in use by changelog",
+                singleton(1L),
+                sharedStateRegistry.unregisterUnusedState(3));
+    }
+
+    private void registerInitialCheckpoint(
+            SharedStateRegistry sharedStateRegistry,
+            String stateId,
+            CheckpointProperties properties) {
+        IncrementalRemoteKeyedStateHandle initialHandle =
+                IncrementalRemoteKeyedStateHandle.restore(
+                        UUID.randomUUID(),
+                        KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                        1L,
+                        Collections.emptyMap(),
+                        Collections.emptyMap(),
+                        new ByteStreamStateHandle("meta", new byte[1]),
+                        1024L,
+                        new StateHandleID(stateId));
+
+        OperatorID operatorID = new OperatorID();
+        OperatorState operatorState = new OperatorState(operatorID, 1, 1);
+        operatorState.putState(
+                0, OperatorSubtaskState.builder().setManagedKeyedState(initialHandle).build());
+
+        sharedStateRegistry.registerAllAfterRestored(
+                new CompletedCheckpoint(
+                        new JobID(),
+                        1L,
+                        1L,
+                        1L,
+                        Collections.singletonMap(operatorID, operatorState),
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation(),
+                        null,
+                        properties),
+                RestoreMode.DEFAULT);
+    }
+
+    private static class TestSharedState implements TestStreamStateHandle {
         private static final long serialVersionUID = 4468635881465159780L;
 
         private SharedStateRegistryKey key;

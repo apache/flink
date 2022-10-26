@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 
@@ -69,31 +70,40 @@ public class NettyShuffleEnvironmentOptions {
                                     + ") is set to true");
 
     /**
-     * Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle
-     * mode.
+     * Boolean flag indicating whether the shuffle data will be compressed for batch shuffle mode.
      *
      * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is
      * more effective for IO bounded scenario when data compression ratio is high.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
-            key("taskmanager.network.blocking-shuffle.compression.enabled")
+    public static final ConfigOption<Boolean> BATCH_SHUFFLE_COMPRESSION_ENABLED =
+            key("taskmanager.network.batch-shuffle.compression.enabled")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("taskmanager.network.blocking-shuffle.compression.enabled")
                     .withDescription(
                             "Boolean flag indicating whether the shuffle data will be compressed "
-                                    + "for blocking shuffle mode. Note that data is compressed per "
+                                    + "for batch shuffle mode. Note that data is compressed per "
                                     + "buffer and compression can incur extra CPU overhead, so it "
                                     + "is more effective for IO bounded scenario when compression "
                                     + "ratio is high.");
 
     /** The codec to be used when compressing shuffle data. */
-    @Documentation.ExcludeFromDocumentation("Currently, LZ4 is the only legal option.")
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Experimental
     public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
                     .stringType()
                     .defaultValue("LZ4")
-                    .withDescription("The codec to be used when compressing shuffle data.");
+                    .withDescription(
+                            "The codec to be used when compressing shuffle data, only \"LZ4\", \"LZO\" "
+                                    + "and \"ZSTD\" are supported now. Through tpc-ds test of these "
+                                    + "three algorithms, the results show that \"LZ4\" algorithm has "
+                                    + "the highest compression and decompression speed, but the "
+                                    + "compression ratio is the lowest. \"ZSTD\" has the highest "
+                                    + "compression ratio, but the compression and decompression "
+                                    + "speed is the slowest, and LZO is between the two. Also note "
+                                    + "that this option is experimental and might be changed in the future.");
 
     /**
      * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
@@ -260,7 +270,7 @@ public class NettyShuffleEnvironmentOptions {
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
-    /** Number of max buffers can be used for each output subparition. */
+    /** Number of max buffers can be used for each output subpartition. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.max-buffers-per-channel")
@@ -273,6 +283,24 @@ public class NettyShuffleEnvironmentOptions {
                                     + " case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed,"
                                     + " and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer"
                                     + " producing large amount of data.");
+
+    /** Number of max overdraft network buffers to use for each ResultPartition. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE =
+            key("taskmanager.network.memory.max-overdraft-buffers-per-gate")
+                    .intType()
+                    .defaultValue(5)
+                    .withDescription(
+                            "Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers"
+                                    + " will be used when the subtask cannot apply to the normal buffers  due to back pressure,"
+                                    + " while subtask is performing an action that can not be interrupted in the middle,  like"
+                                    + " serializing a large record, flatMap operator producing multiple records for one single"
+                                    + " input record or processing time timer producing large output. In situations like that"
+                                    + " system will allow subtask to request overdraft buffers, so that the subtask can finish"
+                                    + " such uninterruptible action, without blocking unaligned checkpoints for long period of"
+                                    + " time. Overdraft buffers are provided on best effort basis only if the system has some"
+                                    + " unused buffers available. Subtask that has used overdraft buffers won't be allowed to"
+                                    + " process any more records until the overdraft buffers are returned to the pool.");
 
     /** The timeout for requesting exclusive buffers for each channel. */
     @Documentation.ExcludeFromDocumentation(

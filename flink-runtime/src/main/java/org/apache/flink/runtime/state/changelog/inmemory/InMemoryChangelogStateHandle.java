@@ -127,4 +127,9 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
     public long getTo() {
         return ((SequenceNumber.GenericSequenceNumber) to).number;
     }
+
+    @Override
+    public String getStorageIdentifier() {
+        return InMemoryStateChangelogStorageFactory.IDENTIFIER;
+    }
 }

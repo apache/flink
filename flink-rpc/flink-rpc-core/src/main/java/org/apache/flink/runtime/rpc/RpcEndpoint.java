@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
@@ -33,6 +33,7 @@ import javax.annotation.Nonnull;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -62,8 +63,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * thread, we don't have to reason about concurrent accesses, in the same way in the Actor Model of
  * Erlang or Akka.
  *
- * <p>The RPC endpoint provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)} and
- * the {@link #getMainThreadExecutor()} to execute code in the RPC endpoint's main thread.
+ * <p>The RPC endpoint provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Duration)}
+ * and the {@link #getMainThreadExecutor()} to execute code in the RPC endpoint's main thread.
  *
  * <h1>Lifecycle</h1>
  *
@@ -307,17 +308,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      * @return Self gateway of the specified type which can be used to issue asynchronous rpcs
      */
     public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType) {
-        if (selfGatewayType.isInstance(rpcServer)) {
-            @SuppressWarnings("unchecked")
-            C selfGateway = ((C) rpcServer);
-
-            return selfGateway;
-        } else {
-            throw new RuntimeException(
-                    "RpcEndpoint does not implement the RpcGateway interface of type "
-                            + selfGatewayType
-                            + '.');
-        }
+        return rpcService.getSelfGateway(selfGatewayType, rpcServer);
     }
 
     /**
@@ -390,8 +381,8 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      * @param runnable Runnable to be executed
      * @param delay The delay after which the runnable will be executed
      */
-    protected void scheduleRunAsync(Runnable runnable, Time delay) {
-        scheduleRunAsync(runnable, delay.getSize(), delay.getUnit());
+    protected void scheduleRunAsync(Runnable runnable, Duration delay) {
+        scheduleRunAsync(runnable, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -415,7 +406,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      * @param <V> Return type of the callable
      * @return Future for the result of the callable.
      */
-    protected <V> CompletableFuture<V> callAsync(Callable<V> callable, Time timeout) {
+    protected <V> CompletableFuture<V> callAsync(Callable<V> callable, Duration timeout) {
         return rpcServer.callAsync(callable, timeout);
     }
 
@@ -470,11 +461,21 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
         MainThreadExecutor(
                 MainThreadExecutable gateway, Runnable mainThreadCheck, String endpointId) {
+            this(
+                    gateway,
+                    mainThreadCheck,
+                    Executors.newSingleThreadScheduledExecutor(
+                            new ExecutorThreadFactory(endpointId + "-main-scheduler")));
+        }
+
+        @VisibleForTesting
+        MainThreadExecutor(
+                MainThreadExecutable gateway,
+                Runnable mainThreadCheck,
+                ScheduledExecutorService mainScheduledExecutor) {
             this.gateway = Preconditions.checkNotNull(gateway);
             this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
-            this.mainScheduledExecutor =
-                    Executors.newSingleThreadScheduledExecutor(
-                            new ExecutorThreadFactory(endpointId + "-main-scheduler"));
+            this.mainScheduledExecutor = mainScheduledExecutor;
         }
 
         @Override

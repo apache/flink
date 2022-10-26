@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
@@ -23,13 +22,13 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{JoinType, _}
+import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.util
 
@@ -64,9 +63,7 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO),
       "a, b, c")
 
-    checkResult(
-      "SELECT c FROM SmallTable3 INTERSECT SELECT c FROM T",
-      Seq(row("Hi"), row("Hello")))
+    checkResult("SELECT c FROM SmallTable3 INTERSECT SELECT c FROM T", Seq(row("Hi"), row("Hello")))
   }
 
   @Test
@@ -81,7 +78,8 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
     val data = List(row(1, 1L, "Hi"))
     BatchTableEnvUtil.registerCollection(
       tEnv,
-      "T", data,
+      "T",
+      data,
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO),
       "a, b, c")
 
@@ -94,32 +92,26 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
   def testExceptWithFilter(): Unit = {
     checkResult(
       "SELECT c FROM (" +
-          "SELECT * FROM SmallTable3 EXCEPT (SELECT a, b, d FROM Table5))" +
-          "WHERE b < 2",
+        "SELECT * FROM SmallTable3 EXCEPT (SELECT a, b, d FROM Table5))" +
+        "WHERE b < 2",
       Seq(row("Hi")))
   }
 
   @Test
   def testIntersectWithNulls(): Unit = {
-    checkResult(
-      "SELECT c FROM AllNullTable3 INTERSECT SELECT c FROM AllNullTable3",
-      Seq(row(null)))
+    checkResult("SELECT c FROM AllNullTable3 INTERSECT SELECT c FROM AllNullTable3", Seq(row(null)))
   }
 
   @Test
   def testExceptWithNulls(): Unit = {
-    checkResult(
-      "SELECT c FROM AllNullTable3 EXCEPT SELECT c FROM AllNullTable3",
-      Seq())
+    checkResult("SELECT c FROM AllNullTable3 EXCEPT SELECT c FROM AllNullTable3", Seq())
   }
 
   @Test
   def testIntersectAll(): Unit = {
     BatchTableEnvUtil.registerCollection(tEnv, "T1", Seq(1, 1, 1, 2, 2), "c")
     BatchTableEnvUtil.registerCollection(tEnv, "T2", Seq(1, 2, 2, 2, 3), "c")
-    checkResult(
-      "SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2",
-      Seq(row(1), row(2), row(2)))
+    checkResult("SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2", Seq(row(1), row(2), row(2)))
   }
 
   @Test
@@ -136,7 +128,8 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
         row("Hello"),
         row("Hello world"),
         row("Hello world"),
-        row("Hello world")))
+        row("Hello world"))
+    )
   }
 }
 

@@ -127,38 +127,43 @@ public abstract class ScheduledDropwizardReporter
         final String fullName = group.getMetricIdentifier(metricName, this);
 
         synchronized (this) {
-            if (metric instanceof Counter) {
-                counters.put((Counter) metric, fullName);
-                registry.register(fullName, new FlinkCounterWrapper((Counter) metric));
-            } else if (metric instanceof Gauge) {
-                gauges.put((Gauge<?>) metric, fullName);
-                registry.register(fullName, FlinkGaugeWrapper.fromGauge((Gauge<?>) metric));
-            } else if (metric instanceof Histogram) {
-                Histogram histogram = (Histogram) metric;
-                histograms.put(histogram, fullName);
+            switch (metric.getMetricType()) {
+                case COUNTER:
+                    counters.put((Counter) metric, fullName);
+                    registry.register(fullName, new FlinkCounterWrapper((Counter) metric));
+                    break;
+                case GAUGE:
+                    gauges.put((Gauge<?>) metric, fullName);
+                    registry.register(fullName, FlinkGaugeWrapper.fromGauge((Gauge<?>) metric));
+                    break;
+                case HISTOGRAM:
+                    Histogram histogram = (Histogram) metric;
+                    histograms.put(histogram, fullName);
 
-                if (histogram instanceof DropwizardHistogramWrapper) {
-                    registry.register(
-                            fullName,
-                            ((DropwizardHistogramWrapper) histogram).getDropwizardHistogram());
-                } else {
-                    registry.register(fullName, new FlinkHistogramWrapper(histogram));
-                }
-            } else if (metric instanceof Meter) {
-                Meter meter = (Meter) metric;
-                meters.put(meter, fullName);
+                    if (histogram instanceof DropwizardHistogramWrapper) {
+                        registry.register(
+                                fullName,
+                                ((DropwizardHistogramWrapper) histogram).getDropwizardHistogram());
+                    } else {
+                        registry.register(fullName, new FlinkHistogramWrapper(histogram));
+                    }
+                    break;
+                case METER:
+                    Meter meter = (Meter) metric;
+                    meters.put(meter, fullName);
 
-                if (meter instanceof DropwizardMeterWrapper) {
-                    registry.register(
-                            fullName, ((DropwizardMeterWrapper) meter).getDropwizardMeter());
-                } else {
-                    registry.register(fullName, new FlinkMeterWrapper(meter));
-                }
-            } else {
-                log.warn(
-                        "Cannot add metric of type {}. This indicates that the reporter "
-                                + "does not support this metric type.",
-                        metric.getClass().getName());
+                    if (meter instanceof DropwizardMeterWrapper) {
+                        registry.register(
+                                fullName, ((DropwizardMeterWrapper) meter).getDropwizardMeter());
+                    } else {
+                        registry.register(fullName, new FlinkMeterWrapper(meter));
+                    }
+                    break;
+                default:
+                    log.warn(
+                            "Cannot add metric of type {}. This indicates that the reporter "
+                                    + "does not support this metric type.",
+                            metric.getClass().getName());
             }
         }
     }
@@ -168,16 +173,21 @@ public abstract class ScheduledDropwizardReporter
         synchronized (this) {
             String fullName;
 
-            if (metric instanceof Counter) {
-                fullName = counters.remove(metric);
-            } else if (metric instanceof Gauge) {
-                fullName = gauges.remove(metric);
-            } else if (metric instanceof Histogram) {
-                fullName = histograms.remove(metric);
-            } else if (metric instanceof Meter) {
-                fullName = meters.remove(metric);
-            } else {
-                fullName = null;
+            switch (metric.getMetricType()) {
+                case COUNTER:
+                    fullName = counters.remove(metric);
+                    break;
+                case GAUGE:
+                    fullName = gauges.remove(metric);
+                    break;
+                case HISTOGRAM:
+                    fullName = histograms.remove(metric);
+                    break;
+                case METER:
+                    fullName = meters.remove(metric);
+                    break;
+                default:
+                    fullName = null;
             }
 
             if (fullName != null) {

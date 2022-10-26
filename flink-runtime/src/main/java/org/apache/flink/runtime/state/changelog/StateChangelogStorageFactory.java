@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 
 import java.io.IOException;
 
@@ -35,5 +37,12 @@ public interface StateChangelogStorageFactory {
 
     /** Create the storage based on a configuration. */
     StateChangelogStorage<?> createStorage(
-            Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException;
+            JobID jobID,
+            Configuration configuration,
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
+            throws IOException;
+
+    /** Create the storage for recovery. */
+    StateChangelogStorageView<?> createStorageView(Configuration configuration) throws IOException;
 }

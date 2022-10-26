@@ -47,15 +47,11 @@ object StreamSQLExample {
     // set up the Scala Table API
     val tableEnv = StreamTableEnvironment.create(env)
 
-    val orderA = env.fromCollection(Seq(
-      Order(1L, "beer", 3),
-      Order(1L, "diaper", 4),
-      Order(3L, "rubber", 2)))
+    val orderA =
+      env.fromCollection(Seq(Order(1L, "beer", 3), Order(1L, "diaper", 4), Order(3L, "rubber", 2)))
 
-    val orderB = env.fromCollection(Seq(
-      Order(2L, "pen", 3),
-      Order(2L, "rubber", 3),
-      Order(4L, "beer", 1)))
+    val orderB =
+      env.fromCollection(Seq(Order(2L, "pen", 3), Order(2L, "rubber", 3), Order(4L, "beer", 1)))
 
     // convert the first DataStream to a Table object
     // it will be used "inline" and is not registered in a catalog
@@ -66,11 +62,10 @@ object StreamSQLExample {
     tableEnv.createTemporaryView("TableB", orderB)
 
     // union the two tables
-    val result = tableEnv.sqlQuery(
-      s"""
-         |SELECT * FROM $tableA WHERE amount > 2
-         |UNION ALL
-         |SELECT * FROM TableB WHERE amount < 2
+    val result = tableEnv.sqlQuery(s"""
+                                      |SELECT * FROM $tableA WHERE amount > 2
+                                      |UNION ALL
+                                      |SELECT * FROM TableB WHERE amount < 2
         """.stripMargin)
 
     // convert the Table back to an insert-only DataStream of type `Order`

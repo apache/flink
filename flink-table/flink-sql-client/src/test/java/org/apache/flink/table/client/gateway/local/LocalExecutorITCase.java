@@ -19,44 +19,47 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
-import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
-import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.TableUDF;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.utils.TestUserClassLoaderJar;
+import org.apache.flink.table.utils.UserDefinedFunctions;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,6 +69,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -73,41 +77,46 @@ import java.util.stream.Stream;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
-import static org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.ScalarUDF;
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
-public class LocalExecutorITCase extends TestLogger {
+class LocalExecutorITCase {
 
     private static final int NUM_TMS = 2;
     private static final int NUM_SLOTS_PER_TM = 2;
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir
+    @Order(1)
+    public static File tempFolder;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(getConfig())
-                            .setNumberTaskManagers(NUM_TMS)
-                            .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-                            .build());
+    @RegisterExtension
+    @Order(2)
+    public static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    () ->
+                            new MiniClusterResourceConfiguration.Builder()
+                                    .setConfiguration(getConfig())
+                                    .setNumberTaskManagers(NUM_TMS)
+                                    .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+                                    .build());
 
     private static ClusterClient<?> clusterClient;
 
     // a generated UDF jar used for testing classloading of dependencies
     private static URL udfDependency;
 
-    @BeforeClass
-    public static void setup() throws IOException {
-        clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
+    @BeforeAll
+    static void setup(@InjectClusterClient ClusterClient<?> injectedClusterClient)
+            throws Exception {
+        clusterClient = injectedClusterClient;
         File udfJar =
-                TestUserClassLoaderJar.createJarFile(
-                        tempFolder.newFolder("test-jar"),
+                UserClassLoaderJarTestUtils.createJarFile(
+                        tempFolder,
                         "test-classloader-udf.jar",
-                        UserDefinedFunctions.GENERATED_UDF_CLASS,
-                        UserDefinedFunctions.GENERATED_UDF_CODE);
+                        GENERATED_LOWER_UDF_CLASS,
+                        String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS));
         udfDependency = udfJar.toURI().toURL();
     }
 
@@ -117,13 +126,15 @@ public class LocalExecutorITCase extends TestLogger {
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
         config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
+        config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, tempFolder.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, tempFolder.toURI().toString());
         return config;
     }
 
-    @Rule public ExpectedException exception = ExpectedException.none();
-
     @Test
-    public void testCompleteStatement() {
+    void testCompleteStatement() {
         final Executor executor = createLocalExecutor();
         String sessionId = executor.openSession("test-session");
         assertThat(sessionId).isEqualTo("test-session");
@@ -140,7 +151,7 @@ public class LocalExecutorITCase extends TestLogger {
         assertThat(executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WH", 29))
                 .isEqualTo(expectedClause);
 
-        final List<String> expectedField = Arrays.asList("IntegerField1");
+        final List<String> expectedField = Collections.singletonList("IntegerField1");
         assertThat(
                         executor.completeStatement(
                                 sessionId, "SELECT * FROM TableNumber1 WHERE Inte", 37))
@@ -148,8 +159,8 @@ public class LocalExecutorITCase extends TestLogger {
         executor.closeSession(sessionId);
     }
 
-    @Test(timeout = 90_000L)
-    public void testStreamQueryExecutionChangelog() throws Exception {
+    @Test
+    void testStreamQueryExecutionChangelog() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -195,8 +206,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
-    public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
+    @Test
+    void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -244,8 +255,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
-    public void testStreamQueryExecutionTable() throws Exception {
+    @Test
+    void testStreamQueryExecutionTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -269,8 +280,8 @@ public class LocalExecutorITCase extends TestLogger {
         executeStreamQueryTable(replaceVars, configMap, query, expectedResults);
     }
 
-    @Test(timeout = 90_000L)
-    public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
+    @Test
+    void testStreamQueryExecutionTableMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -295,8 +306,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
-    public void testStreamQueryExecutionLimitedTable() throws Exception {
+    @Test
+    void testStreamQueryExecutionLimitedTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -316,8 +327,8 @@ public class LocalExecutorITCase extends TestLogger {
         executeStreamQueryTable(replaceVars, configMap, query, expectedResults);
     }
 
-    @Test(timeout = 90_000L)
-    public void testBatchQueryExecution() throws Exception {
+    @Test
+    void testBatchQueryExecution() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -362,8 +373,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
-    public void testBatchQueryExecutionMultipleTimes() throws Exception {
+    @Test
+    void testBatchQueryExecutionMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -410,14 +421,48 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
+    @Test
+    void testStopJob() throws Exception {
+        final Map<String, String> configMap = new HashMap<>();
+        configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
+        configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
+        configMap.put(TableConfigOptions.TABLE_DML_SYNC.key(), "false");
+
+        final LocalExecutor executor =
+                createLocalExecutor(
+                        Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
+        String sessionId = executor.openSession("test-session");
+
+        final String srcDdl = "CREATE TABLE src (a STRING) WITH ('connector' = 'datagen')";
+        final String snkDdl = "CREATE TABLE snk (a STRING) WITH ('connector' = 'blackhole')";
+        final String insert = "INSERT INTO snk SELECT a FROM src;";
+
+        try {
+            executor.executeOperation(sessionId, executor.parseStatement(sessionId, srcDdl));
+            executor.executeOperation(sessionId, executor.parseStatement(sessionId, snkDdl));
+            TableResult result =
+                    executor.executeOperation(
+                            sessionId, executor.parseStatement(sessionId, insert));
+            JobClient jobClient = result.getJobClient().get();
+            JobID jobId = jobClient.getJobID();
+
+            // wait till the job turns into running status or the test times out
+            JobStatus jobStatus;
+            do {
+                Thread.sleep(2_000L);
+                jobStatus = jobClient.getJobStatus().get();
+            } while (jobStatus != JobStatus.RUNNING);
+
+            Optional<String> savepoint = executor.stopJob(sessionId, jobId.toString(), true, true);
+            assertThat(savepoint).isPresent();
+        } finally {
+            executor.closeSession(sessionId);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper method
     // --------------------------------------------------------------------------------------------
-
-    private TableResult executeSql(Executor executor, String sessionId, String sql) {
-        Operation operation = executor.parseStatement(sessionId, sql);
-        return executor.executeOperation(sessionId, operation);
-    }
 
     private ResultDescriptor executeQuery(Executor executor, String sessionId, String query) {
         Operation operation = executor.parseStatement(sessionId, query);
@@ -533,31 +578,6 @@ public class LocalExecutorITCase extends TestLogger {
         return actualResults;
     }
 
-    private void verifySinkResult(String path) throws IOException {
-        final List<String> actualResults = new ArrayList<>();
-        TestBaseUtils.readAllResultLines(actualResults, path);
-        final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:01\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:02\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:03\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:04\"");
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:05\"");
-        expectedResults.add("FALSE,\"hello world!!!!\",\"2020-01-01 00:00:06\"");
-        TestBaseUtils.compareResultCollections(
-                expectedResults, actualResults, Comparator.naturalOrder());
-    }
-
-    private void executeAndVerifySinkResult(
-            Executor executor, String sessionId, String statement, String resultPath)
-            throws Exception {
-        final TableResult tableResult = executeSql(executor, sessionId, statement);
-        checkState(tableResult.getJobClient().isPresent());
-        // wait for job completion
-        tableResult.await();
-        // verify result
-        verifySinkResult(resultPath);
-    }
-
     private Map<String, String> getDefaultSessionConfigMap() {
         HashMap<String, String> configMap = new HashMap<>();
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
@@ -569,11 +589,14 @@ public class LocalExecutorITCase extends TestLogger {
     private List<String> getInitSQL(final Map<String, String> replaceVars) {
         return Stream.of(
                         String.format(
-                                "CREATE FUNCTION scalarUDF AS '%s'", ScalarUDF.class.getName()),
+                                "CREATE FUNCTION scalarUDF AS '%s'",
+                                UserDefinedFunctions.ScalarUDF.class.getName()),
                         String.format(
                                 "CREATE FUNCTION aggregateUDF AS '%s'",
                                 AggregateFunction.class.getName()),
-                        String.format("CREATE FUNCTION tableUDF AS '%s'", TableUDF.class.getName()),
+                        String.format(
+                                "CREATE FUNCTION tableUDF AS '%s'",
+                                UserDefinedFunctions.TableUDF.class.getName()),
                         "CREATE TABLE TableNumber1 (\n"
                                 + "  IntegerField1 INT,\n"
                                 + "  StringField1 STRING,\n"

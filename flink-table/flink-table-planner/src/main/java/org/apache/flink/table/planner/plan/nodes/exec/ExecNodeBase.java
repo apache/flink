@@ -24,13 +24,16 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.ConfigurationJsonSerializerFilter;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JacksonInject;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
@@ -46,6 +49,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
+
+    /**
+     * The default value of this flag is false. Other cases must set this flag accordingly via
+     * {@link #setCompiled(boolean)}. It is not exposed via a constructor arg to avoid complex
+     * constructor overloading for all {@link ExecNode}s. However, during deserialization this flag
+     * will always be set to true.
+     */
+    @JacksonInject("isDeserialize")
+    private boolean isCompiled;
 
     private final String description;
 
@@ -70,13 +82,30 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return ExecNodeContext.newContext(this.getClass()).withId(getId());
     }
 
+    @JsonProperty(value = FIELD_NAME_CONFIGURATION, access = JsonProperty.Access.WRITE_ONLY)
+    private final ReadableConfig persistedConfig;
+
+    @JsonProperty(
+            value = FIELD_NAME_CONFIGURATION,
+            access = JsonProperty.Access.READ_ONLY,
+            index = 2)
+    // Custom filter to exclude node configuration if no consumed options are used
+    @JsonInclude(
+            value = JsonInclude.Include.CUSTOM,
+            valueFilter = ConfigurationJsonSerializerFilter.class)
+    public ReadableConfig getPersistedConfig() {
+        return persistedConfig;
+    }
+
     protected ExecNodeBase(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
         this.context = checkNotNull(context).withId(id);
+        this.persistedConfig = persistedConfig == null ? new Configuration() : persistedConfig;
         this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
@@ -128,10 +157,10 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             transformation =
                     translateToPlanInternal(
                             (PlannerBase) planner,
-                            new ExecNodeConfig(
-                                    ((PlannerBase) planner).getConfiguration(),
+                            ExecNodeConfig.of(
                                     ((PlannerBase) planner).getTableConfig(),
-                                    new Configuration()));
+                                    persistedConfig,
+                                    isCompiled));
             if (this instanceof SingleTransformationTranslator) {
                 if (inputsContainSingleton()) {
                     transformation.setParallelism(1);
@@ -140,6 +169,16 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             }
         }
         return transformation;
+    }
+
+    @Override
+    public void accept(ExecNodeVisitor visitor) {
+        visitor.visit(this);
+    }
+
+    @Override
+    public void setCompiled(boolean compiled) {
+        isCompiled = compiled;
     }
 
     /**
@@ -153,11 +192,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
      */
     protected abstract Transformation<T> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config);
-
-    @Override
-    public void accept(ExecNodeVisitor visitor) {
-        visitor.visit(this);
-    }
 
     /** Whether singleton distribution is required. */
     protected boolean inputsContainSingleton() {
@@ -173,8 +207,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return getClass().getSimpleName().replace("StreamExec", "").replace("BatchExec", "");
     }
 
-    protected String createTransformationUid(String operatorName) {
-        return context.generateUid(operatorName);
+    protected String createTransformationUid(String operatorName, ExecNodeConfig config) {
+        return context.generateUid(operatorName, config);
     }
 
     protected String createTransformationName(ReadableConfig config) {
@@ -186,30 +220,27 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, ReadableConfig config) {
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
-                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
+            String operatorName, ExecNodeConfig config) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass()) || !config.shouldSetUid()) {
             return new TransformationMetadata(
                     createTransformationName(config), createTransformationDescription(config));
         } else {
-            // Only classes supporting metadata util need to set the uid
             return new TransformationMetadata(
-                    createTransformationUid(operatorName),
+                    createTransformationUid(operatorName, config),
                     createTransformationName(config),
                     createTransformationDescription(config));
         }
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, String detailName, String simplifiedName, ReadableConfig config) {
+            String operatorName, String detailName, String simplifiedName, ExecNodeConfig config) {
         final String name = createFormattedTransformationName(detailName, simplifiedName, config);
         final String desc = createFormattedTransformationDescription(detailName, config);
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
-                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass()) || !config.shouldSetUid()) {
             return new TransformationMetadata(name, desc);
         } else {
-            // Only classes supporting metadata util need to set the uid
-            return new TransformationMetadata(createTransformationUid(operatorName), name, desc);
+            return new TransformationMetadata(
+                    createTransformationUid(operatorName, config), name, desc);
         }
     }
 
@@ -227,5 +258,9 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             return String.format("%s[%d]", simplifiedName, getId());
         }
         return detailName;
+    }
+
+    public void resetTransformation() {
+        this.transformation = null;
     }
 }
