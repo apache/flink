@@ -967,6 +967,17 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testEmptyArray(): Unit = {
+    // Empty array test
+    checkResult(
+      "SELECT ARRAY[]",
+      Seq(
+        row("[]")
+      )
+    )
+  }
+
+  @Test
   def testArrayType(): Unit = {
     // literals
     checkResult(

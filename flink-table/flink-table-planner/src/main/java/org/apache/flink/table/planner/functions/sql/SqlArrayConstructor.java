@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlArrayValueConstructor;
+import org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 
 /**
@@ -32,10 +36,20 @@ import org.apache.calcite.sql.type.SqlTypeUtil;
  */
 public class SqlArrayConstructor extends SqlArrayValueConstructor {
 
+    private boolean isEmptyArray(SqlOperatorBinding opBinding) {
+        return opBinding.collectOperandTypes().isEmpty();
+    }
+
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        RelDataType type =
-                getComponentType(opBinding.getTypeFactory(), opBinding.collectOperandTypes());
+        RelDataType type;
+        if (this.isEmptyArray(opBinding)) {
+            // Empty array, default type to integer
+            type = new BasicSqlType(FlinkTypeSystem.INSTANCE, SqlTypeName.INTEGER);
+        } else {
+            type = getComponentType(opBinding.getTypeFactory(), opBinding.collectOperandTypes());
+        }
+
         if (null == type) {
             return null;
         }
@@ -44,5 +58,15 @@ public class SqlArrayConstructor extends SqlArrayValueConstructor {
         SqlValidatorUtils.adjustTypeForArrayConstructor(type, opBinding);
 
         return SqlTypeUtil.createArrayType(opBinding.getTypeFactory(), type, false);
+    }
+
+    @Override
+    public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+        if (this.isEmptyArray(callBinding)) {
+            // Empty array
+            return true;
+        } else {
+            return super.checkOperandTypes(callBinding, throwOnFailure);
+        }
     }
 }
