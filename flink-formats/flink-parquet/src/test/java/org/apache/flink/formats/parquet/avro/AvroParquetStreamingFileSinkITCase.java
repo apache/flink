@@ -46,6 +46,7 @@ import org.junit.rules.Timeout;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -121,8 +122,8 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
 
         List<Address> expected =
                 Arrays.asList(
-                        new Address(1, "a", "b", "c", "12345"),
-                        new Address(2, "x", "y", "z", "98765"));
+                        new Address(1, "a", "b", "c", "12345", LocalDate.of(2022, 10, 25)),
+                        new Address(2, "x", "y", "z", "98765", LocalDate.of(2022, 10, 26));
 
         validateResults(folder, SpecificData.get(), expected);
     }
