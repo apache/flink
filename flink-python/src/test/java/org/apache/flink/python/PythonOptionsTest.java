@@ -180,7 +180,7 @@ public class PythonOptionsTest {
     }
 
     @Test
-    void testPythonSystemEnvEnabled() {
+    public void testPythonSystemEnvEnabled() {
         final Configuration configuration = new Configuration();
         final boolean isSystemEnvEnabled =
                 configuration.getBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
