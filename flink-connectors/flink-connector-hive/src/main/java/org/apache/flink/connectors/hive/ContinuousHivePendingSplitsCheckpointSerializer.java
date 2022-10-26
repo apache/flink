@@ -72,7 +72,7 @@ public class ContinuousHivePendingSplitsCheckpointSerializer
                 (ContinuousHivePendingSplitsCheckpoint) checkpoint;
         PendingSplitsCheckpoint<HiveSourceSplit> superCP =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
-                        hiveCheckpoint.getSplits(), hiveCheckpoint.getAlreadyProcessedPaths());
+                        hiveCheckpoint.getSplits(), hiveCheckpoint.getAlreadyProcessedSplits());
         byte[] superBytes = superSerDe.serialize(superCP);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 

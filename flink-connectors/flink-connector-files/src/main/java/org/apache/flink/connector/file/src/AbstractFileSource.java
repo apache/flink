@@ -43,7 +43,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -160,7 +159,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
                 (Collection<FileSourceSplit>) checkpoint.getSplits();
 
         return createSplitEnumerator(
-                enumContext, enumerator, splits, checkpoint.getAlreadyProcessedPaths());
+                enumContext, enumerator, splits, checkpoint.getAlreadyProcessedSplits());
     }
 
     @Override
@@ -185,7 +184,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
             SplitEnumeratorContext<SplitT> context,
             FileEnumerator enumerator,
             Collection<FileSourceSplit> splits,
-            @Nullable Collection<Path> alreadyProcessedPaths) {
+            @Nullable Collection<String> alreadyProcessedSplits) {
 
         // cast this to a collection of FileSourceSplit because the enumerator code work
         // non-generically just on that base split type
@@ -200,8 +199,11 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
             return castGeneric(new StaticFileSplitEnumerator(fileSplitContext, splitAssigner));
         } else {
             // unbounded case
-            if (alreadyProcessedPaths == null) {
-                alreadyProcessedPaths = splitsToPaths(splits);
+            if (alreadyProcessedSplits == null) {
+                alreadyProcessedSplits =
+                        splits.stream()
+                                .map(FileSourceSplit::pathAndOffset)
+                                .collect(Collectors.toSet());
             }
 
             return castGeneric(
@@ -210,7 +212,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
                             enumerator,
                             splitAssigner,
                             inputPaths,
-                            alreadyProcessedPaths,
+                            alreadyProcessedSplits,
                             continuousEnumerationSettings.getDiscoveryInterval().toMillis()));
         }
     }
@@ -223,12 +225,6 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
         // cast arguments away then cast them back. Java Generics Hell :-/
         return (SplitEnumerator<SplitT, PendingSplitsCheckpoint<SplitT>>)
                 (SplitEnumerator<?, ?>) enumerator;
-    }
-
-    private static Collection<Path> splitsToPaths(Collection<FileSourceSplit> splits) {
-        return splits.stream()
-                .map(FileSourceSplit::path)
-                .collect(Collectors.toCollection(HashSet::new));
     }
 
     // ------------------------------------------------------------------------

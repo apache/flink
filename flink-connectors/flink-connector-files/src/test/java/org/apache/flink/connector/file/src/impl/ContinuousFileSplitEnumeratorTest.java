@@ -41,6 +41,7 @@ class ContinuousFileSplitEnumeratorTest {
     private static final File TMP_DIR = new File(System.getProperty("java.io.tmpdir"));
 
     private static long splitId = 1L;
+    private static long offset = 0L;
 
     @Test
     void testDiscoverSplitWhenNoReaderRegistered() throws Exception {
@@ -102,6 +103,26 @@ class ContinuousFileSplitEnumeratorTest {
         assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
     }
 
+    @Test
+    void testSplittableFiles() throws Exception {
+        final TestingFileEnumerator fileEnumerator = new TestingFileEnumerator();
+        final TestingSplitEnumeratorContext<FileSourceSplit> context =
+                new TestingSplitEnumeratorContext<>(4);
+        final ContinuousFileSplitEnumerator enumerator = createEnumerator(fileEnumerator, context);
+
+        // make one split available and trigger the periodic discovery
+        final FileSourceSplit split = createSplitWithDifferentOffset();
+        fileEnumerator.addSplits(split);
+        context.triggerAllActions();
+
+        // make second split available and trigger the periodic discovery
+        final FileSourceSplit split1 = createSplitWithDifferentOffset();
+        fileEnumerator.addSplits(split1);
+        context.triggerAllActions();
+
+        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split, split1);
+    }
+
     // ------------------------------------------------------------------------
     //  test setup helpers
     // ------------------------------------------------------------------------
@@ -111,6 +132,16 @@ class ContinuousFileSplitEnumeratorTest {
                 String.valueOf(splitId++),
                 Path.fromLocalFile(new File(TMP_DIR, "foo")),
                 0L,
+                0L,
+                0L,
+                0L);
+    }
+
+    private static FileSourceSplit createSplitWithDifferentOffset() {
+        return new FileSourceSplit(
+                String.valueOf(splitId++),
+                Path.fromLocalFile(new File(TMP_DIR, "foo")),
+                offset++,
                 0L,
                 0L,
                 0L);
