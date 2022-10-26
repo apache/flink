@@ -1076,14 +1076,13 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c])
-+- Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b0 = d))], select=[a, b, c, b0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a, b0]])
-   :  +- Calc(select=[a, b, c, CAST(b AS INTEGER) AS b0])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Exchange(distribution=[hash[d, d]])
-      +- Calc(select=[d])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, c], where=[(a = CAST(b AS INTEGER))])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- Calc(select=[d])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
