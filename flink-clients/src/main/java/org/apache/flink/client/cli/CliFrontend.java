@@ -316,7 +316,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
 
-        final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
         final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
@@ -720,10 +720,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
 
-        final Options commandLineOptions =
-                CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-        final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
         final SavepointOptions savepointOptions = new SavepointOptions(commandLine);
 
@@ -1163,8 +1160,12 @@ public class CliFrontend {
         int retCode = 31;
         try {
             final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
-
-            SecurityUtils.install(new SecurityConfiguration(cli.configuration));
+            CommandLine commandLine =
+                    cli.getCommandLine(
+                            new Options(), Arrays.copyOfRange(args, 1, args.length), true);
+            Configuration securityConfig = new Configuration(cli.configuration);
+            DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
+            SecurityUtils.install(new SecurityConfiguration(securityConfig));
             retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.parseAndRun(args));
         } catch (Throwable t) {
             final Throwable strippedThrowable =
