@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration.SpillingStrategyType;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -196,6 +197,7 @@ public class HsResultPartition extends ResultPartition {
         // higher than the last consumerId's id field.
         HsConsumerId consumerId = HsConsumerId.newId(lastConsumerIds[subpartitionId]);
         lastConsumerIds[subpartitionId] = consumerId;
+        checkMultipleConsumerIsAllowed(consumerId, hybridShuffleConfiguration);
         HsDataView diskDataView =
                 fileDataManager.registerNewConsumer(
                         subpartitionId, consumerId, subpartitionConsumer);
@@ -293,6 +295,17 @@ public class HsResultPartition extends ResultPartition {
                 return new HsSelectiveSpillingStrategy(hybridShuffleConfiguration);
             default:
                 throw new IllegalConfigurationException("Illegal spilling strategy.");
+        }
+    }
+
+    private void checkMultipleConsumerIsAllowed(
+            HsConsumerId newConsumerId, HybridShuffleConfiguration hybridShuffleConfiguration) {
+        if (hybridShuffleConfiguration.getSpillingStrategyType()
+                == SpillingStrategyType.SELECTIVE) {
+            checkState(
+                    newConsumerId == HsConsumerId.DEFAULT,
+                    "Multiple consumer is not allowed for %s spilling strategy mode",
+                    hybridShuffleConfiguration.getSpillingStrategyType());
         }
     }
 }
