@@ -184,14 +184,15 @@ public class PythonOptionsTest {
         final Configuration configuration = new Configuration();
         final boolean isSystemEnvEnabled =
                 configuration.getBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
-        assertThat(isSystemEnvEnabled)
-                .isEqualTo(PythonOptions.PYTHON_SYSTEMENV_ENABLED.defaultValue());
+        assertThat(
+                isSystemEnvEnabled,
+                is(equalTo(PythonOptions.PYTHON_SYSTEMENV_ENABLED.defaultValue())));
 
         final boolean expectedIsSystemEnvEnabled = false;
         configuration.setBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED, false);
 
         final boolean actualIsSystemEnvEnabled =
                 configuration.getBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
-        assertThat(actualIsSystemEnvEnabled).isEqualTo(expectedIsSystemEnvEnabled);
+        assertThat(actualIsSystemEnvEnabled, is(equalTo((expectedIsSystemEnvEnabled))));
     }
 }
