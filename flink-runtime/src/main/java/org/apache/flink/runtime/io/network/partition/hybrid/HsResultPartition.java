@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration.SpillingStrategyType;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -192,9 +193,11 @@ public class HsResultPartition extends ResultPartition {
 
         HsSubpartitionConsumer subpartitionConsumer =
                 new HsSubpartitionConsumer(availabilityListener);
+        HsConsumerId lastConsumerId = lastConsumerIds[subpartitionId];
+        checkMultipleConsumerIsAllowed(lastConsumerId, hybridShuffleConfiguration);
         // assign a unique id for each consumer, now it is guaranteed by the value that is one
         // higher than the last consumerId's id field.
-        HsConsumerId consumerId = HsConsumerId.newId(lastConsumerIds[subpartitionId]);
+        HsConsumerId consumerId = HsConsumerId.newId(lastConsumerId);
         lastConsumerIds[subpartitionId] = consumerId;
         HsDataView diskDataView =
                 fileDataManager.registerNewConsumer(
@@ -293,6 +296,17 @@ public class HsResultPartition extends ResultPartition {
                 return new HsSelectiveSpillingStrategy(hybridShuffleConfiguration);
             default:
                 throw new IllegalConfigurationException("Illegal spilling strategy.");
+        }
+    }
+
+    private void checkMultipleConsumerIsAllowed(
+            HsConsumerId lastConsumerId, HybridShuffleConfiguration hybridShuffleConfiguration) {
+        if (hybridShuffleConfiguration.getSpillingStrategyType()
+                == SpillingStrategyType.SELECTIVE) {
+            checkState(
+                    lastConsumerId == null,
+                    "Multiple consumer is not allowed for %s spilling strategy mode",
+                    hybridShuffleConfiguration.getSpillingStrategyType());
         }
     }
 }

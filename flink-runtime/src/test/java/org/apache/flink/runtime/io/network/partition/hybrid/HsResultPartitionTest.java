@@ -67,6 +67,7 @@ import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HsResultPartition}. */
@@ -378,6 +379,51 @@ class HsResultPartitionTest {
             assertThat(ioMetrics.getNumBytesProducedOfPartitions())
                     .hasSize(1)
                     .containsValue((long) 2 * bufferSize);
+        }
+    }
+
+    @Test
+    void testSelectiveSpillingStrategyRegisterMultipleConsumer() throws Exception {
+        final int numSubpartitions = 2;
+        BufferPool bufferPool = globalPool.createBufferPool(2, 2);
+        try (HsResultPartition partition =
+                createHsResultPartition(
+                        2,
+                        bufferPool,
+                        HybridShuffleConfiguration.builder(
+                                        numSubpartitions, readBufferPool.getNumBuffersPerRequest())
+                                .setSpillingStrategyType(
+                                        HybridShuffleConfiguration.SpillingStrategyType.SELECTIVE)
+                                .build())) {
+            partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+            assertThatThrownBy(
+                            () ->
+                                    partition.createSubpartitionView(
+                                            0, new NoOpBufferAvailablityListener()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Multiple consumer is not allowed");
+        }
+    }
+
+    @Test
+    void testFullSpillingStrategyRegisterMultipleConsumer() throws Exception {
+        final int numSubpartitions = 2;
+        BufferPool bufferPool = globalPool.createBufferPool(2, 2);
+        try (HsResultPartition partition =
+                createHsResultPartition(
+                        2,
+                        bufferPool,
+                        HybridShuffleConfiguration.builder(
+                                        numSubpartitions, readBufferPool.getNumBuffersPerRequest())
+                                .setSpillingStrategyType(
+                                        HybridShuffleConfiguration.SpillingStrategyType.FULL)
+                                .build())) {
+            partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    partition.createSubpartitionView(
+                                            0, new NoOpBufferAvailablityListener()));
         }
     }
 
