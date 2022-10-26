@@ -76,9 +76,6 @@ class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
             assumeThat(TOKEN_CREDENTIALS_FILE)
                     .describedAs("Azure token credentials not configured, skipping test...")
                     .isNotBlank();
-            assumeThat(ACCOUNT)
-                    .describedAs("Azure storage account not configured, skipping test...")
-                    .isNotBlank();
             assumeThat(isHttpsTrafficOnly()).isFalse();
         }
 
@@ -113,6 +110,9 @@ class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
     @BeforeAll
     static void checkCredentialsAndSetup() {
         // check whether credentials and container details exist
+        assumeThat(ACCOUNT)
+                .describedAs("Azure storage account not configured, skipping test...")
+                .isNotBlank();
         assumeThat(CONTAINER)
                 .describedAs("Azure container not configured, skipping test...")
                 .isNotBlank();
