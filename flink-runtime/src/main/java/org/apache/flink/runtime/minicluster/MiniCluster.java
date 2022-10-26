@@ -1103,7 +1103,8 @@ public class MiniCluster implements AutoCloseableAsync {
             Configuration config, long maximumMessageSizeInBytes) {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
-                ReporterSetup.fromConfiguration(config, null));
+                ReporterSetup.fromConfiguration(
+                        config, miniClusterConfiguration.getPluginManager()));
     }
 
     /**
