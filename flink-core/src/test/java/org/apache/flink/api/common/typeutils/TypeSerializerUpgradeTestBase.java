@@ -52,7 +52,7 @@ import static org.junit.Assume.assumeThat;
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT>
         extends TestLogger {
 
-    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_15;
+    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_16;
 
     public static final Set<FlinkVersion> MIGRATION_VERSIONS =
             FlinkVersion.rangeOf(FlinkVersion.v1_11, CURRENT_VERSION);
