@@ -28,6 +28,9 @@ import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapp
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.IngestionTime;
@@ -35,9 +38,8 @@ import static org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 
 /** Failure Recovery IT Test for KafkaShuffle. */
+@Timeout(value = 600000L, unit = TimeUnit.MILLISECONDS)
 public class KafkaShuffleExactlyOnceITCase extends KafkaShuffleTestBase {
-
-    //    @RegisterExtension public final Timeout timeout = Timeout.millis(600000L);
 
     /**
      * Failure Recovery after processing 2/3 data with time characteristic: ProcessingTime.

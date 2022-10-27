@@ -39,6 +39,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,6 +47,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.IngestionTime;
@@ -57,9 +59,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Simple End to End Test for Kafka. */
+@Timeout(value = 600000L, unit = TimeUnit.MILLISECONDS)
 public class KafkaShuffleITCase extends KafkaShuffleTestBase {
-
-    //    @RegisterExtension public final Timeout timeout = Timeout.millis(600000L);
 
     /**
      * To test no data is lost or duplicated end-2-end with the default time characteristic:
