@@ -92,7 +92,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_4, FlinkVersion.v1_15);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_4, FlinkVersion.v1_16);
     }
 
     public FlinkKafkaConsumerBaseMigrationTest(FlinkVersion testMigrateVersion) {
@@ -100,7 +100,6 @@ public class FlinkKafkaConsumerBaseMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSnapshot() throws Exception {
         writeSnapshot(
