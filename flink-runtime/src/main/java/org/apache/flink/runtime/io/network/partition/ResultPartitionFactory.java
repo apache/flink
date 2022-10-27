@@ -218,9 +218,13 @@ public class ResultPartitionFactory {
             }
         } else if (type == ResultPartitionType.HYBRID_FULL
                 || type == ResultPartitionType.HYBRID_SELECTIVE) {
-            if (isBroadcast) {
+            if (type == ResultPartitionType.HYBRID_SELECTIVE && isBroadcast) {
                 // for broadcast result partition, it can be optimized to always use full spilling
                 // strategy to significantly reduce shuffle data writing cost.
+                LOG.info(
+                        "{} result partition has been replaced by {} result partition to reduce shuffle data writing cost.",
+                        type,
+                        ResultPartitionType.HYBRID_FULL);
                 type = ResultPartitionType.HYBRID_FULL;
             }
             partition =
