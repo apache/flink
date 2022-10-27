@@ -63,10 +63,7 @@ class ResultPartitionFactoryTest {
                 (BoundedBlockingResultPartition)
                         createResultPartition(ResultPartitionType.BLOCKING);
         assertThat(resultPartition.subpartitions)
-                .allSatisfy(
-                        (sp) -> {
-                            assertThat(sp).isInstanceOf(BoundedBlockingSubpartition.class);
-                        });
+                .allSatisfy((sp) -> assertThat(sp).isInstanceOf(BoundedBlockingSubpartition.class));
     }
 
     @Test
@@ -74,10 +71,7 @@ class ResultPartitionFactoryTest {
         final PipelinedResultPartition resultPartition =
                 (PipelinedResultPartition) createResultPartition(ResultPartitionType.PIPELINED);
         assertThat(resultPartition.subpartitions)
-                .allSatisfy(
-                        (sp) -> {
-                            assertThat(sp).isInstanceOf(PipelinedResultPartition.class);
-                        });
+                .allSatisfy((sp) -> assertThat(sp).isInstanceOf(PipelinedSubpartition.class));
     }
 
     @Test
