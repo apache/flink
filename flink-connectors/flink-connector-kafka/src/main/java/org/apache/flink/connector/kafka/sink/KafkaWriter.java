@@ -406,7 +406,7 @@ class KafkaWriter<IN>
 
     private String createProducerClientId(Properties props, int subtaskId) {
         String prefix = props.getProperty(KafkaSinkOptions.CLIENT_ID_PREFIX.key());
-        return prefix + "-" + subtaskId;
+        return prefix + "-writer-" + subtaskId;
     }
 
     private class WriterCallback implements Callback {

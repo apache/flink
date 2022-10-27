@@ -134,6 +134,8 @@ class KafkaCommitter implements Committer<KafkaCommittable>, Closeable {
      */
     private FlinkKafkaInternalProducer<?, ?> getRecoveryProducer(KafkaCommittable committable) {
         if (recoveryProducer == null) {
+            kafkaProducerConfig.setProperty(
+                    ProducerConfig.CLIENT_ID_CONFIG, createProducerClientId(kafkaProducerConfig));
             recoveryProducer =
                     new FlinkKafkaInternalProducer<>(
                             kafkaProducerConfig, committable.getTransactionalId());
@@ -142,5 +144,10 @@ class KafkaCommitter implements Committer<KafkaCommittable>, Closeable {
         }
         recoveryProducer.resumeTransaction(committable.getProducerId(), committable.getEpoch());
         return recoveryProducer;
+    }
+
+    private String createProducerClientId(Properties props) {
+        String prefix = props.getProperty(KafkaSinkOptions.CLIENT_ID_PREFIX.key());
+        return prefix + "-committer";
     }
 }
