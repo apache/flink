@@ -58,15 +58,8 @@ class StreamPhysicalChangelogNormalize(
       contextResolvedTable)
   }
 
-  def copy(traitSet: RelTraitSet,
-     input: RelNode,
-     keys: Array[Int]): RelNode = {
-    new StreamPhysicalChangelogNormalize(
-      cluster,
-      traitSet,
-      input,
-      keys,
-      contextResolvedTable)
+  def copy(traitSet: RelTraitSet, input: RelNode, uniqueKeys: Array[Int]): RelNode = {
+    new StreamPhysicalChangelogNormalize(cluster, traitSet, input, uniqueKeys, contextResolvedTable)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
