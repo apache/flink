@@ -17,17 +17,23 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, RouterLinkWithHref } from '@angular/router';
 import { Subject } from 'rxjs';
 import { finalize, takeUntil } from 'rxjs/operators';
 
+import { AddonInlineComponent } from '@flink-runtime-web/components/addon-inline/addon-inline.component';
+import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
 import {
   JOB_MANAGER_MODULE_CONFIG,
   JOB_MANAGER_MODULE_DEFAULT_CONFIG,
   JobManagerModuleConfig
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
 import { JobManagerService } from '@flink-runtime-web/services';
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @Component({
   selector: 'flink-job-manager-log-detail',
@@ -36,7 +42,17 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   host: {
     '[class.full-screen]': 'isFullScreen'
   },
-  styleUrls: ['./job-manager-log-detail.component.less']
+  styleUrls: ['./job-manager-log-detail.component.less'],
+  imports: [
+    NzBreadCrumbModule,
+    RouterLinkWithHref,
+    NzIconModule,
+    AddonInlineComponent,
+    NzCodeEditorModule,
+    FormsModule,
+    AutoResizeDirective
+  ],
+  standalone: true
 })
 export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
   public logs = '';

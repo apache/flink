@@ -15,17 +15,23 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, RouterLinkWithHref } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
+import { AddonInlineComponent } from '@flink-runtime-web/components/addon-inline/addon-inline.component';
+import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
 import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 import {
   TASK_MANAGER_MODULE_CONFIG,
   TASK_MANAGER_MODULE_DEFAULT_CONFIG
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { TaskManagerService } from '@flink-runtime-web/services';
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @Component({
   selector: 'flink-task-manager-log-detail',
@@ -34,7 +40,17 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   host: {
     '[class.full-screen]': 'isFullScreen'
   },
-  styleUrls: ['./task-manager-log-detail.component.less']
+  styleUrls: ['./task-manager-log-detail.component.less'],
+  imports: [
+    NzBreadCrumbModule,
+    RouterLinkWithHref,
+    NzIconModule,
+    AddonInlineComponent,
+    NzCodeEditorModule,
+    AutoResizeDirective,
+    FormsModule
+  ],
+  standalone: true
 })
 export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

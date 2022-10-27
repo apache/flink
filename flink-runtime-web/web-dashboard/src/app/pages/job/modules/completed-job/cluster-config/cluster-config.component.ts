@@ -21,6 +21,7 @@ import { ActivatedRoute } from '@angular/router';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
+import { ConfigurationCardsComponent } from '@flink-runtime-web/components/configuration-cards/configuration-cards.component';
 import { ClusterConfiguration, EnvironmentInfo } from '@flink-runtime-web/interfaces';
 import { JobManagerService } from '@flink-runtime-web/services';
 
@@ -28,7 +29,9 @@ import { JobManagerService } from '@flink-runtime-web/services';
   selector: 'flink-cluster-config',
   templateUrl: './cluster-config.component.html',
   styleUrls: ['./cluster-config.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ConfigurationCardsComponent],
+  standalone: true
 })
 export class ClusterConfigComponent implements OnInit, OnDestroy {
   jobId: string;

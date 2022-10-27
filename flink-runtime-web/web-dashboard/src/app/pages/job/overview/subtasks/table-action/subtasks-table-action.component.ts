@@ -16,9 +16,13 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+import { RouterLinkWithHref } from '@angular/router';
 
 import { JobVertexSubTask } from '@flink-runtime-web/interfaces';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 export interface JobOverviewSubtasksTableAction {
   subtask?: JobVertexSubTask;
@@ -28,7 +32,9 @@ export interface JobOverviewSubtasksTableAction {
   selector: 'flink-table-actions',
   templateUrl: './subtasks-table-action.component.html',
   styleUrls: ['./subtasks-table-action.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgIf, NzDropDownModule, NzIconModule, RouterLinkWithHref],
+  standalone: true
 })
 export class SubtasksTableActionComponent implements JobOverviewSubtasksTableAction {
   @Input() subtask?: JobVertexSubTask;

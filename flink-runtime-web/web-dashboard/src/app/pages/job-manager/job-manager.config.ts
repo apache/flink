@@ -18,8 +18,8 @@
 
 import { InjectionToken } from '@angular/core';
 
+import { flinkEditorOptions } from '@flink-runtime-web/components/editor/editor-config';
 import { ModuleConfig } from '@flink-runtime-web/core/module-config';
-import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 
 type routerKeys = 'jobManager';
 
