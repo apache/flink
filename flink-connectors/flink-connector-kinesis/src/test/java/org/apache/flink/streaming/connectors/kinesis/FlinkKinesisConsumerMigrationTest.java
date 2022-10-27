@@ -106,7 +106,8 @@ public class FlinkKinesisConsumerMigrationTest {
                 FlinkVersion.v1_12,
                 FlinkVersion.v1_13,
                 FlinkVersion.v1_14,
-                FlinkVersion.v1_15);
+                FlinkVersion.v1_15,
+                FlinkVersion.v1_16);
     }
 
     public FlinkKinesisConsumerMigrationTest(FlinkVersion testMigrateVersion) {
@@ -114,7 +115,6 @@ public class FlinkKinesisConsumerMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSnapshot() throws Exception {
         writeSnapshot(
