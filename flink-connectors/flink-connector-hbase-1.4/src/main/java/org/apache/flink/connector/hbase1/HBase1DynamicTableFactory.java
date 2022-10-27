@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.HBASE_TS_FIELD;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_ASYNC;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_TTL;
@@ -121,8 +122,16 @@ public class HBase1DynamicTableFactory
         Configuration hbaseConf = getHBaseConfiguration(tableOptions);
         HBaseWriteOptions hBaseWriteOptions = getHBaseWriteOptions(tableOptions);
         String nullStringLiteral = tableOptions.get(NULL_STRING_LITERAL);
+
+        String[] timeStampField = null;
+        if (tableOptions.getOptional(HBASE_TS_FIELD).isPresent()) {
+            timeStampField = tableOptions.get(HBASE_TS_FIELD).split(".");
+        }
         HBaseTableSchema hbaseSchema =
-                HBaseTableSchema.fromDataType(context.getPhysicalRowDataType());
+                HBaseTableSchema.fromDataType(
+                        context.getPhysicalRowDataType(),
+                        timeStampField != null ? timeStampField[0] : null,
+                        timeStampField != null ? timeStampField[1] : null);
 
         return new HBaseDynamicTableSink(
                 tableName, hbaseSchema, hbaseConf, hBaseWriteOptions, nullStringLiteral);
@@ -160,6 +169,7 @@ public class HBase1DynamicTableFactory
         set.add(LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_WRITE);
         set.add(LookupOptions.PARTIAL_CACHE_CACHE_MISSING_KEY);
         set.add(LookupOptions.PARTIAL_CACHE_MAX_ROWS);
+        set.add(HBASE_TS_FIELD);
         return set;
     }
 

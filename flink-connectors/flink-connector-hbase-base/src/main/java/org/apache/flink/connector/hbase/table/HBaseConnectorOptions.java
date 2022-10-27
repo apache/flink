@@ -120,6 +120,13 @@ public class HBaseConnectorOptions {
                     .defaultValue(3)
                     .withDescription("the max retry times if lookup database failed.");
 
+    /** hbase put/delete timestamp. */
+    public static final ConfigOption<String> HBASE_TS_FIELD =
+            ConfigOptions.key("hbase.ts.field")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("hbase put/delete timestamp.");
+
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     private HBaseConnectorOptions() {}

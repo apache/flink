@@ -167,6 +167,57 @@ public class HBaseTypeUtils {
     }
 
     /** Checks whether the given {@link LogicalType} is supported in HBase connector. */
+    public static boolean isSupportedTsType(LogicalType type) {
+        // ordered by type root definition
+        switch (type.getTypeRoot()) {
+            case CHAR:
+            case VARCHAR:
+            case BOOLEAN:
+            case BINARY:
+            case VARBINARY:
+            case DECIMAL:
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case DATE:
+            case INTERVAL_YEAR_MONTH:
+            case BIGINT:
+            case INTERVAL_DAY_TIME:
+            case FLOAT:
+            case DOUBLE:
+            case TIME_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case ARRAY:
+            case MULTISET:
+            case MAP:
+            case ROW:
+            case STRUCTURED_TYPE:
+            case DISTINCT_TYPE:
+            case RAW:
+            case NULL:
+            case SYMBOL:
+            case UNRESOLVED:
+                return false;
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                final int timestampPrecision = getPrecision(type);
+                if (timestampPrecision < MIN_TIMESTAMP_PRECISION
+                        || timestampPrecision > MAX_TIMESTAMP_PRECISION) {
+                    throw new UnsupportedOperationException(
+                            String.format(
+                                    "The precision %s of TIMESTAMP type is out of the range [%s, %s] supported by "
+                                            + "HBase connector",
+                                    timestampPrecision,
+                                    MIN_TIMESTAMP_PRECISION,
+                                    MAX_TIMESTAMP_PRECISION));
+                }
+                return true;
+            default:
+                throw new IllegalArgumentException();
+        }
+    }
+
+    /** Checks whether the given {@link LogicalType} is supported in HBase connector. */
     public static boolean isSupportedType(LogicalType type) {
         // ordered by type root definition
         switch (type.getTypeRoot()) {

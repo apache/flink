@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
+import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
@@ -76,6 +77,11 @@ public class HBaseSerde {
     private final FieldDecoder[][] qualifierDecoders;
     private final GenericRowData rowWithRowKey;
 
+    // timestamp
+    private final int tsFamilyIndex;
+    private final int tsQualifierIndex;
+    private final int timestampPrecision;
+
     public HBaseSerde(HBaseTableSchema hbaseSchema, final String nullStringLiteral) {
         this.families = hbaseSchema.getFamilyKeys();
         this.rowkeyIndex = hbaseSchema.getRowKeyIndex();
@@ -118,6 +124,20 @@ public class HBaseSerde {
             this.reusedFamilyRows[f] = new GenericRowData(dataTypes.length);
         }
         this.rowWithRowKey = new GenericRowData(1);
+
+        this.tsFamilyIndex = hbaseSchema.haTimeStamp() ? hbaseSchema.getTsFamilyIndex() : -1;
+        this.tsQualifierIndex = hbaseSchema.haTimeStamp() ? hbaseSchema.getTsQualifierIndex() : -1;
+        this.timestampPrecision =
+                hbaseSchema.haTimeStamp() ? hbaseSchema.getTimestampPrecision() : -1;
+    }
+
+    private long getTimestamp(RowData row) {
+        if (tsFamilyIndex != -1) {
+            int f = tsFamilyIndex > rowkeyIndex ? tsFamilyIndex - 1 : tsFamilyIndex;
+            RowData familyRow = row.getRow(tsFamilyIndex, qualifiers[f].length);
+            return familyRow.getTimestamp(tsQualifierIndex, timestampPrecision).getMillisecond();
+        }
+        return HConstants.LATEST_TIMESTAMP;
     }
 
     /**
@@ -133,7 +153,7 @@ public class HBaseSerde {
             return null;
         }
         // upsert
-        Put put = new Put(rowkey);
+        Put put = new Put(rowkey, getTimestamp(row));
         for (int i = 0; i < fieldLength; i++) {
             if (i != rowkeyIndex) {
                 int f = i > rowkeyIndex ? i - 1 : i;
@@ -165,7 +185,7 @@ public class HBaseSerde {
             return null;
         }
         // delete
-        Delete delete = new Delete(rowkey);
+        Delete delete = new Delete(rowkey, getTimestamp(row));
         for (int i = 0; i < fieldLength; i++) {
             if (i != rowkeyIndex) {
                 int f = i > rowkeyIndex ? i - 1 : i;

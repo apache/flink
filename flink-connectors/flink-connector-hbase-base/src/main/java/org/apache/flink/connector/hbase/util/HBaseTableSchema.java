@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** Helps to specify an HBase Table's schema. */
@@ -52,6 +53,8 @@ public class HBaseTableSchema implements Serializable {
 
     // information about rowkey
     private RowKeyInfo rowKeyInfo;
+
+    private TimeStampInfo timeStampInfo;
 
     // charset to parse HBase keys and strings. UTF-8 by default.
     private String charset = "UTF-8";
@@ -118,6 +121,42 @@ public class HBaseTableSchema implements Serializable {
             throw new IllegalArgumentException("Row key can't be set multiple times.");
         }
         this.rowKeyInfo = new RowKeyInfo(rowKeyName, type, familyMap.size());
+    }
+
+    public void setTimeStampInfo(String tsFamily, String tsQualifier, DataType type) {
+        Preconditions.checkNotNull(tsFamily, "tsFamily");
+        Preconditions.checkNotNull(tsQualifier, "tsQualifier");
+        if (!HBaseTypeUtils.isSupportedTsType(type.getLogicalType())) {
+            // throw exception
+            throw new IllegalArgumentException(
+                    "Unsupported class type found "
+                            + type
+                            + ". "
+                            + "Better to use byte[].class and deserialize using user defined scalar functions");
+        }
+        this.timeStampInfo =
+                new TimeStampInfo(
+                        familyMap.size(),
+                        tsFamily,
+                        familyMap.get(tsFamily).size(),
+                        tsQualifier,
+                        getPrecision(type.getLogicalType()));
+    }
+
+    public int getTsFamilyIndex() {
+        return this.timeStampInfo.tsFamilyIndex;
+    }
+
+    public int getTimestampPrecision() {
+        return this.timeStampInfo.timestampPrecision;
+    }
+
+    public int getTsQualifierIndex() {
+        return this.timeStampInfo.tsQualifierIndex;
+    }
+
+    public boolean haTimeStamp() {
+        return timeStampInfo != null;
     }
 
     /**
@@ -321,6 +360,12 @@ public class HBaseTableSchema implements Serializable {
 
     /** Construct a {@link HBaseTableSchema} from a {@link DataType}. */
     public static HBaseTableSchema fromDataType(DataType physicalRowType) {
+        return fromDataType(physicalRowType, null, null);
+    }
+
+    /** Construct a {@link HBaseTableSchema} from a {@link DataType}. */
+    public static HBaseTableSchema fromDataType(
+            DataType physicalRowType, String tsFamily, String tsQualifier) {
         HBaseTableSchema hbaseSchema = new HBaseTableSchema();
         RowType rowType = (RowType) physicalRowType.getLogicalType();
         for (RowType.RowField field : rowType.getFields()) {
@@ -329,10 +374,11 @@ public class HBaseTableSchema implements Serializable {
                 RowType familyType = (RowType) fieldType;
                 String familyName = field.getName();
                 for (RowType.RowField qualifier : familyType.getFields()) {
-                    hbaseSchema.addColumn(
-                            familyName,
-                            qualifier.getName(),
-                            fromLogicalToDataType(qualifier.getType()));
+                    DataType dataType = fromLogicalToDataType(qualifier.getType());
+                    hbaseSchema.addColumn(familyName, qualifier.getName(), dataType);
+                    if (qualifier.getName().equals(tsQualifier) && familyName.equals(tsFamily)) {
+                        hbaseSchema.setTimeStampInfo(familyName, qualifier.getName(), dataType);
+                    }
                 }
             } else if (fieldType.getChildren().size() == 0) {
                 hbaseSchema.setRowKey(field.getName(), fromLogicalToDataType(fieldType));
@@ -373,6 +419,51 @@ public class HBaseTableSchema implements Serializable {
         @Override
         public int hashCode() {
             return Objects.hash(rowKeyName, rowKeyType, rowKeyIndex);
+        }
+    }
+
+    /** TimeStamp class. */
+    private static class TimeStampInfo implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final int tsFamilyIndex;
+        final String tsFamily;
+        final int tsQualifierIndex;
+        final String tsQualifier;
+        final int timestampPrecision;
+
+        public TimeStampInfo(
+                int tsFamilyIndex,
+                String tsFamily,
+                int tsQualifierIndex,
+                String tsQualifier,
+                int timestampPrecision) {
+            this.tsFamilyIndex = tsFamilyIndex;
+            this.tsFamily = tsFamily;
+            this.tsQualifierIndex = tsQualifierIndex;
+            this.tsQualifier = tsQualifier;
+            this.timestampPrecision = timestampPrecision;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            TimeStampInfo timeStampInfo = (TimeStampInfo) o;
+            return Objects.equals(tsFamilyIndex, timeStampInfo.tsFamilyIndex)
+                    && Objects.equals(tsQualifierIndex, timeStampInfo.tsQualifierIndex)
+                    && Objects.equals(tsFamily, timeStampInfo.tsFamily)
+                    && Objects.equals(tsQualifier, timeStampInfo.tsQualifier)
+                    && Objects.equals(timestampPrecision, timeStampInfo.timestampPrecision);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(
+                    tsFamilyIndex, tsFamily, tsQualifierIndex, tsQualifier, timestampPrecision);
         }
     }
 
