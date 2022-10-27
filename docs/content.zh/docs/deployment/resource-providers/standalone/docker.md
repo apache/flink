@@ -432,9 +432,8 @@ services:
   You can then start creating tables and queries those.
 
 * Note, that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
-  For example, if you would like to use the Kafka Connector, you can build a custom image.
-  Create a Dockerfile as follows:
-
+  For example, if you would like to use the Kafka Connector, you need to build a custom image.
+  Create a Dockerfile containing:
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
   RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.12/{{< version >}}/flink-sql-connector-kafka_scala{{< scala_version >}}-{{< version >}}.jar
