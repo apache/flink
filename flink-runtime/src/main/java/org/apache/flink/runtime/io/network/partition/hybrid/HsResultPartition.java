@@ -207,11 +207,12 @@ public class HsResultPartition extends ResultPartition {
 
         HsSubpartitionConsumer subpartitionConsumer =
                 new HsSubpartitionConsumer(availabilityListener);
+        HsConsumerId lastConsumerId = lastConsumerIds[subpartitionId];
+        checkMultipleConsumerIsAllowed(lastConsumerId, hybridShuffleConfiguration);
         // assign a unique id for each consumer, now it is guaranteed by the value that is one
         // higher than the last consumerId's id field.
-        HsConsumerId consumerId = HsConsumerId.newId(lastConsumerIds[subpartitionId]);
+        HsConsumerId consumerId = HsConsumerId.newId(lastConsumerId);
         lastConsumerIds[subpartitionId] = consumerId;
-        checkMultipleConsumerIsAllowed(consumerId, hybridShuffleConfiguration);
         HsDataView diskDataView =
                 fileDataManager.registerNewConsumer(
                         subpartitionId, consumerId, subpartitionConsumer);
@@ -313,11 +314,11 @@ public class HsResultPartition extends ResultPartition {
     }
 
     private void checkMultipleConsumerIsAllowed(
-            HsConsumerId newConsumerId, HybridShuffleConfiguration hybridShuffleConfiguration) {
+            HsConsumerId lastConsumerId, HybridShuffleConfiguration hybridShuffleConfiguration) {
         if (hybridShuffleConfiguration.getSpillingStrategyType()
                 == SpillingStrategyType.SELECTIVE) {
             checkState(
-                    newConsumerId == HsConsumerId.DEFAULT,
+                    lastConsumerId == null,
                     "Multiple consumer is not allowed for %s spilling strategy mode",
                     hybridShuffleConfiguration.getSpillingStrategyType());
         }
