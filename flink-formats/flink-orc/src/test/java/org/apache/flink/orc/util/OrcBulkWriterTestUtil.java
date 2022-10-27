@@ -67,8 +67,7 @@ public class OrcBulkWriterTestUtil {
 
             List<Record> results = getResults(reader);
 
-            assertThat(results).hasSize(3);
-            assertThat(results).isEqualTo(expected);
+            assertThat(results).hasSize(3).isEqualTo(expected);
         }
     }
 
