@@ -175,7 +175,7 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.15.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.16.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.27.1</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
@@ -2112,11 +2112,10 @@ under the License.
 								<include>@org.apache.flink.annotation.Public</include>
 								<!-- The following line is un-commented by tools/releasing/update_japicmp_configuration.sh
 								 	as part of the release process -->
-								<!--<include>@org.apache.flink.annotation.PublicEvolving</include>-->
+								<include>@org.apache.flink.annotation.PublicEvolving</include>
 							</includes>
 							<excludes>
 								<exclude>@org.apache.flink.annotation.Experimental</exclude>
-								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
 								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#getSideOutput(org.apache.flink.util.OutputTag)</exclude>
