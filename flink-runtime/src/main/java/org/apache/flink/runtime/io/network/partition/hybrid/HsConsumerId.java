@@ -30,10 +30,7 @@ public class HsConsumerId {
      */
     public static final HsConsumerId ANY = new HsConsumerId(-1);
 
-    /**
-     * This consumer id is used in the scenarios that only one consumer is allowed for a single
-     * subpartition.
-     */
+    /** This consumer id is used for the first consumer of a single subpartition. */
     public static final HsConsumerId DEFAULT = new HsConsumerId(0);
 
     /** This is a unique field for each consumer of a single subpartition. */

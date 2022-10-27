@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link HsConsumerId} */
+/** Tests for {@link HsConsumerId}. */
 class HsConsumerIdTest {
     @Test
     void testNewIdFromNull() {
@@ -31,7 +31,7 @@ class HsConsumerIdTest {
     }
 
     @Test
-    void testConsumerIdEquals(){
+    void testConsumerIdEquals() {
         HsConsumerId consumerId = HsConsumerId.newId(null);
         HsConsumerId consumerId1 = HsConsumerId.newId(consumerId);
         HsConsumerId consumerId2 = HsConsumerId.newId(consumerId);
