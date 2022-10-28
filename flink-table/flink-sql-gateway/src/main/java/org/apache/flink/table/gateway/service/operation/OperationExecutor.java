@@ -53,11 +53,13 @@ import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
@@ -163,19 +165,29 @@ public class OperationExecutor {
                             + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
         }
         Operation op = parsedOperations.get(0);
+        validate(op);
+
         if (op instanceof SetOperation) {
             return callSetOperation(tableEnv, handle, (SetOperation) op);
         } else if (op instanceof ResetOperation) {
             return callResetOperation(handle, (ResetOperation) op);
         } else if (op instanceof BeginStatementSetOperation) {
-            // TODO: support statement set in the FLINK-27837
-            throw new UnsupportedOperationException();
+            return callBeginStatementSetOperation(handle);
         } else if (op instanceof EndStatementSetOperation) {
-            // TODO: support statement set in the FLINK-27837
-            throw new UnsupportedOperationException();
+            return callEndStatementSetOperation(tableEnv, handle);
         } else if (op instanceof ModifyOperation) {
-            return callModifyOperations(
-                    tableEnv, handle, Collections.singletonList((ModifyOperation) op));
+            if (sessionContext.isStatementSetState()) {
+                // collect ModifyOperation to Statement Set
+                sessionContext.addStatementSetOperation((ModifyOperation) op);
+                return new ResultFetcher(
+                        handle,
+                        TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                        CollectionUtil.iteratorToList(
+                                TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+            } else {
+                return callModifyOperations(
+                        tableEnv, handle, Collections.singletonList((ModifyOperation) op));
+            }
         } else if (op instanceof StatementSetOperation) {
             return callModifyOperations(
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
@@ -351,6 +363,34 @@ public class OperationExecutor {
                         TableResultInternal.TABLE_RESULT_OK.collectInternal()));
     }
 
+    private ResultFetcher callBeginStatementSetOperation(OperationHandle handle) {
+        sessionContext.setStatementSetState(true);
+        return new ResultFetcher(
+                handle,
+                TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                CollectionUtil.iteratorToList(
+                        TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+    }
+
+    private ResultFetcher callEndStatementSetOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle) {
+        // reset the state regardless of whether error occurs while executing the set
+        sessionContext.setStatementSetState(false);
+        List<ModifyOperation> statementSetOperations = sessionContext.getStatementSetOperations();
+        sessionContext.clearStatementSetOperations();
+
+        if (statementSetOperations.isEmpty()) {
+            // there's no statement in the statement set, skip submitting
+            return new ResultFetcher(
+                    handle,
+                    TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                    CollectionUtil.iteratorToList(
+                            TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+        } else {
+            return callModifyOperations(tableEnv, handle, statementSetOperations);
+        }
+    }
+
     private ResultFetcher callModifyOperations(
             TableEnvironmentInternal tableEnv,
             OperationHandle handle,
@@ -425,6 +465,24 @@ public class OperationExecutor {
                                                         catalogName, databaseName, name),
                                                 TableKind.VIEW))
                         .collect(Collectors.toSet()));
+    }
+
+    private void validate(Operation operation) {
+        if (sessionContext.isStatementSetState()) {
+            if (!(operation instanceof SinkModifyOperation
+                    || operation instanceof EndStatementSetOperation
+                    || operation instanceof CreateTableASOperation)) {
+                throw new SqlExecutionException(
+                        "Wrong statement after 'BEGIN STATEMENT SET'.\n"
+                                + "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to terminate Statement Set.");
+            }
+        }
+
+        if (!sessionContext.isStatementSetState()
+                && operation instanceof EndStatementSetOperation) {
+            throw new SqlExecutionException(
+                    "No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.");
+        }
     }
 
     public ResultFetcher callStopJobOperation(
