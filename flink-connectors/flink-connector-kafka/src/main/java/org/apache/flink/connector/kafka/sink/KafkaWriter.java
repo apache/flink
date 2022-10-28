@@ -194,8 +194,10 @@ class KafkaWriter<IN>
     public void write(IN element, Context context) throws IOException {
         final ProducerRecord<byte[], byte[]> record =
                 recordSerializer.serialize(element, kafkaSinkContext, context.timestamp());
-        currentProducer.send(record, deliveryCallback);
-        numRecordsOutCounter.inc();
+        if (record != null) {
+            currentProducer.send(record, deliveryCallback);
+            numRecordsOutCounter.inc();
+        }
     }
 
     @Override

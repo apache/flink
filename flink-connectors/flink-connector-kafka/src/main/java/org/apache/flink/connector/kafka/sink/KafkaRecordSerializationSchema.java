@@ -54,7 +54,7 @@ public interface KafkaRecordSerializationSchema<T> extends Serializable {
      * @param element element to be serialized
      * @param context context to possibly determine target partition
      * @param timestamp timestamp
-     * @return Kafka {@link ProducerRecord}
+     * @return Kafka {@link ProducerRecord} (null if the element cannot be serialized)
      */
     ProducerRecord<byte[], byte[]> serialize(T element, KafkaSinkContext context, Long timestamp);
 
