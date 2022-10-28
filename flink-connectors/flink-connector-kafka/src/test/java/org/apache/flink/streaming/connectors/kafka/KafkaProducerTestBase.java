@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,10 +98,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         try {
             LOG.info("Starting KafkaProducerITCase.testCustomPartitioning()");
 
-            final String defaultTopic = "defaultTopic";
+            final String defaultTopic = "defaultTopic-" + UUID.randomUUID();
             final int defaultTopicPartitions = 2;
 
-            final String dynamicTopic = "dynamicTopic";
+            final String dynamicTopic = "dynamicTopic-" + UUID.randomUUID();
             final int dynamicTopicPartitions = 3;
 
             createTestTopic(defaultTopic, defaultTopicPartitions, 1);
@@ -225,15 +226,18 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
      * broker to check whether flushed records since last checkpoint were not duplicated.
      */
     protected void testExactlyOnce(boolean regularSink, int sinksCount) throws Exception {
-        final String topic =
+        final String topicNamePrefix =
                 (regularSink ? "exactlyOnceTopicRegularSink" : "exactlyTopicCustomOperator")
                         + sinksCount;
         final int partition = 0;
         final int numElements = 1000;
         final int failAfterElements = 333;
 
+        final List<String> topics = new ArrayList<>();
         for (int i = 0; i < sinksCount; i++) {
-            createTestTopic(topic + i, 1, 1);
+            final String topic = topicNamePrefix + i + "-" + UUID.randomUUID();
+            topics.add(topic);
+            createTestTopic(topic, 1, 1);
         }
 
         TypeInformationSerializationSchema<Integer> schema =
@@ -273,11 +277,11 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
             if (regularSink) {
                 StreamSink<Integer> kafkaSink =
-                        kafkaServer.getProducerSink(topic + i, schema, properties, partitioner);
+                        kafkaServer.getProducerSink(topics.get(i), schema, properties, partitioner);
                 inputStream.addSink(kafkaSink.getUserFunction());
             } else {
                 kafkaServer.produceIntoKafka(
-                        inputStream, topic + i, schema, properties, partitioner);
+                        inputStream, topics.get(i), schema, properties, partitioner);
             }
         }
 
@@ -286,8 +290,8 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
         for (int i = 0; i < sinksCount; i++) {
             // assert that before failure we successfully snapshot/flushed all expected elements
-            assertExactlyOnceForTopic(properties, topic + i, expectedElements);
-            deleteTestTopic(topic + i);
+            assertExactlyOnceForTopic(properties, topics.get(i), expectedElements);
+            deleteTestTopic(topics.get(i));
         }
     }
 
