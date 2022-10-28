@@ -2153,6 +2153,18 @@ under the License.
 							<packagingSupporteds>
 								<packagingSupported>jar</packagingSupported>
 							</packagingSupporteds>
+							<overrideCompatibilityChangeParameters>
+								<overrideCompatibilityChangeParameter>
+									<compatibilityChange>METHOD_NEW_DEFAULT</compatibilityChange>
+									<binaryCompatible>true</binaryCompatible>
+									<sourceCompatible>true</sourceCompatible>
+								</overrideCompatibilityChangeParameter>
+								<overrideCompatibilityChangeParameter>
+									<compatibilityChange>METHOD_ADDED_TO_INTERFACE</compatibilityChange>
+									<binaryCompatible>true</binaryCompatible>
+									<sourceCompatible>true</sourceCompatible>
+								</overrideCompatibilityChangeParameter>
+							</overrideCompatibilityChangeParameters>
 						</parameter>
 						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>
