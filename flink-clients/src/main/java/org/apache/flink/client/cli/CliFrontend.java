@@ -316,7 +316,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
 
-        final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
         final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
@@ -718,10 +718,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
 
-        final Options commandLineOptions =
-                CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-        final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
         final SavepointOptions savepointOptions = new SavepointOptions(commandLine);
 
