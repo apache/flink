@@ -1522,32 +1522,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private DataType[] generateTableColumnsDataTypes(boolean nonComments) {
-        if (nonComments) {
-            return new DataType[] {
-                DataTypes.STRING(),
+        final List<DataType> result = Arrays.asList(DataTypes.STRING(),
                 DataTypes.STRING(),
                 DataTypes.BOOLEAN(),
                 DataTypes.STRING(),
                 DataTypes.STRING(),
-                DataTypes.STRING()
-            };
+                DataTypes.STRING());
+        if (!nonComments) {
+            result.add(DataTypes.STRING());
         }
-        return new DataType[] {
-            DataTypes.STRING(),
-            DataTypes.STRING(),
-            DataTypes.BOOLEAN(),
-            DataTypes.STRING(),
-            DataTypes.STRING(),
-            DataTypes.STRING(),
-            DataTypes.STRING()
-        };
+        return result.toArray(new DataType[0]);
     }
 
     private String[] generateTableColumnsNames(boolean nonComments) {
-        if (nonComments) {
-            return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+        final List<String> result = Arrays.asList("name", "type", "null", "key", "extras", "watermark");
+        if (!nonComments) {
+            result.add("comment");
         }
-        return new String[] {"name", "type", "null", "key", "extras", "watermark", "comment"};
+        return result.toArray(new String[0]);
     }
 
     private TableResultInternal buildShowTablesResult(
