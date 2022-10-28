@@ -17,11 +17,20 @@
  */
 package org.apache.flink.table.planner.calcite
 
+import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`._
+import org.apache.calcite.sql.SqlIntervalQualifier
+import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.`type`.{BasicSqlType, MapSqlType, SqlTypeName}
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.util.ConversionUtil
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NothingTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
+import org.apache.flink.table.planner.plan.schema._
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -29,19 +38,8 @@ import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Nothing
 import org.apache.flink.util.Preconditions.checkArgument
 
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl
-import org.apache.calcite.rel.`type`._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.`type`.{BasicSqlType, MapSqlType, SqlTypeName}
-import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.SqlIntervalQualifier
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.util.ConversionUtil
-
 import java.nio.charset.Charset
 import java.util
-
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -346,6 +344,7 @@ class FlinkTypeFactory(
   }
 
   override def createArrayType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
+    // TODO: We need to overwrite something here for empty array construction.
     // Just validate type, make sure there is a failure in validate phase.
     checkForNullType(elementType)
     toLogicalType(elementType)
