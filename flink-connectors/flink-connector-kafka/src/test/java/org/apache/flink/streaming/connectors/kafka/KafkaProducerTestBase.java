@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -90,10 +91,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         try {
             LOG.info("Starting KafkaProducerITCase.testCustomPartitioning()");
 
-            final String defaultTopic = "defaultTopic";
+            final String defaultTopic = "defaultTopic" + UUID.randomUUID();
             final int defaultTopicPartitions = 2;
 
-            final String dynamicTopic = "dynamicTopic";
+            final String dynamicTopic = "dynamicTopic" + UUID.randomUUID();
             final int dynamicTopicPartitions = 3;
 
             createTestTopic(defaultTopic, defaultTopicPartitions, 1);
