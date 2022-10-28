@@ -104,7 +104,6 @@ A number of breaking changes were made to the Pulsar Connector cursor APIs:
 ##### [FLINK-27188](https://issues.apache.org/jira/browse/FLINK-27188)
 
 The StreamingFileSink has been deprecated in favor of the unified FileSink since Flink 1.12.
-This changed is reflected in the docs, but not yet in the codebase.
 
 #### Flink generated Avro schemas can't be parsed using Python
 
