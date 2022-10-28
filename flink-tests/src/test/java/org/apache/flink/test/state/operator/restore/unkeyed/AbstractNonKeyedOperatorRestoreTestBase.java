@@ -45,7 +45,7 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase
 
     @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_16);
     }
 
     protected AbstractNonKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {
