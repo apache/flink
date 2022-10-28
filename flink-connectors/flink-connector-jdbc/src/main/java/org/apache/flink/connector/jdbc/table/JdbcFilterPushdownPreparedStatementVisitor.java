@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -49,7 +50,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * Visitor that convert Expression to ParameterizedPredicate. Return Optional.empty() if we cannot
@@ -74,6 +74,8 @@ public class JdbcFilterPushdownPreparedStatementVisitor
         SUPPORTED_DATA_TYPES.add(SmallIntType.class);
         SUPPORTED_DATA_TYPES.add(VarCharType.class);
         SUPPORTED_DATA_TYPES.add(TimestampType.class);
+        SUPPORTED_DATA_TYPES.add(DateType.class);
+        SUPPORTED_DATA_TYPES.add(TimeType.class);
     }
 
     public JdbcFilterPushdownPreparedStatementVisitor(
@@ -115,11 +117,10 @@ public class JdbcFilterPushdownPreparedStatementVisitor
             String operator, List<ResolvedExpression> allOperands) {
         Optional<ParameterizedPredicate> leftOperandString = allOperands.get(0).accept(this);
 
-        Supplier<Optional<ParameterizedPredicate>> rightOperandString =
-                () -> allOperands.get(1).accept(this);
+        Optional<ParameterizedPredicate> rightOperandString = allOperands.get(1).accept(this);
 
         return leftOperandString.flatMap(
-                left -> rightOperandString.get().map(right -> left.combine(operator, right)));
+                left -> rightOperandString.map(right -> left.combine(operator, right)));
     }
 
     @Override
@@ -155,6 +156,9 @@ public class JdbcFilterPushdownPreparedStatementVisitor
             }
             if (typeCs.equals(DateType.class)) {
                 params[0] = litExp.getValueAs(LocalDate.class).map(Date::valueOf).orElse(null);
+            }
+            if (typeCs.equals(TimeType.class)) {
+                params[0] = litExp.getValueAs(java.sql.Time.class).orElse(null);
             }
             if (typeCs.equals(TimestampType.class)) {
                 params[0] =
