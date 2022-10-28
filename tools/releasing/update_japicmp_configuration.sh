@@ -36,8 +36,8 @@ fi
 #     - update the master to X.(Y+1)-SNAPSHOT, but keep the reference version intact since X.Y.0 is not released (yet)
 #     - create X.Y-SNAPSHOT branch, but keep the reference version intact since X.Y.0 is not released (yet)
 #     - release X.Y.0
-#     - update the japicmp reference version of both master and X.Y-SNAPSHOT to X.Y.0
-#     - enable stronger compatibility constraints for X.Y-SNAPSHOT to ensure compatibility for PublicEvolving
+#     - update the japicmp reference version of both master and the release branch X.Y-SNAPSHOT to X.Y.0
+#     - enable stronger compatibility constraints for X.Y-SNAPSHOT in the release branch to ensure compatibility for PublicEvolving
 # Scenario B) New minor release X.Y.Z
 #   Premise:
 #     There is a snapshot branch with a version X.Y-SNAPSHOT, with a japicmp reference version of X.Y.(Z-1)

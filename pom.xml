@@ -2112,10 +2112,11 @@ under the License.
 								<include>@org.apache.flink.annotation.Public</include>
 								<!-- The following line is un-commented by tools/releasing/update_japicmp_configuration.sh
 								 	as part of the release process -->
-								<include>@org.apache.flink.annotation.PublicEvolving</include>
+								<!--<include>@org.apache.flink.annotation.PublicEvolving</include>-->
 							</includes>
 							<excludes>
 								<exclude>@org.apache.flink.annotation.Experimental</exclude>
+								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
 								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#getSideOutput(org.apache.flink.util.OutputTag)</exclude>
@@ -2153,18 +2154,6 @@ under the License.
 							<packagingSupporteds>
 								<packagingSupported>jar</packagingSupported>
 							</packagingSupporteds>
-							<overrideCompatibilityChangeParameters>
-								<overrideCompatibilityChangeParameter>
-									<compatibilityChange>METHOD_NEW_DEFAULT</compatibilityChange>
-									<binaryCompatible>true</binaryCompatible>
-									<sourceCompatible>true</sourceCompatible>
-								</overrideCompatibilityChangeParameter>
-								<overrideCompatibilityChangeParameter>
-									<compatibilityChange>METHOD_ADDED_TO_INTERFACE</compatibilityChange>
-									<binaryCompatible>true</binaryCompatible>
-									<sourceCompatible>true</sourceCompatible>
-								</overrideCompatibilityChangeParameter>
-							</overrideCompatibilityChangeParameters>
 						</parameter>
 						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>
