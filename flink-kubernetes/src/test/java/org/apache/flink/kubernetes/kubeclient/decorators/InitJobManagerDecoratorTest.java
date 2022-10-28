@@ -222,4 +222,9 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                                 envVar.getName().equals(Constants.ENV_FLINK_LOG_DIR)
                                         && envVar.getValue().equals(USER_DEFINED_FLINK_LOG_DIR));
     }
+
+    @Test
+    void testDNSPolicyDefaultValue() {
+        assertThat(this.resultPod.getSpec().getDnsPolicy()).isEqualTo(Constants.DNS_POLICY_DEFAULT);
+    }
 }
