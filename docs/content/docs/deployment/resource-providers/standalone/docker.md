@@ -431,16 +431,25 @@ services:
   ```
   You can then start creating tables and queries those.
 
-* Note, that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
+* Note that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
   For example, if you would like to use the Kafka Connector, you can build a custom image.
-  Create a Dockerfile as follows:
+  1. Create a Dockerfile named `Dockerfile.kafka` as follows:
 
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
   RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.12/{{< version >}}/flink-sql-connector-kafka_scala{{< scala_version >}}-{{< version >}}.jar
   ```
   
-  and reference it (e.g via the `build`) command in the Dockerfile.
+  2. Replace the `image` config with the `build` command that references the Dockerfile for jobmanager, taskmanager and sql-client services.
+  For example, the jobmanager service will start with the following setting:
+  ```yaml
+  jobmanager:
+    build:
+      dockerfile: ./Dockerfile.kafka
+    ...
+  ```
+
+>>>>>>> 8ed09d4eb3e (Add example of using build command in docker-compose.yml)
   SQL Commands like `ADD JAR` will not work for JARs located on the host machine as they only work with the local filesystem, which in this case is Docker's overlay filesystem. 
 
 ## Using Flink Python on Docker
