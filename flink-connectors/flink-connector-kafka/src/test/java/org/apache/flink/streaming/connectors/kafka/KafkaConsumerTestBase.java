@@ -805,8 +805,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      */
     @RetryOnException(times = 2, exception = NotLeaderForPartitionException.class)
     public void runSimpleConcurrentProducerConsumerTopology() throws Exception {
-        final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID().toString();
-        final String additionalEmptyTopic = "additionalEmptyTopic_" + UUID.randomUUID().toString();
+        final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID();
+        final String additionalEmptyTopic = "additionalEmptyTopic_" + UUID.randomUUID();
 
         final int parallelism = 3;
         final int elementsPerPartition = 100;
@@ -944,7 +944,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      */
     public void runOneToOneExactlyOnceTest() throws Exception {
 
-        final String topic = "oneToOneTopic";
+        final String topic = "oneToOneTopic-" + UUID.randomUUID();
         final int parallelism = 5;
         final int numElementsPerPartition = 1000;
         final int totalElements = parallelism * numElementsPerPartition;
@@ -992,7 +992,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * Flink source will read multiple Kafka partitions.
      */
     public void runOneSourceMultiplePartitionsExactlyOnceTest() throws Exception {
-        final String topic = "oneToManyTopic";
+        final String topic = "oneToManyTopic-" + UUID.randomUUID();
         final int numPartitions = 5;
         final int numElementsPerPartition = 1000;
         final int totalElements = numPartitions * numElementsPerPartition;
@@ -1042,7 +1042,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * means that some Flink sources will read no partitions.
      */
     public void runMultipleSourcesOnePartitionExactlyOnceTest() throws Exception {
-        final String topic = "manyToOneTopic";
+        final String topic = "manyToOneTopic-" + UUID.randomUUID();
         final int numPartitions = 5;
         final int numElementsPerPartition = 1000;
         final int totalElements = numPartitions * numElementsPerPartition;
@@ -1094,7 +1094,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
     /** Tests that the source can be properly canceled when reading full partitions. */
     public void runCancelingOnFullInputTest() throws Exception {
-        final String topic = "cancelingOnFullTopic";
+        final String topic = "cancelingOnFullTopic-" + UUID.randomUUID();
 
         final int parallelism = 3;
         createTestTopic(topic, parallelism, 1);
@@ -1168,7 +1168,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
     /** Tests that the source can be properly canceled when reading empty partitions. */
     public void runCancelingOnEmptyInputTest() throws Exception {
-        final String topic = "cancelingOnEmptyInputTopic";
+        final String topic = "cancelingOnEmptyInputTopic-" + UUID.randomUUID();
 
         final int parallelism = 3;
         createTestTopic(topic, parallelism, 1);
@@ -1238,7 +1238,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         // create topics with content
         final List<String> topics = new ArrayList<>();
         for (int i = 0; i < numTopics; i++) {
-            final String topic = topicNamePrefix + i;
+            final String topic = topicNamePrefix + i + "-" + UUID.randomUUID();
             topics.add(topic);
             // create topic
             createTestTopic(topic, i + 1 /*partitions*/, 1);
@@ -1343,7 +1343,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      */
     public void runBigRecordTestTopology() throws Exception {
 
-        final String topic = "bigRecordTestTopic";
+        final String topic = "bigRecordTestTopic-" + UUID.randomUUID();
         final int parallelism = 1; // otherwise, the kafka mini clusters may run out of heap space
 
         createTestTopic(topic, parallelism, 1);
@@ -1508,7 +1508,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     }
 
     public void runKeyValueTest() throws Exception {
-        final String topic = "keyvaluetest";
+        final String topic = "keyvaluetest-" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
         final int elementCount = 5000;
 
@@ -1608,7 +1608,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * @throws Exception
      */
     public void runAllDeletesTest() throws Exception {
-        final String topic = "alldeletestest";
+        final String topic = "alldeletestest-" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
         final int elementCount = 300;
 
@@ -1792,7 +1792,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     public void runMetricsTest() throws Throwable {
 
         // create a stream with 5 topics
-        final String topic = "metricsStream";
+        final String topic = "metricsStream-" + UUID.randomUUID();
         createTestTopic(topic, 5, 1);
 
         final Tuple1<Throwable> error = new Tuple1<>(null);
@@ -2244,7 +2244,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
         for (int attempt = 1; attempt <= maxNumAttempts; attempt++) {
 
-            final String topicName = baseTopicName + '-' + attempt;
+            final String topicName = baseTopicName + '-' + attempt + '-' + UUID.randomUUID();
 
             LOG.info("Writing attempt #" + attempt);
 

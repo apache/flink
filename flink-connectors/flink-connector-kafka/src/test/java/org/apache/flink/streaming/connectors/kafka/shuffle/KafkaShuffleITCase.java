@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.IngestionTime;
@@ -181,7 +182,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Map<Integer, Collection<ConsumerRecord<byte[], byte[]>>> results =
                 testKafkaShuffleProducer(
-                        topic("test_watermark_broadcast", EventTime),
+                        topic("test_watermark_broadcast-" + UUID.randomUUID(), EventTime),
                         env,
                         numberOfPartitions,
                         producerParallelism,
@@ -250,7 +251,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      */
     private void testKafkaShuffle(int numElementsPerProducer, TimeCharacteristic timeCharacteristic)
             throws Exception {
-        String topic = topic("test_simple", timeCharacteristic);
+        String topic = topic("test_simple-" + UUID.randomUUID(), timeCharacteristic);
         final int numberOfPartitions = 1;
         final int producerParallelism = 1;
 
@@ -287,7 +288,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      */
     private void testAssignedToPartition(
             int numElementsPerProducer, TimeCharacteristic timeCharacteristic) throws Exception {
-        String topic = topic("test_assigned_to_partition", timeCharacteristic);
+        String topic = topic("test_assigned_to_partition-" + UUID.randomUUID(), timeCharacteristic);
         final int numberOfPartitions = 3;
         final int producerParallelism = 2;
 
@@ -331,7 +332,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      */
     private void testWatermarkIncremental(int numElementsPerProducer) throws Exception {
         TimeCharacteristic timeCharacteristic = EventTime;
-        String topic = topic("test_watermark_incremental", timeCharacteristic);
+        String topic = topic("test_watermark_incremental-" + UUID.randomUUID(), timeCharacteristic);
         final int numberOfPartitions = 3;
         final int producerParallelism = 2;
 
@@ -375,7 +376,9 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
         Collection<ConsumerRecord<byte[], byte[]>> records =
                 Iterables.getOnlyElement(
                         testKafkaShuffleProducer(
-                                        topic("test_serde", timeCharacteristic),
+                                        topic(
+                                                "test_serde-" + UUID.randomUUID(),
+                                                timeCharacteristic),
                                         env,
                                         1,
                                         1,
