@@ -25,35 +25,32 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.catalog.CatalogDatabaseImpl
-import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
+import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
-import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
+import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
-
-import org.junit._
 import org.junit.Assert.assertEquals
+import org.junit._
 import org.junit.rules.ExpectedException
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time._
 import java.util
-
-import scala.collection.Seq
 
 class CalcITCase extends BatchTestBase {
 
@@ -831,22 +828,22 @@ class CalcITCase extends BatchTestBase {
   }
 
   // TODO
-//  @Test
-//  def testUDFWithGetResultTypeFromLiteral(): Unit = {
-//    registerFunction("hashCode0", LiteralHashCode)
-//    registerFunction("hashCode1", LiteralHashCode)
-//    val data = Seq(row("a"), row("b"), row("c"))
-//    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
-//    checkResult(
-//      "SELECT hashCode0(text, 'int') FROM MyTable",
-//      Seq(row(97), row(98), row(99)
-//      ))
-//
-//    checkResult(
-//      "SELECT hashCode1(text, 'string') FROM MyTable",
-//      Seq(row("str97"), row("str98"), row("str99")
-//      ))
-//  }
+  //  @Test
+  //  def testUDFWithGetResultTypeFromLiteral(): Unit = {
+  //    registerFunction("hashCode0", LiteralHashCode)
+  //    registerFunction("hashCode1", LiteralHashCode)
+  //    val data = Seq(row("a"), row("b"), row("c"))
+  //    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
+  //    checkResult(
+  //      "SELECT hashCode0(text, 'int') FROM MyTable",
+  //      Seq(row(97), row(98), row(99)
+  //      ))
+  //
+  //    checkResult(
+  //      "SELECT hashCode1(text, 'string') FROM MyTable",
+  //      Seq(row("str97"), row("str98"), row("str99")
+  //      ))
+  //  }
 
   @Test
   def testInNonConstantValue(): Unit = {
@@ -970,11 +967,18 @@ class CalcITCase extends BatchTestBase {
   def testEmptyArray(): Unit = {
     // Empty array test
     checkResult(
-      "SELECT ARRAY[]",
+      "SELECT COALESCE(ARRAY[1], CAST(ARRAY[] AS ARRAY<INT>))",
       Seq(
-        row("[]")
+        row("[1]")
       )
     )
+
+    //    checkResult(
+    //      "SELECT ARRAY[]",
+    //      Seq(
+    //        row("[]")
+    //      )
+    //    )
   }
 
   @Test
@@ -1677,9 +1681,10 @@ class CalcITCase extends BatchTestBase {
 
     tEnv.createTemporaryView("myTable", source)
 
-    val query = """
-                  |select * from myTable where f0 in (1.0, 2.0, 3.0)
-                  |""".stripMargin
+    val query =
+      """
+        |select * from myTable where f0 in (1.0, 2.0, 3.0)
+        |""".stripMargin
 
     checkResult(
       query,
