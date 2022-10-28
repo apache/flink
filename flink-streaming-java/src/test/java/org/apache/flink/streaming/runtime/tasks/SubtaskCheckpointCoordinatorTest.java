@@ -577,9 +577,9 @@ public class SubtaskCheckpointCoordinatorTest {
     @Test
     public void testChannelStateWriteResultLeakAndNotFailAfterCheckpointAborted() throws Exception {
         String taskName = "test";
+        ChannelStateWriterImpl writer =
+                new ChannelStateWriterImpl(taskName, 0, getStreamFactoryFactory());
         try (MockEnvironment mockEnvironment = MockEnvironment.builder().build();
-                ChannelStateWriterImpl writer =
-                        new ChannelStateWriterImpl(taskName, 0, getStreamFactoryFactory());
                 SubtaskCheckpointCoordinator coordinator =
                         new SubtaskCheckpointCoordinatorImpl(
                                 new TestCheckpointStorageWorkerView(100),
