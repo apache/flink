@@ -21,10 +21,14 @@ package org.apache.flink.table.gateway.service.context;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
+import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -39,6 +43,7 @@ import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link SessionContext}. */
 class SessionContextTest {
@@ -131,6 +136,79 @@ class SessionContextTest {
 
         sessionContext.reset("bb");
         assertThat(sessionContext.getConfigMap().get("bb")).isNull();
+    }
+
+    @Test
+    public void testStatementSetStateTransition() {
+        assertThat(sessionContext.isStatementSetState()).isFalse();
+
+        Configuration emptyConfiguration = new Configuration();
+        TableEnvironmentInternal tableEnv =
+                sessionContext.createOperationExecutor(emptyConfiguration).getTableEnvironment();
+        tableEnv.executeSql("CREATE TABLE whatever (f STRING) WITH ('connector' = 'values')");
+
+        sessionContext
+                .createOperationExecutor(emptyConfiguration)
+                .executeStatement(OperationHandle.create(), "BEGIN STATEMENT SET;");
+
+        assertThat(sessionContext.isStatementSetState()).isTrue();
+
+        // invalid statement in Statement Set
+        assertThatThrownBy(
+                        () ->
+                                sessionContext
+                                        .createOperationExecutor(emptyConfiguration)
+                                        .executeStatement(OperationHandle.create(), "SELECT 1;"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlExecutionException.class,
+                                "Wrong statement after 'BEGIN STATEMENT SET'.\n"
+                                        + "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to terminate Statement Set."));
+
+        // 'isStatementSetState' is still true, and nothing in 'statementSetOperations'
+        assertThat(sessionContext.isStatementSetState()).isTrue();
+        assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(0);
+
+        // valid statement in Statement Set
+        sessionContext
+                .createOperationExecutor(emptyConfiguration)
+                .executeStatement(
+                        OperationHandle.create(), "INSERT INTO whatever VALUES('Hello World');");
+
+        assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(1);
+        assertThat(sessionContext.getStatementSetOperations().get(0).asSummaryString())
+                .isEqualTo(
+                        tableEnv.getParser()
+                                .parse("INSERT INTO whatever VALUES('Hello World');")
+                                .get(0)
+                                .asSummaryString());
+        // end Statement Set
+        try {
+            sessionContext
+                    .createOperationExecutor(emptyConfiguration)
+                    .executeStatement(OperationHandle.create(), "END;");
+        } catch (Throwable t) {
+            // just test the Statement Set state transition, so ignore the error that standalone
+            // cluster doesn't exist
+        }
+
+        assertThat(sessionContext.isStatementSetState()).isFalse();
+        assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(0);
+
+        // dangling 'END'
+        assertThatThrownBy(
+                        () ->
+                                sessionContext
+                                        .createOperationExecutor(emptyConfiguration)
+                                        .executeStatement(OperationHandle.create(), "END;"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlExecutionException.class,
+                                "No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'."));
+
+        // nothing happened to 'isStatementSetState' and 'statementSetOperations'
+        assertThat(sessionContext.isStatementSetState()).isFalse();
+        assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(0);
     }
 
     // --------------------------------------------------------------------------------------------
