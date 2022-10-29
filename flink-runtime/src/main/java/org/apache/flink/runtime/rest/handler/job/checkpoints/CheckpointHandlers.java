@@ -38,7 +38,6 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatusMessag
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerRequestBody;
-import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
