@@ -211,7 +211,7 @@ public class SavepointHandlers {
             final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             final SavepointFormatType formatType = request.getRequestBody().getFormatType();
             return gateway.stopWithSavepoint(
-                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, formatType, savepointMode, this.timeout);
         }
     }
 
@@ -255,7 +255,7 @@ public class SavepointHandlers {
             final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             final SavepointFormatType formatType = request.getRequestBody().getFormatType();
             return gateway.triggerSavepoint(
-                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, formatType, savepointMode, this.timeout);
         }
     }
 

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -143,7 +144,7 @@ public class CheckpointHandlers {
             return gateway.triggerCheckpoint(
                             operationKey,
                             request.getRequestBody().getCheckpointType(),
-                            RpcUtils.INF_TIMEOUT)
+                            this.timeout)
                     .handle(
                             (acknowledge, throwable) -> {
                                 if (throwable == null) {

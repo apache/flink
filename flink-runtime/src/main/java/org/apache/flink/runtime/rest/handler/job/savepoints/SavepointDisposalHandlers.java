@@ -80,7 +80,7 @@ public class SavepointDisposalHandlers
                                 SavepointDisposalRequest.FIELD_NAME_SAVEPOINT_PATH),
                         HttpResponseStatus.BAD_REQUEST);
             }
-            return gateway.disposeSavepoint(savepointPath, RpcUtils.INF_TIMEOUT);
+            return gateway.disposeSavepoint(savepointPath, this.timeout);
         }
 
         @Override
