@@ -32,8 +32,9 @@ import static org.apache.flink.util.ExceptionUtils.rethrow;
 public class RecordingChannelStateWriter extends MockChannelStateWriter {
     private long lastStartedCheckpointId = -1;
     private long lastFinishedCheckpointId = -1;
-    private ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
-    private ListMultimap<ResultSubpartitionInfo, Buffer> addedOutput = LinkedListMultimap.create();
+    private final ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
+    private final ListMultimap<ResultSubpartitionInfo, Buffer> addedOutput =
+            LinkedListMultimap.create();
 
     public RecordingChannelStateWriter() {
         super(false);
