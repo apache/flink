@@ -881,11 +881,13 @@ object ScalarOperatorGens {
         if (codeGeneratorCastRule.canFail(inputType, targetType) && nullOnFailure) {
           val resultTerm = ctx.addReusableLocalVariable(
             primitiveTypeTermForType(targetType),
-            "castRuleResult"
+            "castRuleResult",
+            primitiveDefaultValue(targetType)
           )
           val nullTerm = ctx.addReusableLocalVariable(
             "boolean",
-            "castRuleResultIsNull"
+            "castRuleResultIsNull",
+            "false"
           )
 
           val castCode =
@@ -972,7 +974,7 @@ object ScalarOperatorGens {
         s"""
            |${condition.code}
            |$resultTypeTerm $resultTerm = $defaultValue;
-           |boolean $nullTerm;
+           |boolean $nullTerm = false;
            |if (${condition.resultTerm}) {
            |  ${trueAction.code}
            |  $nullTerm = ${trueAction.nullTerm};
@@ -1022,8 +1024,8 @@ object ScalarOperatorGens {
     val resultCode =
       s"""
          |${operands.map(_.code).mkString("\n")}
-         |$resultTypeTerm $resultTerm;
-         |boolean $nullTerm;
+         |$resultTypeTerm $resultTerm = $defaultValue;
+         |boolean $nullTerm = false;
          |if (${operands.map(_.nullTerm).mkString(" || ")}) {
          |  $resultTerm = $defaultValue;
          |  $nullTerm = true;
@@ -1320,7 +1322,7 @@ object ScalarOperatorGens {
     val arrayAccessCode =
       s"""
          |${array.code}
-         |boolean $nullTerm;
+         |boolean $nullTerm = false;
          |$resultTypeTerm $resultTerm;
          |switch ($arrayLengthCode) {
          |  case 0:
@@ -1829,8 +1831,11 @@ object ScalarOperatorGens {
       override def isPrinting(): Boolean = false
       override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
       override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
-      override def declareVariable(ty: String, variablePrefix: String): String =
-        ctx.addReusableLocalVariable(ty, variablePrefix)
+      override def declareVariable(
+          ty: String,
+          variablePrefix: String,
+          defaultValue: String): String =
+        ctx.addReusableLocalVariable(ty, variablePrefix, defaultValue)
       override def declareTypeSerializer(ty: LogicalType): String =
         ctx.addReusableTypeSerializer(ty)
       override def declareClassField(ty: String, field: String, init: String): String = {

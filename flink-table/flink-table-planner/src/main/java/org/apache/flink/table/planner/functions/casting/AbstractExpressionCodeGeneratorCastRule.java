@@ -119,7 +119,7 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
             }
 
             @Override
-            public String declareVariable(String type, String variablePrefix) {
+            public String declareVariable(String type, String variablePrefix, String defaultValue) {
                 throw new UnsupportedOperationException(
                         "No variable can be declared when using AbstractExpressionCodeGeneratorCastRule. You should use AbstractCodeGeneratorCastRule instead.");
             }

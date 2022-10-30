@@ -58,7 +58,7 @@ abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
         final boolean isResultNullable = inputType.isNullable() || isPrimitiveNullable(targetType);
         String nullTerm;
         if (isResultNullable) {
-            nullTerm = context.declareVariable("boolean", "isNull");
+            nullTerm = context.declareVariable("boolean", "isNull", "false");
             writer.assignStmt(nullTerm, inputIsNullTerm);
         } else {
             nullTerm = "false";
@@ -66,7 +66,10 @@ abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
 
         // Create the result value variable
         final String returnTerm =
-                context.declareVariable(primitiveTypeTermForType(targetType), "result");
+                context.declareVariable(
+                        primitiveTypeTermForType(targetType),
+                        "result",
+                        primitiveDefaultValue(targetType));
 
         // Generate the code block
         final String castCodeBlock =

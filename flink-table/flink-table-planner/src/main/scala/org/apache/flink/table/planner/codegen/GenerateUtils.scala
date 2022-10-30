@@ -69,9 +69,9 @@ object GenerateUtils {
     } else {
       primitiveTypeTermForType(returnType)
     }
-    val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
-    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val defaultValue = primitiveDefaultValue(returnType)
+    val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull", "false")
+    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result", defaultValue)
     val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
     val nullTermCode = if (isResultNullable) {
       s"$nullTerm = ($resultTerm == null);"
@@ -146,8 +146,8 @@ object GenerateUtils {
       primitiveTypeTermForType(returnType)
     }
     val defaultValue = primitiveDefaultValue(returnType)
-    val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
-    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
+    val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull", "false")
+    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result", defaultValue)
     val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
     val nullTermCode = if (isResultNullable) {
       s"$nullTerm = ($resultTerm == null);"
@@ -370,7 +370,8 @@ object GenerateUtils {
       contextTerm: String): GeneratedExpression = {
     val resultType = new LocalZonedTimestampType(3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
-    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
+    val defaultValue = primitiveDefaultValue(resultType)
+    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result", defaultValue)
     val resultCode =
       s"""
          |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis(
@@ -394,10 +395,11 @@ object GenerateUtils {
       new TimestampType(true, TimestampKind.ROWTIME, 3)
     }
     val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
     val Seq(resultTerm, nullTerm, timestamp) = ctx.addReusableLocalVariables(
-      (resultTypeTerm, "result"),
-      ("boolean", "isNull"),
-      ("Long", "timestamp"))
+      (resultTypeTerm, "result", defaultValue),
+      ("boolean", "isNull", "false"),
+      ("Long", "timestamp", "-1L"))
 
     val accessCode =
       s"""
@@ -419,10 +421,11 @@ object GenerateUtils {
       contextTerm: String,
       resultType: LogicalType): GeneratedExpression = {
     val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
     val Seq(resultTerm, nullTerm, currentWatermarkTerm) = ctx.addReusableLocalVariables(
-      (resultTypeTerm, "result"),
-      ("boolean", "isNull"),
-      ("long", "currentWatermark")
+      (resultTypeTerm, "result", defaultValue),
+      ("boolean", "isNull", "false"),
+      ("long", "currentWatermark", "-1L")
     )
 
     val code =
@@ -496,7 +499,9 @@ object GenerateUtils {
     val resultTypeTerm = primitiveTypeTermForType(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
     val Seq(resultTerm, nullTerm) =
-      ctx.addReusableLocalVariables((resultTypeTerm, "result"), ("boolean", "isNull"))
+      ctx.addReusableLocalVariables(
+        (resultTypeTerm, "result", defaultValue),
+        ("boolean", "isNull", "false"))
 
     val fieldAccessExpr = generateFieldAccess(ctx, inputType, inputTerm, index, deepCopy)
 
@@ -539,7 +544,9 @@ object GenerateUtils {
     val defaultValue = primitiveDefaultValue(inputType)
 
     val Seq(resultTerm, nullTerm) =
-      ctx.addReusableLocalVariables((resultTypeTerm, "result"), ("boolean", "isNull"))
+      ctx.addReusableLocalVariables(
+        (resultTypeTerm, "result", defaultValue),
+        ("boolean", "isNull", "false"))
 
     val wrappedCode =
       s"""
@@ -588,7 +595,9 @@ object GenerateUtils {
       val defaultValue = primitiveDefaultValue(fieldType)
       val readCode = rowFieldReadAccess(index.toString, inputTerm, fieldType)
       val Seq(fieldTerm, nullTerm) =
-        ctx.addReusableLocalVariables((resultTypeTerm, "field"), ("boolean", "isNull"))
+        ctx.addReusableLocalVariables(
+          (resultTypeTerm, "field", defaultValue),
+          ("boolean", "isNull", "false"))
 
       val inputCode =
         s"""

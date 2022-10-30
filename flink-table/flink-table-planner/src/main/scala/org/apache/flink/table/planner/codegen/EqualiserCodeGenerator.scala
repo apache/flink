@@ -89,15 +89,16 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType], classLoader: ClassL
     ctx.startNewLocalVariableStatement(methodName)
 
     val Seq(leftNullTerm, rightNullTerm) = ctx.addReusableLocalVariables(
-      ("boolean", "isNullLeft"),
-      ("boolean", "isNullRight")
+      ("boolean", "isNullLeft", "false"),
+      ("boolean", "isNullRight", "false")
     )
 
     val fieldType = fieldTypes(idx)
     val fieldTypeTerm = primitiveTypeTermForType(fieldType)
+    val fieldDefaultValue = primitiveDefaultValue(fieldType)
     val Seq(leftFieldTerm, rightFieldTerm) = ctx.addReusableLocalVariables(
-      (fieldTypeTerm, "leftField"),
-      (fieldTypeTerm, "rightField")
+      (fieldTypeTerm, "leftField", fieldDefaultValue),
+      (fieldTypeTerm, "rightField", fieldDefaultValue)
     )
 
     val leftReadCode = rowFieldReadAccess(idx, LEFT_INPUT, fieldType)

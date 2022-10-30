@@ -392,7 +392,8 @@ class MatchCodeGenerator(
   private def generateProctimeTimestamp(): GeneratedExpression = {
     val resultType = new LocalZonedTimestampType(3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
-    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
+    val defaultValue = primitiveDefaultValue(resultType)
+    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result", defaultValue)
     val resultCode =
       s"""
          |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($contextTerm.currentProcessingTime());

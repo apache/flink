@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{boxedTypeTermForType, primitiveDefaultValue}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.LogicalType
 
@@ -87,7 +87,8 @@ case class GeneratedExpression(
       // if the type need copy, it must be a boxed type
       val typeTerm = boxedTypeTermForType(resultType)
       val serTerm = ctx.addReusableTypeSerializer(resultType)
-      val newResultTerm = ctx.addReusableLocalVariable(typeTerm, "field")
+      val defaultValue = primitiveDefaultValue(resultType)
+      val newResultTerm = ctx.addReusableLocalVariable(typeTerm, "field", defaultValue)
       val newCode =
         s"""
            |$code

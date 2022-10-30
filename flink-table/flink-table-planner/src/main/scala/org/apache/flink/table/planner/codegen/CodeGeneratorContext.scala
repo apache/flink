@@ -182,33 +182,42 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
    *   the field name prefix
    * @param fieldTypeTerm
    *   the field type term
+   * @param defaultValue
+   *   the field default value (required because of janino issue <a
+   *   href="https://github.com/janino-compiler/janino/issues/187"/>)
    * @return
    *   a new generated unique field name
    */
-  def addReusableLocalVariable(fieldTypeTerm: String, fieldName: String): String = {
+  def addReusableLocalVariable(
+      fieldTypeTerm: String,
+      fieldName: String,
+      defaultValue: String): String = {
     val fieldTerm = newName(fieldName)
     reusableLocalVariableStatements
       .getOrElse(currentMethodNameForLocalVariables, mutable.LinkedHashSet[String]())
-      .add(s"$fieldTypeTerm $fieldTerm;")
+      .add(s"$fieldTypeTerm $fieldTerm = $defaultValue;")
     fieldTerm
   }
 
   /**
-   * Adds multiple pairs of local variables. The local variable statements will be placed in methods
-   * or class member area depends on whether the method length excess max code length.
+   * Adds multiple triple of local variables. The local variable statements will be placed in
+   * methods or class member area depends on whether the method length excess max code length.
    *
-   * @param fieldTypeAndNames
-   *   pairs of local variables with left is field type term and right is field name
+   * @param fieldTypeNameAndDefaultValues
+   *   pairs of local variables with left is field type term, middle is field name and right is
+   *   field default value. Default value is required because of janino issue <a
+   *   href="https://github.com/janino-compiler/janino/issues/187"/>
    * @return
    *   the new generated unique field names for each variable pairs
    */
-  def addReusableLocalVariables(fieldTypeAndNames: (String, String)*): Seq[String] = {
-    val fieldTerms = newNames(fieldTypeAndNames.map(_._2): _*)
-    fieldTypeAndNames.map(_._1).zip(fieldTerms).foreach {
-      case (fieldTypeTerm, fieldTerm) =>
+  def addReusableLocalVariables(
+      fieldTypeNameAndDefaultValues: (String, String, String)*): Seq[String] = {
+    val fieldTerms = newNames(fieldTypeNameAndDefaultValues.map(_._2): _*)
+    fieldTypeNameAndDefaultValues.zip(fieldTerms).foreach {
+      case ((fieldTypeTerm, _, fieldDefaultValue), fieldTerm) =>
         reusableLocalVariableStatements
           .getOrElse(currentMethodNameForLocalVariables, mutable.LinkedHashSet[String]())
-          .add(s"$fieldTypeTerm $fieldTerm;")
+          .add(s"$fieldTypeTerm $fieldTerm = $fieldDefaultValue;")
     }
     fieldTerms
   }
