@@ -315,6 +315,8 @@ object LongHashJoinGenerator {
        """.stripMargin)
 
     // fallback to sort merge join in probe phase
+    // Add initial assignment of probeNext
+    // to workaround https://github.com/janino-compiler/janino/issues/185
     val rowIter = classOf[RowIterator[_]].getCanonicalName
     ctx.addReusableMember(s"""
                              |private void fallbackSMJProcessPartition() throws Exception {
@@ -335,7 +337,7 @@ object LongHashJoinGenerator {
                              |
                              |      ${classOf[ProbeIterator].getCanonicalName} probeIter =
                              |      table.getSpilledPartitionProbeSideIter(p);
-                             |      $BINARY_ROW probeNext;
+                             |      $BINARY_ROW probeNext = null;
                              |      while ((probeNext = probeIter.next()) != null) {
                              |        processSortMergeJoinElement2(probeNext);
                              |      }
