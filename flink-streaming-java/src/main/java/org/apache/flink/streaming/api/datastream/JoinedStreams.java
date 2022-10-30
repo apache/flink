@@ -116,91 +116,6 @@ public class JoinedStreams<T1, T2> {
     // ------------------------------------------------------------------------
 
     /**
-     * Joined streams that have the key for one side defined.
-     *
-     * @param <KEY> The type of the key.
-     */
-    @Public
-    public class Where<KEY> {
-
-        private final KeySelector<T1, KEY> keySelector1;
-        private final TypeInformation<KEY> keyType;
-
-        Where(KeySelector<T1, KEY> keySelector1, TypeInformation<KEY> keyType) {
-            this.keySelector1 = keySelector1;
-            this.keyType = keyType;
-        }
-
-        /**
-         * Specifies a {@link KeySelector} for elements from the second input.
-         *
-         * @param keySelector The KeySelector to be used for extracting the second input's key for
-         *     partitioning.
-         */
-        public EqualTo equalTo(KeySelector<T2, KEY> keySelector) {
-            requireNonNull(keySelector);
-            final TypeInformation<KEY> otherKey =
-                    TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
-            return equalTo(keySelector, otherKey);
-        }
-
-        /**
-         * Specifies a {@link KeySelector} for elements from the second input with explicit type
-         * information for the key type.
-         *
-         * @param keySelector The KeySelector to be used for extracting the second input's key for
-         *     partitioning.
-         * @param keyType The type information describing the key type.
-         */
-        public EqualTo equalTo(KeySelector<T2, KEY> keySelector, TypeInformation<KEY> keyType) {
-            requireNonNull(keySelector);
-            requireNonNull(keyType);
-
-            if (!keyType.equals(this.keyType)) {
-                throw new IllegalArgumentException(
-                        "The keys for the two inputs are not equal: "
-                                + "first key = "
-                                + this.keyType
-                                + " , second key = "
-                                + keyType);
-            }
-
-            return new EqualTo(input2.clean(keySelector));
-        }
-
-        // --------------------------------------------------------------------
-
-        /** A join operation that has {@link KeySelector KeySelectors} defined for both inputs. */
-        @Public
-        public class EqualTo {
-
-            private final KeySelector<T2, KEY> keySelector2;
-
-            EqualTo(KeySelector<T2, KEY> keySelector2) {
-                this.keySelector2 = requireNonNull(keySelector2);
-            }
-
-            /** Specifies the window on which the join operation works. */
-            @PublicEvolving
-            public <W extends Window> WithWindow<T1, T2, KEY, W> window(
-                    WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
-                return new WithWindow<>(
-                        input1,
-                        input2,
-                        keySelector1,
-                        keySelector2,
-                        keyType,
-                        assigner,
-                        null,
-                        null,
-                        null);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------------
-
-    /**
      * A join operation that has {@link KeySelector KeySelectors} defined for both inputs as well as
      * a {@link WindowAssigner}.
      *
@@ -515,16 +430,19 @@ public class JoinedStreams<T1, T2> {
     }
 
     // ------------------------------------------------------------------------
-    //  Implementation of the functions
-    // ------------------------------------------------------------------------
 
     /** CoGroup function that does a nested-loop join to get the join result. */
-    private static class JoinCoGroupFunction<T1, T2, T>
+    public static class JoinCoGroupFunction<T1, T2, T>
             extends WrappingFunction<JoinFunction<T1, T2, T>>
             implements CoGroupFunction<T1, T2, T> {
         private static final long serialVersionUID = 1L;
-        private final StreamMonitor<WrappingFunction<JoinFunction<T1, T2, T>>> streamMonitor;
+        public final StreamMonitor<WrappingFunction<JoinFunction<T1, T2, T>>> streamMonitor;
         ExecutionConfig executionConfig;
+
+        public JoinCoGroupFunction(JoinFunction<T1, T2, T> wrappedFunction) {
+            super(wrappedFunction);
+            streamMonitor = new StreamMonitor<>(null, this);
+        }
 
         public JoinCoGroupFunction(
                 JoinFunction<T1, T2, T> wrappedFunction, HashMap<String, Object> description) {
@@ -542,9 +460,9 @@ public class JoinedStreams<T1, T2> {
             int secondSize = ((ArrayList<Tuple>) second).size();
             int joinPartners = 0;
             for (T1 val1 : first) {
-                streamMonitor.reportInput(val1, this.executionConfig, true);
+                // streamMonitor.reportInput(val1, this.executionConfig, true);
                 for (T2 val2 : second) {
-                    streamMonitor.reportInput(val2, this.executionConfig, false);
+                    //  streamMonitor.reportInput(val2, this.executionConfig, false);
                     T output = wrappedFunction.join(val1, val2);
                     streamMonitor.reportOutput(output);
                     joinPartners++;
@@ -554,6 +472,10 @@ public class JoinedStreams<T1, T2> {
             streamMonitor.reportJoinSelectivity(firstSize, secondSize, joinPartners);
         }
     }
+
+    // ------------------------------------------------------------------------
+    //  Implementation of the functions
+    // ------------------------------------------------------------------------
 
     /** CoGroup function that does a nested-loop join to get the join result. (FlatJoin version) */
     private static class FlatJoinCoGroupFunction<T1, T2, T>
@@ -572,6 +494,89 @@ public class JoinedStreams<T1, T2> {
                 for (T2 val2 : second) {
                     wrappedFunction.join(val1, val2, out);
                 }
+            }
+        }
+    }
+
+    /**
+     * Joined streams that have the key for one side defined.
+     *
+     * @param <KEY> The type of the key.
+     */
+    @Public
+    public class Where<KEY> {
+
+        private final KeySelector<T1, KEY> keySelector1;
+        private final TypeInformation<KEY> keyType;
+
+        Where(KeySelector<T1, KEY> keySelector1, TypeInformation<KEY> keyType) {
+            this.keySelector1 = keySelector1;
+            this.keyType = keyType;
+        }
+
+        /**
+         * Specifies a {@link KeySelector} for elements from the second input.
+         *
+         * @param keySelector The KeySelector to be used for extracting the second input's key for
+         *     partitioning.
+         */
+        public EqualTo equalTo(KeySelector<T2, KEY> keySelector) {
+            requireNonNull(keySelector);
+            final TypeInformation<KEY> otherKey =
+                    TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+            return equalTo(keySelector, otherKey);
+        }
+
+        /**
+         * Specifies a {@link KeySelector} for elements from the second input with explicit type
+         * information for the key type.
+         *
+         * @param keySelector The KeySelector to be used for extracting the second input's key for
+         *     partitioning.
+         * @param keyType The type information describing the key type.
+         */
+        public EqualTo equalTo(KeySelector<T2, KEY> keySelector, TypeInformation<KEY> keyType) {
+            requireNonNull(keySelector);
+            requireNonNull(keyType);
+
+            if (!keyType.equals(this.keyType)) {
+                throw new IllegalArgumentException(
+                        "The keys for the two inputs are not equal: "
+                                + "first key = "
+                                + this.keyType
+                                + " , second key = "
+                                + keyType);
+            }
+
+            return new EqualTo(input2.clean(keySelector));
+        }
+
+        // --------------------------------------------------------------------
+
+        /** A join operation that has {@link KeySelector KeySelectors} defined for both inputs. */
+        @Public
+        public class EqualTo {
+
+            private final KeySelector<T2, KEY> keySelector2;
+
+            EqualTo(KeySelector<T2, KEY> keySelector2) {
+                this.keySelector2 = requireNonNull(keySelector2);
+            }
+
+            /** Specifies the window on which the join operation works. */
+            @PublicEvolving
+            public <W extends Window> WithWindow<T1, T2, KEY, W> window(
+                    WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
+                return new WithWindow<>(
+                        input1,
+                        input2,
+                        keySelector1,
+                        keySelector2,
+                        keyType,
+                        assigner,
+                        null,
+                        null,
+                        null);
             }
         }
     }

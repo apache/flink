@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.util.StreamMonitorMongoClient;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 
@@ -52,6 +53,7 @@ public class StreamMonitor<T> implements Serializable {
     private final ArrayList<Integer> windowLengths;
     private final Logger logger;
     private final boolean disableStreamMonitor;
+    private WindowOperator windowOperator = null;
     private boolean initialized;
     private boolean observationMade;
     private long startTime;
@@ -110,7 +112,25 @@ public class StreamMonitor<T> implements Serializable {
                 this.startTime = System.nanoTime();
                 tupleWidthIn = getTupleSize(input);
                 description.put("tupleWidthOut", -1); // not any observation yet
+                InternalOperatorMetricGroup metrics;
+                // get metrics from operator. In case of a join, get the metrics instead from
+                // the window operator
+                if (this.operator instanceof WrappingFunction && this.windowOperator != null) {
+                    metrics = this.windowOperator.metrics;
+                } else {
+                    metrics = ((AbstractStreamOperator) this.operator).metrics;
+                }
+                if (metrics != null) {
+                    Map<String, String> allVariables = metrics.getAllVariables();
+                    String host = allVariables.get("<tm_id>");
+                    String component = allVariables.get("<task_id>");
+                    if (host != null) {
+                        this.description.put("host", host);
+                        this.description.put("component", component);
+                    }
+                }
             }
+
             this.inputCounter++;
             checkIfObservationEnd();
 
@@ -234,6 +254,7 @@ public class StreamMonitor<T> implements Serializable {
                     System.out.println(
                             "StreamMonitor: cannot find id to log to for " + this.operator);
                 }
+                // Map<String, String> allVariables = this.operator.metrics.getAllVariables();
                 if (this.description.get("id") != null && this.distributedLogging) {
                     StreamMonitorMongoClient.singleton(this.config)
                             .getMongoCollectionObservations()
@@ -243,6 +264,10 @@ public class StreamMonitor<T> implements Serializable {
                 }
             }
         }
+    }
+
+    public void reportJoinWindowOperator(WindowOperator windowOperator) {
+        this.windowOperator = windowOperator;
     }
 
     private <T> int getTupleSize(T input) {
