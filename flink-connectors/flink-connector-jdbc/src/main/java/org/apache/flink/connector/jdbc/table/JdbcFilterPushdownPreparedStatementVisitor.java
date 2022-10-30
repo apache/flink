@@ -26,18 +26,7 @@ import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.DateType;
-import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.DoubleType;
-import org.apache.flink.table.types.logical.FloatType;
-import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.TimeType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.VarCharType;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -45,10 +34,8 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -60,23 +47,6 @@ public class JdbcFilterPushdownPreparedStatementVisitor
         extends ExpressionDefaultVisitor<Optional<ParameterizedPredicate>> {
 
     private Function<String, String> quoteIdentifierFunction;
-
-    private static final Set<Class<?>> SUPPORTED_DATA_TYPES;
-
-    static {
-        SUPPORTED_DATA_TYPES = new HashSet<>();
-        SUPPORTED_DATA_TYPES.add(IntType.class);
-        SUPPORTED_DATA_TYPES.add(BigIntType.class);
-        SUPPORTED_DATA_TYPES.add(BooleanType.class);
-        SUPPORTED_DATA_TYPES.add(DecimalType.class);
-        SUPPORTED_DATA_TYPES.add(DoubleType.class);
-        SUPPORTED_DATA_TYPES.add(FloatType.class);
-        SUPPORTED_DATA_TYPES.add(SmallIntType.class);
-        SUPPORTED_DATA_TYPES.add(VarCharType.class);
-        SUPPORTED_DATA_TYPES.add(TimestampType.class);
-        SUPPORTED_DATA_TYPES.add(DateType.class);
-        SUPPORTED_DATA_TYPES.add(TimeType.class);
-    }
 
     public JdbcFilterPushdownPreparedStatementVisitor(
             Function<String, String> quoteIdentifierFunction) {
@@ -126,48 +96,53 @@ public class JdbcFilterPushdownPreparedStatementVisitor
     @Override
     public Optional<ParameterizedPredicate> visit(ValueLiteralExpression litExp) {
         LogicalType tpe = litExp.getOutputDataType().getLogicalType();
-        Class<?> typeCs = tpe.getClass();
+        Serializable[] params = new Serializable[1];
 
-        if (SUPPORTED_DATA_TYPES.contains(typeCs)) {
-            ParameterizedPredicate predicate = new ParameterizedPredicate("?");
-
-            Serializable[] params = new Serializable[1];
-
-            if (typeCs.equals(VarCharType.class)) {
+        ParameterizedPredicate predicate = new ParameterizedPredicate("?");
+        switch (tpe.getTypeRoot()) {
+            case VARCHAR:
                 params[0] = litExp.getValueAs(String.class).orElse(null);
-            }
-            if (typeCs.equals(BigIntType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case BIGINT:
                 params[0] = litExp.getValueAs(Long.class).orElse(null);
-            }
-            if (typeCs.equals(IntType.class) || typeCs.equals(SmallIntType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case INTEGER:
                 params[0] = litExp.getValueAs(Integer.class).orElse(null);
-            }
-            if (typeCs.equals(DoubleType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case DOUBLE:
                 params[0] = litExp.getValueAs(Double.class).orElse(null);
-            }
-            if (typeCs.equals(BooleanType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case BOOLEAN:
                 params[0] = litExp.getValueAs(Boolean.class).orElse(null);
-            }
-            if (typeCs.equals(FloatType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case FLOAT:
                 params[0] = litExp.getValueAs(Float.class).orElse(null);
-            }
-            if (typeCs.equals(DecimalType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case DECIMAL:
                 params[0] = litExp.getValueAs(BigDecimal.class).orElse(null);
-            }
-            if (typeCs.equals(DateType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case DATE:
                 params[0] = litExp.getValueAs(LocalDate.class).map(Date::valueOf).orElse(null);
-            }
-            if (typeCs.equals(TimeType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case TIME_WITHOUT_TIME_ZONE:
                 params[0] = litExp.getValueAs(java.sql.Time.class).orElse(null);
-            }
-            if (typeCs.equals(TimestampType.class)) {
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
                 params[0] =
                         litExp.getValueAs(LocalDateTime.class).map(Timestamp::valueOf).orElse(null);
-            }
-            predicate.setParameters(params);
-            return Optional.of(predicate);
-        } else {
-            return Optional.empty();
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            default:
+                return Optional.empty();
         }
     }
 
