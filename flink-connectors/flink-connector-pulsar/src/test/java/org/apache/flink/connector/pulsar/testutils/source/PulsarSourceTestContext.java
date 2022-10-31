@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
 import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
@@ -41,7 +42,6 @@ import java.util.stream.IntStream;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
-import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
 import static org.apache.pulsar.client.api.RegexSubscriptionMode.AllTopics;
 
 /**
@@ -62,7 +62,7 @@ public abstract class PulsarSourceTestContext extends PulsarTestContext<String>
     public Source<String, ?, ?> createSource(TestingSourceSettings sourceSettings) {
         PulsarSourceBuilder<String> builder =
                 PulsarSource.builder()
-                        .setDeserializationSchema(pulsarSchema(schema))
+                        .setDeserializationSchema(new PulsarSchemaWrapper<>(schema))
                         .setServiceUrl(operator.serviceUrl())
                         .setAdminUrl(operator.adminUrl())
                         .setTopicPattern(topicPattern(), AllTopics)

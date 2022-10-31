@@ -192,7 +192,7 @@ Pulsar Source 提供了两种订阅 Topic 或 Topic 分区的方式。
 
 如果用户只关心消息体的二进制字节流，并不需要其他属性来解析数据。可以直接使用预定义的 `PulsarDeserializationSchema`。Pulsar Source里面提供了 3 种预定义的反序列化器。
 
-- 使用 Pulsar 的 [Schema](https://pulsar.apache.org/docs/zh-CN/schema-understand/) 解析消息。
+- 使用 Pulsar 的 [Schema](https://pulsar.apache.org/docs/zh-CN/schema-understand/) 解析消息。如果使用 KeyValue 或者 Struct 类型的 Schema, 那么 Pulsar 的 `Schema` 将不会含有类型类信息， 但 `PulsarSchemaTypeInformation` 需要通过传入类型类信息来构造。因此我们提供的 API 支持用户传入类型信息。
   ```java
   // 基础数据类型
   PulsarDeserializationSchema.pulsarSchema(Schema);

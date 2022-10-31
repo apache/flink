@@ -72,6 +72,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     protected final PulsarClient pulsarClient;
     protected final PulsarAdmin pulsarAdmin;
     protected final SourceConfiguration sourceConfiguration;
+    protected final Schema<byte[]> schema;
     protected final PulsarDeserializationSchema<OUT> deserializationSchema;
 
     protected Consumer<byte[]> pulsarConsumer;
@@ -81,10 +82,12 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
+            Schema<byte[]> schema,
             PulsarDeserializationSchema<OUT> deserializationSchema) {
         this.pulsarClient = pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.sourceConfiguration = sourceConfiguration;
+        this.schema = schema;
         this.deserializationSchema = deserializationSchema;
     }
 
@@ -232,7 +235,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     /** Create a specified {@link Consumer} by the given topic partition. */
     protected Consumer<byte[]> createPulsarConsumer(TopicPartition partition) {
         ConsumerBuilder<byte[]> consumerBuilder =
-                createConsumerBuilder(pulsarClient, Schema.BYTES, sourceConfiguration);
+                createConsumerBuilder(pulsarClient, schema, sourceConfiguration);
 
         consumerBuilder.topic(partition.getFullTopicName());
 

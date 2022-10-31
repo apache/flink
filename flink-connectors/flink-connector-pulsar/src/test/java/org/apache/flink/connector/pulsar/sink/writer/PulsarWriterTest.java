@@ -30,6 +30,7 @@ import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.FixedMessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.router.RoundRobinTopicRouter;
+import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
@@ -54,7 +55,6 @@ import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.base.DeliveryGuarantee.EXACTLY_ONCE;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_SCHEMA_EVOLUTION;
-import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.pulsarSchema;
 import static org.apache.pulsar.client.api.Schema.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,7 +71,7 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 8);
 
         SinkConfiguration configuration = sinkConfiguration(guarantee);
-        PulsarSerializationSchema<String> schema = pulsarSchema(STRING);
+        PulsarSerializationSchema<String> schema = new PulsarSchemaWrapper<>(STRING);
         TopicMetadataListener listener = new TopicMetadataListener(singletonList(topic));
         RoundRobinTopicRouter<String> router = new RoundRobinTopicRouter<>(configuration);
         FixedMessageDelayer<String> delayer = MessageDelayer.never();

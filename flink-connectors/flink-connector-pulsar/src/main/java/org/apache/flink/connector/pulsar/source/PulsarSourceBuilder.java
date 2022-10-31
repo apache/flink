@@ -19,6 +19,8 @@
 package org.apache.flink.connector.pulsar.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.ConfigOption;
@@ -35,10 +37,14 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRange
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.SplitRangeGenerator;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchemaWrapper;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarSchemaWrapper;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarTypeInformationWrapper;
 
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +64,7 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONSUMER_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_TRANSACTION_TIMEOUT;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
@@ -278,6 +285,15 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
+     * If you enable this option, we would consume and deserialize the message by using Pulsar
+     * {@link Schema}.
+     */
+    public PulsarSourceBuilder<OUT> enableSchemaEvolution() {
+        configBuilder.set(PULSAR_READ_SCHEMA_EVOLUTION, true);
+        return this;
+    }
+
+    /**
      * Set a topic range generator for Key_Shared subscription.
      *
      * @param rangeGenerator A generator which would generate a set of {@link TopicRange} for given
@@ -359,12 +375,63 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * DeserializationSchema is required for getting the {@link Schema} for deserialize message from
-     * pulsar and getting the {@link TypeInformation} for message serialization in flink.
+     * Deserialize messages from Pulsar by using the flink's {@link DeserializationSchema}. It would
+     * consume the pulsar message as a byte array and decode the message by using flink's logic.
+     */
+    public <T extends OUT> PulsarSourceBuilder<T> setDeserializationSchema(
+            DeserializationSchema<T> deserializationSchema) {
+        return setDeserializationSchema(
+                new PulsarDeserializationSchemaWrapper<>(deserializationSchema));
+    }
+
+    /**
+     * Deserialize messages from Pulsar by using the Pulsar {@link Schema} instance. It would
+     * consume the pulsar message as a byte array and decode the message by using flink's logic.
      *
-     * <p>We have defined a set of implementations, using {@code
-     * PulsarDeserializationSchema#pulsarSchema} or {@code PulsarDeserializationSchema#flinkSchema}
-     * for creating the desired schema.
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#primitive-type">primitive
+     * types</a> here.
+     */
+    public <T extends OUT> PulsarSourceBuilder<T> setDeserializationSchema(Schema<T> schema) {
+        return setDeserializationSchema(new PulsarSchemaWrapper<>(schema));
+    }
+
+    /**
+     * Deserialize messages from Pulsar by using the Pulsar {@link Schema} instance. It would
+     * consume the pulsar message as a byte array and decode the message by using flink's logic.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#struct">struct types</a> here.
+     */
+    public <T extends OUT> PulsarSourceBuilder<T> setDeserializationSchema(
+            Schema<T> schema, Class<T> typeClass) {
+        return setDeserializationSchema(new PulsarSchemaWrapper<>(schema, typeClass));
+    }
+
+    /**
+     * Deserialize messages from Pulsar by using the Pulsar {@link Schema} instance. It would
+     * consume the pulsar message as a byte array and decode the message by using flink's logic.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#keyvalue">keyvalue types</a> here.
+     */
+    public <K, V, T extends OUT> PulsarSourceBuilder<T> setDeserializationSchema(
+            Schema<KeyValue<K, V>> schema, Class<K> keyClass, Class<V> valueClass) {
+        return setDeserializationSchema(new PulsarSchemaWrapper<>(schema, keyClass, valueClass));
+    }
+
+    /**
+     * Deserialize messages from Pulsar by using the flink's {@link TypeInformation}. This method is
+     * only used for treating message that was written into pulsar by {@link TypeInformation}.
+     */
+    public <T extends OUT> PulsarSourceBuilder<T> setDeserializationSchema(
+            TypeInformation<T> information, ExecutionConfig config) {
+        return setDeserializationSchema(new PulsarTypeInformationWrapper<>(information, config));
+    }
+
+    /**
+     * PulsarDeserializationSchema is required for deserializing messages from Pulsar and getting
+     * the {@link TypeInformation} for message serialization in flink.
      */
     public <T extends OUT> PulsarSourceBuilder<T> setDeserializationSchema(
             PulsarDeserializationSchema<T> deserializationSchema) {
@@ -480,6 +547,17 @@ public final class PulsarSourceBuilder<OUT> {
         }
 
         checkNotNull(deserializationSchema, "deserializationSchema should be set.");
+        // Schema evolution validation.
+        if (Boolean.TRUE.equals(configBuilder.get(PULSAR_READ_SCHEMA_EVOLUTION))) {
+            checkState(
+                    deserializationSchema instanceof PulsarSchemaWrapper,
+                    "When enabling schema evolution, you must provide a Pulsar Schema in builder's setDeserializationSchema method.");
+        } else if (deserializationSchema instanceof PulsarSchemaWrapper) {
+            LOG.info(
+                    "It seems like you are consuming messages by using Pulsar Schema."
+                            + " You can builder.enableSchemaEvolution() to enable schema evolution for better Pulsar Schema check."
+                            + " We would use bypass Schema check by default.");
+        }
 
         // Enable transaction if the cursor auto commit is disabled for Key_Shared & Shared.
         if (FALSE.equals(configBuilder.get(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE))

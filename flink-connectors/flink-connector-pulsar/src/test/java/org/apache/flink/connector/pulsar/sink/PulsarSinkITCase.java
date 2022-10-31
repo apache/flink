@@ -50,7 +50,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
-import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.flinkSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for using PulsarSink writing to a Pulsar cluster. */
@@ -121,7 +120,7 @@ class PulsarSinkITCase {
                             .setAdminUrl(operator().adminUrl())
                             .setDeliveryGuarantee(guarantee)
                             .setTopics(topic)
-                            .setSerializationSchema(flinkSchema(new SimpleStringSchema()))
+                            .setSerializationSchema(new SimpleStringSchema())
                             .build();
 
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

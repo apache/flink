@@ -26,6 +26,7 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.reader.PulsarSourceReaderFactory;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchemaInitializationContext;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.connector.pulsar.testutils.extension.TestOrderlinessExtension;
@@ -65,7 +66,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
-import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
 import static org.apache.flink.connector.pulsar.testutils.PulsarTestCommonUtils.createPartitionSplit;
 import static org.apache.flink.connector.pulsar.testutils.PulsarTestCommonUtils.isAssignableFromParameterContext;
 import static org.apache.flink.connector.pulsar.testutils.extension.TestOrderlinessExtension.PULSAR_SOURCE_READER_SUBSCRIPTION_TYPE_STORE_KEY;
@@ -137,7 +137,8 @@ abstract class PulsarSourceReaderTestBase extends PulsarTestSuiteBase {
                 || configuration.get(PULSAR_SUBSCRIPTION_TYPE) == SubscriptionType.Shared) {
             configuration.set(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE, true);
         }
-        PulsarDeserializationSchema<Integer> deserializationSchema = pulsarSchema(Schema.INT32);
+        PulsarDeserializationSchema<Integer> deserializationSchema =
+                new PulsarSchemaWrapper<>(Schema.INT32);
         SourceReaderContext context = new TestingReaderContext();
         try {
             deserializationSchema.open(

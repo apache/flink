@@ -24,6 +24,7 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchemaWrapper;
 import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.source.reader.split.PulsarOrderedPartitionSplitReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
@@ -43,7 +44,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
-import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.flinkSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test different implementation of StopCursor. */
@@ -59,7 +59,8 @@ class StopCursorTest extends PulsarTestSuiteBase {
                         operator().client(),
                         operator().admin(),
                         sourceConfig(),
-                        flinkSchema(new SimpleStringSchema()));
+                        Schema.BYTES,
+                        new PulsarDeserializationSchemaWrapper<>(new SimpleStringSchema()));
         // send the first message and set the stopCursor to filter any late stopCursor
         operator()
                 .sendMessage(

@@ -25,6 +25,7 @@ import org.apache.flink.connector.pulsar.sink.writer.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.sink.writer.message.PulsarMessageBuilder;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.KeyValue;
 
 /**
  * Wrap the Pulsar's Schema into PulsarSerializationSchema. We support schema evolution out of box
@@ -35,6 +36,19 @@ public class PulsarSchemaWrapper<IN> implements PulsarSerializationSchema<IN> {
     private static final long serialVersionUID = -2567052498398184194L;
 
     private final PulsarSchema<IN> pulsarSchema;
+
+    public PulsarSchemaWrapper(Schema<IN> schema) {
+        this(new PulsarSchema<>(schema));
+    }
+
+    public PulsarSchemaWrapper(Schema<IN> schema, Class<IN> clazz) {
+        this(new PulsarSchema<>(schema, clazz));
+    }
+
+    public <K, V> PulsarSchemaWrapper(
+            Schema<KeyValue<K, V>> schema, Class<K> keyClass, Class<V> valueClass) {
+        this(new PulsarSchema<>(schema, keyClass, valueClass));
+    }
 
     public PulsarSchemaWrapper(PulsarSchema<IN> pulsarSchema) {
         this.pulsarSchema = pulsarSchema;

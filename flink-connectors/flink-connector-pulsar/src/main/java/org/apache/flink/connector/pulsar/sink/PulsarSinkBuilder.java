@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
@@ -30,9 +31,11 @@ import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
+import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchemaWrapper;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +56,7 @@ import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WR
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_TRANSACTION_TIMEOUT;
 import static org.apache.flink.connector.pulsar.sink.config.PulsarSinkConfigUtils.SINK_CONFIG_VALIDATOR;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.distinctTopics;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -213,6 +217,54 @@ public class PulsarSinkBuilder<IN> {
     }
 
     /**
+     * Send messages to Pulsar by using the flink's {@link SerializationSchema}. It would serialize
+     * the message into a byte array and send it to Pulsar with {@link Schema#BYTES}.
+     */
+    public <T extends IN> PulsarSinkBuilder<T> setSerializationSchema(
+            SerializationSchema<T> serializationSchema) {
+        return setSerializationSchema(new PulsarSerializationSchemaWrapper<>(serializationSchema));
+    }
+
+    /**
+     * Send messages to Pulsar by using the Pulsar {@link Schema} instance. It would serialize the
+     * message into a byte array and send it to Pulsar with {@link Schema#BYTES}. You can directly
+     * use the Schema you provided by enabling the {@link #enableSchemaEvolution()}.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#primitive-type">primitive
+     * types</a> here.
+     */
+    public <T extends IN> PulsarSinkBuilder<T> setSerializationSchema(Schema<T> schema) {
+        return setSerializationSchema(new PulsarSchemaWrapper<>(schema));
+    }
+
+    /**
+     * Send messages to Pulsar by using the Pulsar {@link Schema} instance. It would serialize the
+     * message into a byte array and send it to Pulsar with {@link Schema#BYTES}. You can directly
+     * use the Schema you provided by enabling the {@link #enableSchemaEvolution()}.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#struct">struct types</a> here.
+     */
+    public <T extends IN> PulsarSinkBuilder<T> setSerializationSchema(
+            Schema<T> schema, Class<T> typeClass) {
+        return setSerializationSchema(new PulsarSchemaWrapper<>(schema, typeClass));
+    }
+
+    /**
+     * Send messages to Pulsar by using the Pulsar {@link Schema} instance. It would serialize the
+     * message into a byte array and send it to Pulsar with {@link Schema#BYTES}. You can directly
+     * use the Schema you provided by enabling the {@link #enableSchemaEvolution()}.
+     *
+     * <p>We only support <a
+     * href="https://pulsar.apache.org/docs/en/schema-understand/#keyvalue">keyvalue types</a> here.
+     */
+    public <K, V, T extends IN> PulsarSinkBuilder<T> setSerializationSchema(
+            Schema<KeyValue<K, V>> schema, Class<K> keyClass, Class<V> valueClass) {
+        return setSerializationSchema(new PulsarSchemaWrapper<>(schema, keyClass, valueClass));
+    }
+
+    /**
      * Sets the {@link PulsarSerializationSchema} that transforms incoming records to bytes.
      *
      * @param serializationSchema Pulsar specified serialize logic.
@@ -356,12 +408,16 @@ public class PulsarSinkBuilder<IN> {
         }
 
         checkNotNull(serializationSchema, "serializationSchema must be set.");
-        if (serializationSchema instanceof PulsarSchemaWrapper
-                && !Boolean.TRUE.equals(configBuilder.get(PULSAR_WRITE_SCHEMA_EVOLUTION))) {
+        // Schema evolution validation.
+        if (Boolean.TRUE.equals(configBuilder.get(PULSAR_READ_SCHEMA_EVOLUTION))) {
+            checkState(
+                    serializationSchema instanceof PulsarSchemaWrapper,
+                    "When enabling schema evolution, you must provide a Pulsar Schema in builder's setSerializationSchema method.");
+        } else if (serializationSchema instanceof PulsarSchemaWrapper) {
             LOG.info(
-                    "It seems like you want to send message in Pulsar Schema."
-                            + " You can enableSchemaEvolution for using this feature."
-                            + " We would use Schema.BYTES as the default schema if you don't enable this option.");
+                    "It seems like you are sending messages by using Pulsar Schema."
+                            + " You can builder.enableSchemaEvolution() to enable schema evolution for better Pulsar Schema check."
+                            + " We would use bypass Schema check by default.");
         }
 
         // Topic metadata listener validation.

@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.sink.writer.serializer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
-import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
 import org.apache.flink.connector.pulsar.sink.PulsarSinkBuilder;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
@@ -76,7 +75,11 @@ public interface PulsarSerializationSchema<IN> extends Serializable {
     /**
      * Create a PulsarSerializationSchema by using the flink's {@link SerializationSchema}. It would
      * serialize the message into byte array and send it to Pulsar with {@link Schema#BYTES}.
+     *
+     * @deprecated Use {@link PulsarSinkBuilder#setSerializationSchema(SerializationSchema)}
+     *     instead.
      */
+    @Deprecated
     static <T> PulsarSerializationSchema<T> flinkSchema(
             SerializationSchema<T> serializationSchema) {
         return new PulsarSerializationSchemaWrapper<>(serializationSchema);
@@ -91,10 +94,12 @@ public interface PulsarSerializationSchema<IN> extends Serializable {
      * <p>We only support <a
      * href="https://pulsar.apache.org/docs/en/schema-understand/#primitive-type">primitive
      * types</a> here.
+     *
+     * @deprecated Use {@link PulsarSinkBuilder#setSerializationSchema(Schema)} instead.
      */
+    @Deprecated
     static <T> PulsarSerializationSchema<T> pulsarSchema(Schema<T> schema) {
-        PulsarSchema<T> pulsarSchema = new PulsarSchema<>(schema);
-        return new PulsarSchemaWrapper<>(pulsarSchema);
+        return new PulsarSchemaWrapper<>(schema);
     }
 
     /**
@@ -105,10 +110,12 @@ public interface PulsarSerializationSchema<IN> extends Serializable {
      *
      * <p>We only support <a
      * href="https://pulsar.apache.org/docs/en/schema-understand/#struct">struct types</a> here.
+     *
+     * @deprecated Use {@link PulsarSinkBuilder#setSerializationSchema(Schema, Class)} instead.
      */
+    @Deprecated
     static <T> PulsarSerializationSchema<T> pulsarSchema(Schema<T> schema, Class<T> typeClass) {
-        PulsarSchema<T> pulsarSchema = new PulsarSchema<>(schema, typeClass);
-        return new PulsarSchemaWrapper<>(pulsarSchema);
+        return new PulsarSchemaWrapper<>(schema, typeClass);
     }
 
     /**
@@ -119,11 +126,13 @@ public interface PulsarSerializationSchema<IN> extends Serializable {
      *
      * <p>We only support <a
      * href="https://pulsar.apache.org/docs/en/schema-understand/#keyvalue">keyvalue types</a> here.
+     *
+     * @deprecated Use {@link PulsarSinkBuilder#setSerializationSchema(Schema, Class, Class)}
+     *     instead.
      */
+    @Deprecated
     static <K, V> PulsarSerializationSchema<KeyValue<K, V>> pulsarSchema(
             Schema<KeyValue<K, V>> schema, Class<K> keyClass, Class<V> valueClass) {
-        PulsarSchema<KeyValue<K, V>> pulsarSchema =
-                new PulsarSchema<>(schema, keyClass, valueClass);
-        return new PulsarSchemaWrapper<>(pulsarSchema);
+        return new PulsarSchemaWrapper<>(schema, keyClass, valueClass);
     }
 }

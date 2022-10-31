@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.Message;
  * @param <T> The output type of the message.
  */
 @Internal
-class PulsarDeserializationSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
+public class PulsarDeserializationSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     private static final long serialVersionUID = -630646912412751300L;
 
     private final DeserializationSchema<T> deserializationSchema;

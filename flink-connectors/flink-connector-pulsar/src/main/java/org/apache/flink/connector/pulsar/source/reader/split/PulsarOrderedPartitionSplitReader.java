@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,8 +58,9 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
+            Schema<byte[]> schema,
             PulsarDeserializationSchema<OUT> deserializationSchema) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, deserializationSchema);
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, schema, deserializationSchema);
     }
 
     @Override

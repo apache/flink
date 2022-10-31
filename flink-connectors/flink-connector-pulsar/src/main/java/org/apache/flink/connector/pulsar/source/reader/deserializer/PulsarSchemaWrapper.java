@@ -24,22 +24,36 @@ import org.apache.flink.util.Collector;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import static org.apache.flink.connector.pulsar.common.schema.PulsarSchemaUtils.createTypeInformation;
 
 /**
  * The deserialization schema wrapper for pulsar original {@link Schema}. Pulsar would deserialize
- * the message and pass it to flink with a auto generate or given {@link TypeInformation}.
+ * the message and pass it to flink with an auto generated {@link TypeInformation}.
  *
  * @param <T> The output type of the message.
  */
 @Internal
-class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
+public class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     private static final long serialVersionUID = -4864701207257059158L;
 
     /** The serializable pulsar schema, it wrap the schema with type class. */
     private final PulsarSchema<T> pulsarSchema;
+
+    public PulsarSchemaWrapper(Schema<T> schema) {
+        this(new PulsarSchema<>(schema));
+    }
+
+    public PulsarSchemaWrapper(Schema<T> schema, Class<T> clazz) {
+        this(new PulsarSchema<>(schema, clazz));
+    }
+
+    public <K, V> PulsarSchemaWrapper(
+            Schema<KeyValue<K, V>> schema, Class<K> keyClass, Class<V> valueClass) {
+        this(new PulsarSchema<>(schema, keyClass, valueClass));
+    }
 
     public PulsarSchemaWrapper(PulsarSchema<T> pulsarSchema) {
         this.pulsarSchema = pulsarSchema;
@@ -58,5 +72,9 @@ class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     public TypeInformation<T> getProducedType() {
         SchemaInfo info = pulsarSchema.getSchemaInfo();
         return createTypeInformation(info);
+    }
+
+    public PulsarSchema<?> pulsarSchema() {
+        return pulsarSchema;
     }
 }

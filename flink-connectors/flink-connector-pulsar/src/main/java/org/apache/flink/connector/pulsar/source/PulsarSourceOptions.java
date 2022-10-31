@@ -204,6 +204,18 @@ public final class PulsarSourceOptions {
                                             "In this case, a single consumer will still receive all the keys, but they may be coming in different orders.")
                                     .build());
 
+    public static final ConfigOption<Boolean> PULSAR_READ_SCHEMA_EVOLUTION =
+            ConfigOptions.key(SOURCE_CONFIG_PREFIX + "enableSchemaEvolution")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If you enable this option and use PulsarSourceBuilder.setDeserializationSchema(Schema),"
+                                                    + " we would consume and deserialize the message by using Pulsar's %s interface with extra schema evolution check.",
+                                            code("Schema"))
+                                    .build());
+
     ///////////////////////////////////////////////////////////////////////////////
     //
     // The configuration for ConsumerConfigurationData part.

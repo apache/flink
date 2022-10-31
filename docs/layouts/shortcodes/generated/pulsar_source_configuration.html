@@ -27,6 +27,12 @@
             <td>Flink commits the consuming position with pulsar transactions on checkpoint. However, if you have disabled the Flink checkpoint or disabled transaction for your Pulsar cluster, ensure that you have set this option to <code class="highlighter-rouge">true</code>.<br />The source would use pulsar client's internal mechanism and commit cursor in two ways.<ul><li>For <code class="highlighter-rouge">Key_Shared</code> and <code class="highlighter-rouge">Shared</code> subscription, the cursor would be committed once the message is consumed.</li><li>For <code class="highlighter-rouge">Exclusive</code> and <code class="highlighter-rouge">Failover</code> subscription, the cursor would be committed in a given interval.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>pulsar.source.enableSchemaEvolution</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If you enable this option and use PulsarSourceBuilder.setDeserializationSchema(Schema), we would consume and deserialize the message by using Pulsar's <code class="highlighter-rouge">Schema</code> interface with extra schema evolution check.</td>
+        </tr>
+        <tr>
             <td><h5>pulsar.source.maxFetchRecords</h5></td>
             <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>

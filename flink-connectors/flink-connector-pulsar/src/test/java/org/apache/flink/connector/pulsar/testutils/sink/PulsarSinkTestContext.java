@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.PulsarSink;
+import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
@@ -40,7 +41,6 @@ import java.util.Random;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES;
-import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.pulsarSchema;
 import static org.apache.flink.connector.pulsar.testutils.PulsarTestCommonUtils.toDeliveryGuarantee;
 
 /** Common sink test context for pulsar based test. */
@@ -74,7 +74,7 @@ public class PulsarSinkTestContext extends PulsarTestContext<String>
                 .setAdminUrl(operator.adminUrl())
                 .setTopics(topicName)
                 .setDeliveryGuarantee(guarantee)
-                .setSerializationSchema(pulsarSchema(schema))
+                .setSerializationSchema(new PulsarSchemaWrapper<>(schema))
                 .enableSchemaEvolution()
                 .setConfig(PULSAR_BATCHING_MAX_MESSAGES, 4)
                 .build();

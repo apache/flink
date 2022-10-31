@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
@@ -68,9 +69,10 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
+            Schema<byte[]> schema,
             PulsarDeserializationSchema<OUT> deserializationSchema,
             TransactionCoordinatorClient coordinatorClient) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, deserializationSchema);
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, schema, deserializationSchema);
 
         this.coordinatorClient = coordinatorClient;
     }

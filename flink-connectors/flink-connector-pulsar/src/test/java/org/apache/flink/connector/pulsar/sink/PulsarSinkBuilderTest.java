@@ -29,7 +29,6 @@ import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_SE
 import static org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode.CUSTOM;
 import static org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode.MESSAGE_KEY_HASH;
 import static org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode.ROUND_ROBIN;
-import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.flinkSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -85,7 +84,7 @@ class PulsarSinkBuilderTest {
     @Test
     void emptyTopicShouldHaveCustomTopicRouter() {
         PulsarSinkBuilder<String> builder = PulsarSink.builder();
-        builder.setSerializationSchema(flinkSchema(new SimpleStringSchema()));
+        builder.setSerializationSchema(new SimpleStringSchema());
 
         NullPointerException exception = assertThrows(NullPointerException.class, builder::build);
         assertThat(exception).hasMessage("No topic names or custom topic router are provided.");
@@ -94,7 +93,7 @@ class PulsarSinkBuilderTest {
     @Test
     void serviceUrlAndAdminUrlMustBeProvided() {
         PulsarSinkBuilder<String> builder = PulsarSink.builder();
-        builder.setSerializationSchema(flinkSchema(new SimpleStringSchema()));
+        builder.setSerializationSchema(new SimpleStringSchema());
         builder.setTopics("a", "b");
         assertThrows(IllegalArgumentException.class, builder::build);
 

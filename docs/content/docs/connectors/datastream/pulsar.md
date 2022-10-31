@@ -215,6 +215,8 @@ If only the raw payload of a message (message data in bytes) is needed,
 you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provides three implementation methods.
 
 - Decode the message by using Pulsar's [Schema](https://pulsar.apache.org/docs/en/schema-understand/).
+  If using KeyValue type or Struct types, the pulsar `Schema` does not contain type class info which
+  is needed by `PulsarSchemaTypeInformation`. So we provide two more APIs to pass the type info.
   ```java
   // Primitive types
   PulsarDeserializationSchema.pulsarSchema(Schema);
