@@ -26,8 +26,8 @@ import org.apache.flink.util.IterableUtils;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,9 +38,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link SchedulingStrategy} instance which schedules tasks in granularity of vertex (which
- * indicates this strategy only supports ALL_EDGES_BLOCKING batch jobs). Note that this strategy
- * implements {@link SchedulingTopologyListener}, so it can handle the updates of scheduling
- * topology.
+ * indicates this strategy only supports batch jobs). Note that this strategy implements {@link
+ * SchedulingTopologyListener}, so it can handle the updates of scheduling topology.
  */
 public class VertexwiseSchedulingStrategy
         implements SchedulingStrategy, SchedulingTopologyListener {
@@ -114,8 +113,6 @@ public class VertexwiseSchedulingStrategy
     }
 
     private void maybeScheduleVertices(final Set<ExecutionVertexID> vertices) {
-        final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new HashMap<>();
-
         Set<ExecutionVertexID> allCandidates;
         if (newVertices.isEmpty()) {
             allCandidates = vertices;
@@ -125,31 +122,75 @@ public class VertexwiseSchedulingStrategy
             newVertices.clear();
         }
 
-        final Set<ExecutionVertexID> verticesToDeploy =
-                allCandidates.stream()
-                        .filter(
-                                vertexId -> {
-                                    SchedulingExecutionVertex vertex =
-                                            schedulingTopology.getVertex(vertexId);
-                                    checkState(vertex.getState() == ExecutionState.CREATED);
-                                    return inputConsumableDecider.isInputConsumable(
-                                            vertex, Collections.emptySet(), consumableStatusCache);
-                                })
-                        .collect(Collectors.toSet());
+        final Set<ExecutionVertexID> verticesToSchedule = new HashSet<>();
 
-        scheduleVerticesOneByOne(verticesToDeploy);
-        scheduledVertices.addAll(verticesToDeploy);
+        Set<ExecutionVertexID> nextVertices = allCandidates;
+        while (!nextVertices.isEmpty()) {
+            nextVertices = addToScheduleAndGetVertices(nextVertices, verticesToSchedule);
+        }
+
+        scheduleVerticesOneByOne(verticesToSchedule);
+        scheduledVertices.addAll(verticesToSchedule);
     }
 
-    private void scheduleVerticesOneByOne(final Set<ExecutionVertexID> verticesToDeploy) {
-        if (verticesToDeploy.isEmpty()) {
+    private Set<ExecutionVertexID> addToScheduleAndGetVertices(
+            Set<ExecutionVertexID> currentVertices, Set<ExecutionVertexID> verticesToSchedule) {
+        Set<ExecutionVertexID> nextVertices = new HashSet<>();
+        // cache consumedPartitionGroup's consumable status to avoid compute repeatedly.
+        final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new IdentityHashMap<>();
+        final Set<ConsumerVertexGroup> visitedConsumerVertexGroup =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+
+        for (ExecutionVertexID currentVertex : currentVertices) {
+            if (isVertexSchedulable(currentVertex, consumableStatusCache, verticesToSchedule)) {
+                verticesToSchedule.add(currentVertex);
+                Set<ConsumerVertexGroup> canBePipelinedConsumerVertexGroups =
+                        IterableUtils.toStream(
+                                        schedulingTopology
+                                                .getVertex(currentVertex)
+                                                .getProducedResults())
+                                .map(SchedulingResultPartition::getConsumerVertexGroups)
+                                .flatMap(Collection::stream)
+                                .filter(
+                                        (consumerVertexGroup) ->
+                                                consumerVertexGroup
+                                                        .getResultPartitionType()
+                                                        .canBePipelinedConsumed())
+                                .collect(Collectors.toSet());
+                for (ConsumerVertexGroup consumerVertexGroup : canBePipelinedConsumerVertexGroups) {
+                    if (!visitedConsumerVertexGroup.contains(consumerVertexGroup)) {
+                        visitedConsumerVertexGroup.add(consumerVertexGroup);
+                        nextVertices.addAll(
+                                IterableUtils.toStream(consumerVertexGroup)
+                                        .collect(Collectors.toSet()));
+                    }
+                }
+            }
+        }
+        return nextVertices;
+    }
+
+    private boolean isVertexSchedulable(
+            final ExecutionVertexID vertex,
+            final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache,
+            final Set<ExecutionVertexID> verticesToSchedule) {
+        return !verticesToSchedule.contains(vertex)
+                && !scheduledVertices.contains(vertex)
+                && inputConsumableDecider.isInputConsumable(
+                        schedulingTopology.getVertex(vertex),
+                        verticesToSchedule,
+                        consumableStatusCache);
+    }
+
+    private void scheduleVerticesOneByOne(final Set<ExecutionVertexID> verticesToSchedule) {
+        if (verticesToSchedule.isEmpty()) {
             return;
         }
-        final List<ExecutionVertexID> sortedVerticesToDeploy =
+        final List<ExecutionVertexID> sortedVerticesToSchedule =
                 SchedulingStrategyUtils.sortExecutionVerticesInTopologicalOrder(
-                        schedulingTopology, verticesToDeploy);
+                        schedulingTopology, verticesToSchedule);
 
-        sortedVerticesToDeploy.forEach(
+        sortedVerticesToSchedule.forEach(
                 id -> schedulerOperations.allocateSlotsAndDeploy(Collections.singletonList(id)));
     }
 
