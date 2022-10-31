@@ -1,13 +1,12 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,7 +30,6 @@ import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperatorBinding;
@@ -95,6 +93,7 @@ public class SqlCastFunction extends SqlFunction {
 
     // ~ Methods ----------------------------------------------------------------
 
+    @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
         assert opBinding.getOperandCount() == 2;
         RelDataType ret = opBinding.getOperandType(1);
@@ -106,8 +105,7 @@ public class SqlCastFunction extends SqlFunction {
 
             // dynamic parameters and null constants need their types assigned
             // to them using the type they are casted to.
-            if (((operand0 instanceof SqlLiteral) && (((SqlLiteral) operand0).getValue() == null))
-                    || (operand0 instanceof SqlDynamicParam)) {
+            if (SqlUtil.isNullLiteral(operand0, false) || (operand0 instanceof SqlDynamicParam)) {
                 final SqlValidatorImpl validator = (SqlValidatorImpl) callBinding.getValidator();
                 validator.setValidatedNodeType(operand0, ret);
             }
@@ -115,11 +113,13 @@ public class SqlCastFunction extends SqlFunction {
         return ret;
     }
 
+    @Override
     public String getSignatureTemplate(final int operandsCount) {
         assert operandsCount == 2;
         return "{0}({1} AS {2})";
     }
 
+    @Override
     public SqlOperandCountRange getOperandCountRange() {
         return SqlOperandCountRanges.of(2);
     }
@@ -128,6 +128,7 @@ public class SqlCastFunction extends SqlFunction {
      * Makes sure that the number and types of arguments are allowable. Operators (such as "ROW" and
      * "AS") which do not check their arguments can override this method.
      */
+    @Override
     public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
         final SqlNode left = callBinding.operand(0);
         final SqlNode right = callBinding.operand(1);
@@ -182,6 +183,7 @@ public class SqlCastFunction extends SqlFunction {
         return SqlSyntax.SPECIAL;
     }
 
+    @Override
     public void unparse(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
         assert call.operandCount() == 2;
         final SqlWriter.Frame frame = writer.startFunCall(getName());
