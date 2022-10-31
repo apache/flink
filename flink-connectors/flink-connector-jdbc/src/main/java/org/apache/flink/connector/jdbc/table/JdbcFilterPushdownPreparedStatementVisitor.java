@@ -46,7 +46,7 @@ import java.util.function.Function;
 public class JdbcFilterPushdownPreparedStatementVisitor
         extends ExpressionDefaultVisitor<Optional<ParameterizedPredicate>> {
 
-    private Function<String, String> quoteIdentifierFunction;
+    private final Function<String, String> quoteIdentifierFunction;
 
     public JdbcFilterPushdownPreparedStatementVisitor(
             Function<String, String> quoteIdentifierFunction) {
@@ -79,6 +79,12 @@ public class JdbcFilterPushdownPreparedStatementVisitor
         if (BuiltInFunctionDefinitions.AND.equals(call.getFunctionDefinition())) {
             return renderBinaryOperator("AND", call.getResolvedChildren());
         }
+        if (BuiltInFunctionDefinitions.IS_NULL.equals(call.getFunctionDefinition())) {
+            return renderUnaryOperator("IS NULL", call.getResolvedChildren().get(0), true);
+        }
+        if (BuiltInFunctionDefinitions.IS_NOT_NULL.equals(call.getFunctionDefinition())) {
+            return renderUnaryOperator("IS NOT NULL", call.getResolvedChildren().get(0), true);
+        }
 
         return Optional.empty();
     }
@@ -93,6 +99,29 @@ public class JdbcFilterPushdownPreparedStatementVisitor
                 left -> rightOperandString.map(right -> left.combine(operator, right)));
     }
 
+    private Optional<ParameterizedPredicate> renderUnaryOperator(
+            String operator, ResolvedExpression operand, Boolean operandOnLeft) {
+        if (operand instanceof FieldReferenceExpression) {
+            Optional<ParameterizedPredicate> fieldPartialPredicate =
+                    this.visit((FieldReferenceExpression) operand);
+            if (operandOnLeft) {
+                return fieldPartialPredicate.map(
+                        fieldPred ->
+                                new ParameterizedPredicate(
+                                        String.format(
+                                                "(%s %s)", fieldPred.getPredicate(), operator)));
+            } else {
+                return fieldPartialPredicate.map(
+                        fieldPred ->
+                                new ParameterizedPredicate(
+                                        String.format(
+                                                "(%s %s)", operator, fieldPred.getPredicate())));
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
+
     @Override
     public Optional<ParameterizedPredicate> visit(ValueLiteralExpression litExp) {
         LogicalType tpe = litExp.getOutputDataType().getLogicalType();
@@ -100,32 +129,44 @@ public class JdbcFilterPushdownPreparedStatementVisitor
 
         ParameterizedPredicate predicate = new ParameterizedPredicate("?");
         switch (tpe.getTypeRoot()) {
-            case VARCHAR:
+            case CHAR:
                 params[0] = litExp.getValueAs(String.class).orElse(null);
                 predicate.setParameters(params);
                 return Optional.of(predicate);
-            case BIGINT:
-                params[0] = litExp.getValueAs(Long.class).orElse(null);
-                predicate.setParameters(params);
-                return Optional.of(predicate);
-            case INTEGER:
-                params[0] = litExp.getValueAs(Integer.class).orElse(null);
-                predicate.setParameters(params);
-                return Optional.of(predicate);
-            case DOUBLE:
-                params[0] = litExp.getValueAs(Double.class).orElse(null);
+            case VARCHAR:
+                params[0] = litExp.getValueAs(String.class).orElse(null);
                 predicate.setParameters(params);
                 return Optional.of(predicate);
             case BOOLEAN:
                 params[0] = litExp.getValueAs(Boolean.class).orElse(null);
                 predicate.setParameters(params);
                 return Optional.of(predicate);
+            case DECIMAL:
+                params[0] = litExp.getValueAs(BigDecimal.class).orElse(null);
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case TINYINT:
+                params[0] = litExp.getValueAs(Byte.class).orElse(null);
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case SMALLINT:
+                params[0] = litExp.getValueAs(Short.class).orElse(null);
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case INTEGER:
+                params[0] = litExp.getValueAs(Integer.class).orElse(null);
+                predicate.setParameters(params);
+                return Optional.of(predicate);
+            case BIGINT:
+                params[0] = litExp.getValueAs(Long.class).orElse(null);
+                predicate.setParameters(params);
+                return Optional.of(predicate);
             case FLOAT:
                 params[0] = litExp.getValueAs(Float.class).orElse(null);
                 predicate.setParameters(params);
                 return Optional.of(predicate);
-            case DECIMAL:
-                params[0] = litExp.getValueAs(BigDecimal.class).orElse(null);
+            case DOUBLE:
+                params[0] = litExp.getValueAs(Double.class).orElse(null);
                 predicate.setParameters(params);
                 return Optional.of(predicate);
             case DATE:
@@ -148,7 +189,7 @@ public class JdbcFilterPushdownPreparedStatementVisitor
 
     @Override
     public Optional<ParameterizedPredicate> visit(FieldReferenceExpression fieldReference) {
-        String predicateStr = (this.quoteIdentifierFunction.apply(fieldReference.toString()));
+        String predicateStr = this.quoteIdentifierFunction.apply(fieldReference.toString());
         ParameterizedPredicate predicate = new ParameterizedPredicate(predicateStr);
         return Optional.of(predicate);
     }

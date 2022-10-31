@@ -186,6 +186,21 @@ public class JdbcFilterPushdownPreparedStatementVisitorTest {
     }
 
     @Test
+    public void testExpressionIsNull() {
+        ResolvedSchema schema = tEnv.sqlQuery("SELECT * FROM " + INPUT_TABLE).getResolvedSchema();
+        String andExpr = "id IS NULL AND real_col <= 0.6";
+
+        Serializable[] expectedParams1 = {new BigDecimal("0.6")};
+        assertGeneratedSQLString(
+                andExpr, schema, "((id IS NULL) AND (real_col <= ?))", expectedParams1);
+
+        Serializable[] expectedParams2 = {6L};
+        String orExpr = "id = 6 OR description IS NOT NULL";
+        assertGeneratedSQLString(
+                orExpr, schema, "((id = ?) OR (description IS NOT NULL))", expectedParams2);
+    }
+
+    @Test
     public void testComplexExpressionPrimitiveType() {
         ResolvedSchema schema = tEnv.sqlQuery("SELECT * FROM " + INPUT_TABLE).getResolvedSchema();
         String andExpr = "id = NULL AND real_col <= 0.6";
