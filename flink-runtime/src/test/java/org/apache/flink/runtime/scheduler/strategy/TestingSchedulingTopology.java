@@ -194,7 +194,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                         .withResultPartitionType(resultPartitionType)
                         .build();
 
-        resultPartition.addConsumerGroup(Collections.singleton(consumer));
+        resultPartition.addConsumerGroup(
+                Collections.singleton(consumer), resultPartition.getResultType());
         resultPartition.setProducer(producer);
 
         producer.addProducedPartition(resultPartition);
@@ -304,7 +305,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
                 consumer.addConsumedPartition(resultPartition);
-                resultPartition.addConsumerGroup(Collections.singleton(consumer));
+                resultPartition.addConsumerGroup(
+                        Collections.singleton(consumer), resultPartitionType);
                 resultPartitions.add(resultPartition);
             }
 
@@ -344,7 +346,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
 
-                resultPartition.addConsumerGroup(consumers);
+                resultPartition.addConsumerGroup(consumers, resultPartitionType);
                 resultPartitions.add(resultPartition);
             }
 

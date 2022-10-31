@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -131,5 +132,16 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     public ResultPartitionType getResultPartitionType() {
         return resultPartitionType;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return this == o;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                resultPartitions, intermediateDataSetID, resultPartitionType, numConsumers);
     }
 }

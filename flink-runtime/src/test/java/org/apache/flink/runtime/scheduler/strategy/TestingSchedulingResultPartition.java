@@ -102,14 +102,17 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         return Collections.unmodifiableList(consumedPartitionGroups);
     }
 
-    void addConsumerGroup(Collection<TestingSchedulingExecutionVertex> consumerVertices) {
+    void addConsumerGroup(
+            Collection<TestingSchedulingExecutionVertex> consumerVertices,
+            ResultPartitionType resultPartitionType) {
         checkState(this.consumerVertexGroup == null);
 
         final ConsumerVertexGroup consumerVertexGroup =
                 ConsumerVertexGroup.fromMultipleVertices(
                         consumerVertices.stream()
                                 .map(TestingSchedulingExecutionVertex::getId)
-                                .collect(Collectors.toList()));
+                                .collect(Collectors.toList()),
+                        resultPartitionType);
 
         this.consumerVertexGroup = consumerVertexGroup;
     }
