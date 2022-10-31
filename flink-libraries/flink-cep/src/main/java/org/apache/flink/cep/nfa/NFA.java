@@ -21,11 +21,8 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -974,41 +971,6 @@ public class NFA<T> {
                 final org.apache.flink.cep.nfa.SharedBuffer<T> sharedBuffer) {
             this.sharedBuffer = sharedBuffer;
             this.computationStates = computationStates;
-        }
-    }
-
-    /**
-     * @deprecated This snapshot class is no longer in use, and only maintained for backwards
-     *     compatibility purposes. It is fully replaced by {@link MigratedNFASerializerSnapshot}.
-     */
-    @Deprecated
-    public static final class NFASerializerConfigSnapshot<T>
-            extends CompositeTypeSerializerConfigSnapshot<MigratedNFA<T>> {
-
-        private static final int VERSION = 1;
-
-        /** This empty constructor is required for deserializing the configuration. */
-        public NFASerializerConfigSnapshot() {}
-
-        public NFASerializerConfigSnapshot(
-                TypeSerializer<T> eventSerializer,
-                TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufferSerializer) {
-
-            super(eventSerializer, sharedBufferSerializer);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<MigratedNFA<T>> resolveSchemaCompatibility(
-                TypeSerializer<MigratedNFA<T>> newSerializer) {
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer,
-                    new MigratedNFASerializerSnapshot<>(),
-                    getNestedSerializerSnapshots());
         }
     }
 

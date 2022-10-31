@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -311,10 +310,6 @@ public final class InstantiationUtil {
 
         // To add a new mapping just pick a name and add an entry as the following:
 
-        GENERIC_DATA_ARRAY_SERIALIZER(
-                "org.apache.avro.generic.GenericData$Array",
-                ObjectStreamClass.lookup(
-                        KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class)),
         HASH_MAP_SERIALIZER(
                 "org.apache.flink.runtime.state.HashMapSerializer",
                 ObjectStreamClass.lookup(MapSerializer.class)); // added in 1.5
@@ -772,7 +767,15 @@ public final class InstantiationUtil {
         try {
             rawClazz = Class.forName(className, false, cl);
         } catch (ClassNotFoundException e) {
-            throw new IOException("Could not find class '" + className + "' in classpath.", e);
+            String error = "Could not find class '" + className + "' in classpath.";
+            if (className.contains("SerializerConfig")) {
+                error +=
+                        " TypeSerializerConfigSnapshot and it's subclasses are not supported since Flink 1.17."
+                                + " If you are using built-in serializers, please first migrate to Flink 1.16."
+                                + " If you are using custom serializers, please migrate them to"
+                                + " TypeSerializerSnapshot using Flink 1.16.";
+            }
+            throw new IOException(error, e);
         }
 
         if (!supertype.isAssignableFrom(rawClazz)) {

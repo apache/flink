@@ -59,7 +59,7 @@ public class NestedSerializersSnapshotDelegate {
 
     /** Constructor to create a snapshot for writing. */
     public NestedSerializersSnapshotDelegate(TypeSerializer<?>... serializers) {
-        this.nestedSnapshots = TypeSerializerUtils.snapshotBackwardsCompatible(serializers);
+        this.nestedSnapshots = TypeSerializerUtils.snapshot(serializers);
     }
 
     /** Constructor to create a snapshot during deserialization. */

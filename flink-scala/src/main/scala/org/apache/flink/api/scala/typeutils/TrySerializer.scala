@@ -115,30 +115,3 @@ class TrySerializer[A](
     new ScalaTrySerializerSnapshot[A](this)
   }
 }
-
-object TrySerializer {
-
-  /**
-   * We need to keep this to be compatible with snapshots taken in Flink 1.3.0. Once Flink 1.3.x is
-   * no longer supported, this can be removed.
-   */
-  @Deprecated
-  class TrySerializerConfigSnapshot[A]() extends CompositeTypeSerializerConfigSnapshot[Try[A]]() {
-
-    override def getVersion: Int = TrySerializerConfigSnapshot.VERSION
-
-    override def resolveSchemaCompatibility(
-        newSerializer: TypeSerializer[Try[A]]
-    ): TypeSerializerSchemaCompatibility[Try[A]] =
-      CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-        newSerializer,
-        new ScalaTrySerializerSnapshot[A](),
-        getNestedSerializersAndConfigs.get(0).f1,
-        getNestedSerializersAndConfigs.get(1).f1)
-  }
-
-  object TrySerializerConfigSnapshot {
-    val VERSION = 1
-  }
-
-}

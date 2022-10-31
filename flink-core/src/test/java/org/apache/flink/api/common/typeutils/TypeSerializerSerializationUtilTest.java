@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -42,17 +41,12 @@ import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.ObjectStreamClass;
 import java.io.Serializable;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /** Unit tests for {@link TypeSerializerSerializationUtil}. */
 public class TypeSerializerSerializationUtilTest implements Serializable {
@@ -147,55 +141,6 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
         Assert.assertTrue(deserializedSerializer instanceof UnloadableDummyTypeSerializer);
     }
 
-    /** Verifies that reading and writing configuration snapshots work correctly. */
-    @Test
-    public void testSerializeConfigurationSnapshots() throws Exception {
-        TypeSerializerSerializationUtilTest.TestConfigSnapshot<String> configSnapshot1 =
-                new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(1, "foo");
-
-        byte[] serializedConfig;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    configSnapshot1,
-                    StringSerializer.INSTANCE);
-
-            serializedConfig = out.toByteArray();
-        }
-
-        TypeSerializerSnapshot<?> restoredConfigs;
-        try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-            restoredConfigs =
-                    TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                            new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            null);
-        }
-
-        assertEquals(configSnapshot1, restoredConfigs);
-    }
-
-    /** Verifies that deserializing config snapshots fail if the config class could not be found. */
-    @Test(expected = IOException.class)
-    public void testFailsWhenConfigurationSnapshotClassNotFound() throws Exception {
-        byte[] serializedConfig;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(123, "foobar"),
-                    StringSerializer.INSTANCE);
-            serializedConfig = out.toByteArray();
-        }
-
-        try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-            // read using a dummy classloader
-            TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                    new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null), null);
-        }
-
-        fail("Expected a ClassNotFoundException wrapped in IOException");
-    }
-
     /**
      * Verifies resilience to serializer deserialization failures when writing and reading
      * serializer and config snapshot pairs.
@@ -280,64 +225,6 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
         // serializer should have been deserialized despite serialVersionUID mismatch
         Assert.assertNotNull(anonymousClassSerializer);
         Assert.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
-    }
-
-    public static class TestConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
-
-        static final int VERSION = 1;
-
-        private int val;
-        private String msg;
-
-        public TestConfigSnapshot() {}
-
-        public TestConfigSnapshot(int val, String msg) {
-            this.val = val;
-            this.msg = msg;
-        }
-
-        @Override
-        public void write(DataOutputView out) throws IOException {
-            super.write(out);
-            out.writeInt(val);
-            out.writeUTF(msg);
-        }
-
-        @Override
-        public void read(DataInputView in) throws IOException {
-            super.read(in);
-            val = in.readInt();
-            msg = in.readUTF();
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) {
-                return true;
-            }
-
-            if (obj == null) {
-                return false;
-            }
-
-            if (obj instanceof TypeSerializerSerializationUtilTest.TestConfigSnapshot) {
-                return val == ((TypeSerializerSerializationUtilTest.TestConfigSnapshot) obj).val
-                        && msg.equals(
-                                ((TypeSerializerSerializationUtilTest.TestConfigSnapshot) obj).msg);
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public int hashCode() {
-            return 31 * val + msg.hashCode();
-        }
     }
 
     private static void modifySerialVersionUID(

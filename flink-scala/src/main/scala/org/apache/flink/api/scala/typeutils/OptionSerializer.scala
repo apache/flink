@@ -98,31 +98,3 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A]) extends TypeSer
     new ScalaOptionSerializerSnapshot[A](this)
   }
 }
-
-object OptionSerializer {
-
-  /**
-   * We need to keep this to be compatible with snapshots taken in Flink 1.3.0. Once Flink 1.3.x is
-   * no longer supported, this can be removed.
-   */
-  class OptionSerializerConfigSnapshot[A]()
-    extends CompositeTypeSerializerConfigSnapshot[Option[A]] {
-
-    override def getVersion: Int = OptionSerializerConfigSnapshot.VERSION
-
-    override def resolveSchemaCompatibility(
-        newSerializer: TypeSerializer[Option[A]]
-    ): TypeSerializerSchemaCompatibility[Option[A]] = {
-      CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-        newSerializer,
-        new ScalaOptionSerializerSnapshot[A](),
-        getSingleNestedSerializerAndConfig.f1
-      )
-    }
-  }
-
-  object OptionSerializerConfigSnapshot {
-    val VERSION = 1
-  }
-
-}

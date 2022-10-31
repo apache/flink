@@ -18,12 +18,8 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -261,43 +257,6 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
     @Override
     public TypeSerializerSnapshot<T> snapshotConfiguration() {
         return new NullableSerializerSnapshot<>(this);
-    }
-
-    /**
-     * Configuration snapshot for serializers of nullable types, containing the configuration
-     * snapshot of its original serializer.
-     *
-     * @deprecated this snapshot class is no longer in use, and is maintained only for backwards
-     *     compatibility purposes. It is fully replaced by {@link NullableSerializerSnapshot}.
-     */
-    @Deprecated
-    @Internal
-    public static class NullableSerializerConfigSnapshot<T>
-            extends CompositeTypeSerializerConfigSnapshot<T> {
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public NullableSerializerConfigSnapshot() {}
-
-        NullableSerializerConfigSnapshot(TypeSerializer<T> originalSerializer) {
-            super(originalSerializer);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-                TypeSerializer<T> newSerializer) {
-            NullableSerializer<T> previousSerializer = (NullableSerializer<T>) restoreSerializer();
-            NullableSerializerSnapshot<T> newCompositeSnapshot =
-                    new NullableSerializerSnapshot<>(previousSerializer.nullPaddingLength());
-
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer, newCompositeSnapshot, getSingleNestedSerializerAndConfig().f1);
-        }
     }
 
     /**
