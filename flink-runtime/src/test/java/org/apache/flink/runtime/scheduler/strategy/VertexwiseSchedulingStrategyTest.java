@@ -21,22 +21,22 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.scheduler.strategy.StrategyTestUtil.assertLatestScheduledVerticesAreEqualTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link VertexwiseSchedulingStrategy}. */
-public class VertexwiseSchedulingStrategyTest {
+class VertexwiseSchedulingStrategyTest {
 
     private TestingSchedulerOperations testingSchedulerOperation;
 
@@ -50,8 +50,8 @@ public class VertexwiseSchedulingStrategyTest {
 
     private List<TestingSchedulingExecutionVertex> sink;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         testingSchedulerOperation = new TestingSchedulerOperations();
 
         buildTopology();
@@ -89,20 +89,20 @@ public class VertexwiseSchedulingStrategyTest {
     }
 
     @Test
-    public void testStartScheduling() {
+    void testStartScheduling() {
         startScheduling(testingSchedulingTopology);
 
         final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
                 new ArrayList<>();
-        expectedScheduledVertices.add(Arrays.asList(source.get(0)));
-        expectedScheduledVertices.add(Arrays.asList(source.get(1)));
+        expectedScheduledVertices.add(Collections.singletonList(source.get(0)));
+        expectedScheduledVertices.add(Collections.singletonList(source.get(1)));
 
         assertLatestScheduledVerticesAreEqualTo(
                 expectedScheduledVertices, testingSchedulerOperation);
     }
 
     @Test
-    public void testRestartTasks() {
+    void testRestartTasks() {
         final VertexwiseSchedulingStrategy schedulingStrategy =
                 startScheduling(testingSchedulingTopology);
 
@@ -116,66 +116,66 @@ public class VertexwiseSchedulingStrategyTest {
 
         final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
                 new ArrayList<>();
-        expectedScheduledVertices.add(Arrays.asList(source.get(0)));
-        expectedScheduledVertices.add(Arrays.asList(source.get(1)));
+        expectedScheduledVertices.add(Collections.singletonList(source.get(0)));
+        expectedScheduledVertices.add(Collections.singletonList(source.get(1)));
         assertLatestScheduledVerticesAreEqualTo(
                 expectedScheduledVertices, testingSchedulerOperation);
     }
 
     @Test
-    public void testOnExecutionStateChangeToFinished() {
+    void testOnExecutionStateChangeToFinished() {
         // trigger source1, source2 scheduled.
         final VertexwiseSchedulingStrategy schedulingStrategy =
                 startScheduling(testingSchedulingTopology);
-        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(2));
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
 
         // trigger map1 scheduled
         final TestingSchedulingExecutionVertex source1 = source.get(0);
         source1.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
         schedulingStrategy.onExecutionStateChange(source1.getId(), ExecutionState.FINISHED);
-        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(3));
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
 
         // trigger map2 scheduled
         final TestingSchedulingExecutionVertex source2 = source.get(1);
         source2.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
         schedulingStrategy.onExecutionStateChange(source2.getId(), ExecutionState.FINISHED);
-        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(4));
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
 
         // sinks' inputs are not all consumable yet so they are not scheduled
         final TestingSchedulingExecutionVertex map1 = map.get(0);
         map1.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
         schedulingStrategy.onExecutionStateChange(map1.getId(), ExecutionState.FINISHED);
-        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(4));
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
 
         // trigger sink1, sink2 scheduled
         final TestingSchedulingExecutionVertex map2 = map.get(1);
         map2.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
         schedulingStrategy.onExecutionStateChange(map2.getId(), ExecutionState.FINISHED);
-        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(6));
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(6);
 
         final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
                 new ArrayList<>();
-        expectedScheduledVertices.add(Arrays.asList(source.get(0)));
-        expectedScheduledVertices.add(Arrays.asList(source.get(1)));
-        expectedScheduledVertices.add(Arrays.asList(map.get(0)));
-        expectedScheduledVertices.add(Arrays.asList(map.get(1)));
-        expectedScheduledVertices.add(Arrays.asList(sink.get(0)));
-        expectedScheduledVertices.add(Arrays.asList(sink.get(1)));
+        expectedScheduledVertices.add(Collections.singletonList(source.get(0)));
+        expectedScheduledVertices.add(Collections.singletonList(source.get(1)));
+        expectedScheduledVertices.add(Collections.singletonList(map.get(0)));
+        expectedScheduledVertices.add(Collections.singletonList(map.get(1)));
+        expectedScheduledVertices.add(Collections.singletonList(sink.get(0)));
+        expectedScheduledVertices.add(Collections.singletonList(sink.get(1)));
         assertLatestScheduledVerticesAreEqualTo(
                 expectedScheduledVertices, testingSchedulerOperation);
     }
 
     @Test
-    public void testUpdateStrategyWithAllToAll() {
+    void testUpdateStrategyWithAllToAll() {
         testUpdateStrategyOnTopologyUpdate(true);
     }
 
     @Test
-    public void testUpdateStrategyWithPointWise() {
+    void testUpdateStrategyWithPointWise() {
         testUpdateStrategyOnTopologyUpdate(false);
     }
 
-    public void testUpdateStrategyOnTopologyUpdate(boolean allToAll) {
+    private void testUpdateStrategyOnTopologyUpdate(boolean allToAll) {
         final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         final List<TestingSchedulingExecutionVertex> producers =
@@ -216,10 +216,10 @@ public class VertexwiseSchedulingStrategyTest {
         // correlation are successfully built
         assertLatestScheduledVerticesAreEqualTo(
                 Arrays.asList(
-                        Arrays.asList(producers.get(0)),
-                        Arrays.asList(producers.get(1)),
-                        Arrays.asList(consumers.get(0)),
-                        Arrays.asList(consumers.get(1))),
+                        Collections.singletonList(producers.get(0)),
+                        Collections.singletonList(producers.get(1)),
+                        Collections.singletonList(consumers.get(0)),
+                        Collections.singletonList(consumers.get(1))),
                 testingSchedulerOperation);
     }
 
