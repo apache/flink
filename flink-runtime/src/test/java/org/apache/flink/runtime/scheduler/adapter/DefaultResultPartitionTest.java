@@ -86,7 +86,9 @@ class DefaultResultPartitionTest {
         ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
         consumerVertexGroups.put(
                 resultPartition.getId(),
-                Collections.singletonList(ConsumerVertexGroup.fromSingleVertex(executionVertexId)));
+                Collections.singletonList(
+                        ConsumerVertexGroup.fromSingleVertex(
+                                executionVertexId, resultPartition.getResultType())));
         assertThat(resultPartition.getConsumerVertexGroups()).isNotEmpty();
         assertThat(resultPartition.getConsumerVertexGroups().get(0)).contains(executionVertexId);
     }

@@ -99,7 +99,8 @@ public class EdgeManagerBuildUtil {
                         .map(ExecutionVertex::getID)
                         .collect(Collectors.toList());
         ConsumerVertexGroup consumerVertexGroup =
-                ConsumerVertexGroup.fromMultipleVertices(consumerVertices);
+                ConsumerVertexGroup.fromMultipleVertices(
+                        consumerVertices, intermediateResult.getResultType());
         for (IntermediateResultPartition partition : intermediateResult.getPartitions()) {
             partition.addConsumers(consumerVertexGroup);
         }
@@ -117,7 +118,8 @@ public class EdgeManagerBuildUtil {
                 IntermediateResultPartition partition = intermediateResult.getPartitions()[i];
 
                 ConsumerVertexGroup consumerVertexGroup =
-                        ConsumerVertexGroup.fromSingleVertex(executionVertex.getID());
+                        ConsumerVertexGroup.fromSingleVertex(
+                                executionVertex.getID(), intermediateResult.getResultType());
                 partition.addConsumers(consumerVertexGroup);
 
                 ConsumedPartitionGroup consumedPartitionGroup =
@@ -132,7 +134,8 @@ public class EdgeManagerBuildUtil {
 
                 ExecutionVertex executionVertex = taskVertices[index];
                 ConsumerVertexGroup consumerVertexGroup =
-                        ConsumerVertexGroup.fromSingleVertex(executionVertex.getID());
+                        ConsumerVertexGroup.fromSingleVertex(
+                                executionVertex.getID(), intermediateResult.getResultType());
 
                 int start = index * sourceCount / targetCount;
                 int end = (index + 1) * sourceCount / targetCount;
@@ -173,7 +176,8 @@ public class EdgeManagerBuildUtil {
                 }
 
                 ConsumerVertexGroup consumerVertexGroup =
-                        ConsumerVertexGroup.fromMultipleVertices(consumers);
+                        ConsumerVertexGroup.fromMultipleVertices(
+                                consumers, intermediateResult.getResultType());
                 partition.addConsumers(consumerVertexGroup);
             }
         }
