@@ -51,12 +51,20 @@ public class VertexwiseSchedulingStrategy
 
     private final Set<ExecutionVertexID> newVertices = new HashSet<>();
 
+    private final Set<ExecutionVertexID> scheduledVertices = new HashSet<>();
+
+    private final InputConsumableDecider inputConsumableDecider;
+
     public VertexwiseSchedulingStrategy(
             final SchedulerOperations schedulerOperations,
-            final SchedulingTopology schedulingTopology) {
+            final SchedulingTopology schedulingTopology,
+            final InputConsumableDecider.Factory inputConsumableDeciderFactory) {
 
         this.schedulerOperations = checkNotNull(schedulerOperations);
         this.schedulingTopology = checkNotNull(schedulingTopology);
+        this.inputConsumableDecider =
+                inputConsumableDeciderFactory.createInstance(
+                        schedulingTopology, scheduledVertices::contains);
         schedulingTopology.registerSchedulingTopologyListener(this);
     }
 
@@ -73,6 +81,7 @@ public class VertexwiseSchedulingStrategy
 
     @Override
     public void restartTasks(Set<ExecutionVertexID> verticesToRestart) {
+        scheduledVertices.removeAll(verticesToRestart);
         maybeScheduleVertices(verticesToRestart);
     }
 
@@ -123,12 +132,13 @@ public class VertexwiseSchedulingStrategy
                                     SchedulingExecutionVertex vertex =
                                             schedulingTopology.getVertex(vertexId);
                                     checkState(vertex.getState() == ExecutionState.CREATED);
-                                    return areVertexInputsAllConsumable(
-                                            vertex, consumableStatusCache);
+                                    return inputConsumableDecider.isInputConsumable(
+                                            vertex, Collections.emptySet(), consumableStatusCache);
                                 })
                         .collect(Collectors.toSet());
 
         scheduleVerticesOneByOne(verticesToDeploy);
+        scheduledVertices.addAll(verticesToDeploy);
     }
 
     private void scheduleVerticesOneByOne(final Set<ExecutionVertexID> verticesToDeploy) {
@@ -143,37 +153,16 @@ public class VertexwiseSchedulingStrategy
                 id -> schedulerOperations.allocateSlotsAndDeploy(Collections.singletonList(id)));
     }
 
-    private boolean areVertexInputsAllConsumable(
-            SchedulingExecutionVertex vertex,
-            Map<ConsumedPartitionGroup, Boolean> consumableStatusCache) {
-        for (ConsumedPartitionGroup consumedPartitionGroup : vertex.getConsumedPartitionGroups()) {
-
-            if (!consumableStatusCache.computeIfAbsent(
-                    consumedPartitionGroup, this::isConsumedPartitionGroupConsumable)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean isConsumedPartitionGroupConsumable(
-            final ConsumedPartitionGroup consumedPartitionGroup) {
-        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
-            if (schedulingTopology.getResultPartition(partitionId).getState()
-                    != ResultPartitionState.CONSUMABLE) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /** The factory for creating {@link VertexwiseSchedulingStrategy}. */
     public static class Factory implements SchedulingStrategyFactory {
         @Override
         public SchedulingStrategy createInstance(
                 final SchedulerOperations schedulerOperations,
                 final SchedulingTopology schedulingTopology) {
-            return new VertexwiseSchedulingStrategy(schedulerOperations, schedulingTopology);
+            return new VertexwiseSchedulingStrategy(
+                    schedulerOperations,
+                    schedulingTopology,
+                    DefaultInputConsumableDecider.Factory.INSTANCE);
         }
     }
 }
