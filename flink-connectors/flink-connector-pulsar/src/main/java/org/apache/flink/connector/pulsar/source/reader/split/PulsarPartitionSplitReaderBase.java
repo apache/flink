@@ -28,9 +28,6 @@ import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.StopCondition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
-import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
-import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessageCollector;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.util.Preconditions;
 
@@ -60,19 +57,14 @@ import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfig
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode.JOIN;
 import static org.apache.pulsar.client.api.KeySharedPolicy.stickyHashRange;
 
-/**
- * The common partition split reader.
- *
- * @param <OUT> the type of the pulsar source message that would be serialized to downstream.
- */
-abstract class PulsarPartitionSplitReaderBase<OUT>
-        implements SplitReader<PulsarMessage<OUT>, PulsarPartitionSplit> {
+/** The common partition split reader. */
+abstract class PulsarPartitionSplitReaderBase
+        implements SplitReader<Message<byte[]>, PulsarPartitionSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarPartitionSplitReaderBase.class);
 
     protected final PulsarClient pulsarClient;
     protected final PulsarAdmin pulsarAdmin;
     protected final SourceConfiguration sourceConfiguration;
-    protected final PulsarDeserializationSchema<OUT> deserializationSchema;
 
     protected Consumer<byte[]> pulsarConsumer;
     protected PulsarPartitionSplit registeredSplit;
@@ -80,17 +72,15 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     protected PulsarPartitionSplitReaderBase(
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
-            SourceConfiguration sourceConfiguration,
-            PulsarDeserializationSchema<OUT> deserializationSchema) {
+            SourceConfiguration sourceConfiguration) {
         this.pulsarClient = pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.sourceConfiguration = sourceConfiguration;
-        this.deserializationSchema = deserializationSchema;
     }
 
     @Override
-    public RecordsWithSplitIds<PulsarMessage<OUT>> fetch() throws IOException {
-        RecordsBySplits.Builder<PulsarMessage<OUT>> builder = new RecordsBySplits.Builder<>();
+    public RecordsWithSplitIds<Message<byte[]>> fetch() throws IOException {
+        RecordsBySplits.Builder<Message<byte[]>> builder = new RecordsBySplits.Builder<>();
 
         // Return when no split registered to this reader.
         if (pulsarConsumer == null || registeredSplit == null) {
@@ -99,10 +89,9 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         StopCursor stopCursor = registeredSplit.getStopCursor();
         String splitId = registeredSplit.splitId();
-        PulsarMessageCollector<OUT> collector = new PulsarMessageCollector<>(splitId, builder);
         Deadline deadline = Deadline.fromNow(sourceConfiguration.getMaxFetchTime());
 
-        // Consume message from pulsar until it was woke up by flink reader.
+        // Consume messages from pulsar until it was woken up by flink reader.
         for (int messageNum = 0;
                 messageNum < sourceConfiguration.getMaxFetchRecords() && deadline.hasTimeLeft();
                 messageNum++) {
@@ -116,11 +105,9 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
                 StopCondition condition = stopCursor.shouldStop(message);
 
                 if (condition == StopCondition.CONTINUE || condition == StopCondition.EXACTLY) {
-                    // Deserialize message.
-                    collector.setMessage(message);
-                    deserializationSchema.deserialize(message, collector);
-
-                    // Acknowledge message if need.
+                    // Collect original message.
+                    builder.add(splitId, message);
+                    // Acknowledge the message if you need.
                     finishedPollMessage(message);
                 }
 
