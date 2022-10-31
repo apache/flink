@@ -100,6 +100,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
+    @Ignore
     @Test
     public void writeSnapshot() throws Exception {
         writeSnapshot(
