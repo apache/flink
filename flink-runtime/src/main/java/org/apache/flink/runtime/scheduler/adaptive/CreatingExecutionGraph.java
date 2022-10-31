@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -117,7 +118,8 @@ public class CreatingExecutionGraph implements State {
                         operatorCoordinatorHandlerFactory.create(executionGraph, context);
                 operatorCoordinatorHandler.initializeOperatorCoordinators(
                         context.getMainThreadExecutor());
-                operatorCoordinatorHandler.startAllOperatorCoordinators();
+                operatorCoordinatorHandler.startAllOperatorCoordinators(
+                        context.getJobMetricGroup());
                 String updatedPlan =
                         JsonPlanGenerator.generatePlan(
                                 executionGraph.getJobID(),
@@ -231,6 +233,13 @@ public class CreatingExecutionGraph implements State {
          * @return the main thread executor
          */
         ComponentMainThreadExecutor getMainThreadExecutor();
+
+        /**
+         * Gets the job metric group.
+         *
+         * @return the job metric group
+         */
+        MetricGroup getJobMetricGroup();
     }
 
     @FunctionalInterface

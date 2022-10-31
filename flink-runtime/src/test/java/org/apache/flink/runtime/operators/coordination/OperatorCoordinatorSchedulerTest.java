@@ -47,6 +47,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
@@ -83,8 +85,10 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -464,6 +468,29 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failGlobalAndRestart(scheduler, new TestException());
 
         assertThat(coordinator.getRestoredTasks()).isEmpty();
+    }
+
+    @Test
+    public void testAllOperatorCoordinatorRegisterMetrics() throws Exception {
+        final DefaultScheduler scheduler =
+                setupTestJobAndScheduler(
+                        new TestingOperatorCoordinator.Provider(testOperatorId), null, null, true);
+        scheduleAllTasksToRunning(scheduler);
+        List<OperatorCoordinatorHolder> operatorCoordinatorHolderList =
+                new ArrayList<>(
+                        scheduler
+                                .getExecutionGraph()
+                                .getJobVertex(testVertexId)
+                                .getOperatorCoordinators());
+        assertThat(operatorCoordinatorHolderList).hasSize(1);
+        TestingOperatorCoordinator testingOperatorCoordinator =
+                (TestingOperatorCoordinator) operatorCoordinatorHolderList.get(0).coordinator();
+        assertThat(testingOperatorCoordinator.getMetricGroups()).hasSize(1);
+        JobManagerJobMetricGroup jobManagerJobMetricGroup =
+                (JobManagerJobMetricGroup) testingOperatorCoordinator.getMetricGroups().get(0);
+        assertThat(jobManagerJobMetricGroup.getClass())
+                .hasSameClassAs(
+                        UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup.class);
     }
 
     @Test

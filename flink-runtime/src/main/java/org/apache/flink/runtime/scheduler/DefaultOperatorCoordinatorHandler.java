@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -78,8 +79,8 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     }
 
     @Override
-    public void startAllOperatorCoordinators() {
-        startOperatorCoordinators(coordinatorMap.values());
+    public void startAllOperatorCoordinators(MetricGroup metricGroup) {
+        startOperatorCoordinators(coordinatorMap.values(), metricGroup);
     }
 
     @Override
@@ -150,19 +151,21 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     @Override
     public void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor mainThreadExecutor,
+            MetricGroup metricGroup) {
 
         for (OperatorCoordinatorHolder coordinator : coordinators) {
             coordinatorMap.put(coordinator.operatorId(), coordinator);
             coordinator.lazyInitialize(globalFailureHandler, mainThreadExecutor);
         }
-        startOperatorCoordinators(coordinators);
+        startOperatorCoordinators(coordinators, metricGroup);
     }
 
-    private void startOperatorCoordinators(Collection<OperatorCoordinatorHolder> coordinators) {
+    private void startOperatorCoordinators(
+            Collection<OperatorCoordinatorHolder> coordinators, MetricGroup metricGroup) {
         try {
             for (OperatorCoordinatorHolder coordinator : coordinators) {
-                coordinator.start();
+                coordinator.start(metricGroup);
             }
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);

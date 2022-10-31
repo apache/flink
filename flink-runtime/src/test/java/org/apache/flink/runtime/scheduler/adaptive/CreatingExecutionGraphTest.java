@@ -21,11 +21,13 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
@@ -257,6 +259,11 @@ public class CreatingExecutionGraphTest extends TestLogger {
 
         public void setExpectedExecuting(Consumer<ExecutionGraph> asserter) {
             executingStateValidator.expectInput(asserter);
+        }
+
+        @Override
+        public MetricGroup getJobMetricGroup() {
+            return UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup();
         }
 
         public void setTryToAssignSlotsFunction(

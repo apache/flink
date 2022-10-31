@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -192,10 +193,11 @@ public class OperatorCoordinatorHolder
     //  OperatorCoordinator Interface
     // ------------------------------------------------------------------------
 
-    public void start() throws Exception {
+    public void start(MetricGroup metricGroup) throws Exception {
         mainThreadExecutor.assertRunningInMainThread();
         checkState(context.isInitialized(), "Coordinator Context is not yet initialized");
         coordinator.start();
+        coordinator.registerMetrics(metricGroup);
     }
 
     @Override

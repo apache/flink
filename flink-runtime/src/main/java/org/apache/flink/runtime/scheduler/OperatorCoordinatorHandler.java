@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -41,8 +42,12 @@ public interface OperatorCoordinatorHandler {
      */
     void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor);
 
-    /** Start all operator coordinators. */
-    void startAllOperatorCoordinators();
+    /**
+     * Start all operator coordinators.
+     *
+     * @param metricGroup the metric group to be registered.
+     */
+    void startAllOperatorCoordinators(MetricGroup metricGroup);
 
     /** Dispose all operator coordinators. */
     void disposeAllOperatorCoordinators();
@@ -75,8 +80,10 @@ public interface OperatorCoordinatorHandler {
      *
      * @param coordinators the operator coordinator to be registered.
      * @param mainThreadExecutor Executor for submitting work to the main thread.
+     * @param metricGroup the metric group to be registered.
      */
     void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor);
+            ComponentMainThreadExecutor mainThreadExecutor,
+            MetricGroup metricGroup);
 }

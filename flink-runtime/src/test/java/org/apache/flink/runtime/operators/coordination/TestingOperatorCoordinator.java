@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.util.function.SerializableFunction;
 
@@ -35,6 +36,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 /** A simple testing implementation of the {@link OperatorCoordinator}. */
 public class TestingOperatorCoordinator implements OperatorCoordinator {
 
+    private static final List<MetricGroup> metricGroups = new ArrayList<>();
     public static final byte[] NULL_RESTORE_VALUE = new byte[0];
 
     private final OperatorCoordinator.Context context;
@@ -237,5 +239,14 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
         public OperatorCoordinator create(OperatorCoordinator.Context context) {
             return factory.apply(context);
         }
+    }
+
+    @Override
+    public void registerMetrics(MetricGroup metricGroup) {
+        metricGroups.add(metricGroup);
+    }
+
+    public List<MetricGroup> getMetricGroups() {
+        return metricGroups;
     }
 }

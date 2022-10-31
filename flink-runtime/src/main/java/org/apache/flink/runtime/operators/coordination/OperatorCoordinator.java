@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -100,6 +101,16 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      */
     @Override
     void close() throws Exception;
+
+    /**
+     * Init job manager metric group for current operator coordinator for report metric. Called
+     * after start method.
+     *
+     * @throws Exception Any exception thrown from this method causes a full job failure.
+     */
+    default void registerMetrics(MetricGroup metricGroup) {
+        // do nothing by default.
+    }
 
     // ------------------------------------------------------------------------
 
