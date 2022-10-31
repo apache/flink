@@ -178,7 +178,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -232,7 +232,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -274,7 +274,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -301,7 +301,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -332,7 +332,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -395,7 +395,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -427,7 +427,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -482,7 +482,7 @@ public class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
+                new ResultDescriptor("", "", schema, true, testConfig, rowDataToStringConverter);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()

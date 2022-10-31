@@ -89,8 +89,18 @@ class TestingExecutor implements Executor {
                 .get();
     }
 
+    /** @deprecated. remove later. */
+    @Deprecated
     @Override
     public List<RowData> retrieveResultPage(String resultId, int page)
+            throws SqlExecutionException {
+        return resultPages
+                .get(Math.min(numRetrieveResultPageCalls++, resultPages.size() - 1))
+                .get();
+    }
+
+    @Override
+    public List<RowData> retrieveResultPage(String sessionId, String resultId, int page)
             throws SqlExecutionException {
         return resultPages
                 .get(Math.min(numRetrieveResultPageCalls++, resultPages.size() - 1))

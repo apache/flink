@@ -497,7 +497,8 @@ public class LocalExecutorITCase extends TestLogger {
                         .forEach(
                                 (page) -> {
                                     for (RowData row :
-                                            executor.retrieveResultPage(resultID, page)) {
+                                            executor.retrieveResultPage(
+                                                    sessionId, resultID, page)) {
                                         actualResults.add(
                                                 StringUtils.arrayAwareToString(
                                                         rowDataToStringConverter.convert(row)));

@@ -129,11 +129,16 @@ public interface Executor {
     TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
             throws SqlExecutionException;
 
+    /** @deprecated. remove later. */
+    @Deprecated
+    List<RowData> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
+
     /**
      * Returns the rows that are part of the current page or throws an exception if the snapshot has
      * been expired.
      */
-    List<RowData> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
+    List<RowData> retrieveResultPage(String sessionId, String resultId, int page)
+            throws SqlExecutionException;
 
     /**
      * Cancels a table program and stops the result retrieval. Blocking until cancellation command

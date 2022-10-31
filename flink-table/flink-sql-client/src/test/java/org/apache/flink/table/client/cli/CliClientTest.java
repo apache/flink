@@ -545,8 +545,16 @@ public class CliClientTest extends TestLogger {
             return null;
         }
 
+        /** @deprecated. remove later. */
+        @Deprecated
         @Override
         public List<RowData> retrieveResultPage(String resultId, int page)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public List<RowData> retrieveResultPage(String sessionId, String resultId, int page)
                 throws SqlExecutionException {
             return null;
         }

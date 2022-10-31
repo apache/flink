@@ -97,16 +97,15 @@ public class LocalExecutor implements Executor {
 
     @Override
     public void closeSession(String sessionId) throws SqlExecutionException {
-        resultStore
-                .getResults()
-                .forEach(
-                        (resultId) -> {
-                            try {
-                                cancelQuery(sessionId, resultId);
-                            } catch (Throwable t) {
-                                // ignore any throwable to keep the clean up running
-                            }
-                        });
+        List<String> resultIds = resultStore.getResultIds(sessionId);
+        resultIds.forEach(
+                (resultId) -> {
+                    try {
+                        cancelQuery(sessionId, resultId);
+                    } catch (Throwable t) {
+                        // ignore any throwable to keep the clean up running
+                    }
+                });
         // Remove the session's ExecutionContext from contextMap and close it.
         SessionContext context = this.contextMap.remove(sessionId);
         if (context != null) {
@@ -235,8 +234,9 @@ public class LocalExecutor implements Executor {
         checkArgument(tableResult.getJobClient().isPresent());
         String jobId = tableResult.getJobClient().get().getJobID().toString();
         // store the result under the JobID
-        resultStore.storeResult(jobId, result);
+        resultStore.storeResult(sessionId, jobId, result);
         return new ResultDescriptor(
+                sessionId,
                 jobId,
                 tableResult.getResolvedSchema(),
                 result.isMaterialized(),
@@ -247,10 +247,14 @@ public class LocalExecutor implements Executor {
     @Override
     public TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
             throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
+        final DynamicResult result = resultStore.getResult(sessionId, resultId);
         if (result == null) {
             throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
+                    "Could not find a result with session id '"
+                            + sessionId
+                            + "' result identifier '"
+                            + resultId
+                            + "'.");
         }
         if (result.isMaterialized()) {
             throw new SqlExecutionException("Invalid result retrieval mode.");
@@ -261,10 +265,14 @@ public class LocalExecutor implements Executor {
     @Override
     public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
             throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
+        final DynamicResult result = resultStore.getResult(sessionId, resultId);
         if (result == null) {
             throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
+                    "Could not find a result with session id '"
+                            + sessionId
+                            + "' result identifier '"
+                            + resultId
+                            + "'.");
         }
         if (!result.isMaterialized()) {
             throw new SqlExecutionException("Invalid result retrieval mode.");
@@ -272,13 +280,25 @@ public class LocalExecutor implements Executor {
         return ((MaterializedResult) result).snapshot(pageSize);
     }
 
+    /** @deprecated. remove later. */
+    @Deprecated
     @Override
     public List<RowData> retrieveResultPage(String resultId, int page)
             throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
+        return retrieveResultPage("", resultId, page);
+    }
+
+    @Override
+    public List<RowData> retrieveResultPage(String sessionId, String resultId, int page)
+            throws SqlExecutionException {
+        final DynamicResult result = resultStore.getResult(sessionId, resultId);
         if (result == null) {
             throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
+                    "Could not find a result with session id '"
+                            + sessionId
+                            + "' result identifier '"
+                            + resultId
+                            + "'.");
         }
         if (!result.isMaterialized()) {
             throw new SqlExecutionException("Invalid result retrieval mode.");
@@ -288,21 +308,25 @@ public class LocalExecutor implements Executor {
 
     @Override
     public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
+        final DynamicResult result = resultStore.getResult(sessionId, resultId);
         if (result == null) {
             throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
+                    "Could not find a result with session id '"
+                            + sessionId
+                            + "' result identifier '"
+                            + resultId
+                            + "'.");
         }
 
         // stop retrieval and remove the result
-        LOG.info("Cancelling job {} and result retrieval.", resultId);
+        LOG.info("Cancelling job {} in session {} and result retrieval.", resultId, sessionId);
         try {
             // this operator will also stop flink job
             result.close();
         } catch (Throwable t) {
             throw new SqlExecutionException("Could not cancel the query execution", t);
         }
-        resultStore.removeResult(resultId);
+        resultStore.removeResult(sessionId, resultId);
     }
 
     @Override

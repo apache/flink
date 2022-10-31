@@ -296,7 +296,10 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
         try {
             rows =
                     client.getExecutor()
-                            .retrieveResultPage(resultDescriptor.getResultId(), retrievalPage);
+                            .retrieveResultPage(
+                                    resultDescriptor.getSessionId(),
+                                    resultDescriptor.getResultId(),
+                                    retrievalPage);
         } catch (SqlExecutionException e) {
             close(e);
             return;

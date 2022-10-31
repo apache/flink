@@ -103,6 +103,7 @@ public class CliResultViewTest {
                 ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING()));
         final ResultDescriptor descriptor =
                 new ResultDescriptor(
+                        "session-id",
                         "result-id",
                         schema,
                         false,
@@ -225,8 +226,16 @@ public class CliResultViewTest {
             return (TypedResult<Integer>) typedResult;
         }
 
+        /** @deprecated. remove later. */
+        @Deprecated
         @Override
         public List<RowData> retrieveResultPage(String resultId, int page)
+                throws SqlExecutionException {
+            return Collections.singletonList(new GenericRowData(1));
+        }
+
+        @Override
+        public List<RowData> retrieveResultPage(String sessionId, String resultId, int page)
                 throws SqlExecutionException {
             return Collections.singletonList(new GenericRowData(1));
         }

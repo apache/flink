@@ -28,9 +28,9 @@ import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBat
 import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.config.ResultMode.CHANGELOG;
@@ -40,10 +40,10 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RE
 /** Maintains dynamic results. */
 public class ResultStore {
 
-    private final Map<String, DynamicResult> results;
+    private final Map<String, Map<String, DynamicResult>> results;
 
     public ResultStore() {
-        results = new HashMap<>();
+        results = new ConcurrentHashMap<>();
     }
 
     /**
@@ -77,19 +77,48 @@ public class ResultStore {
         }
     }
 
-    public void storeResult(String resultId, DynamicResult result) {
-        results.put(resultId, result);
+    public void storeResult(String sessionId, String resultId, DynamicResult result) {
+        Map<String, DynamicResult> resultBySession = getResults(sessionId);
+        resultBySession.put(resultId, result);
+        results.put(sessionId, resultBySession);
     }
 
-    public DynamicResult getResult(String resultId) {
-        return results.get(resultId);
+    public Map<String, DynamicResult> getResults(String sessionId) {
+        Map<String, DynamicResult> resultBySession =
+                results.getOrDefault(sessionId, new ConcurrentHashMap<>());
+        results.put(sessionId, resultBySession);
+        return resultBySession;
     }
 
-    public void removeResult(String resultId) {
-        results.remove(resultId);
+    public DynamicResult getResult(String sessionId, String resultId) {
+        Map<String, DynamicResult> resultBySession = getResults(sessionId);
+        return resultBySession.get(resultId);
     }
 
-    public List<String> getResults() {
+    public void removeResult(String sessionId, String resultId) {
+        Map<String, DynamicResult> resultBySession = getResults(sessionId);
+        resultBySession.remove(resultId);
+        if (resultBySession.size() == 0) {
+            results.remove(sessionId);
+        }
+    }
+
+    public List<String> getSessionIds() {
         return new ArrayList<>(results.keySet());
+    }
+
+    public List<String> getResultIds(String sessionId) {
+        return new ArrayList<>(getResults(sessionId).keySet());
+    }
+
+    public List<String> getResultIds() {
+        List<String> resultList = new ArrayList<>();
+        results.values()
+                .parallelStream()
+                .forEach(
+                        resultBySession -> {
+                            resultList.addAll(resultBySession.keySet());
+                        });
+        return resultList;
     }
 }
