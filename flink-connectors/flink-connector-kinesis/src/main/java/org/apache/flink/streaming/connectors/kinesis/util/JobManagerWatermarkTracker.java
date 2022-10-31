@@ -69,7 +69,7 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
         return updateWatermark(update);
     }
 
-    public long updateWatermark(WatermarkUpdate update) {
+    private long updateWatermark(WatermarkUpdate update) {
         try {
             byte[] resultBytes =
                     aggregateManager.updateGlobalAggregate(
