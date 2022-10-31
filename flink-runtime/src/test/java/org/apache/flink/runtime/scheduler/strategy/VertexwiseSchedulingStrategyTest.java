@@ -185,6 +185,43 @@ class VertexwiseSchedulingStrategyTest {
     }
 
     @Test
+    void testScheduleDownstreamOfHybridEdge() {
+        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+        final List<TestingSchedulingExecutionVertex> producers =
+                topology.addExecutionVertices().withParallelism(2).finish();
+
+        final List<TestingSchedulingExecutionVertex> consumers =
+                topology.addExecutionVertices().withParallelism(2).finish();
+
+        // add consumers to scheduling strategy.
+        topology.connectAllToAll(producers, consumers)
+                .withResultPartitionType(ResultPartitionType.HYBRID_FULL)
+                .finish();
+
+        final VertexwiseSchedulingStrategy schedulingStrategy = createSchedulingStrategy(topology);
+        inputConsumableDecider.addSourceVertices(
+                producers.stream()
+                        .map(TestingSchedulingExecutionVertex::getId)
+                        .collect(Collectors.toSet()));
+
+        inputConsumableDecider.setInputConsumable(consumers.get(0).getId());
+        inputConsumableDecider.setInputConsumable(consumers.get(1).getId());
+
+        schedulingStrategy.startScheduling();
+
+        // consumers are properly scheduled indicates that the consuming relationship and
+        // correlation are successfully built
+        assertLatestScheduledVerticesAreEqualTo(
+                Arrays.asList(
+                        Collections.singletonList(producers.get(0)),
+                        Collections.singletonList(producers.get(1)),
+                        Collections.singletonList(consumers.get(0)),
+                        Collections.singletonList(consumers.get(1))),
+                testingSchedulerOperation);
+    }
+
+    @Test
     void testUpdateStrategyWithAllToAll() {
         testUpdateStrategyOnTopologyUpdate(true);
     }
