@@ -148,7 +148,7 @@ public class KafkaWriterITCase {
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
 
-            // elements that cannot be serialized should be silently skipped
+            // elements for which the serializer returns null should be silently skipped
             writer.write(null, SINK_WRITER_CONTEXT);
             timeService.trigger();
             assertThat(numBytesOut.getCount()).isEqualTo(0L);
@@ -156,7 +156,7 @@ public class KafkaWriterITCase {
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
 
-            // but properly serialized elements should count just normally
+            // but elements for which a non-null producer record is returned should count
             writer.write(1, SINK_WRITER_CONTEXT);
             timeService.trigger();
             assertThat(numRecordsOut.getCount()).isEqualTo(1);
