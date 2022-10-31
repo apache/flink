@@ -150,7 +150,7 @@ abstract class PulsarSourceReaderTestBase extends PulsarTestSuiteBase {
         SourceConfiguration sourceConfiguration = new SourceConfiguration(configuration);
         return (PulsarSourceReaderBase<Integer>)
                 PulsarSourceReaderFactory.create(
-                        context, deserializationSchema, sourceConfiguration);
+                        context, deserializationSchema, sourceConfiguration, null);
     }
 
     public class PulsarSourceReaderInvocationContextProvider

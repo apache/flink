@@ -59,7 +59,8 @@ class StopCursorTest extends PulsarTestSuiteBase {
                         operator().client(),
                         operator().admin(),
                         sourceConfig(),
-                        flinkSchema(new SimpleStringSchema()));
+                        flinkSchema(new SimpleStringSchema()),
+                        null);
         // send the first message and set the stopCursor to filter any late stopCursor
         operator()
                 .sendMessage(

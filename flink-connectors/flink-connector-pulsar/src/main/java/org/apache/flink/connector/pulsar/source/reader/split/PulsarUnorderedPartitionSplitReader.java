@@ -27,6 +27,7 @@ import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -69,8 +70,14 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
             PulsarDeserializationSchema<OUT> deserializationSchema,
+            @Nullable CryptoKeyReader cryptoKeyReader,
             TransactionCoordinatorClient coordinatorClient) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, deserializationSchema);
+        super(
+                pulsarClient,
+                pulsarAdmin,
+                sourceConfiguration,
+                deserializationSchema,
+                cryptoKeyReader);
 
         this.coordinatorClient = coordinatorClient;
     }

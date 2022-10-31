@@ -33,10 +33,13 @@ import org.apache.flink.connector.pulsar.source.reader.split.PulsarUnorderedPart
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+
+import javax.annotation.Nullable;
 
 import java.util.function.Supplier;
 
@@ -44,8 +47,8 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactor
 import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createClient;
 
 /**
- * This factory class is used for creating different types of source reader for different
- * subscription type.
+ * This factory class is used for creating different types of source reader for the different
+ * subscription types.
  *
  * <ol>
  *   <li>Failover, Exclusive: We would create {@link PulsarOrderedSourceReader}.
@@ -63,7 +66,8 @@ public final class PulsarSourceReaderFactory {
     public static <OUT> SourceReader<OUT, PulsarPartitionSplit> create(
             SourceReaderContext readerContext,
             PulsarDeserializationSchema<OUT> deserializationSchema,
-            SourceConfiguration sourceConfiguration) {
+            SourceConfiguration sourceConfiguration,
+            @Nullable CryptoKeyReader cryptoKeyReader) {
 
         PulsarClient pulsarClient = createClient(sourceConfiguration);
         PulsarAdmin pulsarAdmin = createAdmin(sourceConfiguration);
@@ -84,7 +88,8 @@ public final class PulsarSourceReaderFactory {
                                     pulsarClient,
                                     pulsarAdmin,
                                     sourceConfiguration,
-                                    deserializationSchema);
+                                    deserializationSchema,
+                                    cryptoKeyReader);
 
             return new PulsarOrderedSourceReader<>(
                     elementsQueue,
@@ -109,6 +114,7 @@ public final class PulsarSourceReaderFactory {
                                     pulsarAdmin,
                                     sourceConfiguration,
                                     deserializationSchema,
+                                    cryptoKeyReader,
                                     coordinatorClient);
 
             return new PulsarUnorderedSourceReader<>(

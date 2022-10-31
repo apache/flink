@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.source;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
+import org.apache.flink.connector.pulsar.testutils.source.cases.ConsumeEncryptMessagesContext;
 import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
 import org.apache.flink.connector.pulsar.testutils.source.cases.SingleTopicConsumingContext;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
@@ -32,6 +33,7 @@ import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -39,26 +41,49 @@ import org.junit.jupiter.api.Tag;
  * subscription.
  */
 @Tag("org.apache.flink.testutils.junit.FailsOnJava11")
-class PulsarSourceITCase extends SourceTestSuiteBase<String> {
+class PulsarSourceITCase {
 
-    // Defines test environment on Flink MiniCluster
-    @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
+    @Nested
+    class IntegrationTest extends SourceTestSuiteBase<String> {
 
-    // Defines pulsar running environment
-    @TestExternalSystem
-    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
+        // Defines test environment on Flink MiniCluster
+        @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
-    // This field is preserved, we don't support the semantics in source currently.
-    @TestSemantics
-    CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
+        // Defines pulsar running environment
+        @TestExternalSystem
+        PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
 
-    // Defines an external context Factories,
-    // so test cases will be invoked using these external contexts.
-    @TestContext
-    PulsarTestContextFactory<String, SingleTopicConsumingContext> singleTopic =
-            new PulsarTestContextFactory<>(pulsar, SingleTopicConsumingContext::new);
+        // This field is preserved, we don't support the semantics in source currently.
+        @TestSemantics
+        CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
-    @TestContext
-    PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
-            new PulsarTestContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
+        // Defines an external context Factories,
+        // so test cases will be invoked using these external contexts.
+        @TestContext
+        PulsarTestContextFactory<String, SingleTopicConsumingContext> singleTopic =
+                new PulsarTestContextFactory<>(pulsar, SingleTopicConsumingContext::new);
+
+        @TestContext
+        PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
+                new PulsarTestContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
+    }
+
+    @Nested
+    class ConsumerEncryptionTest extends SourceTestSuiteBase<String> {
+
+        // Defines test environment on Flink MiniCluster
+        @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
+
+        // Defines pulsar running environment
+        @TestExternalSystem
+        PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
+
+        // This field is preserved, we don't support the semantics in source currently.
+        @TestSemantics
+        CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
+
+        @TestContext
+        PulsarTestContextFactory<String, ConsumeEncryptMessagesContext> encryptMessages =
+                new PulsarTestContextFactory<>(pulsar, ConsumeEncryptMessagesContext::new);
+    }
 }

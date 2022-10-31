@@ -49,7 +49,7 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 8);
 
         SinkConfiguration configuration = sinkConfiguration(deliveryGuarantee);
-        TopicProducerRegister register = new TopicProducerRegister(configuration);
+        TopicProducerRegister register = new TopicProducerRegister(configuration, null);
 
         String message = randomAlphabetic(10);
         register.createMessageBuilder(topic, Schema.STRING).value(message).send();
@@ -76,7 +76,7 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 8);
 
         SinkConfiguration configuration = sinkConfiguration(deliveryGuarantee);
-        TopicProducerRegister register = new TopicProducerRegister(configuration);
+        TopicProducerRegister register = new TopicProducerRegister(configuration, null);
 
         String message = randomAlphabetic(10);
         register.createMessageBuilder(topic, Schema.STRING).value(message).sendAsync();

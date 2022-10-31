@@ -29,8 +29,10 @@ import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.sink.writer.router.MessageKeyHash;
 
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import static java.util.Collections.emptyMap;
@@ -287,4 +289,20 @@ public final class PulsarSinkOptions {
                                     .text(
                                             " When getting a topic stats, associate this metadata with the consumer stats for easier identification.")
                                     .build());
+
+    public static final ConfigOption<ProducerCryptoFailureAction>
+            PULSAR_PRODUCER_CRYPTO_FAILURE_ACTION =
+                    ConfigOptions.key(PRODUCER_CONFIG_PREFIX + "producerCryptoFailureAction")
+                            .enumType(ProducerCryptoFailureAction.class)
+                            .defaultValue(ProducerCryptoFailureAction.FAIL)
+                            .withDescription(
+                                    "The action the producer will take in case of encryption failures.");
+
+    public static final ConfigOption<List<String>> PULSAR_ENCRYPTION_KEYS =
+            ConfigOptions.key(PRODUCER_CONFIG_PREFIX + "encryptionKeys")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Add public encryption key, used by producer to encrypt the data key.");
 }

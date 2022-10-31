@@ -16,34 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.sink;
+package org.apache.flink.connector.pulsar.testutils.sink.cases;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.PulsarSink;
+import org.apache.flink.connector.pulsar.sink.PulsarSinkBuilder;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
+import org.apache.flink.connector.pulsar.testutils.sink.reader.PulsarPartitionDataReader;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
 import org.apache.flink.connector.testframe.external.sink.DataStreamSinkV2ExternalContext;
 import org.apache.flink.connector.testframe.external.sink.TestingSinkSettings;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
-import org.apache.pulsar.client.api.Schema;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES;
 import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.pulsarSchema;
 import static org.apache.flink.connector.pulsar.testutils.PulsarTestCommonUtils.toDeliveryGuarantee;
+import static org.apache.pulsar.client.api.Schema.STRING;
 
-/** Common sink test context for pulsar based test. */
+/** Common sink test context for the pulsar based tests. */
 public class PulsarSinkTestContext extends PulsarTestContext<String>
         implements DataStreamSinkV2ExternalContext<String> {
 
@@ -52,11 +52,11 @@ public class PulsarSinkTestContext extends PulsarTestContext<String>
     private static final int RECORD_SIZE_LOWER_BOUND = 100;
     private static final int RECORD_STRING_SIZE = 20;
 
-    private String topicName = topicName();
-    private final Closer closer = Closer.create();
+    protected String topicName = topicName();
+    protected final Closer closer = Closer.create();
 
     public PulsarSinkTestContext(PulsarTestEnvironment environment) {
-        super(environment, Schema.STRING);
+        super(environment, STRING);
     }
 
     @Override
@@ -68,23 +68,24 @@ public class PulsarSinkTestContext extends PulsarTestContext<String>
     public Sink<String> createSink(TestingSinkSettings sinkSettings) {
         operator.createTopic(topicName, 4);
         DeliveryGuarantee guarantee = toDeliveryGuarantee(sinkSettings.getCheckpointingMode());
+        PulsarSinkBuilder<String> builder =
+                PulsarSink.builder()
+                        .setServiceUrl(operator.serviceUrl())
+                        .setAdminUrl(operator.adminUrl())
+                        .setTopics(topicName)
+                        .setDeliveryGuarantee(guarantee)
+                        .setSerializationSchema(pulsarSchema(schema))
+                        .enableSchemaEvolution()
+                        .setConfig(PULSAR_BATCHING_MAX_MESSAGES, 4);
+        setSinkBuilder(builder);
 
-        return PulsarSink.builder()
-                .setServiceUrl(operator.serviceUrl())
-                .setAdminUrl(operator.adminUrl())
-                .setTopics(topicName)
-                .setDeliveryGuarantee(guarantee)
-                .setSerializationSchema(pulsarSchema(schema))
-                .enableSchemaEvolution()
-                .setConfig(PULSAR_BATCHING_MAX_MESSAGES, 4)
-                .build();
+        return builder.build();
     }
 
     @Override
     public ExternalSystemDataReader<String> createSinkDataReader(TestingSinkSettings sinkSettings) {
         PulsarPartitionDataReader<String> reader =
-                sneakyClient(
-                        () -> new PulsarPartitionDataReader<>(operator, topicName, Schema.STRING));
+                new PulsarPartitionDataReader<>(operator, topicName, STRING);
         closer.register(reader);
 
         return reader;
@@ -116,6 +117,10 @@ public class PulsarSinkTestContext extends PulsarTestContext<String>
         // Change the topic name after finishing a test case.
         closer.register(() -> topicName = topicName());
         closer.close();
+    }
+
+    protected void setSinkBuilder(PulsarSinkBuilder<String> builder) {
+        // Nothing to do by default.
     }
 
     private String topicName() {

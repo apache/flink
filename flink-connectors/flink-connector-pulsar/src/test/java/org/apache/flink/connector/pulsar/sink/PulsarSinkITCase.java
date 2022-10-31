@@ -25,8 +25,9 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.connector.pulsar.testutils.function.ControlSource;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
-import org.apache.flink.connector.pulsar.testutils.sink.PulsarSinkTestContext;
 import org.apache.flink.connector.pulsar.testutils.sink.PulsarSinkTestSuiteBase;
+import org.apache.flink.connector.pulsar.testutils.sink.cases.PulsarEncryptSinkContext;
+import org.apache.flink.connector.pulsar.testutils.sink.cases.PulsarSinkTestContext;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
@@ -75,6 +76,25 @@ class PulsarSinkITCase {
         @TestContext
         PulsarTestContextFactory<String, PulsarSinkTestContext> sinkContext =
                 new PulsarTestContextFactory<>(pulsar, PulsarSinkTestContext::new);
+    }
+
+    @Nested
+    class ProducerEncryptionTest extends PulsarSinkTestSuiteBase {
+
+        @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
+
+        @TestExternalSystem
+        PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
+
+        @TestSemantics
+        CheckpointingMode[] semantics =
+                new CheckpointingMode[] {
+                    CheckpointingMode.EXACTLY_ONCE, CheckpointingMode.AT_LEAST_ONCE
+                };
+
+        @TestContext
+        PulsarTestContextFactory<String, PulsarEncryptSinkContext> sinkContext =
+                new PulsarTestContextFactory<>(pulsar, PulsarEncryptSinkContext::new);
     }
 
     /** Tests for using PulsarSink writing to a Pulsar cluster. */

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.source;
+package org.apache.flink.connector.pulsar.testutils.source.writer;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
@@ -25,26 +25,38 @@ import org.apache.pulsar.client.api.Schema;
 
 import java.util.List;
 
+import static java.util.stream.Collectors.toList;
+
 /**
- * Source split data writer for writing test data into a Pulsar topic partition. This writer doesn't
- * need to be closed.
+ * Source split data writer for writing test data into a Pulsar topic partition. It will write the
+ * message with two keys.
  */
-public class PulsarPartitionDataWriter<T> implements ExternalSystemSplitDataWriter<T> {
+public class KeyedPulsarPartitionDataWriter implements ExternalSystemSplitDataWriter<String> {
 
     private final PulsarRuntimeOperator operator;
     private final String fullTopicName;
-    private final Schema<T> schema;
+    private final String keyToRead;
+    private final String keyToExclude;
 
-    public PulsarPartitionDataWriter(
-            PulsarRuntimeOperator operator, String fullTopicName, Schema<T> schema) {
+    public KeyedPulsarPartitionDataWriter(
+            PulsarRuntimeOperator operator,
+            String fullTopicName,
+            String keyToRead,
+            String keyToExclude) {
         this.operator = operator;
         this.fullTopicName = fullTopicName;
-        this.schema = schema;
+        this.keyToRead = keyToRead;
+        this.keyToExclude = keyToExclude;
     }
 
     @Override
-    public void writeRecords(List<T> records) {
-        operator.sendMessages(fullTopicName, schema, records);
+    public void writeRecords(List<String> records) {
+        // Send messages with the key we don't need.
+        List<String> newRecords = records.stream().map(a -> a + keyToRead).collect(toList());
+        operator.sendMessages(fullTopicName, Schema.STRING, keyToExclude, newRecords);
+
+        // Send messages with the given key.
+        operator.sendMessages(fullTopicName, Schema.STRING, keyToRead, records);
     }
 
     @Override

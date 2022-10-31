@@ -43,9 +43,11 @@ import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BA
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BATCHING_PARTITION_SWITCH_FREQUENCY_BY_PUBLISH_DELAY;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_CHUNKING_ENABLED;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_COMPRESSION_TYPE;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_ENCRYPTION_KEYS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_INITIAL_SEQUENCE_ID;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_PENDING_MESSAGES;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_PRODUCER_CRYPTO_FAILURE_ACTION;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_PRODUCER_NAME;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_PRODUCER_PROPERTIES;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_SEND_TIMEOUT_MS;
@@ -96,6 +98,11 @@ public final class PulsarSinkConfigUtils {
         configuration.useOption(PULSAR_CHUNKING_ENABLED, builder::enableChunking);
         configuration.useOption(PULSAR_COMPRESSION_TYPE, builder::compressionType);
         configuration.useOption(PULSAR_INITIAL_SEQUENCE_ID, builder::initialSequenceId);
+        configuration.useOption(
+                PULSAR_PRODUCER_CRYPTO_FAILURE_ACTION, builder::cryptoFailureAction);
+        // Add the encryption keys.
+        configuration.useOption(
+                PULSAR_ENCRYPTION_KEYS, keys -> keys.forEach(builder::addEncryptionKey));
 
         // Set producer properties
         Map<String, String> properties = configuration.getProperties(PULSAR_PRODUCER_PROPERTIES);

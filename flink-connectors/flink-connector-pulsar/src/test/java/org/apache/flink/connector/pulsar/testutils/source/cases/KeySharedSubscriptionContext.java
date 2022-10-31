@@ -21,7 +21,7 @@ package org.apache.flink.connector.pulsar.testutils.source.cases;
 import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FixedKeysRangeGenerator;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connector.pulsar.testutils.source.KeyedPulsarPartitionDataWriter;
+import org.apache.flink.connector.pulsar.testutils.source.writer.KeyedPulsarPartitionDataWriter;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
 import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
 

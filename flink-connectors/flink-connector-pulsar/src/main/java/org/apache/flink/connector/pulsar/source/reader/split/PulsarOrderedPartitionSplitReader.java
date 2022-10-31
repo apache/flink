@@ -27,12 +27,15 @@ import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
@@ -57,8 +60,14 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
-            PulsarDeserializationSchema<OUT> deserializationSchema) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, deserializationSchema);
+            PulsarDeserializationSchema<OUT> deserializationSchema,
+            @Nullable CryptoKeyReader cryptoKeyReader) {
+        super(
+                pulsarClient,
+                pulsarAdmin,
+                sourceConfiguration,
+                deserializationSchema,
+                cryptoKeyReader);
     }
 
     @Override

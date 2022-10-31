@@ -347,13 +347,15 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
                     operator().client(),
                     operator().admin(),
                     sourceConfig(),
-                    flinkSchema(new SimpleStringSchema()));
+                    flinkSchema(new SimpleStringSchema()),
+                    null);
         } else {
             return new PulsarUnorderedPartitionSplitReader<>(
                     operator().client(),
                     operator().admin(),
                     sourceConfig(),
                     flinkSchema(new SimpleStringSchema()),
+                    null,
                     null);
         }
     }
