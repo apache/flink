@@ -19,15 +19,12 @@
 package org.apache.flink.runtime.state.metainfo;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nonnull;
 
@@ -78,49 +75,6 @@ public class LegacyStateMetaInfoReaders {
             serializerConfigSnapshotMap.put(
                     StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
                     serializersAndConfigs.get(1).f1);
-
-            return new StateMetaInfoSnapshot(
-                    stateName,
-                    StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
-                    optionsMap,
-                    serializerConfigSnapshotMap);
-        }
-    }
-
-    /**
-     * Implementation of {@link StateMetaInfoReader} for version 1 and 2 of keyed state. - v1: Flink
-     * 1.2.x - v2: Flink 1.3.x
-     */
-    static class KeyedBackendStateMetaInfoReaderV1V2 implements StateMetaInfoReader {
-
-        static final KeyedBackendStateMetaInfoReaderV1V2 INSTANCE =
-                new KeyedBackendStateMetaInfoReaderV1V2();
-
-        @Nonnull
-        @Override
-        public StateMetaInfoSnapshot readStateMetaInfoSnapshot(
-                @Nonnull DataInputView in, @Nonnull ClassLoader userCodeClassLoader)
-                throws IOException {
-
-            final StateDescriptor.Type stateDescType = StateDescriptor.Type.values()[in.readInt()];
-            final String stateName = in.readUTF();
-
-            Map<String, String> optionsMap =
-                    Collections.singletonMap(
-                            StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
-                            stateDescType.toString());
-
-            Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotMap = new HashMap<>(2);
-            serializerConfigSnapshotMap.put(
-                    StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString(),
-                    new BackwardsCompatibleSerializerSnapshot<>(
-                            TypeSerializerSerializationUtil.tryReadSerializer(
-                                    in, userCodeClassLoader, true)));
-            serializerConfigSnapshotMap.put(
-                    StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
-                    new BackwardsCompatibleSerializerSnapshot<>(
-                            TypeSerializerSerializationUtil.tryReadSerializer(
-                                    in, userCodeClassLoader, true)));
 
             return new StateMetaInfoSnapshot(
                     stateName,
@@ -188,50 +142,6 @@ public class LegacyStateMetaInfoReaders {
             }
 
             return new StateMetaInfoSnapshot(name, stateType, optionsMap, serializerConfigsMap);
-        }
-    }
-
-    /** Reader for older versions of operator state (version 1). - v1: Flink 1.2.x */
-    public static class OperatorBackendStateMetaInfoReaderV1 implements StateMetaInfoReader {
-
-        static final OperatorBackendStateMetaInfoReaderV1 INSTANCE =
-                new OperatorBackendStateMetaInfoReaderV1();
-
-        @Nonnull
-        @Override
-        public StateMetaInfoSnapshot readStateMetaInfoSnapshot(
-                @Nonnull DataInputView in, @Nonnull ClassLoader userCodeClassLoader)
-                throws IOException {
-
-            final String name = in.readUTF();
-            final OperatorStateHandle.Mode mode = OperatorStateHandle.Mode.values()[in.readByte()];
-            final Map<String, String> optionsMap =
-                    Collections.singletonMap(
-                            StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE
-                                    .toString(),
-                            mode.toString());
-
-            DataInputViewStream dis = new DataInputViewStream(in);
-            ClassLoader previousClassLoader = Thread.currentThread().getContextClassLoader();
-
-            try (InstantiationUtil.FailureTolerantObjectInputStream ois =
-                    new InstantiationUtil.FailureTolerantObjectInputStream(
-                            dis, userCodeClassLoader)) {
-                Thread.currentThread().setContextClassLoader(userCodeClassLoader);
-                TypeSerializer<?> stateSerializer = (TypeSerializer<?>) ois.readObject();
-                return new StateMetaInfoSnapshot(
-                        name,
-                        StateMetaInfoSnapshot.BackendStateType.OPERATOR,
-                        optionsMap,
-                        Collections.singletonMap(
-                                StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER
-                                        .toString(),
-                                new BackwardsCompatibleSerializerSnapshot<>(stateSerializer)));
-            } catch (ClassNotFoundException exception) {
-                throw new IOException(exception);
-            } finally {
-                Thread.currentThread().setContextClassLoader(previousClassLoader);
-            }
         }
     }
 }

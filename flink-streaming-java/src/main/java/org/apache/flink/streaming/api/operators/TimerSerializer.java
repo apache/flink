@@ -19,11 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.MathUtils;
@@ -207,56 +203,5 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
     @Nonnull
     public TypeSerializer<N> getNamespaceSerializer() {
         return namespaceSerializer;
-    }
-
-    /**
-     * Snapshot of a {@link TimerSerializer}.
-     *
-     * @param <K> type of key.
-     * @param <N> type of namespace.
-     * @deprecated this snapshot class is no longer in use, and is maintained only for backwards
-     *     compatibility purposes. It is fully replaced by {@link TimerSerializerSnapshot}.
-     */
-    @Deprecated
-    public static class TimerSerializerConfigSnapshot<K, N>
-            extends CompositeTypeSerializerConfigSnapshot<TimerHeapInternalTimer<K, N>> {
-
-        private static final int VERSION = 1;
-
-        public TimerSerializerConfigSnapshot() {}
-
-        public TimerSerializerConfigSnapshot(
-                @Nonnull TypeSerializer<K> keySerializer,
-                @Nonnull TypeSerializer<N> namespaceSerializer) {
-            super(init(keySerializer, namespaceSerializer));
-        }
-
-        private static TypeSerializer<?>[] init(
-                @Nonnull TypeSerializer<?> keySerializer,
-                @Nonnull TypeSerializer<?> namespaceSerializer) {
-            TypeSerializer<?>[] timerSerializers = new TypeSerializer[2];
-            timerSerializers[KEY_SERIALIZER_SNAPSHOT_INDEX] = keySerializer;
-            timerSerializers[NAMESPACE_SERIALIZER_SNAPSHOT_INDEX] = namespaceSerializer;
-            return timerSerializers;
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<TimerHeapInternalTimer<K, N>>
-                resolveSchemaCompatibility(
-                        TypeSerializer<TimerHeapInternalTimer<K, N>> newSerializer) {
-
-            final TypeSerializerSnapshot<?>[] nestedSnapshots =
-                    getNestedSerializersAndConfigs().stream()
-                            .map(t -> t.f1)
-                            .toArray(TypeSerializerSnapshot[]::new);
-
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer, new TimerSerializerSnapshot<>(), nestedSnapshots);
-        }
     }
 }

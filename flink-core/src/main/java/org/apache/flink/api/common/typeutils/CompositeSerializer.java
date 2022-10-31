@@ -252,29 +252,4 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
                     immutableTargetType, fieldsImmutable, totalLength, stateful);
         }
     }
-
-    /**
-     * Snapshot field serializers of composite type.
-     *
-     * @deprecated this snapshot class is no longer in use by any serializers, and is only kept
-     *     around for backwards compatibility. All subclass serializers should have their own
-     *     serializer snapshot classes.
-     */
-    @Deprecated
-    public static class ConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
-        private static final int VERSION = 0;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        @SuppressWarnings("unused")
-        public ConfigSnapshot() {}
-
-        ConfigSnapshot(@Nonnull TypeSerializer<?>... nestedSerializers) {
-            super(nestedSerializers);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-    }
 }

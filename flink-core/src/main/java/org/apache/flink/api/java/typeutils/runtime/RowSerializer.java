@@ -19,11 +19,8 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
@@ -476,43 +473,6 @@ public final class RowSerializer extends TypeSerializer<Row> {
     @Override
     public TypeSerializerSnapshot<Row> snapshotConfiguration() {
         return new RowSerializerSnapshot(this);
-    }
-
-    /**
-     * A snapshot for {@link RowSerializer}.
-     *
-     * @deprecated this snapshot class is no longer in use, and is maintained only for backwards
-     *     compatibility. It is fully replaced by {@link RowSerializerSnapshot}.
-     */
-    @Deprecated
-    public static final class RowSerializerConfigSnapshot
-            extends CompositeTypeSerializerConfigSnapshot<Row> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public RowSerializerConfigSnapshot() {}
-
-        public RowSerializerConfigSnapshot(TypeSerializer<?>[] fieldSerializers) {
-            super(fieldSerializers);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<Row> resolveSchemaCompatibility(
-                TypeSerializer<Row> newSerializer) {
-            TypeSerializerSnapshot<?>[] nestedSnapshots =
-                    getNestedSerializersAndConfigs().stream()
-                            .map(t -> t.f1)
-                            .toArray(TypeSerializerSnapshot[]::new);
-
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer, new RowSerializerSnapshot(), nestedSnapshots);
-        }
     }
 
     /** A {@link TypeSerializerSnapshot} for RowSerializer. */

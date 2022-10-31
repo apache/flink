@@ -24,8 +24,6 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-import static org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.ADAPTER_VERSION;
-
 /**
  * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer}'s
  * configuration. The configuration snapshot of a serializer is persisted within checkpoints as a
@@ -162,18 +160,7 @@ public interface TypeSerializerSnapshot<T> {
                 TypeSerializerSnapshotSerializationUtil.readAndInstantiateSnapshotClass(in, cl);
 
         int version = in.readInt();
-
-        if (version == ADAPTER_VERSION && !(snapshot instanceof TypeSerializerConfigSnapshot)) {
-            // the snapshot was upgraded directly in-place from a TypeSerializerConfigSnapshot;
-            // read and drop the previously Java-serialized serializer, and get the actual correct
-            // read version.
-            // NOTE: this implicitly assumes that the version was properly written before the actual
-            // snapshot content.
-            TypeSerializerSerializationUtil.tryReadSerializer(in, cl, true);
-            version = in.readInt();
-        }
         snapshot.readSnapshot(version, in, cl);
-
         return snapshot;
     }
 }

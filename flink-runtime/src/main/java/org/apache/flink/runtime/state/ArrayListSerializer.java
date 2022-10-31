@@ -17,12 +17,8 @@
  */
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -30,8 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 @SuppressWarnings("ForLoopReplaceableByForEach")
-public final class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>>
-        implements TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer<ArrayList<T>> {
+public final class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
     private static final long serialVersionUID = 1119562170939152304L;
 
@@ -145,30 +140,5 @@ public final class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>>
     @Override
     public TypeSerializerSnapshot<ArrayList<T>> snapshotConfiguration() {
         return new ArrayListSerializerSnapshot<>(this);
-    }
-
-    /**
-     * We need to implement this method as a {@link
-     * TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer} because this serializer was
-     * previously returning a shared {@link CollectionSerializerConfigSnapshot} as its snapshot.
-     *
-     * <p>When the {@link CollectionSerializerConfigSnapshot} is restored, it is incapable of
-     * redirecting the compatibility check to {@link ArrayListSerializerSnapshot}, so we do it here.
-     */
-    @Override
-    public TypeSerializerSchemaCompatibility<ArrayList<T>>
-            resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-                    TypeSerializerConfigSnapshot<ArrayList<T>> deprecatedConfigSnapshot) {
-
-        if (deprecatedConfigSnapshot instanceof CollectionSerializerConfigSnapshot) {
-            CollectionSerializerConfigSnapshot<ArrayList<T>, T> castedLegacySnapshot =
-                    (CollectionSerializerConfigSnapshot<ArrayList<T>, T>) deprecatedConfigSnapshot;
-
-            ArrayListSerializerSnapshot<T> newSnapshot = new ArrayListSerializerSnapshot<>();
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    this, newSnapshot, castedLegacySnapshot.getNestedSerializerSnapshots());
-        }
-
-        return TypeSerializerSchemaCompatibility.incompatible();
     }
 }
