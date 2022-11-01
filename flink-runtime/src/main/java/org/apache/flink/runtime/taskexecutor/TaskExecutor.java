@@ -269,7 +269,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Nullable private UUID currentRegistrationTimeoutId;
 
-    private Map<JobID, Collection<CompletableFuture<ExecutionState>>>
+    private final Map<JobID, Collection<CompletableFuture<ExecutionState>>>
             taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
 
     private final ThreadInfoSampleService threadInfoSampleService;
