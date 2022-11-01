@@ -145,11 +145,6 @@ under the License.
 				<artifactId>scala-reflect</artifactId>
 				<version>${scala.version}</version>
 			</dependency>
-			<dependency>
-				<groupId>org.scala-lang.modules</groupId>
-				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-				<version>1.1.2</version>
-			</dependency>
 			<!-- For dependency convergence in Akka 2.6.20 -->
 			<dependency>
 				<groupId>com.typesafe</groupId>
@@ -202,13 +197,10 @@ under the License.
 									</excludes>
 								</filter>
 								<filter>
-									<artifact>*:*</artifact>
+									<artifact>org.scala-lang:*</artifact>
 									<excludes>
-										<!-- Only some of these licenses actually apply to the JAR and have been manually
-											 placed in this module's resources directory. -->
+										<!-- For deduplication purposes. -->
 										<exclude>LICENSE</exclude>
-										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
-											 copied into this modules's NOTICE file. -->
 										<exclude>NOTICE</exclude>
 									</excludes>
 								</filter>
