@@ -59,14 +59,14 @@ class JavaCodeSplitterTest {
     @Test
     public void testNullCode() {
         assertThatThrownBy(() -> JavaCodeSplitter.split(null, 4000, 10000))
-                .getCause()
+                .cause()
                 .hasMessage("code cannot be empty");
     }
 
     @Test
     public void testEmptyCode() {
         assertThatThrownBy(() -> JavaCodeSplitter.split("", 4000, 10000))
-                .getCause()
+                .cause()
                 .hasMessage("code cannot be empty");
     }
 
@@ -76,7 +76,7 @@ class JavaCodeSplitterTest {
                         () ->
                                 JavaCodeSplitter.split(
                                         "public interface DummyInterface {}", 0, 10000))
-                .getCause()
+                .cause()
                 .hasMessage("maxMethodLength must be greater than 0");
     }
 
@@ -84,7 +84,7 @@ class JavaCodeSplitterTest {
     public void testWrongMaxClassMemberCount() {
         assertThatThrownBy(
                         () -> JavaCodeSplitter.split("public interface DummyInterface {}", 10, 0))
-                .getCause()
+                .cause()
                 .hasMessage("maxClassMemberCount must be greater than 0");
     }
 

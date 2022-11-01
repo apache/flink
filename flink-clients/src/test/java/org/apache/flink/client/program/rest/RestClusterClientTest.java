@@ -809,8 +809,8 @@ class RestClusterClientTest {
                     createRestClusterClient(serverAddress.getPort(), clientConfig)) {
                 assertThatThrownBy(() -> restClusterClient.submitJob(jobGraph).get())
                         .isInstanceOf(ExecutionException.class)
-                        .getCause()
-                        .getCause()
+                        .cause()
+                        .cause()
                         .isInstanceOf(FutureUtils.RetryException.class);
 
                 assertThat(failedRequest).hasValue(maxRetryAttempts + 1);
