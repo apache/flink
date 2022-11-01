@@ -193,7 +193,7 @@ public class ExecNodePlanDumper {
 
         if (sb.length() > 0) {
             // delete last line separator
-            sb.deleteCharAt(sb.length() - 1);
+            sb.replace(sb.lastIndexOf(System.getProperty("line.separator")), sb.length(), "");
         }
         return sb.toString();
     }
