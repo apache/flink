@@ -126,8 +126,8 @@ public class HttpTestClient implements AutoCloseable {
      *
      * <pre>
      * HttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/overview");
-     * request.headers().set(HttpHeaders.Names.HOST, host);
-     * request.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+     * request.headers().set(HttpHeaderNames.HOST, host);
+     * request.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
      *
      * sendRequest(request);
      * </pre>
