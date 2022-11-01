@@ -75,6 +75,7 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -235,7 +236,7 @@ public abstract class YarnTestBase {
             File classPathFile =
                     TestUtils.findFile(start, (dir, name) -> name.equals("yarn.classpath"));
             return FileUtils.readFileToString(
-                    classPathFile); // potential NPE is supposed to be fatal
+                    classPathFile, StandardCharsets.UTF_8); // potential NPE is supposed to be fatal
         } catch (Throwable t) {
             LOG.error(
                     "Error while getting YARN classpath in {}",
