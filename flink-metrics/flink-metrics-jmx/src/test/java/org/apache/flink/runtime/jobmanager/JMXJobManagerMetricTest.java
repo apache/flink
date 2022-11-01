@@ -26,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.jmx.JMXReporterFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
@@ -98,17 +97,7 @@ class JMXJobManagerMetricTest {
 
             final JobCheckpointingSettings jobCheckpointingSettings =
                     new JobCheckpointingSettings(
-                            new CheckpointCoordinatorConfiguration(
-                                    500,
-                                    500,
-                                    50,
-                                    5,
-                                    CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                                    true,
-                                    false,
-                                    0,
-                                    0),
-                            null);
+                            CheckpointCoordinatorConfiguration.builder().build(), null);
 
             final JobGraph jobGraph =
                     JobGraphBuilder.newStreamingJobGraphBuilder()
