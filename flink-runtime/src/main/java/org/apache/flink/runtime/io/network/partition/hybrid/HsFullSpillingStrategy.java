@@ -128,20 +128,21 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
             return;
         }
 
-        int survivedNum = (int) (poolSize - poolSize * releaseBufferRatio);
+        int releaseNum = (int) (poolSize * releaseBufferRatio);
         int numSubpartitions = spillingInfoProvider.getNumSubpartitions();
-        int subpartitionSurvivedNum = survivedNum / numSubpartitions;
-
+        int expectedSubpartitionReleaseNum = releaseNum / numSubpartitions;
         TreeMap<Integer, Deque<BufferIndexAndChannel>> bufferToRelease = new TreeMap<>();
 
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; subpartitionId++) {
             Deque<BufferIndexAndChannel> buffersInOrder =
                     spillingInfoProvider.getBuffersInOrder(
                             subpartitionId, SpillStatus.SPILL, ConsumeStatusWithId.ALL_ANY);
-            // if the number of subpartition buffers less than survived buffers, reserved all of
-            // them.
-            int releaseNum = Math.max(0, buffersInOrder.size() - subpartitionSurvivedNum);
-            while (releaseNum-- != 0) {
+            // if the number of subpartition spilling buffers less than expected release number,
+            // release all of them.
+            int subpartitionReleaseNum =
+                    Math.min(buffersInOrder.size(), expectedSubpartitionReleaseNum);
+            int subpartitionSurvivedNum = buffersInOrder.size() - subpartitionReleaseNum;
+            while (subpartitionSurvivedNum-- != 0) {
                 buffersInOrder.pollLast();
             }
             bufferToRelease.put(subpartitionId, buffersInOrder);
@@ -149,7 +150,10 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
 
         // collect results in order
         for (int i = 0; i < numSubpartitions; i++) {
-            builder.addBufferToRelease(i, bufferToRelease.getOrDefault(i, new ArrayDeque<>()));
+            Deque<BufferIndexAndChannel> bufferIndexAndChannels = bufferToRelease.get(i);
+            if (bufferIndexAndChannels != null && !bufferIndexAndChannels.isEmpty()) {
+                builder.addBufferToRelease(i, bufferToRelease.getOrDefault(i, new ArrayDeque<>()));
+            }
         }
     }
 }
