@@ -35,7 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCode
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContentDecompressor;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -166,7 +166,7 @@ public class HttpTestClient implements AutoCloseable {
         HttpRequest getRequest =
                 new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, path);
         getRequest.headers().set(HttpHeaderNames.HOST, host);
-        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
+        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
         sendRequest(getRequest, timeout);
     }
@@ -186,7 +186,7 @@ public class HttpTestClient implements AutoCloseable {
         HttpRequest getRequest =
                 new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.DELETE, path);
         getRequest.headers().set(HttpHeaderNames.HOST, host);
-        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
+        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
         sendRequest(getRequest, timeout);
     }
@@ -206,7 +206,7 @@ public class HttpTestClient implements AutoCloseable {
         HttpRequest getRequest =
                 new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.PATCH, path);
         getRequest.headers().set(HttpHeaderNames.HOST, host);
-        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
+        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
         sendRequest(getRequest, timeout);
     }
