@@ -132,12 +132,19 @@ public class HBaseSerde {
     }
 
     private long getTimestamp(RowData row) {
-        if (tsFamilyIndex != -1) {
-            int f = tsFamilyIndex > rowkeyIndex ? tsFamilyIndex - 1 : tsFamilyIndex;
-            RowData familyRow = row.getRow(tsFamilyIndex, qualifiers[f].length);
-            return familyRow.getTimestamp(tsQualifierIndex, timestampPrecision).getMillisecond();
+        if (tsFamilyIndex == -1) {
+            return HConstants.LATEST_TIMESTAMP;
         }
-        return HConstants.LATEST_TIMESTAMP;
+        // family index in row
+        int f = tsFamilyIndex > rowkeyIndex ? tsFamilyIndex + 1 : tsFamilyIndex;
+        if (row.isNullAt(f)) {
+            return HConstants.LATEST_TIMESTAMP;
+        }
+        RowData familyRow = row.getRow(f, qualifiers[tsFamilyIndex].length);
+        if (familyRow == null || familyRow.isNullAt(tsQualifierIndex)) {
+            return HConstants.LATEST_TIMESTAMP;
+        }
+        return familyRow.getTimestamp(tsQualifierIndex, timestampPrecision).getMillisecond();
     }
 
     /**

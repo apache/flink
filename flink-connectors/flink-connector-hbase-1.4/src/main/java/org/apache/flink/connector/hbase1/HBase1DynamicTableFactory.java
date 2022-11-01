@@ -125,7 +125,7 @@ public class HBase1DynamicTableFactory
 
         String[] timeStampField = null;
         if (tableOptions.getOptional(HBASE_TS_FIELD).isPresent()) {
-            timeStampField = tableOptions.get(HBASE_TS_FIELD).split(".");
+            timeStampField = tableOptions.get(HBASE_TS_FIELD).split("\\.");
         }
         HBaseTableSchema hbaseSchema =
                 HBaseTableSchema.fromDataType(

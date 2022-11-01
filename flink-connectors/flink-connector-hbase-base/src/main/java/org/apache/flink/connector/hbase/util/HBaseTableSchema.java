@@ -136,9 +136,9 @@ public class HBaseTableSchema implements Serializable {
         }
         this.timeStampInfo =
                 new TimeStampInfo(
-                        familyMap.size(),
+                        familyMap.size() - 1,
                         tsFamily,
-                        familyMap.get(tsFamily).size(),
+                        familyMap.get(tsFamily).size() - 1,
                         tsQualifier,
                         getPrecision(type.getLogicalType()));
     }

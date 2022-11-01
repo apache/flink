@@ -40,12 +40,29 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.row;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -290,7 +307,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         tEnv.executeSql(table1DDL);
 
         // register HBase table which is empty
-        String table3DDL = createHBaseTableDDL(TEST_TABLE_3, true);
+        String table3DDL = createHBaseTableDDL(TEST_TABLE_3, true, true);
         tEnv.executeSql(table3DDL);
 
         String insertStatement =
@@ -304,6 +321,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                         + " from "
                         + TEST_TABLE_1;
         tEnv.executeSql(insertStatement).await();
+
+        insertOldData(tEnv);
 
         // start a batch scan job to verify contents in HBase table
         TableEnvironment batchEnv = TableEnvironment.create(batchSettings);
@@ -349,6 +368,49 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         expected.add(
                 "+I[8, 80, null, 800, 8.08, true, Welt-8, 2019-08-19T19:40, 2019-08-19, 19:40, 12345678.0008]");
         assertEquals(expected, result);
+    }
+
+    private void insertOldData(StreamTableEnvironment tEnv)
+            throws InterruptedException, ExecutionException {
+        Table sourceTable =
+                tEnv.fromValues(
+                        ROW(
+                                FIELD("rk", INT()),
+                                FIELD("c11", INT()),
+                                FIELD("c21", STRING()),
+                                FIELD("c22", BIGINT()),
+                                FIELD("c31", DOUBLE()),
+                                FIELD("c32", BOOLEAN()),
+                                FIELD("c33", STRING()),
+                                FIELD("c41", TIMESTAMP(3)),
+                                FIELD("c42", DATE()),
+                                FIELD("c43", TIME(3)),
+                                FIELD("c44", DECIMAL(12, 4))),
+                        row(
+                                1,
+                                10,
+                                "Hello-1-1",
+                                100L,
+                                1.01,
+                                false,
+                                "Welt-1",
+                                Timestamp.valueOf("2019-08-17 19:00:00"),
+                                Date.valueOf("2019-08-17"),
+                                Time.valueOf("19:00:00"),
+                                new BigDecimal("12345678.0001")));
+        tEnv.createTemporaryView("sourceTable", sourceTable);
+
+        String insertStatement =
+                "INSERT INTO "
+                        + TEST_TABLE_3
+                        + " SELECT rk,"
+                        + " ROW(c11),"
+                        + " ROW(c21, c22),"
+                        + " ROW(c31, c32, c33),"
+                        + " ROW(c41, c42, c43, c44)"
+                        + " from sourceTable";
+
+        tEnv.executeSql(insertStatement).await();
     }
 
     @Test
@@ -473,6 +535,11 @@ public class HBaseConnectorITCase extends HBaseTestBase {
     }
 
     private String createHBaseTableDDL(String tableName, boolean testTimeAndDecimalTypes) {
+        return createHBaseTableDDL(tableName, testTimeAndDecimalTypes, false);
+    }
+
+    private String createHBaseTableDDL(
+            String tableName, boolean testTimeAndDecimalTypes, boolean useTs) {
         StringBuilder family4Statement = new StringBuilder();
         if (testTimeAndDecimalTypes) {
             family4Statement.append(", family4 ROW<col1 TIMESTAMP(3)");
@@ -481,24 +548,29 @@ public class HBaseConnectorITCase extends HBaseTestBase {
             family4Statement.append(", col4 DECIMAL(12, 4)");
             family4Statement.append("> \n");
         }
-
-        return "CREATE TABLE "
-                + tableName
-                + "(\n"
-                + "   rowkey INT,"
-                + "   family1 ROW<col1 INT>,\n"
-                + "   family2 ROW<col1 VARCHAR, col2 BIGINT>,\n"
-                + "   family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>"
-                + family4Statement.toString()
-                + ") WITH (\n"
-                + "   'connector' = 'hbase-1.4',\n"
-                + "   'table-name' = '"
-                + tableName
-                + "',\n"
-                + "   'zookeeper.quorum' = '"
-                + getZookeeperQuorum()
-                + "',\n"
-                + "   'zookeeper.znode.parent' = '/hbase' "
-                + ")";
+        StringBuilder createTableSql =
+                new StringBuilder("CREATE TABLE ")
+                        .append(tableName)
+                        .append("(\n")
+                        .append("   rowkey INT,")
+                        .append("   family1 ROW<col1 INT>,\n")
+                        .append("   family2 ROW<col1 VARCHAR, col2 BIGINT>,\n")
+                        .append("   family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>")
+                        .append(family4Statement.toString())
+                        .append(") WITH (\n")
+                        .append("   'connector' = 'hbase-1.4',\n")
+                        .append("   'table-name' = '")
+                        .append(tableName)
+                        .append("',\n")
+                        .append("   'zookeeper.quorum' = '")
+                        .append(getZookeeperQuorum())
+                        .append("',\n");
+        if (useTs) {
+            createTableSql.append("   'hbase.ts.field' = 'family4.col1',\n");
+        }
+        return createTableSql
+                .append("   'zookeeper.znode.parent' = '/hbase' ")
+                .append(")")
+                .toString();
     }
 }
