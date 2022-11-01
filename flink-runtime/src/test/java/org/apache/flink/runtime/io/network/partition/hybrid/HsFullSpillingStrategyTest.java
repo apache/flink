@@ -102,25 +102,10 @@ class HsFullSpillingStrategyTest {
         final int subpartition1 = 0;
         final int subpartition2 = 1;
 
-        final int progress1 = 10;
-        final int progress2 = 20;
-
         List<BufferIndexAndChannel> subpartitionBuffers1 =
-                createBufferIndexAndChannelsList(
-                        subpartition1,
-                        progress1,
-                        progress1 + 2,
-                        progress1 + 4,
-                        progress1 + 6,
-                        progress1 + 8);
+                createBufferIndexAndChannelsList(subpartition1, 1, 2, 3, 4, 5);
         List<BufferIndexAndChannel> subpartitionBuffers2 =
-                createBufferIndexAndChannelsList(
-                        subpartition2,
-                        progress2 + 1,
-                        progress2 + 3,
-                        progress2 + 5,
-                        progress2 + 7,
-                        progress2 + 9);
+                createBufferIndexAndChannelsList(subpartition2, 1, 2, 3, 4, 5);
 
         TestingSpillingInfoProvider spillInfoProvider =
                 TestingSpillingInfoProvider.builder()
@@ -133,8 +118,6 @@ class HsFullSpillingStrategyTest {
                                 () -> (int) (10 * NUM_BUFFERS_TRIGGER_SPILLING_RATIO))
                         .setGetNumTotalRequestedBuffersSupplier(() -> 10)
                         .setGetPoolSizeSupplier(() -> 10)
-                        .setGetNextBufferIndexToConsumeSupplier(
-                                () -> Arrays.asList(progress1, progress2))
                         .build();
 
         Decision decision = spillStrategy.decideActionWithGlobalInfo(spillInfoProvider);
@@ -149,9 +132,9 @@ class HsFullSpillingStrategyTest {
 
         Map<Integer, List<BufferIndexAndChannel>> expectedReleaseBuffers = new HashMap<>();
         expectedReleaseBuffers.put(
-                subpartition1, new ArrayList<>(subpartitionBuffers1.subList(0, 2)));
+                subpartition1, new ArrayList<>(subpartitionBuffers1.subList(0, 3)));
         expectedReleaseBuffers.put(
-                subpartition2, new ArrayList<>(subpartitionBuffers2.subList(1, 3)));
+                subpartition2, new ArrayList<>(subpartitionBuffers2.subList(1, 4)));
         assertThat(decision.getBufferToRelease()).isEqualTo(expectedReleaseBuffers);
     }
 
