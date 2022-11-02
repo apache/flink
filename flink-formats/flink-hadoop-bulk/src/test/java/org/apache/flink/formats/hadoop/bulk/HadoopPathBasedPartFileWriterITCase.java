@@ -49,7 +49,7 @@ import static org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base class for testing writing data to the hadoop file system with different configurations. */
-public class HadoopPathBasedPartFileWriterTest extends AbstractTestBase {
+public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBase {
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(2000);
 
     @Test

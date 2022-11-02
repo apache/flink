@@ -57,7 +57,7 @@ public class ITCaseRules {
                                     .doNotHaveModifier(ABSTRACT)
                                     .should()
                                     .haveSimpleNameEndingWith("ITCase"))
-                    // FALSE by default however not every module has inheritors of AbstractTestBase
+                    // FALSE by default since 0.23.0 however not every module has inheritors of AbstractTestBase
                     .allowEmptyShould(true)
                     .as(
                             "Tests inheriting from AbstractTestBase should have name ending with ITCase");
@@ -130,6 +130,8 @@ public class ITCaseRules {
                                                                     miniClusterWithClientResourceClassRule())
                                                             .or(
                                                                     miniClusterWithClientResourceRule()))))
+                    // FALSE by default since 0.23.0 however not every module has *ITCase tests
+                    .allowEmptyShould(true)
                     .as("ITCASE tests should use a MiniCluster resource or extension");
 
     private static DescribedPredicate<JavaClass> miniClusterWithClientResourceClassRule() {

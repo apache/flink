@@ -20,22 +20,49 @@ package org.apache.flink.formats.hadoop.bulk.committer;
 
 import org.apache.flink.formats.hadoop.bulk.AbstractFileCommitterTest;
 import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitter;
+import org.apache.flink.formats.hadoop.bulk.committer.cluster.HDFSCluster;
+import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.junit.AfterClass;
+import org.junit.Assume;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 
-/** Tests the behaviors of {@link HadoopRenameFileCommitter} with local file system. */
-public class HadoopRenameCommitterLocalFSTest extends AbstractFileCommitterTest {
+/** Tests the behaviors of {@link HadoopRenameFileCommitter} with HDFS file system. */
+public class HadoopRenameCommitterHDFSITCase extends AbstractFileCommitterTest {
 
-    public HadoopRenameCommitterLocalFSTest(boolean override) throws IOException {
+    @ClassRule public static final TemporaryFolder CLASS_TEMPORARY_FOLDER = new TemporaryFolder();
+
+    private static HDFSCluster hdfsCluster;
+
+    @BeforeClass
+    public static void createHDFS() throws Exception {
+        Assume.assumeTrue(!OperatingSystem.isWindows());
+
+        hdfsCluster = new HDFSCluster(CLASS_TEMPORARY_FOLDER.newFolder());
+    }
+
+    @AfterClass
+    public static void destroyHDFS() {
+        if (hdfsCluster != null) {
+            hdfsCluster.shutdown();
+        }
+
+        hdfsCluster = null;
+    }
+
+    public HadoopRenameCommitterHDFSITCase(boolean override) throws IOException {
         super(override);
     }
 
     @Override
     protected Path getBasePath() throws IOException {
-        return new Path(TEMPORARY_FOLDER.newFolder().toURI());
+        return hdfsCluster.newFolder();
     }
 
     @Override
@@ -59,7 +86,7 @@ public class HadoopRenameCommitterLocalFSTest extends AbstractFileCommitterTest 
     }
 
     @Override
-    public void cleanup(Configuration configuration, Path basePath) {
-        // Empty method.
+    protected void cleanup(Configuration configuration, Path basePath) throws IOException {
+        basePath.getFileSystem(configuration).delete(basePath, true);
     }
 }
