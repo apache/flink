@@ -201,7 +201,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
                                 }
 
                                 if (bootstrap != null) {
-                                    EventLoopGroup group = bootstrap.group();
+                                    EventLoopGroup group = bootstrap.config().group();
                                     if (group != null && !group.isShutdown()) {
                                         group.shutdownGracefully(0L, 0L, TimeUnit.MILLISECONDS)
                                                 .addListener(
@@ -229,6 +229,6 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 
     @VisibleForTesting
     public boolean isEventGroupShutdown() {
-        return bootstrap == null || bootstrap.group().isTerminated();
+        return bootstrap == null || bootstrap.config().group().isTerminated();
     }
 }

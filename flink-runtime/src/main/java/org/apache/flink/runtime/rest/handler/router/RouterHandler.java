@@ -28,10 +28,10 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpUtil;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringDecoder;
 
@@ -75,14 +75,14 @@ public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
     @Override
     protected void channelRead0(
             ChannelHandlerContext channelHandlerContext, HttpRequest httpRequest) {
-        if (HttpHeaders.is100ContinueExpected(httpRequest)) {
+        if (HttpUtil.is100ContinueExpected(httpRequest)) {
             channelHandlerContext.writeAndFlush(
                     new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.CONTINUE));
             return;
         }
 
         // Route
-        HttpMethod method = httpRequest.getMethod();
+        HttpMethod method = httpRequest.method();
         QueryStringDecoder qsd = new QueryStringDecoder(httpRequest.uri());
         RouteResult<?> routeResult = router.route(method, qsd.path(), qsd.parameters());
 
@@ -118,8 +118,8 @@ public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
     private void respondNotFound(ChannelHandlerContext channelHandlerContext, HttpRequest request) {
         LOG.trace(
                 "Request could not be routed to any handler. Uri:{} Method:{}",
-                request.getUri(),
-                request.getMethod());
+                request.uri(),
+                request.method());
         HandlerUtils.sendErrorResponse(
                 channelHandlerContext,
                 request,

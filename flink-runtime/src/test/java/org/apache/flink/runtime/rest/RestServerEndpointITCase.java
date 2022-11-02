@@ -556,8 +556,8 @@ public class RestServerEndpointITCase extends TestLogger {
         Request request = new Request.Builder().url(httpUrl).build();
         try (final Response response = client.newCall(request).execute()) {
             assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.code());
-            assertThat(response.headers().names(), hasItems("Location"));
-            assertEquals(httpsUrl, response.header("Location"));
+            assertThat(response.headers().names(), hasItems("location"));
+            assertEquals(httpsUrl, response.header("location"));
         }
     }
 

@@ -35,7 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -107,20 +107,20 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
                     currentDecoder = null;
                 }
 
-                if (currentRequest.getMethod() == HttpMethod.GET
-                        || currentRequest.getMethod() == HttpMethod.DELETE) {
+                if (currentRequest.method() == HttpMethod.GET
+                        || currentRequest.method() == HttpMethod.DELETE) {
                     // directly delegate to the router
                     ctx.fireChannelRead(currentRequest);
-                } else if (currentRequest.getMethod() == HttpMethod.POST) {
+                } else if (currentRequest.method() == HttpMethod.POST) {
                     // POST comes in multiple objects. First the request, then the contents
                     // keep the request and path for the remaining objects of the POST request
                     currentRequestPath =
-                            new QueryStringDecoder(currentRequest.getUri(), ENCODING).path();
+                            new QueryStringDecoder(currentRequest.uri(), ENCODING).path();
                     currentDecoder =
                             new HttpPostRequestDecoder(DATA_FACTORY, currentRequest, ENCODING);
                 } else {
                     throw new IOException(
-                            "Unsupported HTTP method: " + currentRequest.getMethod().name());
+                            "Unsupported HTTP method: " + currentRequest.method().name());
                 }
             } else if (currentDecoder != null && msg instanceof HttpContent) {
                 // received new chunk, give it to the current decoder
@@ -191,9 +191,9 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
                                 HttpResponseStatus.INTERNAL_SERVER_ERROR,
                                 Unpooled.wrappedBuffer(bytes));
 
-                response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+                response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain");
                 response.headers()
-                        .set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+                        .set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
 
                 ctx.writeAndFlush(response);
             }
