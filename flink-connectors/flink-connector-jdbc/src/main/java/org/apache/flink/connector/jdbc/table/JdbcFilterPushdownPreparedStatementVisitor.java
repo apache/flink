@@ -100,7 +100,7 @@ public class JdbcFilterPushdownPreparedStatementVisitor
     }
 
     private Optional<ParameterizedPredicate> renderUnaryOperator(
-            String operator, ResolvedExpression operand, Boolean operandOnLeft) {
+            String operator, ResolvedExpression operand, boolean operandOnLeft) {
         if (operand instanceof FieldReferenceExpression) {
             Optional<ParameterizedPredicate> fieldPartialPredicate =
                     this.visit((FieldReferenceExpression) operand);
