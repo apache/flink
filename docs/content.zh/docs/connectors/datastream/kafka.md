@@ -450,7 +450,7 @@ Kafka source 的源读取器扩展了 ```SourceReaderBase```，并使用单线�
 
 ## Kafka SourceFunction
 {{< hint warning >}}
-`FlinkKafkaConsumer` 已被弃用并将在 Flink 1.15 中移除，请改用 ```KafkaSource```。
+`FlinkKafkaConsumer` 已被弃用并将在 Flink 1.17 中移除，请改用 ```KafkaSource```。
 {{< /hint >}}
 
 如需参考，请参阅 Flink 1.13 [文档](https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction)。
