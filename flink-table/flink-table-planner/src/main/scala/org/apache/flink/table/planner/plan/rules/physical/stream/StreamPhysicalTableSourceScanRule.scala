@@ -69,8 +69,8 @@ class StreamPhysicalTableSourceScanRule
     val resolvedSchema = table.contextResolvedTable.getResolvedSchema
 
     if (
-      isUpsertSource(resolvedSchema, table.tableSource) ||
-      isSourceChangeEventsDuplicate(resolvedSchema, table.tableSource, config)
+      !scan.eventTimeSnapshot && (isUpsertSource(resolvedSchema, table.tableSource) ||
+        isSourceChangeEventsDuplicate(resolvedSchema, table.tableSource, config))
     ) {
       // generate changelog normalize node
       // primary key has been validated in CatalogSourceTable

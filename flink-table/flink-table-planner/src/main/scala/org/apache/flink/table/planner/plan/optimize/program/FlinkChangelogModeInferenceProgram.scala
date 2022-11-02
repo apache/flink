@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.types.RowKind
@@ -79,8 +78,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     // step3: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
       val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
-      throw new TableException(
-        "Can't generate a valid execution plan for the given query:\n" + plan)
+      val error = s"""
+                     |Can't generate a valid execution plan for the given query:$plan
+                     |Intermediate plan with modify kind:
+                     |${FlinkRelOptUtil.toString(rootWithModifyKindSet, withChangelogTraits = true)}
+              """.stripMargin
+      throw new TableException(error)
     } else {
       finalRoot.head
     }

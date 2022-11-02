@@ -759,4 +759,42 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTemporalJoinUpsertSourceWithPostFilter">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], valid=[$6], rowtime0=[$7])
++- LogicalFilter(condition=[=($6, _UTF-16LE'true')])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+      :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+      :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+      +- LogicalFilter(condition=[=($cor0.currency, $0)])
+         +- LogicalSnapshot(period=[$cor0.rowtime])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+               +- LogicalTableScan(table=[[default_catalog, default_database, UpsertRates]])
+
+== Optimized Physical Plan ==
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(_UTF-16LE'true':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS valid, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0], where=[=(valid, _UTF-16LE'true':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], changelogMode=[I])
++- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, valid, rowtime0], changelogMode=[I])
+   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, UpsertRates]], fields=[currency, rate, valid, rowtime], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST('true' AS VARCHAR(2147483647)) AS valid, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0], where=[(valid = 'true')])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, valid, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, UpsertRates]], fields=[currency, rate, valid, rowtime])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

@@ -133,8 +133,8 @@ object FlinkStreamRuleSets {
 
   /** RuleSet about filter */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
-    // push a filter into a join
-    CoreRules.FILTER_INTO_JOIN,
+    // push a filter into a join which isn't a temporal join
+    StreamFilterIntoJoinRule.FILTER_INTO_JOIN,
     // push filter into the children of a join
     CoreRules.JOIN_CONDITION_PUSH,
     // push filter through an aggregation
