@@ -64,6 +64,7 @@ class TemporalJoinRewriteWithUniqueKeyRule
     val join = call.rel[FlinkLogicalJoin](0)
     val leftInput = call.rel[FlinkLogicalRel](1)
     val snapshot = call.rel[FlinkLogicalSnapshot](2)
+    val snapshotInput = call.rel[FlinkLogicalRel](3)
 
     val joinCondition = join.getCondition
 
@@ -84,7 +85,8 @@ class TemporalJoinRewriteWithUniqueKeyRule
             }
 
           val rexBuilder = join.getCluster.getRexBuilder
-          val primaryKeyInputRefs = extractPrimaryKeyInputRefs(leftInput, snapshot, rexBuilder)
+          val primaryKeyInputRefs =
+            extractPrimaryKeyInputRefs(leftInput, snapshot, snapshotInput, rexBuilder)
           validateRightPrimaryKey(join, rightJoinKey, primaryKeyInputRefs)
 
           if (TemporalJoinUtil.isInitialRowTimeTemporalTableJoin(call)) {
@@ -166,11 +168,12 @@ class TemporalJoinRewriteWithUniqueKeyRule
   private def extractPrimaryKeyInputRefs(
       leftInput: RelNode,
       snapshot: FlinkLogicalSnapshot,
+      snapshotInput: FlinkLogicalRel,
       rexBuilder: RexBuilder): Option[Seq[RexNode]] = {
     val rightFields = snapshot.getRowType.getFieldList
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(snapshot.getCluster.getMetadataQuery)
 
-    val upsertKeySet = fmq.getUpsertKeys(snapshot.getInput())
+    val upsertKeySet = fmq.getUpsertKeys(snapshotInput)
     val fields = snapshot.getRowType.getFieldList
 
     if (upsertKeySet != null && upsertKeySet.size() > 0) {

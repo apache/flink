@@ -502,12 +502,13 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
   def testEventTimeTemporalJoinWithFilter(): Unit = {
     tEnv.executeSql(
       "CREATE VIEW v1 AS" +
-        " SELECT * FROM versioned_currency_with_single_key WHERE rate < 115")
+        " SELECT * FROM versioned_currency_with_single_key")
     val sql = "INSERT INTO rowtime_default_sink " +
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o " +
       " JOIN v1 FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency"
+      " ON o.currency = r.currency" +
+      " WHERE rate < 115"
     tEnv.executeSql(sql).await()
     val expected = List(
       "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
