@@ -662,7 +662,7 @@ public class AsyncSinkWriterTest {
         sink.write(String.valueOf(225)); // Buffer: 100/110B; 1/10 elements; 0 inflight
         sink.flush(false);
         List<BufferedRequestState<Integer>> states = sink.snapshotState(1);
-        assertThatExceptionOfType(IllegalStateException.class)
+        assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
                         () ->
                                 new AsyncSinkWriterImplBuilder()
@@ -670,7 +670,7 @@ public class AsyncSinkWriterTest {
                                         .maxRecordSizeInBytes(15)
                                         .buildWithState(states))
                 .withMessageContaining(
-                        "State contains record of size 100 which exceeds sink maximum record size 15.");
+                        "The request entry sent to the buffer was of size [100], when the maxRecordSizeInBytes was set to [15].");
     }
 
     @Test
@@ -704,6 +704,42 @@ public class AsyncSinkWriterTest {
                                 .map(RequestEntryWrapper::getRequestEntry)
                                 .collect(Collectors.toList()))
                 .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
+    }
+
+    @Test
+    public void testWriterInitializedWithStateHasCallbackRegistered() throws Exception {
+        AsyncSinkWriterImpl initialSinkWriter =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(20)
+                        .maxBatchSizeInBytes(10_000)
+                        .maxTimeInBufferMS(100)
+                        .maxRecordSizeInBytes(10_000)
+                        .simulateFailures(true)
+                        .build();
+        assertThat(res.size()).isEqualTo(0);
+        TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
+        tpts.setCurrentTime(0L);
+        initialSinkWriter.write("1");
+        initialSinkWriter.write("2");
+        initialSinkWriter.write("3");
+        tpts.setCurrentTime(10L);
+
+        AsyncSinkWriterImpl restoredSinkWriter =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSize(10)
+                        .maxInFlightRequests(20)
+                        .maxBatchSizeInBytes(10_000)
+                        .maxTimeInBufferMS(10)
+                        .maxRecordSizeInBytes(10_000)
+                        .simulateFailures(true)
+                        .buildWithState(initialSinkWriter.snapshotState(1));
+        restoredSinkWriter.write("4");
+
+        tpts.setCurrentTime(30L);
+        assertThat(res.size()).isEqualTo(4);
     }
 
     @Test
