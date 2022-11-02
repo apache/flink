@@ -457,27 +457,28 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     }
 
     private void addEntryToBuffer(RequestEntryT entry, boolean insertAtHead) {
+        addEntryToBuffer(new RequestEntryWrapper<>(entry, getSizeInBytes(entry)), insertAtHead);
+    }
+
+    private void addEntryToBuffer(RequestEntryWrapper<RequestEntryT> entry, boolean insertAtHead) {
         if (bufferedRequestEntries.isEmpty() && !existsActiveTimerCallback) {
             registerCallback();
         }
 
-        RequestEntryWrapper<RequestEntryT> wrappedEntry =
-                new RequestEntryWrapper<>(entry, getSizeInBytes(entry));
-
-        if (wrappedEntry.getSize() > maxRecordSizeInBytes) {
+        if (entry.getSize() > maxRecordSizeInBytes) {
             throw new IllegalArgumentException(
                     String.format(
                             "The request entry sent to the buffer was of size [%s], when the maxRecordSizeInBytes was set to [%s].",
-                            wrappedEntry.getSize(), maxRecordSizeInBytes));
+                            entry.getSize(), maxRecordSizeInBytes));
         }
 
         if (insertAtHead) {
-            bufferedRequestEntries.addFirst(wrappedEntry);
+            bufferedRequestEntries.addFirst(entry);
         } else {
-            bufferedRequestEntries.add(wrappedEntry);
+            bufferedRequestEntries.add(entry);
         }
 
-        bufferedRequestEntriesTotalSizeInBytes += wrappedEntry.getSize();
+        bufferedRequestEntriesTotalSizeInBytes += entry.getSize();
     }
 
     /**
@@ -517,23 +518,10 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     private void initializeState(Collection<BufferedRequestState<RequestEntryT>> states) {
         for (BufferedRequestState<RequestEntryT> state : states) {
-            initializeState(state);
-        }
-    }
-
-    private void initializeState(BufferedRequestState<RequestEntryT> state) {
-        this.bufferedRequestEntries.addAll(state.getBufferedRequestEntries());
-
-        for (RequestEntryWrapper<RequestEntryT> wrapper : bufferedRequestEntries) {
-            if (wrapper.getSize() > maxRecordSizeInBytes) {
-                throw new IllegalStateException(
-                        String.format(
-                                "State contains record of size %d which exceeds sink maximum record size %d.",
-                                wrapper.getSize(), maxRecordSizeInBytes));
+            for (RequestEntryWrapper<RequestEntryT> wrapper : state.getBufferedRequestEntries()) {
+                addEntryToBuffer(wrapper, false);
             }
         }
-
-        this.bufferedRequestEntriesTotalSizeInBytes += state.getStateSize();
     }
 
     @Override
