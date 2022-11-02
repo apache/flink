@@ -18,9 +18,7 @@
 
 package org.apache.flink.architecture.common;
 
-import com.tngtech.archunit.base.ChainableFunction;
 import com.tngtech.archunit.base.DescribedPredicate;
-import com.tngtech.archunit.base.Function;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaModifier;
@@ -29,6 +27,7 @@ import com.tngtech.archunit.core.domain.properties.CanBeAnnotated;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.tngtech.archunit.lang.conditions.ArchPredicates.is;
@@ -48,7 +47,9 @@ public class Predicates {
             Class<? extends Annotation>... annotations) {
         return Arrays.stream(annotations)
                 .map(CanBeAnnotated.Predicates::annotatedWith)
-                .reduce(DescribedPredicate::or)
+                .reduce(
+                        (canBeAnnotatedDescribedPredicate, other) ->
+                                canBeAnnotatedDescribedPredicate.or(other))
                 .orElseThrow(IllegalArgumentException::new)
                 .forSubtype();
     }
@@ -61,7 +62,7 @@ public class Predicates {
             DescribedPredicate<? super JavaField> predicate) {
         return new ContainAnyFieldsThatPredicate<>(
                 "fields",
-                new ChainableFunction<JavaClass, Set<JavaField>>() {
+                new Function<JavaClass, Set<JavaField>>() {
                     @Override
                     public Set<JavaField> apply(JavaClass input) {
                         // need to get all fields with the inheritance hierarchy
@@ -164,10 +165,7 @@ public class Predicates {
                         + Arrays.stream(other)
                                 .map(dp -> "* " + dp + "\n")
                                 .collect(Collectors.joining()),
-                t ->
-                        Arrays.stream(other)
-                                .map(dp -> dp.apply(t))
-                                .reduce(false, Boolean::logicalXor));
+                t -> Arrays.stream(other).map(dp -> dp.test(t)).reduce(false, Boolean::logicalXor));
     }
 
     private Predicates() {}
@@ -191,9 +189,9 @@ public class Predicates {
         }
 
         @Override
-        public boolean apply(JavaClass input) {
+        public boolean test(JavaClass input) {
             for (T member : getFields.apply(input)) {
-                if (predicate.apply(member)) {
+                if (predicate.test(member)) {
                     return true;
                 }
             }

@@ -34,7 +34,7 @@ public class SourcePredicates {
     public static DescribedPredicate<JavaClass> areJavaClasses() {
         return new DescribedPredicate<JavaClass>("are Java classes") {
             @Override
-            public boolean apply(JavaClass clazz) {
+            public boolean test(JavaClass clazz) {
                 return isJavaClass(clazz);
             }
         };

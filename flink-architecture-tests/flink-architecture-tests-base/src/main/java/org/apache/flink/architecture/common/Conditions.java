@@ -43,7 +43,7 @@ public class Conditions {
         return new ArchCondition<T>(predicate.getDescription()) {
             @Override
             public void check(T item, ConditionEvents events) {
-                if (!predicate.apply(item)) {
+                if (!predicate.test(item)) {
                     final String message =
                             String.format(
                                     "%s does not satisfy: %s",
@@ -89,7 +89,7 @@ public class Conditions {
                         continue;
                     }
 
-                    if (!typePredicate.apply(leafType)) {
+                    if (!typePredicate.test(leafType)) {
                         final String message =
                                 String.format(
                                         "%s: Returned leaf type %s does not satisfy: %s",
@@ -125,7 +125,7 @@ public class Conditions {
                         continue;
                     }
 
-                    if (!typePredicate.apply(leafType)) {
+                    if (!typePredicate.test(leafType)) {
                         final String message =
                                 String.format(
                                         "%s: Argument leaf type %s does not satisfy: %s",
@@ -161,7 +161,7 @@ public class Conditions {
                         continue;
                     }
 
-                    if (!typePredicate.apply(leafType)) {
+                    if (!typePredicate.test(leafType)) {
                         final String message =
                                 String.format(
                                         "%s: Exception leaf type %s does not satisfy: %s",
