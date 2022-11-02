@@ -469,7 +469,9 @@ public class EnvironmentInformation {
                 }
             }
 
-            log.info(" Classpath: " + System.getProperty("java.class.path"));
+            String classPath = System.getProperty("java.class.path");
+
+            log.info(" Classpath: " + classPath.replace("/*", "/ *"));
 
             log.info(
                     "--------------------------------------------------------------------------------");
