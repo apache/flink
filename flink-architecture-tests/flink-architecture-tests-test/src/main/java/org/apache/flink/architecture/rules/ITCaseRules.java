@@ -57,6 +57,7 @@ public class ITCaseRules {
                                     .doNotHaveModifier(ABSTRACT)
                                     .should()
                                     .haveSimpleNameEndingWith("ITCase"))
+                    // FALSE by default however not every module has inheritors of AbstractTestBase
                     .allowEmptyShould(true)
                     .as(
                             "Tests inheriting from AbstractTestBase should have name ending with ITCase");

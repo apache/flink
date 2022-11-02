@@ -62,13 +62,7 @@ public class Predicates {
             DescribedPredicate<? super JavaField> predicate) {
         return new ContainAnyFieldsThatPredicate<>(
                 "fields",
-                new Function<JavaClass, Set<JavaField>>() {
-                    @Override
-                    public Set<JavaField> apply(JavaClass input) {
-                        // need to get all fields with the inheritance hierarchy
-                        return input.getAllFields();
-                    }
-                },
+                JavaClass::getAllFields,
                 predicate);
     }
 
