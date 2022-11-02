@@ -36,6 +36,7 @@ object FlinkStreamProgram {
   val PROJECT_REWRITE = "project_rewrite"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
+  val SNAPSHOT_REQUIREMENT = "snapshot_requirement"
   val TIME_INDICATOR = "time_indicator"
   val PHYSICAL = "physical"
   val PHYSICAL_REWRITE = "physical_rewrite"
@@ -257,6 +258,9 @@ object FlinkStreamProgram {
         .add(FlinkStreamRuleSets.LOGICAL_REWRITE)
         .build()
     )
+
+    // update snapshot requirement to source scan
+    chainedProgram.addLast(SNAPSHOT_REQUIREMENT, new FlinkSnapshotRequirementProgram)
 
     // convert time indicators
     chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)

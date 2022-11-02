@@ -78,8 +78,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     // step3: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
       val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
-      throw new TableException(
-        "Can't generate a valid execution plan for the given query:\n" + plan)
+      val error = s"""
+                     |Can't generate a valid execution plan for the given query:$plan
+                     |Intermediate plan with modify kind:
+                     |${FlinkRelOptUtil.toString(rootWithModifyKindSet, withChangelogTraits = true)}
+              """.stripMargin
+      throw new TableException(error)
     } else {
       finalRoot.head
     }

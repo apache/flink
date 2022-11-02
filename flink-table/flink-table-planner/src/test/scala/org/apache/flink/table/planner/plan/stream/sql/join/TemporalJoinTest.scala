@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.table.api.{ExplainDetail, ValidationException}
+import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.{Before, Test}
@@ -93,6 +93,21 @@ class TemporalJoinTest extends TableTestBase {
                     |) WITH (
                     | 'connector' = 'values',
                     | 'changelog-mode' = 'I,UB,UA,D',
+                    | 'disable-lookup' = 'true'
+                    |)
+      """.stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE UpsertRates (
+                    | currency STRING,
+                    | rate INT,
+                    | valid VARCHAR,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'changelog-mode' = 'I,UA,D',
                     | 'disable-lookup' = 'true'
                     |)
       """.stripMargin)
@@ -568,6 +583,52 @@ class TemporalJoinTest extends TableTestBase {
         |      ON o.currency_no = r.currency_no AND o.currency = r.currency
         |""".stripMargin
     util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinUpsertSourceWithPostFilter(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "UpsertRates FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency WHERE valid = 'true'"
+
+    util.verifyExplain(sqlQuery, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinUpsertSourceWithPreFilter(): Unit = {
+    util.tableEnv.executeSql(s"""
+                                |CREATE TEMPORARY VIEW V1 AS
+                                |SELECT * FROM UpsertRates WHERE valid = 'true'
+                                |""".stripMargin)
+
+    /**
+     * The problem is: there's exists a filter on an upsert changelog input(changelogMode=[I,UA,D]),
+     * the UB message must exists for correctness.
+     *
+     * Intermediate plan with modify kind:
+     * {{{
+     * +- TemporalJoin(joinType=[InnerJoin], ..., changelogMode=[I])
+     *    :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+     *      : +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+     *        : +- Calc(select=[amount, currency, rowtime, ... changelogMode=[I])
+     *          : +- TableSourceScan(table= Orders ... changelogMode=[I])
+     *    +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+     *      +- Calc(select=[currency, ... where=[=(valid, _UTF-16LE'true')], changelogMode=[I,UA,D])
+     *        +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+     *          +- TableSourceScan(table= UpsertRates, ... changelogMode=[I,UA,D])
+     * }}}
+     */
+
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "V1 FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+
+    expectExceptionThrown(
+      sqlQuery,
+      "Can't generate a valid execution plan for the given query",
+      classOf[TableException])
   }
 
   private def expectExceptionThrown(
