@@ -47,9 +47,7 @@ public class Predicates {
             Class<? extends Annotation>... annotations) {
         return Arrays.stream(annotations)
                 .map(CanBeAnnotated.Predicates::annotatedWith)
-                .reduce(
-                        (canBeAnnotatedDescribedPredicate, other) ->
-                                canBeAnnotatedDescribedPredicate.or(other))
+                .reduce((p, pOther) -> p.or(pOther))
                 .orElseThrow(IllegalArgumentException::new)
                 .forSubtype();
     }
@@ -60,10 +58,7 @@ public class Predicates {
      */
     public static DescribedPredicate<JavaClass> containAnyFieldsInClassHierarchyThat(
             DescribedPredicate<? super JavaField> predicate) {
-        return new ContainAnyFieldsThatPredicate<>(
-                "fields",
-                JavaClass::getAllFields,
-                predicate);
+        return new ContainAnyFieldsThatPredicate<>("fields", JavaClass::getAllFields, predicate);
     }
 
     /**
