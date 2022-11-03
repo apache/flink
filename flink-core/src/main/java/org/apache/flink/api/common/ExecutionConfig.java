@@ -21,6 +21,7 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +30,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -149,8 +151,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
             new RestartStrategies.FallbackRestartStrategyConfiguration();
-
-    private boolean isDynamicGraph = false;
 
     // ------------------------------- User code values --------------------------------------------
 
@@ -464,14 +464,20 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         }
     }
 
+    /**
+     * TODO: this shouldn't exist and shouldn't pollute public API. Tests should change this via
+     * Configuration
+     */
+    @VisibleForTesting
     @Internal
-    public void setDynamicGraph(boolean dynamicGraph) {
-        isDynamicGraph = dynamicGraph;
+    public ExecutionConfig setScheduler(SchedulerType schedulerType) {
+        configuration.set(JobManagerOptions.SCHEDULER, schedulerType);
+        return this;
     }
 
     @Internal
     public boolean isDynamicGraph() {
-        return isDynamicGraph;
+        return configuration.get(JobManagerOptions.SCHEDULER) == SchedulerType.AdaptiveBatch;
     }
 
     /**
@@ -953,8 +959,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                             other.registeredTypesWithKryoSerializerClasses)
                     && defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses)
                     && registeredKryoTypes.equals(other.registeredKryoTypes)
-                    && registeredPojoTypes.equals(other.registeredPojoTypes)
-                    && isDynamicGraph == other.isDynamicGraph;
+                    && registeredPojoTypes.equals(other.registeredPojoTypes);
 
         } else {
             return false;
@@ -970,8 +975,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 registeredTypesWithKryoSerializerClasses,
                 defaultKryoSerializerClasses,
                 registeredKryoTypes,
-                registeredPojoTypes,
-                isDynamicGraph);
+                registeredPojoTypes);
     }
 
     @Override
@@ -997,8 +1001,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + registeredKryoTypes
                 + ", registeredPojoTypes="
                 + registeredPojoTypes
-                + ", isDynamicGraph="
-                + isDynamicGraph
                 + '}';
     }
 
@@ -1155,13 +1157,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
 
-        configuration
-                .getOptional(JobManagerOptions.SCHEDULER)
-                .ifPresent(
-                        schedulerType ->
-                                this.setDynamicGraph(
-                                        schedulerType
-                                                == JobManagerOptions.SchedulerType.AdaptiveBatch));
+        configuration.getOptional(JobManagerOptions.SCHEDULER).ifPresent(this::setScheduler);
     }
 
     /**

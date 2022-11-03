@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.planner.plan.batch.sql;
 
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
@@ -35,7 +36,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     public void before() {
         util = batchTestUtil(TableConfig.getDefault());
 
-        util.getStreamEnv().getConfig().setDynamicGraph(true);
+        util.getStreamEnv().getConfig().setScheduler(SchedulerType.AdaptiveBatch);
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
