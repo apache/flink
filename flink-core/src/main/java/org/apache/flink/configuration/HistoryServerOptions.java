@@ -148,11 +148,7 @@ public class HistoryServerOptions {
                     .intType()
                     .defaultValue(500)
                     .withDescription(
-                            Description.builder()
-                                    .text(
-                                            String.format(
-                                                    "The maximum number of cached unzipped jobs in HistoryServer"))
-                                    .build());
+                            "The maximum number of cached unzipped jobs in HistoryServer");
 
     private HistoryServerOptions() {}
 }

@@ -103,7 +103,8 @@ public class HistoryServerStaticFileServerHandler
     private static final Logger LOG =
             LoggerFactory.getLogger(HistoryServerStaticFileServerHandler.class);
 
-    private static final long UNZIP_TIMEOUT = 10L;
+    private static final long UNZIP_TIMEOUT_SECOND = 10L;
+    private static final int JOBID_LENGTH = 32;
 
     // ------------------------------------------------------------------------
 
@@ -204,17 +205,15 @@ public class HistoryServerStaticFileServerHandler
                             Boolean unzipped =
                                     CompletableFuture.supplyAsync(
                                                     unzipTask.apply(jobId), unzipExecutor)
-                                            .get(UNZIP_TIMEOUT, TimeUnit.SECONDS);
-                            if (unzipped && file.exists()) {
-                                success = true;
-                            }
+                                            .get(UNZIP_TIMEOUT_SECOND, TimeUnit.SECONDS);
+                            success = unzipped && file.exists();
                         }
                     }
                 } catch (TimeoutException t) {
                     LOG.debug(
                             "Didn't unzip archived file after {} seconds. "
                                     + "HistoryServer is stilling unzipping",
-                            UNZIP_TIMEOUT,
+                            UNZIP_TIMEOUT_SECOND,
                             t);
                     isUnzipping = true;
                     throw new NotFoundException(
@@ -327,14 +326,14 @@ public class HistoryServerStaticFileServerHandler
 
     static String extractJobId(String requestPath) {
         if (StringUtils.isNullOrWhitespaceOnly(requestPath)
-                || !requestPath.matches("^/jobs/.{32}\\.json$")) {
+                || !requestPath.matches("^/jobs/.{" + JOBID_LENGTH + "}\\.json$")) {
             return null;
         }
         String secondPath = requestPath.split("/")[2];
-        if (StringUtils.isNullOrWhitespaceOnly(secondPath) || secondPath.length() < 32) {
+        if (StringUtils.isNullOrWhitespaceOnly(secondPath) || secondPath.length() < JOBID_LENGTH) {
             return null;
         }
-        return secondPath.substring(0, 32);
+        return secondPath.substring(0, JOBID_LENGTH);
     }
 
     @Override

@@ -228,11 +228,7 @@ class HistoryServerArchiveFetcher {
                 jobInRefreshLocation.retainAll(jobInLocal);
                 this.cachedArchivesPerRefreshDirectory.get(refreshDir).addAll(jobInRefreshLocation);
             } catch (IOException e) {
-                LOG.error(
-                        "Failed to reload archivedJobs in {}.",
-                        refreshDir,
-                        refreshDir,
-                        e);
+                LOG.error("Failed to reload archivedJobs in {}.", refreshDir, refreshDir, e);
             }
         }
 
