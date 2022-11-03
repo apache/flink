@@ -44,6 +44,7 @@ import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -105,6 +106,9 @@ public class HistoryServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(HistoryServer.class);
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+    private static final String ARCHIVED_JOBS_DIR = "archivedJobs";
+    private static final String JOBS_DIR = "jobs";
+    private static final String OVERVIEWS_DIR = "overviews";
 
     private final Configuration config;
 
@@ -361,6 +365,26 @@ public class HistoryServer {
                 }
 
                 ExecutorUtils.gracefulShutdown(1, TimeUnit.MINUTES, fetcherExecutor, unzipExecutor);
+                try {
+                    LOG.info("Removing web dashboard cached WebFrontend files in dir {}", webDir);
+                    for (java.nio.file.Path path : FileUtils.listDirectory(webDir.toPath())) {
+                        if ((Files.isDirectory(path) && path
+                                .toFile().getName()
+                                .equals(ARCHIVED_JOBS_DIR))
+                                || (Files.isDirectory(path) && path
+                                .toFile().getName()
+                                .equals(JOBS_DIR))
+                                || (Files.isDirectory(path) && path
+                                .toFile().getName()
+                                .equals(OVERVIEWS_DIR))) {
+                            continue;
+                        }
+                        FileUtils.deleteFileOrDirectory(path.toFile());
+                        LOG.info("Clean legacy file: {}", path);
+                    }
+                } catch (Throwable t) {
+                    LOG.warn("Error while deleting cached WebFrontend files in dir {}", webDir, t);
+                }
                 LOG.info("Stopped history server.");
 
                 // Remove shutdown hook to prevent resource leaks

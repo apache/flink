@@ -398,6 +398,63 @@ class HistoryServerTest {
     }
 
     @Test
+    void testCleanWhenHistoryServer() throws Exception {
+        final int numArchivesBeforeHsStarted = 4;
+        final int numTriggerUnzipJobNum = 2;
+        final int numArchivesToRemove = 1;
+
+        CountDownLatch numArchivesJobsReloaded = new CountDownLatch(numTriggerUnzipJobNum);
+        CountDownLatch numArchivesJobsTotal = new CountDownLatch(numArchivesBeforeHsStarted);
+        CountDownLatch numUnzippedJobsTotal = new CountDownLatch(numTriggerUnzipJobNum);
+
+        Configuration historyServerConfig = createTestConfiguration(true);
+
+        HistoryServer hs =
+                new HistoryServer(
+                        historyServerConfig,
+                        (event) -> {
+                            switch (event.getType()) {
+                                case DOWNLOADED:
+                                    numArchivesJobsTotal.countDown();
+                                    break;
+                                case CREATED:
+                                    numUnzippedJobsTotal.countDown();
+                                    break;
+                                case RELOADED:
+                                    numArchivesJobsReloaded.countDown();
+                                    break;
+                            }
+                        });
+
+        try {
+            hs.start();
+            for (int x = 0; x < numArchivesBeforeHsStarted; x++) {
+                runJob();
+            }
+            assertThat(numArchivesJobsTotal.await(10L, TimeUnit.SECONDS)).isTrue();
+
+            Set<String> jobSet = getIdsFromArchivedDir();
+            int triggerNum = numTriggerUnzipJobNum;
+            Iterator<String> jobIterator = jobSet.iterator();
+            while (jobIterator.hasNext() && triggerNum > 0) {
+                String jobIdToView = jobIterator.next();
+                String baseUrl = "http://localhost:" + hs.getWebPort();
+                getJobOverview(baseUrl, jobIdToView);
+                triggerNum--;
+            }
+            assertThat(numUnzippedJobsTotal.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(getIdsFromArchivedDir()).hasSize(numArchivesBeforeHsStarted);
+        } finally {
+            hs.stop();
+        }
+
+        assertThat(getFileNameInHSDir()).hasSize(3);
+        assertThat(getFileNameInHSDir()).contains("overviews");
+        assertThat(getFileNameInHSDir()).contains("jobs");
+        assertThat(getFileNameInHSDir()).contains("archivedJobs");
+    }
+
+    @Test
     void testReloadUnzipArchivedFile() throws Exception {
         final int numArchivesBeforeHsStarted = 4;
         final int numTriggerUnzipJobNum = 2;
@@ -487,6 +544,10 @@ class HistoryServerTest {
 
     private Set<String> getIdsFromArchivedDir() {
         return Arrays.stream(this.archivedJobsDirectory.list()).collect(Collectors.toSet());
+    }
+
+    private Set<String> getFileNameInHSDir() {
+        return Arrays.stream(this.hsDirectory.list()).collect(Collectors.toSet());
     }
 
     @Test
