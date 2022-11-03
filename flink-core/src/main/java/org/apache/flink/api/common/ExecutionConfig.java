@@ -152,14 +152,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     private boolean isDynamicGraph = false;
 
-    private long taskCancellationIntervalMillis = -1;
-
-    /**
-     * Timeout after which an ongoing task cancellation will lead to a fatal TaskManager error,
-     * usually killing the JVM.
-     */
-    private long taskCancellationTimeoutMillis = -1;
-
     // ------------------------------- User code values --------------------------------------------
 
     private GlobalJobParameters globalJobParameters = new GlobalJobParameters();
@@ -383,7 +375,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * Gets the interval (in milliseconds) between consecutive attempts to cancel a running task.
      */
     public long getTaskCancellationInterval() {
-        return this.taskCancellationIntervalMillis;
+        return configuration.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
     }
 
     /**
@@ -393,7 +385,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param interval the interval (in milliseconds).
      */
     public ExecutionConfig setTaskCancellationInterval(long interval) {
-        this.taskCancellationIntervalMillis = interval;
+        configuration.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, interval);
         return this;
     }
 
@@ -406,7 +398,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @PublicEvolving
     public long getTaskCancellationTimeout() {
-        return this.taskCancellationTimeoutMillis;
+        return configuration.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
     }
 
     /**
@@ -424,7 +416,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @PublicEvolving
     public ExecutionConfig setTaskCancellationTimeout(long timeout) {
         checkArgument(timeout >= 0, "Timeout needs to be >= 0.");
-        this.taskCancellationTimeoutMillis = timeout;
+        configuration.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, timeout);
         return this;
     }
 
@@ -962,7 +954,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                     && defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses)
                     && registeredKryoTypes.equals(other.registeredKryoTypes)
                     && registeredPojoTypes.equals(other.registeredPojoTypes)
-                    && taskCancellationIntervalMillis == other.taskCancellationIntervalMillis
                     && isDynamicGraph == other.isDynamicGraph;
 
         } else {
@@ -980,7 +971,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 defaultKryoSerializerClasses,
                 registeredKryoTypes,
                 registeredPojoTypes,
-                taskCancellationIntervalMillis,
                 isDynamicGraph);
     }
 
@@ -993,10 +983,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + executionRetryDelay
                 + ", restartStrategyConfiguration="
                 + restartStrategyConfiguration
-                + ", taskCancellationIntervalMillis="
-                + taskCancellationIntervalMillis
-                + ", taskCancellationTimeoutMillis="
-                + taskCancellationTimeoutMillis
                 + ", globalJobParameters="
                 + globalJobParameters
                 + ", registeredTypesWithKryoSerializers="
@@ -1176,6 +1162,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                                 this.setDynamicGraph(
                                         schedulerType
                                                 == JobManagerOptions.SchedulerType.AdaptiveBatch));
+    }
+
+    /**
+     * @return A copy of internal {@link #configuration}. Note it is missing all options that are
+     *     stored as plain java fields in {@link ExecutionConfig}, for example {@link
+     *     #registeredKryoTypes} or {@link #globalJobParameters}.
+     */
+    @Internal
+    public Configuration toConfiguration() {
+        return new Configuration(configuration);
     }
 
     private LinkedHashSet<Class<?>> loadClasses(
