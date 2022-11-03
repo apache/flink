@@ -106,6 +106,7 @@ stages:
           stage_name: cron_snapshot_deployment
           environment: PROFILE=""
           container: flink-build-container
+          jdk: 8
       - template: jobs-template.yml
         parameters:
           stage_name: cron_azure
