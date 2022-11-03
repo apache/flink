@@ -376,6 +376,8 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             resp.setInfoValue(tInfoValue);
         } catch (Throwable t) {
             LOG.error("Failed to GetInfo.", t);
+            // InfoValue must be set because the hive service requires it.
+            resp.setInfoValue(TGetInfoValue.lenValue(0));
             resp.setStatus(toTStatus(t));
         }
         return resp;
