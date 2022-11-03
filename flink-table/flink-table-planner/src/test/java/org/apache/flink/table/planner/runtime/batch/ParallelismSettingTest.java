@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -41,7 +42,7 @@ public class ParallelismSettingTest extends TableTestBase {
     public void before() {
         util = batchTestUtil(TableConfig.getDefault());
 
-        util.getStreamEnv().getConfig().setDynamicGraph(true);
+        util.getStreamEnv().getConfig().setScheduler(SchedulerType.AdaptiveBatch);
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE MyTable (\n"

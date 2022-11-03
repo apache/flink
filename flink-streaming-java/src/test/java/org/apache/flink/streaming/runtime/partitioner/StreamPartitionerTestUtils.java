@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,9 +48,11 @@ public class StreamPartitionerTestUtils {
             StreamPartitioner<Long> streamPartitioner,
             StreamExchangeMode exchangeMode) {
 
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.SCHEDULER, SchedulerType.AdaptiveBatch);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        env.getConfig().setDynamicGraph(true);
 
         final DataStream<Long> source =
                 env.fromSequence(0, 99).slotSharingGroup(sourceSlotSharingGroup).name("source");
