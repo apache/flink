@@ -368,15 +368,12 @@ public class HistoryServer {
                 try {
                     LOG.info("Removing web dashboard cached WebFrontend files in dir {}", webDir);
                     for (java.nio.file.Path path : FileUtils.listDirectory(webDir.toPath())) {
-                        if ((Files.isDirectory(path) && path
-                                .toFile().getName()
-                                .equals(ARCHIVED_JOBS_DIR))
-                                || (Files.isDirectory(path) && path
-                                .toFile().getName()
-                                .equals(JOBS_DIR))
-                                || (Files.isDirectory(path) && path
-                                .toFile().getName()
-                                .equals(OVERVIEWS_DIR))) {
+                        if ((Files.isDirectory(path)
+                                        && path.toFile().getName().equals(ARCHIVED_JOBS_DIR))
+                                || (Files.isDirectory(path)
+                                        && path.toFile().getName().equals(JOBS_DIR))
+                                || (Files.isDirectory(path)
+                                        && path.toFile().getName().equals(OVERVIEWS_DIR))) {
                             continue;
                         }
                         FileUtils.deleteFileOrDirectory(path.toFile());

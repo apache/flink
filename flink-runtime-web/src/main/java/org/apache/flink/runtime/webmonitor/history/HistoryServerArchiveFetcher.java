@@ -67,6 +67,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -211,6 +212,30 @@ class HistoryServerArchiveFetcher {
             LOG.info("No legacy archived jobs");
             return;
         }
+        Set<String> jobInLocal =
+                Arrays.stream(this.webArchivedDir.list()).collect(Collectors.toSet());
+        LOG.info("Reload left archived jobs : [{}]", String.join(",", jobInLocal));
+
+        for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
+            Path refreshDir = refreshLocation.getPath();
+            try {
+                FileStatus[] jobArchives = listArchives(refreshLocation.getFs(), refreshDir);
+                Set<String> jobInrefreshLocation =
+                        Arrays.stream(jobArchives)
+                                .map(FileStatus::getPath)
+                                .map(Path::getName)
+                                .collect(Collectors.toSet());
+                jobInrefreshLocation.retainAll(jobInLocal);
+                this.cachedArchivesPerRefreshDirectory.get(refreshDir).addAll(jobInrefreshLocation);
+            } catch (IOException e) {
+                LOG.error(
+                        "Failed to reload archivedJobs in {}, "
+                                + "because fail to access job archive location for path {}.",
+                        refreshDir,
+                        refreshDir,
+                        e);
+            }
+        }
 
         for (String jobId : Objects.requireNonNull(this.webArchivedDir.list())) {
             this.cachedArchivesPerRefreshDirectory.forEach((path, archives) -> archives.add(jobId));
@@ -233,6 +258,7 @@ class HistoryServerArchiveFetcher {
                         jobID -> {
                             unzippedJobCache.put(jobID, true);
                             events.add(new ArchiveEvent(jobID, ArchiveEventType.RELOADED));
+                            LOG.info("Reload left unzipped job : {}", jobID);
                         });
     }
 
@@ -372,9 +398,11 @@ class HistoryServerArchiveFetcher {
     }
 
     private void downloadArchivedJobToLocal(File archivedJob, Path file) throws IOException {
-        try (FSDataInputStream input = file.getFileSystem().open(file);
-                FileOutputStream output = new FileOutputStream(archivedJob)) {
-            IOUtils.copyBytes(input, output);
+        if (!archivedJob.exists()) {
+            try (FSDataInputStream input = file.getFileSystem().open(file);
+                    FileOutputStream output = new FileOutputStream(archivedJob)) {
+                IOUtils.copyBytes(input, output);
+            }
         }
     }
 
