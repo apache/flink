@@ -1011,6 +1011,7 @@ under the License.
 							<configuration>
 								<additionalJOptions>
 									<additionalJOption>--add-exports=java.base/sun.net.util=ALL-UNNAMED</additionalJOption>
+									<additionalJOption>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</additionalJOption>
 								</additionalJOptions>
 							</configuration>
 						</plugin>
