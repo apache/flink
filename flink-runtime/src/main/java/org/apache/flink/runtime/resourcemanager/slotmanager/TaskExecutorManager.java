@@ -90,7 +90,7 @@ class TaskExecutorManager implements AutoCloseable {
     private final Time taskManagerTimeout;
 
     /** Callbacks for resource (de-)allocations. */
-    private final ResourceActions resourceActions;
+    private final ResourceAllocator resourceAllocator;
 
     /** All currently registered task managers. */
     private final Map<InstanceID, TaskManagerRegistration> taskManagerRegistrations =
@@ -111,7 +111,7 @@ class TaskExecutorManager implements AutoCloseable {
             Time taskManagerTimeout,
             ScheduledExecutor scheduledExecutor,
             Executor mainThreadExecutor,
-            ResourceActions resourceActions) {
+            ResourceAllocator resourceAllocator) {
 
         this.defaultWorkerResourceSpec = defaultWorkerResourceSpec;
         this.numSlotsPerWorker = numSlotsPerWorker;
@@ -123,7 +123,7 @@ class TaskExecutorManager implements AutoCloseable {
                 SlotManagerUtils.generateDefaultSlotResourceProfile(
                         defaultWorkerResourceSpec, numSlotsPerWorker);
 
-        this.resourceActions = Preconditions.checkNotNull(resourceActions);
+        this.resourceAllocator = Preconditions.checkNotNull(resourceAllocator);
         this.mainThreadExecutor = mainThreadExecutor;
         taskManagerTimeoutsAndRedundancyCheck =
                 scheduledExecutor.scheduleWithFixedDelay(
@@ -157,7 +157,7 @@ class TaskExecutorManager implements AutoCloseable {
             LOG.info(
                     "The total number of slots exceeds the max limitation {}, releasing the excess task executor.",
                     maxSlotNum);
-            resourceActions.releaseResource(
+            resourceAllocator.releaseResource(
                     taskExecutorConnection.getInstanceID(),
                     new FlinkExpectedException(
                             "The total number of slots exceeds the max limitation."));
@@ -270,7 +270,7 @@ class TaskExecutorManager implements AutoCloseable {
             return Optional.empty();
         }
 
-        if (!resourceActions.allocateResource(defaultWorkerResourceSpec)) {
+        if (!resourceAllocator.allocateResource(defaultWorkerResourceSpec)) {
             // resource cannot be allocated
             return Optional.empty();
         }
@@ -321,7 +321,7 @@ class TaskExecutorManager implements AutoCloseable {
                         >= taskManagerTimeout.toMilliseconds()) {
                     // we collect the instance ids first in order to avoid concurrent modifications
                     // by the
-                    // ResourceActions.releaseResource call
+                    // ResourceAllocator.releaseResource call
                     timedOutTaskManagers.add(taskManagerRegistration);
                 }
             }
@@ -406,7 +406,7 @@ class TaskExecutorManager implements AutoCloseable {
         LOG.debug(
                 "Release TaskExecutor {} because it exceeded the idle timeout.",
                 timedOutTaskManagerId);
-        resourceActions.releaseResource(timedOutTaskManagerId, cause);
+        resourceAllocator.releaseResource(timedOutTaskManagerId, cause);
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -56,7 +56,8 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
-import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocator;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceEventListener;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
@@ -266,7 +267,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             slotManager.start(
                     getFencingToken(),
                     getMainThreadExecutor(),
-                    new ResourceActionsImpl(),
+                    new ResourceAllocatorImpl(),
+                    new ResourceEventListenerImpl(),
                     blocklistHandler::isBlockedTaskManager);
 
             delegationTokenManager.start(this);
@@ -1334,7 +1336,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    private class ResourceActionsImpl implements ResourceActions {
+    private class ResourceAllocatorImpl implements ResourceAllocator {
 
         @Override
         public void releaseResource(InstanceID instanceId, Exception cause) {
@@ -1348,9 +1350,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             validateRunsInMainThread();
             return startNewWorker(workerResourceSpec);
         }
+    }
 
+    private class ResourceEventListenerImpl implements ResourceEventListener {
         @Override
-        public void notifyNotEnoughResourcesAvailable(
+        public void notEnoughResourceAvailable(
                 JobID jobId, Collection<ResourceRequirement> acquiredResources) {
             validateRunsInMainThread();
 

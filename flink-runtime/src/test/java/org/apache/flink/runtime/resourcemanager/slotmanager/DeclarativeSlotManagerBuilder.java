@@ -170,30 +170,56 @@ public class DeclarativeSlotManagerBuilder {
 
     public DeclarativeSlotManager buildAndStartWithDirectExec() {
         return buildAndStartWithDirectExec(
-                ResourceManagerId.generate(), new TestingResourceActionsBuilder().build());
+                ResourceManagerId.generate(),
+                new TestingResourceAllocatorBuilder().build(),
+                new TestingResourceEventListenerBuilder().build());
     }
 
     public DeclarativeSlotManager buildAndStartWithDirectExec(
-            ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions) {
-        return buildAndStart(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
+            ResourceManagerId resourceManagerId, ResourceAllocator resourceAllocator) {
+        return buildAndStartWithDirectExec(
+                resourceManagerId,
+                resourceAllocator,
+                new TestingResourceEventListenerBuilder().build());
     }
 
-    public DeclarativeSlotManager buildAndStart(
+    public DeclarativeSlotManager buildAndStartWithDirectExec(
             ResourceManagerId resourceManagerId,
-            Executor executor,
-            ResourceActions resourceManagerActions) {
+            ResourceAllocator resourceAllocator,
+            ResourceEventListener resourceEventListener) {
         return buildAndStart(
-                resourceManagerId, executor, resourceManagerActions, resourceID -> false);
+                resourceManagerId,
+                Executors.directExecutor(),
+                resourceAllocator,
+                resourceEventListener);
     }
 
     public DeclarativeSlotManager buildAndStart(
             ResourceManagerId resourceManagerId,
             Executor executor,
-            ResourceActions resourceManagerActions,
+            ResourceAllocator resourceAllocator,
+            ResourceEventListener resourceEventListener) {
+        return buildAndStart(
+                resourceManagerId,
+                executor,
+                resourceAllocator,
+                resourceEventListener,
+                resourceID -> false);
+    }
+
+    public DeclarativeSlotManager buildAndStart(
+            ResourceManagerId resourceManagerId,
+            Executor executor,
+            ResourceAllocator resourceAllocator,
+            ResourceEventListener resourceEventListener,
             BlockedTaskManagerChecker blockedTaskManagerChecker) {
         final DeclarativeSlotManager slotManager = build();
         slotManager.start(
-                resourceManagerId, executor, resourceManagerActions, blockedTaskManagerChecker);
+                resourceManagerId,
+                executor,
+                resourceAllocator,
+                resourceEventListener,
+                blockedTaskManagerChecker);
         return slotManager;
     }
 }

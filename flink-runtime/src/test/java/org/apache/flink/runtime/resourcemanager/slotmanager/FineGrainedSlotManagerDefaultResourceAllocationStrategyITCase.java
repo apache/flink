@@ -52,7 +52,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
 
         new Context() {
             {
-                resourceActionsBuilder.setAllocateResourceFunction(
+                resourceAllocatorBuilder.setAllocateResourceFunction(
                         ignored -> {
                             resourceRequests.incrementAndGet();
                             return true;

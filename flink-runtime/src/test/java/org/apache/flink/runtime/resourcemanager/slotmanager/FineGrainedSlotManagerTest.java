@@ -378,7 +378,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         allocateResourceFutures.add(new CompletableFuture<>());
         new Context() {
             {
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         ignored -> {
                             if (allocateResourceFutures.get(0).isDone()) {
                                 allocateResourceFutures.get(1).complete(null);
@@ -445,7 +445,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                 pendingTaskManager.getPendingTaskManagerId(),
                                                 DEFAULT_SLOT_RESOURCE_PROFILE)
                                         .build()));
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         ignored -> requestResourceFuture.complete(null));
                 runTest(
                         () -> {
@@ -496,7 +496,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final CompletableFuture<Void> notifyNotEnoughResourceFuture = new CompletableFuture<>();
         new Context() {
             {
-                resourceActionsBuilder.setNotEnoughResourcesConsumer(
+                resourceEventListenerBuilder.setNotEnoughResourceAvailableConsumer(
                         (jobId1, acquiredResources) -> {
                             notEnoughResourceNotifications.add(
                                     Tuple2.of(jobId1, acquiredResources));
@@ -638,7 +638,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final InstanceID instanceId = taskExecutionConnection.getInstanceID();
         new Context() {
             {
-                resourceActionsBuilder.setReleaseResourceConsumer(
+                resourceAllocatorBuilder.setReleaseResourceConsumer(
                         (instanceID, e) -> releaseResourceFuture.complete(instanceID));
                 slotManagerConfigurationBuilder.setTaskManagerTimeout(taskManagerTimeout);
                 runTest(
@@ -827,7 +827,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
             {
                 maxTotalResourceSetter.accept(slotManagerConfigurationBuilder);
 
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         ignored -> {
                             if (allocateResourceFutures.get(0).isDone()) {
                                 allocateResourceFutures.get(1).complete(null);
@@ -876,7 +876,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
             {
                 maxTotalResourceSetter.accept(slotManagerConfigurationBuilder);
 
-                resourceActionsBuilder.setReleaseResourceConsumer(
+                resourceAllocatorBuilder.setReleaseResourceConsumer(
                         (instanceId, ignore) -> releaseResourceFuture.complete(instanceId));
 
                 runTest(

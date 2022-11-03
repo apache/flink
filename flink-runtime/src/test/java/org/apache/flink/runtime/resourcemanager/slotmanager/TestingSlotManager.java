@@ -114,7 +114,8 @@ public class TestingSlotManager implements SlotManager {
     public void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions,
+            ResourceAllocator newResourceAllocator,
+            ResourceEventListener resourceEventListener,
             BlockedTaskManagerChecker newBlockedTaskManagerChecker) {}
 
     @Override

@@ -18,37 +18,26 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.runtime.slots.ResourceRequirement;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-/** Testing implementation of the {@link ResourceActions}. */
-public class TestingResourceActions implements ResourceActions {
+/** Testing implementation of the {@link ResourceAllocator}. */
+public class TestingResourceAllocator implements ResourceAllocator {
 
     @Nonnull private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
 
     @Nonnull private final Function<WorkerResourceSpec, Boolean> allocateResourceFunction;
 
-    @Nonnull
-    private final BiConsumer<JobID, Collection<ResourceRequirement>>
-            notifyNotEnoughResourcesConsumer;
-
-    public TestingResourceActions(
+    public TestingResourceAllocator(
             @Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
-            @Nonnull Function<WorkerResourceSpec, Boolean> allocateResourceFunction,
-            @Nonnull
-                    BiConsumer<JobID, Collection<ResourceRequirement>>
-                            notifyNotEnoughResourcesConsumer) {
+            @Nonnull Function<WorkerResourceSpec, Boolean> allocateResourceFunction) {
         this.releaseResourceConsumer = releaseResourceConsumer;
         this.allocateResourceFunction = allocateResourceFunction;
-        this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
     }
 
     @Override
@@ -59,11 +48,5 @@ public class TestingResourceActions implements ResourceActions {
     @Override
     public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
         return allocateResourceFunction.apply(workerResourceSpec);
-    }
-
-    @Override
-    public void notifyNotEnoughResourcesAvailable(
-            JobID jobId, Collection<ResourceRequirement> acquiredResources) {
-        notifyNotEnoughResourcesConsumer.accept(jobId, acquiredResources);
     }
 }

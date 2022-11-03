@@ -18,36 +18,31 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.runtime.slots.ResourceRequirement;
 
-import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/** Builder for the {@link TestingResourceActions}. */
-public class TestingResourceActionsBuilder {
+/** Builder for the {@link TestingResourceAllocator}. */
+public class TestingResourceAllocatorBuilder {
     private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
     private Function<WorkerResourceSpec, Boolean> allocateResourceFunction = (ignored) -> true;
-    private BiConsumer<JobID, Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer =
-            (ignoredA, ignoredB) -> {};
 
-    public TestingResourceActionsBuilder setReleaseResourceConsumer(
+    public TestingResourceAllocatorBuilder setReleaseResourceConsumer(
             BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
         this.releaseResourceConsumer = releaseResourceConsumer;
         return this;
     }
 
-    public TestingResourceActionsBuilder setAllocateResourceFunction(
+    public TestingResourceAllocatorBuilder setAllocateResourceFunction(
             Function<WorkerResourceSpec, Boolean> allocateResourceFunction) {
         this.allocateResourceFunction = allocateResourceFunction;
         return this;
     }
 
-    public TestingResourceActionsBuilder setAllocateResourceConsumer(
+    public TestingResourceAllocatorBuilder setAllocateResourceConsumer(
             Consumer<WorkerResourceSpec> allocateResourceConsumer) {
         this.allocateResourceFunction =
                 workerRequest -> {
@@ -57,16 +52,7 @@ public class TestingResourceActionsBuilder {
         return this;
     }
 
-    public TestingResourceActionsBuilder setNotEnoughResourcesConsumer(
-            BiConsumer<JobID, Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
-        this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
-        return this;
-    }
-
-    public TestingResourceActions build() {
-        return new TestingResourceActions(
-                releaseResourceConsumer,
-                allocateResourceFunction,
-                notifyNotEnoughResourcesConsumer);
+    public TestingResourceAllocator build() {
+        return new TestingResourceAllocator(releaseResourceConsumer, allocateResourceFunction);
     }
 }

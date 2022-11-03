@@ -67,7 +67,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                 new CompletableFuture<>();
         new Context() {
             {
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         allocateResourceFuture::complete);
                 runTest(
                         () -> {
@@ -224,7 +224,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         new Context() {
             {
                 setBlockedTaskManagerChecker(blockedTaskManager::equals);
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         allocateResourceFuture::complete);
                 runTest(
                         () -> {
@@ -259,7 +259,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
 
         new Context() {
             {
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         ignored -> {
                             if (allocateResourceFutures.get(0).isDone()) {
                                 allocateResourceFutures.get(1).complete(null);
@@ -430,7 +430,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         final SlotReport slotReport = new SlotReport();
         new Context() {
             {
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         ignored -> allocateResourceFutures.complete(null));
                 runTest(
                         () -> {
@@ -481,7 +481,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         final SlotReport slotReport = new SlotReport();
         new Context() {
             {
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         ignored -> allocateResourceFutures.complete(null));
                 runTest(
                         () -> {
@@ -528,7 +528,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
 
         new Context() {
             {
-                resourceActionsBuilder.setAllocateResourceConsumer(
+                resourceAllocatorBuilder.setAllocateResourceConsumer(
                         ignored -> {
                             if (allocateResourceFutures.get(0).isDone()) {
                                 allocateResourceFutures.get(1).complete(null);
