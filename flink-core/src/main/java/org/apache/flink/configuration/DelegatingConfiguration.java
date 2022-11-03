@@ -325,6 +325,11 @@ public final class DelegatingConfiguration extends Configuration {
     }
 
     @Override
+    public boolean removeKey(String key) {
+        return backingConfig.removeKey(key);
+    }
+
+    @Override
     public boolean containsKey(String key) {
         return backingConfig.containsKey(prefix + key);
     }

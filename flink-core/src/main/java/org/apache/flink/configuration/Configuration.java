@@ -765,6 +765,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         }
     }
 
+    /**
+     * Removes given key from the configuration.
+     *
+     * @param key key of a config option to remove
+     * @return true is config has been removed, false otherwise
+     */
+    public boolean removeKey(String key) {
+        synchronized (this.confData) {
+            boolean removed = this.confData.remove(key) != null;
+            removed |= removePrefixMap(confData, key);
+            return removed;
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     <T> void setValueInternal(String key, T value, boolean canBePrefixMap) {
