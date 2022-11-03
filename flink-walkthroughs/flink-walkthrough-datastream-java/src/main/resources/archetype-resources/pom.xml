@@ -62,13 +62,7 @@ under the License.
 		<!-- This dependency is provided, because it should not be packaged into the JAR file. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
-			<version>${flink.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-dist-pub</artifactId>
 			<version>${flink.version}</version>
 			<scope>provided</scope>
 		</dependency>

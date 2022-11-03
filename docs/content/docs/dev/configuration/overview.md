@@ -141,8 +141,7 @@ dependencies {
     // Compile-time dependencies that should NOT be part of the
     // shadow (uber) jar and are provided in the lib folder of Flink
     // --------------------------------------------------------------
-    implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"
-    implementation "org.apache.flink:flink-clients:${flinkVersion}"
+    implementation "org.apache.flink:flink-dist-pub:${flinkVersion}"
     // --------------------------------------------------------------
     // Dependencies that should be part of the shadow jar, e.g.
     // connectors. These must be in the flinkShadowJar configuration!
