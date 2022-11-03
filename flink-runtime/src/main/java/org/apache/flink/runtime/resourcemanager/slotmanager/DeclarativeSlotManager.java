@@ -69,7 +69,7 @@ public class DeclarativeSlotManager implements SlotManager {
 
     private final SlotTracker slotTracker;
     private final ResourceTracker resourceTracker;
-    private final BiFunction<Executor, ResourceActions, TaskExecutorManager>
+    private final BiFunction<Executor, ResourceAllocator, TaskExecutorManager>
             taskExecutorManagerFactory;
     @Nullable private TaskExecutorManager taskExecutorManager;
 
@@ -97,8 +97,8 @@ public class DeclarativeSlotManager implements SlotManager {
     /** Executor for future callbacks which have to be "synchronized". */
     @Nullable private Executor mainThreadExecutor;
 
-    /** Callbacks for resource (de-)allocations. */
-    @Nullable private ResourceActions resourceActions;
+    /** Callbacks for resource not enough. */
+    @Nullable private ResourceEventListener resourceEventListener;
 
     /** The future of the requirements delay check. */
     @Nullable private CompletableFuture<Void> requirementsCheckFuture;
@@ -131,7 +131,7 @@ public class DeclarativeSlotManager implements SlotManager {
         slotMatchingStrategy = slotManagerConfiguration.getSlotMatchingStrategy();
 
         taskExecutorManagerFactory =
-                (executor, resourceActions) ->
+                (executor, resourceAllocator) ->
                         new TaskExecutorManager(
                                 slotManagerConfiguration.getDefaultWorkerResourceSpec(),
                                 slotManagerConfiguration.getNumSlotsPerWorker(),
@@ -141,10 +141,10 @@ public class DeclarativeSlotManager implements SlotManager {
                                 slotManagerConfiguration.getTaskManagerTimeout(),
                                 scheduledExecutor,
                                 executor,
-                                resourceActions);
+                                resourceAllocator);
 
         resourceManagerId = null;
-        resourceActions = null;
+        resourceEventListener = null;
         mainThreadExecutor = null;
         taskExecutorManager = null;
         blockedTaskManagerChecker = null;
@@ -199,22 +199,23 @@ public class DeclarativeSlotManager implements SlotManager {
      *
      * @param newResourceManagerId to use for communication with the task managers
      * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
-     * @param newResourceActions to use for resource (de-)allocations
+     * @param newResourceAllocator to use for resource (de-)allocations
      * @param newBlockedTaskManagerChecker to query whether a task manager is blocked
      */
     @Override
     public void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions,
+            ResourceAllocator newResourceAllocator,
+            ResourceEventListener newResourceEventListener,
             BlockedTaskManagerChecker newBlockedTaskManagerChecker) {
         LOG.debug("Starting the slot manager.");
 
         this.resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
         mainThreadExecutor = Preconditions.checkNotNull(newMainThreadExecutor);
-        resourceActions = Preconditions.checkNotNull(newResourceActions);
+        resourceEventListener = Preconditions.checkNotNull(newResourceEventListener);
         taskExecutorManager =
-                taskExecutorManagerFactory.apply(newMainThreadExecutor, newResourceActions);
+                taskExecutorManagerFactory.apply(newMainThreadExecutor, newResourceAllocator);
         blockedTaskManagerChecker = Preconditions.checkNotNull(newBlockedTaskManagerChecker);
 
         started = true;
@@ -253,7 +254,7 @@ public class DeclarativeSlotManager implements SlotManager {
 
         taskExecutorManager = null;
         resourceManagerId = null;
-        resourceActions = null;
+        resourceEventListener = null;
         blockedTaskManagerChecker = null;
         started = false;
     }
@@ -723,7 +724,7 @@ public class DeclarativeSlotManager implements SlotManager {
                                 "Could not fulfill resource requirements of job {}. Free slots: {}",
                                 jobId,
                                 slotTracker.getFreeSlots().size());
-                        resourceActions.notifyNotEnoughResourcesAvailable(
+                        resourceEventListener.notEnoughResourceAvailable(
                                 jobId, resourceTracker.getAcquiredResources(jobId));
                         return pendingSlots;
                     }

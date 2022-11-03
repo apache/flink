@@ -40,7 +40,7 @@ import java.util.concurrent.Executor;
  * their allocation and all pending slot requests. Whenever a new slot is registered or an allocated
  * slot is freed, then it tries to fulfill another pending slot request. Whenever there are not
  * enough slots available the slot manager will notify the resource manager about it via {@link
- * ResourceActions#allocateResource(WorkerResourceSpec)}.
+ * ResourceAllocator#allocateResource(WorkerResourceSpec)}.
  *
  * <p>In order to free resources and avoid resource leaks, idling task managers (task managers whose
  * slots are currently not used) and pending slot requests time out triggering their release and
@@ -56,7 +56,7 @@ public interface SlotManager extends AutoCloseable {
     int getNumberFreeSlotsOf(InstanceID instanceId);
 
     /**
-     * Get number of workers SlotManager requested from {@link ResourceActions} that are not yet
+     * Get number of workers SlotManager requested from {@link ResourceAllocator} that are not yet
      * fulfilled.
      *
      * @return a map whose key set is all the unique resource specs of the pending workers, and the
@@ -79,13 +79,15 @@ public interface SlotManager extends AutoCloseable {
      *
      * @param newResourceManagerId to use for communication with the task managers
      * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
-     * @param newResourceActions to use for resource (de-)allocations
+     * @param newResourceAllocator to use for resource (de-)allocations
+     * @param resourceEventListener to use for notify resource not enough
      * @param newBlockedTaskManagerChecker to query whether a task manager is blocked
      */
     void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions,
+            ResourceAllocator newResourceAllocator,
+            ResourceEventListener resourceEventListener,
             BlockedTaskManagerChecker newBlockedTaskManagerChecker);
 
     /** Suspends the component. This clears the internal state of the slot manager. */

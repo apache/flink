@@ -35,7 +35,7 @@ public class TaskExecutorManagerBuilder {
     private Time taskManagerTimeout = Time.seconds(5);
     private final ScheduledExecutor scheduledExecutor;
     private Executor mainThreadExecutor = Executors.directExecutor();
-    private ResourceActions newResourceActions = new TestingResourceActionsBuilder().build();
+    private ResourceAllocator newResourceAllocator = new TestingResourceAllocatorBuilder().build();
 
     public TaskExecutorManagerBuilder(ScheduledExecutor scheduledExecutor) {
         this.scheduledExecutor = scheduledExecutor;
@@ -78,8 +78,8 @@ public class TaskExecutorManagerBuilder {
         return this;
     }
 
-    public TaskExecutorManagerBuilder setResourceActions(ResourceActions newResourceActions) {
-        this.newResourceActions = newResourceActions;
+    public TaskExecutorManagerBuilder setResourceAllocator(ResourceAllocator newResourceAllocator) {
+        this.newResourceAllocator = newResourceAllocator;
         return this;
     }
 
@@ -93,6 +93,6 @@ public class TaskExecutorManagerBuilder {
                 taskManagerTimeout,
                 scheduledExecutor,
                 mainThreadExecutor,
-                newResourceActions);
+                newResourceAllocator);
     }
 }
