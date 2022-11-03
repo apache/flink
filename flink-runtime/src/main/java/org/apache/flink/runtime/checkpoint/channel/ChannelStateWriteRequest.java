@@ -52,15 +52,12 @@ interface ChannelStateWriteRequest {
 
     static CheckpointInProgressRequest completeInput(long checkpointId) {
         return new CheckpointInProgressRequest(
-                "completeInput", checkpointId, ChannelStateCheckpointWriter::completeInput, false);
+                "completeInput", checkpointId, ChannelStateCheckpointWriter::completeInput);
     }
 
     static CheckpointInProgressRequest completeOutput(long checkpointId) {
         return new CheckpointInProgressRequest(
-                "completeOutput",
-                checkpointId,
-                ChannelStateCheckpointWriter::completeOutput,
-                false);
+                "completeOutput", checkpointId, ChannelStateCheckpointWriter::completeOutput);
     }
 
     static ChannelStateWriteRequest write(
@@ -125,8 +122,7 @@ interface ChannelStateWriteRequest {
                                                 "Failed to recycle the output buffer of channel state.",
                                                 e);
                                     }
-                                }),
-                false);
+                                }));
     }
 
     static ChannelStateWriteRequest buildWriteRequest(
@@ -144,8 +140,7 @@ interface ChannelStateWriteRequest {
                         bufferConsumer.accept(writer, buffer);
                     }
                 },
-                throwable -> iterator.close(),
-                false);
+                throwable -> iterator.close());
     }
 
     static void checkBufferIsBuffer(Buffer buffer) {
@@ -165,8 +160,7 @@ interface ChannelStateWriteRequest {
     }
 
     static ChannelStateWriteRequest abort(long checkpointId, Throwable cause) {
-        return new CheckpointInProgressRequest(
-                "abort", checkpointId, writer -> writer.fail(cause), true);
+        return new CheckpointAbortRequest(checkpointId, cause);
     }
 
     static ThrowingConsumer<Throwable, Exception> recycle(Buffer[] flinkBuffers) {
@@ -229,29 +223,25 @@ final class CheckpointInProgressRequest implements ChannelStateWriteRequest {
     private final ThrowingConsumer<Throwable, Exception> discardAction;
     private final long checkpointId;
     private final String name;
-    private final boolean ignoreMissingWriter;
     private final AtomicReference<CheckpointInProgressRequestState> state =
             new AtomicReference<>(NEW);
 
     CheckpointInProgressRequest(
             String name,
             long checkpointId,
-            ThrowingConsumer<ChannelStateCheckpointWriter, Exception> action,
-            boolean ignoreMissingWriter) {
-        this(name, checkpointId, action, unused -> {}, ignoreMissingWriter);
+            ThrowingConsumer<ChannelStateCheckpointWriter, Exception> action) {
+        this(name, checkpointId, action, unused -> {});
     }
 
     CheckpointInProgressRequest(
             String name,
             long checkpointId,
             ThrowingConsumer<ChannelStateCheckpointWriter, Exception> action,
-            ThrowingConsumer<Throwable, Exception> discardAction,
-            boolean ignoreMissingWriter) {
+            ThrowingConsumer<Throwable, Exception> discardAction) {
         this.checkpointId = checkpointId;
         this.action = checkNotNull(action);
         this.discardAction = checkNotNull(discardAction);
         this.name = checkNotNull(name);
-        this.ignoreMissingWriter = ignoreMissingWriter;
     }
 
     @Override
@@ -277,15 +267,37 @@ final class CheckpointInProgressRequest implements ChannelStateWriteRequest {
         }
     }
 
-    void onWriterMissing() {
-        if (!ignoreMissingWriter) {
-            throw new IllegalArgumentException(
-                    "writer not found while processing request: " + toString());
-        }
-    }
-
     @Override
     public String toString() {
         return name + " " + checkpointId;
+    }
+}
+
+final class CheckpointAbortRequest implements ChannelStateWriteRequest {
+
+    private final long checkpointId;
+
+    private final Throwable throwable;
+
+    public CheckpointAbortRequest(long checkpointId, Throwable throwable) {
+        this.checkpointId = checkpointId;
+        this.throwable = throwable;
+    }
+
+    public Throwable getThrowable() {
+        return throwable;
+    }
+
+    @Override
+    public long getCheckpointId() {
+        return checkpointId;
+    }
+
+    @Override
+    public void cancel(Throwable cause) throws Exception {}
+
+    @Override
+    public String toString() {
+        return "Abort checkpointId-" + checkpointId;
     }
 }
