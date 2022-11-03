@@ -220,17 +220,16 @@ class HistoryServerArchiveFetcher {
             Path refreshDir = refreshLocation.getPath();
             try {
                 FileStatus[] jobArchives = listArchives(refreshLocation.getFs(), refreshDir);
-                Set<String> jobInrefreshLocation =
+                Set<String> jobInRefreshLocation =
                         Arrays.stream(jobArchives)
                                 .map(FileStatus::getPath)
                                 .map(Path::getName)
                                 .collect(Collectors.toSet());
-                jobInrefreshLocation.retainAll(jobInLocal);
-                this.cachedArchivesPerRefreshDirectory.get(refreshDir).addAll(jobInrefreshLocation);
+                jobInRefreshLocation.retainAll(jobInLocal);
+                this.cachedArchivesPerRefreshDirectory.get(refreshDir).addAll(jobInRefreshLocation);
             } catch (IOException e) {
                 LOG.error(
-                        "Failed to reload archivedJobs in {}, "
-                                + "because fail to access job archive location for path {}.",
+                        "Failed to reload archivedJobs in {}.",
                         refreshDir,
                         refreshDir,
                         e);
