@@ -90,6 +90,7 @@ under the License.
 		<module>flink-table</module>
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
+		<module>flink-dist-pub</module>
 		<module>flink-dist</module>
 		<module>flink-dist-scala</module>
 		<module>flink-metrics</module>
