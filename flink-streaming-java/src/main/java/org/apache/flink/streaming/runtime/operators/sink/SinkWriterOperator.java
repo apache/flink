@@ -134,7 +134,9 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         super.initializeState(context);
         OptionalLong checkpointId = context.getRestoredCheckpointId();
         InitContext initContext =
-                createInitContext(checkpointId.isPresent() ? checkpointId.getAsLong() : null);
+                createInitContext(
+                        checkpointId.isPresent() ? checkpointId.getAsLong() : null,
+                        getOperatorConfig().isChainEnd());
         if (context.isRestored()) {
             if (committableSerializer != null) {
                 final ListState<List<CommT>> legacyCommitterState =
@@ -256,13 +258,15 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private Sink.InitContext createInitContext(@Nullable Long restoredCheckpointId) {
+    private Sink.InitContext createInitContext(
+            @Nullable Long restoredCheckpointId, boolean isChainEnd) {
         return new InitContextImpl(
                 getRuntimeContext(),
                 processingTimeService,
                 mailboxExecutor,
                 InternalSinkWriterMetricGroup.wrap(getMetricGroup()),
-                restoredCheckpointId);
+                restoredCheckpointId,
+                isChainEnd);
     }
 
     private class Context<IN> implements SinkWriter.Context {
@@ -296,17 +300,21 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         private final StreamingRuntimeContext runtimeContext;
 
+        private final boolean isChainEnd;
+
         public InitContextImpl(
                 StreamingRuntimeContext runtimeContext,
                 ProcessingTimeService processingTimeService,
                 MailboxExecutor mailboxExecutor,
                 SinkWriterMetricGroup metricGroup,
-                @Nullable Long restoredCheckpointId) {
+                @Nullable Long restoredCheckpointId,
+                boolean isChainEnd) {
             this.runtimeContext = checkNotNull(runtimeContext);
             this.mailboxExecutor = checkNotNull(mailboxExecutor);
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
             this.restoredCheckpointId = restoredCheckpointId;
+            this.isChainEnd = isChainEnd;
         }
 
         @Override
@@ -363,6 +371,11 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         public InitializationContext asSerializationSchemaInitializationContext() {
             return new InitContextInitializationContextAdapter(
                     getUserCodeClassLoader(), () -> metricGroup.addGroup("user"));
+        }
+
+        @Override
+        public boolean isChainEnd() {
+            return isChainEnd;
         }
     }
 }

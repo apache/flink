@@ -494,6 +494,11 @@ public class KafkaWriterITCase {
         public <MetaT> Optional<Consumer<MetaT>> metadataConsumer() {
             return Optional.ofNullable((Consumer<MetaT>) metadataConsumer);
         }
+
+        @Override
+        public boolean isChainEnd() {
+            return false;
+        }
     }
 
     private class DummyRecordSerializer implements KafkaRecordSerializationSchema<Integer> {

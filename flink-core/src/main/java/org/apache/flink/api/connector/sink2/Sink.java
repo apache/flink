@@ -121,5 +121,13 @@ public interface Sink<InputT> extends Serializable {
         default <MetaT> Optional<Consumer<MetaT>> metadataConsumer() {
             return Optional.empty();
         }
+
+        /**
+         * Returns whether the {@link SinkWriter} is the end of a chain.
+         */
+        @Experimental
+        default boolean isChainEnd() {
+            throw new UnsupportedOperationException();
+        }
     }
 }
