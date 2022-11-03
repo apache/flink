@@ -39,6 +39,7 @@ import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** {@link ChannelStateWriterImpl} lifecycle tests. */
 public class ChannelStateWriterImplTest {
@@ -118,6 +119,33 @@ public class ChannelStateWriterImplTest {
     @Test
     public void testAbortIgnoresMissing() throws Exception {
         runWithSyncWorker(this::callAbort);
+    }
+
+    @Test
+    public void testAbortOldAndStartNewCheckpoint() throws Exception {
+        runWithSyncWorker(
+                (writer, worker) -> {
+                    int checkpoint42 = 42;
+                    int checkpoint43 = 43;
+                    writer.start(
+                            checkpoint42, CheckpointOptions.forCheckpointWithDefaultLocation());
+                    writer.abort(checkpoint42, new TestException(), false);
+                    writer.start(
+                            checkpoint43, CheckpointOptions.forCheckpointWithDefaultLocation());
+                    worker.processAllRequests();
+
+                    ChannelStateWriteResult result42 = writer.getAndRemoveWriteResult(checkpoint42);
+                    assertTrue(result42.isDone());
+                    try {
+                        result42.getInputChannelStateHandles().get();
+                        fail("The result should have failed.");
+                    } catch (Throwable throwable) {
+                        assertTrue(findThrowable(throwable, TestException.class).isPresent());
+                    }
+
+                    ChannelStateWriteResult result43 = writer.getAndRemoveWriteResult(checkpoint43);
+                    assertFalse(result43.isDone());
+                });
     }
 
     @Test(expected = TestException.class)

@@ -30,7 +30,9 @@ import org.junit.Test;
 
 import java.util.function.Function;
 
+import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.util.CloseableIterator.ofElements;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** {@link ChannelStateWriteRequestDispatcherImpl} test. */
@@ -52,6 +54,30 @@ public class ChannelStateWriteRequestDispatcherImplTest {
                 buffers ->
                         ChannelStateWriteRequest.write(
                                 1L, new ResultSubpartitionInfo(1, 2), buffers));
+    }
+
+    @Test
+    public void testConcurrentUnalignedCheckpoint() throws Exception {
+        ChannelStateWriteRequestDispatcher processor =
+                new ChannelStateWriteRequestDispatcherImpl(
+                        "dummy task",
+                        0,
+                        getStreamFactoryFactory(),
+                        new ChannelStateSerializerImpl());
+        ChannelStateWriteResult result = new ChannelStateWriteResult();
+        processor.dispatch(
+                ChannelStateWriteRequest.start(
+                        1L, result, CheckpointStorageLocationReference.getDefault()));
+        assertFalse(result.isDone());
+
+        processor.dispatch(
+                ChannelStateWriteRequest.start(
+                        2L,
+                        new ChannelStateWriteResult(),
+                        CheckpointStorageLocationReference.getDefault()));
+        assertTrue(result.isDone());
+        assertTrue(result.getInputChannelStateHandles().isCompletedExceptionally());
+        assertTrue(result.getResultSubpartitionStateHandles().isCompletedExceptionally());
     }
 
     private void testBuffersRecycled(
