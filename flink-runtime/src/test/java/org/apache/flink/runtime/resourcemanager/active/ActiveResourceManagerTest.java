@@ -107,18 +107,17 @@ public class ActiveResourceManagerTest extends TestLogger {
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
-                            CompletableFuture<Boolean> startNewWorkerFuture =
+                            CompletableFuture<Void> startNewWorkerFuture =
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                            .requestNewWorker(
+                                                                    WORKER_RESOURCE_SPEC));
                             TaskExecutorProcessSpec taskExecutorProcessSpec =
                                     requestWorkerFromDriverFuture.get(
                                             TIMEOUT_SEC, TimeUnit.SECONDS);
 
-                            assertThat(
-                                    startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    is(true));
+                            startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
                             assertThat(
                                     taskExecutorProcessSpec,
                                     is(
@@ -171,19 +170,18 @@ public class ActiveResourceManagerTest extends TestLogger {
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
-                            CompletableFuture<Boolean> startNewWorkerFuture =
+                            CompletableFuture<Void> startNewWorkerFuture =
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                            .requestNewWorker(
+                                                                    WORKER_RESOURCE_SPEC));
                             TaskExecutorProcessSpec taskExecutorProcessSpec1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
                                             .get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-                            assertThat(
-                                    startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    is(true));
+                            startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
                             assertThat(
                                     taskExecutorProcessSpec1,
                                     is(
@@ -250,19 +248,18 @@ public class ActiveResourceManagerTest extends TestLogger {
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
-                            CompletableFuture<Boolean> startNewWorkerFuture =
+                            CompletableFuture<Void> startNewWorkerFuture =
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                            .requestNewWorker(
+                                                                    WORKER_RESOURCE_SPEC));
                             TaskExecutorProcessSpec taskExecutorProcessSpec1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
                                             .get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-                            assertThat(
-                                    startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    is(true));
+                            startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
                             assertThat(
                                     taskExecutorProcessSpec1,
                                     is(
@@ -329,19 +326,18 @@ public class ActiveResourceManagerTest extends TestLogger {
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
-                            CompletableFuture<Boolean> startNewWorkerFuture =
+                            CompletableFuture<Void> startNewWorkerFuture =
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                            .requestNewWorker(
+                                                                    WORKER_RESOURCE_SPEC));
                             TaskExecutorProcessSpec taskExecutorProcessSpec1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
                                             .get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-                            assertThat(
-                                    startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    is(true));
+                            startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
                             assertThat(
                                     taskExecutorProcessSpec1,
                                     is(
@@ -408,19 +404,18 @@ public class ActiveResourceManagerTest extends TestLogger {
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
-                            CompletableFuture<Boolean> startNewWorkerFuture =
+                            CompletableFuture<Void> startNewWorkerFuture =
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                            .requestNewWorker(
+                                                                    WORKER_RESOURCE_SPEC));
                             TaskExecutorProcessSpec taskExecutorProcessSpec =
                                     requestWorkerFromDriverFutures
                                             .get(0)
                                             .get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-                            assertThat(
-                                    startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    is(true));
+                            startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
                             assertThat(
                                     taskExecutorProcessSpec,
                                     is(
@@ -482,7 +477,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC))
+                                                            .requestNewWorker(WORKER_RESOURCE_SPEC))
                                     .thenCompose(
                                             (ignore) ->
                                                     registerTaskExecutor(
@@ -539,18 +534,18 @@ public class ActiveResourceManagerTest extends TestLogger {
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
-                            CompletableFuture<Boolean> startNewWorkerFuture =
+                            CompletableFuture<Void> startNewWorkerFuture =
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                            .requestNewWorker(
+                                                                    WORKER_RESOURCE_SPEC));
                             long t1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
                                             .get(TIMEOUT_SEC, TimeUnit.SECONDS);
-                            assertThat(
-                                    startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    is(true));
+
+                            startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
                             // first worker failed before register, verify requesting another worker
                             // from driver
@@ -619,14 +614,14 @@ public class ActiveResourceManagerTest extends TestLogger {
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
-                            CompletableFuture<Boolean> startNewWorkerFuture =
+                            CompletableFuture<Void> startNewWorkerFuture =
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .startNewWorker(WORKER_RESOURCE_SPEC));
-                            assertThat(
-                                    startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    is(true));
+                                                            .requestNewWorker(
+                                                                    WORKER_RESOURCE_SPEC));
+
+                            startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
                             long t1 =
                                     requestWorkerFromDriverFutures
@@ -745,7 +740,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             runInMainThread(
                                     () ->
                                             getResourceManager()
-                                                    .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                    .requestNewWorker(WORKER_RESOURCE_SPEC));
 
                             // verify worker is released due to not registered in time
                             assertThat(
@@ -781,7 +776,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             runInMainThread(
                                     () ->
                                             getResourceManager()
-                                                    .startNewWorker(WORKER_RESOURCE_SPEC));
+                                                    .requestNewWorker(WORKER_RESOURCE_SPEC));
 
                             // resource allocation takes longer than worker registration timeout
                             try {

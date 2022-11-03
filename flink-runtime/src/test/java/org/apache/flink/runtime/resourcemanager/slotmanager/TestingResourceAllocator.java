@@ -18,26 +18,32 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 import javax.annotation.Nonnull;
 
 import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 /** Testing implementation of the {@link ResourceAllocator}. */
 public class TestingResourceAllocator implements ResourceAllocator {
 
     @Nonnull private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
 
-    @Nonnull private final Function<WorkerResourceSpec, Boolean> allocateResourceFunction;
+    @Nonnull private final Consumer<WorkerResourceSpec> allocateResourceConsumer;
 
     public TestingResourceAllocator(
             @Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
-            @Nonnull Function<WorkerResourceSpec, Boolean> allocateResourceFunction) {
+            @Nonnull Consumer<WorkerResourceSpec> allocateResourceConsumer) {
         this.releaseResourceConsumer = releaseResourceConsumer;
-        this.allocateResourceFunction = allocateResourceFunction;
+        this.allocateResourceConsumer = allocateResourceConsumer;
+    }
+
+    @Override
+    public boolean isSupported() {
+        return true;
     }
 
     @Override
@@ -46,7 +52,12 @@ public class TestingResourceAllocator implements ResourceAllocator {
     }
 
     @Override
-    public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
-        return allocateResourceFunction.apply(workerResourceSpec);
+    public void releaseResource(ResourceID resourceID) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void allocateResource(WorkerResourceSpec workerResourceSpec) {
+        allocateResourceConsumer.accept(workerResourceSpec);
     }
 }

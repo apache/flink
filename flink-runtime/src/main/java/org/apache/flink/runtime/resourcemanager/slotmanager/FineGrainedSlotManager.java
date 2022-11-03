@@ -346,8 +346,10 @@ public class FineGrainedSlotManager implements SlotManager {
                             : findMatchingPendingTaskManager(
                                     totalResourceProfile, defaultSlotResourceProfile);
 
-            if (!matchedPendingTaskManagerOptional.isPresent()
+            if (resourceAllocator.isSupported()
+                    && !matchedPendingTaskManagerOptional.isPresent()
                     && isMaxTotalResourceExceededAfterAdding(totalResourceProfile)) {
+
                 LOG.info(
                         "Releasing task manager {}. The max total resource limitation <{}, {}> is reached.",
                         taskExecutorConnection.getResourceID(),
@@ -357,6 +359,7 @@ public class FineGrainedSlotManager implements SlotManager {
                         taskExecutorConnection.getInstanceID(),
                         new FlinkExpectedException(
                                 "The max total resource limitation is reached."));
+
                 return false;
             }
 
@@ -735,12 +738,19 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        final FlinkExpectedException cause =
-                new FlinkExpectedException("TaskManager exceeded the idle timeout.");
-        resourceAllocator.releaseResource(timedOutTaskManagerId, cause);
+        if (resourceAllocator.isSupported()) {
+            final FlinkExpectedException cause =
+                    new FlinkExpectedException("TaskManager exceeded the idle timeout.");
+            resourceAllocator.releaseResource(timedOutTaskManagerId, cause);
+        }
     }
 
     private boolean allocateResource(PendingTaskManager pendingTaskManager) {
+        if (!resourceAllocator.isSupported()) {
+            // resource cannot be allocated
+            return false;
+        }
+
         if (isMaxTotalResourceExceededAfterAdding(pendingTaskManager.getTotalResourceProfile())) {
             LOG.info(
                     "Could not allocate {}. Max total resource limitation <{}, {}> is reached.",
@@ -750,13 +760,10 @@ public class FineGrainedSlotManager implements SlotManager {
             return false;
         }
 
-        if (!resourceAllocator.allocateResource(
+        resourceAllocator.allocateResource(
                 WorkerResourceSpec.fromTotalResourceProfile(
                         pendingTaskManager.getTotalResourceProfile(),
-                        pendingTaskManager.getNumSlots()))) {
-            // resource cannot be allocated
-            return false;
-        }
+                        pendingTaskManager.getNumSlots()));
 
         taskManagerTracker.addPendingTaskManager(pendingTaskManager);
         return true;

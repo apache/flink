@@ -27,6 +27,8 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.slotmanager.NonSupportedResourceAllocatorImpl;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocator;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -36,16 +38,17 @@ import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 /** Simple {@link ResourceManager} implementation for testing purposes. */
 public class TestingResourceManager extends ResourceManager<ResourceID> {
 
-    private final Function<ResourceID, Boolean> stopWorkerFunction;
+    private final Consumer<ResourceID> stopWorkerConsumer;
     private final CompletableFuture<Void> readyToServeFuture;
 
     public TestingResourceManager(
@@ -60,7 +63,7 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
             JobLeaderIdService jobLeaderIdService,
             FatalErrorHandler fatalErrorHandler,
             ResourceManagerMetricGroup resourceManagerMetricGroup,
-            Function<ResourceID, Boolean> stopWorkerFunction,
+            Consumer<ResourceID> stopWorkerConsumer,
             CompletableFuture<Void> readyToServeFuture) {
         super(
                 rpcService,
@@ -78,7 +81,7 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
                 RpcUtils.INF_TIMEOUT,
                 ForkJoinPool.commonPool());
 
-        this.stopWorkerFunction = stopWorkerFunction;
+        this.stopWorkerConsumer = stopWorkerConsumer;
         this.readyToServeFuture = readyToServeFuture;
     }
 
@@ -100,23 +103,23 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
     }
 
     @Override
-    public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
-        return false;
+    protected Optional<ResourceID> getWorkerNodeIfAcceptRegistration(ResourceID resourceID) {
+        return Optional.of(resourceID);
     }
 
     @Override
-    protected ResourceID workerStarted(ResourceID resourceID) {
-        return resourceID;
-    }
-
-    @Override
-    public boolean stopWorker(ResourceID worker) {
-        return stopWorkerFunction.apply(worker);
+    public void stopWorkerIfSupported(ResourceID worker) {
+        stopWorkerConsumer.accept(worker);
     }
 
     @Override
     public CompletableFuture<Void> getReadyToServeFuture() {
         return readyToServeFuture;
+    }
+
+    @Override
+    protected ResourceAllocator getResourceAllocator() {
+        return NonSupportedResourceAllocatorImpl.INSTANCE;
     }
 
     public <T> CompletableFuture<T> runInMainThread(Callable<T> callable, Time timeout) {

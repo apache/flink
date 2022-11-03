@@ -258,12 +258,8 @@ class DeclarativeSlotManagerTest {
     void testRequirementDeclarationWithResourceAllocationFailure() throws Exception {
         final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
 
-        ResourceAllocator resourceAllocator =
-                new TestingResourceAllocatorBuilder()
-                        .setAllocateResourceFunction(value -> false)
-                        .build();
-
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
+        final ResourceAllocator resourceAllocator = NonSupportedResourceAllocatorImpl.INSTANCE;
 
         try (DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
@@ -1076,11 +1072,7 @@ class DeclarativeSlotManagerTest {
         final AtomicInteger resourceRequests = new AtomicInteger(0);
         final TestingResourceAllocator testingResourceAllocator =
                 new TestingResourceAllocatorBuilder()
-                        .setAllocateResourceFunction(
-                                ignored -> {
-                                    resourceRequests.incrementAndGet();
-                                    return true;
-                                })
+                        .setAllocateResourceConsumer(ignored -> resourceRequests.incrementAndGet())
                         .build();
 
         try (final DeclarativeSlotManager slotManager =
@@ -1191,10 +1183,6 @@ class DeclarativeSlotManagerTest {
 
         List<Tuple2<JobID, Collection<ResourceRequirement>>> notEnoughResourceNotifications =
                 new ArrayList<>();
-        ResourceAllocator resourceAllocator =
-                new TestingResourceAllocatorBuilder()
-                        .setAllocateResourceFunction(ignored -> false)
-                        .build();
 
         ResourceEventListener resourceEventListener =
                 new TestingResourceEventListenerBuilder()
@@ -1203,6 +1191,8 @@ class DeclarativeSlotManagerTest {
                                         notEnoughResourceNotifications.add(
                                                 Tuple2.of(jobId1, acquiredResources)))
                         .build();
+
+        ResourceAllocator resourceAllocator = NonSupportedResourceAllocatorImpl.INSTANCE;
 
         try (DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()

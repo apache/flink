@@ -23,12 +23,11 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /** Builder for the {@link TestingResourceAllocator}. */
 public class TestingResourceAllocatorBuilder {
     private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
-    private Function<WorkerResourceSpec, Boolean> allocateResourceFunction = (ignored) -> true;
+    private Consumer<WorkerResourceSpec> allocateResourceConsumer = (ignored) -> {};
 
     public TestingResourceAllocatorBuilder setReleaseResourceConsumer(
             BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
@@ -36,23 +35,13 @@ public class TestingResourceAllocatorBuilder {
         return this;
     }
 
-    public TestingResourceAllocatorBuilder setAllocateResourceFunction(
-            Function<WorkerResourceSpec, Boolean> allocateResourceFunction) {
-        this.allocateResourceFunction = allocateResourceFunction;
-        return this;
-    }
-
     public TestingResourceAllocatorBuilder setAllocateResourceConsumer(
             Consumer<WorkerResourceSpec> allocateResourceConsumer) {
-        this.allocateResourceFunction =
-                workerRequest -> {
-                    allocateResourceConsumer.accept(workerRequest);
-                    return true;
-                };
+        this.allocateResourceConsumer = allocateResourceConsumer;
         return this;
     }
 
     public TestingResourceAllocator build() {
-        return new TestingResourceAllocator(releaseResourceConsumer, allocateResourceFunction);
+        return new TestingResourceAllocator(releaseResourceConsumer, allocateResourceConsumer);
     }
 }
