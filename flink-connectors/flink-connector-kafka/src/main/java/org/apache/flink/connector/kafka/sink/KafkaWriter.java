@@ -97,6 +97,7 @@ class KafkaWriter<IN>
     private final Counter numBytesOutCounter;
     private final Counter numRecordsOutErrorsCounter;
     private final ProcessingTimeService timeService;
+    private final boolean isChainEnd;
 
     // Number of outgoing bytes at the latest metric sync
     private long latestOutgoingByteTotal;
@@ -152,6 +153,7 @@ class KafkaWriter<IN>
                                         kafkaProducerConfig.get(KEY_REGISTER_METRICS).toString());
         checkNotNull(sinkInitContext, "sinkInitContext");
         this.timeService = sinkInitContext.getProcessingTimeService();
+        this.isChainEnd = sinkInitContext.isChainEnd();
         this.metricGroup = sinkInitContext.metricGroup();
         this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
         this.numRecordsOutCounter = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
@@ -213,7 +215,12 @@ class KafkaWriter<IN>
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             final List<KafkaCommittable> committables =
                     Collections.singletonList(
-                            KafkaCommittable.of(currentProducer, producerPool::add));
+                            KafkaCommittable.of(
+                                    currentProducer,
+                                    isChainEnd ? producer -> {} : producerPool::add));
+            if (isChainEnd) {
+                producerPool.add(currentProducer);
+            }
             LOG.debug("Committing {} committables.", committables);
             return committables;
         }
