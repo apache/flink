@@ -117,6 +117,22 @@ public class JdbcDataTypeTest {
                 createTestItem("oracle", "TIMESTAMP(3)"),
                 createTestItem("oracle", "TIMESTAMP WITHOUT TIME ZONE"),
                 createTestItem("oracle", "VARBINARY"),
+                createTestItem("trino", "BOOLEAN"),
+                createTestItem("trino", "TINYINT"),
+                createTestItem("trino", "SMALLINT"),
+                createTestItem("trino", "INTEGER"),
+                createTestItem("trino", "BIGINT"),
+                createTestItem("trino", "DOUBLE"),
+                createTestItem("trino", "DECIMAL(10, 4)"),
+                createTestItem("trino", "DECIMAL(38, 18)"),
+                createTestItem("trino", "VARCHAR"),
+                createTestItem("trino", "CHAR"),
+                createTestItem("trino", "VARBINARY"),
+                createTestItem("trino", "DATE"),
+                createTestItem("trino", "TIME"),
+                createTestItem("trino", "TIMESTAMP(3)"),
+                createTestItem("trino", "TIMESTAMP WITHOUT TIME ZONE"),
+                createTestItem("trino", "TIMESTAMP(9) WITHOUT TIME ZONE"),
 
                 // Unsupported types throws errors.
                 createTestItem(
@@ -166,7 +182,8 @@ public class JdbcDataTypeTest {
                 createTestItem(
                         "oracle",
                         "VARBINARY(10)",
-                        "The Oracle dialect doesn't support type: VARBINARY(10)."));
+                        "The Oracle dialect doesn't support type: VARBINARY(10)."),
+                createTestItem("trino", "FLOAT", "The Trino dialect doesn't support type: FLOAT."));
     }
 
     private static TestItem createTestItem(Object... args) {

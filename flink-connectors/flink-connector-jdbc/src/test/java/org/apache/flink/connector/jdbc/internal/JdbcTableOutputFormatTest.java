@@ -227,7 +227,14 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
     public static void check(Row[] rows, String url, String table, String[] fields)
             throws SQLException {
-        try (Connection dbConn = DriverManager.getConnection(url);
+        Connection conn = DriverManager.getConnection(url);
+        check(rows, conn, table, fields);
+        conn.close();
+    }
+
+    public static void check(Row[] rows, Connection conn, String table, String[] fields)
+            throws SQLException {
+        try (Connection dbConn = conn;
                 PreparedStatement statement = dbConn.prepareStatement("select * from " + table);
                 ResultSet resultSet = statement.executeQuery()) {
             List<String> results = new ArrayList<>();
