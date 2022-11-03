@@ -32,19 +32,19 @@ public class ConfigurationNotAllowedMessage {
 
     private ConfigurationNotAllowedMessage() {}
 
-    public static String ofConfigurationKeyAndValue(String configkey, String configValue) {
-        return String.format("Configuration %s:%s not allowed.", configkey, configValue);
+    public static String ofConfigurationAdded(String configKey, String configValue) {
+        return String.format("Configuration %s:%s not allowed.", configKey, configValue);
     }
 
-    public static String ofConfigurationRemoved(String configkey, String configValue) {
-        return String.format("Configuration %s:%s was removed.", configkey, configValue);
+    public static String ofConfigurationRemoved(String configKey, String configValue) {
+        return String.format("Configuration %s:%s was removed.", configKey, configValue);
     }
 
-    public static String ofConfigurationChange(
-            String configkey, MapDifference.ValueDifference<String> change) {
+    public static String ofConfigurationChanged(
+            String configKey, MapDifference.ValueDifference<String> change) {
         return String.format(
                 "Configuration %s was changed from %s to %s.",
-                configkey, change.leftValue(), change.rightValue());
+                configKey, change.leftValue(), change.rightValue());
     }
 
     public static String ofConfigurationObject(String configurationObject) {

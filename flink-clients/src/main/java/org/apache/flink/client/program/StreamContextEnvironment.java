@@ -295,8 +295,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 .forEach(
                         (k, v) ->
                                 errors.add(
-                                        ConfigurationNotAllowedMessage.ofConfigurationKeyAndValue(
-                                                k, v)));
+                                        ConfigurationNotAllowedMessage.ofConfigurationAdded(k, v)));
         diff.entriesOnlyOnLeft()
                 .forEach(
                         (k, v) ->
@@ -307,7 +306,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 .forEach(
                         (k, v) ->
                                 errors.add(
-                                        ConfigurationNotAllowedMessage.ofConfigurationChange(
+                                        ConfigurationNotAllowedMessage.ofConfigurationChanged(
                                                 k, v)));
 
         final Configuration enrichedClusterConfig = new Configuration(clusterConfiguration);
