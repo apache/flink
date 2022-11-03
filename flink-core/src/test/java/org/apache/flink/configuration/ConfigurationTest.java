@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -312,6 +313,25 @@ public class ConfigurationTest extends TestLogger {
         assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
         assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
         assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
+    }
+
+    @Test
+    public void testRemoveKey() {
+        Configuration cfg = new Configuration();
+        String key1 = "a.b";
+        String key2 = "c.d";
+        cfg.setInteger(key1, 42);
+        cfg.setInteger(key2, 44);
+        cfg.setInteger(key2 + ".f1", 44);
+        cfg.setInteger(key2 + ".f2", 44);
+        cfg.setInteger("e.f", 1337);
+
+        assertFalse(cfg.removeKey("not-existing-key"));
+        assertTrue(cfg.removeKey(key1));
+        assertFalse(cfg.containsKey(key1));
+
+        assertTrue(cfg.removeKey(key2));
+        assertThat(cfg.keySet(), containsInAnyOrder("e.f"));
     }
 
     @Test

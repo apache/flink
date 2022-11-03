@@ -29,6 +29,7 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -79,6 +80,7 @@ class StreamContextEnvironmentTest {
         environment.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
         // Change the ExecutionConfig
         environment.setParallelism(25);
+        environment.getConfig().setMaxParallelism(1024);
 
         // Add/mutate values in the configuration
         environment.configure(programConfig);
@@ -90,7 +92,9 @@ class StreamContextEnvironmentTest {
                         ExecutionOptions.RUNTIME_MODE.key(),
                         ExecutionOptions.SORT_INPUTS.key(),
                         CheckpointConfig.class.getSimpleName(),
-                        ExecutionConfig.class.getSimpleName());
+                        ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL.key(),
+                        ExecutionConfig.class.getSimpleName(),
+                        PipelineOptions.MAX_PARALLELISM.key());
     }
 
     @ParameterizedTest
@@ -100,7 +104,8 @@ class StreamContextEnvironmentTest {
         final Configuration clusterConfig = new Configuration();
         clusterConfig.set(DeploymentOptions.TARGET, "local");
         clusterConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
-        // Test prefix map notation
+        // Changing GLOBAL_JOB_PARAMETERS is always allowed, as it's one of the fields not checked
+        // with PROGRAM_CONFIG_ENABLED set to false
         clusterConfig.setString(
                 PipelineOptions.GLOBAL_JOB_PARAMETERS.key() + "." + "my-param", "my-value");
 
@@ -119,10 +124,13 @@ class StreamContextEnvironmentTest {
                         true,
                         true,
                         false,
-                        Collections.singletonList(PipelineOptions.GLOBAL_JOB_PARAMETERS.key()));
+                        Arrays.asList(
+                                PipelineOptions.GLOBAL_JOB_PARAMETERS.key(),
+                                PipelineOptions.MAX_PARALLELISM.key()));
 
         // Change ExecutionConfig
         environment.configure(jobConfig);
+        environment.getConfig().setMaxParallelism(1024);
 
         environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))

@@ -22,10 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
@@ -45,20 +43,12 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -71,27 +61,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
-
-    /**
-     * Due to the complexity of the current configuration stack, we need to limit the available
-     * wildcard options for {@link DeploymentOptions#PROGRAM_CONFIG_WILDCARDS}.
-     *
-     * <p>If everything was backed by {@link Configuration} instead of the POJOs that partially
-     * materialize the config options, the implementation could be way easier. Currently, we need to
-     * manually provide the backward path from POJO to {@link ConfigOption} value here to let {@link
-     * #collectNotAllowedConfigurations()} filter out wildcards in both POJOs and {@link
-     * #configuration}.
-     */
-    private static final Map<String, WildcardOption<?>> SUPPORTED_PROGRAM_CONFIG_WILDCARDS =
-            new HashMap<>();
-
-    static {
-        SUPPORTED_PROGRAM_CONFIG_WILDCARDS.put(
-                PipelineOptions.GLOBAL_JOB_PARAMETERS.key(),
-                new WildcardOption<>(
-                        PipelineOptions.GLOBAL_JOB_PARAMETERS,
-                        env -> env.getConfig().getGlobalJobParameters().toMap()));
-    }
 
     private final boolean suppressSysout;
 
@@ -281,14 +250,21 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         final List<String> errors = new ArrayList<>();
 
         final Configuration clusterConfigMap = new Configuration(clusterConfiguration);
-        final Configuration envConfigMap = new Configuration(configuration);
 
         // Removal must happen on Configuration objects (not instances of Map)
         // to also ignore map-typed config options with prefix key notation
         removeProgramConfigWildcards(clusterConfigMap);
+
+        checkMainConfiguration(clusterConfigMap, errors);
+        checkCheckpointConfig(clusterConfigMap, errors);
+        checkExecutionConfig(clusterConfigMap, errors);
+        return errors;
+    }
+
+    private void checkMainConfiguration(Configuration clusterConfigMap, List<String> errors) {
+        final Configuration envConfigMap = new Configuration(configuration);
         removeProgramConfigWildcards(envConfigMap);
 
-        // Check Configuration
         final MapDifference<String, String> diff =
                 Maps.difference(clusterConfigMap.toMap(), envConfigMap.toMap());
         diff.entriesOnlyOnRight()
@@ -308,88 +284,61 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                                 errors.add(
                                         ConfigurationNotAllowedMessage.ofConfigurationChanged(
                                                 k, v)));
-
-        final Configuration enrichedClusterConfig = new Configuration(clusterConfiguration);
-        enrichProgramConfigWildcards(enrichedClusterConfig);
-
-        // Check CheckpointConfig
-        final CheckpointConfig clusterCheckpointConfig = new CheckpointConfig();
-        clusterCheckpointConfig.configure(enrichedClusterConfig);
-        if (!Arrays.equals(
-                serializeConfig(clusterCheckpointConfig), serializeConfig(checkpointCfg))) {
-            errors.add(
-                    ConfigurationNotAllowedMessage.ofConfigurationObject(
-                            checkpointCfg.getClass().getSimpleName()));
-        }
-
-        // Check ExecutionConfig
-        final ExecutionConfig clusterExecutionConfig = new ExecutionConfig();
-        clusterExecutionConfig.configure(enrichedClusterConfig, this.getUserClassloader());
-        if (!Arrays.equals(serializeConfig(clusterExecutionConfig), serializeConfig(config))) {
-            errors.add(
-                    ConfigurationNotAllowedMessage.ofConfigurationObject(
-                            config.getClass().getSimpleName()));
-        }
-
-        return errors;
     }
 
-    private void enrichProgramConfigWildcards(Configuration mutableConfig) {
-        for (String key : programConfigWildcards) {
-            final WildcardOption<?> option = SUPPORTED_PROGRAM_CONFIG_WILDCARDS.get(key);
-            if (option == null) {
-                throw new FlinkRuntimeException(
-                        String.format(
-                                "Unsupported option '%s' for program configuration wildcards.",
-                                key));
-            }
-            option.enrich(mutableConfig, this);
-        }
+    private void checkCheckpointConfig(Configuration clusterConfigMap, List<String> errors) {
+        CheckpointConfig expectedCheckpointConfig = new CheckpointConfig();
+        expectedCheckpointConfig.configure(clusterConfigMap);
+        checkConfigurationObject(
+                expectedCheckpointConfig.toConfiguration(),
+                checkpointCfg.toConfiguration(),
+                checkpointCfg.getClass().getSimpleName(),
+                errors);
+    }
+
+    private void checkExecutionConfig(Configuration clusterConfigMap, List<String> errors) {
+        ExecutionConfig expectedExecutionConfig = new ExecutionConfig();
+        expectedExecutionConfig.configure(clusterConfigMap, getUserClassloader());
+        checkConfigurationObject(
+                expectedExecutionConfig.toConfiguration(),
+                config.toConfiguration(),
+                config.getClass().getSimpleName(),
+                errors);
+    }
+
+    private void checkConfigurationObject(
+            Configuration expectedConfiguration,
+            Configuration actualConfiguration,
+            String configurationObjectName,
+            List<String> errors) {
+        removeProgramConfigWildcards(actualConfiguration);
+
+        final MapDifference<String, String> diff =
+                Maps.difference(expectedConfiguration.toMap(), actualConfiguration.toMap());
+        diff.entriesOnlyOnRight()
+                .forEach(
+                        (k, v) ->
+                                errors.add(
+                                        ConfigurationNotAllowedMessage.ofConfigurationObjectAdded(
+                                                configurationObjectName, k, v)));
+        diff.entriesDiffering()
+                .forEach(
+                        (k, v) ->
+                                errors.add(
+                                        ConfigurationNotAllowedMessage.ofConfigurationObjectChanged(
+                                                configurationObjectName, k, v)));
+
+        diff.entriesOnlyOnLeft()
+                .forEach(
+                        (k, v) ->
+                                errors.add(
+                                        ConfigurationNotAllowedMessage.ofConfigurationObjectRemoved(
+                                                configurationObjectName, k, v)));
     }
 
     private void removeProgramConfigWildcards(Configuration mutableConfig) {
         for (String key : programConfigWildcards) {
-            final WildcardOption<?> option = SUPPORTED_PROGRAM_CONFIG_WILDCARDS.get(key);
-            if (option == null) {
-                throw new FlinkRuntimeException(
-                        String.format(
-                                "Unsupported option '%s' for program configuration wildcards.",
-                                key));
-            }
-            option.remove(mutableConfig);
-        }
-    }
-
-    private static byte[] serializeConfig(Serializable config) {
-        try (final ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                final ObjectOutputStream oos = new ObjectOutputStream(bos)) {
-            oos.writeObject(config);
-            oos.flush();
-            return bos.toByteArray();
-        } catch (IOException e) {
-            throw new FlinkRuntimeException("Cannot serialize configuration.", e);
-        }
-    }
-
-    /**
-     * Helper class for mapping a configuration key to a {@link ConfigOption} and a programmatic
-     * getter.
-     */
-    private static final class WildcardOption<T> {
-        private final ConfigOption<T> option;
-        private final Function<StreamContextEnvironment, T> getter;
-
-        WildcardOption(ConfigOption<T> option, Function<StreamContextEnvironment, T> getter) {
-            this.option = option;
-            this.getter = getter;
-        }
-
-        void enrich(Configuration mutableConfig, StreamContextEnvironment fromEnv) {
-            mutableConfig.set(option, getter.apply(fromEnv));
-        }
-
-        void remove(Configuration mutableConfig) {
-            mutableConfig.removeConfig(option);
+            mutableConfig.removeKey(key);
         }
     }
 }

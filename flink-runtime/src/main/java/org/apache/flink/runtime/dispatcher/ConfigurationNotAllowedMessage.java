@@ -21,7 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.DeploymentOptions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference.ValueDifference;
 
 /**
  * If {@link DeploymentOptions#PROGRAM_CONFIG_ENABLED} is disabled, this error denotes the not
@@ -40,14 +40,30 @@ public class ConfigurationNotAllowedMessage {
         return String.format("Configuration %s:%s was removed.", configKey, configValue);
     }
 
-    public static String ofConfigurationChanged(
-            String configKey, MapDifference.ValueDifference<String> change) {
+    public static String ofConfigurationChanged(String configKey, ValueDifference<String> change) {
         return String.format(
                 "Configuration %s was changed from %s to %s.",
                 configKey, change.leftValue(), change.rightValue());
     }
 
-    public static String ofConfigurationObject(String configurationObject) {
-        return String.format("Configuration object %s changed.", configurationObject);
+    public static String ofConfigurationObjectAdded(
+            String configurationObject, String configKey, String configValue) {
+        return String.format(
+                "Configuration %s:%s not allowed in the configuration object %s.",
+                configKey, configValue, configurationObject);
+    }
+
+    public static String ofConfigurationObjectChanged(
+            String configurationObject, String configKey, ValueDifference<String> change) {
+        return String.format(
+                "Configuration %s was changed from %s to %s in the configuration object %s.",
+                configKey, change.leftValue(), change.rightValue(), configurationObject);
+    }
+
+    public static String ofConfigurationObjectRemoved(
+            String configurationObject, String configKey, String configValue) {
+        return String.format(
+                "Configuration %s:%s was removed from the configuration object %s.",
+                configKey, configValue, configurationObject);
     }
 }
