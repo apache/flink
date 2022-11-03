@@ -250,11 +250,7 @@ public class TaskExecutorManagerTest extends TestLogger {
         final AtomicInteger resourceRequests = new AtomicInteger(0);
         ResourceAllocator resourceAllocator =
                 createResourceAllocatorBuilder()
-                        .setAllocateResourceFunction(
-                                ignored -> {
-                                    resourceRequests.incrementAndGet();
-                                    return true;
-                                })
+                        .setAllocateResourceConsumer(ignored -> resourceRequests.incrementAndGet())
                         .build();
 
         try (final TaskExecutorManager taskExecutorManager =
@@ -283,11 +279,7 @@ public class TaskExecutorManagerTest extends TestLogger {
         final AtomicInteger resourceRequests = new AtomicInteger(0);
         ResourceAllocator resourceAllocator =
                 createResourceAllocatorBuilder()
-                        .setAllocateResourceFunction(
-                                ignored -> {
-                                    resourceRequests.incrementAndGet();
-                                    return true;
-                                })
+                        .setAllocateResourceConsumer(ignored -> resourceRequests.incrementAndGet())
                         .build();
 
         try (final TaskExecutorManager taskExecutorManager =
@@ -382,7 +374,7 @@ public class TaskExecutorManagerTest extends TestLogger {
     private static TestingResourceAllocatorBuilder createResourceAllocatorBuilder() {
         return new TestingResourceAllocatorBuilder()
                 // ensures we do something when excess resource are requested
-                .setAllocateResourceFunction(ignored -> true);
+                .setAllocateResourceConsumer(ignored -> {});
     }
 
     private static InstanceID createAndRegisterTaskExecutor(

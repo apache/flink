@@ -22,31 +22,27 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
-/** Resource related actions which the {@link SlotManager} can perform. */
-public interface ResourceAllocator {
+/** ResourceAllocator that not support to allocate/release resources. */
+public class NonSupportedResourceAllocatorImpl implements ResourceAllocator {
+    public static final NonSupportedResourceAllocatorImpl INSTANCE =
+            new NonSupportedResourceAllocatorImpl();
 
-    /** Whether allocate/release resources are supported. */
-    boolean isSupported();
+    @Override
+    public boolean isSupported() {
+        return false;
+    }
 
-    /**
-     * Releases the resource with the given instance id.
-     *
-     * @param instanceId identifying which resource to release
-     * @param cause why the resource is released
-     */
-    void releaseResource(InstanceID instanceId, Exception cause);
+    @Override
+    public void releaseResource(InstanceID instanceId, Exception cause) {
+        throw new UnsupportedOperationException();
+    }
 
-    /**
-     * Releases the resource with the given resource id.
-     *
-     * @param resourceID identifying which resource to release
-     */
-    void releaseResource(ResourceID resourceID);
+    @Override
+    public void releaseResource(ResourceID resourceID) {
+        throw new UnsupportedOperationException();
+    }
 
-    /**
-     * Requests to allocate a resource with the given {@link WorkerResourceSpec}.
-     *
-     * @param workerResourceSpec for the to be allocated worker
-     */
-    void allocateResource(WorkerResourceSpec workerResourceSpec);
+    public void allocateResource(WorkerResourceSpec workerResourceSpec) {
+        throw new UnsupportedOperationException();
+    }
 }

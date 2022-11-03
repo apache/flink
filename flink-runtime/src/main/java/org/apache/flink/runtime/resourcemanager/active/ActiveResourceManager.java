@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.ThresholdMeter;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocator;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -54,6 +56,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -199,20 +202,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
-        requestNewWorker(workerResourceSpec);
-        return true;
-    }
-
-    @Override
-    protected WorkerType workerStarted(ResourceID resourceID) {
-        return workerNodeMap.get(resourceID);
-    }
-
-    @Override
-    public boolean stopWorker(WorkerType worker) {
-        internalStopWorker(worker.getResourceID());
-        return true;
+    protected Optional<WorkerType> getWorkerNodeIfAcceptRegistration(ResourceID resourceID) {
+        return Optional.ofNullable(workerNodeMap.get(resourceID));
     }
 
     @Override
@@ -299,7 +290,24 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     //  Internal
     // ------------------------------------------------------------------------
 
-    private void requestNewWorker(WorkerResourceSpec workerResourceSpec) {
+    private void releaseResource(InstanceID instanceId, Exception cause) {
+        WorkerType worker = getWorkerByInstanceId(instanceId);
+        if (worker != null) {
+            internalStopWorker(worker.getResourceID());
+            closeTaskManagerConnection(worker.getResourceID(), cause);
+        } else {
+            log.debug("Instance {} not found in ResourceManager.", instanceId);
+        }
+    }
+
+    /**
+     * Allocates a resource using the worker resource specification.
+     *
+     * @param workerResourceSpec workerResourceSpec specifies the size of the to be allocated
+     *     resource
+     */
+    @VisibleForTesting
+    public void requestNewWorker(WorkerResourceSpec workerResourceSpec) {
         final TaskExecutorProcessSpec taskExecutorProcessSpec =
                 TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(
                         flinkConfig, workerResourceSpec);
@@ -451,6 +459,11 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         return readyToServeFuture;
     }
 
+    @Override
+    protected ResourceAllocator getResourceAllocator() {
+        return new ResourceAllocatorImpl();
+    }
+
     private void tryRemovePreviousPendingRecoveryTaskManager(ResourceID resourceID) {
         long sizeBeforeRemove = previousAttemptUnregisteredWorkers.size();
         if (previousAttemptUnregisteredWorkers.remove(resourceID)) {
@@ -496,6 +509,33 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         @Override
         public void execute(Runnable command) {
             getMainThreadExecutor().execute(command);
+        }
+    }
+
+    private class ResourceAllocatorImpl implements ResourceAllocator {
+
+        @Override
+        public boolean isSupported() {
+            return true;
+        }
+
+        @Override
+        public void releaseResource(InstanceID instanceId, Exception cause) {
+            validateRunsInMainThread();
+
+            ActiveResourceManager.this.releaseResource(instanceId, cause);
+        }
+
+        @Override
+        public void releaseResource(ResourceID resourceID) {
+            validateRunsInMainThread();
+            internalStopWorker(resourceID);
+        }
+
+        @Override
+        public void allocateResource(WorkerResourceSpec workerResourceSpec) {
+            validateRunsInMainThread();
+            requestNewWorker(workerResourceSpec);
         }
     }
 

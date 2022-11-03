@@ -348,15 +348,17 @@ public class FineGrainedSlotManager implements SlotManager {
 
             if (!matchedPendingTaskManagerOptional.isPresent()
                     && isMaxTotalResourceExceededAfterAdding(totalResourceProfile)) {
-                LOG.info(
-                        "Releasing task manager {}. The max total resource limitation <{}, {}> is reached.",
-                        taskExecutorConnection.getResourceID(),
-                        maxTotalCpu,
-                        maxTotalMem.toHumanReadableString());
-                resourceAllocator.releaseResource(
-                        taskExecutorConnection.getInstanceID(),
-                        new FlinkExpectedException(
-                                "The max total resource limitation is reached."));
+                if (resourceAllocator.isSupported()) {
+                    LOG.info(
+                            "Releasing task manager {}. The max total resource limitation <{}, {}> is reached.",
+                            taskExecutorConnection.getResourceID(),
+                            maxTotalCpu,
+                            maxTotalMem.toHumanReadableString());
+                    resourceAllocator.releaseResource(
+                            taskExecutorConnection.getInstanceID(),
+                            new FlinkExpectedException(
+                                    "The max total resource limitation is reached."));
+                }
                 return false;
             }
 
@@ -735,9 +737,11 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        final FlinkExpectedException cause =
-                new FlinkExpectedException("TaskManager exceeded the idle timeout.");
-        resourceAllocator.releaseResource(timedOutTaskManagerId, cause);
+        if (resourceAllocator.isSupported()) {
+            final FlinkExpectedException cause =
+                    new FlinkExpectedException("TaskManager exceeded the idle timeout.");
+            resourceAllocator.releaseResource(timedOutTaskManagerId, cause);
+        }
     }
 
     private boolean allocateResource(PendingTaskManager pendingTaskManager) {
@@ -750,13 +754,15 @@ public class FineGrainedSlotManager implements SlotManager {
             return false;
         }
 
-        if (!resourceAllocator.allocateResource(
-                WorkerResourceSpec.fromTotalResourceProfile(
-                        pendingTaskManager.getTotalResourceProfile(),
-                        pendingTaskManager.getNumSlots()))) {
+        if (!resourceAllocator.isSupported()) {
             // resource cannot be allocated
             return false;
         }
+
+        resourceAllocator.allocateResource(
+                WorkerResourceSpec.fromTotalResourceProfile(
+                        pendingTaskManager.getTotalResourceProfile(),
+                        pendingTaskManager.getNumSlots()));
 
         taskManagerTracker.addPendingTaskManager(pendingTaskManager);
         return true;

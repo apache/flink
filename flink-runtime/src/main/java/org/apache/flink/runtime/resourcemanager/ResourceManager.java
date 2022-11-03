@@ -169,6 +169,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     private final AtomicReference<byte[]> latestTokens = new AtomicReference<>();
 
+    private final ResourceAllocator resourceAllocator;
+
     public ResourceManager(
             RpcService rpcService,
             UUID leaderSessionId,
@@ -234,6 +236,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         this.startedFuture = new CompletableFuture<>();
 
         this.delegationTokenManager = delegationTokenManager;
+
+        this.resourceAllocator = getResourceAllocator();
     }
 
     // ------------------------------------------------------------------------
@@ -267,7 +271,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             slotManager.start(
                     getFencingToken(),
                     getMainThreadExecutor(),
-                    new ResourceAllocatorImpl(),
+                    resourceAllocator,
                     new ResourceEventListenerImpl(),
                     blocklistHandler::isBlockedTaskManager);
 
@@ -533,7 +537,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public void disconnectTaskManager(final ResourceID resourceId, final Exception cause) {
-        closeTaskManagerConnection(resourceId, cause).ifPresent(ResourceManager.this::stopWorker);
+        closeTaskManagerConnection(resourceId, cause)
+                .ifPresent(ResourceManager.this::stopWorkerIfSupported);
     }
 
     @Override
@@ -984,10 +989,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                     taskExecutorResourceId.getStringWithMetadata())));
         }
 
-        final WorkerType newWorker = workerStarted(taskExecutorResourceId);
+        final Optional<WorkerType> newWorkerOptional =
+                getWorkerNodeIfAcceptRegistration(taskExecutorResourceId);
 
         String taskExecutorAddress = taskExecutorRegistration.getTaskExecutorAddress();
-        if (newWorker == null) {
+        if (!newWorkerOptional.isPresent()) {
             log.warn(
                     "Discard registration from TaskExecutor {} at ({}) because the framework did "
                             + "not recognize it",
@@ -996,6 +1002,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             return new TaskExecutorRegistrationRejection(
                     "The ResourceManager does not recognize this TaskExecutor.");
         } else {
+            WorkerType newWorker = newWorkerOptional.get();
             WorkerRegistration<WorkerType> registration =
                     new WorkerRegistration<>(
                             taskExecutorGateway,
@@ -1159,9 +1166,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    protected void releaseResource(InstanceID instanceId, Exception cause) {
+    protected WorkerType getWorkerByInstanceId(InstanceID instanceId) {
         WorkerType worker = null;
-
         // TODO: Improve performance by having an index on the instanceId
         for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> entry :
                 taskExecutors.entrySet()) {
@@ -1171,18 +1177,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             }
         }
 
-        if (worker != null) {
-            if (stopWorker(worker)) {
-                closeTaskManagerConnection(worker.getResourceID(), cause);
-            } else {
-                log.debug(
-                        "Worker {} could not be stopped.",
-                        worker.getResourceID().getStringWithMetadata());
-            }
-        } else {
-            // unregister in order to clean up potential left over state
-            slotManager.unregisterTaskManager(instanceId, cause);
-        }
+        return worker;
     }
 
     private enum ResourceRequirementHandling {
@@ -1265,29 +1260,23 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             throws ResourceManagerException;
 
     /**
-     * Allocates a resource using the worker resource specification.
-     *
-     * @param workerResourceSpec workerResourceSpec specifies the size of the to be allocated
-     *     resource
-     * @return whether the resource can be allocated
-     */
-    @VisibleForTesting
-    public abstract boolean startNewWorker(WorkerResourceSpec workerResourceSpec);
-
-    /**
-     * Callback when a worker was started.
+     * Get worker node if the worker resource is accepted.
      *
      * @param resourceID The worker resource id
      */
-    protected abstract WorkerType workerStarted(ResourceID resourceID);
+    protected abstract Optional<WorkerType> getWorkerNodeIfAcceptRegistration(
+            ResourceID resourceID);
 
     /**
-     * Stops the given worker.
+     * Stops the given worker if supported.
      *
      * @param worker The worker.
-     * @return True if the worker was stopped, otherwise false
      */
-    public abstract boolean stopWorker(WorkerType worker);
+    public void stopWorkerIfSupported(WorkerType worker) {
+        if (resourceAllocator.isSupported()) {
+            resourceAllocator.releaseResource(worker.getResourceID());
+        }
+    }
 
     /**
      * Get the ready to serve future of the resource manager.
@@ -1296,6 +1285,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
      *     ready to serve.
      */
     protected abstract CompletableFuture<Void> getReadyToServeFuture();
+
+    protected abstract ResourceAllocator getResourceAllocator();
 
     /**
      * Set {@link SlotManager} whether to fail unfulfillable slot requests.
@@ -1333,22 +1324,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         @Override
         public CompletableFuture<Void> requestHeartbeat(ResourceID resourceID, Void payload) {
             return taskExecutorGateway.heartbeatFromResourceManager(resourceID);
-        }
-    }
-
-    private class ResourceAllocatorImpl implements ResourceAllocator {
-
-        @Override
-        public void releaseResource(InstanceID instanceId, Exception cause) {
-            validateRunsInMainThread();
-
-            ResourceManager.this.releaseResource(instanceId, cause);
-        }
-
-        @Override
-        public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
-            validateRunsInMainThread();
-            return startNewWorker(workerResourceSpec);
         }
     }
 
@@ -1419,7 +1394,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         private void handleTaskManagerConnectionLoss(ResourceID resourceID, Exception cause) {
             validateRunsInMainThread();
             closeTaskManagerConnection(resourceID, cause)
-                    .ifPresent(ResourceManager.this::stopWorker);
+                    .ifPresent(ResourceManager.this::stopWorkerIfSupported);
         }
 
         @Override
