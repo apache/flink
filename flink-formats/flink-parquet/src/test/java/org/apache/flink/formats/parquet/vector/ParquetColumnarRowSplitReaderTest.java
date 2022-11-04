@@ -52,11 +52,9 @@ import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.apache.hadoop.conf.Configuration;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,8 +74,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ParquetColumnarRowSplitReader}. */
-@RunWith(Parameterized.class)
-public class ParquetColumnarRowSplitReaderTest {
+class ParquetColumnarRowSplitReaderTest {
 
     private static final int FIELD_NUMBER = 33;
     private static final LocalDateTime BASE_TIME = LocalDateTime.now();
@@ -120,21 +117,15 @@ public class ParquetColumnarRowSplitReaderTest {
                     new MapType(new IntType(), new BooleanType()),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir File tmpDir;
 
-    private final int rowGroupSize;
-
-    @Parameterized.Parameters(name = "rowGroupSize-{0}")
     public static Collection<Integer> parameters() {
         return Arrays.asList(10, 1000);
     }
 
-    public ParquetColumnarRowSplitReaderTest(int rowGroupSize) {
-        this.rowGroupSize = rowGroupSize;
-    }
-
-    @Test
-    public void testNormalTypesReadWithSplits() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testNormalTypesReadWithSplits(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 10000;
         List<RowData> records = new ArrayList<>(number);
@@ -151,11 +142,12 @@ public class ParquetColumnarRowSplitReaderTest {
             }
         }
 
-        testNormalTypes(number, records, values);
+        testNormalTypes(number, records, values, rowGroupSize);
     }
 
-    @Test
-    public void testReachEnd() throws Exception {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testReachEnd(int rowGroupSize) throws Exception {
         // prepare parquet file
         int number = 5;
         List<RowData> records = new ArrayList<>(number);
@@ -168,8 +160,7 @@ public class ParquetColumnarRowSplitReaderTest {
                 records.add(newRow(v));
             }
         }
-
-        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
+        Path testPath = createTempParquetFile(tmpDir, records, rowGroupSize);
         ParquetColumnarRowSplitReader reader =
                 createReader(
                         testPath, 0, testPath.getFileSystem().getFileStatus(testPath).getLen());
@@ -198,9 +189,10 @@ public class ParquetColumnarRowSplitReaderTest {
         return path;
     }
 
-    private void testNormalTypes(int number, List<RowData> records, List<Integer> values)
+    private void testNormalTypes(
+            int number, List<RowData> records, List<Integer> values, int rowGroupSize)
             throws IOException {
-        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
+        Path testPath = createTempParquetFile(tmpDir, records, rowGroupSize);
 
         // test reading and splitting
         long fileLen = testPath.getFileSystem().getFileStatus(testPath).getLen();
@@ -285,7 +277,7 @@ public class ParquetColumnarRowSplitReaderTest {
                 assertThat(row.isNullAt(31)).isTrue();
                 assertThat(row.isNullAt(32)).isTrue();
             } else {
-                assertThat(row.getString(0).toString()).isEqualTo("" + v);
+                assertThat(row.getString(0)).hasToString("" + v);
                 assertThat(row.getBoolean(1)).isEqualTo(v % 2 == 0);
                 assertThat(row.getByte(2)).isEqualTo(v.byteValue());
                 assertThat(row.getShort(3)).isEqualTo(v.shortValue());
@@ -317,7 +309,7 @@ public class ParquetColumnarRowSplitReaderTest {
                         .isEqualTo(DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0));
                 assertThat(row.getDecimal(14, 20, 0))
                         .isEqualTo(DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0));
-                assertThat(row.getArray(15).getString(0).toString()).isEqualTo("" + v);
+                assertThat(row.getArray(15).getString(0)).hasToString("" + v);
                 assertThat(row.getArray(16).getBoolean(0)).isEqualTo(v % 2 == 0);
                 assertThat(row.getArray(17).getByte(0)).isEqualTo(v.byteValue());
                 assertThat(row.getArray(18).getShort(0)).isEqualTo(v.shortValue());
@@ -336,9 +328,9 @@ public class ParquetColumnarRowSplitReaderTest {
                         .isEqualTo(DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0));
                 assertThat(row.getArray(29).getDecimal(0, 20, 0))
                         .isEqualTo(DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0));
-                assertThat(row.getMap(30).valueArray().getString(0).toString()).isEqualTo("" + v);
+                assertThat(row.getMap(30).valueArray().getString(0)).hasToString("" + v);
                 assertThat(row.getMap(31).valueArray().getBoolean(0)).isEqualTo(v % 2 == 0);
-                assertThat(row.getRow(32, 2).getString(0).toString()).isEqualTo("" + v);
+                assertThat(row.getRow(32, 2).getString(0)).hasToString("" + v);
                 assertThat(row.getRow(32, 2).getInt(1)).isEqualTo(v.intValue());
             }
             i++;
@@ -418,8 +410,9 @@ public class ParquetColumnarRowSplitReaderTest {
         return BASE_TIME.plusNanos(v).plusSeconds(v);
     }
 
-    @Test
-    public void testDictionary() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testDictionary(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 10000;
         List<RowData> records = new ArrayList<>(number);
@@ -441,11 +434,12 @@ public class ParquetColumnarRowSplitReaderTest {
             }
         }
 
-        testNormalTypes(number, records, values);
+        testNormalTypes(number, records, values, rowGroupSize);
     }
 
-    @Test
-    public void testPartialDictionary() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testPartialDictionary(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 10000;
         List<RowData> records = new ArrayList<>(number);
@@ -467,11 +461,12 @@ public class ParquetColumnarRowSplitReaderTest {
             }
         }
 
-        testNormalTypes(number, records, values);
+        testNormalTypes(number, records, values, rowGroupSize);
     }
 
-    @Test
-    public void testContinuousRepetition() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testContinuousRepetition(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 10000;
         List<RowData> records = new ArrayList<>(number);
@@ -490,11 +485,12 @@ public class ParquetColumnarRowSplitReaderTest {
             }
         }
 
-        testNormalTypes(number, records, values);
+        testNormalTypes(number, records, values, rowGroupSize);
     }
 
-    @Test
-    public void testLargeValue() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testLargeValue(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 10000;
         List<RowData> records = new ArrayList<>(number);
@@ -511,11 +507,12 @@ public class ParquetColumnarRowSplitReaderTest {
             }
         }
 
-        testNormalTypes(number, records, values);
+        testNormalTypes(number, records, values, rowGroupSize);
     }
 
-    @Test
-    public void testProject() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testProject(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 1000;
         List<RowData> records = new ArrayList<>(number);
@@ -523,7 +520,7 @@ public class ParquetColumnarRowSplitReaderTest {
             Integer v = i;
             records.add(newRow(v));
         }
-        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
+        Path testPath = createTempParquetFile(tmpDir, records, rowGroupSize);
         RowType rowType = RowType.of(new DoubleType(), new TinyIntType(), new IntType());
         // test reader
         ParquetColumnarRowSplitReader reader =
@@ -549,8 +546,9 @@ public class ParquetColumnarRowSplitReaderTest {
         reader.close();
     }
 
-    @Test
-    public void testPartitionValues() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testPartitionValues(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 1000;
         List<RowData> records = new ArrayList<>(number);
@@ -558,7 +556,8 @@ public class ParquetColumnarRowSplitReaderTest {
             Integer v = i;
             records.add(newRow(v));
         }
-        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
+
+        Path testPath = createTempParquetFile(tmpDir, records, rowGroupSize);
 
         // test reader
         Map<String, Object> partSpec = new HashMap<>();
@@ -576,17 +575,18 @@ public class ParquetColumnarRowSplitReaderTest {
         partSpec.put("f44", new BigDecimal(44));
         partSpec.put("f45", "f45");
 
-        innerTestPartitionValues(testPath, partSpec, false);
+        innerTestPartitionValues(testPath, partSpec, false, rowGroupSize);
 
         for (String k : new ArrayList<>(partSpec.keySet())) {
             partSpec.put(k, null);
         }
 
-        innerTestPartitionValues(testPath, partSpec, true);
+        innerTestPartitionValues(testPath, partSpec, true, rowGroupSize);
     }
 
     private void innerTestPartitionValues(
-            Path testPath, Map<String, Object> partSpec, boolean nullPartValue) throws IOException {
+            Path testPath, Map<String, Object> partSpec, boolean nullPartValue, int rowGroupSize)
+            throws IOException {
         LogicalType[] fieldTypes =
                 new LogicalType[] {
                     new VarCharType(VarCharType.MAX_LENGTH),
@@ -685,7 +685,7 @@ public class ParquetColumnarRowSplitReaderTest {
                         .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(43), 15, 0));
                 assertThat(row.getDecimal(14, 20, 0))
                         .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(44), 20, 0));
-                assertThat(row.getString(15).toString()).isEqualTo("f45");
+                assertThat(row.getString(15)).hasToString("f45");
             }
 
             i++;

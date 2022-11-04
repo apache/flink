@@ -25,15 +25,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.proto.ProtoParquetReader;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,13 +49,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Parquet.
  */
-public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
+@ExtendWith(MiniClusterExtension.class)
+class ParquetProtoStreamingFileSinkITCase {
 
     @Test
-    public void testParquetProtoWriters() throws Exception {
-        File folder = TEMPORARY_FOLDER.newFolder();
+    void testParquetProtoWriters(@TempDir File folder) throws Exception {
 
         List<SimpleProtoRecord> data =
                 Arrays.asList(
@@ -88,11 +86,9 @@ public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
     private static <T extends MessageOrBuilder> void validateResults(File folder, List<T> expected)
             throws Exception {
         File[] buckets = folder.listFiles();
-        assertThat(buckets).isNotNull();
         assertThat(buckets).hasSize(1);
 
         File[] partFiles = buckets[0].listFiles();
-        assertThat(partFiles).isNotNull();
         assertThat(partFiles).hasSize(2);
 
         for (File partFile : partFiles) {
