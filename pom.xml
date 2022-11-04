@@ -122,8 +122,8 @@ under the License.
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
-		<flink.shaded.version>16.0</flink.shaded.version>
-		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
+		<flink.shaded.version>15.0</flink.shaded.version>
+		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.32</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
@@ -139,7 +139,7 @@ under the License.
 		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
 		<!-- keep FlinkContainersBuilder#buildZookeeperContainer() in sync -->
-		<zookeeper.version>3.5.10</zookeeper.version>
+		<zookeeper.version>3.5.9</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
 		<avro.version>1.11.1</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
@@ -210,6 +210,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-force-shading</artifactId>
+			<version>${flink.shaded.version}</version>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -349,14 +350,8 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-force-shading</artifactId>
-				<version>${flink.shaded.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-asm-9</artifactId>
-				<version>9.3-${flink.shaded.version}</version>
+				<version>9.2-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
@@ -380,13 +375,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<version>4.1.82.Final-${flink.shaded.version}</version>
+				<version>4.1.70.Final-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
-				<version>2.0.54.Final-${flink.shaded.version}</version>
+				<version>2.0.44.Final-${flink.shaded.version}</version>
 				<scope>test</scope>
 			</dependency>
 

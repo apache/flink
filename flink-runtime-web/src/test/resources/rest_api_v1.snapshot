@@ -11,12 +11,10 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+      "type" : "any"
     }
   }, {
     "url" : "/config",
@@ -30,8 +28,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -81,8 +78,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -119,8 +115,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -138,8 +133,7 @@
           }
         },
         "operation" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:java:lang:Object"
+          "type" : "any"
         }
       }
     }
@@ -157,8 +151,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -181,8 +174,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -238,8 +230,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -268,12 +259,10 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+      "type" : "any"
     }
   }, {
     "url" : "/jars/:jarid/plan",
@@ -477,8 +466,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "array",
@@ -507,8 +495,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -567,8 +554,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -609,8 +595,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -627,8 +612,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -663,8 +647,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -759,8 +742,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -777,8 +759,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -806,8 +787,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -954,12 +934,10 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+      "type" : "any"
     }
   }, {
     "url" : "/jobs/:jobid/accumulators",
@@ -978,8 +956,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -988,8 +965,7 @@
         "job-accumulators" : {
           "type" : "array",
           "items" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobAccumulatorsInfo:JobAccumulator"
+            "type" : "any"
           }
         },
         "user-task-accumulators" : {
@@ -1032,8 +1008,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -1417,8 +1392,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -1496,8 +1470,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -1610,8 +1583,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -1768,8 +1740,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -1787,8 +1758,7 @@
           }
         },
         "operation" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:java:lang:Object"
+          "type" : "any"
         }
       }
     }
@@ -1806,8 +1776,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -1862,8 +1831,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -1972,8 +1940,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2010,8 +1977,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "array",
@@ -2042,8 +2008,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2104,8 +2069,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2133,8 +2097,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -2153,8 +2116,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2182,8 +2144,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2210,8 +2171,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2229,8 +2189,7 @@
           }
         },
         "operation" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:java:lang:Object"
+          "type" : "any"
         }
       }
     }
@@ -2291,8 +2250,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2310,8 +2268,7 @@
           }
         },
         "operation" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:java:lang:Object"
+          "type" : "any"
         }
       }
     }
@@ -2329,8 +2286,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2399,8 +2355,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2427,8 +2382,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2580,8 +2534,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2626,8 +2579,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2708,8 +2660,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2758,8 +2709,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -2780,8 +2730,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2856,8 +2805,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -2880,8 +2828,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -2989,8 +2936,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3098,8 +3044,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3155,8 +3100,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -3177,8 +3121,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3235,8 +3178,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3366,8 +3308,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -3384,8 +3325,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3469,8 +3409,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3488,8 +3427,7 @@
           }
         },
         "operation" : {
-          "type" : "object",
-          "id" : "urn:jsonschema:java:lang:Object"
+          "type" : "any"
         }
       }
     }
@@ -3505,8 +3443,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3653,8 +3590,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -3673,8 +3609,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3905,8 +3840,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
@@ -3949,8 +3883,7 @@
       } ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "any"
@@ -3969,8 +3902,7 @@
       "queryParameters" : [ ]
     },
     "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+      "type" : "any"
     },
     "response" : {
       "type" : "object",
