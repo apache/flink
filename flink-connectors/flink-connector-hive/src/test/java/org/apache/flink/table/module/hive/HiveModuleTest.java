@@ -72,7 +72,7 @@ public class HiveModuleTest {
 
     private void verifyNumBuiltInFunctions(String hiveVersion, HiveModule hiveModule) {
         if (HiveVersionTestUtil.HIVE_310_OR_LATER) {
-            assertThat(hiveModule.listFunctions()).hasSize(296);
+            assertThat(hiveModule.listFunctions()).hasSize(297);
         } else if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             assertThat(hiveModule.listFunctions()).hasSize(277);
         } else {

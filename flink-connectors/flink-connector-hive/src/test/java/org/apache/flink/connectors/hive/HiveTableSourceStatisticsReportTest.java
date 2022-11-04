@@ -18,11 +18,9 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -43,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Test for statistics functionality in {@link HiveTableSource}. */
 public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBase {
@@ -298,43 +295,20 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         expectedColumnStatsMap.put(
                 "f_string",
                 new ColumnStats.Builder().setMax("def").setMin("abcd").setNullCount(0L).build());
-        if (HiveVersionTestUtil.HIVE_310_OR_LATER) {
-            // TODO For hive 3.x version, Orc format encounter decimal type columns (like
-            // decimal(5, 2), decimal(14, 2)) will write a wrong column stat 'min' or 'max' in
-            // orc metadata footer. This branch will remove after this error is fixed, following
-            // issue HIVE-26492
-            expectedColumnStatsMap.put(
-                    "f_decimal5",
-                    new ColumnStats.Builder()
-                            .setMax(new BigDecimal("223.45"))
-                            .setMin(new BigDecimal("0"))
-                            .setNullCount(0L)
-                            .build());
-            expectedColumnStatsMap.put(
-                    "f_decimal14",
-                    new ColumnStats.Builder()
-                            .setMax(new BigDecimal("123333333355.33"))
-                            .setMin(new BigDecimal("0"))
-                            .setNullCount(0L)
-                            .build());
-        } else if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
-            expectedColumnStatsMap.put(
-                    "f_decimal5",
-                    new ColumnStats.Builder()
-                            .setMax(new BigDecimal("223.45"))
-                            .setMin(new BigDecimal("123.45"))
-                            .setNullCount(0L)
-                            .build());
-            expectedColumnStatsMap.put(
-                    "f_decimal14",
-                    new ColumnStats.Builder()
-                            .setMax(new BigDecimal("123333333355.33"))
-                            .setMin(new BigDecimal("123333333333.33"))
-                            .setNullCount(0L)
-                            .build());
-        } else {
-            fail("Unknown test version " + HiveShimLoader.getHiveVersion());
-        }
+        expectedColumnStatsMap.put(
+                "f_decimal5",
+                new ColumnStats.Builder()
+                        .setMax(new BigDecimal("223.45"))
+                        .setMin(new BigDecimal("123.45"))
+                        .setNullCount(0L)
+                        .build());
+        expectedColumnStatsMap.put(
+                "f_decimal14",
+                new ColumnStats.Builder()
+                        .setMax(new BigDecimal("123333333355.33"))
+                        .setMin(new BigDecimal("123333333333.33"))
+                        .setNullCount(0L)
+                        .build());
         expectedColumnStatsMap.put(
                 "f_decimal38",
                 new ColumnStats.Builder()
