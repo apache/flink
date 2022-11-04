@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-
 import org.junit.jupiter.api.Disabled;
 
 import java.util.Arrays;
@@ -40,12 +39,6 @@ public class FlinkKafkaProducerMigrationOperatorTest extends FlinkKafkaProducerM
         return Arrays.asList(
                 FlinkVersion.v1_8, FlinkVersion.v1_9, FlinkVersion.v1_10, FlinkVersion.v1_11);
     }
-
-    //    @Parameter public FlinkVersion testMigrateVersion;
-
-    //    public FlinkKafkaProducerMigrationOperatorTest(FlinkVersion testMigrateVersion) {
-    //        super(testMigrateVersion);
-    //    }
 
     @Override
     public String getOperatorSnapshotPath(FlinkVersion version) {

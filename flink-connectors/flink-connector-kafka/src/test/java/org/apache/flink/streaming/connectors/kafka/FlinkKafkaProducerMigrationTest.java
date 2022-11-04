@@ -46,10 +46,6 @@ public class FlinkKafkaProducerMigrationTest extends KafkaMigrationTestBase {
         return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_15);
     }
 
-    //    public FlinkKafkaProducerMigrationTest(FlinkVersion testMigrateVersion) {
-    //        super(testMigrateVersion);
-    //    }
-
     @Override
     protected Properties createProperties() {
         Properties properties = new Properties();

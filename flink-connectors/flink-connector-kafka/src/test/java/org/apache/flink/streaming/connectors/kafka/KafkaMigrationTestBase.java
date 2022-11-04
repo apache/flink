@@ -50,7 +50,7 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
     protected static final String TOPIC = "flink-kafka-producer-migration-test";
 
     @Parameter public FlinkVersion testMigrateVersion;
-    //    protected final FlinkVersion testMigrateVersion;
+
     protected final TypeInformationSerializationSchema<Integer> integerSerializationSchema =
             new TypeInformationSerializationSchema<>(
                     BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
@@ -64,10 +64,6 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
      * release branch instead of the master.
      */
     protected final Optional<FlinkVersion> flinkGenerateSavepointVersion = Optional.empty();
-
-    //        public KafkaMigrationTestBase(FlinkVersion testMigrateVersion) {
-    //            this.testMigrateVersion = checkNotNull(testMigrateVersion);
-    //        }
 
     public String getOperatorSnapshotPath() {
         return getOperatorSnapshotPath(testMigrateVersion);
