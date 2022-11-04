@@ -101,6 +101,12 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.thrift</groupId>
+			<artifactId>libfb303</artifactId>
+			<version>0.9.3</version>
+		</dependency>
+
 		<!-- avro is included in hive-exec. we use the same dependencies but with a different version -->
 		<dependency>
 			<groupId>org.apache.avro</groupId>
@@ -151,8 +157,8 @@ under the License.
 										<exclude>avro/shaded/com/google/**</exclude>
 										<exclude>org/apache/avro/**</exclude>
 										<exclude>META-INF/maven/org.apache.avro/**</exclude>
-										<exclude>org/apache/hadoop/hive/conf/HiveConf*</exclude>
-										<exclude>org/apache/hadoop/hive/metastore/HiveMetaStoreClient*</exclude>
+										<exclude>org/apache/hadoop/hive/conf/HiveConf.class</exclude>
+										<exclude>org/apache/hadoop/hive/metastore/HiveMetaStoreClient.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
