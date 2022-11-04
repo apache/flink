@@ -74,6 +74,8 @@ public class StopWithSavepointHandlersTest extends TestLogger {
 
     private static final Time TIMEOUT = Time.seconds(10);
 
+    private static final Time AKKA_TIMEOUT = Time.seconds(9);
+
     private static final JobID JOB_ID = new JobID();
 
     private static final String COMPLETED_SAVEPOINT_EXTERNAL_POINTER =
@@ -91,7 +93,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
     public void setUp() throws Exception {
         leaderRetriever = () -> CompletableFuture.completedFuture(null);
 
-        final SavepointHandlers savepointHandlers = new SavepointHandlers(null);
+        final SavepointHandlers savepointHandlers = new SavepointHandlers(null, AKKA_TIMEOUT);
         savepointTriggerHandler =
                 savepointHandlers
                 .new StopWithSavepointHandler(leaderRetriever, TIMEOUT, Collections.emptyMap());
@@ -146,7 +148,8 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                                 })
                         .build();
         final String defaultSavepointDir = "/other/dir";
-        final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
+        final SavepointHandlers savepointHandlers =
+                new SavepointHandlers(defaultSavepointDir, AKKA_TIMEOUT);
         final SavepointHandlers.StopWithSavepointHandler savepointTriggerHandler =
                 savepointHandlers
                 .new StopWithSavepointHandler(leaderRetriever, TIMEOUT, Collections.emptyMap());

@@ -281,6 +281,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 clusterConfiguration.get(RestOptions.ASYNC_OPERATION_STORE_DURATION);
         final Time timeout = restConfiguration.getTimeout();
 
+        final Time akkaTimeout =
+                Time.fromDuration(clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+
         ClusterOverviewHandler clusterOverviewHandler =
                 new ClusterOverviewHandler(
                         leaderRetriever,
@@ -532,7 +535,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         final String defaultSavepointDir =
                 clusterConfiguration.getString(CheckpointingOptions.SAVEPOINT_DIRECTORY);
 
-        final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
+        final SavepointHandlers savepointHandlers =
+                new SavepointHandlers(defaultSavepointDir, akkaTimeout);
 
         final SavepointHandlers.StopWithSavepointHandler stopWithSavepointHandler =
                 savepointHandlers
@@ -548,7 +552,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
         final CheckpointHandlers.CheckpointTriggerHandler checkpointTriggerHandler =
                 new CheckpointHandlers.CheckpointTriggerHandler(
-                        leaderRetriever, timeout, responseHeaders);
+                        leaderRetriever, timeout, akkaTimeout, responseHeaders);
 
         final CheckpointHandlers.CheckpointStatusHandler checkpointStatusHandler =
                 new CheckpointHandlers.CheckpointStatusHandler(

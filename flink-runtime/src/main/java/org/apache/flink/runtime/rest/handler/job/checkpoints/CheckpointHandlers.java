@@ -38,7 +38,6 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatusMessag
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerRequestBody;
-import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
@@ -115,15 +114,19 @@ public class CheckpointHandlers {
                     TriggerResponse,
                     CheckpointTriggerMessageParameters> {
 
+        private final Time akkaTimeout;
+
         public CheckpointTriggerHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
                 final Time timeout,
+                final Time akkaTimeout,
                 final Map<String, String> responseHeaders) {
             super(
                     leaderRetriever,
                     timeout,
                     responseHeaders,
                     CheckpointTriggerHeaders.getInstance());
+            this.akkaTimeout = akkaTimeout;
         }
 
         private static AsynchronousJobOperationKey createOperationKey(
@@ -141,9 +144,7 @@ public class CheckpointHandlers {
             final AsynchronousJobOperationKey operationKey = createOperationKey(request);
 
             return gateway.triggerCheckpoint(
-                            operationKey,
-                            request.getRequestBody().getCheckpointType(),
-                            RpcUtils.INF_TIMEOUT)
+                            operationKey, request.getRequestBody().getCheckpointType(), akkaTimeout)
                     .handle(
                             (acknowledge, throwable) -> {
                                 if (throwable == null) {

@@ -45,7 +45,6 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMes
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointTriggerHeaders;
-import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
@@ -115,9 +114,11 @@ import java.util.concurrent.CompletionException;
 public class SavepointHandlers {
 
     @Nullable private final String defaultSavepointDir;
+    private final Time akkaTimeout;
 
-    public SavepointHandlers(@Nullable final String defaultSavepointDir) {
+    public SavepointHandlers(@Nullable final String defaultSavepointDir, final Time akkaTimeout) {
         this.defaultSavepointDir = defaultSavepointDir;
+        this.akkaTimeout = akkaTimeout;
     }
 
     private abstract static class SavepointHandlerBase<B extends RequestBody>
@@ -211,7 +212,7 @@ public class SavepointHandlers {
             final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             final SavepointFormatType formatType = request.getRequestBody().getFormatType();
             return gateway.stopWithSavepoint(
-                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, formatType, savepointMode, akkaTimeout);
         }
     }
 
@@ -255,7 +256,7 @@ public class SavepointHandlers {
             final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             final SavepointFormatType formatType = request.getRequestBody().getFormatType();
             return gateway.triggerSavepoint(
-                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, formatType, savepointMode, akkaTimeout);
         }
     }
 
