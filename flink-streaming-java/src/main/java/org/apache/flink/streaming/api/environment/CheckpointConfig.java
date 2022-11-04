@@ -129,16 +129,6 @@ public class CheckpointConfig implements java.io.Serializable {
     private final Configuration configuration;
 
     /**
-     * Task would not fail if there is an error in their checkpointing.
-     *
-     * <p>{@link ExecutionCheckpointingOptions#TOLERABLE_FAILURE_NUMBER} would always overrule this
-     * deprecated field if they have conflicts.
-     *
-     * @deprecated Use {@link ExecutionCheckpointingOptions#TOLERABLE_FAILURE_NUMBER}.
-     */
-    @Deprecated private boolean failOnCheckpointingErrors = true;
-
-    /**
      * The checkpoint storage for this application. This field is marked as transient because it may
      * contain user-code.
      *
@@ -380,7 +370,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Deprecated
     public boolean isFailOnCheckpointingErrors() {
-        return failOnCheckpointingErrors;
+        return getTolerableCheckpointFailureNumber() == 0;
     }
 
     /**
@@ -409,7 +399,6 @@ public class CheckpointConfig implements java.io.Serializable {
                     getTolerableCheckpointFailureNumber());
             return;
         }
-        this.failOnCheckpointingErrors = failOnCheckpointingErrors;
         if (failOnCheckpointingErrors) {
             setTolerableCheckpointFailureNumber(0);
         } else {
