@@ -120,15 +120,13 @@ public class CheckpointConfig implements java.io.Serializable {
                     .defaultValue()
                     .intValue();
 
-    // ------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
+    /**
+     * In the long run, this field should be somehow merged with the {@link Configuration} from
+     * {@link StreamExecutionEnvironment}.
+     */
     private final Configuration configuration;
-
-    /** Flag to force checkpointing in iterative jobs. */
-    private boolean forceCheckpointing;
-
-    /** Flag to enable approximate local recovery. */
-    private boolean approximateLocalRecovery;
 
     /**
      * Task would not fail if there is an error in their checkpointing.
@@ -143,8 +141,10 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * The checkpoint storage for this application. This field is marked as transient because it may
      * contain user-code.
+     *
+     * @deprecated this should be moved somehow to {@link #configuration}.
      */
-    private transient CheckpointStorage storage;
+    @Deprecated private transient CheckpointStorage storage;
 
     /**
      * Creates a deep copy of the provided {@link CheckpointConfig}.
@@ -155,8 +155,6 @@ public class CheckpointConfig implements java.io.Serializable {
         checkNotNull(checkpointConfig);
 
         this.configuration = new Configuration(checkpointConfig.configuration);
-        this.approximateLocalRecovery = checkpointConfig.isApproximateLocalRecoveryEnabled();
-        this.forceCheckpointing = checkpointConfig.forceCheckpointing;
         this.storage = checkpointConfig.getCheckpointStorage();
     }
 
@@ -334,7 +332,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     @PublicEvolving
     public boolean isForceCheckpointing() {
-        return forceCheckpointing;
+        return configuration.get(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING);
     }
 
     /**
@@ -347,7 +345,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     @PublicEvolving
     public void setForceCheckpointing(boolean forceCheckpointing) {
-        this.forceCheckpointing = forceCheckpointing;
+        configuration.set(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING, forceCheckpointing);
     }
 
     /**
@@ -624,7 +622,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public boolean isApproximateLocalRecoveryEnabled() {
-        return approximateLocalRecovery;
+        return configuration.get(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY);
     }
 
     /**
@@ -643,7 +641,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public void enableApproximateLocalRecovery(boolean enabled) {
-        approximateLocalRecovery = enabled;
+        configuration.set(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY, enabled);
     }
 
     /**
@@ -860,5 +858,14 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
                 .ifPresent(this::setCheckpointStorage);
+    }
+
+    /**
+     * @return A copy of internal {@link #configuration}. Note it is missing all options that are
+     *     stored as plain java fields in {@link CheckpointConfig}, for example {@link #storage}.
+     */
+    @Internal
+    public Configuration toConfiguration() {
+        return new Configuration(configuration);
     }
 }
