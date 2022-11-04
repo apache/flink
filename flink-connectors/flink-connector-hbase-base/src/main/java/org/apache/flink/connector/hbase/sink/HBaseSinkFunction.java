@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -79,7 +80,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     private transient ScheduledExecutorService executor;
     private transient ScheduledFuture scheduledFuture;
     private transient AtomicLong numPendingRequests;
-    private Map<byte[], Mutation> mutationMap = new HashMap<>();
+    private Map<ByteBuffer, Mutation> mutationMap = new HashMap<>();
 
     private transient volatile boolean closed = false;
 
@@ -197,7 +198,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
 
         Mutation mutation = mutationConverter.convertToMutation(value);
         synchronized (mutationMap) {
-            mutationMap.put(mutation.getRow(), mutation);
+            mutationMap.put(ByteBuffer.wrap(mutation.getRow()), mutation);
         }
         // flush when the buffer number of mutations greater than the configured max size.
         if (bufferFlushMaxMutations > 0
@@ -208,7 +209,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
 
     private void flush() throws IOException {
         synchronized (mutationMap) {
-            for (Map.Entry<byte[], Mutation> entry : mutationMap.entrySet()) {
+            for (Map.Entry<ByteBuffer, Mutation> entry : mutationMap.entrySet()) {
                 mutator.mutate(entry.getValue());
             }
             mutationMap.clear();
