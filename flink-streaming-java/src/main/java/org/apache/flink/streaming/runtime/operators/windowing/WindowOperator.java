@@ -228,18 +228,23 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
         this.allowedLateness = allowedLateness;
         this.lateDataOutputTag = lateDataOutputTag;
         this.description = description;
-        if (this.description == null) {
-            this.streamMonitor =
-                    ((JoinedStreams.JoinCoGroupFunction)
-                                    ((CoGroupedStreams.CoGroupWindowFunction)
-                                                    ((InternalIterableWindowFunction)
-                                                                    this.getUserFunction())
-                                                            .getWrappedFunction())
-                                            .getWrappedFunction())
-                            .streamMonitor;
-            this.streamMonitor.reportJoinWindowOperator(this);
-        } else {
-            this.streamMonitor = new StreamMonitor(this.description, this);
+        try {
+            if (this.description == null) {
+                this.streamMonitor =
+                        ((JoinedStreams.JoinCoGroupFunction)
+                                        ((CoGroupedStreams.CoGroupWindowFunction)
+                                                        ((InternalIterableWindowFunction)
+                                                                        this.getUserFunction())
+                                                                .getWrappedFunction())
+                                                .getWrappedFunction())
+                                .streamMonitor;
+                this.streamMonitor.reportJoinWindowOperator(this);
+            } else {
+                this.streamMonitor = new StreamMonitor(this.description, this);
+            }
+
+        } catch (Exception e) {
+            System.err.println("StreamMonitor init in WindowOperator failed: " + e.getMessage());
         }
 
         setChainingStrategy(ChainingStrategy.ALWAYS);
@@ -319,7 +324,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
-        this.streamMonitor.reportInput(element.getValue(), getExecutionConfig());
+        try {
+            this.streamMonitor.reportInput(element.getValue(), getExecutionConfig());
+        } catch (Exception ignored) {
+        }
         final Collection<W> elementWindows =
                 windowAssigner.assignWindows(
                         element.getValue(), element.getTimestamp(), windowAssignerContext);
@@ -598,9 +606,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
         processContext.window = window;
         userFunction.process(
                 triggerContext.key, window, processContext, contents, timestampedCollector);
-        this.streamMonitor.reportWindowLength(windowState.getInternal());
-        if (description != null) {
-            this.streamMonitor.reportOutput(contents);
+        try {
+            this.streamMonitor.reportWindowLength(windowState.getInternal());
+            if (description != null) {
+                this.streamMonitor.reportOutput(contents);
+            }
+        } catch (Exception ignored) {
+
         }
     }
 

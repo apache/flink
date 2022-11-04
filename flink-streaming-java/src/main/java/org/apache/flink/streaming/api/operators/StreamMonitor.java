@@ -28,6 +28,8 @@ import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import oshi.SystemInfo;
+import oshi.hardware.HardwareAbstractionLayer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -112,23 +114,6 @@ public class StreamMonitor<T> implements Serializable {
                 this.startTime = System.nanoTime();
                 tupleWidthIn = getTupleSize(input);
                 description.put("tupleWidthOut", -1); // not any observation yet
-                InternalOperatorMetricGroup metrics;
-                // get metrics from operator. In case of a join, get the metrics instead from
-                // the window operator
-                if (this.operator instanceof WrappingFunction && this.windowOperator != null) {
-                    metrics = this.windowOperator.metrics;
-                } else {
-                    metrics = ((AbstractStreamOperator) this.operator).metrics;
-                }
-                if (metrics != null) {
-                    Map<String, String> allVariables = metrics.getAllVariables();
-                    String host = allVariables.get("<tm_id>");
-                    String component = allVariables.get("<task_id>");
-                    if (host != null) {
-                        this.description.put("host", host);
-                        this.description.put("component", component);
-                    }
-                }
             }
 
             this.inputCounter++;
@@ -246,6 +231,8 @@ public class StreamMonitor<T> implements Serializable {
                                     .orElse(0.0);
                     description.put("realSelectivity", ((double) 1 / averageWindowLength));
                 }
+                addHostAndTaskMetrics(description);
+                addHardwareMetrics(description);
                 JSONObject json = new JSONObject();
                 json.putAll(description);
 
@@ -264,6 +251,35 @@ public class StreamMonitor<T> implements Serializable {
                 }
             }
         }
+    }
+
+    private HashMap<String, Object> addHostAndTaskMetrics(HashMap<String, Object> description) {
+        InternalOperatorMetricGroup metrics;
+        // get metrics from operator. In case of a join, get the metrics instead from
+        // the window operator
+        if (this.operator instanceof WrappingFunction && this.windowOperator != null) {
+            metrics = this.windowOperator.metrics;
+        } else {
+            metrics = ((AbstractStreamOperator) this.operator).metrics;
+        }
+        if (metrics != null) {
+            Map<String, String> allVariables = metrics.getAllVariables();
+            String host = allVariables.get("<tm_id>");
+            String component = allVariables.get("<task_id>");
+            if (host != null) {
+                this.description.put("host", host);
+                this.description.put("component", component);
+            }
+        }
+        return description;
+    }
+
+    private HashMap<String, Object> addHardwareMetrics(HashMap<String, Object> description) {
+        SystemInfo si = new SystemInfo();
+        HardwareAbstractionLayer hal = si.getHardware();
+        description.put("totalMemory", hal.getMemory().getTotal());
+        description.put("maxCPUFreq", hal.getProcessor().getMaxFreq());
+        return description;
     }
 
     public void reportJoinWindowOperator(WindowOperator windowOperator) {

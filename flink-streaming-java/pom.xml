@@ -114,6 +114,11 @@ under the License.
 			<artifactId>json-simple</artifactId>
 			<version>1.1</version>
 		</dependency>
+		<dependency>
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<version>6.3.1</version>
+		</dependency>
 	</dependencies>
 
 <build>
