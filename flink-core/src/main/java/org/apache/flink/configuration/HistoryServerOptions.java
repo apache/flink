@@ -147,8 +147,7 @@ public class HistoryServerOptions {
             key("historyserver.archive.cached-jobs")
                     .intType()
                     .defaultValue(500)
-                    .withDescription(
-                            "The maximum number of cached unzipped jobs in HistoryServer");
+                    .withDescription("The maximum number of cached unzipped jobs in HistoryServer");
 
     private HistoryServerOptions() {}
 }
