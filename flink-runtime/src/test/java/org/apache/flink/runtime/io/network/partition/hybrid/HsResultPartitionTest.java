@@ -47,6 +47,7 @@ import org.apache.flink.util.IOUtils;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -404,6 +405,7 @@ class HsResultPartitionTest {
     }
 
     @Test
+    @Disabled
     void testAvailability() throws Exception {
         final int numBuffers = 2;
 
