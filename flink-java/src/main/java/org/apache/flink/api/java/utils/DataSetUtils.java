@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -48,7 +49,6 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -71,10 +71,9 @@ public final class DataSetUtils {
                 new RichMapPartitionFunction<T, Tuple2<Integer, Long>>() {
                     @Override
                     public void mapPartition(
-                            Iterable<T> values, Collector<Tuple2<Integer, Long>> out)
-                            throws Exception {
+                            Iterable<T> values, Collector<Tuple2<Integer, Long>> out) {
                         long counter = 0;
-                        for (T value : values) {
+                        for (T ignored : values) {
                             counter++;
                         }
                         out.collect(
@@ -91,79 +90,29 @@ public final class DataSetUtils {
      * @return a data set of tuple 2 consisting of consecutive ids and initial values.
      */
     public static <T> DataSet<Tuple2<Long, T>> zipWithIndex(DataSet<T> input) {
-
         DataSet<Tuple2<Integer, Long>> elementCount = countElementsPerPartition(input);
 
         return input.mapPartition(
                         new RichMapPartitionFunction<T, Tuple2<Long, T>>() {
-
                             long start = 0;
 
                             @Override
                             public void open(Configuration parameters) throws Exception {
                                 super.open(parameters);
-
+                                RuntimeContext runtimeContext = getRuntimeContext();
                                 List<Tuple2<Integer, Long>> offsets =
-                                        getRuntimeContext()
-                                                .getBroadcastVariableWithInitializer(
-                                                        "counts",
-                                                        new BroadcastVariableInitializer<
-                                                                Tuple2<Integer, Long>,
-                                                                List<Tuple2<Integer, Long>>>() {
-                                                            @Override
-                                                            public List<Tuple2<Integer, Long>>
-                                                                    initializeBroadcastVariable(
-                                                                            Iterable<
-                                                                                            Tuple2<
-                                                                                                    Integer,
-                                                                                                    Long>>
-                                                                                    data) {
-                                                                // sort the list by task id to
-                                                                // calculate the correct offset
-                                                                List<Tuple2<Integer, Long>>
-                                                                        sortedData =
-                                                                                new ArrayList<>();
-                                                                for (Tuple2<Integer, Long> datum :
-                                                                        data) {
-                                                                    sortedData.add(datum);
-                                                                }
-                                                                Collections.sort(
-                                                                        sortedData,
-                                                                        new Comparator<
-                                                                                Tuple2<
-                                                                                        Integer,
-                                                                                        Long>>() {
-                                                                            @Override
-                                                                            public int compare(
-                                                                                    Tuple2<
-                                                                                                    Integer,
-                                                                                                    Long>
-                                                                                            o1,
-                                                                                    Tuple2<
-                                                                                                    Integer,
-                                                                                                    Long>
-                                                                                            o2) {
-                                                                                return o1.f0
-                                                                                        .compareTo(
-                                                                                                o2.f0);
-                                                                            }
-                                                                        });
-                                                                return sortedData;
-                                                            }
-                                                        });
+                                        runtimeContext.getBroadcastVariableWithInitializer(
+                                                "counts", getBroadcastVariableInitializer());
 
                                 // compute the offset for each partition
-                                for (int i = 0;
-                                        i < getRuntimeContext().getIndexOfThisSubtask();
-                                        i++) {
+                                for (int i = 0; i < runtimeContext.getIndexOfThisSubtask(); i++) {
                                     start += offsets.get(i).f1;
                                 }
                             }
 
                             @Override
                             public void mapPartition(
-                                    Iterable<T> values, Collector<Tuple2<Long, T>> out)
-                                    throws Exception {
+                                    Iterable<T> values, Collector<Tuple2<Long, T>> out) {
                                 for (T value : values) {
                                     out.collect(new Tuple2<>(start++, value));
                                 }
@@ -192,7 +141,7 @@ public final class DataSetUtils {
         return input.mapPartition(
                 new RichMapPartitionFunction<T, Tuple2<Long, T>>() {
 
-                    long maxBitSize = getBitSize(Long.MAX_VALUE);
+                    final long maxBitSize = getBitSize(Long.MAX_VALUE);
                     long shifter = 0;
                     long start = 0;
                     long taskId = 0;
@@ -258,7 +207,7 @@ public final class DataSetUtils {
             final double fraction,
             final long seed) {
 
-        return input.mapPartition(new SampleWithFraction<T>(withReplacement, fraction, seed));
+        return input.mapPartition(new SampleWithFraction<>(withReplacement, fraction, seed));
     }
 
     /**
@@ -374,31 +323,21 @@ public final class DataSetUtils {
         final TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
         DataSet<TupleSummaryAggregator<R>> result =
                 input.mapPartition(
-                                new MapPartitionFunction<T, TupleSummaryAggregator<R>>() {
-                                    @Override
-                                    public void mapPartition(
-                                            Iterable<T> values,
-                                            Collector<TupleSummaryAggregator<R>> out)
-                                            throws Exception {
-                                        TupleSummaryAggregator<R> aggregator =
-                                                SummaryAggregatorFactory.create(inType);
-                                        for (Tuple value : values) {
-                                            aggregator.aggregate(value);
-                                        }
-                                        out.collect(aggregator);
-                                    }
-                                })
+                                (MapPartitionFunction<T, TupleSummaryAggregator<R>>)
+                                        (values, out) -> {
+                                            TupleSummaryAggregator<R> aggregator =
+                                                    SummaryAggregatorFactory.create(inType);
+                                            for (Tuple value : values) {
+                                                aggregator.aggregate(value);
+                                            }
+                                            out.collect(aggregator);
+                                        })
                         .reduce(
-                                new ReduceFunction<TupleSummaryAggregator<R>>() {
-                                    @Override
-                                    public TupleSummaryAggregator<R> reduce(
-                                            TupleSummaryAggregator<R> agg1,
-                                            TupleSummaryAggregator<R> agg2)
-                                            throws Exception {
-                                        agg1.combine(agg2);
-                                        return agg1;
-                                    }
-                                });
+                                (ReduceFunction<TupleSummaryAggregator<R>>)
+                                        (agg1, agg2) -> {
+                                            agg1.combine(agg2);
+                                            return agg1;
+                                        });
         return result.collect().get(0).result();
     }
 
@@ -434,6 +373,20 @@ public final class DataSetUtils {
         } else {
             return 32 - Integer.numberOfLeadingZeros((int) value);
         }
+    }
+
+    private static BroadcastVariableInitializer<Tuple2<Integer, Long>, List<Tuple2<Integer, Long>>>
+            getBroadcastVariableInitializer() {
+        return data -> {
+            // sort the list by task id to
+            // calculate the correct offset
+            List<Tuple2<Integer, Long>> sortedData = new ArrayList<>();
+            for (Tuple2<Integer, Long> datum : data) {
+                sortedData.add(datum);
+            }
+            sortedData.sort(Comparator.comparing(o -> o.f0));
+            return sortedData;
+        };
     }
 
     /** Private constructor to prevent instantiation. */
