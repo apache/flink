@@ -18,8 +18,10 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import java.io.File;
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * Tests for the keyed state backend and operator state backend, as created by the {@link
@@ -27,9 +29,13 @@ import java.io.File;
  */
 public class FileStateBackendMigrationTest extends StateBackendMigrationTestBase<FsStateBackend> {
 
+    @Parameters
+    public static Collection<Object> modes() {
+        return Arrays.asList("just to please junit5 parameter test in base class");
+    }
+
     @Override
     protected FsStateBackend getStateBackend() throws Exception {
-        File checkpointPath = tempFolder.newFolder();
-        return new FsStateBackend(checkpointPath.toURI(), false);
+        return new FsStateBackend(tempFolder.toURI(), false);
     }
 }

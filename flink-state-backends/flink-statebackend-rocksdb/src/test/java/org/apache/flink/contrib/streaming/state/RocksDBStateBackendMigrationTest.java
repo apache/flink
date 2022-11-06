@@ -21,33 +21,37 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateBackendMigrationTestBase;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 
 /** Tests for the partitioned state part of {@link RocksDBStateBackend}. */
-@RunWith(Parameterized.class)
 public class RocksDBStateBackendMigrationTest
         extends StateBackendMigrationTestBase<RocksDBStateBackend> {
+    // Store it because we need it for the cleanup test.
+    public static String dbPath;
 
-    @Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-    public static Collection<Boolean> parameters() {
+    @TempDir public static File tmpDbPath;
+
+    @TempDir public static File tmpCheckpointPath;
+
+    @Parameter public boolean enableIncrementalCheckpointing;
+
+    @Parameters(name = "Incremental checkpointing: {0}")
+    public static List<Object> modes() {
         return Arrays.asList(false, true);
     }
 
-    @Parameterized.Parameter public boolean enableIncrementalCheckpointing;
-
-    // Store it because we need it for the cleanup test.
-    private String dbPath;
-
     @Override
     protected RocksDBStateBackend getStateBackend() throws IOException {
-        dbPath = tempFolder.newFolder().getAbsolutePath();
-        String checkpointPath = tempFolder.newFolder().toURI().toString();
+        dbPath = tmpDbPath.getAbsolutePath();
+        String checkpointPath = tmpCheckpointPath.toURI().toString();
         RocksDBStateBackend backend =
                 new RocksDBStateBackend(
                         new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);

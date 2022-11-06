@@ -22,25 +22,30 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackendMigrationTestBase;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
 /** Tests for the partitioned state part of {@link EmbeddedRocksDBStateBackend}. */
-@RunWith(Parameterized.class)
 public class EmbeddedRocksDBStateBackendMigrationTest
         extends StateBackendMigrationTestBase<EmbeddedRocksDBStateBackend> {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir public static File tmpCheckpointPath;
 
-    @Parameterized.Parameters
+    @Parameter(value = 0)
+    public boolean enableIncrementalCheckpointing;
+
+    @Parameter(value = 1)
+    public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+
+    @Parameters
     public static List<Object[]> modes() {
         return Arrays.asList(
                 new Object[][] {
@@ -53,19 +58,12 @@ public class EmbeddedRocksDBStateBackendMigrationTest
                         false,
                         (SupplierWithException<CheckpointStorage, IOException>)
                                 () -> {
-                                    String checkpointPath =
-                                            TEMP_FOLDER.newFolder().toURI().toString();
+                                    String checkpointPath = tmpCheckpointPath.toURI().toString();
                                     return new FileSystemCheckpointStorage(checkpointPath);
                                 }
                     }
                 });
     }
-
-    @Parameterized.Parameter(value = 0)
-    public boolean enableIncrementalCheckpointing;
-
-    @Parameterized.Parameter(value = 1)
-    public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
 
     @Override
     protected EmbeddedRocksDBStateBackend getStateBackend() throws Exception {

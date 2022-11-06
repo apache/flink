@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -36,9 +36,7 @@ import java.util.function.Consumer;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ChangelogMapState Test. */
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -70,7 +68,7 @@ public class ChangelogMapStateTest {
                                 .iterator()
                                 .next()
                                 .setValue("z"),
-                logger -> assertTrue(logger.stateElementChanged));
+                logger -> assertThat(logger.stateElementChanged).isTrue());
     }
 
     @Test
@@ -78,14 +76,16 @@ public class ChangelogMapStateTest {
         testRecorded(
                 emptyMap(),
                 state -> state.put("x", "y"),
-                logger -> assertTrue(logger.stateElementChanged));
+                logger -> assertThat(logger.stateElementChanged).isTrue());
     }
 
     @Test
     public void testPutAllRecorded() throws Exception {
         Map<String, String> map = singletonMap("x", "y");
         testRecorded(
-                emptyMap(), state -> state.putAll(map), logger -> assertEquals(map, logger.state));
+                emptyMap(),
+                state -> state.putAll(map),
+                logger -> assertThat(logger.state).isEqualTo(map));
     }
 
     @Test
@@ -93,7 +93,7 @@ public class ChangelogMapStateTest {
         testRecorded(
                 singletonMap("x", "y"),
                 state -> state.remove("x"),
-                logger -> assertTrue(logger.stateElementRemoved));
+                logger -> assertThat(logger.stateElementRemoved).isTrue());
     }
 
     @Test
@@ -101,7 +101,7 @@ public class ChangelogMapStateTest {
         testRecorded(
                 singletonMap("x", "y"),
                 state -> state.get("x"),
-                logger -> assertFalse(logger.anythingChanged()));
+                logger -> assertThat(logger.anythingChanged()).isFalse());
     }
 
     @Test
@@ -109,7 +109,7 @@ public class ChangelogMapStateTest {
         testRecorded(
                 singletonMap("x", "y"),
                 ChangelogMapState::clear,
-                logger -> assertTrue(logger.stateCleared));
+                logger -> assertThat(logger.stateCleared).isTrue());
     }
 
     private <T> void testIterator(
@@ -119,17 +119,15 @@ public class ChangelogMapStateTest {
             throws Exception {
         TestChangeLoggerKv logger = TestChangeLoggerKv.forMap(data);
         ChangelogMapState state = createState(data, logger);
-
         Iterator iterator = iteratorSupplier.apply(state);
         for (T el : elements) {
-            assertTrue(iterator.hasNext());
-            assertEquals(el, iterator.next());
+            assertThat(iterator.hasNext()).isTrue();
+            assertThat(iterator.next()).isEqualTo(el);
             iterator.remove();
         }
-
-        assertFalse(iterator.hasNext());
-        assertTrue(state.isEmpty());
-        assertTrue(logger.stateElementRemoved);
+        assertThat(iterator.hasNext()).isFalse();
+        assertThat(state.isEmpty()).isTrue();
+        assertThat(logger.stateElementRemoved).isTrue();
     }
 
     private void testRecorded(

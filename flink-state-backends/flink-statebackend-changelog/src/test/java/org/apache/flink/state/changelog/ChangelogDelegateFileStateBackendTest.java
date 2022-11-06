@@ -35,20 +35,20 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link FsStateBackend}. */
 public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest {
 
-    @Rule public final TemporaryFolder temp = new TemporaryFolder();
+    @TempDir public static File tmPath;
 
     @Override
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {
-        return ChangelogStateBackendTestUtils.createTaskStateManager(temp.newFolder());
+        return ChangelogStateBackendTestUtils.createTaskStateManager(tmPath);
     }
 
     @Override
@@ -87,7 +87,7 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
         return new JobManagerCheckpointStorage();
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestore() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
@@ -95,7 +95,7 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
                 getStateBackend(), StateTtlConfig.DISABLED, env, streamFactory);
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestoreWithWrappedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
@@ -111,7 +111,7 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
                 streamFactory);
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestorePriorityQueue() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 

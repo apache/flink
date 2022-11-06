@@ -39,26 +39,25 @@ import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapsho
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationRunnable;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.RunnableFuture;
 
 import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link ChangelogKeyedStateBackend} test. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ChangelogKeyedStateBackendTest {
 
-    @Parameterized.Parameters(name = "checkpointID={0}, materializationId={1}")
+    @Parameters(name = "checkpointID={0}, materializationId={1}")
     public static Object[][] parameters() {
         return new Object[][] {
             {0L, 200L},
@@ -72,7 +71,7 @@ public class ChangelogKeyedStateBackendTest {
     @Parameter(1)
     public long materializationId;
 
-    @Test
+    @TestTemplate
     public void testCheckpointConfirmation() throws Exception {
         MockKeyedStateBackend<Integer> mock = createMock();
         ChangelogKeyedStateBackend<Integer> changelog = createChangelog(mock);
@@ -82,8 +81,7 @@ public class ChangelogKeyedStateBackendTest {
             checkpoint(changelog, checkpointId).get().discardState();
 
             changelog.notifyCheckpointComplete(checkpointId);
-            assertEquals(materializationId, mock.getLastCompletedCheckpointID());
-
+            assertThat(mock.getLastCompletedCheckpointID()).isEqualTo(materializationId);
         } finally {
             changelog.close();
             changelog.dispose();

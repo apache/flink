@@ -33,6 +33,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -61,17 +62,7 @@ class ChangelogMapState<K, N, UK, UV>
 
     private Map.Entry<UK, UV> loggingMapEntry(
             Map.Entry<UK, UV> entry, KvStateChangeLogger<Map<UK, UV>, N> changeLogger, N ns) {
-        return new Map.Entry<UK, UV>() {
-            @Override
-            public UK getKey() {
-                return entry.getKey();
-            }
-
-            @Override
-            public UV getValue() {
-                return entry.getValue();
-            }
-
+        return new AbstractMap.SimpleEntry<UK, UV>(entry.getKey(), entry.getValue()) {
             @Override
             public UV setValue(UV value) {
                 UV oldValue = entry.setValue(value);

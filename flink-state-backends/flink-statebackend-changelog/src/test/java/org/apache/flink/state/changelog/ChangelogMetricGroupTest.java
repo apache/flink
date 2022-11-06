@@ -41,7 +41,7 @@ import org.apache.flink.state.common.ChangelogMaterializationMetricGroup;
 import org.apache.flink.state.common.PeriodicMaterializationManager;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -58,8 +58,8 @@ import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.
 import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.FAILED_MATERIALIZATION;
 import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.LAST_DURATION_OF_MATERIALIZATION;
 import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.STARTED_MATERIALIZATION;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * Test the {@link MetricGroup} Changelog used. e.g.{@link ChangelogStateBackendMetricGroup}, {@link
@@ -85,23 +85,22 @@ public class ChangelogMetricGroupTest {
         setup(snapshotResult -> snapshotResult);
 
         // The materialization will be skipped if no data updated.
-        assertEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
+        assertThat(lastDurationOfMaterializationGauge.getValue().longValue()).isEqualTo(-1L);
         periodicMaterializationManager.triggerMaterialization();
         runSnapshot(1L);
-        assertEquals(1L, startedMaterializationCounter.getCount());
-        assertEquals(1L, completedMaterializationCounter.getCount());
-        assertNotEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
-        assertEquals(0L, lastFullSizeOfMaterializationGauge.getValue().longValue());
-        assertEquals(0L, lastIncSizeOfMaterializationGauge.getValue().longValue());
-        assertEquals(0L, lastFullSizeOfNonMaterializationGauge.getValue().longValue());
-        assertEquals(0L, lastIncSizeOfNonMaterializationGauge.getValue().longValue());
-
+        assertThat(startedMaterializationCounter.getCount()).isEqualTo(1L);
+        assertThat(completedMaterializationCounter.getCount()).isEqualTo(1L);
+        assertThat(lastDurationOfMaterializationGauge.getValue().longValue()).isNotEqualTo(-1L);
+        assertThat(lastFullSizeOfMaterializationGauge.getValue().longValue()).isEqualTo(0L);
+        assertThat(lastIncSizeOfMaterializationGauge.getValue().longValue()).isEqualTo(0L);
+        assertThat(lastFullSizeOfNonMaterializationGauge.getValue().longValue()).isEqualTo(0L);
+        assertThat(lastIncSizeOfNonMaterializationGauge.getValue().longValue()).isEqualTo(0L);
         changelogKeyedStateBackend.setCurrentKey(1);
         state.update(1);
         periodicMaterializationManager.triggerMaterialization();
         runSnapshot(2L);
-        assertEquals(2L, startedMaterializationCounter.getCount());
-        assertEquals(2L, completedMaterializationCounter.getCount());
+        assertThat(startedMaterializationCounter.getCount()).isEqualTo(2L);
+        assertThat(completedMaterializationCounter.getCount()).isEqualTo(2L);
         Long lastFullSizeOfMaterialization = lastFullSizeOfMaterializationGauge.getValue();
         Long lastIncSizeOfMaterialization = lastIncSizeOfMaterializationGauge.getValue();
         Long lastFullSizeOfNonMaterialization = lastFullSizeOfNonMaterializationGauge.getValue();
@@ -111,21 +110,21 @@ public class ChangelogMetricGroupTest {
         assertNotEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
         // The non-materialization size will be zero if no data updated between completed
         // materialization and checkpoint.
-        assertEquals(0L, lastFullSizeOfNonMaterialization.longValue());
-        assertEquals(0L, lastIncSizeOfNonMaterialization.longValue());
-
+        assertThat(lastFullSizeOfNonMaterialization.longValue()).isEqualTo(0L);
+        assertThat(lastIncSizeOfNonMaterialization.longValue()).isEqualTo(0L);
         changelogKeyedStateBackend.setCurrentKey(2);
         state.update(2);
         runSnapshot(3L);
         // The materialization size will not be updated if no materialization triggered.
-        assertEquals(lastFullSizeOfMaterialization, lastFullSizeOfMaterializationGauge.getValue());
-        assertEquals(lastIncSizeOfMaterialization, lastIncSizeOfMaterializationGauge.getValue());
-        assertNotEquals(
-                lastFullSizeOfNonMaterialization, lastFullSizeOfNonMaterializationGauge.getValue());
-        assertNotEquals(
-                lastIncSizeOfNonMaterialization, lastIncSizeOfNonMaterializationGauge.getValue());
-
-        assertEquals(0L, failedMaterializationCounter.getCount());
+        assertThat(lastFullSizeOfMaterializationGauge.getValue())
+                .isEqualTo(lastFullSizeOfMaterialization);
+        assertThat(lastIncSizeOfMaterializationGauge.getValue())
+                .isEqualTo(lastIncSizeOfMaterialization);
+        assertThat(lastFullSizeOfNonMaterializationGauge.getValue())
+                .isNotEqualTo(lastFullSizeOfNonMaterialization);
+        assertThat(lastFullSizeOfNonMaterializationGauge.getValue())
+                .isNotEqualTo(lastIncSizeOfNonMaterialization);
+        assertThat(failedMaterializationCounter.getCount()).isEqualTo(0L);
     }
 
     @Test
@@ -133,17 +132,17 @@ public class ChangelogMetricGroupTest {
         setup(snapshotResult -> ExceptionallyDoneFuture.of(new RuntimeException()));
         changelogKeyedStateBackend.setCurrentKey(1);
         state.update(1);
-        assertEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
+        assertThat(lastDurationOfMaterializationGauge.getValue().longValue()).isEqualTo(-1L);
         periodicMaterializationManager.triggerMaterialization();
         runSnapshot(1L);
-        assertEquals(0L, completedMaterializationCounter.getCount());
-        assertEquals(1L, failedMaterializationCounter.getCount());
-        assertEquals(1L, startedMaterializationCounter.getCount());
-        assertEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
-        assertEquals(0L, lastFullSizeOfMaterializationGauge.getValue().longValue());
-        assertEquals(0L, lastIncSizeOfMaterializationGauge.getValue().longValue());
-        assertNotEquals(0L, lastFullSizeOfNonMaterializationGauge.getValue().longValue());
-        assertNotEquals(0L, lastIncSizeOfNonMaterializationGauge.getValue().longValue());
+        assertThat(completedMaterializationCounter.getCount()).isEqualTo(0L);
+        assertThat(failedMaterializationCounter.getCount()).isEqualTo(1L);
+        assertThat(startedMaterializationCounter.getCount()).isEqualTo(1L);
+        assertThat(lastDurationOfMaterializationGauge.getValue().longValue()).isEqualTo(-1L);
+        assertThat(lastFullSizeOfMaterializationGauge.getValue().longValue()).isEqualTo(0L);
+        assertThat(lastIncSizeOfMaterializationGauge.getValue().longValue()).isEqualTo(0L);
+        assertThat(lastFullSizeOfNonMaterializationGauge.getValue().longValue()).isNotEqualTo(0L);
+        assertThat(lastIncSizeOfNonMaterializationGauge.getValue().longValue()).isNotEqualTo(0L);
     }
 
     @SuppressWarnings("unchecked")

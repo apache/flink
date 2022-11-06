@@ -32,19 +32,19 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
 
-    @Rule public final TemporaryFolder temp = new TemporaryFolder();
+    @TempDir public static File tmPath;
 
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {
-        return ChangelogStateBackendTestUtils.createTaskStateManager(temp.newFolder());
+        return ChangelogStateBackendTestUtils.createTaskStateManager(tmPath);
     }
 
     @Override
@@ -78,7 +78,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
         return new ChangelogStateBackend(super.getStateBackend());
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestore() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
@@ -86,7 +86,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
                 getStateBackend(), StateTtlConfig.DISABLED, env, streamFactory);
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestoreWithWrappedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
@@ -102,7 +102,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
                 streamFactory);
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestorePriorityQueue() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
