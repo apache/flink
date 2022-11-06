@@ -79,7 +79,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     if (finalRoot.isEmpty) {
       val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
       val error = s"""
-                     |Can't generate a valid execution plan for the given query:$plan
+                     |Can't generate a valid execution plan for the given query:\n$plan
                      |Intermediate plan with modify kind:
                      |${FlinkRelOptUtil.toString(rootWithModifyKindSet, withChangelogTraits = true)}
               """.stripMargin

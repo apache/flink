@@ -450,8 +450,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
      * Rule that tries to push filter expressions into a join condition and into the inputs of the
      * join.
      *
-     * <p>Note: It never pushes a filter into join which is a temporal join using event time in
-     * streaming.
+     * <p>Note: It never pushes a filter into an event time temporal join in streaming.
      *
      * @see CoreRules#FILTER_INTO_JOIN
      */

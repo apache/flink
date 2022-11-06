@@ -135,7 +135,7 @@ object FlinkStreamRuleSets {
 
   /** RuleSet about filter */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
-    // push a filter into a join (which isn't a temporal join using event time)
+    // push a filter into a join (which isn't an event time temporal join)
     FlinkFilterJoinRule.FILTER_INTO_JOIN,
     // push filter into the children of a join
     FlinkFilterJoinRule.JOIN_CONDITION_PUSH,
