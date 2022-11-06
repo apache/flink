@@ -323,15 +323,19 @@ public final class DataSetUtils {
         final TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
         DataSet<TupleSummaryAggregator<R>> result =
                 input.mapPartition(
-                                (MapPartitionFunction<T, TupleSummaryAggregator<R>>)
-                                        (values, out) -> {
-                                            TupleSummaryAggregator<R> aggregator =
-                                                    SummaryAggregatorFactory.create(inType);
-                                            for (Tuple value : values) {
-                                                aggregator.aggregate(value);
-                                            }
-                                            out.collect(aggregator);
-                                        })
+                                new MapPartitionFunction<T, TupleSummaryAggregator<R>>() {
+                                    @Override
+                                    public void mapPartition(
+                                            Iterable<T> values,
+                                            Collector<TupleSummaryAggregator<R>> out) {
+                                        TupleSummaryAggregator<R> aggregator =
+                                                SummaryAggregatorFactory.create(inType);
+                                        for (Tuple value : values) {
+                                            aggregator.aggregate(value);
+                                        }
+                                        out.collect(aggregator);
+                                    }
+                                })
                         .reduce(
                                 (ReduceFunction<TupleSummaryAggregator<R>>)
                                         (agg1, agg2) -> {
