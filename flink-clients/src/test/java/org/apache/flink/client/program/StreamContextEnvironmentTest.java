@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -27,6 +28,7 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -37,8 +39,8 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
@@ -64,17 +66,8 @@ class StreamContextEnvironmentTest {
         programConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         programConfig.set(ExecutionOptions.SORT_INPUTS, true);
 
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final StreamContextEnvironment environment =
-                new StreamContextEnvironment(
-                        new MockExecutorServiceLoader(),
-                        clusterConfig,
-                        clusterConfig,
-                        classLoader,
-                        true,
-                        true,
-                        false,
-                        new ArrayList<>());
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
 
         // Change the CheckpointConfig
         environment.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
@@ -99,6 +92,77 @@ class StreamContextEnvironmentTest {
 
     @ParameterizedTest
     @MethodSource("provideExecutors")
+    void testDisallowCheckpointStorage(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
+
+        String disallowedPath = "file:///flink/disallowed/modification";
+        // Change the CheckpointConfig
+        environment.getCheckpointConfig().setCheckpointStorage(disallowedPath);
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(MutatedConfigurationException.class)
+                .hasMessageContainingAll(
+                        CheckpointConfig.class.getSimpleName(), "setCheckpointStorage");
+
+        environment.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(MutatedConfigurationException.class)
+                .hasMessageContainingAll(
+                        CheckpointConfig.class.getSimpleName(), "setCheckpointStorage");
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testAllowCheckpointStorage(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(
+                        clusterConfig,
+                        Arrays.asList(CheckpointingOptions.CHECKPOINTS_DIRECTORY.key()));
+
+        String allowedPath = "file:///flink/allowed/modification";
+        // Change the CheckpointConfig
+        environment.getCheckpointConfig().setCheckpointStorage(allowedPath);
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testNotModifiedCheckpointStorage(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
     void testAllowProgramConfigurationWildcards(
             ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
         final Configuration clusterConfig = new Configuration();
@@ -114,16 +178,9 @@ class StreamContextEnvironmentTest {
                 PipelineOptions.GLOBAL_JOB_PARAMETERS,
                 Collections.singletonMap("my-other-param", "my-other-value"));
 
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final StreamContextEnvironment environment =
-                new StreamContextEnvironment(
-                        new MockExecutorServiceLoader(),
+                constructStreamContextEnvironment(
                         clusterConfig,
-                        clusterConfig,
-                        classLoader,
-                        true,
-                        true,
-                        false,
                         Arrays.asList(
                                 PipelineOptions.GLOBAL_JOB_PARAMETERS.key(),
                                 PipelineOptions.MAX_PARALLELISM.key()));
@@ -137,6 +194,20 @@ class StreamContextEnvironmentTest {
                 .isInstanceOf(ExecutorReachedException.class);
         assertThat(environment.getConfig().getGlobalJobParameters().toMap())
                 .containsOnlyKeys("my-other-param");
+    }
+
+    private static StreamContextEnvironment constructStreamContextEnvironment(
+            Configuration clusterConfig, Collection<String> programConfigWildcards) {
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        return new StreamContextEnvironment(
+                new MockExecutorServiceLoader(),
+                clusterConfig,
+                clusterConfig,
+                classLoader,
+                true,
+                true,
+                false,
+                programConfigWildcards);
     }
 
     private static List<ThrowingConsumer<StreamExecutionEnvironment, Exception>>

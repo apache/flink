@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -294,6 +296,20 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 checkpointCfg.toConfiguration(),
                 checkpointCfg.getClass().getSimpleName(),
                 errors);
+
+        /**
+         * Unfortunately, {@link CheckpointConfig#setCheckpointStorage} is not backed by a {@link
+         * Configuration}, but it also has to be validated. For this validation we are implementing
+         * a one off manual check.
+         */
+        if (!programConfigWildcards.contains(CheckpointingOptions.CHECKPOINTS_DIRECTORY.key())
+                && !Objects.equals(
+                        checkpointCfg.getCheckpointStorage(),
+                        expectedCheckpointConfig.getCheckpointStorage())) {
+            errors.add(
+                    ConfigurationNotAllowedMessage.ofConfigurationObjectSetterUsed(
+                            checkpointCfg.getClass().getSimpleName(), "setCheckpointStorage"));
+        }
     }
 
     private void checkExecutionConfig(Configuration clusterConfigMap, List<String> errors) {
