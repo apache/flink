@@ -137,9 +137,11 @@ public class SmokeKafkaITCase {
         // create the required topics
         final short replicationFactor = 1;
         admin.createTopics(
-                Lists.newArrayList(
-                        new NewTopic(inputTopic, 1, replicationFactor),
-                        new NewTopic(outputTopic, 1, replicationFactor)));
+                        Lists.newArrayList(
+                                new NewTopic(inputTopic, 1, replicationFactor),
+                                new NewTopic(outputTopic, 1, replicationFactor)))
+                .all()
+                .get();
 
         producer.send(new ProducerRecord<>(inputTopic, 1));
         producer.send(new ProducerRecord<>(inputTopic, 2));

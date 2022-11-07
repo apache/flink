@@ -53,7 +53,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** Base class for Kafka Table IT Cases. */
@@ -135,8 +134,16 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
         properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         try (AdminClient admin = AdminClient.create(properties)) {
             admin.createTopics(
-                    Collections.singletonList(
-                            new NewTopic(topic, numPartitions, (short) replicationFactor)));
+                            Collections.singletonList(
+                                    new NewTopic(topic, numPartitions, (short) replicationFactor)))
+                    .all()
+                    .get();
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Fail to create topic [%s partitions: %d replication factor: %d].",
+                            topic, numPartitions, replicationFactor),
+                    e);
         }
     }
 
@@ -145,7 +152,7 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
         properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         try (AdminClient admin = AdminClient.create(properties)) {
             ListConsumerGroupOffsetsResult result = admin.listConsumerGroupOffsets(groupId);
-            return result.partitionsToOffsetAndMetadata().get(20, TimeUnit.SECONDS);
+            return result.partitionsToOffsetAndMetadata().get();
         } catch (Exception e) {
             throw new IllegalStateException(
                     String.format("Fail to get consumer offsets with the group id [%s].", groupId),
@@ -157,7 +164,9 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
         Map<String, Object> properties = new HashMap<>();
         properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         try (AdminClient admin = AdminClient.create(properties)) {
-            admin.deleteTopics(Collections.singletonList(topic));
+            admin.deleteTopics(Collections.singletonList(topic)).all().get();
+        } catch (Exception e) {
+            throw new IllegalStateException(String.format("Fail to delete topic [%s].", topic), e);
         }
     }
 

@@ -99,7 +99,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -445,13 +444,13 @@ public class KafkaSinkITCase extends TestLogger {
                 admin.createTopics(
                         Collections.singletonList(
                                 new NewTopic(topic, numPartitions, replicationFactor)));
-        result.all().get(1, TimeUnit.MINUTES);
+        result.all().get();
     }
 
     private void deleteTestTopic(String topic)
             throws ExecutionException, InterruptedException, TimeoutException {
         final DeleteTopicsResult result = admin.deleteTopics(Collections.singletonList(topic));
-        result.all().get(1, TimeUnit.MINUTES);
+        result.all().get();
     }
 
     private List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(
