@@ -1253,15 +1253,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                         new RichParallelSourceFunction<Tuple3<Integer, Integer, String>>() {
 
                             @Override
-                            public void run(SourceContext<Tuple3<Integer, Integer, String>> ctx)
-                                    throws Exception {
+                            public void run(SourceContext<Tuple3<Integer, Integer, String>> ctx) {
                                 int partition = getRuntimeContext().getIndexOfThisSubtask();
 
                                 for (int topicId = 0; topicId < numTopics; topicId++) {
                                     for (int i = 0; i < numElements; i++) {
                                         ctx.collect(
-                                                new Tuple3<>(
-                                                        partition, i, topicNamePrefix + topicId));
+                                                new Tuple3<>(partition, i, topics.get(topicId)));
                                     }
                                 }
                             }
@@ -1333,8 +1331,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         tryExecute(env, "Count elements from the topics");
 
         // delete all topics again
-        for (int i = 0; i < numTopics; i++) {
-            final String topic = topicNamePrefix + i;
+        for (String topic : topics) {
             deleteTestTopic(topic);
         }
     }

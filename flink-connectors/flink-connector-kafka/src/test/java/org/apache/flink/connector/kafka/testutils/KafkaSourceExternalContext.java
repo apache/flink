@@ -204,8 +204,10 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
                     new TopicPartition(topicName, numPartitions));
         } else {
             LOG.info("Creating topic '{}'", topicName);
-            adminClient.createTopics(
-                    Collections.singletonList(new NewTopic(topicName, 1, (short) 1)));
+            adminClient
+                    .createTopics(Collections.singletonList(new NewTopic(topicName, 1, (short) 1)))
+                    .all()
+                    .get();
             return new KafkaPartitionDataWriter(
                     getKafkaProducerProperties(0), new TopicPartition(topicName, 0));
         }
