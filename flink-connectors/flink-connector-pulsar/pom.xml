@@ -36,14 +36,15 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<pulsar.version>2.10.0</pulsar.version>
+		<pulsar.version>2.10.2</pulsar.version>
 
 		<!-- Test Libraries -->
 		<protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
 		<os-maven-plugin.version>1.7.0</os-maven-plugin.version>
 		<pulsar-commons-lang3.version>3.11</pulsar-commons-lang3.version>
-		<pulsar-netty.version>4.1.74.Final</pulsar-netty.version>
-		<pulsar-grpc.version>1.42.1</pulsar-grpc.version>
+		<pulsar-netty.version>4.1.77.Final</pulsar-netty.version>
+		<pulsar-grpc.version>1.45.1</pulsar-grpc.version>
+		<pulsar-caffeine.version>2.9.1</pulsar-caffeine.version>
 	</properties>
 
 	<dependencies>
@@ -151,6 +152,13 @@ under the License.
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<version>${pulsar-commons-lang3.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+			<version>${pulsar-caffeine.version}</version>
 			<scope>test</scope>
 		</dependency>
 
