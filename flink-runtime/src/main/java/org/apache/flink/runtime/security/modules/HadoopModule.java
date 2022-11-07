@@ -19,25 +19,17 @@
 package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.hadoop.HadoopUserUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.runtime.security.token.KerberosLoginProvider;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.security.auth.Subject;
-
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -69,71 +61,34 @@ public class HadoopModule implements SecurityModule {
         UserGroupInformation loginUser;
 
         try {
-            if (UserGroupInformation.isSecurityEnabled()
-                    && !StringUtils.isBlank(securityConfig.getKeytab())
-                    && !StringUtils.isBlank(securityConfig.getPrincipal())) {
-                String keytabPath = (new File(securityConfig.getKeytab())).getAbsolutePath();
-
-                UserGroupInformation.loginUserFromKeytab(securityConfig.getPrincipal(), keytabPath);
-
+            KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(securityConfig);
+            if (kerberosLoginProvider.isLoginPossible()) {
+                kerberosLoginProvider.doLogin();
                 loginUser = UserGroupInformation.getLoginUser();
 
-                // supplement with any available tokens
-                String fileLocation =
-                        System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
-                if (fileLocation != null) {
-                    Credentials credentialsFromTokenStorageFile =
-                            Credentials.readTokenStorageFile(
-                                    new File(fileLocation), hadoopConfiguration);
-
-                    // if UGI uses Kerberos keytabs for login, do not load HDFS delegation token
-                    // since
-                    // the UGI would prefer the delegation token instead, which eventually expires
-                    // and does not fallback to using Kerberos tickets
-                    Credentials credentialsToBeAdded = new Credentials();
-                    final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
-                    final Text hbaseDelegationTokenKind = new Text("HBASE_AUTH_TOKEN");
-                    Collection<Token<? extends TokenIdentifier>> usrTok =
-                            credentialsFromTokenStorageFile.getAllTokens();
-                    // If UGI use keytab for login, do not load HDFS/HBase delegation token.
-                    for (Token<? extends TokenIdentifier> token : usrTok) {
-                        if (!token.getKind().equals(hdfsDelegationTokenKind)
-                                && !token.getKind().equals(hbaseDelegationTokenKind)) {
-                            credentialsToBeAdded.addToken(token.getService(), token);
-                        }
+                if (loginUser.isFromKeytab()) {
+                    String fileLocation =
+                            System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
+                    if (fileLocation != null) {
+                        Credentials credentials =
+                                Credentials.readTokenStorageFile(
+                                        new File(fileLocation), hadoopConfiguration);
+                        loginUser.addCredentials(credentials);
                     }
-
-                    loginUser.addCredentials(credentialsToBeAdded);
                 }
             } else {
-                // login with current user credentials (e.g. ticket cache, OS login)
-                // note that the stored tokens are read automatically
-                try {
-                    // Use reflection API to get the login user object
-                    // UserGroupInformation.loginUserFromSubject(null);
-                    Method loginUserFromSubjectMethod =
-                            UserGroupInformation.class.getMethod(
-                                    "loginUserFromSubject", Subject.class);
-                    loginUserFromSubjectMethod.invoke(null, (Subject) null);
-                } catch (NoSuchMethodException e) {
-                    LOG.warn("Could not find method implementations in the shaded jar.", e);
-                } catch (InvocationTargetException e) {
-                    throw e.getTargetException();
-                }
-
                 loginUser = UserGroupInformation.getLoginUser();
             }
 
             LOG.info("Hadoop user set to {}", loginUser);
-
-            if (HadoopUtils.isKerberosSecurityEnabled(loginUser)) {
-                boolean isCredentialsConfigured =
-                        HadoopUtils.areKerberosCredentialsValid(
-                                loginUser, securityConfig.useTicketCache());
-
+            boolean isKerberosSecurityEnabled =
+                    HadoopUserUtils.hasUserKerberosAuthMethod(loginUser);
+            LOG.info(
+                    "Kerberos security is {}.", isKerberosSecurityEnabled ? "enabled" : "disabled");
+            if (isKerberosSecurityEnabled) {
                 LOG.info(
-                        "Kerberos security is enabled and credentials are {}.",
-                        isCredentialsConfigured ? "valid" : "invalid");
+                        "Kerberos credentials are {}.",
+                        loginUser.hasKerberosCredentials() ? "valid" : "invalid");
             }
         } catch (Throwable ex) {
             throw new SecurityInstallException("Unable to set the Hadoop login user", ex);

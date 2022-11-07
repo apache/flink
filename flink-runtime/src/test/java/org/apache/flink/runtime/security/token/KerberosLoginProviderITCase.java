@@ -62,6 +62,20 @@ public class KerberosLoginProviderITCase {
     }
 
     @Test
+    public void isLoginPossibleMustReturnFalseWithNonKerberos() throws IOException {
+        Configuration configuration = new Configuration();
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(false);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+
+            assertFalse(kerberosLoginProvider.isLoginPossible());
+        }
+    }
+
+    @Test
     public void isLoginPossibleMustReturnTrueWithKeytab(@TempDir Path tmpDir) throws IOException {
         Configuration configuration = new Configuration();
         configuration.setString(KERBEROS_LOGIN_PRINCIPAL, "principal");
@@ -71,6 +85,7 @@ public class KerberosLoginProviderITCase {
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             assertTrue(kerberosLoginProvider.isLoginPossible());
@@ -85,9 +100,8 @@ public class KerberosLoginProviderITCase {
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
-            when(userGroupInformation.getAuthenticationMethod())
-                    .thenReturn(UserGroupInformation.AuthenticationMethod.KERBEROS);
             when(userGroupInformation.hasKerberosCredentials()).thenReturn(true);
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             assertTrue(kerberosLoginProvider.isLoginPossible());
@@ -103,6 +117,7 @@ public class KerberosLoginProviderITCase {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             when(userGroupInformation.getAuthenticationMethod())
                     .thenReturn(UserGroupInformation.AuthenticationMethod.PROXY);
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             assertThrows(
@@ -123,10 +138,7 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             kerberosLoginProvider.doLogin();
-            ugi.verify(
-                    () ->
-                            UserGroupInformation.loginUserFromKeytabAndReturnUGI(
-                                    anyString(), anyString()));
+            ugi.verify(() -> UserGroupInformation.loginUserFromKeytab(anyString(), anyString()));
         }
     }
 
@@ -138,13 +150,11 @@ public class KerberosLoginProviderITCase {
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
-            when(userGroupInformation.getAuthenticationMethod())
-                    .thenReturn(UserGroupInformation.AuthenticationMethod.KERBEROS);
             when(userGroupInformation.hasKerberosCredentials()).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             kerberosLoginProvider.doLogin();
-            ugi.verify(() -> UserGroupInformation.getUGIFromTicketCache(null, null));
+            ugi.verify(() -> UserGroupInformation.loginUserFromSubject(null));
         }
     }
 
@@ -160,6 +170,59 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             assertThrows(UnsupportedOperationException.class, kerberosLoginProvider::doLogin);
+        }
+    }
+
+    @Test
+    public void doLoginAndReturnUGIMustLoginWithKeytab(@TempDir Path tmpDir) throws IOException {
+        Configuration configuration = new Configuration();
+        configuration.setString(KERBEROS_LOGIN_PRINCIPAL, "principal");
+        final Path keyTab = Files.createFile(tmpDir.resolve("test.keytab"));
+        configuration.setString(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+
+            kerberosLoginProvider.doLoginAndReturnUGI();
+            ugi.verify(
+                    () ->
+                            UserGroupInformation.loginUserFromKeytabAndReturnUGI(
+                                    anyString(), anyString()));
+        }
+    }
+
+    @Test
+    public void doLoginAndReturnUGIMustLoginWithTGT() throws IOException {
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(KERBEROS_LOGIN_USETICKETCACHE, true);
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            when(userGroupInformation.hasKerberosCredentials()).thenReturn(true);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+
+            kerberosLoginProvider.doLoginAndReturnUGI();
+            ugi.verify(() -> UserGroupInformation.getUGIFromTicketCache(null, null));
+        }
+    }
+
+    @Test
+    public void doLoginAndReturnUGIMustThrowExceptionWithProxyUser() {
+        Configuration configuration = new Configuration();
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            when(userGroupInformation.getAuthenticationMethod())
+                    .thenReturn(UserGroupInformation.AuthenticationMethod.PROXY);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+
+            assertThrows(
+                    UnsupportedOperationException.class,
+                    kerberosLoginProvider::doLoginAndReturnUGI);
         }
     }
 }

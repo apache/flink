@@ -155,7 +155,7 @@ public class KerberosDelegationTokenManagerITCase {
             KerberosLoginProvider kerberosLoginProvider =
                     new KerberosLoginProvider(configuration) {
                         @Override
-                        public UserGroupInformation doLogin() {
+                        public UserGroupInformation doLoginAndReturnUGI() {
                             if (startTokensUpdateCallCount.get() == 2) {
                                 retryExceptionThrown.set(true);
                                 throw new RuntimeException("Intended exception to test retry");

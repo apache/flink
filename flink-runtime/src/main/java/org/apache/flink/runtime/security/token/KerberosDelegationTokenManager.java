@@ -170,7 +170,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
         // Delegation tokens can only be obtained if the real user has Kerberos credentials, so
         // skip creation when those are not available.
         if (kerberosLoginProvider.isLoginPossible()) {
-            UserGroupInformation freshUGI = kerberosLoginProvider.doLogin();
+            UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
             freshUGI.doAs(
                     (PrivilegedExceptionAction<Void>)
                             () -> {
@@ -292,7 +292,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
         try {
             LOG.info("Starting tokens update task");
             Credentials credentials = new Credentials();
-            UserGroupInformation freshUGI = kerberosLoginProvider.doLogin();
+            UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
             Optional<Long> nextRenewal =
                     freshUGI.doAs(
                             (PrivilegedExceptionAction<Optional<Long>>)
