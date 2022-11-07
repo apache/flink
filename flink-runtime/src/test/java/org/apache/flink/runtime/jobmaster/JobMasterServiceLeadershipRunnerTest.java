@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -35,15 +36,20 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceProcessFactory;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
+import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -151,8 +157,7 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withJobMasterServiceProcesses(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setTerminationFuture(terminationFuture)
-                                        .withManualTerminationFutureCompletion()
+                                        .setCloseAsyncSupplier(() -> terminationFuture)
                                         .build(),
                                 TestingJobMasterServiceProcess.newBuilder().build())
                         .build();
@@ -185,7 +190,7 @@ class JobMasterServiceLeadershipRunnerTest {
         final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
         final TestingJobMasterServiceProcess testingJobMasterServiceProcess =
                 TestingJobMasterServiceProcess.newBuilder()
-                        .setJobManagerRunnerResultFuture(resultFuture)
+                        .setGetResultFutureSupplier(() -> resultFuture)
                         .build();
 
         JobManagerRunner jobManagerRunner =
@@ -221,7 +226,7 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setJobManagerRunnerResultFuture(completedResultFuture)
+                                        .setGetResultFutureSupplier(() -> completedResultFuture)
                                         .build())
                         .build();
 
@@ -256,7 +261,11 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setTerminationFuture(terminationFuture)
+                                        .setCloseAsyncSupplier(
+                                                () -> {
+                                                    terminationFuture.complete(null);
+                                                    return terminationFuture;
+                                                })
                                         .build())
                         .build();
 
@@ -277,7 +286,11 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setTerminationFuture(terminationFuture)
+                                        .setCloseAsyncSupplier(
+                                                () -> {
+                                                    terminationFuture.complete(null);
+                                                    return terminationFuture;
+                                                })
                                         .build())
                         .build();
 
@@ -298,7 +311,8 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setJobMasterGatewayFuture(jobMasterGatewayFuture)
+                                        .setGetJobMasterGatewayFutureSupplier(
+                                                () -> jobMasterGatewayFuture)
                                         .build())
                         .build();
 
@@ -336,7 +350,7 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setIsInitialized(false)
+                                        .setIsInitializedAndRunningSupplier(() -> false)
                                         .build())
                         .build();
 
@@ -381,12 +395,15 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withJobMasterServiceProcesses(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setTerminationFuture(firstTerminationFuture)
-                                        .withManualTerminationFutureCompletion()
-                                        .setIsInitialized(false)
+                                        .setCloseAsyncSupplier(() -> firstTerminationFuture)
+                                        .setIsInitializedAndRunningSupplier(() -> false)
                                         .build(),
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setTerminationFuture(secondTerminationFuture)
+                                        .setCloseAsyncSupplier(
+                                                () -> {
+                                                    secondTerminationFuture.complete(null);
+                                                    return secondTerminationFuture;
+                                                })
                                         .build())
                         .build();
 
@@ -437,10 +454,11 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setIsInitialized(false)
-                                        .setJobMasterGatewayFuture(new CompletableFuture<>())
-                                        .setJobManagerRunnerResultFuture(
-                                                jobManagerRunnerResultFuture)
+                                        .setGetJobMasterGatewayFutureSupplier(
+                                                CompletableFuture::new)
+                                        .setGetResultFutureSupplier(
+                                                () -> jobManagerRunnerResultFuture)
+                                        .setIsInitializedAndRunningSupplier(() -> false)
                                         .build())
                         .build();
 
@@ -466,7 +484,7 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setJobManagerRunnerResultFuture(resultFuture)
+                                        .setGetResultFutureSupplier(() -> resultFuture)
                                         .build())
                         .build();
 
@@ -489,7 +507,8 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setJobMasterGatewayFuture(new CompletableFuture<>())
+                                        .setGetJobMasterGatewayFutureSupplier(
+                                                CompletableFuture::new)
                                         .build())
                         .build();
 
@@ -512,7 +531,8 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setLeaderAddressFuture(leaderAddressFuture)
+                                        .setGetLeaderAddressFutureSupplier(
+                                                () -> leaderAddressFuture)
                                         .build())
                         .build();
 
@@ -554,8 +574,20 @@ class JobMasterServiceLeadershipRunnerTest {
 
     @Test
     void testJobStatusCancellingIsClearedOnLeadershipLoss() throws Exception {
+        CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
         final JobMasterServiceLeadershipRunner jobManagerRunner =
-                newJobMasterServiceLeadershipRunnerBuilder().build();
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .withSingleJobMasterServiceProcess(
+                                TestingJobMasterServiceProcess.newBuilder()
+                                        .setCloseAsyncSupplier(
+                                                () -> {
+                                                    terminationFuture.complete(null);
+                                                    return terminationFuture;
+                                                })
+                                        .setIsInitializedAndRunningSupplier(
+                                                () -> !terminationFuture.isDone())
+                                        .build())
+                        .build();
 
         jobManagerRunner.start();
 
@@ -575,8 +607,7 @@ class JobMasterServiceLeadershipRunnerTest {
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setTerminationFuture(terminationFuture)
-                                        .withManualTerminationFutureCompletion()
+                                        .setCloseAsyncSupplier(() -> terminationFuture)
                                         .build())
                         .build();
 
@@ -643,6 +674,128 @@ class JobMasterServiceLeadershipRunnerTest {
         }
     }
 
+    @Test
+    void testJobMasterServiceLeadershipRunnerCloseWhenElectionServiceGrantLeaderShip()
+            throws Exception {
+        final TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory
+                testingLeaderElectionDriverFactory =
+                        new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
+
+        // we need to use DefaultLeaderElectionService here because JobMasterServiceLeadershipRunner
+        // in connection with the DefaultLeaderElectionService generates the nested locking
+        final LeaderElectionService defaultLeaderElectionService =
+                new DefaultLeaderElectionService(testingLeaderElectionDriverFactory);
+
+        // latch to detect when we reached the first synchronized section having a lock on the
+        // JobMasterServiceProcess#stop side
+        final OneShotLatch closeAsyncCalledTrigger = new OneShotLatch();
+        // latch to halt the JobMasterServiceProcess#stop before calling stop on the
+        // DefaultLeaderElectionService instance (and entering the LeaderElectionService's
+        // synchronized block)
+        final OneShotLatch triggerClassLoaderLeaseRelease = new OneShotLatch();
+
+        final JobMasterServiceProcess jobMasterServiceProcess =
+                TestingJobMasterServiceProcess.newBuilder()
+                        .setGetJobMasterGatewayFutureSupplier(CompletableFuture::new)
+                        .setGetResultFutureSupplier(CompletableFuture::new)
+                        .setGetLeaderAddressFutureSupplier(
+                                () -> CompletableFuture.completedFuture("unused address"))
+                        .setCloseAsyncSupplier(
+                                () -> {
+                                    closeAsyncCalledTrigger.trigger();
+                                    // we have to return a completed future because we need the
+                                    // follow-up task to run in the calling thread to make the
+                                    // follow-up code block being executed in the synchronized block
+                                    return CompletableFuture.completedFuture(null);
+                                })
+                        .build();
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setClassLoaderLease(
+                                TestingClassLoaderLease.newBuilder()
+                                        .setCloseRunnable(
+                                                () -> {
+                                                    try {
+                                                        // we want to wait with releasing to halt
+                                                        // before calling stop on the
+                                                        // DefaultLeaderElectionService
+                                                        triggerClassLoaderLeaseRelease.await();
+                                                        // In order to reproduce the deadlock, we
+                                                        // need to ensure that
+                                                        // leaderContender#grantLeadership can be
+                                                        // called after
+                                                        // JobMasterServiceLeadershipRunner obtains
+                                                        // its own lock. Unfortunately, This will
+                                                        // change the running status of
+                                                        // DefaultLeaderElectionService
+                                                        // to false, which will cause the
+                                                        // notification of leadership to be
+                                                        // ignored. The issue is that we
+                                                        // don't have any means of verify that we're
+                                                        // in the synchronized block of
+                                                        // DefaultLeaderElectionService#lock in
+                                                        // DefaultLeaderElectionService#onGrantLeadership,
+                                                        // but we trigger this implicitly through
+                                                        // TestingLeaderElectionDriver#isLeader().
+                                                        // Adding a short sleep can ensure that
+                                                        // another thread successfully receives the
+                                                        // leadership notification, so that the
+                                                        // deadlock problem can recur.
+                                                        Thread.sleep(5);
+                                                    } catch (InterruptedException e) {
+                                                        ExceptionUtils.checkInterrupted(e);
+                                                    }
+                                                })
+                                        .build())
+                        .setJobMasterServiceProcessFactory(
+                                TestingJobMasterServiceProcessFactory.newBuilder()
+                                        .setJobMasterServiceProcessFunction(
+                                                ignoredSessionId -> jobMasterServiceProcess)
+                                        .build())
+                        .setLeaderElectionService(defaultLeaderElectionService)
+                        .build()) {
+            jobManagerRunner.start();
+
+            final TestingLeaderElectionDriver currentLeaderDriver =
+                    Preconditions.checkNotNull(
+                            testingLeaderElectionDriverFactory.getCurrentLeaderDriver());
+            // grant leadership to create jobMasterServiceProcess
+            currentLeaderDriver.isLeader();
+
+            while (currentLeaderDriver.getLeaderInformation().getLeaderSessionID() == null
+                    || !defaultLeaderElectionService.hasLeadership(
+                            currentLeaderDriver.getLeaderInformation().getLeaderSessionID())) {
+                Thread.sleep(100);
+            }
+
+            final CheckedThread contenderCloseThread = createCheckedThread(jobManagerRunner::close);
+            contenderCloseThread.start();
+
+            // waiting for the contender reaching the synchronized section of the stop call
+            closeAsyncCalledTrigger.await();
+
+            final CheckedThread grantLeadershipThread =
+                    createCheckedThread(currentLeaderDriver::isLeader);
+            grantLeadershipThread.start();
+
+            // finalize ClassloaderLease release to trigger DefaultLeaderElectionService#stop
+            triggerClassLoaderLeaseRelease.trigger();
+
+            contenderCloseThread.sync();
+            grantLeadershipThread.sync();
+        }
+    }
+
+    private static CheckedThread createCheckedThread(
+            ThrowingRunnable<? extends Exception> callback) {
+        return new CheckedThread() {
+            @Override
+            public void go() throws Exception {
+                callback.run();
+            }
+        };
+    }
+
     private void assertJobNotFinished(CompletableFuture<JobManagerRunnerResult> resultFuture)
             throws ExecutionException, InterruptedException {
         final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.get();
@@ -664,6 +817,9 @@ class JobMasterServiceLeadershipRunnerTest {
         private LibraryCacheManager.ClassLoaderLease classLoaderLease =
                 TestingClassLoaderLease.newBuilder().build();
 
+        private LeaderElectionService leaderElectionService =
+                JobMasterServiceLeadershipRunnerTest.this.leaderElectionService;
+
         public JobMasterServiceLeadershipRunnerBuilder setClassLoaderLease(
                 LibraryCacheManager.ClassLoaderLease classLoaderLease) {
             this.classLoaderLease = classLoaderLease;
@@ -673,6 +829,12 @@ class JobMasterServiceLeadershipRunnerTest {
         public JobMasterServiceLeadershipRunnerBuilder setJobMasterServiceProcessFactory(
                 JobMasterServiceProcessFactory jobMasterServiceProcessFactory) {
             this.jobMasterServiceProcessFactory = jobMasterServiceProcessFactory;
+            return this;
+        }
+
+        public JobMasterServiceLeadershipRunnerBuilder setLeaderElectionService(
+                LeaderElectionService leaderElectionService) {
+            this.leaderElectionService = leaderElectionService;
             return this;
         }
 
