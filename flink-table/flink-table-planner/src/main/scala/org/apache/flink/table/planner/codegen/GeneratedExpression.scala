@@ -87,8 +87,7 @@ case class GeneratedExpression(
       // if the type need copy, it must be a boxed type
       val typeTerm = boxedTypeTermForType(resultType)
       val serTerm = ctx.addReusableTypeSerializer(resultType)
-      val defaultValue = primitiveDefaultValue(resultType)
-      val newResultTerm = ctx.addReusableLocalVariable(typeTerm, "field", defaultValue)
+      val newResultTerm = ctx.addReusableLocalVariable(typeTerm, "field")
       val newCode =
         s"""
            |$code

@@ -59,13 +59,11 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
 
         /**
          * Declare a new variable accessible within the scope of the caller of {@link
-         * #generateCodeBlock(Context, String, String, LogicalType, LogicalType)}. Parameter
-         * defaultValue is required because of janino issue <a
-         * href="https://github.com/janino-compiler/janino/issues/187"/>
+         * #generateCodeBlock(Context, String, String, LogicalType, LogicalType)}.
          *
          * @return the variable name
          */
-        String declareVariable(String type, String variablePrefix, String defaultValue);
+        String declareVariable(String type, String variablePrefix);
 
         /** @return the term for the type serializer. */
         String declareTypeSerializer(LogicalType type);

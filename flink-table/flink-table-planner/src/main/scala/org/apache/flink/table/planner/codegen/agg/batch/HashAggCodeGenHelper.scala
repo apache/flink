@@ -754,7 +754,7 @@ object HashAggCodeGenHelper {
     val keyNotEquals = AggCodeGenHelper.genGroupKeyChangedCheckCode(keyTerm, lastKeyTerm)
 
     val joinedRow = classOf[JoinedRowData].getName
-    val fallbackInputTerm = ctx.addReusableLocalVariable(joinedRow, "fallbackInput", "null")
+    val fallbackInputTerm = ctx.addReusableLocalVariable(joinedRow, "fallbackInput")
     val fallbackInputType = RowType.of(
       (groupKeyRowType.getChildren ++ aggBufferRowType.getChildren).toArray,
       (groupKeyRowType.getFieldNames ++ aggBufferRowType.getFieldNames).toArray)

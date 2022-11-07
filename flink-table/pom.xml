@@ -77,8 +77,14 @@ under the License.
 
 	<properties>
 		<calcite.version>1.28.0</calcite.version>
-		<!-- Calcite 1.28.0 depends on 3.1.6 which contains some issues leading to failing tests -->
-		<janino.version>3.1.8</janino.version>
+		<!-- Calcite 1.28.0 depends on 3.1.6
+		 at the same time here is a list of issues required to be fixed
+		 before movement to 3.1.x
+		 https://github.com/janino-compiler/janino/issues/185
+		 https://github.com/janino-compiler/janino/issues/187
+		 https://github.com/janino-compiler/janino/issues/188
+		 -->
+		<janino.version>3.0.11</janino.version>
 		<jsonpath.version>2.6.0</jsonpath.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>

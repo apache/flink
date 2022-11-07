@@ -357,7 +357,7 @@ class HashWindowCodeGenerator(
     val expr = if (assignedTimestampExpr.isDefined) {
       val assignedLongTimestamp = assignedTimestampExpr.get
       if (inputTimeIsDate) {
-        val dateTerm = ctx.addReusableLocalVariable("int", "dateTerm", "-1")
+        val dateTerm = ctx.addReusableLocalVariable("int", "dateTerm")
         val convertDateCode =
           s"""
              |  ${assignedLongTimestamp.code}
@@ -824,7 +824,7 @@ class HashWindowCodeGenerator(
     val binaryRowTypeTerm = classOf[BinaryRowData].getName
     // gen code to do aggregate by window using aggregate map
     val currentAggBufferTerm =
-      ctx.addReusableLocalVariable(binaryRowTypeTerm, "currentAggBuffer", "null")
+      ctx.addReusableLocalVariable(binaryRowTypeTerm, "currentAggBuffer")
     val (initedAggBufferExpr, doAggregateExpr, outputResultFromMap) = genGroupWindowHashAggCodes(
       isMerge,
       isFinal,
@@ -851,7 +851,7 @@ class HashWindowCodeGenerator(
     }
 
     val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
-    val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo", "null")
+    val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo")
     val dealWithAggHashMapOOM = if (isFinal) {
       s"""throw new java.io.IOException("Hash window aggregate map OOM.");"""
     } else {

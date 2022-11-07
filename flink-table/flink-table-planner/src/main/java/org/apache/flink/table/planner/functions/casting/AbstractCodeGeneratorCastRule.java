@@ -204,10 +204,9 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         }
 
         @Override
-        public String declareVariable(String type, String variablePrefix, String defaultValue) {
+        public String declareVariable(String type, String variablePrefix) {
             String variableName = variablePrefix + "$" + variableIndex;
-            variableDeclarationStatements.add(
-                    type + " " + variableName + " = " + defaultValue + ";");
+            variableDeclarationStatements.add(type + " " + variableName + ";");
             variableIndex++;
             return variableName;
         }

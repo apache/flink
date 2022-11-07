@@ -395,9 +395,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
     val Seq(resultTerm, nullTerm) =
-      ctx.addReusableLocalVariables(
-        (resultTypeTerm, "result", primitiveDefaultValue(resultType)),
-        ("boolean", "isNull", "false"))
+      ctx.addReusableLocalVariables((resultTypeTerm, "result"), ("boolean", "isNull"))
 
     val resultCode =
       s"""

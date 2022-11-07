@@ -101,7 +101,7 @@ class HashAggCodeGenerator(
     // gen code to aggregate and output using hash map
     val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
     val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
-    val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo", "null")
+    val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
       ctx,
       groupKeyTypesTerm,
@@ -117,7 +117,7 @@ class HashAggCodeGenerator(
         if (grouping.isEmpty) classOf[GenericRowData] else classOf[JoinedRowData])
 
     val currentAggBufferTerm =
-      ctx.addReusableLocalVariable(binaryRowTypeTerm, "currentAggBuffer", "null")
+      ctx.addReusableLocalVariable(binaryRowTypeTerm, "currentAggBuffer")
     val (initedAggBuffer, aggregate, outputExpr) = HashAggCodeGenHelper.genHashAggCodes(
       isMerge,
       isFinal,

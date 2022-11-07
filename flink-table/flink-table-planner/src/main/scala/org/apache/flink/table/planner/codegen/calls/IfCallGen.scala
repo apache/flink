@@ -47,9 +47,7 @@ class IfCallGen() extends CallGenerator {
     val resultTypeTerm = primitiveTypeTermForType(returnType)
     val resultDefault = primitiveDefaultValue(returnType)
     val Seq(resultTerm, nullTerm) =
-      ctx.addReusableLocalVariables(
-        (resultTypeTerm, "result", resultDefault),
-        ("boolean", "isNull", "false"))
+      ctx.addReusableLocalVariables((resultTypeTerm, "result"), ("boolean", "isNull"))
 
     val resultCode =
       s"""

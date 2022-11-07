@@ -366,7 +366,7 @@ abstract class WindowCodeGenerator(
           inputTerm,
           windowedGroupKeyType.getFieldCount - 1)
         if (inputTimeIsDate) {
-          val timestamp = ctx.addReusableLocalVariable("long", "timestamp", "-1L")
+          val timestamp = ctx.addReusableLocalVariable("long", "timestamp")
           val convertToLongCode =
             s"""
                |  ${ret.code}
