@@ -72,7 +72,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     private final PulsarSinkContext sinkContext;
     private final TopicProducerRegister producerRegister;
     private final MailboxExecutor mailboxExecutor;
-    private final AtomicLong pendingMessages = new AtomicLong(0);
+    private final AtomicLong pendingMessages;
 
     /**
      * Constructor creating a Pulsar writer.
@@ -122,8 +122,10 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         }
 
         // Create this producer register after opening serialization schema!
-        this.producerRegister = new TopicProducerRegister(sinkConfiguration);
+        this.producerRegister =
+                new TopicProducerRegister(sinkConfiguration, initContext.metricGroup());
         this.mailboxExecutor = initContext.getMailboxExecutor();
+        this.pendingMessages = new AtomicLong(0);
     }
 
     @Override

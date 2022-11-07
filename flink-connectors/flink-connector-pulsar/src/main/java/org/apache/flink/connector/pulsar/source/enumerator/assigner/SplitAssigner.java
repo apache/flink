@@ -60,4 +60,7 @@ public interface SplitAssigner {
 
     /** Snapshot the current assign state into checkpoint. */
     PulsarSourceEnumState snapshotState();
+
+    /** Expose this for standard flink metrics. */
+    long getUnassignedSplitCount();
 }

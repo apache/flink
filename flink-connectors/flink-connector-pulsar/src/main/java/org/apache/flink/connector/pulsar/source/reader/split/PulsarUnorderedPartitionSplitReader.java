@@ -23,6 +23,7 @@ import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarUnorderedSourceReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -65,8 +66,9 @@ public class PulsarUnorderedPartitionSplitReader extends PulsarPartitionSplitRea
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
+            SourceReaderMetricGroup metricGroup,
             TransactionCoordinatorClient coordinatorClient) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration);
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, metricGroup);
 
         this.coordinatorClient = coordinatorClient;
     }
