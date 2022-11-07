@@ -38,7 +38,7 @@ public class DockerImageVersions {
 
     public static final String LOCALSTACK = "localstack/localstack:0.13.3";
 
-    public static final String PULSAR = "apachepulsar/pulsar:2.10.1";
+    public static final String PULSAR = "apachepulsar/pulsar:2.10.2";
 
     public static final String CASSANDRA_4_0 = "cassandra:4.0.3";
 
