@@ -31,7 +31,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-/** Unit tests for Hadoop user utils. */
+/**
+ * Unit tests for Hadoop user utils.
+ *
+ * <p>The singleton design of {@link UserGroupInformation} prevents using the best practice of
+ * implementing a reusable test utility around it, consequently had to resort to relying on mockito.
+ */
 class HadoopUserUtilsITCase {
 
     @Test
