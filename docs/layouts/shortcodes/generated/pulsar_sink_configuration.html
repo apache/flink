@@ -28,9 +28,9 @@
         </tr>
         <tr>
             <td><h5>pulsar.sink.messageKeyHash</h5></td>
-            <td style="word-wrap: break-word;">murmur-3-32-hash</td>
+            <td style="word-wrap: break-word;">MURMUR3_32_HASH</td>
             <td><p>Enum</p></td>
-            <td>The hash policy for routing message by calculating the hash code of message key.<br /><br />Possible values:<ul><li>"java-hash": This hash would use <code class="highlighter-rouge">String.hashCode()</code> to calculate the message key string's hash code.</li><li>"murmur-3-32-hash": This hash would calculate message key's hash code by using <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> algorithm.</li></ul></td>
+            <td>The hash policy for routing message by calculating the hash code of message key.<br /><br />Possible values:<ul><li>"JAVA_HASH"</li><li>"MURMUR3_32_HASH"</li></ul></td>
         </tr>
         <tr>
             <td><h5>pulsar.sink.topicMetadataRefreshInterval</h5></td>

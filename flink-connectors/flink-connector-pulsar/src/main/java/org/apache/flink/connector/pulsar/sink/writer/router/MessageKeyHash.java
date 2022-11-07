@@ -20,27 +20,17 @@ package org.apache.flink.connector.pulsar.sink.writer.router;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.DescribedEnum;
-import org.apache.flink.configuration.description.InlineElement;
 
 import org.apache.pulsar.client.impl.Hash;
 import org.apache.pulsar.client.impl.JavaStringHash;
 import org.apache.pulsar.client.impl.Murmur3Hash32;
 
-import static org.apache.flink.configuration.description.LinkElement.link;
-import static org.apache.flink.configuration.description.TextElement.code;
-import static org.apache.flink.configuration.description.TextElement.text;
-
 /** Predefined the available hash function for routing the message. */
 @PublicEvolving
-public enum MessageKeyHash implements DescribedEnum {
+public enum MessageKeyHash {
 
     /** Use regular <code>String.hashCode()</code>. */
-    JAVA_HASH(
-            "java-hash",
-            text(
-                    "This hash would use %s to calculate the message key string's hash code.",
-                    code("String.hashCode()"))) {
+    JAVA_HASH {
         @Override
         public Hash getHash() {
             return JavaStringHash.getInstance();
@@ -50,36 +40,13 @@ public enum MessageKeyHash implements DescribedEnum {
      * Use Murmur3 hashing function. <a
      * href="https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash</a>
      */
-    MURMUR3_32_HASH(
-            "murmur-3-32-hash",
-            text(
-                    "This hash would calculate message key's hash code by using %s algorithm.",
-                    link("https://en.wikipedia.org/wiki/MurmurHash", "Murmur3"))) {
+    MURMUR3_32_HASH {
         @Override
         public Hash getHash() {
             return Murmur3Hash32.getInstance();
         }
     };
 
-    private final String name;
-    private final InlineElement desc;
-
-    MessageKeyHash(String name, InlineElement desc) {
-        this.name = name;
-        this.desc = desc;
-    }
-
     @Internal
     public abstract Hash getHash();
-
-    @Override
-    public String toString() {
-        return name;
-    }
-
-    @Internal
-    @Override
-    public InlineElement getDescription() {
-        return desc;
-    }
 }

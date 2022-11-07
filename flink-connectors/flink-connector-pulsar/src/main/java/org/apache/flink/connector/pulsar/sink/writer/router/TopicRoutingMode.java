@@ -18,70 +18,29 @@
 
 package org.apache.flink.connector.pulsar.sink.writer.router;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.DescribedEnum;
-import org.apache.flink.configuration.description.InlineElement;
-
-import static org.apache.flink.configuration.description.TextElement.code;
-import static org.apache.flink.configuration.description.TextElement.text;
-import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES;
 
 /** The routing policy for choosing the desired topic by the given message. */
 @PublicEvolving
-public enum TopicRoutingMode implements DescribedEnum {
+public enum TopicRoutingMode {
 
     /**
      * The producer will publish messages across all partitions in a round-robin fashion to achieve
      * maximum throughput. Please note that round-robin is not done per individual message but
      * rather it's set to the same boundary of batching delay, to ensure batching is effective.
      */
-    ROUND_ROBIN(
-            "round-robin",
-            text(
-                    "The producer will publish messages across all partitions in a round-robin fashion to achieve maximum throughput."
-                            + " Please note that round-robin is not done per individual message"
-                            + " but rather it's set to the same boundary of %s, to ensure batching is effective.",
-                    code(PULSAR_BATCHING_MAX_MESSAGES.key()))),
+    ROUND_ROBIN,
 
     /**
      * If no key is provided, The partitioned producer will randomly pick one single topic partition
      * and publish all the messages into that partition. If a key is provided on the message, the
      * partitioned producer will hash the key and assign the message to a particular partition.
      */
-    MESSAGE_KEY_HASH(
-            "message-key-hash",
-            text(
-                    "If no key is provided, The partitioned producer will randomly pick one single topic partition"
-                            + " and publish all the messages into that partition. If a key is provided on the message,"
-                            + " the partitioned producer will hash the key and assign the message to a particular partition.")),
+    MESSAGE_KEY_HASH,
 
     /**
      * Use custom topic router implementation that will be called to determine the partition for a
      * particular message.
      */
-    CUSTOM(
-            "custom",
-            text(
-                    "Use custom %s implementation that will be called to determine the partition for a particular message.",
-                    code(TopicRouter.class.getSimpleName())));
-
-    private final String name;
-    private final InlineElement desc;
-
-    TopicRoutingMode(String name, InlineElement desc) {
-        this.name = name;
-        this.desc = desc;
-    }
-
-    @Internal
-    @Override
-    public InlineElement getDescription() {
-        return desc;
-    }
-
-    @Override
-    public String toString() {
-        return name;
-    }
+    CUSTOM;
 }
