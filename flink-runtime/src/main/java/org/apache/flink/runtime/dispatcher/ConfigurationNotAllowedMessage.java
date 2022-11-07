@@ -66,4 +66,9 @@ public class ConfigurationNotAllowedMessage {
                 "Configuration %s:%s was removed from the configuration object %s.",
                 configKey, configValue, configurationObject);
     }
+
+    public static String ofConfigurationObjectSetterUsed(
+            String configurationObject, String setter) {
+        return String.format("Setter %s#%s has been used", configurationObject, setter);
+    }
 }

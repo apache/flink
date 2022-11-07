@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.Path;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -153,5 +154,23 @@ class ExternalizedSnapshotLocation implements Serializable {
                                         e);
                             }
                         });
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(baseCheckpointPath, baseSavepointPath);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+        ExternalizedSnapshotLocation that = (ExternalizedSnapshotLocation) other;
+        return Objects.equals(baseCheckpointPath, that.baseCheckpointPath)
+                && Objects.equals(baseSavepointPath, that.baseSavepointPath);
     }
 }
