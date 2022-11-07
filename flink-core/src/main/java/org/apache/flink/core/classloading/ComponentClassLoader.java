@@ -192,6 +192,9 @@ public class ComponentClassLoader extends URLClassLoader {
 
     @Override
     public InputStream getResourceAsStream(String name) {
+        if (isComponentFirstResource(name)) {
+            return super.getResourceAsStream(name);
+        }
         if (isOwnerFirstClass(name)) {
             return ownerClassLoader.getResourceAsStream(name);
         }
