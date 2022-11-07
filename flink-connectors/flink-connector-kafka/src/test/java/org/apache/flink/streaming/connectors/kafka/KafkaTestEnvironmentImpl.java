@@ -142,15 +142,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
     private void tryDelete(AdminClient adminClient, String topic) throws Exception {
         try {
-            adminClient
-                    .deleteTopics(Collections.singleton(topic))
-                    .all()
-                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            adminClient.deleteTopics(Collections.singleton(topic)).all().get();
             CommonTestUtils.waitUtil(
                     () -> {
                         try {
-                            return adminClient.listTopics().listings()
-                                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS).stream()
+                            return adminClient.listTopics().listings().get().stream()
                                     .map(TopicListing::name)
                                     .noneMatch((name) -> name.equals(topic));
                         } catch (Exception e) {
@@ -164,11 +160,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
             LOG.info(
                     "Did not receive delete topic response within {} seconds. Checking if it succeeded",
                     REQUEST_TIMEOUT_SECONDS);
-            if (adminClient
-                    .listTopics()
-                    .names()
-                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                    .contains(topic)) {
+            if (adminClient.listTopics().names().get().contains(topic)) {
                 throw new Exception("Topic still exists after timeout", e);
             }
         }
