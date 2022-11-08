@@ -92,6 +92,54 @@ Flink 管理的状态存储在 _state backend_ 中。Flink 有两种 state backe
 
 {{< top >}}
 
+## Checkpoint Storage
+
+Flink periodically takes persistent snapshots of all the state in every operator and copies these snapshots somewhere more durable, such as a distributed file system. In the event of the failure, Flink can restore the complete state of your application and resume
+processing as though nothing had gone wrong.
+
+The location where these snapshots are stored is defined via the jobs _checkpoint storage_.
+Two implementations of checkpoint storage are available - one that persists its state snapshots
+to a distributed file system, and another that users the JobManager's heap.
+
+<center>
+  <table class="table table-bordered">
+    <thead>
+      <tr class="book-hint info">
+        <th class="text-left">Name</th>
+        <th class="text-left">State Backup</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th class="text-left">FileSystemCheckpointStorage</th>
+        <td class="text-left">Distributed file system</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>Supports very large state size</li>
+            <li>Highly durable</li>
+            <li>Recommended for production deployments</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <th class="text-left">JobManagerCheckpointStorage</th>
+        <td class="text-left">JobManager JVM Heap</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>Good for testing and experimentation with small state (locally)</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</center>
+
+{{< top >}}
+
 ## 状态快照
 
 ### 定义
