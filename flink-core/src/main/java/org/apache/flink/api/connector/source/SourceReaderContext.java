@@ -19,9 +19,12 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
+
+import java.io.Serializable;
 
 /** The interface that exposes some context from runtime to the {@link SourceReader}. */
 @Public
@@ -63,4 +66,22 @@ public interface SourceReaderContext {
      * @see UserCodeClassLoader
      */
     UserCodeClassLoader getUserCodeClassLoader();
+
+    /**
+     * Add this accumulator. Throws an exception if the accumulator already exists in the same Task.
+     * Note that the Accumulator name must have an unique name across the Flink job. Otherwise you
+     * will get an error when incompatible accumulators from different Tasks are combined at the
+     * JobManager upon job completion.
+     */
+    <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator);
+
+    /**
+     * Get an existing accumulator object. The accumulator must have been added previously in this
+     * local runtime context.
+     *
+     * <p>Throws an exception if the accumulator does not exist or if the accumulator exists, but
+     * with different type.
+     */
+    <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
+
 }

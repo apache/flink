@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
@@ -67,6 +68,7 @@ import org.apache.flink.util.function.FunctionWithException;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -296,6 +298,18 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                                                 releaseHookName, releaseHook);
                             }
                         };
+                    }
+
+                    @Override
+                    public <V, A extends Serializable> void addAccumulator(
+                            String name,
+                            Accumulator<V, A> accumulator) {
+                        getRuntimeContext().addAccumulator(name, accumulator);
+                    }
+
+                    @Override
+                    public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+                        return getRuntimeContext().getAccumulator(name);
                     }
                 };
 
