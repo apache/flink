@@ -72,6 +72,17 @@ under the License.
 			<artifactId>calcite-core</artifactId>
 			<version>${calcite.version}</version>
 			<exclusions>
+				<!--
+				"mvn dependency:tree" as of Calcite 1.28.0:
+
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.28.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.19.0:compile
+				[INFO] |  +- org.checkerframework:checker-qual:jar:3.10.0:compile
+				[INFO] |  +- org.codehaus.janino:commons-compiler:jar:3.1.8:runtime
+				[INFO] |  \- org.codehaus.janino:janino:jar:3.1.8:runtime
+
+				Dependencies that are not needed for how we use Calcite right now.
+				-->
 				<exclusion>
 					<groupId>commons-io</groupId>
 					<artifactId>commons-io</artifactId>
@@ -111,6 +122,10 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
 					<artifactId>avatica-server</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-metrics</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
