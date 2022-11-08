@@ -26,14 +26,15 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
+import org.apache.flink.connector.pulsar.source.reader.emitter.PulsarRecordEmitter;
 import org.apache.flink.connector.pulsar.source.reader.fetcher.PulsarOrderedFetcherManager;
-import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.source.reader.split.PulsarOrderedPartitionSplitReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
 import org.apache.flink.core.io.InputStatus;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.slf4j.Logger;
@@ -67,16 +68,18 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
     private ScheduledExecutorService cursorScheduler;
 
     public PulsarOrderedSourceReader(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<OUT>>> elementsQueue,
-            Supplier<PulsarOrderedPartitionSplitReader<OUT>> splitReaderSupplier,
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<Message<byte[]>>> elementsQueue,
+            Supplier<PulsarOrderedPartitionSplitReader> splitReaderSupplier,
+            PulsarRecordEmitter<OUT> recordEmitter,
             SourceReaderContext context,
             SourceConfiguration sourceConfiguration,
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin) {
         super(
                 elementsQueue,
-                new PulsarOrderedFetcherManager<>(
+                new PulsarOrderedFetcherManager(
                         elementsQueue, splitReaderSupplier::get, context.getConfiguration()),
+                recordEmitter,
                 context,
                 sourceConfiguration,
                 pulsarClient,
@@ -151,7 +154,7 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
         LOG.debug("Committing cursors for checkpoint {}", checkpointId);
         Map<TopicPartition, MessageId> cursors = cursorsToCommit.get(checkpointId);
         try {
-            ((PulsarOrderedFetcherManager<OUT>) splitFetcherManager).acknowledgeMessages(cursors);
+            ((PulsarOrderedFetcherManager) splitFetcherManager).acknowledgeMessages(cursors);
             LOG.debug("Successfully acknowledge cursors for checkpoint {}", checkpointId);
 
             // Clean up the cursors.
@@ -196,7 +199,7 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
         }
 
         try {
-            ((PulsarOrderedFetcherManager<OUT>) splitFetcherManager).acknowledgeMessages(cursors);
+            ((PulsarOrderedFetcherManager) splitFetcherManager).acknowledgeMessages(cursors);
             // Clean up the finish splits.
             cursorsOfFinishedSplits.keySet().removeAll(cursors.keySet());
         } catch (Exception e) {
