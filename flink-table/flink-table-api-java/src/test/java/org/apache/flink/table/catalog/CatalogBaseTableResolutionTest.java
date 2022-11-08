@@ -269,6 +269,31 @@ class CatalogBaseTableResolutionTest {
         return catalogManager;
     }
 
+    @Test
+    void testWatermarkOnTimestampEqualityWithConverted() {
+        TableSchema tableSchema =
+                TableSchema.builder()
+                        .field("ts", DataTypes.TIMESTAMP(3))
+                        .field(
+                                "f1",
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("q1", DataTypes.STRING()),
+                                        DataTypes.FIELD("q2", DataTypes.TIMESTAMP_LTZ(3))))
+                        .watermark("ts", "ts - INTERVAL '5' SECOND", DataTypes.TIMESTAMP(3))
+                        .build();
+        ResolvedSchema resolvedSchema =
+                catalogManager()
+                        .resolveCatalogTable(
+                                CatalogTable.of(
+                                        tableSchema.toSchema(),
+                                        "",
+                                        Collections.emptyList(),
+                                        Collections.emptyMap()))
+                        .getResolvedSchema();
+        TableSchema result = TableSchema.fromResolvedSchema(resolvedSchema);
+        assertThat(result.toString()).isEqualTo(tableSchema.toString());
+    }
+
     private static <T extends CatalogBaseTable> T resolveCatalogBaseTable(
             Class<T> expectedClass, CatalogBaseTable table) {
         final CatalogManager catalogManager = catalogManager();

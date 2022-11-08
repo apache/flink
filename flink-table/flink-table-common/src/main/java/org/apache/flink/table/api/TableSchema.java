@@ -29,8 +29,11 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -57,6 +60,7 @@ import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
+import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -426,7 +430,30 @@ public class TableSchema {
                         column -> {
                             if (column instanceof Column.PhysicalColumn) {
                                 final Column.PhysicalColumn c = (Column.PhysicalColumn) column;
-                                return TableColumn.physical(c.getName(), c.getDataType());
+                                DataType dataType = c.getDataType();
+                                switch (dataType.getLogicalType().getTypeRoot()) {
+                                    case TIMESTAMP_WITHOUT_TIME_ZONE:
+                                        final TimestampType originalType =
+                                                (TimestampType) dataType.getLogicalType();
+                                        final LogicalType regularType =
+                                                new TimestampType(
+                                                        originalType.isNullable(),
+                                                        TimestampKind.REGULAR,
+                                                        originalType.getPrecision());
+                                        dataType = replaceLogicalType(dataType, regularType);
+                                        break;
+                                    case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                                        final LocalZonedTimestampType timestampLtzType =
+                                                (LocalZonedTimestampType) dataType.getLogicalType();
+                                        final LogicalType regularLtzType =
+                                                new LocalZonedTimestampType(
+                                                        timestampLtzType.isNullable(),
+                                                        TimestampKind.REGULAR,
+                                                        timestampLtzType.getPrecision());
+                                        dataType = replaceLogicalType(dataType, regularLtzType);
+                                        break;
+                                }
+                                return TableColumn.physical(c.getName(), dataType);
                             } else if (column instanceof Column.MetadataColumn) {
                                 final Column.MetadataColumn c = (Column.MetadataColumn) column;
                                 return TableColumn.metadata(
