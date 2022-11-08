@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CyclicBarrier;
@@ -62,6 +64,8 @@ class CheckpointInProgressRequestTest {
             AtomicInteger cancelCounter, CyclicBarrier cb) {
         return new CheckpointInProgressRequest(
                 "test",
+                new JobVertexID(),
+                0,
                 1L,
                 unused -> {},
                 unused -> {

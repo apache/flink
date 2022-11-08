@@ -17,12 +17,15 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.Test;
@@ -33,7 +36,6 @@ import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,6 +44,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ChannelStateWriterImplTest {
     private static final long CHECKPOINT_ID = 42L;
     private static final String TASK_NAME = "test";
+    private static final JobID JOB_ID = new JobID();
+    private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    private static final int SUBTASK_INDEX = 0;
 
     @Test
     void testAddEventBuffer() throws Exception {
@@ -141,17 +146,20 @@ class ChannelStateWriterImplTest {
     }
 
     @Test
-    void testBuffersRecycledOnError() throws IOException {
+    void testBuffersRecycledOnError() {
         NetworkBuffer buffer = getBuffer();
-        try (ChannelStateWriterImpl writer =
+        ChannelStateWriterImpl writer =
                 new ChannelStateWriterImpl(
-                        TASK_NAME, new ConcurrentHashMap<>(), failingWorker(), 5)) {
-            writer.open();
-            assertThatThrownBy(() -> callAddInputData(writer, buffer))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasCauseInstanceOf(TestException.class);
-            assertThat(buffer.isRecycled()).isTrue();
-        }
+                        JOB_VERTEX_ID,
+                        TASK_NAME,
+                        SUBTASK_INDEX,
+                        new ConcurrentHashMap<>(),
+                        failingWorker(),
+                        5);
+        assertThatThrownBy(() -> callAddInputData(writer, buffer))
+                .isInstanceOf(RuntimeException.class)
+                .hasCauseInstanceOf(TestException.class);
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     @Test
@@ -210,10 +218,17 @@ class ChannelStateWriterImplTest {
 
     @Test
     void testRethrowOnNextCall() {
-        SyncChannelStateWriteRequestExecutor worker = new SyncChannelStateWriteRequestExecutor();
+        SyncChannelStateWriteRequestExecutor worker =
+                new SyncChannelStateWriteRequestExecutor(JOB_ID);
         ChannelStateWriterImpl writer =
-                new ChannelStateWriterImpl(TASK_NAME, new ConcurrentHashMap<>(), worker, 5);
-        writer.open();
+                new ChannelStateWriterImpl(
+                        JOB_VERTEX_ID,
+                        TASK_NAME,
+                        SUBTASK_INDEX,
+                        new ConcurrentHashMap<>(),
+                        worker,
+                        5);
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         worker.setThrown(new TestException());
         assertThatThrownBy(() -> callStart(writer)).hasCauseInstanceOf(TestException.class);
     }
@@ -223,8 +238,13 @@ class ChannelStateWriterImplTest {
         int maxCheckpoints = 3;
         try (ChannelStateWriterImpl writer =
                 new ChannelStateWriterImpl(
-                        TASK_NAME, 0, getStreamFactoryFactory(), maxCheckpoints)) {
-            writer.open();
+                        JOB_VERTEX_ID,
+                        TASK_NAME,
+                        SUBTASK_INDEX,
+                        new JobManagerCheckpointStorage(),
+                        maxCheckpoints,
+                        new ChannelStateWriteRequestExecutorFactory(JOB_ID),
+                        5)) {
             for (int i = 0; i < maxCheckpoints; i++) {
                 writer.start(i, CheckpointOptions.forCheckpointWithDefaultLocation());
             }
@@ -234,15 +254,6 @@ class ChannelStateWriterImplTest {
                                             maxCheckpoints,
                                             CheckpointOptions.forCheckpointWithDefaultLocation()))
                     .isInstanceOf(IllegalStateException.class);
-        }
-    }
-
-    @Test
-    void testStartNotOpened() throws IOException {
-        try (ChannelStateWriterImpl writer =
-                new ChannelStateWriterImpl(TASK_NAME, 0, getStreamFactoryFactory())) {
-            assertThatThrownBy(() -> callStart(writer))
-                    .hasCauseInstanceOf(IllegalStateException.class);
         }
     }
 
@@ -274,8 +285,6 @@ class ChannelStateWriterImplTest {
 
     private ChannelStateWriteRequestExecutor failingWorker() {
         return new ChannelStateWriteRequestExecutor() {
-            @Override
-            public void close() {}
 
             @Override
             public void submit(ChannelStateWriteRequest e) {
@@ -289,6 +298,12 @@ class ChannelStateWriterImplTest {
 
             @Override
             public void start() throws IllegalStateException {}
+
+            @Override
+            public void registerSubtask(JobVertexID jobVertexID, int subtaskIndex) {}
+
+            @Override
+            public void releaseSubtask(JobVertexID jobVertexID, int subtaskIndex) {}
         };
     }
 
@@ -306,21 +321,31 @@ class ChannelStateWriterImplTest {
                             ChannelStateWriter, SyncChannelStateWriteRequestExecutor, Exception>
                     testFn)
             throws Exception {
-        try (SyncChannelStateWriteRequestExecutor worker =
-                        new SyncChannelStateWriteRequestExecutor();
-                ChannelStateWriterImpl writer =
-                        new ChannelStateWriterImpl(
-                                TASK_NAME, new ConcurrentHashMap<>(), worker, 5)) {
-            writer.open();
+        SyncChannelStateWriteRequestExecutor worker =
+                new SyncChannelStateWriteRequestExecutor(JOB_ID);
+        try (ChannelStateWriterImpl writer =
+                new ChannelStateWriterImpl(
+                        JOB_VERTEX_ID,
+                        TASK_NAME,
+                        SUBTASK_INDEX,
+                        new ConcurrentHashMap<>(),
+                        worker,
+                        5)) {
+            worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
             testFn.accept(writer, worker);
+        } finally {
+            worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
     }
 
     private ChannelStateWriterImpl openWriter() {
-        ChannelStateWriterImpl writer =
-                new ChannelStateWriterImpl(TASK_NAME, 0, getStreamFactoryFactory());
-        writer.open();
-        return writer;
+        return new ChannelStateWriterImpl(
+                JOB_VERTEX_ID,
+                TASK_NAME,
+                SUBTASK_INDEX,
+                new JobManagerCheckpointStorage(),
+                new ChannelStateWriteRequestExecutorFactory(JOB_ID),
+                5);
     }
 
     private void callStart(ChannelStateWriter writer) {
@@ -352,14 +377,11 @@ class SyncChannelStateWriteRequestExecutor implements ChannelStateWriteRequestEx
     private final Deque<ChannelStateWriteRequest> deque;
     private Exception thrown;
 
-    SyncChannelStateWriteRequestExecutor() {
+    SyncChannelStateWriteRequestExecutor(JobID jobID) {
         deque = new ArrayDeque<>();
         requestProcessor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        "dummy task",
-                        0,
-                        getStreamFactoryFactory(),
-                        new ChannelStateSerializerImpl());
+                        new JobManagerCheckpointStorage(), jobID, new ChannelStateSerializerImpl());
     }
 
     @Override
@@ -382,7 +404,14 @@ class SyncChannelStateWriteRequestExecutor implements ChannelStateWriteRequestEx
     public void start() throws IllegalStateException {}
 
     @Override
-    public void close() {}
+    public void registerSubtask(JobVertexID jobVertexID, int subtaskIndex) {
+        deque.add(ChannelStateWriteRequest.registerSubtask(jobVertexID, subtaskIndex));
+    }
+
+    @Override
+    public void releaseSubtask(JobVertexID jobVertexID, int subtaskIndex) {
+        deque.add(ChannelStateWriteRequest.releaseSubtask(jobVertexID, subtaskIndex));
+    }
 
     void processAllRequests() throws Exception {
         while (!deque.isEmpty()) {

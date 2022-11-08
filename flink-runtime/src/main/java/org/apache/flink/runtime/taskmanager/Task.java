@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointStoreUtil;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -262,6 +263,9 @@ public class Task
     /** Future that is completed once {@link #run()} exits. */
     private final CompletableFuture<ExecutionState> terminationFuture = new CompletableFuture<>();
 
+    /** The factory of channel state write request executor. */
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     // ------------------------------------------------------------------------
     //  Fields that control the task execution. All these fields are volatile
     //  (which means that they introduce memory barriers), to establish
@@ -324,7 +328,8 @@ public class Task
             TaskManagerRuntimeInfo taskManagerConfig,
             @Nonnull TaskMetricGroup metricGroup,
             PartitionProducerStateChecker partitionProducerStateChecker,
-            Executor executor) {
+            Executor executor,
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
         Preconditions.checkNotNull(jobInformation);
         Preconditions.checkNotNull(taskInformation);
@@ -382,6 +387,7 @@ public class Task
         this.partitionProducerStateChecker =
                 Preconditions.checkNotNull(partitionProducerStateChecker);
         this.executor = Preconditions.checkNotNull(executor);
+        this.channelStateExecutorFactory = channelStateExecutorFactory;
 
         // create the reader and writer structures
 
@@ -708,7 +714,8 @@ public class Task
                             taskManagerConfig,
                             metrics,
                             this,
-                            externalResourceInfoProvider);
+                            externalResourceInfoProvider,
+                            channelStateExecutorFactory);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable

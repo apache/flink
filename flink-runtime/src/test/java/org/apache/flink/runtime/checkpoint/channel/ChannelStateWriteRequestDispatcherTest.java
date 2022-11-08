@@ -17,12 +17,15 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -43,7 +46,6 @@ import static java.util.Optional.of;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeInput;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeOutput;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.write;
-import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.assertj.core.api.Assertions.fail;
 
 /** {@link ChannelStateWriteRequestDispatcherImpl} tests. */
@@ -90,6 +92,10 @@ public class ChannelStateWriteRequestDispatcherTest {
                 new Object[] {of(IllegalStateException.class), asList(start(), start())});
     }
 
+    private static final JobID JOB_ID = new JobID();
+    private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    private static final int SUBTASK_INDEX = 0;
+
     @Parameter public Optional<Class<Exception>> expectedException;
 
     @Parameter(value = 1)
@@ -98,15 +104,17 @@ public class ChannelStateWriteRequestDispatcherTest {
     private static final long CHECKPOINT_ID = 42L;
 
     private static CheckpointInProgressRequest completeOut() {
-        return completeOutput(CHECKPOINT_ID);
+        return completeOutput(JOB_VERTEX_ID, SUBTASK_INDEX, CHECKPOINT_ID);
     }
 
     private static CheckpointInProgressRequest completeIn() {
-        return completeInput(CHECKPOINT_ID);
+        return completeInput(JOB_VERTEX_ID, SUBTASK_INDEX, CHECKPOINT_ID);
     }
 
     private static ChannelStateWriteRequest writeIn() {
         return write(
+                JOB_VERTEX_ID,
+                SUBTASK_INDEX,
                 CHECKPOINT_ID,
                 new InputChannelInfo(1, 1),
                 CloseableIterator.ofElement(
@@ -118,6 +126,8 @@ public class ChannelStateWriteRequestDispatcherTest {
 
     private static ChannelStateWriteRequest writeOut() {
         return write(
+                JOB_VERTEX_ID,
+                SUBTASK_INDEX,
                 CHECKPOINT_ID,
                 new ResultSubpartitionInfo(1, 1),
                 new NetworkBuffer(
@@ -128,7 +138,12 @@ public class ChannelStateWriteRequestDispatcherTest {
     private static ChannelStateWriteRequest writeOutFuture() {
         CompletableFuture<List<Buffer>> outFuture = new CompletableFuture<>();
         ChannelStateWriteRequest writeRequest =
-                write(CHECKPOINT_ID, new ResultSubpartitionInfo(1, 1), outFuture);
+                write(
+                        JOB_VERTEX_ID,
+                        SUBTASK_INDEX,
+                        CHECKPOINT_ID,
+                        new ResultSubpartitionInfo(1, 1),
+                        outFuture);
         outFuture.complete(
                 singletonList(
                         new NetworkBuffer(
@@ -137,8 +152,14 @@ public class ChannelStateWriteRequestDispatcherTest {
         return writeRequest;
     }
 
+    private static SubtaskRegisterRequest register() {
+        return new SubtaskRegisterRequest(JOB_VERTEX_ID, SUBTASK_INDEX);
+    }
+
     private static CheckpointStartRequest start() {
         return new CheckpointStartRequest(
+                JOB_VERTEX_ID,
+                SUBTASK_INDEX,
                 CHECKPOINT_ID,
                 new ChannelStateWriteResult(),
                 new CheckpointStorageLocationReference(new byte[] {1}));
@@ -148,11 +169,11 @@ public class ChannelStateWriteRequestDispatcherTest {
     void doRun() {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        "dummy task",
-                        0,
-                        getStreamFactoryFactory(),
+                        new JobManagerCheckpointStorage(),
+                        JOB_ID,
                         new ChannelStateSerializerImpl());
         try {
+            processor.dispatch(register());
             for (ChannelStateWriteRequest request : requests) {
                 processor.dispatch(request);
             }

@@ -280,4 +280,13 @@ public class ExecutionCheckpointingOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("Flag to enable approximate local recovery.");
+
+    public static final ConfigOption<Integer> UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE =
+            key("execution.checkpointing.unaligned.max-subtasks-per-channel-state-file")
+                    .intType()
+                    .defaultValue(5)
+                    .withDescription(
+                            "Defines the maximum number of subtasks that share the same channel state file. "
+                                    + "It can reduce the number of small files when enable unaligned checkpoint. "
+                                    + "Each subtask will create a new channel state file when this is configured to 1.");
 }

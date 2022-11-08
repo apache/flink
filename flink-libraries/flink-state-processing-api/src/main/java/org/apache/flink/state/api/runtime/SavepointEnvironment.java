@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
@@ -107,6 +108,8 @@ public class SavepointEnvironment implements Environment {
 
     private final UserCodeClassLoader userCodeClassLoader;
 
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     private SavepointEnvironment(
             RuntimeContext ctx,
             Configuration configuration,
@@ -133,6 +136,7 @@ public class SavepointEnvironment implements Environment {
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 
         this.userCodeClassLoader = UserCodeClassLoaderRuntimeContextAdapter.from(ctx);
+        this.channelStateExecutorFactory = new ChannelStateWriteRequestExecutorFactory(jobID);
     }
 
     @Override
@@ -304,6 +308,11 @@ public class SavepointEnvironment implements Environment {
     @Override
     public TaskEventDispatcher getTaskEventDispatcher() {
         throw new UnsupportedOperationException(ERROR_MSG);
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 
     /** {@link SavepointEnvironment} builder. */

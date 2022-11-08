@@ -456,6 +456,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
+                            checkpointStorage,
                             checkpointStorageAccess,
                             getName(),
                             actionExecutor,
@@ -471,7 +472,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             this::prepareInputSnapshot,
                             configuration.getMaxConcurrentCheckpoints(),
                             BarrierAlignmentUtil.createRegisterTimerCallback(
-                                    mainMailboxExecutor, systemTimerService));
+                                    mainMailboxExecutor, systemTimerService),
+                            configuration.getMaxSubtasksPerChannelStateFile());
             resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);
 
             // Register to stop all timers and threads. Should be closed first.

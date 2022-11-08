@@ -27,6 +27,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -189,7 +190,8 @@ public class StreamTaskTerminationTest extends TestLogger {
                         taskManagerRuntimeInfo,
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
                         mock(PartitionProducerStateChecker.class),
-                        Executors.directExecutor());
+                        Executors.directExecutor(),
+                        new ChannelStateWriteRequestExecutorFactory(jobInformation.getJobId()));
 
         CompletableFuture<Void> taskRun =
                 CompletableFuture.runAsync(() -> task.run(), EXECUTOR_RESOURCE.getExecutor());

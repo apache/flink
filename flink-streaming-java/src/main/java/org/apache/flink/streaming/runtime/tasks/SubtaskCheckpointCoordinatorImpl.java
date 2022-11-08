@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -125,7 +126,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     private long alignmentCheckpointId;
 
     SubtaskCheckpointCoordinatorImpl(
-            CheckpointStorageWorkerView checkpointStorage,
+            CheckpointStorage checkpointStorage,
+            CheckpointStorageWorkerView checkpointStorageView,
             String taskName,
             StreamTaskActionExecutor actionExecutor,
             ExecutorService asyncOperationsThreadPool,
@@ -137,9 +139,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                             ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot,
             int maxRecordAbortedCheckpoints,
-            DelayableTimer registerTimer) {
+            DelayableTimer registerTimer,
+            int maxSubtasksPerChannelStateFile) {
         this(
-                checkpointStorage,
+                checkpointStorageView,
                 taskName,
                 actionExecutor,
                 asyncOperationsThreadPool,
@@ -148,7 +151,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 prepareInputSnapshot,
                 maxRecordAbortedCheckpoints,
                 unalignedCheckpointEnabled
-                        ? openChannelStateWriter(taskName, checkpointStorage, env)
+                        ? openChannelStateWriter(
+                                taskName, checkpointStorage, env, maxSubtasksPerChannelStateFile)
                         : ChannelStateWriter.NO_OP,
                 enableCheckpointAfterTasksFinished,
                 registerTimer);
@@ -191,12 +195,17 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     }
 
     private static ChannelStateWriter openChannelStateWriter(
-            String taskName, CheckpointStorageWorkerView checkpointStorage, Environment env) {
-        ChannelStateWriterImpl writer =
-                new ChannelStateWriterImpl(
-                        taskName, env.getTaskInfo().getIndexOfThisSubtask(), checkpointStorage);
-        writer.open();
-        return writer;
+            String taskName,
+            CheckpointStorage checkpointStorage,
+            Environment env,
+            int maxSubtasksPerChannelStateFile) {
+        return new ChannelStateWriterImpl(
+                env.getJobVertexId(),
+                taskName,
+                env.getTaskInfo().getIndexOfThisSubtask(),
+                checkpointStorage,
+                env.getChannelStateExecutorFactory(),
+                maxSubtasksPerChannelStateFile);
     }
 
     @Override

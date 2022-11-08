@@ -17,21 +17,30 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestDispatcher.NO_OP;
-import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,7 +49,9 @@ import static org.assertj.core.api.Assertions.fail;
 /** {@link ChannelStateWriteRequestExecutorImpl} test. */
 class ChannelStateWriteRequestExecutorImplTest {
 
-    private static final String TASK_NAME = "test task";
+    private static final JobID JOB_ID = new JobID();
+    private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    private static final int SUBTASK_INDEX = 0;
 
     @Test
     void testCloseAfterSubmit() {
@@ -74,9 +85,10 @@ class ChannelStateWriteRequestExecutorImplTest {
             throws Exception {
         WorkerClosingDeque closingDeque = new WorkerClosingDeque();
         ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(TASK_NAME, NO_OP, closingDeque);
+                new ChannelStateWriteRequestExecutorImpl(NO_OP, closingDeque, 5, e -> {});
         closingDeque.setWorker(worker);
-        TestWriteRequest request = new TestWriteRequest();
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        TestWriteRequest request = new TestWriteRequest(JOB_VERTEX_ID, SUBTASK_INDEX);
         requestFun.accept(worker, request);
         assertThat(closingDeque).isEmpty();
         assertThat(request.isCancelled()).isFalse();
@@ -87,11 +99,13 @@ class ChannelStateWriteRequestExecutorImplTest {
                             ChannelStateWriteRequestExecutor, ChannelStateWriteRequest, Exception>
                     submitAction)
             throws Exception {
-        TestWriteRequest request = new TestWriteRequest();
-        LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
+        TestWriteRequest request = new TestWriteRequest(JOB_VERTEX_ID, SUBTASK_INDEX);
+        Deque<ChannelStateWriteRequest> deque = new ArrayDeque<>();
         try {
-            submitAction.accept(
-                    new ChannelStateWriteRequestExecutorImpl(TASK_NAME, NO_OP, deque), request);
+            ChannelStateWriteRequestExecutorImpl executor =
+                    new ChannelStateWriteRequestExecutorImpl(NO_OP, deque, 5, e -> {});
+            executor.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+            submitAction.accept(executor, request);
         } catch (IllegalStateException e) {
             // expected: executor not started;
             return;
@@ -105,14 +119,14 @@ class ChannelStateWriteRequestExecutorImplTest {
     @Test
     @SuppressWarnings("CallToThreadRun")
     void testCleanup() throws IOException {
-        TestWriteRequest request = new TestWriteRequest();
-        LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
+        TestWriteRequest request = new TestWriteRequest(JOB_VERTEX_ID, SUBTASK_INDEX);
+        Deque<ChannelStateWriteRequest> deque = new ArrayDeque<>();
         deque.add(request);
         TestRequestDispatcher requestProcessor = new TestRequestDispatcher();
         ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(TASK_NAME, requestProcessor, deque);
-
-        worker.close();
+                new ChannelStateWriteRequestExecutorImpl(requestProcessor, deque, 5, e -> {});
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         worker.run();
 
         assertThat(requestProcessor.isStopped()).isTrue();
@@ -123,16 +137,20 @@ class ChannelStateWriteRequestExecutorImplTest {
     @Test
     void testIgnoresInterruptsWhileRunning() throws Exception {
         TestRequestDispatcher requestProcessor = new TestRequestDispatcher();
-        LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
-        try (ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(TASK_NAME, requestProcessor, deque)) {
+        Deque<ChannelStateWriteRequest> deque = new ArrayDeque<>();
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(requestProcessor, deque, 5, e -> {});
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        try {
             worker.start();
             worker.getThread().interrupt();
-            worker.submit(new TestWriteRequest());
+            worker.submit(new TestWriteRequest(JOB_VERTEX_ID, SUBTASK_INDEX));
             worker.getThread().interrupt();
             while (!deque.isEmpty()) {
                 Thread.sleep(100);
             }
+        } finally {
+            worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
     }
 
@@ -141,28 +159,123 @@ class ChannelStateWriteRequestExecutorImplTest {
         long checkpointId = 1L;
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        "dummy task",
-                        0,
-                        getStreamFactoryFactory(),
+                        new JobManagerCheckpointStorage(),
+                        JOB_ID,
                         new ChannelStateSerializerImpl());
-        try (ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(TASK_NAME, processor)) {
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(processor, 5, e -> {});
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        try {
             worker.start();
             worker.submit(
                     new CheckpointStartRequest(
+                            JOB_VERTEX_ID,
+                            SUBTASK_INDEX,
                             checkpointId,
                             new ChannelStateWriter.ChannelStateWriteResult(),
                             CheckpointStorageLocationReference.getDefault()));
             worker.submit(
                     ChannelStateWriteRequest.write(
+                            JOB_VERTEX_ID,
+                            SUBTASK_INDEX,
                             checkpointId,
                             new ResultSubpartitionInfo(0, 0),
                             new CompletableFuture<>()));
             worker.submit(
                     ChannelStateWriteRequest.write(
+                            JOB_VERTEX_ID,
+                            SUBTASK_INDEX,
                             checkpointId,
                             new ResultSubpartitionInfo(0, 0),
                             new CompletableFuture<>()));
+        } finally {
+            worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        }
+    }
+
+    @Test
+    void testSkipUnreadyDataFuture() throws Exception {
+        int subtaskIndex0 = 0;
+        int subtaskIndex1 = 1;
+
+        Queue<ChannelStateWriteRequest> firstBatchRequests = new LinkedList<>();
+        Queue<ChannelStateWriteRequest> secondBatchRequests = new LinkedList<>();
+        CompletableFuture<List<Buffer>> dataFuture = new CompletableFuture<>();
+        int firstBatchSubtask1Count = 3;
+        int subtask0Count = 4;
+        int subtask1Count = 4;
+
+        {
+            // Generate the first batch requests.
+            firstBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex1));
+            firstBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex0));
+            // Add a data future request, all subsequent requests of subtaskIndex0 should be blocked
+            // before this future is completed.
+            firstBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex0, dataFuture));
+            firstBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex0));
+            firstBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex1));
+            firstBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex1));
+
+            // Generate the second batch requests.
+            secondBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex0));
+            secondBatchRequests.add(new TestWriteRequest(JOB_VERTEX_ID, subtaskIndex1));
+        }
+
+        CompletableFuture<Void> firstBatchFuture = new CompletableFuture<>();
+        CompletableFuture<Void> allReceivedFuture = new CompletableFuture<>();
+
+        // The subtask register request cannot be count.
+        AtomicInteger subtask0ReceivedCounter = new AtomicInteger(-1);
+        AtomicInteger subtask1ReceivedCounter = new AtomicInteger(-1);
+
+        TestRequestDispatcher throwingRequestProcessor =
+                new TestRequestDispatcher() {
+                    @Override
+                    public void dispatch(ChannelStateWriteRequest request) {
+                        if (request.getSubtaskIndex() == subtaskIndex0) {
+                            subtask0ReceivedCounter.incrementAndGet();
+                        } else if (request.getSubtaskIndex() == subtaskIndex1) {
+                            if (subtask1ReceivedCounter.incrementAndGet()
+                                    == firstBatchSubtask1Count) {
+                                firstBatchFuture.complete(null);
+                            }
+                        } else {
+                            throw new IllegalStateException(
+                                    String.format(
+                                            "Unknown subtask index %s.",
+                                            request.getSubtaskIndex()));
+                        }
+                        if (subtask0ReceivedCounter.get() == subtask0Count
+                                && subtask1ReceivedCounter.get() == subtask1Count) {
+                            allReceivedFuture.complete(null);
+                        }
+                    }
+                };
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(throwingRequestProcessor, 5, e -> {});
+        worker.registerSubtask(JOB_VERTEX_ID, subtaskIndex0);
+        worker.registerSubtask(JOB_VERTEX_ID, subtaskIndex1);
+        try {
+            worker.start();
+            // start the first batch
+            for (ChannelStateWriteRequest request : firstBatchRequests) {
+                worker.submit(request);
+            }
+            firstBatchFuture.get();
+            assertThat(subtask0ReceivedCounter.get()).isOne();
+            assertThat(subtask1ReceivedCounter.get()).isEqualTo(firstBatchSubtask1Count);
+
+            // start the second batch
+            for (ChannelStateWriteRequest request : secondBatchRequests) {
+                worker.submit(request);
+            }
+            dataFuture.complete(Collections.emptyList());
+            allReceivedFuture.get();
+            assertThat(subtask0ReceivedCounter.get()).isEqualTo(subtask0Count);
+            assertThat(subtask1ReceivedCounter.get()).isEqualTo(subtask1Count);
+        } finally {
+            worker.releaseSubtask(JOB_VERTEX_ID, subtaskIndex0);
+            worker.releaseSubtask(JOB_VERTEX_ID, subtaskIndex1);
         }
     }
 
@@ -176,14 +289,17 @@ class ChannelStateWriteRequestExecutorImplTest {
                         throw testException;
                     }
                 };
-        LinkedBlockingDeque<ChannelStateWriteRequest> deque =
-                new LinkedBlockingDeque<>(Collections.singletonList(new TestWriteRequest()));
+        Deque<ChannelStateWriteRequest> deque =
+                new ArrayDeque<>(
+                        Collections.singletonList(
+                                new TestWriteRequest(JOB_VERTEX_ID, SUBTASK_INDEX)));
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
-                        TASK_NAME, throwingRequestProcessor, deque);
+                        throwingRequestProcessor, deque, 5, e -> {});
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         worker.run();
         try {
-            worker.close();
+            worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         } catch (IOException e) {
             if (findThrowable(e, TestException.class)
                     .filter(found -> found == testException)
@@ -196,12 +312,136 @@ class ChannelStateWriteRequestExecutorImplTest {
         fail("exception not thrown");
     }
 
-    private static class TestWriteRequest implements ChannelStateWriteRequest {
+    @Test
+    void testSubmitRequestOfUnregisteredSubtask() throws Exception {
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(NO_OP, 5, e -> {});
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        worker.start();
+        worker.submit(new TestWriteRequest(JOB_VERTEX_ID, SUBTASK_INDEX));
+
+        assertThatThrownBy(
+                        () -> worker.submit(new TestWriteRequest(new JobVertexID(), SUBTASK_INDEX)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("is not yet registered.");
+
+        assertThatThrownBy(
+                        () ->
+                                worker.submitPriority(
+                                        new TestWriteRequest(new JobVertexID(), SUBTASK_INDEX)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("is not yet registered.");
+    }
+
+    @Test
+    void testSubmitPriorityUnreadyRequest() throws Exception {
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(NO_OP, 5, e -> {});
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        worker.start();
+        worker.submitPriority(new TestWriteRequest(JOB_VERTEX_ID, SUBTASK_INDEX));
+
+        assertThatThrownBy(
+                        () ->
+                                worker.submitPriority(
+                                        new TestWriteRequest(
+                                                JOB_VERTEX_ID,
+                                                SUBTASK_INDEX,
+                                                new CompletableFuture<>())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("The priority request must be ready.");
+    }
+
+    @Test
+    void testRegisterSubtaskAfterRegisterCompleted() throws Exception {
+        int maxSubtasksPerChannelStateFile = 5;
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(
+                        NO_OP, maxSubtasksPerChannelStateFile, e -> {});
+        for (int i = 0; i < maxSubtasksPerChannelStateFile; i++) {
+            assertThat(worker.isRegistering()).isTrue();
+            worker.registerSubtask(new JobVertexID(), SUBTASK_INDEX);
+        }
+        assertThat(worker.isRegistering()).isFalse();
+        assertThatThrownBy(() -> worker.registerSubtask(new JobVertexID(), SUBTASK_INDEX))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("This executor has been registered.");
+    }
+
+    @Test
+    void testSubmitStartRequestBeforeRegisterCompleted() throws Exception {
+        CompletableFuture<Void> dispatcherFuture = new CompletableFuture<>();
+        TestRequestDispatcher dispatcher =
+                new TestRequestDispatcher() {
+                    @Override
+                    public void dispatch(ChannelStateWriteRequest request) {
+                        if (request instanceof CheckpointStartRequest) {
+                            dispatcherFuture.complete(null);
+                        }
+                    }
+                };
+        int maxSubtasksPerChannelStateFile = 5;
+        CompletableFuture<ChannelStateWriteRequestExecutor> workerFuture =
+                new CompletableFuture<>();
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(
+                        dispatcher, maxSubtasksPerChannelStateFile, workerFuture::complete);
+        worker.start();
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        assertThat(worker.isRegistering()).isTrue();
+
+        worker.submit(
+                ChannelStateWriteRequest.start(
+                        JOB_VERTEX_ID,
+                        SUBTASK_INDEX,
+                        1,
+                        new ChannelStateWriter.ChannelStateWriteResult(),
+                        CheckpointStorageLocationReference.getDefault()));
+        dispatcherFuture.get();
+        assertThat(worker.isRegistering()).isFalse();
+        assertThat(workerFuture).isCompletedWithValue(worker);
+        assertThatThrownBy(() -> worker.registerSubtask(new JobVertexID(), SUBTASK_INDEX))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("This executor has been registered.");
+    }
+
+    @Test
+    void testReleaseSubtaskBeforeRegisterCompleted() throws Exception {
+        int maxSubtasksPerChannelStateFile = 5;
+        CompletableFuture<ChannelStateWriteRequestExecutor> workerFuture =
+                new CompletableFuture<>();
+        ChannelStateWriteRequestExecutorImpl worker =
+                new ChannelStateWriteRequestExecutorImpl(
+                        new TestRequestDispatcher(),
+                        maxSubtasksPerChannelStateFile,
+                        workerFuture::complete);
+        worker.start();
+        worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        assertThat(worker.isRegistering()).isTrue();
+
+        worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
+        assertThat(worker.isRegistering()).isFalse();
+        assertThat(workerFuture).isCompletedWithValue(worker);
+        assertThatThrownBy(() -> worker.registerSubtask(new JobVertexID(), SUBTASK_INDEX))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("This executor has been registered.");
+    }
+
+    private static class TestWriteRequest extends ChannelStateWriteRequest {
         private boolean cancelled = false;
 
-        @Override
-        public long getCheckpointId() {
-            return 0;
+        @Nullable private final CompletableFuture<?> readyFuture;
+
+        public TestWriteRequest(JobVertexID jobVertexID, int subtaskIndex) {
+            this(jobVertexID, subtaskIndex, null);
+        }
+
+        public TestWriteRequest(
+                JobVertexID jobVertexID,
+                int subtaskIndex,
+                @Nullable CompletableFuture<?> readyFuture) {
+            super(jobVertexID, subtaskIndex, 0, "Test");
+            this.readyFuture = readyFuture;
         }
 
         @Override
@@ -212,27 +452,35 @@ class ChannelStateWriteRequestExecutorImplTest {
         public boolean isCancelled() {
             return cancelled;
         }
+
+        @Override
+        public CompletableFuture<?> getReadyFuture() {
+            if (readyFuture != null) {
+                return readyFuture;
+            }
+            return super.getReadyFuture();
+        }
     }
 
-    private static class WorkerClosingDeque extends LinkedBlockingDeque<ChannelStateWriteRequest> {
+    private static class WorkerClosingDeque extends ArrayDeque<ChannelStateWriteRequest> {
         private ChannelStateWriteRequestExecutor worker;
 
         @Override
-        public void put(@Nonnull ChannelStateWriteRequest request) throws InterruptedException {
-            super.putFirst(request);
+        public boolean add(@Nonnull ChannelStateWriteRequest request) {
+            boolean add = super.add(request);
             try {
-                worker.close();
+                worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
             } catch (IOException e) {
                 ExceptionUtils.rethrow(e);
             }
+            return add;
         }
 
         @Override
-        public void putFirst(@Nonnull ChannelStateWriteRequest request)
-                throws InterruptedException {
-            super.putFirst(request);
+        public void addFirst(@Nonnull ChannelStateWriteRequest request) {
+            super.addFirst(request);
             try {
-                worker.close();
+                worker.releaseSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
             } catch (IOException e) {
                 ExceptionUtils.rethrow(e);
             }

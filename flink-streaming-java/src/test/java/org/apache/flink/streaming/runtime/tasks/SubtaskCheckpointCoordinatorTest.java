@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.TestCheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -84,7 +85,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertEquals;
@@ -577,8 +577,15 @@ public class SubtaskCheckpointCoordinatorTest {
     @Test
     public void testChannelStateWriteResultLeakAndNotFailAfterCheckpointAborted() throws Exception {
         String taskName = "test";
+        DummyEnvironment env = new DummyEnvironment();
         ChannelStateWriterImpl writer =
-                new ChannelStateWriterImpl(taskName, 0, getStreamFactoryFactory());
+                new ChannelStateWriterImpl(
+                        env.getJobVertexId(),
+                        taskName,
+                        0,
+                        new JobManagerCheckpointStorage(),
+                        env.getChannelStateExecutorFactory(),
+                        5);
         try (MockEnvironment mockEnvironment = MockEnvironment.builder().build();
                 SubtaskCheckpointCoordinator coordinator =
                         new SubtaskCheckpointCoordinatorImpl(
@@ -586,14 +593,13 @@ public class SubtaskCheckpointCoordinatorTest {
                                 taskName,
                                 StreamTaskActionExecutor.IMMEDIATE,
                                 newDirectExecutorService(),
-                                new DummyEnvironment(),
+                                env,
                                 (unused1, unused2) -> {},
                                 (unused1, unused2) -> CompletableFuture.completedFuture(null),
                                 1,
                                 writer,
                                 true,
                                 (callable, duration) -> () -> {})) {
-            writer.open();
             final OperatorChain<?, ?> operatorChain = getOperatorChain(mockEnvironment);
             int checkpointId = 1;
             // Abort checkpoint 1
@@ -629,23 +635,29 @@ public class SubtaskCheckpointCoordinatorTest {
         CheckpointOptions unalignedOptions =
                 CheckpointOptions.unaligned(
                         CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+        DummyEnvironment env = new DummyEnvironment();
+        ChannelStateWriterImpl writer =
+                new ChannelStateWriterImpl(
+                        env.getJobVertexId(),
+                        taskName,
+                        0,
+                        new JobManagerCheckpointStorage(),
+                        env.getChannelStateExecutorFactory(),
+                        5);
         try (MockEnvironment mockEnvironment = MockEnvironment.builder().build();
-                ChannelStateWriterImpl writer =
-                        new ChannelStateWriterImpl(taskName, 0, getStreamFactoryFactory());
                 SubtaskCheckpointCoordinator coordinator =
                         new SubtaskCheckpointCoordinatorImpl(
                                 new TestCheckpointStorageWorkerView(100),
                                 taskName,
                                 StreamTaskActionExecutor.IMMEDIATE,
                                 newDirectExecutorService(),
-                                new DummyEnvironment(),
+                                env,
                                 (unused1, unused2) -> {},
                                 (unused1, unused2) -> CompletableFuture.completedFuture(null),
                                 1,
                                 writer,
                                 true,
                                 (callable, duration) -> () -> {})) {
-            writer.open();
             final OperatorChain<?, ?> operatorChain = getOperatorChain(mockEnvironment);
             int checkpoint42 = 42;
             int checkpoint43 = 43;
