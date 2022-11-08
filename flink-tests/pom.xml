@@ -444,9 +444,7 @@ under the License.
 
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
-
 					<execution>
 						<id>create-plugin-a-jar</id>
 						<phase>process-test-classes</phase>

@@ -104,7 +104,6 @@ under the License.
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<id>create-test-dependency</id>
