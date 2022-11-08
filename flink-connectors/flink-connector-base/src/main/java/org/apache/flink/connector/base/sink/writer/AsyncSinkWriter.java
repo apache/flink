@@ -303,6 +303,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                                 },
                                 "A fatal exception occurred in the sink that cannot be recovered from or should not be retried.");
 
+        elementConverter.open(context);
         initializeState(states);
     }
 

@@ -19,6 +19,7 @@ package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.MetricGroup;
@@ -39,7 +40,8 @@ import software.amazon.awssdk.services.firehose.model.Record;
 @Internal
 public class KinesisFirehoseSinkElementConverter<InputT>
         implements ElementConverter<InputT, Record> {
-    private boolean schemaOpened = false;
+
+    private static final long serialVersionUID = 1L;
 
     /** A serialization schema to specify how the input element should be serialized. */
     private final SerializationSchema<InputT> serializationSchema;
@@ -49,34 +51,31 @@ public class KinesisFirehoseSinkElementConverter<InputT>
     }
 
     @Override
+    public void open(Sink.InitContext context) {
+        try {
+            serializationSchema.open(
+                    new SerializationSchema.InitializationContext() {
+                        @Override
+                        public MetricGroup getMetricGroup() {
+                            return new UnregisteredMetricsGroup();
+                        }
+
+                        @Override
+                        public UserCodeClassLoader getUserCodeClassLoader() {
+                            return SimpleUserCodeClassLoader.create(
+                                    KinesisFirehoseSinkElementConverter.class.getClassLoader());
+                        }
+                    });
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Failed to initialize serialization schema.", e);
+        }
+    }
+
+    @Override
     public Record apply(InputT element, SinkWriter.Context context) {
-        checkOpened();
         return Record.builder()
                 .data(SdkBytes.fromByteArray(serializationSchema.serialize(element)))
                 .build();
-    }
-
-    private void checkOpened() {
-        if (!schemaOpened) {
-            try {
-                serializationSchema.open(
-                        new SerializationSchema.InitializationContext() {
-                            @Override
-                            public MetricGroup getMetricGroup() {
-                                return new UnregisteredMetricsGroup();
-                            }
-
-                            @Override
-                            public UserCodeClassLoader getUserCodeClassLoader() {
-                                return SimpleUserCodeClassLoader.create(
-                                        KinesisFirehoseSinkElementConverter.class.getClassLoader());
-                            }
-                        });
-                schemaOpened = true;
-            } catch (Exception e) {
-                throw new FlinkRuntimeException("Failed to initialize serialization schema.", e);
-            }
-        }
     }
 
     public static <InputT> Builder<InputT> builder() {

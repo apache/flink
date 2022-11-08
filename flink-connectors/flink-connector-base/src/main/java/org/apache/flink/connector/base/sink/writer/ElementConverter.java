@@ -18,6 +18,7 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 
 import java.io.Serializable;
@@ -33,4 +34,8 @@ import java.io.Serializable;
 @PublicEvolving
 public interface ElementConverter<InputT, RequestEntryT> extends Serializable {
     RequestEntryT apply(InputT element, SinkWriter.Context context);
+
+    default void open(Sink.InitContext context) {
+        // No-op default implementation
+    }
 }
