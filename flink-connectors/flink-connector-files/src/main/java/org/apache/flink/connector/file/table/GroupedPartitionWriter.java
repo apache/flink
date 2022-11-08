@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.core.fs.Path;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
@@ -35,6 +36,7 @@ public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
     private final Context<T> context;
     private final PartitionTempFileManager manager;
     private final PartitionComputer<T> computer;
+    private final PartitionWriterListener writerListener;
 
     private OutputFormat<T> currentFormat;
     private String currentPartition;
@@ -44,6 +46,18 @@ public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
         this.context = context;
         this.manager = manager;
         this.computer = computer;
+        this.writerListener = new DefaultPartitionWriterListener();
+    }
+
+    public GroupedPartitionWriter(
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> computer,
+            PartitionWriterListener writerListener) {
+        this.context = context;
+        this.manager = manager;
+        this.computer = computer;
+        this.writerListener = writerListener;
     }
 
     @Override
@@ -54,7 +68,9 @@ public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
                 currentFormat.close();
             }
 
-            currentFormat = context.createNewOutputFormat(manager.createPartitionDir(partition));
+            Path path = manager.createPartitionDir(partition);
+            currentFormat = context.createNewOutputFormat(path);
+            writerListener.onFileOpen(partition, path);
             currentPartition = partition;
         }
         currentFormat.writeRecord(computer.projectColumnsToWrite(in));

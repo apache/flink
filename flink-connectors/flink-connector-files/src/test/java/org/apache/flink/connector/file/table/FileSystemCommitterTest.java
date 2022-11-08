@@ -38,7 +38,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link FileSystemCommitter}. */
-class FileSystemCommitterTest {
+public class FileSystemCommitterTest {
 
     private static final String SUCCESS_FILE_NAME = "_SUCCESS";
 
@@ -258,12 +258,13 @@ class FileSystemCommitterTest {
         assertThat(outputPath.toFile().list()).isEqualTo(new String[0]);
     }
 
-    static class TestMetaStoreFactory implements TableMetaStoreFactory {
+    /** A {@link TableMetaStoreFactory} for test purpose. */
+    public static class TestMetaStoreFactory implements TableMetaStoreFactory {
         private static final long serialVersionUID = 1L;
 
         private final Path outputPath;
 
-        TestMetaStoreFactory(Path outputPath) {
+        public TestMetaStoreFactory(Path outputPath) {
             this.outputPath = outputPath;
         }
 
