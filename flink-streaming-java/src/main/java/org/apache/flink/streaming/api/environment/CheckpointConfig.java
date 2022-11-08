@@ -605,6 +605,29 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
+     * @return the number of subtasks to share the same channel state file, as configured via {@link
+     *     #setMaxSubtasksPerChannelStateFile(int)} or {@link
+     *     ExecutionCheckpointingOptions#UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE}.
+     */
+    @PublicEvolving
+    public int getMaxSubtasksPerChannelStateFile() {
+        return configuration.get(
+                ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE);
+    }
+
+    /**
+     * The number of subtasks to share the same channel state file. If {@link
+     * ExecutionCheckpointingOptions#UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE} has value equal
+     * to <code>1</code>, each subtask will create a new channel state file.
+     */
+    @PublicEvolving
+    public void setMaxSubtasksPerChannelStateFile(int maxSubtasksPerChannelStateFile) {
+        configuration.set(
+                ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE,
+                maxSubtasksPerChannelStateFile);
+    }
+
+    /**
      * Returns whether approximate local recovery is enabled.
      *
      * @return <code>true</code> if approximate local recovery is enabled.
@@ -841,6 +864,10 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT)
                 .ifPresent(this::setAlignedCheckpointTimeout);
+        configuration
+                .getOptional(
+                        ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE)
+                .ifPresent(this::setMaxSubtasksPerChannelStateFile);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
                 .ifPresent(this::setForceUnalignedCheckpoints);

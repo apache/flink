@@ -530,6 +530,17 @@ public class StreamConfig implements Serializable {
                 ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue());
     }
 
+    public int getMaxSubtasksPerChannelStateFile() {
+        return config.get(
+                ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE);
+    }
+
+    public void setMaxSubtasksPerChannelStateFile(int maxSubtasksPerChannelStateFile) {
+        config.set(
+                ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE,
+                maxSubtasksPerChannelStateFile);
+    }
+
     /**
      * Sets the job vertex level non-chained outputs. The given output list must have the same order
      * with {@link JobVertex#getProducedDataSets()}.

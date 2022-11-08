@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -120,6 +121,8 @@ public class StreamMockEnvironment implements Environment {
 
     private final boolean collectNetworkEvents;
 
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     @Nullable private Consumer<Throwable> externalExceptionHandler;
 
     private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
@@ -196,6 +199,7 @@ public class StreamMockEnvironment implements Environment {
                 registry.createTaskRegistry(
                         jobID, executionAttemptID.getExecutionVertexId().getJobVertexId());
         this.collectNetworkEvents = collectNetworkEvents;
+        this.channelStateExecutorFactory = new ChannelStateWriteRequestExecutorFactory(jobID);
     }
 
     public StreamMockEnvironment(
@@ -414,5 +418,10 @@ public class StreamMockEnvironment implements Environment {
 
     public void setCheckpointResponder(CheckpointResponder checkpointResponder) {
         this.checkpointResponder = checkpointResponder;
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 }

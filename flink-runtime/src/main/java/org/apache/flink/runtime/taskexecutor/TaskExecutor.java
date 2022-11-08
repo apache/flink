@@ -97,6 +97,7 @@ import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
@@ -217,6 +218,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     /** The changelog manager for this task, providing changelog storage per job. */
     private final TaskExecutorStateChangelogStoragesManager changelogStoragesManager;
 
+    /**
+     * The channel state executor factory manager for this task, providing channel state executor
+     * factory per job.
+     */
+    private final TaskExecutorChannelStateExecutorFactoryManager channelStateExecutorFactoryManager;
+
     /** Information provider for external resources. */
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
@@ -319,6 +326,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 taskExecutorServices.getUnresolvedTaskManagerLocation();
         this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
         this.changelogStoragesManager = taskExecutorServices.getTaskManagerChangelogManager();
+        this.channelStateExecutorFactoryManager =
+                taskExecutorServices.getTaskManagerChannelStateManager();
         this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
         this.kvStateService = taskExecutorServices.getKvStateService();
         this.ioExecutor = taskExecutorServices.getIOExecutor();
@@ -479,6 +488,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         }
 
         changelogStoragesManager.shutdown();
+        channelStateExecutorFactoryManager.shutdown();
 
         Preconditions.checkState(jobTable.isEmpty());
 
@@ -771,7 +781,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             taskManagerConfiguration,
                             taskMetricGroup,
                             partitionStateChecker,
-                            getRpcService().getScheduledExecutor());
+                            getRpcService().getScheduledExecutor(),
+                            channelStateExecutorFactoryManager.getOrCreateExecutorFactory(jobId));
 
             taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
 
@@ -1871,6 +1882,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         taskManagerMetricGroup.removeJobMetricsGroup(jobId);
         changelogStoragesManager.releaseResourcesForJob(jobId);
         currentSlotOfferPerJob.remove(jobId);
+        channelStateExecutorFactoryManager.releaseResourcesForJob(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {

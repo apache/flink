@@ -22,8 +22,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -38,7 +38,7 @@ import static org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor.
 /** A mock builder to build {@link SubtaskCheckpointCoordinator}. */
 public class MockSubtaskCheckpointCoordinatorBuilder {
     private String taskName = "mock-task";
-    private CheckpointStorageWorkerView checkpointStorage;
+    private CheckpointStorage checkpointStorage;
     private Environment environment;
     private AsyncExceptionHandler asyncExceptionHandler;
     private StreamTaskActionExecutor actionExecutor = IMMEDIATE;
@@ -47,6 +47,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
                     ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
             prepareInputSnapshot = (channelStateWriter, aLong) -> FutureUtils.completedVoidFuture();
     private boolean unalignedCheckpointEnabled;
+    private int maxSubtasksPerChannelStateFile = 5;
     private int maxRecordAbortedCheckpoints = 10;
     private boolean enableCheckpointAfterTasksFinished = true;
 
@@ -86,14 +87,18 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
         return this;
     }
 
+    public MockSubtaskCheckpointCoordinatorBuilder setMaxSubtasksPerChannelStateFile(
+            int maxSubtasksPerChannelStateFile) {
+        this.maxSubtasksPerChannelStateFile = maxSubtasksPerChannelStateFile;
+        return this;
+    }
+
     SubtaskCheckpointCoordinator build() throws IOException {
         if (environment == null) {
             this.environment = MockEnvironment.builder().build();
         }
         if (checkpointStorage == null) {
-            this.checkpointStorage =
-                    new MemoryBackendCheckpointStorageAccess(
-                            environment.getJobID(), null, null, 1024);
+            this.checkpointStorage = new JobManagerCheckpointStorage();
         }
         if (asyncExceptionHandler == null) {
             this.asyncExceptionHandler = new NonHandleAsyncException();
@@ -101,6 +106,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
 
         return new SubtaskCheckpointCoordinatorImpl(
                 checkpointStorage,
+                checkpointStorage.createCheckpointStorage(environment.getJobID()),
                 taskName,
                 actionExecutor,
                 executorService,
@@ -110,7 +116,8 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
                 enableCheckpointAfterTasksFinished,
                 prepareInputSnapshot,
                 maxRecordAbortedCheckpoints,
-                (callable, duration) -> () -> {});
+                (callable, duration) -> () -> {},
+                maxSubtasksPerChannelStateFile);
     }
 
     private static class NonHandleAsyncException implements AsyncExceptionHandler {

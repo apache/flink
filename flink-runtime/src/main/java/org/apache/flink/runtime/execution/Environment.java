@@ -29,6 +29,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -261,4 +262,6 @@ public interface Environment {
     default CheckpointStorageAccess getCheckpointStorageAccess() {
         throw new UnsupportedOperationException();
     }
+
+    ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory();
 }
