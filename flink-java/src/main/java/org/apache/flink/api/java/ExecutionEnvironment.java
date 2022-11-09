@@ -98,7 +98,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * that the return value of an operation is for example a Tuple of String and Integer. Because the
  * Java compiler throws much of the generic type information away, most methods attempt to re-
  * obtain that information using reflection. In certain cases, it may be necessary to manually
- * supply that information to some of the methods.
+ * supply that information to some methods.
  *
  * @see LocalEnvironment
  * @see RemoteEnvironment
@@ -193,7 +193,7 @@ public class ExecutionEnvironment {
         //
         // Given this, it is safe to overwrite the execution config default values here because all
         // other ways assume
-        // that the env is already instantiated so they will overwrite the value passed here.
+        // that the env is already instantiated, so they will overwrite the value passed here.
         this.configure(this.configuration, this.userClassloader);
     }
 
