@@ -16,15 +16,44 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
 
-.. mdinclude:: ../README.md
+=====
+Timer
+=====
 
-.. toctree::
-    :maxdepth: 2
-    :hidden:
+TimerService
+------------
 
-    reference/index
-    examples/index
+.. currentmodule:: pyflink.datastream.timerservice
+
+.. autosummary::
+    :toctree: api/
+
+    TimerService.current_processing_time
+    TimerService.current_watermark
+    TimerService.register_processing_time_timer
+    TimerService.register_event_time_timer
+    TimerService.delete_processing_time_timer
+    TimerService.delete_event_time_timer
+
+
+TimeCharacteristic
+------------------
+
+.. currentmodule:: pyflink.datastream.time_characteristic
+
+.. autosummary::
+    :toctree: api/
+
+    TimeCharacteristic
+
+
+TimeDomain
+----------
+
+.. currentmodule:: pyflink.datastream.time_domain
+
+.. autosummary::
+    :toctree: api/
+
+    TimeDomain
