@@ -1748,6 +1748,23 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>forbid-reload4j</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>ch.qos.reload4j:reload4j</exclude>
+										<exclude>org.slf4j:slf4j-reload4j</exclude>
+									</excludes>
+									<message>Reload4J dependencies are not allowed because they conflict with Log4j 2.</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
 						<id>forbid-direct-akka-rpc-dependencies</id>
 						<goals>
 							<goal>enforce</goal>
