@@ -16,15 +16,13 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
-
-.. mdinclude:: ../README.md
+=============
+API Reference
+=============
 
 .. toctree::
     :maxdepth: 2
-    :hidden:
 
-    reference/index
-    examples/index
+    pyflink.table/index
+    pyflink.datastream/index
+    pyflink.common/index

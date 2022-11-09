@@ -16,15 +16,52 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
 
-.. mdinclude:: ../README.md
+==========
+Serializer
+==========
 
-.. toctree::
-    :maxdepth: 2
-    :hidden:
+TypeInfo
+--------
 
-    reference/index
-    examples/index
+.. currentmodule:: pyflink.common.typeinfo
+
+.. autosummary::
+    :toctree: api/
+
+    Types.STRING
+    Types.BYTE
+    Types.BYTE
+    Types.BOOLEAN
+    Types.SHORT
+    Types.INT
+    Types.LONG
+    Types.FLOAT
+    Types.DOUBLE
+    Types.CHAR
+    Types.BIG_INT
+    Types.BIG_DEC
+    Types.INSTANT
+    Types.SQL_DATE
+    Types.SQL_TIME
+    Types.SQL_TIMESTAMP
+    Types.PICKLED_BYTE_ARRAY
+    Types.ROW
+    Types.ROW_NAMED
+    Types.TUPLE
+    Types.PRIMITIVE_ARRAY
+    Types.BASIC_ARRAY
+    Types.OBJECT_ARRAY
+    Types.MAP
+    Types.LIST
+
+Row
+---
+
+.. currentmodule:: pyflink.common.types
+
+.. autosummary::
+    :toctree: api/
+
+    Row
+    RowKind

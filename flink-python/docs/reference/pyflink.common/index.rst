@@ -16,15 +16,16 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
+==============
+PyFlink Common
+==============
 
-.. mdinclude:: ../README.md
+This page gives an overview of all public PyFlink Common API.
 
 .. toctree::
     :maxdepth: 2
-    :hidden:
 
-    reference/index
-    examples/index
+    config
+    typeinfo
+    job_info
+    serializer
