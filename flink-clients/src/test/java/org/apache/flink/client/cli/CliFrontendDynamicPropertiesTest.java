@@ -21,230 +21,168 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 import org.apache.flink.util.ChildFirstClassLoader;
-import org.apache.flink.util.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /** Tests for the RUN command with Dynamic Properties. */
-class CliFrontendDynamicPropertiesTest {
+public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
 
     private GenericCLI cliUnderTest;
     private Configuration configuration;
 
-    @BeforeAll
-    static void init() {
+    @Rule public TemporaryFolder tmp = new TemporaryFolder();
+
+    @BeforeClass
+    public static void init() {
         CliFrontendTestUtils.pipeSystemOutToNull();
     }
 
-    @AfterAll
-    static void shutdown() {
+    @AfterClass
+    public static void shutdown() {
         CliFrontendTestUtils.restoreSystemOut();
     }
 
-    @BeforeEach
-    void setup(@TempDir java.nio.file.Path tmp) {
+    @Before
+    public void setup() {
         Options testOptions = new Options();
         configuration = new Configuration();
         configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
 
-        cliUnderTest = new GenericCLI(configuration, tmp.toAbsolutePath().toString());
+        cliUnderTest = new GenericCLI(configuration, tmp.getRoot().getAbsolutePath());
 
         cliUnderTest.addGeneralOptions(testOptions);
     }
 
     @Test
-    void testDynamicPropertiesWithParentFirstClassloader() throws Exception {
+    public void testDynamicPropertiesWithParentFirstClassloader() throws Exception {
 
         String[] args = {
-            "-e",
-            "test-executor",
-            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-            "-D" + "classloader.resolve-order=parent-first",
-            getTestJarPath(),
-            "-a",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "-e",
+                "test-executor",
+                "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+                "-D" + "classloader.resolve-order=parent-first",
+                getTestJarPath(),
+                "-a",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
 
-        Map<String, String> expectedConfigValues = new HashMap<>();
-        expectedConfigValues.put("parallelism.default", "5");
-        expectedConfigValues.put("classloader.resolve-order", "parent-first");
-        verifyCliFrontendWithDynamicProperties(
+        verifyCliFrontend(
                 configuration,
                 args,
                 cliUnderTest,
-                expectedConfigValues,
-                (configuration, program) ->
-                        assertThat(ParentFirstClassLoader.class.getName())
-                                .isEqualTo(program.getUserCodeClassLoader().getClass().getName()));
+                "parent-first",
+                ParentFirstClassLoader.class.getName());
     }
 
     @Test
-    void testDynamicPropertiesWithDefaultChildFirstClassloader() throws Exception {
+    public void testDynamicPropertiesWithDefaultChildFirstClassloader() throws Exception {
 
         String[] args = {
-            "-e",
-            "test-executor",
-            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-            getTestJarPath(),
-            "-a",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "-e",
+                "test-executor",
+                "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+                getTestJarPath(),
+                "-a",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
 
-        Map<String, String> expectedConfigValues = new HashMap<>();
-        expectedConfigValues.put("parallelism.default", "5");
-        verifyCliFrontendWithDynamicProperties(
+        verifyCliFrontend(
                 configuration,
                 args,
                 cliUnderTest,
-                expectedConfigValues,
-                (configuration, program) ->
-                        assertThat(ChildFirstClassLoader.class.getName())
-                                .isEqualTo(program.getUserCodeClassLoader().getClass().getName()));
+                "child-first",
+                ChildFirstClassLoader.class.getName());
     }
 
     @Test
-    void testDynamicPropertiesWithChildFirstClassloader() throws Exception {
+    public void testDynamicPropertiesWithChildFirstClassloader() throws Exception {
 
         String[] args = {
-            "-e",
-            "test-executor",
-            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-            "-D" + "classloader.resolve-order=child-first",
-            getTestJarPath(),
-            "-a",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "-e",
+                "test-executor",
+                "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+                "-D" + "classloader.resolve-order=child-first",
+                getTestJarPath(),
+                "-a",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
 
-        Map<String, String> expectedConfigValues = new HashMap<>();
-        expectedConfigValues.put("parallelism.default", "5");
-        expectedConfigValues.put("classloader.resolve-order", "child-first");
-        verifyCliFrontendWithDynamicProperties(
+        verifyCliFrontend(
                 configuration,
                 args,
                 cliUnderTest,
-                expectedConfigValues,
-                (configuration, program) ->
-                        assertThat(ChildFirstClassLoader.class.getName())
-                                .isEqualTo(program.getUserCodeClassLoader().getClass().getName()));
-    }
-
-    @Test
-    public void testDynamicPropertiesWithClientTimeoutAndDefaultParallelism() throws Exception {
-
-        String[] args = {
-            "-e",
-            "test-executor",
-            "-Dclient.timeout=10min",
-            "-Dparallelism.default=12",
-            getTestJarPath(),
-        };
-        Map<String, String> expectedConfigValues = new HashMap<>();
-        expectedConfigValues.put("client.timeout", "10min");
-        expectedConfigValues.put("parallelism.default", "12");
-        verifyCliFrontendWithDynamicProperties(
-                configuration, args, cliUnderTest, expectedConfigValues);
-    }
-
-    @Test
-    public void testSecurityConfigWithDynamicProperties(@TempDir File tempDir) throws Exception {
-        File keytabFile = new File(tempDir, "keytab.file");
-        keytabFile.createNewFile();
-        String[] args = {
-            "-e",
-            "test-executor",
-            "-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + keytabFile.getPath(),
-            "-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=principal",
-            getTestJarPath(),
-        };
-        TestingCliFrontendWithDynamicProperties testFrontend =
-                new TestingCliFrontendWithDynamicProperties(
-                        configuration, cliUnderTest, null, null);
-        CommandLine commandLine = testFrontend.getCommandLine(new Options(), args, true);
-        Configuration securityConfig = new Configuration(configuration);
-        DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
-        SecurityConfiguration securityConfiguration = new SecurityConfiguration(securityConfig);
-        assertThat(securityConfiguration.getKeytab()).isEqualTo(keytabFile.getPath());
-        assertThat(securityConfiguration.getPrincipal()).isEqualTo("principal");
+                "child-first",
+                ChildFirstClassLoader.class.getName());
     }
 
     // --------------------------------------------------------------------------------------------
 
-    public static void verifyCliFrontendWithDynamicProperties(
+    public static void verifyCliFrontend(
             Configuration configuration,
             String[] parameters,
             GenericCLI cliUnderTest,
-            Map<String, String> expectedConfigValues)
+            String expectedResolveOrderOption,
+            String userCodeClassLoaderClassName)
             throws Exception {
-        verifyCliFrontendWithDynamicProperties(
-                configuration, parameters, cliUnderTest, expectedConfigValues, null);
+        TestingCliFrontend testFrontend =
+                new TestingCliFrontend(
+                        configuration,
+                        cliUnderTest,
+                        expectedResolveOrderOption,
+                        userCodeClassLoaderClassName);
+        testAction(
+                testFrontend,
+                testFrontend.new ActionRun(),
+                parameters); // verifies the expected values (see below)
     }
 
-    public static void verifyCliFrontendWithDynamicProperties(
-            Configuration configuration,
-            String[] parameters,
-            GenericCLI cliUnderTest,
-            Map<String, String> expectedConfigValues,
-            TestingCliFrontendWithDynamicProperties.CustomTester customTester)
-            throws Exception {
-        TestingCliFrontendWithDynamicProperties testFrontend =
-                new TestingCliFrontendWithDynamicProperties(
-                        configuration, cliUnderTest, expectedConfigValues, customTester);
-        testFrontend.run(parameters); // verifies the expected values (see below)
-    }
+    private static final class TestingCliFrontend extends CliFrontend {
 
-    private static final class TestingCliFrontendWithDynamicProperties extends CliFrontend {
-        private final Map<String, String> expectedConfigValues;
+        private final String expectedResolveOrder;
 
-        private final CustomTester tester;
+        private final String userCodeClassLoaderClassName;
 
-        private TestingCliFrontendWithDynamicProperties(
+        private TestingCliFrontend(
                 Configuration configuration,
-                GenericCLI cli,
-                Map<String, String> expectedConfigValues,
-                CustomTester customTester) {
-            super(configuration, Collections.singletonList(cli));
-            this.expectedConfigValues = expectedConfigValues;
-            this.tester = customTester;
-        }
-
-        @FunctionalInterface
-        private interface CustomTester {
-            void test(Configuration configuration, PackagedProgram program);
+                GenericCLI cliUnderTest,
+                String expectedResolveOrderOption,
+                String userCodeClassLoaderClassName) {
+            super(configuration, Collections.singletonList(cliUnderTest));
+            this.expectedResolveOrder = expectedResolveOrderOption;
+            this.userCodeClassLoaderClassName = userCodeClassLoaderClassName;
         }
 
         @Override
         protected void executeProgram(Configuration configuration, PackagedProgram program) {
-            expectedConfigValues.forEach(
-                    (key, value) -> assertThat(configuration.toMap()).containsEntry(key, value));
-            if (tester != null) {
-                tester.test(configuration, program);
-            }
+            assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
+            assertEquals(
+                    expectedResolveOrder, configuration.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER));
+            assertEquals(
+                    userCodeClassLoaderClassName,
+                    program.getUserCodeClassLoader().getClass().getName());
         }
     }
 }

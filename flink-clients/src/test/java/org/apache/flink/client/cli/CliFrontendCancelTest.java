@@ -26,31 +26,33 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /** Tests for the CANCEL command. */
-class CliFrontendCancelTest extends CliFrontendTestBase {
+public class CliFrontendCancelTest extends CliFrontendTestBase {
 
-    @BeforeAll
-    static void init() {
+    @BeforeClass
+    public static void init() {
         CliFrontendTestUtils.pipeSystemOutToNull();
     }
 
-    @AfterAll
-    static void shutdown() {
+    @AfterClass
+    public static void shutdown() {
         CliFrontendTestUtils.restoreSystemOut();
     }
 
     @Test
-    void testCancel() throws Exception {
+    public void testCancel() throws Exception {
         // test cancel properly
         JobID jid = new JobID();
 
@@ -67,41 +69,31 @@ class CliFrontendCancelTest extends CliFrontendTestBase {
                 });
 
         MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
         cancelLatch.await();
     }
 
-    @Test
-    void testMissingJobId() {
-        assertThatThrownBy(
-                        () -> {
-                            String[] parameters = {};
-                            Configuration configuration = getConfiguration();
-                            CliFrontend testFrontend =
-                                    new CliFrontend(
-                                            configuration, Collections.singletonList(getCli()));
-                            testFrontend.cancel(parameters);
-                        })
-                .isInstanceOf(CliArgsException.class);
+    @Test(expected = CliArgsException.class)
+    public void testMissingJobId() throws Exception {
+        String[] parameters = {};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 
-    @Test
-    void testUnrecognizedOption() {
-        assertThatThrownBy(
-                        () -> {
-                            String[] parameters = {"-v", "-l"};
-                            Configuration configuration = getConfiguration();
-                            CliFrontend testFrontend =
-                                    new CliFrontend(
-                                            configuration, Collections.singletonList(getCli()));
-                            testFrontend.cancel(parameters);
-                        })
-                .isInstanceOf(CliArgsException.class);
+    @Test(expected = CliArgsException.class)
+    public void testUnrecognizedOption() throws Exception {
+        String[] parameters = {"-v", "-l"};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 
     /** Tests cancelling with the savepoint option. */
     @Test
-    void testCancelWithSavepoint() throws Exception {
+    public void testCancelWithSavepoint() throws Exception {
         {
             // Cancel with savepoint (no target directory)
             JobID jid = new JobID();
@@ -112,12 +104,12 @@ class CliFrontendCancelTest extends CliFrontendTestBase {
             TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
             clusterClient.setCancelWithSavepointFunction(
                     (jobID, savepointDirectory, formatType) -> {
-                        assertThat(savepointDirectory).isNull();
+                        assertNull(savepointDirectory);
                         cancelWithSavepointLatch.trigger();
                         return CompletableFuture.completedFuture(savepointDirectory);
                     });
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-            testFrontend.cancel(parameters);
+            testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
             cancelWithSavepointLatch.await();
         }
 
@@ -131,12 +123,12 @@ class CliFrontendCancelTest extends CliFrontendTestBase {
             TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
             clusterClient.setCancelWithSavepointFunction(
                     (jobID, savepointDirectory, formatType) -> {
-                        assertThat(savepointDirectory).isNotNull();
+                        assertNotNull(savepointDirectory);
                         cancelWithSavepointLatch.trigger();
                         return CompletableFuture.completedFuture(savepointDirectory);
                     });
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-            testFrontend.cancel(parameters);
+            testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
             cancelWithSavepointLatch.await();
         }
 
@@ -148,49 +140,39 @@ class CliFrontendCancelTest extends CliFrontendTestBase {
 
             final SavepointFormatType expectedFormatType = SavepointFormatType.NATIVE;
             String[] parameters = {
-                "-s", "targetDirectory", jid.toString(), "-type", expectedFormatType.toString()
+                    "-s", "targetDirectory", jid.toString(), "-type", expectedFormatType.toString()
             };
             TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
             clusterClient.setCancelWithSavepointFunction(
                     (jobID, savepointDirectory, formatType) -> {
-                        assertThat(savepointDirectory).isNotNull();
-                        assertThat(expectedFormatType).isEqualTo(formatType);
+                        assertNotNull(savepointDirectory);
+                        assertThat(formatType, equalTo(expectedFormatType));
                         cancelWithSavepointLatch.trigger();
                         return CompletableFuture.completedFuture(savepointDirectory);
                     });
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-            testFrontend.cancel(parameters);
+            testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
             cancelWithSavepointLatch.await();
         }
     }
 
-    @Test
-    void testCancelWithSavepointWithoutJobId() {
-        assertThatThrownBy(
-                        () -> {
-                            // Cancel with savepoint (with target directory), but no job ID
-                            String[] parameters = {"-s", "targetDirectory"};
-                            Configuration configuration = getConfiguration();
-                            CliFrontend testFrontend =
-                                    new CliFrontend(
-                                            configuration, Collections.singletonList(getCli()));
-                            testFrontend.cancel(parameters);
-                        })
-                .isInstanceOf(CliArgsException.class);
+    @Test(expected = CliArgsException.class)
+    public void testCancelWithSavepointWithoutJobId() throws Exception {
+        // Cancel with savepoint (with target directory), but no job ID
+        String[] parameters = {"-s", "targetDirectory"};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 
-    @Test
-    void testCancelWithSavepointWithoutParameters() {
-        assertThatThrownBy(
-                        () -> {
-                            // Cancel with savepoint (no target directory) and no job ID
-                            String[] parameters = {"-s"};
-                            Configuration configuration = getConfiguration();
-                            CliFrontend testFrontend =
-                                    new CliFrontend(
-                                            configuration, Collections.singletonList(getCli()));
-                            testFrontend.cancel(parameters);
-                        })
-                .isInstanceOf(CliArgsException.class);
+    @Test(expected = CliArgsException.class)
+    public void testCancelWithSavepointWithoutParameters() throws Exception {
+        // Cancel with savepoint (no target directory) and no job ID
+        String[] parameters = {"-s"};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 }

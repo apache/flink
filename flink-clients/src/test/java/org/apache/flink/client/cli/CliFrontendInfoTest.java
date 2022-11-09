@@ -20,94 +20,71 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.Collections;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for the "info" command. */
-class CliFrontendInfoTest extends CliFrontendTestBase {
+public class CliFrontendInfoTest extends CliFrontendTestBase {
 
     private static PrintStream stdOut;
     private static PrintStream capture;
     private static ByteArrayOutputStream buffer;
 
-    @Test
-    void testMissingOption() {
-        assertThatThrownBy(
-                        () -> {
-                            String[] parameters = {};
-                            Configuration configuration = getConfiguration();
-                            CliFrontend testFrontend =
-                                    new CliFrontend(
-                                            configuration, Collections.singletonList(getCli()));
-                            testFrontend.info(parameters);
-                        })
-                .isInstanceOf(CliArgsException.class);
+    @Test(expected = CliArgsException.class)
+    public void testMissingOption() throws Exception {
+        String[] parameters = {};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
+    }
+
+    @Test(expected = CliArgsException.class)
+    public void testUnrecognizedOption() throws Exception {
+        String[] parameters = {"-v", "-l"};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
     }
 
     @Test
-    void testUnrecognizedOption() {
-        assertThatThrownBy(
-                        () -> {
-                            String[] parameters = {"-v", "-l"};
-                            Configuration configuration = getConfiguration();
-                            CliFrontend testFrontend =
-                                    new CliFrontend(
-                                            configuration, Collections.singletonList(getCli()));
-                            testFrontend.info(parameters);
-                        })
-                .isInstanceOf(CliArgsException.class);
-    }
-
-    @Test
-    void testShowExecutionPlan() throws Exception {
+    public void testShowExecutionPlan() throws Exception {
         replaceStdOut();
         try {
 
             String[] parameters =
                     new String[] {
-                        CliFrontendTestUtils.getTestJarPath(), "-f", "true", "--arg", "suffix"
+                            CliFrontendTestUtils.getTestJarPath(), "-f", "true", "--arg", "suffix"
                     };
             Configuration configuration = getConfiguration();
             CliFrontend testFrontend =
                     new CliFrontend(configuration, Collections.singletonList(getCli()));
-            testFrontend.info(parameters);
-            assertThat(buffer.toString()).contains("\"parallelism\" : 4");
+            testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
+            assertTrue(buffer.toString().contains("\"parallelism\" : 4"));
         } finally {
             restoreStdOut();
         }
     }
 
     @Test
-    void testShowExecutionPlanWithCliOptionParallelism() throws Exception {
-        final String[] parameters = {
-            "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
-        };
-        testShowExecutionPlanWithParallelism(parameters, 17);
-    }
-
-    @Test
-    void testShowExecutionPlanWithDynamicPropertiesParallelism() throws Exception {
-        final String[] parameters = {
-            "-Dparallelism.default=15", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
-        };
-        testShowExecutionPlanWithParallelism(parameters, 15);
-    }
-
-    void testShowExecutionPlanWithParallelism(String[] parameters, int expectedParallelism) {
+    public void testShowExecutionPlanWithParallelism() {
         replaceStdOut();
         try {
+            String[] parameters = {
+                    "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
+            };
             Configuration configuration = getConfiguration();
             CliFrontend testFrontend =
                     new CliFrontend(configuration, Collections.singletonList(getCli()));
-            testFrontend.info(parameters);
-            assertThat(buffer.toString()).contains("\"parallelism\" : " + expectedParallelism);
+            testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
+            assertTrue(buffer.toString().contains("\"parallelism\" : 17"));
         } catch (Exception e) {
             e.printStackTrace();
             fail("Program caused an exception: " + e.getMessage());
