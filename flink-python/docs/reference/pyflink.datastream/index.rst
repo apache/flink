@@ -16,15 +16,24 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
+==================
+PyFlink DataStream
+==================
 
-.. mdinclude:: ../README.md
+This page gives an overview of all public PyFlink DataStream API.
 
 .. toctree::
     :maxdepth: 2
-    :hidden:
 
-    reference/index
-    examples/index
+    stream_execution_environment
+    datastream
+    functions
+    state
+    timer
+    window
+    checkpoint
+    sideoutput
+    connectors
+    formats
+
+

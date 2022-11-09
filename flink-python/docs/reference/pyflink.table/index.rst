@@ -16,15 +16,21 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
+=============
+PyFlink Table
+=============
 
-.. mdinclude:: ../README.md
+This page gives an overview of all public PyFlink Table API.
 
 .. toctree::
     :maxdepth: 2
-    :hidden:
 
-    reference/index
-    examples/index
+    table_environment
+    table
+    data_types
+    window
+    expressions
+    udf
+    descriptors
+    statement_set
+    catalog
