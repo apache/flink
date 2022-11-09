@@ -1109,6 +1109,9 @@
                 "is_savepoint" : {
                   "type" : "boolean"
                 },
+                "savepointFormat" : {
+                  "type" : "string"
+                },
                 "trigger_timestamp" : {
                   "type" : "integer"
                 },
@@ -1212,6 +1215,9 @@
                 "is_savepoint" : {
                   "type" : "boolean"
                 },
+                "savepointFormat" : {
+                  "type" : "string"
+                },
                 "trigger_timestamp" : {
                   "type" : "integer"
                 },
@@ -1296,6 +1302,9 @@
               },
               "is_savepoint" : {
                 "type" : "boolean"
+              },
+              "savepointFormat" : {
+                "type" : "string"
               },
               "trigger_timestamp" : {
                 "type" : "integer"
@@ -1485,6 +1494,9 @@
         },
         "is_savepoint" : {
           "type" : "boolean"
+        },
+        "savepointFormat" : {
+          "type" : "string"
         },
         "trigger_timestamp" : {
           "type" : "integer"

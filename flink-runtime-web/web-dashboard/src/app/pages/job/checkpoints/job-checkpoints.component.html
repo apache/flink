@@ -164,6 +164,11 @@
                 <strong>Full Checkpoint Data Size:</strong>
                 {{ checkPointStats['latest']['savepoint']['state_size'] | humanizeBytes }}
               </span>
+              <ng-container *ngIf="checkPointStats['latest']['savepoint']['savepointFormat']">
+                <nz-divider nzType="vertical"></nz-divider>
+                <strong>Savepoint Format:</strong>
+                {{ checkPointStats['latest']['savepoint']['savepointFormat'] }}
+              </ng-container>
               <nz-divider nzType="vertical"></nz-divider>
               <span>
                 <strong>Path:</strong>
