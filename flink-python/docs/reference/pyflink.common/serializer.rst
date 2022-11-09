@@ -16,15 +16,32 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
 
-.. mdinclude:: ../README.md
+==========
+Serializer
+==========
 
-.. toctree::
-    :maxdepth: 2
-    :hidden:
+Serializer
+----------
 
-    reference/index
-    examples/index
+.. currentmodule:: pyflink.common.serializer
+
+.. autosummary::
+    :toctree: api/
+
+    TypeSerializer
+    VoidNamespaceSerializer
+
+
+Serialization
+-------------
+
+.. currentmodule:: pyflink.common.serialization
+
+.. autosummary::
+    :toctree: api/
+
+    SerializationSchema
+    DeserializationSchema
+    SimpleStringSchema
+    Encoder
