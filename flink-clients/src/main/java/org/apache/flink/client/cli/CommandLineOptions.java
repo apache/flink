@@ -26,15 +26,19 @@ import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
  * Base class for all options parsed from the command line. Contains options for printing help and
  * the JobManager address.
  */
-public abstract class CommandLineOptions {
+public class CommandLineOptions {
 
-    private final boolean printHelp;
+    private final CommandLine commandLine;
 
     protected CommandLineOptions(CommandLine line) {
-        this.printHelp = line.hasOption(HELP_OPTION.getOpt());
+        this.commandLine = line;
+    }
+
+    public CommandLine getCommandLine() {
+        return commandLine;
     }
 
     public boolean isPrintHelp() {
-        return printHelp;
+        return commandLine.hasOption(HELP_OPTION.getOpt());
     }
 }
