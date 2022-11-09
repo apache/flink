@@ -16,15 +16,24 @@
     limitations under the License.
    ################################################################################
 
-=============================
-Welcome to Flink Python Docs!
-=============================
 
-.. mdinclude:: ../README.md
+============
+Side Outputs
+============
 
-.. toctree::
-    :maxdepth: 2
-    :hidden:
+OutputTag
+---------
 
-    reference/index
-    examples/index
+An :class:`OutputTag` is a typed and named tag to use for tagging side outputs of an operator.
+
+Example:
+::
+
+    # Explicitly specify output type
+    >>> info = OutputTag("late-data", Types.TUPLE([Types.STRING(), Types.LONG()]))
+    # Implicitly wrap list to Types.ROW
+    >>> info_row = OutputTag("row", [Types.STRING(), Types.LONG()])
+    # Implicitly use pickle serialization
+    >>> info_side = OutputTag("side")
+    # ERROR: tag id cannot be empty string (extra requirement for Python API)
+    >>> info_error = OutputTag("")
