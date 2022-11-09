@@ -23,9 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
-import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -69,6 +67,9 @@ import org.apache.hive.service.rpc.thrift.TExecuteStatementReq;
 import org.apache.hive.service.rpc.thrift.TExecuteStatementResp;
 import org.apache.hive.service.rpc.thrift.TFetchOrientation;
 import org.apache.hive.service.rpc.thrift.TFetchResultsReq;
+import org.apache.hive.service.rpc.thrift.TGetInfoReq;
+import org.apache.hive.service.rpc.thrift.TGetInfoResp;
+import org.apache.hive.service.rpc.thrift.TGetInfoType;
 import org.apache.hive.service.rpc.thrift.TGetOperationStatusReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
@@ -79,7 +80,6 @@ import org.apache.hive.service.rpc.thrift.TSessionHandle;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.transport.TTransport;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -599,21 +599,23 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testUnrecognizedGetInfoTypeWontCauseFailure() throws Exception {
-        // When 'TGetInfoResp' is used and 'TGetInfoResp.infoValue' isn't set, hive service will
-        // close connection. Here using new 'TGetInfoType' CLI_ODBC_KEYWORDS added in hive3 sent by
-        // 'getSQLKeywords' to test whether it is handled appropriately.
-        Assumptions.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+    public void testUnknownGetInfoType() throws Exception {
+        TCLIService.Client client = createClient();
+        TOpenSessionReq openSessionReq = new TOpenSessionReq();
+        TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
+        TSessionHandle tSessionHandle = openSessionResp.getSessionHandle();
+
+        // send GetInfo request using an  GetInfoType which is unknown to HiveServer2
+        TGetInfoReq getInfoReq =
+                new TGetInfoReq(tSessionHandle, TGetInfoType.CLI_MAX_IDENTIFIER_LEN);
+        TGetInfoResp getInfoResp = client.GetInfo(getInfoReq);
+        assertThat(getInfoResp.getStatus().getStatusCode()).isEqualTo(TStatusCode.ERROR_STATUS);
+
+        // the connection should not been closed
         try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
-            assertThatThrownBy(metaData::getSQLKeywords)
-                    .satisfies(
-                            FlinkAssertions.anyCauseMatches(
-                                    UnsupportedOperationException.class,
-                                    "Unrecognized TGetInfoType value: CLI_ODBC_KEYWORDS."));
-
-            // test whether the connection has been closed
             connection.createStatement().execute("CREATE SCHEMA test;");
+
             assertThat(collectAndCompact(metaData.getSchemas("hive", null), 2))
                     .contains(Arrays.asList("test", "hive"));
         }
