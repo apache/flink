@@ -118,7 +118,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         // test jar arguments
         {
             String[] parameters = {
-                getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"
+                    getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"
             };
 
             CommandLine commandLine =
@@ -187,7 +187,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.run(parameters);
+        testAction(testFrontend, testFrontend.new ActionRun(), parameters);
     }
 
     @Test(expected = CliArgsException.class)
@@ -197,7 +197,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.run(parameters);
+        testAction(testFrontend, testFrontend.new ActionRun(), parameters);
     }
 
     @Test(expected = CliArgsException.class)
@@ -207,7 +207,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.run(parameters);
+        testAction(testFrontend, testFrontend.new ActionRun(), parameters);
     }
 
     @Test(expected = CliArgsException.class)
@@ -216,14 +216,14 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.run(parameters);
+        testAction(testFrontend, testFrontend.new ActionRun(), parameters);
     }
 
     @Test
     public void testDefaultParallelismOption() throws Exception {
         final Configuration configuration = getConfiguration();
         String[] parameters = {
-            "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
+                "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
         };
         verifyCliFrontend(
                 configuration, getCli(), parameters, ExecutionConfig.PARALLELISM_DEFAULT, false);
@@ -235,7 +235,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         final Configuration configuration = getConfiguration();
         configuration.set(CoreOptions.DEFAULT_PARALLELISM, 1);
         String[] parameters = {
-            "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
+                "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
         };
         verifyCliFrontend(
                 configuration, getCli(), parameters, ExecutionConfig.PARALLELISM_DEFAULT, false);
@@ -257,7 +257,10 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                         cli,
                         expectedParallelism,
                         isDetached);
-        testFrontend.run(parameters); // verifies the expected values (see below)
+        testAction(
+                testFrontend,
+                testFrontend.new ActionRun(),
+                parameters); // verifies the expected values (see below)
     }
 
     public static void verifyCliFrontend(
@@ -275,7 +278,10 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                         cli,
                         expectedParallelism,
                         isDetached);
-        testFrontend.run(parameters); // verifies the expected values (see below)
+        testAction(
+                testFrontend,
+                testFrontend.new ActionRun(),
+                parameters); // verifies the expected values (see below)
     }
 
     private static final class RunTestingCliFrontend extends CliFrontend {

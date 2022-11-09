@@ -42,7 +42,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
     }
 
     @Test(expected = CliArgsException.class)
@@ -51,7 +51,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
     }
 
     @Test
@@ -61,12 +61,12 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 
             String[] parameters =
                     new String[] {
-                        CliFrontendTestUtils.getTestJarPath(), "-f", "true", "--arg", "suffix"
+                            CliFrontendTestUtils.getTestJarPath(), "-f", "true", "--arg", "suffix"
                     };
             Configuration configuration = getConfiguration();
             CliFrontend testFrontend =
                     new CliFrontend(configuration, Collections.singletonList(getCli()));
-            testFrontend.info(parameters);
+            testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
             assertTrue(buffer.toString().contains("\"parallelism\" : 4"));
         } finally {
             restoreStdOut();
@@ -78,12 +78,12 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
         replaceStdOut();
         try {
             String[] parameters = {
-                "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
+                    "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
             };
             Configuration configuration = getConfiguration();
             CliFrontend testFrontend =
                     new CliFrontend(configuration, Collections.singletonList(getCli()));
-            testFrontend.info(parameters);
+            testAction(testFrontend, testFrontend.new ActionInfo(), parameters);
             assertTrue(buffer.toString().contains("\"parallelism\" : 17"));
         } catch (Exception e) {
             e.printStackTrace();

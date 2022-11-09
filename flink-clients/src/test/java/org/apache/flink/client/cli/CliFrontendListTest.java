@@ -98,7 +98,7 @@ public class CliFrontendListTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.list(parameters);
+        testAction(testFrontend, testFrontend.new ActionList(), parameters);
     }
 
     @Test
@@ -108,7 +108,7 @@ public class CliFrontendListTest extends CliFrontendTestBase {
             String[] parameters = {"-r", "-s", "-a"};
             ClusterClient<String> clusterClient = createClusterClient();
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-            testFrontend.list(parameters);
+            testAction(testFrontend, testFrontend.new ActionList(), parameters);
             Mockito.verify(clusterClient, times(1)).listJobs();
         }
     }

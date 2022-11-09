@@ -32,4 +32,18 @@ public abstract class CliFrontendTestBase extends TestLogger {
     static AbstractCustomCommandLine getCli() {
         return new DefaultCLI();
     }
+
+    static void testAction(
+            CliFrontend cliFrontend, CliFrontend.CommandAction commandAction, String[] parameters)
+            throws Exception {
+        final CommandLineOptions commandLineOptions = commandAction.parse(parameters);
+
+        final CustomCommandLine activeCommandLine =
+                cliFrontend.validateAndGetActiveCommandLine(commandLineOptions.getCommandLine());
+
+        final Configuration effectiveConfiguration =
+                commandAction.getConfiguration(commandLineOptions, activeCommandLine);
+
+        commandAction.runAction(commandLineOptions, effectiveConfiguration);
+    }
 }

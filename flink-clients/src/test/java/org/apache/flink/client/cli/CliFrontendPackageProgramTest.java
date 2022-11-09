@@ -28,7 +28,6 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
@@ -54,7 +53,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /** Tests for the RUN command with {@link PackagedProgram PackagedPrograms}. */
-public class CliFrontendPackageProgramTest extends TestLogger {
+public class CliFrontendPackageProgramTest extends CliFrontendTestBase {
 
     private CliFrontend frontend;
 
@@ -106,17 +105,17 @@ public class CliFrontendPackageProgramTest extends TestLogger {
     @Test
     public void testVariantWithExplicitJarAndArgumentsOption() throws Exception {
         String[] arguments = {
-            "--classpath",
-            "file:///tmp/foo",
-            "--classpath",
-            "file:///tmp/bar",
-            "-j",
-            getTestJarPath(),
-            "-a",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "--classpath",
+                "file:///tmp/foo",
+                "--classpath",
+                "file:///tmp/bar",
+                "-j",
+                getTestJarPath(),
+                "-a",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
         URL[] classpath = new URL[] {new URL("file:///tmp/foo"), new URL("file:///tmp/bar")};
         String[] reducedArguments = new String[] {"--debug", "true", "arg1", "arg2"};
@@ -138,16 +137,16 @@ public class CliFrontendPackageProgramTest extends TestLogger {
     @Test
     public void testVariantWithExplicitJarAndNoArgumentsOption() throws Exception {
         String[] arguments = {
-            "--classpath",
-            "file:///tmp/foo",
-            "--classpath",
-            "file:///tmp/bar",
-            "-j",
-            getTestJarPath(),
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "--classpath",
+                "file:///tmp/foo",
+                "--classpath",
+                "file:///tmp/bar",
+                "-j",
+                getTestJarPath(),
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
         URL[] classpath = new URL[] {new URL("file:///tmp/foo"), new URL("file:///tmp/bar")};
         String[] reducedArguments = new String[] {"--debug", "true", "arg1", "arg2"};
@@ -169,15 +168,15 @@ public class CliFrontendPackageProgramTest extends TestLogger {
     @Test
     public void testValidVariantWithNoJarAndNoArgumentsOption() throws Exception {
         String[] arguments = {
-            "--classpath",
-            "file:///tmp/foo",
-            "--classpath",
-            "file:///tmp/bar",
-            getTestJarPath(),
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "--classpath",
+                "file:///tmp/foo",
+                "--classpath",
+                "file:///tmp/bar",
+                getTestJarPath(),
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
         URL[] classpath = new URL[] {new URL("file:///tmp/foo"), new URL("file:///tmp/bar")};
         String[] reducedArguments = {"--debug", "true", "arg1", "arg2"};
@@ -198,21 +197,21 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
     @Test(expected = CliArgsException.class)
     public void testNoJarNoArgumentsAtAll() throws Exception {
-        frontend.run(new String[0]);
+        testAction(frontend, frontend.new ActionRun(), new String[0]);
     }
 
     @Test
     public void testNonExistingFileWithArguments() throws Exception {
         String[] arguments = {
-            "--classpath",
-            "file:///tmp/foo",
-            "--classpath",
-            "file:///tmp/bar",
-            "/some/none/existing/path",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "--classpath",
+                "file:///tmp/foo",
+                "--classpath",
+                "file:///tmp/bar",
+                "/some/none/existing/path",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
         URL[] classpath = new URL[] {new URL("file:///tmp/foo"), new URL("file:///tmp/bar")};
         String[] reducedArguments = {"--debug", "true", "arg1", "arg2"};
@@ -288,21 +287,21 @@ public class CliFrontendPackageProgramTest extends TestLogger {
     @Test
     public void testPlanWithExternalClass() throws Exception {
         final boolean[] callme = {
-            false
+                false
         }; // create a final object reference, to be able to change its val later
 
         try {
             String[] arguments = {
-                "--classpath",
-                "file:///tmp/foo",
-                "--classpath",
-                "file:///tmp/bar",
-                "-c",
-                TEST_JAR_CLASSLOADERTEST_CLASS,
-                getTestJarPath(),
-                "true",
-                "arg1",
-                "arg2"
+                    "--classpath",
+                    "file:///tmp/foo",
+                    "--classpath",
+                    "file:///tmp/bar",
+                    "-c",
+                    TEST_JAR_CLASSLOADERTEST_CLASS,
+                    getTestJarPath(),
+                    "true",
+                    "arg1",
+                    "arg2"
             };
             URL[] classpath = new URL[] {new URL("file:///tmp/foo"), new URL("file:///tmp/bar")};
             String[] reducedArguments = {"true", "arg1", "arg2"};

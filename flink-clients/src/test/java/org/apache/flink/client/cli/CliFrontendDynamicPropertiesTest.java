@@ -71,16 +71,16 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
     public void testDynamicPropertiesWithParentFirstClassloader() throws Exception {
 
         String[] args = {
-            "-e",
-            "test-executor",
-            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-            "-D" + "classloader.resolve-order=parent-first",
-            getTestJarPath(),
-            "-a",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "-e",
+                "test-executor",
+                "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+                "-D" + "classloader.resolve-order=parent-first",
+                getTestJarPath(),
+                "-a",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
 
         verifyCliFrontend(
@@ -95,15 +95,15 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
     public void testDynamicPropertiesWithDefaultChildFirstClassloader() throws Exception {
 
         String[] args = {
-            "-e",
-            "test-executor",
-            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-            getTestJarPath(),
-            "-a",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "-e",
+                "test-executor",
+                "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+                getTestJarPath(),
+                "-a",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
 
         verifyCliFrontend(
@@ -118,16 +118,16 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
     public void testDynamicPropertiesWithChildFirstClassloader() throws Exception {
 
         String[] args = {
-            "-e",
-            "test-executor",
-            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-            "-D" + "classloader.resolve-order=child-first",
-            getTestJarPath(),
-            "-a",
-            "--debug",
-            "true",
-            "arg1",
-            "arg2"
+                "-e",
+                "test-executor",
+                "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+                "-D" + "classloader.resolve-order=child-first",
+                getTestJarPath(),
+                "-a",
+                "--debug",
+                "true",
+                "arg1",
+                "arg2"
         };
 
         verifyCliFrontend(
@@ -153,7 +153,10 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
                         cliUnderTest,
                         expectedResolveOrderOption,
                         userCodeClassLoaderClassName);
-        testFrontend.run(parameters); // verifies the expected values (see below)
+        testAction(
+                testFrontend,
+                testFrontend.new ActionRun(),
+                parameters); // verifies the expected values (see below)
     }
 
     private static final class TestingCliFrontend extends CliFrontend {

@@ -69,7 +69,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
                 });
 
         MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
         cancelLatch.await();
     }
 
@@ -79,7 +79,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 
     @Test(expected = CliArgsException.class)
@@ -88,7 +88,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 
     /** Tests cancelling with the savepoint option. */
@@ -109,7 +109,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
                         return CompletableFuture.completedFuture(savepointDirectory);
                     });
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-            testFrontend.cancel(parameters);
+            testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
             cancelWithSavepointLatch.await();
         }
 
@@ -128,7 +128,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
                         return CompletableFuture.completedFuture(savepointDirectory);
                     });
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-            testFrontend.cancel(parameters);
+            testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
             cancelWithSavepointLatch.await();
         }
 
@@ -140,7 +140,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 
             final SavepointFormatType expectedFormatType = SavepointFormatType.NATIVE;
             String[] parameters = {
-                "-s", "targetDirectory", jid.toString(), "-type", expectedFormatType.toString()
+                    "-s", "targetDirectory", jid.toString(), "-type", expectedFormatType.toString()
             };
             TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
             clusterClient.setCancelWithSavepointFunction(
@@ -151,7 +151,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
                         return CompletableFuture.completedFuture(savepointDirectory);
                     });
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-            testFrontend.cancel(parameters);
+            testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
             cancelWithSavepointLatch.await();
         }
     }
@@ -163,7 +163,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 
     @Test(expected = CliArgsException.class)
@@ -173,6 +173,6 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.cancel(parameters);
+        testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
     }
 }
