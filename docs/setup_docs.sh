@@ -50,6 +50,8 @@ if [[ ! "$currentBranch" =~ ^release- ]] || [[ -z "$currentBranch" ]]; then
   mkdir tmp
   cd tmp
 
+  # Since there's no documentation yet available for a release branch,
+  # we only get the documentation from the main branch
   integrate_connector_docs elasticsearch main
 
   cd ..
