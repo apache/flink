@@ -834,14 +834,16 @@ public final class CatalogManager {
                 isDropTable
                         ? table -> table instanceof CatalogTable
                         : table -> table instanceof CatalogView;
-        // Same name temporary table or view exists.
+        // Same name temporary table or view exists.Or notice user "check whether miss a TEMPORARY
+        // before TABLE".
         if (filter.test(temporaryTables.get(objectIdentifier))) {
             String tableOrView = isDropTable ? "table" : "view";
             throw new ValidationException(
                     String.format(
                             "Temporary %s with identifier '%s' exists. "
-                                    + "Drop it first before removing the permanent %s.",
-                            tableOrView, objectIdentifier, tableOrView));
+                                    + "Drop it first before removing the permanent %s. "
+                                    + "Otherwise, add \"TEMPORARY\" in your sql, like using \"DROP TEMPORARY %s ...\" to drop a TEMPORARY %s.",
+                            tableOrView, objectIdentifier, tableOrView, tableOrView, tableOrView));
         }
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
         if (resultOpt.isPresent() && filter.test(resultOpt.get())) {

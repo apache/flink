@@ -904,7 +904,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     expectedEx.expectMessage(
       "Temporary table with identifier "
         + "'`default_catalog`.`default_database`.`t1`' exists. "
-        + "Drop it first before removing the permanent table.")
+        + "Drop it first before removing the permanent table. "
+        + "Otherwise, add \"TEMPORARY\" in your sql, like using \"DROP TEMPORARY table ...\" to drop a TEMPORARY table.")
     tableEnv.executeSql("drop table t1")
   }
 

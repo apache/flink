@@ -343,7 +343,7 @@ show columns in v1 not like 'use_';
 # we can't drop permanent view if there is temporary view with the same name
 drop view v1;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Temporary view with identifier '`default_catalog`.`default_database`.`v1`' exists. Drop it first before removing the permanent view.
+org.apache.flink.table.api.ValidationException: Temporary view with identifier '`default_catalog`.`default_database`.`v1`' exists. Drop it first before removing the permanent view. Otherwise, add "TEMPORARY" in your sql, like using "DROP TEMPORARY view ..." to drop a TEMPORARY view.
 !error
 
 # although temporary v2 needs temporary v1, dropping v1 first does not throw exception
