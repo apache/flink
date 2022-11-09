@@ -170,7 +170,10 @@ public abstract class YarnTestBase {
         // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
         Pattern.compile("Exception on heartbeat"),
         Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted"),
-        Pattern.compile("java\\.lang\\.InterruptedException")
+        Pattern.compile("java\\.lang\\.InterruptedException"),
+
+        // this can happen if the hbase delegation token provider is not available
+        Pattern.compile("ClassNotFoundException : \"org.apache.hadoop.hbase.HBaseConfiguration\"")
     };
 
     // Temp directory which is deleted after the unit test.
