@@ -53,7 +53,7 @@ cd tmp
 
 # Since there's no documentation yet available for a release branch,
 # we only get the documentation from the main branch
-integrate_connector_docs elasticsearch main
+integrate_connector_docs elasticsearch v3.0.0
 
 cd ..
 rm -rf tmp
