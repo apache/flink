@@ -23,12 +23,15 @@ import org.apache.flink.streaming.util.retryable.{RetryPredicates => JRetryPredi
 import java.util
 import java.util.function.Predicate
 
+/** Utility class to create concrete retry predicates. */
 @PublicEvolving
 object RetryPredicates {
 
+  /** A predicate matches empty result which means an empty {@link Collection}. */
   def EMPTY_RESULT_PREDICATE[T]: Predicate[util.Collection[T]] =
     JRetryPredicates.EMPTY_RESULT_PREDICATE.asInstanceOf[Predicate[util.Collection[T]]]
 
+  /** A predicate matches any exception which means a non-null{@link Throwable}. */
   def HAS_EXCEPTION_PREDICATE: Predicate[Throwable] =
     JRetryPredicates.HAS_EXCEPTION_PREDICATE.asInstanceOf[Predicate[Throwable]]
 
