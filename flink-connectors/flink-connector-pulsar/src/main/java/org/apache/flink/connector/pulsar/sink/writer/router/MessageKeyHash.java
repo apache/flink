@@ -62,7 +62,7 @@ public enum MessageKeyHash implements DescribedEnum {
     };
 
     private final String name;
-    private final InlineElement desc;
+    private final transient InlineElement desc;
 
     MessageKeyHash(String name, InlineElement desc) {
         this.name = name;

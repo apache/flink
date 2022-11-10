@@ -35,7 +35,7 @@ public enum CursorVerification implements DescribedEnum {
     /** Print a warn message and start consuming from the valid offset. */
     WARN_ON_MISMATCH(text("Print a warn message and start consuming from the valid offset."));
 
-    private final InlineElement desc;
+    private final transient InlineElement desc;
 
     CursorVerification(InlineElement desc) {
         this.desc = desc;
