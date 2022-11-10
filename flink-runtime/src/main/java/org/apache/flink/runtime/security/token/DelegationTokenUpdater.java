@@ -38,10 +38,10 @@ public final class DelegationTokenUpdater {
             throw new IllegalArgumentException("Illegal credentials tried to be set");
         }
         Credentials credentials = DelegationTokenConverter.deserialize(credentialsBytes);
-        LOG.debug("Updating delegation tokens for current user");
+        LOG.info("Updating delegation tokens for current user");
         dumpAllTokens(credentials);
         UserGroupInformation.getCurrentUser().addCredentials(credentials);
-        LOG.debug("Updated delegation tokens for current user successfully");
+        LOG.info("Updated delegation tokens for current user successfully");
     }
 
     public static void dumpAllTokens(Credentials credentials) {
@@ -49,7 +49,7 @@ public final class DelegationTokenUpdater {
                 .getAllTokens()
                 .forEach(
                         token ->
-                                LOG.debug(
+                                LOG.info(
                                         "Token Service:{} Identifier:{}",
                                         token.getService(),
                                         token.getIdentifier()));
