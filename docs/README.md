@@ -41,64 +41,14 @@ With the ongoing efforts to move Flink's connectors from this repository to indi
 repositories, this also requires the documentation to be hosted outside this repo. However, 
 we still want to serve all documentation as a whole on the Flink documentation website.
 
-In order to achieve this, we're using [Hugo Modules.](https://gohugo.io/hugo-modules/configuration/) 
-to create a virtual filesystem. 
-
 Adding new externally hosted documentation requires the following steps to be taken:
 
 1. (If necessary) Move the existing documentation to the new repository
-2. In this new repository, in the `docs` folder, create a file `go.mod` containing:
 
-```go
-module github.com/apache/flink-connector-<repositoryname>/docs
+2. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your now 
+externally hosted documentation. The reference will look like `integrate_connector_docs <connector_name> <branch_or_tag>`.
 
-go 1.18
-```
-
-Replace <repositoryname> with the name of your repository.
-See https://github.com/apache/flink-connector-elasticsearch/tree/main/docs/go.mod for an example.
-3. In this new repository, in the `docs` folder, create a `config.toml` file containing:
-
-```yaml
-module:
-  mounts:
-    - source: content
-      target: content
-      lang: en
-    - source: content.zh
-      target: content.zh
-      lang: zh
-```
-
-See https://github.com/apache/flink-connector-elasticsearch/tree/main/docs/config.toml for an example.
-
-4. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your now 
-externally hosted documentation. The reference will look like `hugo mod get -u github.com/apache/<reponame>/docs@main`
-
-Replace <repositoryname> with the name of your repository.
-
-5. In the Flink repository, edit the `docs/config.toml` file add the files from the external
-repository as a mount to the Flink documentation. Hugo creates a virtual mount, meaning that any
-mounted file will appear as if it's located in this repository. 
-
-```yaml
-[module]
-[[module.imports]]
-  path = 'github.com/apache/<repositoryname>/docs'
-[[module.imports.mounts]]
-  source = 'content'
-  target = 'content'
-  lang = 'en'
-[[module.imports.mounts]]
-  source = 'content.zh'
-  target = 'content'
-  lang = 'zh'
-```
-
-Replace <repositoryname> with the name of your repository.
-The Chinese documentation source `content.zh` is targetted to the actual `content` folder. 
-Hugo combines the `target` and `lang` to display the correct language. 
-See the current `docs/config.toml` file for an example.
+Replace <connector_name> with the name of your connector, e.g., `elasticsearch` for `flink-connector-elasticsearch`.
 
 ## Generate configuration tables
 
