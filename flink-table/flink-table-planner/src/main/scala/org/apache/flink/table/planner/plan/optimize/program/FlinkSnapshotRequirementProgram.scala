@@ -22,8 +22,8 @@ import org.apache.flink.table.planner.calcite.FlinkSnapshotConverter
 import org.apache.calcite.rel.RelNode
 
 /**
- * A FlinkOptimizeProgram that deals with snapshot requirement from {@link FlinkLogicalSnapshot} to
- * its child {@link FlinkLogicalTableSourceScan}.
+ * A FlinkOptimizeProgram that deals with snapshot requirement from [[FlinkLogicalSnapshot]] to its
+ * child [[FlinkLogicalTableSourceScan]].
  *
  * @tparam OC
  *   OptimizeContext
