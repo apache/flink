@@ -38,17 +38,11 @@ object AsyncRetryStrategies {
         override def getRetryPredicate(): AsyncRetryPredicate[T] = new AsyncRetryPredicate[T] {
           val retryPredicates: async.AsyncRetryPredicate[T] = retryStrategy.getRetryPredicate
 
-          override def resultPredicate: Option[Predicate[ju.Collection[T]]] = {
-            if (retryPredicates.resultPredicate.isPresent)
-              Option(retryPredicates.resultPredicate.get)
-            else Option.empty
-          }
+          override def resultPredicate: Option[Predicate[ju.Collection[T]]] = Option(
+            retryPredicates.resultPredicate.orElse(null))
 
-          override def exceptionPredicate: Option[Predicate[Throwable]] = {
-            if (retryPredicates.exceptionPredicate.isPresent)
-              Option(retryPredicates.exceptionPredicate.get)
-            else Option.empty
-          }
+          override def exceptionPredicate: Option[Predicate[Throwable]] = Option(
+            retryPredicates.exceptionPredicate.orElse(null))
         }
       }
     }
