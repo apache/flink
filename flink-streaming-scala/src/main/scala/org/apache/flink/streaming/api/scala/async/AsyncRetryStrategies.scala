@@ -66,6 +66,10 @@ object AsyncRetryStrategies {
     }
   }
 
+  /**
+   * FixedDelayRetryStrategyBuilder for building an {@link AsyncRetryStrategy} with fixed delay
+   * retrying behaviours.
+   */
   @PublicEvolving
   @SerialVersionUID(1L)
   class FixedDelayRetryStrategyBuilder[OUT](
@@ -90,6 +94,10 @@ object AsyncRetryStrategies {
     def build(): AsyncRetryStrategy[OUT] = new JavaToScalaRetryStrategy[OUT](builder.build())
   }
 
+  /**
+   * ExponentialBackoffDelayRetryStrategyBuilder for building an {@link AsyncRetryStrategy} with
+   * exponential delay retrying behaviours.
+   */
   @PublicEvolving
   @SerialVersionUID(1L)
   class ExponentialBackoffDelayRetryStrategyBuilder[OUT](
