@@ -250,7 +250,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             bulkFormat =
-                    new FileInfoExtractorBulkFormat(
+                    new FileInfoExtractorBulkFormat<>(
                             bulkFormat,
                             producedDataType,
                             context.createTypeInformation(producedDataType),

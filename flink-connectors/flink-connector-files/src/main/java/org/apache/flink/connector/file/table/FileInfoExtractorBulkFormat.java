@@ -42,9 +42,10 @@ import java.util.stream.Stream;
  * This {@link BulkFormat} is a wrapper that attaches file information columns to the output
  * records.
  */
-class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit> {
+public class FileInfoExtractorBulkFormat<SplitT extends FileSourceSplit>
+        implements BulkFormat<RowData, SplitT> {
 
-    private final BulkFormat<RowData, FileSourceSplit> wrapped;
+    private final BulkFormat<RowData, SplitT> wrapped;
     private final TypeInformation<RowData> producedType;
 
     private final List<FileSystemTableSource.FileInfoAccessor> metadataColumnsFunctions;
@@ -54,7 +55,7 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
     private final String defaultPartName;
 
     public FileInfoExtractorBulkFormat(
-            BulkFormat<RowData, FileSourceSplit> wrapped,
+            BulkFormat<RowData, SplitT> wrapped,
             DataType producedDataType,
             TypeInformation<RowData> producedTypeInformation,
             Map<String, FileSystemTableSource.FileInfoAccessor> metadataColumns,
@@ -70,21 +71,28 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
                 producedRowField.stream()
                         .map(DataTypes.Field::getName)
                         .collect(Collectors.toList());
+
+        // Filter out partition columns not in producedDataType
+        final List<String> partitionKeysToExtract =
+                DataType.getFieldNames(producedDataType).stream()
+                        .filter(partitionColumns::contains)
+                        .collect(Collectors.toList());
+
         List<String> mutableRowFieldNames =
                 producedRowFieldNames.stream()
                         .filter(
                                 key ->
                                         !metadataColumns.containsKey(key)
-                                                && !partitionColumns.contains(key))
+                                                && !partitionKeysToExtract.contains(key))
                         .collect(Collectors.toList());
         List<String> metadataFieldNames = new ArrayList<>(metadataColumns.keySet());
 
         List<String> fixedRowFieldNames =
-                Stream.concat(metadataFieldNames.stream(), partitionColumns.stream())
+                Stream.concat(metadataFieldNames.stream(), partitionKeysToExtract.stream())
                         .collect(Collectors.toList());
 
         this.partitionColumnTypes =
-                partitionColumns.stream()
+                partitionKeysToExtract.stream()
                         .map(
                                 fieldName ->
                                         new SimpleImmutableEntry<>(
@@ -104,14 +112,12 @@ class FileInfoExtractorBulkFormat implements BulkFormat<RowData, FileSourceSplit
     }
 
     @Override
-    public Reader<RowData> createReader(Configuration config, FileSourceSplit split)
-            throws IOException {
+    public Reader<RowData> createReader(Configuration config, SplitT split) throws IOException {
         return wrapReader(wrapped.createReader(config, split), split);
     }
 
     @Override
-    public Reader<RowData> restoreReader(Configuration config, FileSourceSplit split)
-            throws IOException {
+    public Reader<RowData> restoreReader(Configuration config, SplitT split) throws IOException {
         return wrapReader(wrapped.restoreReader(config, split), split);
     }
 

@@ -300,7 +300,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
         if (bulkReaderFormat != null) {
             final BulkFormat<RowData, FileSourceSplit> format =
-                    new FileInfoExtractorBulkFormat(
+                    new FileInfoExtractorBulkFormat<>(
                             bulkReaderFormat.createRuntimeDecoder(
                                     createSourceContext(context), physicalDataType),
                             producedDataType,
@@ -314,7 +314,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                     deserializationFormat.createRuntimeDecoder(
                             createSourceContext(context), physicalDataType);
             final BulkFormat<RowData, FileSourceSplit> format =
-                    new FileInfoExtractorBulkFormat(
+                    new FileInfoExtractorBulkFormat<>(
                             new DeserializationSchemaAdapter(decoder),
                             producedDataType,
                             context.createTypeInformation(producedDataType),

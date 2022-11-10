@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -84,7 +85,9 @@ public class HiveDeserializeExceptionTest {
                         new CatalogTableImpl(
                                 TableSchema.builder().field("i", DataTypes.INT()).build(),
                                 Collections.emptyMap(),
-                                null));
+                                null),
+                        InternalTypeInfo.of(DataTypes.ROW(DataTypes.INT()).getLogicalType()),
+                        DataTypes.ROW(DataTypes.INT()));
         builder.setPartitions(
                 Collections.singletonList(
                         new HiveTablePartition(new StorageDescriptor(), new Properties())));

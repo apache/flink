@@ -27,8 +27,8 @@ import org.apache.flink.connectors.hive.read.HiveInputFormatPartitionReader;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -79,7 +79,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
             JobConf jobConf,
             ReadableConfig flinkConf,
             ObjectPath tablePath,
-            CatalogTable catalogTable) {
+            ResolvedCatalogTable catalogTable) {
         super(jobConf, flinkConf, tablePath, catalogTable);
         this.configuration = new Configuration();
         catalogTable.getOptions().forEach(configuration::setString);
@@ -99,6 +99,8 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
         source.projectedFields = projectedFields;
         source.limit = limit;
         source.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+        source.producedTypeInfo = producedTypeInfo;
+        source.producedTypes = producedTypes;
         return source;
     }
 

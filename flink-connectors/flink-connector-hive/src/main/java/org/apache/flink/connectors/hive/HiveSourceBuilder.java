@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.ContinuousEnumerationSettings;
@@ -26,6 +27,7 @@ import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
+import org.apache.flink.connector.file.table.FileInfoExtractorBulkFormat;
 import org.apache.flink.connector.file.table.LimitableBulkFormat;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HiveInputFormat;
@@ -57,7 +59,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -87,8 +88,10 @@ public class HiveSourceBuilder {
     private final TableSchema fullSchema;
     private final List<String> partitionKeys;
     private final String hiveVersion;
+    private final String defaultPartitionName;
+    private final TypeInformation<RowData> producedTypeInfo;
+    private final DataType producedType;
 
-    private int[] projectedFields;
     private Long limit;
     private List<HiveTablePartition> partitions;
     private List<String> dynamicFilterPartitionKeys;
@@ -111,7 +114,9 @@ public class HiveSourceBuilder {
             @Nullable String hiveVersion,
             @Nonnull String dbName,
             @Nonnull String tableName,
-            @Nonnull Map<String, String> tableOptions) {
+            @Nonnull Map<String, String> tableOptions,
+            @Nonnull TypeInformation<RowData> producedTypeInfo,
+            @Nonnull DataType producedType) {
         this.jobConf = jobConf;
         this.flinkConf = flinkConf;
         this.fallbackMappedReader = flinkConf.get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
@@ -130,6 +135,9 @@ public class HiveSourceBuilder {
         } catch (TException e) {
             throw new FlinkHiveException("Failed to get hive table", e);
         }
+        this.defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
+        this.producedTypeInfo = producedTypeInfo;
+        this.producedType = producedType;
         validateScanConfigurations(this.tableOptions);
         checkAcidTable(this.tableOptions, tablePath);
         setFlinkConfigurationToJobConf();
@@ -150,7 +158,9 @@ public class HiveSourceBuilder {
             @Nonnull ReadableConfig flinkConf,
             @Nonnull ObjectPath tablePath,
             @Nullable String hiveVersion,
-            @Nonnull CatalogTable catalogTable) {
+            @Nonnull CatalogTable catalogTable,
+            @Nonnull TypeInformation<RowData> producedTypeInfo,
+            @Nonnull DataType producedType) {
         this.jobConf = jobConf;
         this.flinkConf = flinkConf;
         this.fallbackMappedReader = flinkConf.get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
@@ -159,6 +169,9 @@ public class HiveSourceBuilder {
         this.fullSchema = catalogTable.getSchema();
         this.partitionKeys = catalogTable.getPartitionKeys();
         this.tableOptions = catalogTable.getOptions();
+        this.producedTypeInfo = producedTypeInfo;
+        this.producedType = producedType;
+        this.defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
         validateScanConfigurations(tableOptions);
         checkAcidTable(tableOptions, tablePath);
         setFlinkConfigurationToJobConf();
@@ -168,7 +181,7 @@ public class HiveSourceBuilder {
      * Builds HiveSource with default built-in BulkFormat that returns records in type of RowData.
      */
     public HiveSource<RowData> buildWithDefaultBulkFormat() {
-        return buildWithBulkFormat(createDefaultBulkFormat());
+        return buildWithBulkFormat(createWrappedBulkFormat());
     }
 
     /** Builds HiveSource with custom BulkFormat. */
@@ -212,7 +225,6 @@ public class HiveSourceBuilder {
 
             if (!partitionKeys.isEmpty()) {
                 fetcher = new HiveContinuousPartitionFetcher();
-                final String defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
                 fetcherContext =
                         new HiveTableSource.HiveContinuousPartitionFetcherContext(
                                 tablePath,
@@ -273,16 +285,6 @@ public class HiveSourceBuilder {
         return this;
     }
 
-    /**
-     * Sets the indices of projected fields.
-     *
-     * @param projectedFields indices of the fields, starting from 0
-     */
-    public HiveSourceBuilder setProjectedFields(int[] projectedFields) {
-        this.projectedFields = projectedFields;
-        return this;
-    }
-
     private static void validateScanConfigurations(Map<String, String> configurations) {
         String partitionInclude =
                 configurations.getOrDefault(
@@ -334,37 +336,26 @@ public class HiveSourceBuilder {
                         STREAMING_SOURCE_ENABLE.defaultValue().toString()));
     }
 
-    private RowType getProducedRowType() {
-        TableSchema producedSchema;
-        if (projectedFields == null) {
-            producedSchema = fullSchema;
-        } else {
-            String[] fullNames = fullSchema.getFieldNames();
-            DataType[] fullTypes = fullSchema.getFieldDataTypes();
-            producedSchema =
-                    TableSchema.builder()
-                            .fields(
-                                    Arrays.stream(projectedFields)
-                                            .mapToObj(i -> fullNames[i])
-                                            .toArray(String[]::new),
-                                    Arrays.stream(projectedFields)
-                                            .mapToObj(i -> fullTypes[i])
-                                            .toArray(DataType[]::new))
-                            .build();
-        }
-        return (RowType) producedSchema.toRowDataType().bridgedTo(RowData.class).getLogicalType();
-    }
-
-    protected BulkFormat<RowData, HiveSourceSplit> createDefaultBulkFormat() {
-        return LimitableBulkFormat.create(
+    protected BulkFormat<RowData, HiveSourceSplit> createWrappedBulkFormat() {
+        HiveInputFormat inputFormat =
                 new HiveInputFormat(
                         new JobConfWrapper(jobConf),
                         partitionKeys,
                         fullSchema.getFieldNames(),
                         fullSchema.getFieldDataTypes(),
                         hiveVersion,
-                        getProducedRowType(),
-                        fallbackMappedReader),
-                limit);
+                        (RowType) producedType.bridgedTo(RowData.class).getLogicalType(),
+                        fallbackMappedReader);
+
+        FileInfoExtractorBulkFormat<HiveSourceSplit> bulkFormatWithPartitions =
+                new FileInfoExtractorBulkFormat<>(
+                        inputFormat,
+                        producedType,
+                        producedTypeInfo,
+                        new HashMap<>(),
+                        partitionKeys,
+                        defaultPartitionName);
+
+        return LimitableBulkFormat.create(bulkFormatWithPartitions, limit);
     }
 }

@@ -29,6 +29,8 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.mapred.JobConf;
@@ -85,6 +87,7 @@ public class HiveSourceITCase {
 
         StreamExecutionEnvironment streamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
         streamEnv.setParallelism(1);
+        DataType producedType = DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()));
         HiveSource<RowData> hiveSource =
                 new HiveSourceBuilder(
                                 new JobConf(hiveCatalog.getHiveConf()),
@@ -92,7 +95,9 @@ public class HiveSourceITCase {
                                 HiveShimLoader.getHiveVersion(),
                                 tablePath.getDatabaseName(),
                                 tablePath.getObjectName(),
-                                Collections.emptyMap())
+                                Collections.emptyMap(),
+                                InternalTypeInfo.of(producedType.getLogicalType()),
+                                producedType)
                         .buildWithDefaultBulkFormat();
         List<RowData> results =
                 CollectionUtil.iteratorToList(
@@ -120,6 +125,10 @@ public class HiveSourceITCase {
                         tableOptions,
                         null),
                 false);
+        producedType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("i", DataTypes.INT()),
+                        DataTypes.FIELD("p", DataTypes.STRING()));
         HiveTestUtils.createTextTableInserter(
                         hiveCatalog, tablePath.getDatabaseName(), tablePath.getObjectName())
                 .addRow(new Object[] {1})
@@ -132,7 +141,9 @@ public class HiveSourceITCase {
                                 HiveShimLoader.getHiveVersion(),
                                 tablePath.getDatabaseName(),
                                 tablePath.getObjectName(),
-                                Collections.emptyMap())
+                                Collections.emptyMap(),
+                                InternalTypeInfo.of(producedType.getLogicalType()),
+                                producedType)
                         .setLimit(1L)
                         .buildWithDefaultBulkFormat();
         results =
@@ -160,7 +171,9 @@ public class HiveSourceITCase {
                                 null,
                                 tablePath.getDatabaseName(),
                                 tablePath.getObjectName(),
-                                Collections.emptyMap())
+                                Collections.emptyMap(),
+                                InternalTypeInfo.of(producedType.getLogicalType()),
+                                producedType)
                         .setPartitions(
                                 Collections.singletonList(
                                         HiveTablePartition.ofPartition(

@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -42,8 +43,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
@@ -102,7 +103,7 @@ public class HiveTableSource
     protected final JobConf jobConf;
     protected final ReadableConfig flinkConf;
     protected final ObjectPath tablePath;
-    protected final CatalogTable catalogTable;
+    protected final ResolvedCatalogTable catalogTable;
     protected final String hiveVersion;
     protected final HiveShim hiveShim;
 
@@ -112,12 +113,14 @@ public class HiveTableSource
     @Nullable protected List<String> dynamicFilterPartitionKeys = null;
     protected int[] projectedFields;
     protected Long limit = null;
+    protected DataType producedTypes;
+    protected TypeInformation<RowData> producedTypeInfo;
 
     public HiveTableSource(
             JobConf jobConf,
             ReadableConfig flinkConf,
             ObjectPath tablePath,
-            CatalogTable catalogTable) {
+            ResolvedCatalogTable catalogTable) {
         this.jobConf = Preconditions.checkNotNull(jobConf);
         this.flinkConf = Preconditions.checkNotNull(flinkConf);
         this.tablePath = Preconditions.checkNotNull(tablePath);
@@ -127,10 +130,12 @@ public class HiveTableSource
                         jobConf.get(HiveCatalogFactoryOptions.HIVE_VERSION.key()),
                         "Hive version is not defined");
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+        this.producedTypes = catalogTable.getResolvedSchema().toPhysicalRowDataType();
     }
 
     @Override
-    public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+    public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
+        this.producedTypeInfo = scanContext.createTypeInformation(producedTypes);
         return new DataStreamScanProvider() {
             @Override
             public DataStream<RowData> produceDataStream(
@@ -149,8 +154,14 @@ public class HiveTableSource
     protected DataStream<RowData> getDataStream(
             ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
         HiveSourceBuilder sourceBuilder =
-                new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
-                        .setProjectedFields(projectedFields)
+                new HiveSourceBuilder(
+                                jobConf,
+                                flinkConf,
+                                tablePath,
+                                hiveVersion,
+                                catalogTable,
+                                producedTypeInfo,
+                                producedTypes)
                         .setLimit(limit);
 
         if (isStreamingSource()) {
@@ -288,6 +299,7 @@ public class HiveTableSource
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.projectedFields = Arrays.stream(projectedFields).mapToInt(value -> value[0]).toArray();
+        this.producedTypes = producedDataType;
     }
 
     @Override
@@ -323,8 +335,14 @@ public class HiveTableSource
             }
 
             HiveSourceBuilder sourceBuilder =
-                    new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
-                            .setProjectedFields(projectedFields);
+                    new HiveSourceBuilder(
+                            jobConf,
+                            flinkConf,
+                            tablePath,
+                            hiveVersion,
+                            catalogTable,
+                            producedTypeInfo,
+                            producedTypes);
             List<HiveTablePartition> hivePartitionsToRead =
                     getAllPartitions(
                             jobConf,
@@ -333,7 +351,7 @@ public class HiveTableSource
                             catalogTable.getPartitionKeys(),
                             remainingPartitions);
             BulkFormat<RowData, HiveSourceSplit> defaultBulkFormat =
-                    sourceBuilder.createDefaultBulkFormat();
+                    sourceBuilder.createWrappedBulkFormat();
             List<HiveSourceSplit> inputSplits =
                     HiveSourceFileEnumerator.createInputSplits(
                             1, hivePartitionsToRead, jobConf, false);
