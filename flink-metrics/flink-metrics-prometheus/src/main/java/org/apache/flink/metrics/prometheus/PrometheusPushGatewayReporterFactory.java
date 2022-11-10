@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.ENABLE_HISTOGRAM_MAX;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.ENABLE_HISTOGRAM_MIN;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
@@ -65,6 +67,14 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
 
         String hostUrlConfig = metricConfig.getString(HOST_URL.key(), HOST_URL.defaultValue());
 
+        Boolean histogramMaxEnabled =
+                metricConfig.getBoolean(
+                        ENABLE_HISTOGRAM_MAX.key(), ENABLE_HISTOGRAM_MAX.defaultValue());
+
+        Boolean histogramMinEnabled =
+                metricConfig.getBoolean(
+                        ENABLE_HISTOGRAM_MIN.key(), ENABLE_HISTOGRAM_MIN.defaultValue());
+
         final String hostUrl;
         if (!StringUtils.isNullOrWhitespaceOnly(hostUrlConfig)) {
             hostUrl = hostUrlConfig;
@@ -92,7 +102,12 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
 
         try {
             return new PrometheusPushGatewayReporter(
-                    new URL(hostUrl), jobName, groupingKey, deleteOnShutdown);
+                    new URL(hostUrl),
+                    jobName,
+                    groupingKey,
+                    deleteOnShutdown,
+                    histogramMaxEnabled,
+                    histogramMinEnabled);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }

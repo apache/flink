@@ -36,6 +36,15 @@ public class PrometheusReporterFactory implements MetricReporterFactory {
         String portsConfig = metricConfig.getString(ARG_PORT, DEFAULT_PORT);
         Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
-        return new PrometheusReporter(ports);
+        Boolean histogramMaxEnabled =
+                metricConfig.getBoolean(
+                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MAX.key(),
+                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MAX.defaultValue());
+
+        Boolean histogramMinEnabled =
+                metricConfig.getBoolean(
+                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MIN.key(),
+                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MIN.defaultValue());
+        return new PrometheusReporter(ports, histogramMaxEnabled, histogramMinEnabled);
     }
 }

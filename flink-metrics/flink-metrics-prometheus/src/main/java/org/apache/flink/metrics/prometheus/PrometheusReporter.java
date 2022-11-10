@@ -44,6 +44,13 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
     }
 
     PrometheusReporter(Iterator<Integer> ports) {
+        this(ports, false, false);
+    }
+
+    PrometheusReporter(
+            Iterator<Integer> ports, Boolean histogramMaxEnabled, Boolean histogramMinEnabled) {
+        this.histogramMaxEnabled = histogramMaxEnabled;
+        this.histogramMinEnabled = histogramMinEnabled;
         while (ports.hasNext()) {
             port = ports.next();
             try {

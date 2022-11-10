@@ -110,4 +110,9 @@ public class PrometheusPushGatewayReporterOptions {
                                                     "https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels",
                                                     "Prometheus requirements"))
                                     .build());
+    public static final ConfigOption<Boolean> ENABLE_HISTOGRAM_MAX =
+            PrometheusReporterOptions.ENABLE_HISTOGRAM_MAX;
+
+    public static final ConfigOption<Boolean> ENABLE_HISTOGRAM_MIN =
+            PrometheusReporterOptions.ENABLE_HISTOGRAM_MIN;
 }

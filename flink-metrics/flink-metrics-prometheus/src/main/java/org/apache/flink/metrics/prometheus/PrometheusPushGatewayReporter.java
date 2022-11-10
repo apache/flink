@@ -47,12 +47,16 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             URL hostUrl,
             String jobName,
             Map<String, String> groupingKey,
-            final boolean deleteOnShutdown) {
+            final boolean deleteOnShutdown,
+            Boolean histogramMaxEnabled,
+            Boolean histogramMinEnabled) {
         this.hostUrl = hostUrl;
         this.pushGateway = new PushGateway(hostUrl);
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
+        this.histogramMaxEnabled = histogramMaxEnabled;
+        this.histogramMinEnabled = histogramMinEnabled;
     }
 
     @Override

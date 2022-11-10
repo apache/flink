@@ -70,7 +70,7 @@ class PrometheusReporterTest {
 
     @BeforeEach
     void setupReporter() {
-        reporter = new PrometheusReporter(portRangeProvider.next());
+        reporter = new PrometheusReporter(portRangeProvider.next(), true, true);
 
         metricGroup =
                 TestUtils.createTestMetricGroup(
@@ -147,6 +147,9 @@ class PrometheusReporterTest {
                                     + quantile
                                     + "\n");
         }
+        assertThat(response).contains(summaryName + "{" + DIMENSIONS + ",quantile=\"1.0\",} 6.0\n");
+
+        assertThat(response).contains(summaryName + "{" + DIMENSIONS + ",quantile=\"0.0\",} 7.0\n");
     }
 
     /**

@@ -65,6 +65,9 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
     private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>>
             collectorsWithCountByMetricName = new HashMap<>();
 
+    protected Boolean histogramMaxEnabled = false;
+    protected Boolean histogramMinEnabled = false;
+
     @VisibleForTesting
     static String replaceInvalidChars(final String input) {
         // https://prometheus.io/docs/instrumenting/writing_exporters/
@@ -171,7 +174,9 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
                                 scopedMetricName,
                                 helpString,
                                 dimensionKeys,
-                                dimensionValues);
+                                dimensionValues,
+                                this.histogramMaxEnabled,
+                                this.histogramMinEnabled);
                 break;
             default:
                 log.warn(
@@ -321,16 +326,23 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
         private final Map<List<String>, Histogram> histogramsByLabelValues = new HashMap<>();
 
+        private final Boolean histogramMaxEnabled;
+        private final Boolean histogramMinEnabled;
+
         HistogramSummaryProxy(
                 final Histogram histogram,
                 final String metricName,
                 final String helpString,
                 final List<String> labelNames,
-                final List<String> labelValues) {
+                final List<String> labelValues,
+                final Boolean histogramMaxEnabled,
+                final Boolean histogramMinEnabled) {
             this.metricName = metricName;
             this.helpString = helpString;
             this.labelNamesWithQuantile = addToList(labelNames, "quantile");
             histogramsByLabelValues.put(labelValues, histogram);
+            this.histogramMaxEnabled = histogramMaxEnabled;
+            this.histogramMinEnabled = histogramMinEnabled;
         }
 
         @Override
@@ -377,6 +389,22 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
                                 labelNamesWithQuantile,
                                 addToList(labelValues, quantile.toString()),
                                 statistics.getQuantile(quantile)));
+            }
+            if (this.histogramMaxEnabled) {
+                samples.add(
+                        new MetricFamilySamples.Sample(
+                                metricName,
+                                labelNamesWithQuantile,
+                                addToList(labelValues, "1.0"),
+                                statistics.getMax()));
+            }
+            if (this.histogramMinEnabled) {
+                samples.add(
+                        new MetricFamilySamples.Sample(
+                                metricName,
+                                labelNamesWithQuantile,
+                                addToList(labelValues, "0.0"),
+                                statistics.getMin()));
             }
         }
     }
