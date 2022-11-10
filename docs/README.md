@@ -144,6 +144,20 @@ You can also use the shortcodes (with same flags) instead:
 * `artifact_gradle` to show the Gradle syntax
 * `artifact_tabs` to create a tabbed view, showing both Maven and Gradle syntax
 
+#### Flink Connector Artifact
+
+    {{< connector_artifact flink-connector-elasticsearch 3.0.0 >}}
+
+This will be replaced by the maven artifact for flink-connector-elasticsearch that users should copy into their pom.xml file. It will render out to:
+
+```xml
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-connector-elasticsearch</artifactId>
+    <version>3.0.0</version>
+</dependency>
+```
+
 #### Back to Top
 
 	{{< top >}}
