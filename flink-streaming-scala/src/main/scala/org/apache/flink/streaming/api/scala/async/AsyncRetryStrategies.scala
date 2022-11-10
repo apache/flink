@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.async
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.streaming.api.functions.async
 import org.apache.flink.streaming.api.functions.async.{AsyncRetryStrategy => JAsyncRetryStrategy}
 import org.apache.flink.streaming.util.retryable.{AsyncRetryStrategies => JAsyncRetryStrategies}
@@ -48,6 +49,7 @@ object AsyncRetryStrategies {
     }
   }
 
+  @PublicEvolving
   @SerialVersionUID(1L)
   class FixedDelayRetryStrategyBuilder[OUT](
       private val maxAttempts: Int,
@@ -74,6 +76,7 @@ object AsyncRetryStrategies {
     }
   }
 
+  @PublicEvolving
   @SerialVersionUID(1L)
   class ExponentialBackoffDelayRetryStrategyBuilder[OUT](
       private val maxAttempts: Int,

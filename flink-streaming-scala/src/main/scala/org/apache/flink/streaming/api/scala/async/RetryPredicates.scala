@@ -17,11 +17,13 @@
  */
 package org.apache.flink.streaming.api.scala.async
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.streaming.util.retryable.{RetryPredicates => JRetryPredicates}
 
 import java.util
 import java.util.function.Predicate
 
+@PublicEvolving
 object RetryPredicates {
 
   def EMPTY_RESULT_PREDICATE[T]: Predicate[util.Collection[T]] =
