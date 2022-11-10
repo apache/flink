@@ -28,25 +28,42 @@ import java.util.function.Predicate
 /** Utility class to create concrete {@link AsyncRetryStrategy}. */
 object AsyncRetryStrategies {
 
-  final private class JavaToScalaRetryStrategy[T] {
-    def convert(retryStrategy: JAsyncRetryStrategy[T]): AsyncRetryStrategy[T] =
-      new AsyncRetryStrategy[T] {
-        override def canRetry(currentAttempts: Int): Boolean =
-          retryStrategy.canRetry(currentAttempts)
+  final private class JavaToScalaRetryStrategy[T](retryStrategy: JAsyncRetryStrategy[T])
+    extends AsyncRetryStrategy[T] {
 
-        override def getBackoffTimeMillis(currentAttempts: Int): Long =
-          retryStrategy.getBackoffTimeMillis(currentAttempts)
+    /** @return whether the next attempt can happen */
+    override def canRetry(currentAttempts: Int): Boolean = retryStrategy.canRetry(currentAttempts)
 
-        override def getRetryPredicate(): AsyncRetryPredicate[T] = new AsyncRetryPredicate[T] {
-          val retryPredicates: async.AsyncRetryPredicate[T] = retryStrategy.getRetryPredicate
+    /** @return the delay time of next attempt */
+    override def getBackoffTimeMillis(currentAttempts: Int): Long =
+      retryStrategy.getBackoffTimeMillis(currentAttempts)
 
-          override def resultPredicate: Option[Predicate[ju.Collection[T]]] = Option(
-            retryPredicates.resultPredicate.orElse(null))
+    /** @return the defined retry predicate {@link AsyncRetryPredicate} */
+    override def getRetryPredicate(): AsyncRetryPredicate[T] = new AsyncRetryPredicate[T] {
+      val retryPredicates: async.AsyncRetryPredicate[T] = retryStrategy.getRetryPredicate
 
-          override def exceptionPredicate: Option[Predicate[Throwable]] = Option(
-            retryPredicates.exceptionPredicate.orElse(null))
-        }
-      }
+      /**
+       * An Optional Java {@Predicate } that defines a condition on asyncFunction's future result
+       * which will trigger a later reattempt operation, will be called before user's
+       * ResultFuture#complete.
+       *
+       * @return
+       *   predicate on result of {@link ju.Collection}
+       */
+      override def resultPredicate: Option[Predicate[ju.Collection[T]]] = Option(
+        retryPredicates.resultPredicate.orElse(null))
+
+      /**
+       * An Optional Java {@Predicate } that defines a condition on asyncFunction's exception which
+       * will trigger a later reattempt operation, will be called before user's
+       * ResultFuture#completeExceptionally.
+       *
+       * @return
+       *   predicate on {@link Throwable} exception
+       */
+      override def exceptionPredicate: Option[Predicate[Throwable]] = Option(
+        retryPredicates.exceptionPredicate.orElse(null))
+    }
   }
 
   @PublicEvolving
@@ -55,7 +72,6 @@ object AsyncRetryStrategies {
       private val maxAttempts: Int,
       private val backoffTimeMillis: Long
   ) {
-    private val converter = new JavaToScalaRetryStrategy[OUT]
     private var builder =
       new JAsyncRetryStrategies.FixedDelayRetryStrategyBuilder[OUT](maxAttempts, backoffTimeMillis)
 
@@ -71,7 +87,7 @@ object AsyncRetryStrategies {
       this
     }
 
-    def build(): AsyncRetryStrategy[OUT] = converter.convert(builder.build())
+    def build(): AsyncRetryStrategy[OUT] = new JavaToScalaRetryStrategy[OUT](builder.build())
   }
 
   @PublicEvolving
@@ -82,7 +98,6 @@ object AsyncRetryStrategies {
       private val maxRetryDelay: Long,
       private val multiplier: Double
   ) {
-    private val converter = new JavaToScalaRetryStrategy[OUT]
     private var builder =
       new JAsyncRetryStrategies.ExponentialBackoffDelayRetryStrategyBuilder[OUT](
         maxAttempts,
@@ -102,6 +117,6 @@ object AsyncRetryStrategies {
       this
     }
 
-    def build(): AsyncRetryStrategy[OUT] = converter.convert(builder.build())
+    def build(): AsyncRetryStrategy[OUT] = new JavaToScalaRetryStrategy[OUT](builder.build())
   }
 }
