@@ -25,10 +25,11 @@ import org.apache.flink.streaming.util.retryable.{AsyncRetryStrategies => JAsync
 import java.{util => ju}
 import java.util.function.Predicate
 
+/** Utility class to create concrete {@link AsyncRetryStrategy}. */
 object AsyncRetryStrategies {
 
   final private class JavaToScalaRetryStrategy[T] {
-    def convert(retryStrategy: JAsyncRetryStrategy[T]): AsyncRetryStrategy[T] = {
+    def convert(retryStrategy: JAsyncRetryStrategy[T]): AsyncRetryStrategy[T] =
       new AsyncRetryStrategy[T] {
         override def canRetry(currentAttempts: Int): Boolean =
           retryStrategy.canRetry(currentAttempts)
@@ -46,7 +47,6 @@ object AsyncRetryStrategies {
             retryPredicates.exceptionPredicate.orElse(null))
         }
       }
-    }
   }
 
   @PublicEvolving
@@ -71,9 +71,7 @@ object AsyncRetryStrategies {
       this
     }
 
-    def build(): AsyncRetryStrategy[OUT] = {
-      converter.convert(builder.build())
-    }
+    def build(): AsyncRetryStrategy[OUT] = converter.convert(builder.build())
   }
 
   @PublicEvolving
@@ -104,8 +102,6 @@ object AsyncRetryStrategies {
       this
     }
 
-    def build(): AsyncRetryStrategy[OUT] = {
-      converter.convert(builder.build())
-    }
+    def build(): AsyncRetryStrategy[OUT] = converter.convert(builder.build())
   }
 }
