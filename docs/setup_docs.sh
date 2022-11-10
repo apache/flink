@@ -44,16 +44,16 @@ function integrate_connector_docs {
   rsync -a flink-connector-${connector}/docs/content* "${theme_dir}/"
 }
 
-if [[ ! "$currentBranch" =~ ^release- ]] || [[ -z "$currentBranch" ]]; then
-  rm -rf themes/connectors/*
-  rm -rf tmp
-  mkdir tmp
-  cd tmp
+# Integrate the connector documentation
 
-  # Since there's no documentation yet available for a release branch,
-  # we only get the documentation from the main branch
-  integrate_connector_docs elasticsearch main
+rm -rf themes/connectors/*
+rm -rf tmp
+mkdir tmp
+cd tmp
 
-  cd ..
-  rm -rf tmp
-fi
+# Since there's no documentation yet available for a release branch,
+# we only get the documentation from the main branch
+integrate_connector_docs elasticsearch main
+
+cd ..
+rm -rf tmp
