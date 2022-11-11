@@ -201,9 +201,7 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
+                                        + ": Line is not a key-value pair (missing space after ':'?)");
                         continue;
                     }
 
@@ -217,9 +215,7 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
+                                        + ": Key or value was empty");
                         continue;
                     }
 

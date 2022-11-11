@@ -717,9 +717,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             }
         } catch (Exception e) {
             throw new IllegalArgumentException(
-                    String.format(
-                            "Could not parse value '%s' for key '%s'.",
-                            rawValue.map(Object::toString).orElse(""), option.key()),
+                    GlobalConfiguration.isSensitive(option.key())
+                            ? String.format("Could not parse value for key '%s'.", option.key())
+                            : String.format(
+                                    "Could not parse value '%s' for key '%s'.",
+                                    rawValue.map(Object::toString).orElse(""), option.key()),
                     e);
         }
     }
