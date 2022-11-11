@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -74,11 +73,8 @@ class JMXJobManagerMetricTest {
     private static Configuration getConfiguration() {
         Configuration flinkConfiguration = new Configuration();
 
-        flinkConfiguration.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                JMXReporterFactory.class.getName());
+        MetricOptions.forReporter(flinkConfiguration, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, JMXReporterFactory.class.getName());
         flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
 
         return flinkConfiguration;

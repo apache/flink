@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.metrics.Gauge;
@@ -149,8 +150,8 @@ class JobManagerMetricsITCase {
 
     private static Configuration getConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setString(
-                "metrics.reporter.test_reporter.factory.class", TestReporter.class.getName());
+        MetricOptions.forReporter(configuration, "test_reporter")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter.class.getName());
         return configuration;
     }
 

@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.MetricOptions;
@@ -131,11 +130,8 @@ public abstract class KafkaTestBase extends TestLogger {
     public static Configuration getFlinkConfiguration() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
-        flinkConfig.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "my_reporter."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                JMXReporterFactory.class.getName());
+        MetricOptions.forReporter(flinkConfig, "my_reporter")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, JMXReporterFactory.class.getName());
         return flinkConfig;
     }
 
