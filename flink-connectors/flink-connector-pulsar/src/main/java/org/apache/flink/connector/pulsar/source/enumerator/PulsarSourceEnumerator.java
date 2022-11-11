@@ -30,6 +30,7 @@ import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubs
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -63,6 +64,7 @@ public class PulsarSourceEnumerator
     private final SourceConfiguration sourceConfiguration;
     private final SplitEnumeratorContext<PulsarPartitionSplit> context;
     private final SplitAssigner splitAssigner;
+    private final SplitEnumeratorMetricGroup metricGroup;
 
     public PulsarSourceEnumerator(
             PulsarSubscriber subscriber,
@@ -96,11 +98,17 @@ public class PulsarSourceEnumerator
         this.sourceConfiguration = sourceConfiguration;
         this.context = context;
         this.splitAssigner = createAssigner(stopCursor, sourceConfiguration, context, enumState);
+        this.metricGroup = context.metricGroup();
     }
 
     @Override
     public void start() {
         rangeGenerator.open(sourceConfiguration);
+
+        // Expose the split assignment metrics if Flink has supported.
+        if (metricGroup != null) {
+            metricGroup.setUnassignedSplitsGauge(splitAssigner::getUnassignedSplitCount);
+        }
 
         // Check the pulsar topic information and convert it into source split.
         if (sourceConfiguration.isEnablePartitionDiscovery()) {

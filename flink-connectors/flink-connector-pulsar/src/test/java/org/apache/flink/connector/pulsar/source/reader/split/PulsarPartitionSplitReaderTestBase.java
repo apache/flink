@@ -70,6 +70,7 @@ import static org.apache.flink.connector.pulsar.testutils.extension.TestOrderlin
 import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator.DEFAULT_PARTITIONS;
 import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator.NUM_RECORDS_PER_PARTITION;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
+import static org.apache.flink.metrics.groups.UnregisteredMetricsGroup.createSourceReaderMetricGroup;
 import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.pulsar.client.api.Schema.STRING;
@@ -341,10 +342,17 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
     private PulsarPartitionSplitReaderBase splitReader(SubscriptionType subscriptionType) {
         if (subscriptionType == SubscriptionType.Failover) {
             return new PulsarOrderedPartitionSplitReader(
-                    operator().client(), operator().admin(), sourceConfig());
+                    operator().client(),
+                    operator().admin(),
+                    sourceConfig(),
+                    createSourceReaderMetricGroup());
         } else {
             return new PulsarUnorderedPartitionSplitReader(
-                    operator().client(), operator().admin(), sourceConfig(), null);
+                    operator().client(),
+                    operator().admin(),
+                    sourceConfig(),
+                    createSourceReaderMetricGroup(),
+                    null);
         }
     }
 

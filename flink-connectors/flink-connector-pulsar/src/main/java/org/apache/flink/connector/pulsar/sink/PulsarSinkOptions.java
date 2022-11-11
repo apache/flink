@@ -38,6 +38,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_MEMORY_LIMIT_BYTES;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PRODUCER_CONFIG_PREFIX;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.SINK_CONFIG_PREFIX;
 import static org.apache.flink.connector.pulsar.sink.writer.router.MessageKeyHash.MURMUR3_32_HASH;
@@ -137,6 +138,19 @@ public final class PulsarSinkOptions {
                             Description.builder()
                                     .text(
                                             "The maximum number of pending messages in one sink parallelism.")
+                                    .build());
+
+    public static final ConfigOption<Boolean> PULSAR_ENABLE_SINK_METRICS =
+            ConfigOptions.key(SINK_CONFIG_PREFIX + "enableMetrics")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The metrics from Pulsar Producer are only exposed if you enable this option.")
+                                    .text(
+                                            "You should set the %s to a positive value if you enable this option.",
+                                            code(PULSAR_STATS_INTERVAL_SECONDS.key()))
                                     .build());
 
     ///////////////////////////////////////////////////////////////////////////////

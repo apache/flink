@@ -94,6 +94,11 @@ abstract class SplitAssignerBase implements SplitAssigner {
         return new PulsarSourceEnumState(appendedPartitions);
     }
 
+    @Override
+    public long getUnassignedSplitCount() {
+        return pendingPartitionSplits.values().stream().mapToLong(Set::size).sum();
+    }
+
     /** Add split to pending lists. */
     protected void addSplitToPendingList(int readerId, PulsarPartitionSplit split) {
         Set<PulsarPartitionSplit> splits =

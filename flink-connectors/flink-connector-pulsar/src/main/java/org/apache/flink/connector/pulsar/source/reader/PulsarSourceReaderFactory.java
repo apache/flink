@@ -84,7 +84,10 @@ public final class PulsarSourceReaderFactory {
             Supplier<PulsarOrderedPartitionSplitReader> splitReaderSupplier =
                     () ->
                             new PulsarOrderedPartitionSplitReader(
-                                    pulsarClient, pulsarAdmin, sourceConfiguration);
+                                    pulsarClient,
+                                    pulsarAdmin,
+                                    sourceConfiguration,
+                                    readerContext.metricGroup());
 
             return new PulsarOrderedSourceReader<>(
                     elementsQueue,
@@ -109,6 +112,7 @@ public final class PulsarSourceReaderFactory {
                                     pulsarClient,
                                     pulsarAdmin,
                                     sourceConfiguration,
+                                    readerContext.metricGroup(),
                                     coordinatorClient);
 
             return new PulsarUnorderedSourceReader<>(
