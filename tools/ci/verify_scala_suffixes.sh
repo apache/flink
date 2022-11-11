@@ -51,6 +51,15 @@ cd "$FLINK_ROOT" || exit
 dependency_plugin_output=${CI_DIR}/dep.txt
 
 run_mvn dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} >> "${dependency_plugin_output}"
+EXIT_CODE=$?
+
+if [ $EXIT_CODE != 0 ]; then
+    cat ${dependency_plugin_output}
+    echo "=============================================================================="
+    echo "Suffix Check failed. The dependency tree could not be determined. See previous output for details."
+    echo "=============================================================================="
+    exit 1
+fi
 
 cd "${CI_DIR}/flink-ci-tools/" || exit
 
