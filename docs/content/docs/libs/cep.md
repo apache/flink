@@ -453,8 +453,6 @@ pattern.subtype(classOf[SubEvent])
 
 #### `oneOrMore()`
 
-Defines a subtype condition for the current pattern. An event can only match the pattern if it is of this subtype.
-
 Specifies that this pattern expects at least one occurrence of a matching event.
 By default a relaxed internal contiguity (between subsequent events) is used. For more info on
 internal contiguity see <a href="#consecutive_java">consecutive</a>.
