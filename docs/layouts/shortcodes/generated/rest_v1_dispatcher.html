@@ -1096,7 +1096,38 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "jobs" : {
       "type" : "array",
       "items" : {
-        "type" : "any"
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobDetails",
+        "properties" : {
+          "duration" : {
+            "type" : "integer"
+          },
+          "end-time" : {
+            "type" : "integer"
+          },
+          "jid" : {
+            "type" : "any"
+          },
+          "last-modification" : {
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "start-time" : {
+            "type" : "integer"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+          },
+          "tasks" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer"
+            }
+          }
+        }
       }
     }
   }
