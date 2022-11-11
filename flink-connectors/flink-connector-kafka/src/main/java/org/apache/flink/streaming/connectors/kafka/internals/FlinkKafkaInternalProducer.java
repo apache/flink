@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.connector.kafka.sink.ReflectionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
@@ -49,7 +50,6 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -335,7 +335,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
                         new Object[] {txnRequestHandler});
                 result =
                         (TransactionalRequestResult)
-                                getField(
+                                ReflectionUtils.getField(
                                         txnRequestHandler,
                                         txnRequestHandler.getClass().getSuperclass(),
                                         "result");
@@ -365,22 +365,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
     }
 
     protected static Object invoke(Object object, String methodName, Object... args) {
-        Class<?>[] argTypes = new Class[args.length];
-        for (int i = 0; i < args.length; i++) {
-            argTypes[i] = args[i].getClass();
-        }
-        return invoke(object, methodName, argTypes, args);
-    }
-
-    private static Object invoke(
-            Object object, String methodName, Class<?>[] argTypes, Object[] args) {
-        try {
-            Method method = object.getClass().getDeclaredMethod(methodName, argTypes);
-            method.setAccessible(true);
-            return method.invoke(object, args);
-        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
-            throw new RuntimeException("Incompatible KafkaProducer version", e);
-        }
+        return ReflectionUtils.invoke(object, methodName, args);
     }
 
     /**
@@ -388,21 +373,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
      * reflection.
      */
     protected static Object getField(Object object, String fieldName) {
-        return getField(object, object.getClass(), fieldName);
-    }
-
-    /**
-     * Gets and returns the field {@code fieldName} from the given Object {@code object} using
-     * reflection.
-     */
-    private static Object getField(Object object, Class<?> clazz, String fieldName) {
-        try {
-            Field field = clazz.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            return field.get(object);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException("Incompatible KafkaProducer version", e);
-        }
+        return ReflectionUtils.getField(object, object.getClass(), fieldName);
     }
 
     /**
@@ -410,12 +381,6 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
      * reflection.
      */
     protected static void setField(Object object, String fieldName, Object value) {
-        try {
-            Field field = object.getClass().getDeclaredField(fieldName);
-            field.setAccessible(true);
-            field.set(object, value);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException("Incompatible KafkaProducer version", e);
-        }
+        ReflectionUtils.setField(object, fieldName, value);
     }
 }
