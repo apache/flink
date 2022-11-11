@@ -19,6 +19,7 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -48,25 +49,29 @@ public class ReflectionUtils {
     }
 
     /**
-     * Gets and returns the field {@code fieldName} from the given Object {@code object} using
-     * reflection.
+     * Gets and returns any of the {@code fieldNameCandidates} fields from the given Object {@code
+     * object} using reflection.
      */
-    public static Object getField(Object object, String fieldName) {
-        return getField(object, object.getClass(), fieldName);
+    public static Object getField(Object object, String... fieldNameCandidates) {
+        return getField(object, object.getClass(), fieldNameCandidates);
     }
 
     /**
-     * Gets and returns the field {@code fieldName} from the given Object {@code object} using
-     * reflection.
+     * Gets and returns any of the {@code fieldNameCandidates} fields from the given Object {@code
+     * object} using reflection.
      */
-    public static Object getField(Object object, Class<?> clazz, String fieldName) {
-        try {
-            Field field = clazz.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            return field.get(object);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException("Incompatible KafkaProducer version", e);
+    public static Object getField(Object object, Class<?> clazz, String... fieldNameCandidates) {
+        Exception finalException = null;
+        for (String fieldNameCandidate : fieldNameCandidates) {
+            try {
+                Field field = clazz.getDeclaredField(fieldNameCandidate);
+                field.setAccessible(true);
+                return field.get(object);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                finalException = ExceptionUtils.firstOrSuppressed(e, finalException);
+            }
         }
+        throw new RuntimeException("Incompatible KafkaProducer version", finalException);
     }
 
     /**

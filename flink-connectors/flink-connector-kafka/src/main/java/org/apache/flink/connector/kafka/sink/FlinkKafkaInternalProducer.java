@@ -250,7 +250,7 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
         Object transactionManager = getTransactionManager();
         synchronized (transactionManager) {
             Object topicPartitionBookkeeper =
-                    getField(transactionManager, "topicPartitionBookkeeper");
+                    getField(transactionManager, "topicPartitionBookkeeper", "txnPartitionMap");
 
             transitionTransactionManagerStateTo(transactionManager, "INITIALIZING");
             invoke(topicPartitionBookkeeper, "reset");
