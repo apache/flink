@@ -278,7 +278,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                         // after triggering)
                         .setCheckpointTimeout(Duration.ofSeconds(30))
                         .setTolerableCheckpointFailures(3)
-                        .setAlignmentTimeout(timeout)
+                        .setAlignedCheckpointTimeout(timeout)
                         .setBuffersPerChannel(buffersPerChannel);
     }
 
