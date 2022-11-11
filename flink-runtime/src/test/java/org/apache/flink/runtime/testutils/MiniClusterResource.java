@@ -212,7 +212,10 @@ public class MiniClusterResource extends ExternalResource {
 
         // set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
         configuration.setInteger(JobManagerOptions.PORT, 0);
-        configuration.setString(RestOptions.BIND_PORT, "0");
+        if (!(configuration.contains(RestOptions.BIND_PORT)
+                || configuration.contains(RestOptions.PORT))) {
+            configuration.setString(RestOptions.BIND_PORT, "0");
+        }
 
         randomizeConfiguration(configuration);
 
