@@ -162,7 +162,6 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                     getOrcConfiguration(formatOptions),
                     (RowType) producedDataType.getLogicalType(),
                     Collections.emptyList(),
-                    null,
                     Projection.of(projections).toTopLevelIndexes(),
                     orcPredicates,
                     VectorizedColumnBatch.DEFAULT_SIZE,

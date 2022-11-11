@@ -20,7 +20,6 @@ package org.apache.flink.orc.nohive;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.file.src.FileSourceSplit;
-import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.orc.OrcColumnarRowInputFormat;
 import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.nohive.shim.OrcNoHiveShim;
@@ -43,7 +42,6 @@ import static org.apache.flink.orc.OrcSplitReaderUtil.convertToOrcTypeWithPart;
 import static org.apache.flink.orc.OrcSplitReaderUtil.getNonPartNames;
 import static org.apache.flink.orc.OrcSplitReaderUtil.getSelectedOrcFields;
 import static org.apache.flink.orc.nohive.vector.AbstractOrcNoHiveVector.createFlinkVector;
-import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVectorFromConstant;
 
 /** Helper class to create {@link OrcColumnarRowInputFormat} for no-hive. */
 public class OrcNoHiveColumnarRowInputFormat {
@@ -58,14 +56,10 @@ public class OrcNoHiveColumnarRowInputFormat {
                     Configuration hadoopConfig,
                     RowType tableType,
                     List<String> partitionKeys,
-                    PartitionFieldExtractor<SplitT> extractor,
                     int[] selectedFields,
                     List<OrcFilters.Predicate> conjunctPredicates,
                     int batchSize,
                     Function<RowType, TypeInformation<RowData>> rowTypeInfoFactory) {
-        // TODO FLINK-25113 all this partition keys code should be pruned from the orc format,
-        //  because now FileSystemTableSource uses FileInfoExtractorBulkFormat for reading partition
-        //  keys.
 
         String[] tableFieldNames = tableType.getFieldNames().toArray(new String[0]);
         LogicalType[] tableFieldTypes = tableType.getChildren().toArray(new LogicalType[0]);
@@ -76,18 +70,10 @@ public class OrcNoHiveColumnarRowInputFormat {
         ColumnBatchFactory<VectorizedRowBatch, SplitT> batchGenerator =
                 (SplitT split, VectorizedRowBatch rowBatch) -> {
                     // create and initialize the row batch
-                    ColumnVector[] vectors = new ColumnVector[selectedFields.length];
+                    ColumnVector[] vectors = new ColumnVector[orcFieldNames.size()];
                     for (int i = 0; i < vectors.length; i++) {
-                        String name = tableFieldNames[selectedFields[i]];
-                        LogicalType type = tableFieldTypes[selectedFields[i]];
-                        vectors[i] =
-                                partitionKeys.contains(name)
-                                        ? createFlinkVectorFromConstant(
-                                                type,
-                                                extractor.extract(split, name, type),
-                                                batchSize)
-                                        : createFlinkVector(
-                                                rowBatch.cols[orcFieldNames.indexOf(name)]);
+                        String name = tableFieldNames[orcSelectedFields[i]];
+                        vectors[i] = createFlinkVector(rowBatch.cols[orcFieldNames.indexOf(name)]);
                     }
                     return new VectorizedColumnBatch(vectors);
                 };

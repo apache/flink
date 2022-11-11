@@ -42,17 +42,14 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.orc.OrcColumnarRowInputFormatTest.copyFileFromResource;
-import static org.apache.flink.table.utils.DateTimeUtils.toSQLDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link OrcColumnarRowSplitReader}. */
@@ -157,14 +154,12 @@ public class OrcColumnarRowSplitReaderTest {
         partSpec.put("f1", 1);
         partSpec.put("f3", 3L);
         partSpec.put("f5", "f5");
-        partSpec.put("f8", BigDecimal.valueOf(5.333));
-        partSpec.put("f13", "f13");
 
         // read all splits
         for (FileInputSplit split : splits) {
-            try (OrcColumnarRowSplitReader reader =
+            try (OrcColumnarRowSplitReader<VectorizedRowBatch> reader =
                     createReader(
-                            new int[] {8, 1, 3, 0, 5, 2},
+                            new int[] {1, 3, 2, 5, 0},
                             new DataType[] {
                                 /* 0 */ DataTypes.INT(),
                                 /* 1 */ DataTypes.INT(), // part-1
@@ -174,12 +169,10 @@ public class OrcColumnarRowSplitReaderTest {
                                 /* 5 */ DataTypes.STRING(), // part-3
                                 /* 6 */ DataTypes.STRING(),
                                 /* 7 */ DataTypes.INT(),
-                                /* 8 */ DataTypes.DECIMAL(10, 5), // part-4
-                                /* 9 */ DataTypes.STRING(),
-                                /* 11*/ DataTypes.INT(),
-                                /* 12*/ DataTypes.INT(),
-                                /* 13*/ DataTypes.STRING(), // part-5
-                                /* 14*/ DataTypes.INT()
+                                /* 8 */ DataTypes.STRING(),
+                                /* 9 */ DataTypes.INT(),
+                                /* 10*/ DataTypes.INT(),
+                                /* 11*/ DataTypes.INT()
                             },
                             partSpec,
                             split)) {
@@ -187,22 +180,13 @@ public class OrcColumnarRowSplitReaderTest {
                 while (!reader.reachedEnd()) {
                     RowData row = reader.nextRecord(null);
 
+                    assertThat(row.getArity()).isEqualTo(2);
                     // data values
-                    assertThat(row.isNullAt(3)).isFalse();
-                    assertThat(row.isNullAt(5)).isFalse();
-                    totalF0 += row.getInt(3);
-                    assertThat(row.getString(5).toString()).isNotNull();
-
-                    // part values
-                    assertThat(row.isNullAt(0)).isFalse();
                     assertThat(row.isNullAt(1)).isFalse();
-                    assertThat(row.isNullAt(2)).isFalse();
-                    assertThat(row.isNullAt(4)).isFalse();
-                    assertThat(row.getDecimal(0, 10, 5))
-                            .isEqualTo(DecimalDataUtils.castFrom(5.333, 10, 5));
-                    assertThat(row.getInt(1)).isEqualTo(1);
-                    assertThat(row.getLong(2)).isEqualTo(3);
-                    assertThat(row.getString(4).toString()).isEqualTo("f5");
+                    assertThat(row.isNullAt(0)).isFalse();
+                    totalF0 += row.getInt(1);
+                    assertThat(row.getString(0).toString()).isNotNull();
+
                     cnt++;
                 }
             }
@@ -309,16 +293,9 @@ public class OrcColumnarRowSplitReaderTest {
         Map<String, Object> partSpec = new HashMap<>();
         partSpec.put("f5", true);
         partSpec.put("f6", new Date(562423));
-        partSpec.put("f7", LocalDateTime.of(1999, 1, 1, 1, 1));
-        partSpec.put("f8", 6.6);
-        partSpec.put("f9", null);
-        partSpec.put("f10", null);
-        partSpec.put("f11", null);
-        partSpec.put("f12", null);
-        partSpec.put("f13", null);
-        try (OrcColumnarRowSplitReader reader =
+        try (OrcColumnarRowSplitReader<VectorizedRowBatch> reader =
                 createReader(
-                        new int[] {2, 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+                        new int[] {2, 0, 1, 3, 4, 5, 6},
                         new DataType[] {
                             DataTypes.FLOAT(),
                             DataTypes.DOUBLE(),
@@ -327,13 +304,6 @@ public class OrcColumnarRowSplitReaderTest {
                             DataTypes.SMALLINT(),
                             DataTypes.BOOLEAN(),
                             DataTypes.DATE(),
-                            DataTypes.TIMESTAMP(),
-                            DataTypes.DOUBLE(),
-                            DataTypes.DOUBLE(),
-                            DataTypes.INT(),
-                            DataTypes.STRING(),
-                            DataTypes.TIMESTAMP(),
-                            DataTypes.DECIMAL(5, 3)
                         },
                         partSpec,
                         split)) {
@@ -341,6 +311,8 @@ public class OrcColumnarRowSplitReaderTest {
             while (!reader.reachedEnd()) {
                 RowData row = reader.nextRecord(null);
 
+                // only physical field consumed
+                assertThat(row.getArity()).isEqualTo(5);
                 if (cnt == rowSize - 1) {
                     assertThat(row.isNullAt(0)).isTrue();
                     assertThat(row.isNullAt(1)).isTrue();
@@ -360,19 +332,6 @@ public class OrcColumnarRowSplitReaderTest {
                     assertThat(row.getByte(3)).isEqualTo((byte) cnt);
                     assertThat(row.getShort(4)).isEqualTo((short) cnt);
                 }
-                assertThat(row.getBoolean(5)).isTrue();
-                assertThat(toSQLDate(row.getInt(6)).toString())
-                        .isEqualTo(new Date(562423).toString());
-
-                assertThat(row.getTimestamp(7, 9).toLocalDateTime())
-                        .isEqualTo(LocalDateTime.of(1999, 1, 1, 1, 1));
-
-                assertThat(row.getDouble(8)).isEqualTo(6.6);
-                assertThat(row.isNullAt(9)).isTrue();
-                assertThat(row.isNullAt(10)).isTrue();
-                assertThat(row.isNullAt(11)).isTrue();
-                assertThat(row.isNullAt(12)).isTrue();
-                assertThat(row.isNullAt(13)).isTrue();
                 cnt++;
             }
         }
@@ -397,7 +356,7 @@ public class OrcColumnarRowSplitReaderTest {
                 i + 1000, (i % 12) + 1, (i % 28) + 1, i % 24, i % 60, i % 60, i * 1_000 + i);
     }
 
-    protected OrcColumnarRowSplitReader createReader(
+    protected OrcColumnarRowSplitReader<VectorizedRowBatch> createReader(
             int[] selectedFields,
             DataType[] fullTypes,
             Map<String, Object> partitionSpec,

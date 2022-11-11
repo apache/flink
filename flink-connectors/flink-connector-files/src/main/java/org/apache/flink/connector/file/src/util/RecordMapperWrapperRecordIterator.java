@@ -34,13 +34,6 @@ import java.io.IOException;
  */
 public class RecordMapperWrapperRecordIterator<I, O> implements BulkFormat.RecordIterator<O> {
 
-    /** Record mapper definition. */
-    @FunctionalInterface
-    public interface RecordMapper<I, O> {
-        /** Map the record. Both input value and output value are expected to be non-null. */
-        O map(I in);
-    }
-
     private final BulkFormat.RecordIterator<I> wrapped;
     private final RecordMapper<I, O> mapper;
 

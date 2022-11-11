@@ -256,7 +256,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                             context.createTypeInformation(producedDataType),
                             metadataColumns,
                             partitionKeys,
-                            defaultPartName);
+                            PartitionFieldExtractor.forFileSystem(defaultPartName));
         }
         bulkFormat = LimitableBulkFormat.create(bulkFormat, limit);
         return bulkFormat;

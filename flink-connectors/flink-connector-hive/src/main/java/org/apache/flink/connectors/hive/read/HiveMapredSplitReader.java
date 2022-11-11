@@ -21,15 +21,12 @@ package org.apache.flink.connectors.hive.read;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
-import org.apache.flink.connectors.hive.util.HivePartitionUtils;
-import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -84,7 +81,6 @@ public class HiveMapredSplitReader implements SplitReader {
 
     public HiveMapredSplitReader(
             JobConf jobConf,
-            List<String> partitionKeys,
             DataType[] fieldTypes,
             int[] selectedFields,
             HiveTableInputSplit split,
@@ -143,21 +139,6 @@ public class HiveMapredSplitReader implements SplitReader {
 
         // construct reuse row
         this.row = new GenericRowData(selectedFields.length);
-        // set partition columns
-        if (!partitionKeys.isEmpty()) {
-            String defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
-            for (int i = 0; i < selectedFields.length; i++) {
-                if (selectedFields[i] >= structFields.size()) {
-                    LogicalType partitionType = fieldTypes[selectedFields[i]].getLogicalType();
-                    String partition = partitionKeys.get(selectedFields[i] - structFields.size());
-                    String valStr = hiveTablePartition.getPartitionSpec().get(partition);
-                    Object partitionVal =
-                            HivePartitionUtils.restorePartitionValueFromType(
-                                    hiveShim, valStr, partitionType, defaultPartitionName);
-                    row.setField(i, converters[i].toInternal(partitionVal));
-                }
-            }
-        }
     }
 
     @Override

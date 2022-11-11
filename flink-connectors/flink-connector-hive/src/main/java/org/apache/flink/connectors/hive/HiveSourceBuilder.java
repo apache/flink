@@ -354,7 +354,8 @@ public class HiveSourceBuilder {
                         producedTypeInfo,
                         new HashMap<>(),
                         partitionKeys,
-                        defaultPartitionName);
+                        HivePartitionFieldExtractor.createForHiveSourceSplit(
+                                HiveShimLoader.loadHiveShim(hiveVersion), defaultPartitionName));
 
         return LimitableBulkFormat.create(bulkFormatWithPartitions, limit);
     }

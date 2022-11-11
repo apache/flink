@@ -44,6 +44,8 @@ public class HiveInputFormatPartitionReader
     private final List<String> partitionKeys;
     private final int[] selectedFields;
     private final boolean useMapRedReader;
+    private final DataType producedTypes;
+    private final String defaultPartitionName;
 
     private transient HiveTableInputFormat hiveTableInputFormat;
     private transient HiveTableInputSplit[] inputSplits;
@@ -58,7 +60,9 @@ public class HiveInputFormatPartitionReader
             String[] fieldNames,
             List<String> partitionKeys,
             int[] selectedFields,
-            boolean useMapRedReader) {
+            boolean useMapRedReader,
+            DataType producedType,
+            String defaultPartitionName) {
         this.threadNum = threadNum;
         this.jobConfWrapper = new JobConfWrapper(jobConf);
         this.hiveVersion = hiveVersion;
@@ -68,6 +72,8 @@ public class HiveInputFormatPartitionReader
         this.partitionKeys = partitionKeys;
         this.selectedFields = selectedFields;
         this.useMapRedReader = useMapRedReader;
+        this.producedTypes = producedType;
+        this.defaultPartitionName = defaultPartitionName;
     }
 
     @Override
@@ -83,7 +89,9 @@ public class HiveInputFormatPartitionReader
                         null,
                         this.hiveVersion,
                         this.useMapRedReader,
-                        partitions);
+                        partitions,
+                        producedTypes,
+                        defaultPartitionName);
         inputSplits = hiveTableInputFormat.createInputSplits(1);
         readingSplitId = 0;
         if (inputSplits.length > 0) {

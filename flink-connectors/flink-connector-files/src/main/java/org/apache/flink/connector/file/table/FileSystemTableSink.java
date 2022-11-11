@@ -307,7 +307,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                             context.createTypeInformation(producedDataType),
                             Collections.emptyMap(),
                             partitionKeys,
-                            defaultPartName);
+                            PartitionFieldExtractor.forFileSystem(defaultPartName));
             return Optional.of(CompactBulkReader.factory(format));
         } else if (deserializationFormat != null) {
             final DeserializationSchema<RowData> decoder =
@@ -320,7 +320,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                             context.createTypeInformation(producedDataType),
                             Collections.emptyMap(),
                             partitionKeys,
-                            defaultPartName);
+                            PartitionFieldExtractor.forFileSystem(defaultPartName));
             return Optional.of(CompactBulkReader.factory(format));
         }
         return Optional.empty();

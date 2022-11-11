@@ -143,7 +143,6 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                     (RowType) Projection.of(projections).project(producedDataType).getLogicalType(),
                     sourceContext.createTypeInformation(producedDataType),
                     Collections.emptyList(),
-                    null,
                     VectorizedColumnBatch.DEFAULT_SIZE,
                     formatOptions.get(UTC_TIMEZONE),
                     true);

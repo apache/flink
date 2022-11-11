@@ -29,7 +29,7 @@ import java.util.LinkedHashMap;
 /** Interface to extract partition field from split. */
 @FunctionalInterface
 @Internal
-public interface PartitionFieldExtractor<T extends FileSourceSplit> extends Serializable {
+public interface PartitionFieldExtractor<T> extends Serializable {
 
     Object extract(T split, String fieldName, LogicalType fieldType);
 

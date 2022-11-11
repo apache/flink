@@ -23,7 +23,6 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import org.apache.flink.connector.file.src.util.Utils;
-import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcFilters.Between;
@@ -208,18 +207,9 @@ class OrcColumnarRowInputFormatTest {
                         /* 1 */ DataTypes.INT().getLogicalType(), // part-1
                         /* 2 */ DataTypes.STRING().getLogicalType(),
                         /* 3 */ DataTypes.BIGINT().getLogicalType(), // part-2
-                        /* 4 */ DataTypes.STRING().getLogicalType(),
-                        /* 5 */ DataTypes.STRING().getLogicalType(), // part-3
-                        /* 6 */ DataTypes.STRING().getLogicalType(),
-                        /* 7 */ DataTypes.INT().getLogicalType(),
-                        /* 8 */ DataTypes.DECIMAL(10, 5).getLogicalType(), // part-4
-                        /* 9 */ DataTypes.STRING().getLogicalType(),
-                        /* 11*/ DataTypes.INT().getLogicalType(),
-                        /* 12*/ DataTypes.INT().getLogicalType(),
-                        /* 13*/ DataTypes.STRING().getLogicalType(), // part-5
-                        /* 14*/ DataTypes.INT().getLogicalType());
+                        /* 4 */ DataTypes.STRING().getLogicalType());
 
-        int[] projectedFields = {8, 1, 3, 0, 5, 2};
+        int[] projectedFields = {1, 2, 0};
 
         OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createPartitionFormat(
@@ -234,21 +224,13 @@ class OrcColumnarRowInputFormatTest {
                     format,
                     split,
                     row -> {
+                        // only data cols consumed
+                        assertThat(row.getArity()).isEqualTo(2);
                         // data values
-                        assertThat(row.isNullAt(3)).isFalse();
-                        assertThat(row.isNullAt(5)).isFalse();
-                        totalF0.addAndGet(row.getInt(3));
-                        assertThat(row.getString(5).toString()).isNotNull();
-                        // part values
                         assertThat(row.isNullAt(0)).isFalse();
                         assertThat(row.isNullAt(1)).isFalse();
-                        assertThat(row.isNullAt(2)).isFalse();
-                        assertThat(row.isNullAt(4)).isFalse();
-                        assertThat(row.getDecimal(0, 10, 5))
-                                .isEqualTo(DecimalDataUtils.castFrom(5.333, 10, 5));
-                        assertThat(row.getInt(1)).isEqualTo(1);
-                        assertThat(row.getLong(2)).isEqualTo(3);
-                        assertThat(row.getString(4).toString()).isEqualTo("f5");
+                        totalF0.addAndGet(row.getInt(1));
+                        assertThat(row.getString(0).toString()).isNotNull();
                         cnt.incrementAndGet();
                     });
         }
@@ -353,7 +335,6 @@ class OrcColumnarRowInputFormatTest {
                 new Configuration(),
                 formatType,
                 new ArrayList<>(),
-                PartitionFieldExtractor.forFileSystem(""),
                 selectedFields,
                 conjunctPredicates,
                 BATCH_SIZE,
@@ -367,7 +348,6 @@ class OrcColumnarRowInputFormatTest {
                 new Configuration(),
                 tableType,
                 partitionKeys,
-                PartitionFieldExtractor.forFileSystem(""),
                 selectedFields,
                 new ArrayList<>(),
                 BATCH_SIZE,

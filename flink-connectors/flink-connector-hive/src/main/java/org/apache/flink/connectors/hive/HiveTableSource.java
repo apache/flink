@@ -319,6 +319,8 @@ public class HiveTableSource
         source.projectedFields = projectedFields;
         source.limit = limit;
         source.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+        source.producedTypes = producedTypes;
+        source.producedTypeInfo = producedTypeInfo;
         return source;
     }
 

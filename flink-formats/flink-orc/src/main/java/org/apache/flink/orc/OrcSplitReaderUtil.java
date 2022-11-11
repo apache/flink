@@ -45,7 +45,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVector;
-import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVectorFromConstant;
 
 /** Util for generating {@link OrcSplitReader}. */
 public class OrcSplitReaderUtil {
@@ -73,16 +72,14 @@ public class OrcSplitReaderUtil {
         ColumnBatchGenerator<VectorizedRowBatch> gen =
                 (VectorizedRowBatch rowBatch) -> {
                     // create and initialize the row batch
-                    ColumnVector[] vectors = new ColumnVector[selectedFields.length];
+                    ColumnVector[] vectors = new ColumnVector[selectedOrcFields.length];
                     for (int i = 0; i < vectors.length; i++) {
-                        String name = fullFieldNames[selectedFields[i]];
-                        LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
+                        String name = nonPartNames.get(selectedOrcFields[i]);
+                        LogicalType type =
+                                fullFieldTypes[Arrays.asList(fullFieldNames).indexOf(name)]
+                                        .getLogicalType();
                         vectors[i] =
-                                partitionSpec.containsKey(name)
-                                        ? createFlinkVectorFromConstant(
-                                                type, partitionSpec.get(name), batchSize)
-                                        : createFlinkVector(
-                                                rowBatch.cols[nonPartNames.indexOf(name)], type);
+                                createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)], type);
                     }
                     return new VectorizedColumnBatch(vectors);
                 };

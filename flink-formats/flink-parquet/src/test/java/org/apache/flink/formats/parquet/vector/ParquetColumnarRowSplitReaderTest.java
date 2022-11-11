@@ -32,11 +32,9 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -48,8 +46,6 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.jupiter.api.io.TempDir;
@@ -59,7 +55,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,7 +64,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -541,153 +535,6 @@ class ParquetColumnarRowSplitReaderTest {
             assertThat(row.getDouble(0)).isEqualTo(i);
             assertThat(row.getByte(1)).isEqualTo((byte) i);
             assertThat(row.getInt(2)).isEqualTo(i);
-            i++;
-        }
-        reader.close();
-    }
-
-    @ParameterizedTest
-    @MethodSource("parameters")
-    void testPartitionValues(int rowGroupSize) throws IOException {
-        // prepare parquet file
-        int number = 1000;
-        List<RowData> records = new ArrayList<>(number);
-        for (int i = 0; i < number; i++) {
-            Integer v = i;
-            records.add(newRow(v));
-        }
-
-        Path testPath = createTempParquetFile(tmpDir, records, rowGroupSize);
-
-        // test reader
-        Map<String, Object> partSpec = new HashMap<>();
-        partSpec.put("f33", true);
-        partSpec.put("f34", Date.valueOf("2020-11-23"));
-        partSpec.put("f35", LocalDateTime.of(1999, 1, 1, 1, 1));
-        partSpec.put("f36", 6.6);
-        partSpec.put("f37", (byte) 9);
-        partSpec.put("f38", (short) 10);
-        partSpec.put("f39", 11);
-        partSpec.put("f40", 12L);
-        partSpec.put("f41", 13f);
-        partSpec.put("f42", new BigDecimal(42));
-        partSpec.put("f43", new BigDecimal(43));
-        partSpec.put("f44", new BigDecimal(44));
-        partSpec.put("f45", "f45");
-
-        innerTestPartitionValues(testPath, partSpec, false, rowGroupSize);
-
-        for (String k : new ArrayList<>(partSpec.keySet())) {
-            partSpec.put(k, null);
-        }
-
-        innerTestPartitionValues(testPath, partSpec, true, rowGroupSize);
-    }
-
-    private void innerTestPartitionValues(
-            Path testPath, Map<String, Object> partSpec, boolean nullPartValue, int rowGroupSize)
-            throws IOException {
-        LogicalType[] fieldTypes =
-                new LogicalType[] {
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new BooleanType(),
-                    new TinyIntType(),
-                    new SmallIntType(),
-                    new IntType(),
-                    new BigIntType(),
-                    new FloatType(),
-                    new DoubleType(),
-                    new TimestampType(9),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0),
-                    new ArrayType(new VarCharType(VarCharType.MAX_LENGTH)),
-                    new ArrayType(new BooleanType()),
-                    new ArrayType(new TinyIntType()),
-                    new ArrayType(new SmallIntType()),
-                    new ArrayType(new IntType()),
-                    new ArrayType(new BigIntType()),
-                    new ArrayType(new FloatType()),
-                    new ArrayType(new DoubleType()),
-                    new ArrayType(new TimestampType(9)),
-                    new ArrayType(new DecimalType(5, 0)),
-                    new ArrayType(new DecimalType(15, 0)),
-                    new ArrayType(new DecimalType(20, 0)),
-                    new ArrayType(new DecimalType(5, 0)),
-                    new ArrayType(new DecimalType(15, 0)),
-                    new ArrayType(new DecimalType(20, 0)),
-                    new MapType(
-                            new VarCharType(VarCharType.MAX_LENGTH),
-                            new VarCharType(VarCharType.MAX_LENGTH)),
-                    new MapType(new IntType(), new BooleanType()),
-                    RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
-                    new BooleanType(),
-                    new DateType(),
-                    new TimestampType(9),
-                    new DoubleType(),
-                    new TinyIntType(),
-                    new SmallIntType(),
-                    new IntType(),
-                    new BigIntType(),
-                    new FloatType(),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0),
-                    new VarCharType(VarCharType.MAX_LENGTH)
-                };
-        ParquetColumnarRowSplitReader reader =
-                ParquetSplitReaderUtil.genPartColumnarRowReader(
-                        false,
-                        true,
-                        new Configuration(),
-                        IntStream.range(0, 46).mapToObj(i -> "f" + i).toArray(String[]::new),
-                        Arrays.stream(fieldTypes)
-                                .map(TypeConversions::fromLogicalToDataType)
-                                .toArray(DataType[]::new),
-                        partSpec,
-                        new int[] {7, 2, 4, 33, 37, 38, 39, 40, 41, 36, 34, 35, 42, 43, 44, 45},
-                        rowGroupSize,
-                        new Path(testPath.getPath()),
-                        0,
-                        Long.MAX_VALUE);
-        int i = 0;
-        while (!reader.reachedEnd()) {
-            ColumnarRowData row = reader.nextRecord();
-
-            // common values
-            assertThat(row.getDouble(0)).isEqualTo(i);
-            assertThat(row.getByte(1)).isEqualTo((byte) i);
-            assertThat(row.getInt(2)).isEqualTo(i);
-
-            // partition values
-            if (nullPartValue) {
-                for (int j = 3; j < 16; j++) {
-                    assertThat(row.isNullAt(j)).isTrue();
-                }
-            } else {
-                assertThat(row.getBoolean(3)).isTrue();
-                assertThat(row.getByte(4)).isEqualTo((byte) 9);
-                assertThat(row.getShort(5)).isEqualTo((short) 10);
-                assertThat(row.getInt(6)).isEqualTo(11);
-                assertThat(row.getLong(7)).isEqualTo(12);
-                assertThat(row.getFloat(8)).isEqualTo(13);
-                assertThat(row.getDouble(9)).isEqualTo(6.6);
-                assertThat(row.getInt(10))
-                        .isEqualTo(DateTimeUtils.toInternal(Date.valueOf("2020-11-23")));
-                assertThat(row.getTimestamp(11, 9).toLocalDateTime())
-                        .isEqualTo(LocalDateTime.of(1999, 1, 1, 1, 1));
-                assertThat(row.getDecimal(12, 5, 0))
-                        .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(42), 5, 0));
-                assertThat(row.getDecimal(13, 15, 0))
-                        .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(43), 15, 0));
-                assertThat(row.getDecimal(14, 20, 0))
-                        .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(44), 20, 0));
-                assertThat(row.getString(15)).hasToString("f45");
-            }
-
             i++;
         }
         reader.close();

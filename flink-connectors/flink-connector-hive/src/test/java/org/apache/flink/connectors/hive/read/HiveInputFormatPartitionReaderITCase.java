@@ -19,6 +19,7 @@ package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.HiveTablePartition;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
@@ -70,7 +71,10 @@ public class HiveInputFormatPartitionReaderITCase {
                         tableSchema.getFieldNames(),
                         Collections.emptyList(),
                         null,
-                        false);
+                        false,
+                        tableSchema.toRowDataType(),
+                        JobConfUtils.getDefaultPartitionName(
+                                new JobConf(hiveCatalog.getHiveConf())));
         Table hiveTable = hiveCatalog.getHiveTable(tablePath);
         // create HiveTablePartition to read from
         HiveTablePartition tablePartition =

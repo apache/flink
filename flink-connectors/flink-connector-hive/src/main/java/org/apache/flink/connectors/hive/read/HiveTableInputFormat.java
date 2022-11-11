@@ -23,6 +23,11 @@ import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
+import org.apache.flink.connector.file.src.util.RecordMapper;
+import org.apache.flink.connector.file.table.EnrichedRowData;
+import org.apache.flink.connector.file.table.FileInfoExtractor;
+import org.apache.flink.connector.file.table.PartitionFieldExtractor;
+import org.apache.flink.connectors.hive.HivePartitionFieldExtractor;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.HiveTablePartitionSplits;
 import org.apache.flink.connectors.hive.JobConfWrapper;
@@ -46,6 +51,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -90,10 +96,13 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     private final Long limit;
 
     private final boolean useMapRedReader;
+    private final FileInfoExtractor fileInfoExtractor;
+    private final PartitionFieldExtractor<HiveTableInputSplit> partitionFieldExtractor;
 
     private transient long currentReadCount = 0L;
 
     @VisibleForTesting protected transient SplitReader reader;
+    private transient RecordMapper<RowData, RowData> recordMapper;
 
     public HiveTableInputFormat(
             int threadNum,
@@ -105,7 +114,9 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
             Long limit,
             String hiveVersion,
             boolean useMapRedReader,
-            List<HiveTablePartition> partitions) {
+            List<HiveTablePartition> partitions,
+            DataType producedType,
+            String defaultPartitionName) {
         super(jobConf.getCredentials());
         this.threadNum = threadNum;
         this.jobConf = new JobConfWrapper(new JobConf(jobConf));
@@ -119,6 +130,11 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
                 projectedFields != null ? projectedFields : IntStream.range(0, rowArity).toArray();
         this.useMapRedReader = useMapRedReader;
         this.partitions = checkNotNull(partitions, "partitions can not be null.");
+        this.fileInfoExtractor =
+                new FileInfoExtractor(producedType, new ArrayList<>(), partitionKeys);
+        this.partitionFieldExtractor =
+                HivePartitionFieldExtractor.createForHiveTableInputSplit(
+                        HiveShimLoader.loadHiveShim(hiveVersion), defaultPartitionName);
     }
 
     public JobConf getJobConf() {
@@ -130,6 +146,13 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 
     @Override
     public void open(HiveTableInputSplit split) throws IOException {
+        EnrichedRowData enrichedRowData = createEnrichedRow(split);
+        this.recordMapper =
+                in -> {
+                    enrichedRowData.replaceMutableRow(in);
+                    return enrichedRowData;
+                };
+
         HiveTablePartition partition = split.getHiveTablePartition();
         if (!useMapRedReader && useOrcVectorizedRead(partition)) {
             this.reader =
@@ -155,13 +178,47 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
             this.reader =
                     new HiveMapredSplitReader(
                             clonedConf,
-                            partitionKeys,
                             fieldTypes,
                             selectedFields,
                             split,
                             HiveShimLoader.loadHiveShim(hiveVersion));
         }
         currentReadCount = 0L;
+    }
+
+    private EnrichedRowData createEnrichedRow(HiveTableInputSplit inputSplit) {
+        // Fill the partition columns row
+        List<FileInfoExtractor.PartitionColumn> partitionColumns =
+                fileInfoExtractor.getPartitionColumns();
+        final GenericRowData fileInfoRowData = new GenericRowData(partitionColumns.size());
+        int fileInfoRowIndex = 0;
+        if (!partitionColumns.isEmpty()) {
+            final Map<String, String> partitionSpec =
+                    inputSplit.getHiveTablePartition().getPartitionSpec();
+            for (int partitionFieldIndex = 0;
+                    fileInfoRowIndex < fileInfoRowData.getArity();
+                    fileInfoRowIndex++, partitionFieldIndex++) {
+                FileInfoExtractor.PartitionColumn partition =
+                        partitionColumns.get(partitionFieldIndex);
+                if (!partitionSpec.containsKey(partition.fieldName)) {
+                    throw new RuntimeException(
+                            "Cannot find the partition value from path for partition: "
+                                    + partition.fieldName);
+                }
+
+                Object partitionValue =
+                        partitionFieldExtractor.extract(
+                                inputSplit,
+                                partition.fieldName,
+                                partition.dataType.getLogicalType());
+
+                fileInfoRowData.setField(
+                        fileInfoRowIndex, partition.converter.toInternal(partitionValue));
+            }
+        }
+
+        // This row is going to be reused for every record
+        return new EnrichedRowData(fileInfoRowData, fileInfoExtractor.getExtendedRowIndexMapping());
     }
 
     // Hive readers may rely on the schema info in configuration
@@ -302,7 +359,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     @Override
     public RowData nextRecord(RowData reuse) throws IOException {
         currentReadCount++;
-        return reader.nextRecord(reuse);
+        return this.recordMapper.map(reader.nextRecord(reuse));
     }
 
     @Override

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.util.Pool;
 import org.apache.flink.connector.file.table.ColumnarRowIterator;
-import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
 import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
@@ -41,8 +40,6 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createVectorFromConstant;
 
 /**
  * A {@link ParquetVectorizedInputFormat} to provide {@link RowData} iterator. Using {@link
@@ -158,14 +155,9 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                     RowType producedRowType,
                     TypeInformation<RowData> producedTypeInfo,
                     List<String> partitionKeys,
-                    PartitionFieldExtractor<SplitT> extractor,
                     int batchSize,
                     boolean isUtcTimestamp,
                     boolean isCaseSensitive) {
-        // TODO FLINK-25113 all this partition keys code should be pruned from the parquet format,
-        //  because now FileSystemTableSource uses FileInfoExtractorBulkFormat for reading partition
-        //  keys.
-
         RowType projectedRowType =
                 new RowType(
                         producedRowType.getFields().stream()
@@ -176,18 +168,10 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
         ColumnBatchFactory<SplitT> factory =
                 (SplitT split, ColumnVector[] parquetVectors) -> {
                     // create and initialize the row batch
-                    ColumnVector[] vectors = new ColumnVector[producedRowType.getFieldCount()];
+                    ColumnVector[] vectors = new ColumnVector[projectedRowType.getFieldCount()];
                     for (int i = 0; i < vectors.length; i++) {
-                        RowType.RowField field = producedRowType.getFields().get(i);
-
-                        vectors[i] =
-                                partitionKeys.contains(field.getName())
-                                        ? createVectorFromConstant(
-                                                field.getType(),
-                                                extractor.extract(
-                                                        split, field.getName(), field.getType()),
-                                                batchSize)
-                                        : parquetVectors[projectedNames.indexOf(field.getName())];
+                        RowType.RowField field = projectedRowType.getFields().get(i);
+                        vectors[i] = parquetVectors[projectedNames.indexOf(field.getName())];
                     }
                     return new VectorizedColumnBatch(vectors);
                 };

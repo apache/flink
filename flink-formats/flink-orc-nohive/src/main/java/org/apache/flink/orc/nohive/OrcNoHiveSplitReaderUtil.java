@@ -26,7 +26,6 @@ import org.apache.flink.orc.nohive.shim.OrcNoHiveShim;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
@@ -39,7 +38,6 @@ import static org.apache.flink.orc.OrcSplitReaderUtil.convertToOrcTypeWithPart;
 import static org.apache.flink.orc.OrcSplitReaderUtil.getNonPartNames;
 import static org.apache.flink.orc.OrcSplitReaderUtil.getSelectedOrcFields;
 import static org.apache.flink.orc.nohive.vector.AbstractOrcNoHiveVector.createFlinkVector;
-import static org.apache.flink.orc.nohive.vector.AbstractOrcNoHiveVector.createFlinkVectorFromConstant;
 
 /** Util for generating {@link OrcSplitReader}. */
 public class OrcNoHiveSplitReaderUtil {
@@ -66,16 +64,10 @@ public class OrcNoHiveSplitReaderUtil {
         OrcColumnarRowSplitReader.ColumnBatchGenerator<VectorizedRowBatch> gen =
                 (VectorizedRowBatch rowBatch) -> {
                     // create and initialize the row batch
-                    ColumnVector[] vectors = new ColumnVector[selectedFields.length];
+                    ColumnVector[] vectors = new ColumnVector[selectedOrcFields.length];
                     for (int i = 0; i < vectors.length; i++) {
-                        String name = fullFieldNames[selectedFields[i]];
-                        LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
-                        vectors[i] =
-                                partitionSpec.containsKey(name)
-                                        ? createFlinkVectorFromConstant(
-                                                type, partitionSpec.get(name), batchSize)
-                                        : createFlinkVector(
-                                                rowBatch.cols[nonPartNames.indexOf(name)]);
+                        String name = nonPartNames.get(selectedOrcFields[i]);
+                        vectors[i] = createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)]);
                     }
                     return new VectorizedColumnBatch(vectors);
                 };

@@ -22,11 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.ArrayResultIterator;
-import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
-import org.apache.flink.connectors.hive.util.HivePartitionUtils;
-import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.formats.parquet.ParquetColumnarRowInputFormat;
 import org.apache.flink.orc.OrcColumnarRowInputFormat;
 import org.apache.flink.orc.nohive.OrcNoHiveColumnarRowInputFormat;
@@ -79,9 +76,8 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
     private final DataType[] fieldTypes;
     private final String hiveVersion;
     private final HiveShim hiveShim;
-    private final RowType producedRowType;
+    private final RowType physicalRowType;
     private final boolean useMapRedReader;
-    private final PartitionFieldExtractor<HiveSourceSplit> partitionFieldExtractor;
 
     public HiveInputFormat(
             JobConfWrapper jobConfWrapper,
@@ -97,11 +93,8 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
         this.fieldTypes = fieldTypes;
         this.hiveVersion = hiveVersion;
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-        this.producedRowType = producedRowType;
+        this.physicalRowType = getPhysicalRowType(producedRowType);
         this.useMapRedReader = useMapRedReader;
-        this.partitionFieldExtractor =
-                new PartitionFieldExtractorImpl(
-                        hiveShim, JobConfUtils.getDefaultPartitionName(jobConfWrapper));
     }
 
     @Override
@@ -123,7 +116,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
 
     @Override
     public TypeInformation<RowData> getProducedType() {
-        return InternalTypeInfo.of(producedRowType);
+        return InternalTypeInfo.of(physicalRowType);
     }
 
     private RowType tableRowType() {
@@ -132,16 +125,26 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
         return RowType.of(types, fieldNames);
     }
 
+    private RowType getPhysicalRowType(RowType producedRowType) {
+        List<RowType.RowField> physicalFields =
+                producedRowType.getFields().stream()
+                        .filter(f -> !partitionKeys.contains(f.getName()))
+                        .collect(Collectors.toList());
+
+        return RowType.of(
+                physicalFields.stream().map(RowType.RowField::getType).toArray(LogicalType[]::new),
+                physicalFields.stream().map(RowType.RowField::getName).toArray(String[]::new));
+    }
+
     private BulkFormat<RowData, ? super HiveSourceSplit> createBulkFormatForSplit(
             HiveSourceSplit split) {
         if (!useMapRedReader && useParquetVectorizedRead(split.getHiveTablePartition())) {
             LOG.debug(String.format("Use native parquet reader for %s.", split));
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     jobConfWrapper.conf(),
-                    producedRowType,
-                    InternalTypeInfo.of(producedRowType),
+                    physicalRowType,
+                    InternalTypeInfo.of(physicalRowType),
                     partitionKeys,
-                    partitionFieldExtractor,
                     DEFAULT_SIZE,
                     hiveVersion.startsWith("3"),
                     false);
@@ -169,8 +172,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                         jobConfWrapper.conf(),
                         tableRowType(),
                         partitionKeys,
-                        partitionFieldExtractor,
-                        computeSelectedFields(),
+                        computeSelectedPhysicalFields(),
                         Collections.emptyList(),
                         DEFAULT_SIZE,
                         InternalTypeInfo::of)
@@ -179,8 +181,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                         jobConfWrapper.conf(),
                         tableRowType(),
                         partitionKeys,
-                        partitionFieldExtractor,
-                        computeSelectedFields(),
+                        computeSelectedPhysicalFields(),
                         Collections.emptyList(),
                         DEFAULT_SIZE,
                         InternalTypeInfo::of);
@@ -198,7 +199,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
             return false;
         }
 
-        for (RowType.RowField field : producedRowType.getFields()) {
+        for (RowType.RowField field : physicalRowType.getFields()) {
             if (isVectorizationUnsupported(field.getType())) {
                 LOG.info(
                         "Fallback to hadoop mapred reader, unsupported field type: "
@@ -223,7 +224,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
             return false;
         }
 
-        for (RowType.RowField field : producedRowType.getFields()) {
+        for (RowType.RowField field : physicalRowType.getFields()) {
             if (isVectorizationUnsupported(field.getType())) {
                 LOG.info(
                         "Fallback to hadoop mapred reader, unsupported field type: "
@@ -298,7 +299,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
 
         @Override
         public TypeInformation<RowData> getProducedType() {
-            return InternalTypeInfo.of(producedRowType);
+            return InternalTypeInfo.of(physicalRowType);
         }
     }
 
@@ -310,7 +311,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
         private long numRead = 0;
 
         private HiveReader(HiveSourceSplit split) throws IOException {
-            selectedFields = computeSelectedFields();
+            selectedFields = computeSelectedPhysicalFields();
             JobConf clonedConf = new JobConf(jobConfWrapper.conf());
             addSchemaToConf(clonedConf);
             HiveTableInputSplit oldSplit =
@@ -318,13 +319,9 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                             -1, split.toMapRedSplit(), clonedConf, split.getHiveTablePartition());
             hiveMapredSplitReader =
                     new HiveMapredSplitReader(
-                            clonedConf,
-                            partitionKeys,
-                            fieldTypes,
-                            selectedFields,
-                            oldSplit,
-                            hiveShim);
-            serializer = new RowDataSerializer(producedRowType);
+                            clonedConf, fieldTypes, selectedFields, oldSplit, hiveShim);
+
+            serializer = new RowDataSerializer(physicalRowType);
         }
 
         @Override
@@ -392,38 +389,19 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
     }
 
     // compute indices of selected fields according to the produced type
-    private int[] computeSelectedFields() {
-        int[] selectedFields = new int[producedRowType.getFieldCount()];
+    private int[] computeSelectedPhysicalFields() {
+        int[] selectedFields = new int[physicalRowType.getFieldCount()];
+        List<String> fieldNames = Arrays.asList(this.fieldNames);
         for (int i = 0; i < selectedFields.length; i++) {
-            String name = producedRowType.getFieldNames().get(i);
-            int index = Arrays.asList(fieldNames).indexOf(name);
+            String name = physicalRowType.getFieldNames().get(i);
+            int index = fieldNames.indexOf(name);
             Preconditions.checkState(
                     index >= 0,
                     "Produced field name %s not found in table schema fields %s",
                     name,
-                    Arrays.toString(fieldNames));
+                    fieldNames.toString());
             selectedFields[i] = index;
         }
         return selectedFields;
-    }
-
-    private static class PartitionFieldExtractorImpl
-            implements PartitionFieldExtractor<HiveSourceSplit> {
-
-        private static final long serialVersionUID = 1L;
-        private final HiveShim hiveShim;
-        private final String defaultPartitionName;
-
-        private PartitionFieldExtractorImpl(HiveShim hiveShim, String defaultPartitionName) {
-            this.hiveShim = hiveShim;
-            this.defaultPartitionName = defaultPartitionName;
-        }
-
-        @Override
-        public Object extract(HiveSourceSplit split, String fieldName, LogicalType fieldType) {
-            String valueString = split.getHiveTablePartition().getPartitionSpec().get(fieldName);
-            return HivePartitionUtils.restorePartitionValueFromType(
-                    hiveShim, valueString, fieldType, defaultPartitionName);
-        }
     }
 }

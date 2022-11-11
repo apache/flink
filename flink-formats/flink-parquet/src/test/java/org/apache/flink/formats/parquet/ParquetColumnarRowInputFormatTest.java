@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
-import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -34,11 +33,9 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -50,7 +47,6 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.hadoop.conf.Configuration;
@@ -61,13 +57,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -75,10 +69,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.file.src.util.Utils.forEachRemaining;
-import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ParquetColumnarRowInputFormat}. */
@@ -292,56 +284,6 @@ class ParquetColumnarRowInputFormatTest {
                     assertThat(row.isNullAt(3)).isTrue();
                     cnt.incrementAndGet();
                 });
-    }
-
-    @ParameterizedTest
-    @MethodSource("parameters")
-    void testPartitionValues(int rowGroupSize) throws IOException {
-        // prepare parquet file
-        int number = 1000;
-        List<RowData> records = new ArrayList<>(number);
-        for (int i = 0; i < number; i++) {
-            Integer v = i;
-            records.add(newRow(v));
-        }
-
-        List<String> partitionKeys =
-                Arrays.asList(
-                        "f33", "f34", "f35", "f36", "f37", "f38", "f39", "f40", "f41", "f42", "f43",
-                        "f44", "f45");
-
-        // test partition values
-
-        LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
-        partSpec.put("f33", "true");
-        partSpec.put("f34", Date.valueOf("2020-11-23").toString());
-        partSpec.put("f35", LocalDateTime.of(1999, 1, 1, 1, 1).toString());
-        partSpec.put("f36", "6.6");
-        partSpec.put("f37", "9");
-        partSpec.put("f38", "10");
-        partSpec.put("f39", "11");
-        partSpec.put("f40", "12");
-        partSpec.put("f41", "13");
-        partSpec.put("f42", "24");
-        partSpec.put("f43", "25");
-        partSpec.put("f44", "26");
-        partSpec.put("f45", "f45");
-
-        String partPath = generatePartitionPath(partSpec);
-        Path testPath = createTempParquetFile(new File(folder, partPath), records, rowGroupSize);
-
-        innerTestPartitionValues(testPath, partitionKeys, false);
-
-        // test null partition values
-
-        for (String k : new ArrayList<>(partSpec.keySet())) {
-            partSpec.put(k, "my_default_value");
-        }
-
-        partPath = generatePartitionPath(partSpec);
-        testPath = createTempParquetFile(new File(folder, partPath), records, rowGroupSize);
-
-        innerTestPartitionValues(testPath, partitionKeys, true);
     }
 
     private void innerTestTypes(File folder, List<Integer> records, int rowGroupSize)
@@ -620,132 +562,6 @@ class ParquetColumnarRowInputFormatTest {
     private LocalDateTime toDateTime(Integer v) {
         v = (v > 0 ? v : -v) % 10000;
         return BASE_TIME.plusNanos(v).plusSeconds(v);
-    }
-
-    private void innerTestPartitionValues(
-            Path testPath, List<String> partitionKeys, boolean nullPartValue) throws IOException {
-        LogicalType[] fieldTypes =
-                new LogicalType[] {
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new BooleanType(),
-                    new TinyIntType(),
-                    new SmallIntType(),
-                    new IntType(),
-                    new BigIntType(),
-                    new FloatType(),
-                    new DoubleType(),
-                    new TimestampType(9),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 2),
-                    new DecimalType(20, 0),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0),
-                    new ArrayType(new VarCharType(VarCharType.MAX_LENGTH)),
-                    new ArrayType(new BooleanType()),
-                    new ArrayType(new TinyIntType()),
-                    new ArrayType(new SmallIntType()),
-                    new ArrayType(new IntType()),
-                    new ArrayType(new BigIntType()),
-                    new ArrayType(new FloatType()),
-                    new ArrayType(new DoubleType()),
-                    new ArrayType(new TimestampType(9)),
-                    new ArrayType(new DecimalType(5, 0)),
-                    new ArrayType(new DecimalType(15, 0)),
-                    new ArrayType(new DecimalType(20, 0)),
-                    new ArrayType(new DecimalType(5, 0)),
-                    new ArrayType(new DecimalType(15, 0)),
-                    new ArrayType(new DecimalType(20, 0)),
-                    new MapType(
-                            new VarCharType(VarCharType.MAX_LENGTH),
-                            new VarCharType(VarCharType.MAX_LENGTH)),
-                    new MapType(new IntType(), new BooleanType()),
-                    RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
-                    new BooleanType(),
-                    new DateType(),
-                    new TimestampType(9),
-                    new DoubleType(),
-                    new TinyIntType(),
-                    new SmallIntType(),
-                    new IntType(),
-                    new BigIntType(),
-                    new FloatType(),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0),
-                    new VarCharType(VarCharType.MAX_LENGTH)
-                };
-
-        RowType rowType =
-                RowType.of(
-                        fieldTypes,
-                        IntStream.range(0, 46).mapToObj(i -> "f" + i).toArray(String[]::new));
-
-        int[] projected = new int[] {7, 2, 4, 33, 37, 38, 39, 40, 41, 36, 34, 35, 42, 43, 44, 45};
-
-        RowType producedType =
-                new RowType(
-                        Arrays.stream(projected)
-                                .mapToObj(i -> rowType.getFields().get(i))
-                                .collect(Collectors.toList()));
-
-        ParquetColumnarRowInputFormat<FileSourceSplit> format =
-                ParquetColumnarRowInputFormat.createPartitionedFormat(
-                        new Configuration(),
-                        producedType,
-                        InternalTypeInfo.of(producedType),
-                        partitionKeys,
-                        PartitionFieldExtractor.forFileSystem("my_default_value"),
-                        500,
-                        false,
-                        true);
-
-        FileStatus fileStatus = testPath.getFileSystem().getFileStatus(testPath);
-
-        AtomicInteger cnt = new AtomicInteger(0);
-        forEachRemaining(
-                format.createReader(
-                        EMPTY_CONF,
-                        new FileSourceSplit(
-                                "id",
-                                testPath,
-                                0,
-                                Long.MAX_VALUE,
-                                fileStatus.getModificationTime(),
-                                fileStatus.getLen())),
-                row -> {
-                    int i = cnt.get();
-                    // common values
-                    assertThat(row.getDouble(0)).isEqualTo(i);
-                    assertThat(row.getByte(1)).isEqualTo((byte) i);
-                    assertThat(row.getInt(2)).isEqualTo(i);
-                    // partition values
-                    if (nullPartValue) {
-                        for (int j = 3; j < 16; j++) {
-                            assertThat(row.isNullAt(j)).isTrue();
-                        }
-                    } else {
-                        assertThat(row.getBoolean(3)).isTrue();
-                        assertThat(row.getByte(4)).isEqualTo((byte) 9);
-                        assertThat(row.getShort(5)).isEqualTo((short) 10);
-                        assertThat(row.getInt(6)).isEqualTo(11);
-                        assertThat(row.getLong(7)).isEqualTo(12);
-                        assertThat(row.getFloat(8)).isEqualTo((float) 13);
-                        assertThat(row.getDouble(9)).isEqualTo(6.6);
-                        assertThat(row.getInt(10))
-                                .isEqualTo(DateTimeUtils.toInternal(Date.valueOf("2020-11-23")));
-                        assertThat(row.getTimestamp(11, 9).toLocalDateTime())
-                                .isEqualTo(LocalDateTime.of(1999, 1, 1, 1, 1));
-                        assertThat(row.getDecimal(12, 5, 0))
-                                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(24), 5, 0));
-                        assertThat(row.getDecimal(13, 15, 0))
-                                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(25), 15, 0));
-                        assertThat(row.getDecimal(14, 20, 0))
-                                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(26), 20, 0));
-                        assertThat(row.getString(15)).hasToString("f45");
-                    }
-                    cnt.incrementAndGet();
-                });
     }
 
     private static <T> List<T> subList(List<T> list, int i) {

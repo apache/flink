@@ -34,8 +34,6 @@ import org.apache.flink.formats.parquet.vector.reader.MapColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.RowColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ShortColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.columnar.vector.heap.HeapArrayVector;
@@ -53,14 +51,10 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarBinaryType;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.ParquetRuntimeException;
@@ -73,18 +67,12 @@ import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.sql.Date;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 import static org.apache.parquet.Preconditions.checkArgument;
 
 /** Util for generating {@link ParquetColumnarRowSplitReader}. */
@@ -120,15 +108,10 @@ public class ParquetSplitReaderUtil {
         ParquetColumnarRowSplitReader.ColumnBatchGenerator gen =
                 readVectors -> {
                     // create and initialize the row batch
-                    ColumnVector[] vectors = new ColumnVector[selectedFields.length];
+                    ColumnVector[] vectors = new ColumnVector[selParquetFields.length];
                     for (int i = 0; i < vectors.length; i++) {
-                        String name = fullFieldNames[selectedFields[i]];
-                        LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
-                        vectors[i] =
-                                partitionSpec.containsKey(name)
-                                        ? createVectorFromConstant(
-                                                type, partitionSpec.get(name), batchSize)
-                                        : readVectors[selNonPartNames.indexOf(name)];
+                        String name = nonPartNames.get(selParquetFields[i]);
+                        vectors[i] = readVectors[selNonPartNames.indexOf(name)];
                     }
                     return new VectorizedColumnBatch(vectors);
                 };
@@ -146,129 +129,6 @@ public class ParquetSplitReaderUtil {
                 new org.apache.hadoop.fs.Path(path.toUri()),
                 splitStart,
                 splitLength);
-    }
-
-    public static ColumnVector createVectorFromConstant(
-            LogicalType type, Object value, int batchSize) {
-        switch (type.getTypeRoot()) {
-            case CHAR:
-            case VARCHAR:
-            case BINARY:
-            case VARBINARY:
-                HeapBytesVector bsv = new HeapBytesVector(batchSize);
-                if (value == null) {
-                    bsv.fillWithNulls();
-                } else {
-                    bsv.fill(
-                            value instanceof byte[]
-                                    ? (byte[]) value
-                                    : value.toString().getBytes(StandardCharsets.UTF_8));
-                }
-                return bsv;
-            case BOOLEAN:
-                HeapBooleanVector bv = new HeapBooleanVector(batchSize);
-                if (value == null) {
-                    bv.fillWithNulls();
-                } else {
-                    bv.fill((boolean) value);
-                }
-                return bv;
-            case TINYINT:
-                HeapByteVector byteVector = new HeapByteVector(batchSize);
-                if (value == null) {
-                    byteVector.fillWithNulls();
-                } else {
-                    byteVector.fill(((Number) value).byteValue());
-                }
-                return byteVector;
-            case SMALLINT:
-                HeapShortVector sv = new HeapShortVector(batchSize);
-                if (value == null) {
-                    sv.fillWithNulls();
-                } else {
-                    sv.fill(((Number) value).shortValue());
-                }
-                return sv;
-            case INTEGER:
-                HeapIntVector iv = new HeapIntVector(batchSize);
-                if (value == null) {
-                    iv.fillWithNulls();
-                } else {
-                    iv.fill(((Number) value).intValue());
-                }
-                return iv;
-            case BIGINT:
-                HeapLongVector lv = new HeapLongVector(batchSize);
-                if (value == null) {
-                    lv.fillWithNulls();
-                } else {
-                    lv.fill(((Number) value).longValue());
-                }
-                return lv;
-            case DECIMAL:
-                DecimalType decimalType = (DecimalType) type;
-                int precision = decimalType.getPrecision();
-                int scale = decimalType.getScale();
-                DecimalData decimal =
-                        value == null
-                                ? null
-                                : Preconditions.checkNotNull(
-                                        DecimalData.fromBigDecimal(
-                                                (BigDecimal) value, precision, scale));
-                ColumnVector internalVector;
-                if (ParquetSchemaConverter.is32BitDecimal(precision)) {
-                    internalVector =
-                            createVectorFromConstant(
-                                    new IntType(),
-                                    decimal == null ? null : (int) decimal.toUnscaledLong(),
-                                    batchSize);
-                } else if (ParquetSchemaConverter.is64BitDecimal(precision)) {
-                    internalVector =
-                            createVectorFromConstant(
-                                    new BigIntType(),
-                                    decimal == null ? null : decimal.toUnscaledLong(),
-                                    batchSize);
-                } else {
-                    internalVector =
-                            createVectorFromConstant(
-                                    new VarBinaryType(),
-                                    decimal == null ? null : decimal.toUnscaledBytes(),
-                                    batchSize);
-                }
-                return new ParquetDecimalVector(internalVector);
-            case FLOAT:
-                HeapFloatVector fv = new HeapFloatVector(batchSize);
-                if (value == null) {
-                    fv.fillWithNulls();
-                } else {
-                    fv.fill(((Number) value).floatValue());
-                }
-                return fv;
-            case DOUBLE:
-                HeapDoubleVector dv = new HeapDoubleVector(batchSize);
-                if (value == null) {
-                    dv.fillWithNulls();
-                } else {
-                    dv.fill(((Number) value).doubleValue());
-                }
-                return dv;
-            case DATE:
-                if (value instanceof LocalDate) {
-                    value = Date.valueOf((LocalDate) value);
-                }
-                return createVectorFromConstant(
-                        new IntType(), value == null ? null : toInternal((Date) value), batchSize);
-            case TIMESTAMP_WITHOUT_TIME_ZONE:
-                HeapTimestampVector tv = new HeapTimestampVector(batchSize);
-                if (value == null) {
-                    tv.fillWithNulls();
-                } else {
-                    tv.fill(TimestampData.fromLocalDateTime((LocalDateTime) value));
-                }
-                return tv;
-            default:
-                throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
     }
 
     private static List<ColumnDescriptor> getAllColumnDescriptorByType(

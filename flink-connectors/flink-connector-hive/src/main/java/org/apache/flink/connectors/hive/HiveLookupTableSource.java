@@ -264,7 +264,9 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                         getProducedTableSchema().getFieldNames(),
                         catalogTable.getPartitionKeys(),
                         projectedFields,
-                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
+                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),
+                        producedTypes,
+                        defaultPartitionName);
 
         return new FileSystemLookupFunction<>(
                 partitionFetcher,

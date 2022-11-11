@@ -19,7 +19,6 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.orc.vector.OrcLegacyTimestampColumnVector;
-import org.apache.flink.orc.vector.OrcTimestampColumnVector;
 
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.slf4j.Logger;
@@ -49,14 +48,5 @@ public class TimestampUtil {
     // whether a ColumnVector is the new TimestampColumnVector
     public static boolean isHiveTimestampColumnVector(ColumnVector vector) {
         return hiveTSColVectorClz != null && hiveTSColVectorClz.isAssignableFrom(vector.getClass());
-    }
-
-    // creates a Hive ColumnVector of constant timestamp value
-    public static ColumnVector createVectorFromConstant(int batchSize, Object value) {
-        if (hiveTSColVectorClz != null) {
-            return OrcTimestampColumnVector.createFromConstant(batchSize, value);
-        } else {
-            return OrcLegacyTimestampColumnVector.createFromConstant(batchSize, value);
-        }
     }
 }
