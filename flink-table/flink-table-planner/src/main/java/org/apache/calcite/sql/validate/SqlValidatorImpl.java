@@ -6052,13 +6052,32 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 final SqlQualified qualified = scope.fullyQualify((SqlIdentifier) selectItem);
                 SqlValidatorNamespace namespace =
                         requireNonNull(qualified.namespace, () -> "namespace for " + qualified);
+                if (namespace.isWrapperFor(AliasNamespace.class)) {
+                    AliasNamespace aliasNs = namespace.unwrap(AliasNamespace.class);
+                    SqlNode aliased =
+                            requireNonNull(
+                                    aliasNs.getNode(), () -> "sqlNode for aliasNs " + aliasNs);
+                    namespace = getNamespaceOrThrow(stripAs(aliased));
+                }
+
                 final SqlValidatorTable table = namespace.getTable();
                 if (table == null) {
                     return null;
                 }
                 final List<String> origin = new ArrayList<>(table.getQualifiedName());
                 for (String name : qualified.suffix()) {
+                    if (namespace.isWrapperFor(UnnestNamespace.class)) {
+                        // If identifier is drawn from a repeated subrecord via unnest, add name of
+                        // array field
+                        UnnestNamespace unnestNamespace = namespace.unwrap(UnnestNamespace.class);
+                        final SqlQualified columnUnnestedFrom =
+                                unnestNamespace.getColumnUnnestedFrom(name);
+                        if (columnUnnestedFrom != null) {
+                            origin.addAll(columnUnnestedFrom.suffix());
+                        }
+                    }
                     namespace = namespace.lookupChild(name);
+
                     if (namespace == null) {
                         return null;
                     }

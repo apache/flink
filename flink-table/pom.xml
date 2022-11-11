@@ -78,7 +78,7 @@ under the License.
 	</dependencyManagement>
 
 	<properties>
-		<calcite.version>1.32.0</calcite.version>
+		<calcite.version>1.33.0-SNAPSHOT</calcite.version>
 		<!-- Calcite 1.32.0 depends on 3.1.8,
 		at the same time minimum 3.1.x Janino version passing Flink tests without WAs is 3.1.10,
 		more details are in FLINK-27995 -->
