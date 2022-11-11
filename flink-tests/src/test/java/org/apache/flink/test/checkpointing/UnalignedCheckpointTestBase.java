@@ -61,6 +61,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
@@ -153,16 +154,16 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         final StreamGraph streamGraph = getStreamGraph(settings, conf);
         final int requiredSlots =
                 streamGraph.getStreamNodes().stream()
-                        .mapToInt(node -> node.getParallelism())
+                        .mapToInt(StreamNode::getParallelism)
                         .reduce(0, settings.channelType.slotSharing ? Integer::max : Integer::sum);
-        int numberTaskmanagers = settings.channelType.slotsToTaskManagers.apply(requiredSlots);
+        int numberTaskManagers = settings.channelType.slotsToTaskManagers.apply(requiredSlots);
 
-        final int slotsPerTM = (requiredSlots + numberTaskmanagers - 1) / numberTaskmanagers;
+        final int slotsPerTM = (requiredSlots + numberTaskManagers - 1) / numberTaskManagers;
         final MiniClusterWithClientResource miniCluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
                                 .setConfiguration(conf)
-                                .setNumberTaskManagers(numberTaskmanagers)
+                                .setNumberTaskManagers(numberTaskManagers)
                                 .setNumberSlotsPerTaskManager(slotsPerTM)
                                 .build());
         miniCluster.before();

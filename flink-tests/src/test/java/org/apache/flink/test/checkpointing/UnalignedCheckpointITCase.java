@@ -126,7 +126,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                         "source")
                                 .slotSharingGroup(slotSharing ? "default" : "source")
                                 .disableChaining()
-                                .map(i -> checkHeader(i))
+                                .map(UnalignedCheckpointTestBase::checkHeader)
                                 .name("forward")
                                 .uid("forward")
                                 .slotSharingGroup(slotSharing ? "default" : "forward")
