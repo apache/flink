@@ -158,10 +158,10 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 5083 ~ 5096, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
+ * <p>Lines 5079 ~ 5092, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
  * specification type at {@link org.apache.calcite.sql.validate.SqlValidatorImpl#validateSnapshot}.
  *
- * <p>Lines 5440 ~ 5446, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
+ * <p>Lines 5436 ~ 5442, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
  * matchRecognize at {@link SqlValidatorImpl#validateMatchRecognize}.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
@@ -2321,19 +2321,15 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                     alias = String.valueOf(call.operand(1));
                 }
                 expr = call.operand(0);
-                final boolean needAlias =
+                final boolean needAliasNamespace =
                         call.operandCount() > 2
                                 || expr.getKind() == SqlKind.VALUES
-                                || expr.getKind() == SqlKind.UNNEST
-                                        && (((SqlCall) expr).operand(0).getKind()
-                                                        == SqlKind.ARRAY_VALUE_CONSTRUCTOR
-                                                || ((SqlCall) expr).operand(0).getKind()
-                                                        == SqlKind.MULTISET_VALUE_CONSTRUCTOR);
+                                || expr.getKind() == SqlKind.UNNEST;
                 newExpr =
                         registerFrom(
                                 parentScope,
                                 usingScope,
-                                !needAlias,
+                                !needAliasNamespace,
                                 expr,
                                 enclosingNode,
                                 alias,
@@ -2346,7 +2342,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
                 // If alias has a column list, introduce a namespace to translate
                 // column names. We skipped registering it just now.
-                if (needAlias) {
+                if (needAliasNamespace) {
                     registerNamespace(
                             usingScope,
                             alias,

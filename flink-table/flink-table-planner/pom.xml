@@ -300,7 +300,9 @@ under the License.
 							<include>org.apache.calcite.avatica:*</include>
 
 							<!-- Calcite's dependencies -->
-							<include>com.esri.geometry:esri-geometry-api</include>
+							<include>org.locationtech.proj4j:proj4j</include>
+							<include>org.locationtech.jts.io:jts-io-common</include>
+							<include>org.locationtech.jts:jts-core</include>
 							<include>com.google.guava:guava</include>
 							<include>com.google.guava:failureaccess</include>
 							<include>commons-codec:commons-codec</include>
