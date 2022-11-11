@@ -77,8 +77,8 @@ class SystemResourcesMetricsITCase {
         configuration.setString(REPORTERS_LIST, "test_reporter");
         configuration.setString(MetricOptions.SCOPE_NAMING_JM, "jobmanager");
         configuration.setString(MetricOptions.SCOPE_NAMING_TM, "taskmanager");
-        configuration.setString(
-                "metrics.reporter.test_reporter.factory.class", TestReporter.class.getName());
+        MetricOptions.forReporter(configuration, "test_reporter")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter.class.getName());
         return configuration;
     }
 

@@ -136,11 +136,8 @@ class ReporterSetupTest {
     void testReporterSetupSupplier() throws Exception {
         final Configuration config = new Configuration();
 
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "reporter1."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter1.class.getName());
+        MetricOptions.forReporter(config, "reporter1")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter1.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
@@ -156,21 +153,12 @@ class ReporterSetupTest {
     void testMultipleReporterInstantiation() throws Exception {
         Configuration config = new Configuration();
 
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test1."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter11.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test2."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter12.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test3."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter13.class.getName());
+        MetricOptions.forReporter(config, "test1")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter11.class.getName());
+        MetricOptions.forReporter(config, "test2")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter12.class.getName());
+        MetricOptions.forReporter(config, "test3")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter13.class.getName());
 
         List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
@@ -212,13 +200,11 @@ class ReporterSetupTest {
     }
 
     private static void configureReporter1(Configuration config) {
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "reporter1."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter1.class.getName());
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
+        Configuration reporterConfig =
+                MetricOptions.forReporter(config, "reporter1")
+                        .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter1.class.getName());
+        reporterConfig.setString("arg1", "value1");
+        reporterConfig.setString("arg2", "value2");
     }
 
     private static void assertReporter1Configured(ReporterSetup setup) {
@@ -232,13 +218,11 @@ class ReporterSetupTest {
     }
 
     private static void configureReporter2(Configuration config) {
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "reporter2."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter2.class.getName());
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
+        Configuration reporterConfig =
+                MetricOptions.forReporter(config, "reporter2")
+                        .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter2.class.getName());
+        reporterConfig.setString("arg1", "value1");
+        reporterConfig.setString("arg3", "value3");
     }
 
     private static void assertReporter2Configured(ReporterSetup setup) {
@@ -256,16 +240,11 @@ class ReporterSetupTest {
         final String excludedVariable1 = "foo";
         final String excludedVariable2 = "foo";
         final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporterFactory.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_EXCLUDED_VARIABLES.key(),
-                excludedVariable1 + ";" + excludedVariable2);
+        MetricOptions.forReporter(config, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName())
+                .set(
+                        MetricOptions.REPORTER_EXCLUDED_VARIABLES,
+                        excludedVariable1 + ";" + excludedVariable2);
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
@@ -284,11 +263,8 @@ class ReporterSetupTest {
     @Test
     void testFactoryParsing() throws Exception {
         final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporterFactory.class.getName());
+        MetricOptions.forReporter(config, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
@@ -342,16 +318,12 @@ class ReporterSetupTest {
         final String tag2 = "fizz";
         final String tagValue2 = "buzz";
         final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporterFactory.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_ADDITIONAL_VARIABLES.key(),
-                String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
+
+        MetricOptions.forReporter(config, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName())
+                .setString(
+                        MetricOptions.REPORTER_ADDITIONAL_VARIABLES.key(),
+                        String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
