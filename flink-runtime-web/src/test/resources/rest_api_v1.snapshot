@@ -768,7 +768,38 @@
         "jobs" : {
           "type" : "array",
           "items" : {
-            "type" : "any"
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobDetails",
+            "properties" : {
+              "jid" : {
+                "type" : "any"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "start-time" : {
+                "type" : "integer"
+              },
+              "end-time" : {
+                "type" : "integer"
+              },
+              "duration" : {
+                "type" : "integer"
+              },
+              "state" : {
+                "type" : "string",
+                "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+              },
+              "last-modification" : {
+                "type" : "integer"
+              },
+              "tasks" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              }
+            }
           }
         }
       }

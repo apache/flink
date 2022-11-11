@@ -1886,18 +1886,6 @@ components:
         total:
           type: integer
           format: int64
-    CurrentAttempts:
-      type: object
-      properties:
-        currentAttempts:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int32
-        representativeAttempt:
-          type: integer
-          format: int32
     DashboardConfiguration:
       type: object
       properties:
@@ -2210,36 +2198,27 @@ components:
     JobDetails:
       type: object
       properties:
-        currentExecutionAttempts:
-          type: object
-          additionalProperties:
-            type: object
-            additionalProperties:
-              $ref: '#/components/schemas/CurrentAttempts'
         duration:
           type: integer
           format: int64
-        endTime:
+        end-time:
           type: integer
           format: int64
-        jobId:
+        jid:
           $ref: '#/components/schemas/JobID'
-        jobName:
+        last-modification:
+          type: integer
+          format: int64
+        name:
           type: string
-        lastUpdateTime:
+        start-time:
           type: integer
           format: int64
-        numTasks:
-          type: integer
-          format: int32
-        startTime:
-          type: integer
-          format: int64
-        status:
+        state:
           $ref: '#/components/schemas/JobStatus'
-        tasksPerState:
-          type: array
-          items:
+        tasks:
+          type: object
+          additionalProperties:
             type: integer
             format: int32
     JobDetailsInfo:
