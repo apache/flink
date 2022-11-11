@@ -123,7 +123,7 @@ public class PulsarCommitter implements Committer<PulsarCommittable>, Closeable 
                     request.signalFailedWithKnownReason(ex);
                 } else {
                     LOG.error(
-                            "Encountered retriable exception while committing transaction {} for topic {}.",
+                            "Encountered retryable exception while committing transaction {} for topic {}.",
                             committable,
                             topic,
                             ex);
