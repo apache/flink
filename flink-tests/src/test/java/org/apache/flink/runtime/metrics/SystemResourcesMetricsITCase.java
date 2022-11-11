@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
@@ -36,6 +37,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,7 +67,7 @@ public class SystemResourcesMetricsITCase extends TestLogger {
         configuration.setString(MetricOptions.SCOPE_NAMING_JM, "jobmanager");
         configuration.setString(MetricOptions.SCOPE_NAMING_TM, "taskmanager");
         configuration.setString(
-                "metrics.reporter.test_reporter.class", TestReporter.class.getName());
+                "metrics.reporter.test_reporter.factory.class", TestReporter.class.getName());
         return configuration;
     }
 
@@ -107,7 +109,7 @@ public class SystemResourcesMetricsITCase extends TestLogger {
     }
 
     /** Test metric reporter that exposes registered metrics. */
-    public static final class TestReporter implements MetricReporter {
+    public static final class TestReporter implements MetricReporter, MetricReporterFactory {
         public static final Set<TestReporter> OPENED_REPORTERS = ConcurrentHashMap.newKeySet();
         private final Map<String, CompletableFuture<Void>> patternFutures =
                 getExpectedPatterns().stream()
@@ -140,5 +142,10 @@ public class SystemResourcesMetricsITCase extends TestLogger {
 
         @Override
         public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {}
+
+        @Override
+        public MetricReporter createMetricReporter(Properties properties) {
+            return this;
+        }
     }
 }
