@@ -331,7 +331,7 @@ class MyMapper extends RichMapFunction[Long, Long] {
   @transient private var histogram: Histogram = _
 
   override def open(config: Configuration): Unit = {
-    com.codahale.metrics.Histogram dropwizardHistogram =
+    val dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500))
         
     histogram = getRuntimeContext()
