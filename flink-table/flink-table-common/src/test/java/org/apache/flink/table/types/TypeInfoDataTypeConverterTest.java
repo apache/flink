@@ -28,6 +28,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -45,6 +47,8 @@ class TypeInfoDataTypeConverterTest {
         return Stream.of(
                 TestSpec.forType(Types.INT).expectDataType(DataTypes.INT().notNull()),
                 TestSpec.forType(Types.BIG_DEC)
+                        .expectDataType(DataTypes.DECIMAL(38, 18).nullable()),
+                TestSpec.forType(new BigDecimalTypeInfo(38, 18))
                         .expectDataType(DataTypes.DECIMAL(38, 18).nullable()),
                 TestSpec.forType(
                                 Types.ROW_NAMED(

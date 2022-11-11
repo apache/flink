@@ -23,10 +23,10 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem
-import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findAvgAggType
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo
 
 import java.lang.{Iterable => JIterable}
 import java.math.{BigDecimal, BigInteger, MathContext}

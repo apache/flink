@@ -21,8 +21,8 @@ import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.planner.validate._
-import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalDataTypeInfo}
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
+import org.apache.flink.table.typeutils.{BigDecimalTypeInfo, TimeIntervalTypeInfo}
 
 object TypeInfoCheckUtils {
 

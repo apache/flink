@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{CountNullNonNull, CountPairs, LargerThanCount}
-import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
 
 import org.junit._

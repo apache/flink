@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{Broadcast
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo
 
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith

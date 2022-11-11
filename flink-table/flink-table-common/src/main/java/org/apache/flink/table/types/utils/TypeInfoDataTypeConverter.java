@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -173,6 +174,10 @@ public final class TypeInfoDataTypeConverter {
             return foundDataType;
         }
 
+        if (typeInfo instanceof BigDecimalTypeInfo) {
+            return convertToDecimalType((BigDecimalTypeInfo) typeInfo);
+        }
+
         if (typeInfo instanceof RowTypeInfo) {
             return convertToRowType(dataTypeFactory, (RowTypeInfo) typeInfo);
         } else if (typeInfo instanceof ObjectArrayTypeInfo) {
@@ -203,6 +208,12 @@ public final class TypeInfoDataTypeConverter {
 
         // treat everything else as RAW type
         return dataTypeFactory.createRawDataType(typeInfo);
+    }
+
+    private static DataType convertToDecimalType(BigDecimalTypeInfo bigDecimalTypeInfo) {
+        return DataTypes.DECIMAL(bigDecimalTypeInfo.precision(), bigDecimalTypeInfo.scale())
+                .nullable()
+                .bridgedTo(BigDecimal.class);
     }
 
     private static DataType convertToRowType(
