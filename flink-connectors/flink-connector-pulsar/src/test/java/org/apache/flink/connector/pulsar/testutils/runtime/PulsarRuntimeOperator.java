@@ -180,6 +180,10 @@ public class PulsarRuntimeOperator implements Closeable {
         }
     }
 
+    public void createSchema(String topic, Schema<?> schema) {
+        sneakyAdmin(() -> admin().schemas().createSchema(topic, schema.getSchemaInfo()));
+    }
+
     /**
      * Increase the partition number of the topic.
      *
