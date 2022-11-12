@@ -1182,7 +1182,7 @@ public class RelBuilder {
      *
      * @see #project
      */
-    public RexNode alias(RexNode expr, @Nullable String alias) {
+    public RexNode alias(RexNode expr, String alias) {
         final RexNode aliasLiteral = literal(alias);
         switch (expr.getKind()) {
             case AS:
@@ -2015,7 +2015,7 @@ public class RelBuilder {
     }
 
     /** Creates a {@link Project} of all original fields, plus the given list of expressions. */
-    public RelBuilder projectPlus(Iterable<RexNode> nodes) {
+    public RelBuilder projectPlus(Iterable<? extends RexNode> nodes) {
         return project(Iterables.concat(fields(), nodes));
     }
 
