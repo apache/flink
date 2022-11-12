@@ -318,7 +318,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                                 if (currentCheckpointId == barrierId
                                         && !getAllBarriersReceivedFuture(barrierId).isDone()) {
                                     currentState =
-                                            currentState.alignmentTimeout(
+                                            currentState.alignedCheckpointTimeout(
                                                     context, announcedBarrier);
                                 }
                             } catch (CheckpointException ex) {
