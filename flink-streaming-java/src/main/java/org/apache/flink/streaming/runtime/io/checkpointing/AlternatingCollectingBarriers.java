@@ -38,7 +38,7 @@ final class AlternatingCollectingBarriers extends AbstractAlternatingAlignedBarr
     }
 
     @Override
-    public BarrierHandlerState alignmentTimeout(
+    public BarrierHandlerState alignedCheckpointTimeout(
             Controller controller, CheckpointBarrier checkpointBarrier)
             throws IOException, CheckpointException {
         state.prioritizeAllAnnouncements();
@@ -71,7 +71,7 @@ final class AlternatingCollectingBarriers extends AbstractAlternatingAlignedBarr
             controller.triggerGlobalCheckpoint(pendingCheckpointBarrier);
             return finishCheckpoint();
         } else if (controller.isTimedOut(pendingCheckpointBarrier)) {
-            return alignmentTimeout(controller, pendingCheckpointBarrier)
+            return alignedCheckpointTimeout(controller, pendingCheckpointBarrier)
                     .endOfPartitionReceived(controller, channelInfo);
         }
 
