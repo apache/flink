@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -221,6 +220,7 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
@@ -2257,7 +2257,7 @@ public class SqlToRelConverter {
         }
 
         try {
-            Preconditions.checkArgument(bb.window == null, "already in window agg mode");
+            checkArgument(bb.window == null, "already in window agg mode");
             bb.window = window;
             RexNode rexAgg = exprConverter.convertCall(bb, aggCall);
             rexAgg = rexBuilder.ensureType(validator().getValidatedNodeType(call), rexAgg, false);
@@ -2489,11 +2489,13 @@ public class SqlToRelConverter {
             replaceSubQueries(bb, node, RelOptUtil.Logic.TRUE_FALSE_UNKNOWN);
         }
         final List<RexNode> exprs = new ArrayList<>();
-        for (Ord<SqlNode> node : Ord.zip(nodes)) {
-            exprs.add(
-                    relBuilder.alias(
-                            bb.convertExpression(node.e), validator().deriveAlias(node.e, node.i)));
-        }
+        Ord.forEach(
+                nodes,
+                (node, i) -> {
+                    final RexNode e = bb.convertExpression(node);
+                    final String alias = validator().deriveAlias(node, i);
+                    exprs.add(relBuilder.alias(e, alias));
+                });
         RelNode child = (null != bb.root) ? bb.root : LogicalValues.createOneRow(cluster);
         RelNode uncollect;
         if (validator().config().conformance().allowAliasUnnestItems()) {
@@ -2858,7 +2860,8 @@ public class SqlToRelConverter {
         if (extendedColumns != null && extendedColumns.size() > 0) {
             final SqlValidatorTable validatorTable = table.unwrapOrThrow(SqlValidatorTable.class);
             final List<RelDataTypeField> extendedFields =
-                    SqlValidatorUtil.getExtendedColumns(validator, validatorTable, extendedColumns);
+                    SqlValidatorUtil.getExtendedColumns(
+                            validator(), validatorTable, extendedColumns);
             table = table.extend(extendedFields);
         }
         // Review Danny 2020-01-13: hacky to construct a new table scan
@@ -3509,7 +3512,7 @@ public class SqlToRelConverter {
         final List<Pair<RexNode, String>> projects = new ArrayList<>();
 
         try {
-            Preconditions.checkArgument(bb.agg == null, "already in agg mode");
+            checkArgument(bb.agg == null, "already in agg mode");
             bb.agg = aggConverter;
 
             // convert the select and having expressions, so that the
@@ -3604,15 +3607,13 @@ public class SqlToRelConverter {
                         Pair.of(
                                 bb.convertExpression(expr),
                                 k < sysFieldCount
-                                        ? castNonNull(validator().deriveAlias(expr, k++))
+                                        ? SqlValidatorUtil.alias(expr, k++)
                                         : names.get(k++ - sysFieldCount)));
             }
 
             for (SqlNode expr : orderExprList) {
                 projects.add(
-                        Pair.of(
-                                bb.convertExpression(expr),
-                                castNonNull(validator().deriveAlias(expr, k++))));
+                        Pair.of(bb.convertExpression(expr), SqlValidatorUtil.alias(expr, k++)));
             }
         } finally {
             bb.agg = null;
@@ -4480,7 +4481,7 @@ public class SqlToRelConverter {
      * @return Relational expression which returns a single row.
      */
     private RelNode convertRowConstructor(Blackboard bb, SqlCall rowConstructor) {
-        Preconditions.checkArgument(isRowConstructor(rowConstructor));
+        checkArgument(isRowConstructor(rowConstructor));
         final List<SqlNode> operands = rowConstructor.getOperandList();
         return convertMultisets(operands, bb);
     }
@@ -4561,7 +4562,7 @@ public class SqlToRelConverter {
                     Collect.create(
                             requireNonNull(input, "input"),
                             call.getKind(),
-                            castNonNull(validator().deriveAlias(call, i))));
+                            SqlValidatorUtil.alias(call, i)));
             joinList.add(relBuilder.build());
         }
 
@@ -4698,10 +4699,12 @@ public class SqlToRelConverter {
             Collection<String> aliasList,
             List<SqlMonotonicity> columnMonotonicityList) {}
 
-    private String deriveAlias(final SqlNode node, Collection<String> aliases, final int ordinal) {
-        String alias = validator().deriveAlias(node, ordinal);
-        if (alias == null || aliases.contains(alias)) {
-            final String aliasBase = Util.first(alias, SqlUtil.GENERATED_EXPR_ALIAS_PREFIX);
+    private static String deriveAlias(
+            final SqlNode node, Collection<String> aliases, final int ordinal) {
+        checkArgument(ordinal >= 0);
+        String alias = SqlValidatorUtil.alias(node, ordinal);
+        if (aliases.contains(alias)) {
+            final String aliasBase = alias;
             for (int j = 0; ; j++) {
                 alias = aliasBase + j;
                 if (!aliases.contains(alias)) {
@@ -4751,12 +4754,13 @@ public class SqlToRelConverter {
             Blackboard tmpBb = createBlackboard(bb.scope, null, false);
             replaceSubQueries(tmpBb, rowConstructor, RelOptUtil.Logic.TRUE_FALSE_UNKNOWN);
             final List<Pair<RexNode, String>> exps = new ArrayList<>();
-            for (Ord<SqlNode> operand : Ord.zip(rowConstructor.getOperandList())) {
-                exps.add(
-                        Pair.of(
-                                tmpBb.convertExpression(operand.e),
-                                castNonNull(validator().deriveAlias(operand.e, operand.i))));
-            }
+            Ord.forEach(
+                    rowConstructor.getOperandList(),
+                    (operand, i) ->
+                            exps.add(
+                                    Pair.of(
+                                            tmpBb.convertExpression(operand),
+                                            SqlValidatorUtil.alias(operand, i))));
             RelNode in = (null == tmpBb.root) ? LogicalValues.createOneRow(cluster) : tmpBb.root;
             relBuilder.push(in).project(Pair.left(exps), Pair.right(exps));
         }
@@ -5772,8 +5776,7 @@ public class SqlToRelConverter {
                     name = call.operand(1).toString();
                 }
                 if (name == null) {
-                    name = validator().deriveAlias(selectItem, i);
-                    assert name != null : "alias must not be null for " + selectItem + ", i=" + i;
+                    name = SqlValidatorUtil.alias(selectItem, i);
                 }
                 nameMap.put(selectItem.toString(), name);
             }
