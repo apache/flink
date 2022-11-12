@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.runWithContextClassLoader;
@@ -92,7 +91,7 @@ class ContextClassLoadingSettingTest {
     }
 
     @AfterEach
-    void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
+    void shutdown() throws InterruptedException, ExecutionException {
         final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.closeAsync();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
                 AkkaFutureUtils.toJava(actorSystem.terminate());
