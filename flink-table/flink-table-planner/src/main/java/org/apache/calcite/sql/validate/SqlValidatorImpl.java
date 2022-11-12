@@ -27,6 +27,7 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.DynamicRecordType;
+import org.apache.calcite.rel.type.RelCrossType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -442,9 +443,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         selectItems.add(expanded);
         aliases.add(alias);
 
-        if (expanded != null) {
-            inferUnknownTypes(targetType, scope, expanded);
-        }
+        inferUnknownTypes(targetType, selectScope, expanded);
+
         RelDataType type = deriveType(selectScope, expanded);
         // Re-derive SELECT ITEM's data type that may be nullable in AggregatingSelectScope when it
         // appears in advanced grouping elements such as CUBE, ROLLUP , GROUPING SETS.
@@ -3413,9 +3413,9 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 List<SqlIdentifier> list = (List) getCondition(join);
 
                 // Parser ensures that using clause is not empty.
-                Preconditions.checkArgument(list.size() > 0, "Empty USING clause");
+                Preconditions.checkArgument(!list.isEmpty(), "Empty USING clause");
                 for (SqlIdentifier id : list) {
-                    validateCommonJoinColumn(id, left, right, scope);
+                    validateCommonJoinColumn(id, left, right, scope, natural);
                 }
                 break;
             default:
@@ -3433,7 +3433,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             for (String name : deriveNaturalJoinColumnList(join)) {
                 final SqlIdentifier id =
                         new SqlIdentifier(name, join.isNaturalNode().getParserPosition());
-                validateCommonJoinColumn(id, left, right, scope);
+                validateCommonJoinColumn(id, left, right, scope, natural);
             }
         }
 
@@ -3496,13 +3496,20 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
     /** Validates a column in a USING clause, or an inferred join key in a NATURAL join. */
     private void validateCommonJoinColumn(
-            SqlIdentifier id, SqlNode left, SqlNode right, SqlValidatorScope scope) {
+            SqlIdentifier id,
+            SqlNode left,
+            SqlNode right,
+            SqlValidatorScope scope,
+            boolean natural) {
         if (id.names.size() != 1) {
             throw newValidationError(id, RESOURCE.columnNotFound(id.toString()));
         }
 
-        final RelDataType leftColType = validateCommonInputJoinColumn(id, left, scope);
-        final RelDataType rightColType = validateCommonInputJoinColumn(id, right, scope);
+        final RelDataType leftColType =
+                natural
+                        ? checkAndDeriveDataType(id, left)
+                        : validateCommonInputJoinColumn(id, left, scope, natural);
+        final RelDataType rightColType = validateCommonInputJoinColumn(id, right, scope, natural);
         if (!SqlTypeUtil.isComparable(leftColType, rightColType)) {
             throw newValidationError(
                     id,
@@ -3511,12 +3518,25 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         }
     }
 
+    private RelDataType checkAndDeriveDataType(SqlIdentifier id, SqlNode node) {
+        Preconditions.checkArgument(id.names.size() == 1);
+        String name = id.names.get(0);
+        SqlNameMatcher nameMatcher = getCatalogReader().nameMatcher();
+        RelDataType rowType = getNamespaceOrThrow(node).getRowType();
+        RelDataType colType =
+                requireNonNull(
+                                nameMatcher.field(rowType, name),
+                                () -> "unable to find left field " + name + " in " + rowType)
+                        .getType();
+        return colType;
+    }
+
     /**
      * Validates a column in a USING clause, or an inferred join key in a NATURAL join, in the left
      * or right input to the join.
      */
     private RelDataType validateCommonInputJoinColumn(
-            SqlIdentifier id, SqlNode leftOrRight, SqlValidatorScope scope) {
+            SqlIdentifier id, SqlNode leftOrRight, SqlValidatorScope scope, boolean natural) {
         Preconditions.checkArgument(id.names.size() == 1);
         final String name = id.names.get(0);
         final SqlValidatorNamespace namespace = getNamespaceOrThrow(leftOrRight);
@@ -3526,8 +3546,17 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         if (field == null) {
             throw newValidationError(id, RESOURCE.columnNotFound(name));
         }
-        if (nameMatcher.frequency(rowType.getFieldNames(), name) > 1) {
-            throw newValidationError(id, RESOURCE.columnInUsingNotUnique(name));
+        Collection<RelDataType> rowTypes;
+        if (!natural && rowType instanceof RelCrossType) {
+            final RelCrossType crossType = (RelCrossType) rowType;
+            rowTypes = new ArrayList<>(crossType.getTypes());
+        } else {
+            rowTypes = Collections.singleton(rowType);
+        }
+        for (RelDataType rowType0 : rowTypes) {
+            if (nameMatcher.frequency(rowType0.getFieldNames(), name) > 1) {
+                throw newValidationError(id, RESOURCE.columnInUsingNotUnique(name));
+            }
         }
         checkRollUpInUsing(id, leftOrRight, scope);
         return field.getType();

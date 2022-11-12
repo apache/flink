@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$SCALAR_QUERY({
+LogicalProject(variablesSet=[[$cor0]], EXPR$0=[$SCALAR_QUERY({
 LogicalProject(EXPR$0=[-($0, 1)])
   LogicalAggregate(group=[{}], agg#0=[COUNT($0)])
     LogicalProject(x=[$0])

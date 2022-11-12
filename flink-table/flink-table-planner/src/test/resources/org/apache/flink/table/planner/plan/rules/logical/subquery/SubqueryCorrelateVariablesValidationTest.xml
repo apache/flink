@@ -26,7 +26,7 @@ WHERE  t1a = 'test'
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(min_t1d=[$SCALAR_QUERY({
+LogicalProject(variablesSet=[[$cor0]], min_t1d=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
   LogicalProject($f0=[$cor0.t1d])
     LogicalFilter(condition=[=($0, _UTF-16LE'test')])
@@ -65,7 +65,7 @@ FROM   t1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(min_t3d=[$SCALAR_QUERY({
+LogicalProject(variablesSet=[[$cor0]], min_t3d=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
   LogicalProject(t3d=[$3])
     LogicalFilter(condition=[=($0, $cor0.t1a)])
