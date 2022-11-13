@@ -127,9 +127,9 @@ public class SqlTimestampAddFunction extends SqlFunction {
     // END FLINK MODIFICATION
 
     /** Creates a SqlTimestampAddFunction. */
-    SqlTimestampAddFunction() {
+    SqlTimestampAddFunction(String name) {
         super(
-                "TIMESTAMPADD",
+                name,
                 SqlKind.TIMESTAMP_ADD,
                 RETURN_TYPE_INFERENCE,
                 null,
