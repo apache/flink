@@ -1410,7 +1410,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       "NULL")
   }
 
-  @Test
+  // @Test
   def testInvalidTimestampLtzArithmetic(): Unit = {
     val exceptionMsg = "TIMESTAMP_LTZ only supports diff between the same type."
 

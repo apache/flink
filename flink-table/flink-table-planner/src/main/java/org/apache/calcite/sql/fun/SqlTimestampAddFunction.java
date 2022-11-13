@@ -66,14 +66,12 @@ public class SqlTimestampAddFunction extends SqlFunction {
     private static final int MICROSECOND_PRECISION = 6;
 
     private static final SqlReturnTypeInference RETURN_TYPE_INFERENCE =
-            opBinding -> {
-                final RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
-                return deduceType(
-                        typeFactory,
-                        opBinding.getOperandLiteralValue(0, TimeUnit.class),
-                        opBinding.getOperandType(1),
-                        opBinding.getOperandType(2));
-            };
+            opBinding ->
+                    deduceType(
+                            opBinding.getTypeFactory(),
+                            opBinding.getOperandLiteralValue(0, TimeUnit.class),
+                            opBinding.getOperandType(1),
+                            opBinding.getOperandType(2));
 
     // BEGIN FLINK MODIFICATION
     // Reason: this method is changed to deduce return type on timestamp with local time zone
@@ -125,6 +123,26 @@ public class SqlTimestampAddFunction extends SqlFunction {
                 : SqlTypeName.TIMESTAMP;
     }
     // END FLINK MODIFICATION
+
+    /*  @Override
+    public void validateCall(
+            SqlCall call,
+            SqlValidator validator,
+            SqlValidatorScope scope,
+            SqlValidatorScope operandScope) {
+        super.validateCall(call, validator, scope, operandScope);
+
+        // This is either a time unit or a time frame:
+        //
+        //  * In "TIMESTAMPADD(YEAR, 2, x)" operand 0 is a SqlIntervalQualifier
+        //    with startUnit = YEAR and timeFrameName = null.
+        //
+        //  * In "TIMESTAMPADD(MINUTE15, 2, x) operand 0 is a SqlIntervalQualifier
+        //    with startUnit = EPOCH and timeFrameName = 'MINUTE15'.
+        //
+        // If the latter, check that timeFrameName is valid.
+        validator.validateTimeFrame((SqlIntervalQualifier) call.getOperandList().get(0));
+    }*/
 
     /** Creates a SqlTimestampAddFunction. */
     SqlTimestampAddFunction(String name) {
