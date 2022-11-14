@@ -1215,13 +1215,6 @@ under the License.
 		</profile>
 
 		<profile>
-            <!-- Kept for backwards compatiblity, the doc buildbot expects
-                 this profile to exist.-->
-			<id>aggregate-scaladoc</id>
-		</profile>
-
-
-		<profile>
 			<!-- used for SNAPSHOT and regular releases -->
 			<id>docs-and-source</id>
 			<activation>
