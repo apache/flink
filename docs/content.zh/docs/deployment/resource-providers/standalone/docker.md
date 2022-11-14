@@ -433,7 +433,7 @@ services:
 
 * Note that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
   For example, if you would like to use the Kafka Connector, you can build a custom image.
-  1. Create a Dockerfile named `Dockerfile.kafka` as follows:
+  1. Create a Dockerfile named `Kafka.Dockerfile` as follows:
 
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
