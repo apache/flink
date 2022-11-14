@@ -26,14 +26,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for {@link MetricReporter MetricReporters} that support factories but want to maintain
- * backwards-compatibility with existing reflection-based configurations.
- *
- * <p>When an annotated reporter is configured to be used via reflection the given factory will be
- * used instead.
- *
- * <p>Attention: This annotation does not work if the reporter is loaded as a plugin. For these
- * cases, annotate the factory with {@link InterceptInstantiationViaReflection} instead.
+ * This annotation has no effect and is only kept for compatibility reasons.
  *
  * @deprecated Will be removed in a future version. Users should use all reporters as plugins.
  */
