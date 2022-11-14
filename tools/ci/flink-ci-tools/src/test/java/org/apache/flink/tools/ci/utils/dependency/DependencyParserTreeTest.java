@@ -37,7 +37,7 @@ class DependencyParserTreeTest {
                 "[INFO] +- external:dependency1:jar:2.1:compile",
                 "[INFO] |  +- external:dependency2:jar:2.2:compile (optional)",
                 "[INFO] |  |  \\- external:dependency3:jar:2.3:provided",
-                "[INFO] |  +- external:dependency4:classifier:jar:2.4:compile",
+                "[INFO] |  +- external:dependency4:jar:classifier:2.4:compile",
                 "[INFO]",
                 "[INFO] --- maven-dependency-plugin:3.2.0:tree (default-cli) @ m2 ---",
                 "[INFO] internal:m2:jar:1.2",
