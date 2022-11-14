@@ -54,8 +54,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Compiles a scalar expression ({@link RexNode}) to an expression that can be evaluated ({@link
- * Scalar}) by generating a Java AST and compiling it to a class using Janino.
+ * Copied to fix calcite issues. FLINK modifications are at lines This class should be removed
+ * together with upgrade Janino to 3.1.9+
+ *
+ * <ol>
+ *   <li>Line 228 ~ 234
+ *   <li>Line 238 ~ 240
+ * </ol>
  */
 public class JaninoRexCompiler implements Interpreter.ScalarCompiler {
     private final RexBuilder rexBuilder;

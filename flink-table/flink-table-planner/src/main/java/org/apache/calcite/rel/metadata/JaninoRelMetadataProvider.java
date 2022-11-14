@@ -49,8 +49,12 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Implementation of the {@link RelMetadataProvider} interface that generates a class that
- * dispatches to the underlying providers.
+ * Copied to fix calcite issues. FLINK modifications are at lines This class should be removed
+ * together with upgrade Janino to 3.1.9+
+ *
+ * <ol>
+ *   <li>Line 346 ~ 353
+ * </ol>
  */
 public class JaninoRelMetadataProvider implements RelMetadataProvider {
     private final RelMetadataProvider provider;

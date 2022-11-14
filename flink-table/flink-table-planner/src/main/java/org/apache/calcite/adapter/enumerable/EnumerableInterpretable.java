@@ -60,10 +60,13 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Relational expression that converts an enumerable input to interpretable calling convention.
+ * Copied to fix calcite issues. FLINK modifications are at lines This class should be removed
+ * together with upgrade Janino to 3.1.9+
  *
- * @see EnumerableConvention
- * @see org.apache.calcite.interpreter.BindableConvention
+ * <ol>
+ *   <li>Line 141 ~ 148
+ *   <li>Line 156 ~ 158
+ * </ol>
  */
 public class EnumerableInterpretable extends ConverterImpl implements InterpretableRel {
     protected EnumerableInterpretable(RelOptCluster cluster, RelNode input) {

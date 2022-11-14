@@ -33,8 +33,12 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 /**
- * <code>JaninoCompiler</code> implements the {@link JavaCompiler} interface by calling <a
- * href="http://www.janino.net">Janino</a>.
+ * Copied to fix calcite issues. FLINK modifications are at lines This class should be removed
+ * together with upgrade Janino to 3.1.9+
+ *
+ * <ol>
+ *   <li>Here only imports are changed: Line 23 ~ 24
+ * </ol>
  */
 public class JaninoCompiler implements JavaCompiler {
     // ~ Instance fields --------------------------------------------------------
