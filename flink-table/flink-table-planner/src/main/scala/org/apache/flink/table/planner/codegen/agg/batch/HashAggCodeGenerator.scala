@@ -116,8 +116,7 @@ class HashAggCodeGenerator(
         outputType,
         if (grouping.isEmpty) classOf[GenericRowData] else classOf[JoinedRowData])
 
-    val currentAggBufferTerm =
-      ctx.addReusableLocalVariable(binaryRowTypeTerm, "currentAggBuffer")
+    val currentAggBufferTerm = ctx.addReusableLocalVariable(binaryRowTypeTerm, "currentAggBuffer")
     val (initedAggBuffer, aggregate, outputExpr) = HashAggCodeGenHelper.genHashAggCodes(
       isMerge,
       isFinal,

@@ -95,7 +95,6 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType], classLoader: ClassL
 
     val fieldType = fieldTypes(idx)
     val fieldTypeTerm = primitiveTypeTermForType(fieldType)
-    val fieldDefaultValue = primitiveDefaultValue(fieldType)
     val Seq(leftFieldTerm, rightFieldTerm) = ctx.addReusableLocalVariables(
       (fieldTypeTerm, "leftField"),
       (fieldTypeTerm, "rightField")

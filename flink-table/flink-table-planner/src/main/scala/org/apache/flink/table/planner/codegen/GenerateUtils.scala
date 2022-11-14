@@ -69,9 +69,9 @@ object GenerateUtils {
     } else {
       primitiveTypeTermForType(returnType)
     }
-    val defaultValue = primitiveDefaultValue(returnType)
     val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
+    val defaultValue = primitiveDefaultValue(returnType)
     val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
     val nullTermCode = if (isResultNullable) {
       s"$nullTerm = ($resultTerm == null);"
