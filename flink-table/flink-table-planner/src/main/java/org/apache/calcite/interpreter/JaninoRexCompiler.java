@@ -54,12 +54,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Copied to fix calcite issues. FLINK modifications are at lines This class should be removed
- * together with upgrade Janino to 3.1.9+
+ * Copied to fix calcite issues. This class should be removed together with upgrade Janino to
+ * 3.1.9+(https://issues.apache.org/jira/browse/FLINK-27995). FLINK modifications are at lines
  *
  * <ol>
- *   <li>Line 228 ~ 234
- *   <li>Line 238 ~ 240
+ *   <li>Line 229 ~ 235
+ *   <li>Line 239 ~ 241
  * </ol>
  */
 public class JaninoRexCompiler implements Interpreter.ScalarCompiler {

@@ -78,7 +78,7 @@ under the License.
 	<properties>
 		<calcite.version>1.28.0</calcite.version>
 		<!-- Calcite 1.28.0 depends on 3.1.6
-		 at the same time here is a list of issues required to be fixed
+		 at the same time here it is a list of issues required to be fixed
 		 before movement to 3.1.x
 		 https://github.com/janino-compiler/janino/issues/185
 		 https://github.com/janino-compiler/janino/issues/187

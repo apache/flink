@@ -33,8 +33,8 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Copied to fix calcite issues. FLINK modifications are at lines This class should be removed
- * together with upgrade Janino to 3.1.9+
+ * Copied to fix calcite issues. This class should be removed together with upgrade Janino to
+ * 3.1.9+ (https://issues.apache.org/jira/browse/FLINK-27995). FLINK modifications are at lines
  *
  * <ol>
  *   <li>Here only imports are changed: Line 23 ~ 24

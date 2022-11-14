@@ -60,12 +60,12 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Copied to fix calcite issues. FLINK modifications are at lines This class should be removed
- * together with upgrade Janino to 3.1.9+
+ * Copied to fix calcite issues. This class should be removed together with upgrade Janino to
+ * 3.1.9+(https://issues.apache.org/jira/browse/FLINK-27995). FLINK modifications are at lines
  *
  * <ol>
- *   <li>Line 141 ~ 148
- *   <li>Line 156 ~ 158
+ *   <li>Line 142 ~ 149
+ *   <li>Line 157 ~ 159
  * </ol>
  */
 public class EnumerableInterpretable extends ConverterImpl implements InterpretableRel {
