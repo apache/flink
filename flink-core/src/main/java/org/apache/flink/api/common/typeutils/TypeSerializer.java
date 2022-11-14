@@ -191,7 +191,7 @@ public abstract class TypeSerializer<T> implements Serializable {
      * evolution and be future-proof. See the class-level comments, section "Upgrading
      * TypeSerializers to the new TypeSerializerSnapshot model" for details.
      *
-     * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)
+     * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot)
      * @return snapshot of the serializer's current configuration (cannot be {@code null}).
      */
     public abstract TypeSerializerSnapshot<T> snapshotConfiguration();

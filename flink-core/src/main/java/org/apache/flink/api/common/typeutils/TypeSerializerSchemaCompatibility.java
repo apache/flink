@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of data serialized by the serializer that was being checked.
  * @see TypeSerializer
- * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)
+ * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot)
  */
 @PublicEvolving
 public class TypeSerializerSchemaCompatibility<T> {
