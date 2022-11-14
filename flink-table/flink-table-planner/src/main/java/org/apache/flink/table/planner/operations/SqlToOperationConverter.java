@@ -182,6 +182,7 @@ import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
@@ -195,11 +196,16 @@ import org.apache.flink.util.StringUtils;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rel.logical.LogicalTableModify;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -378,6 +384,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertAnalyzeTable((SqlAnalyzeTable) validated));
         } else if (validated instanceof SqlStopJob) {
             return Optional.of(converter.convertStopJob((SqlStopJob) validated));
+        } else if (validated instanceof SqlUpdate) {
+            return Optional.of(converter.convertUpdate((SqlUpdate) validated));
         } else {
             return Optional.empty();
         }
@@ -1474,6 +1482,47 @@ public class SqlToOperationConverter {
     private Operation convertStopJob(SqlStopJob sqlStopJob) {
         return new StopJobOperation(
                 sqlStopJob.getId(), sqlStopJob.isWithSavepoint(), sqlStopJob.isWithDrain());
+    }
+
+    private Operation convertUpdate(SqlUpdate sqlUpdate) {
+        RelRoot relRoot = flinkPlanner.rel(sqlUpdate);
+
+        LogicalTableModify tableModify = (LogicalTableModify) relRoot.rel;
+        tableModify.getUpdateColumnList();
+        tableModify.getSourceExpressionList();
+
+        LogicalProject project = (LogicalProject) relRoot.rel.getInput(0);
+        List<Integer> updateColumnIndex = new ArrayList<>();
+        for (String col : tableModify.getUpdateColumnList()) {
+            updateColumnIndex.add(project.getRowType().getFieldNames().indexOf(col));
+        }
+        LogicalFilter filter = (LogicalFilter) project.getInput(0);
+        RexNode condition = filter.getCondition();
+        int k = 0;
+        for (int i = 0; i < project.getProjects().size(); i++) {
+            RexNode express = project.getProjects().get(i);
+            if (updateColumnIndex.contains(i)) {
+                RexNode trueRexNode = tableModify.getSourceExpressionList().get(k++);
+                express =
+                        filter.getCluster()
+                                .getRexBuilder()
+                                .makeCall(
+                                        FlinkSqlOperatorTable.IF, condition, trueRexNode, express);
+                System.out.println(express);
+            }
+        }
+        for (RexNode express : project.getProjects()) {
+            RexNode rexNode =
+                    filter.getCluster()
+                            .getRexBuilder()
+                            .makeCall(FlinkSqlOperatorTable.IF, condition, express, express);
+            System.out.println(rexNode);
+        }
+
+        System.out.println(relRoot.rel.explain());
+        System.out.println(sqlUpdate.getTargetTable());
+        System.out.println(sqlUpdate.getOperandList());
+        return null;
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {
