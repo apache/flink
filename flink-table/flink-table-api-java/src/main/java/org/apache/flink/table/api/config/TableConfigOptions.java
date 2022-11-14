@@ -102,6 +102,16 @@ public class TableConfigOptions {
                                     + "the session time zone is used during conversion. The input of option is either a full name "
                                     + "such as \"America/Los_Angeles\", or a custom timezone id such as \"GMT-08:00\".");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer> DISPLAY_MAX_COLUMN_WIDTH =
+            key("table.display.max-column-width")
+                    .intType()
+                    .defaultValue(30)
+                    .withDescription(
+                            "When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. "
+                                    + "This only applies to columns with variable-length types (e.g. STRING) in the streaming mode. "
+                                    + "Fixed-length types are printed in the batch mode using a deterministic column width.");
+
     // ------------------------------------------------------------------------------------------
     // Options for plan handling
     // ------------------------------------------------------------------------------------------
