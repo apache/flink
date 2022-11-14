@@ -124,11 +124,40 @@ public interface TypeSerializerSnapshot<T> {
      * program's serializer re-serializes the data, thus converting the format during the restore
      * operation.
      *
+     * @deprecated This method has been replaced by {@link TypeSerializerSnapshot
+     *     #resolveSchemaCompatibility(TypeSerializerSnapshot)}.
      * @param newSerializer the new serializer to check.
      * @return the serializer compatibility result.
      */
-    TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            TypeSerializer<T> newSerializer);
+    @Deprecated
+    default TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializer<T> newSerializer) {
+        return newSerializer.snapshotConfiguration().resolveSchemaCompatibility(this);
+    }
+
+    /**
+     * Checks current serializer's compatibility to read data written by the prior serializer.
+     *
+     * <p>When a checkpoint/savepoint is restored, this method checks whether the serialization
+     * format of the data in the checkpoint/savepoint is compatible for the format of the serializer
+     * used by the program that restores the checkpoint/savepoint. The outcome can be that the
+     * serialization format is compatible, that the program's serializer needs to reconfigure itself
+     * (meaning to incorporate some information from the TypeSerializerSnapshot to be compatible),
+     * that the format is outright incompatible, or that a migration needed. In the latter case, the
+     * TypeSerializerSnapshot produces a serializer to deserialize the data, and the restoring
+     * program's serializer re-serializes the data, thus converting the format during the restore
+     * operation.
+     *
+     * <p>This method must be implemented to clarify the compatibility. See FLIP-263 for more
+     * details.
+     *
+     * @param oldSerializerSnapshot the old serializer snapshot to check.
+     * @return the serializer compatibility result.
+     */
+    default TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+        return oldSerializerSnapshot.resolveSchemaCompatibility(restoreSerializer());
+    }
 
     // ------------------------------------------------------------------------
     //  read / write utilities
