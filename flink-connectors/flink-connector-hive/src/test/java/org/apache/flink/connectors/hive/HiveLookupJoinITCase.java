@@ -375,7 +375,7 @@ public class HiveLookupJoinITCase {
                                         + " default_catalog.default_database.probe as p "
                                         + " join bounded_table for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertThat(results.toString()).isEqualTo("[+I[1, a], +I[2, b], +I[3, c]]");
+        assertEquals("[+I[1, a], +I[2, b], +I[3, c]]", results.toString());
     }
 
     @Test

@@ -99,7 +99,6 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
         source.remainingPartitions = remainingPartitions;
         source.projectedFields = projectedFields;
         source.limit = limit;
-        source.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
         return source;
     }
 
