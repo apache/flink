@@ -30,6 +30,7 @@ import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.data.RowData;
@@ -88,6 +89,17 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
     @Override
     public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
         return TableFunctionProvider.of(getLookupFunction(context.getKeys()));
+    }
+
+    @Override
+    public DynamicTableSource copy() {
+        HiveLookupTableSource source =
+                new HiveLookupTableSource(jobConf, flinkConf, tablePath, catalogTable);
+        source.remainingPartitions = remainingPartitions;
+        source.projectedFields = projectedFields;
+        source.limit = limit;
+        source.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+        return source;
     }
 
     @VisibleForTesting
