@@ -432,7 +432,7 @@ services:
   You can then start creating tables and queries those.
 
 * Note that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
-  For example, if you would like to use the Kafka Connector, you can build a custom image.
+  For example, if you would like to add and use the SQL Kafka Connector, you need to build a custom image.
   1. Create a Dockerfile named `Kafka.Dockerfile` as follows:
 
   ```Dockerfile
