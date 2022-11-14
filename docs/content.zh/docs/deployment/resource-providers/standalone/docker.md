@@ -433,19 +433,20 @@ services:
 
 * Note that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
   For example, if you would like to add and use the SQL Kafka Connector, you need to build a custom image.
-  1. Create a Dockerfile named `Kafka.Dockerfile` as follows:
+  1. Create a Dockerfile named `kafka.Dockerfile` as follows:
 
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
-  RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.12/{{< version >}}/flink-sql-connector-kafka_scala{{< scala_version >}}-{{< version >}}.jar
+  ARG kafka_connector_verion=3.0.0-1.17
+  RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$kafka_connector_verion/flink-sql-connector-kafka-$kafka_connector_verion.jar
   ```
 
   2. Replace the `image` config with the `build` command that references the Dockerfile for jobmanager, taskmanager and sql-client services.
-  For example, the jobmanager service will start with the following setting:
+  For example, the jobmanager service in the `docker-compose.yml` file will start with the following setting:
   ```yaml
   jobmanager:
     build:
-      dockerfile: ./Kafka.Dockerfile
+      dockerfile: ./kafka.Dockerfile
     ...
   ```
 
