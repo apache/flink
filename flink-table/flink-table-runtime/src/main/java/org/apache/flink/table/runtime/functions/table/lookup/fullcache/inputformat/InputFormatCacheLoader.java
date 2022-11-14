@@ -46,6 +46,7 @@ import java.util.stream.Collectors;
 public class InputFormatCacheLoader extends CacheLoader {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(InputFormatCacheLoader.class);
+    private static final long TIMEOUT_AFTER_INTERRUPT = 10; // 10 sec
 
     private final InputFormat<RowData, InputSplit> initialInputFormat;
     private final GenericRowDataKeySelector keySelector;
@@ -108,9 +109,11 @@ public class InputFormatCacheLoader extends CacheLoader {
         } catch (InterruptedException ignored) { // we use interrupt to close reload thread
         } finally {
             if (cacheLoadTaskService != null) {
+                // if main cache reload thread encountered an exception,
+                // it interrupts underlying InputSplitCacheLoadTasks threads
                 cacheLoadTaskService.shutdownNow();
-                // wait forever
-                cacheLoadTaskService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+                // timeout 10 sec should definitely be enough to wait for finish after interrupt
+                cacheLoadTaskService.awaitTermination(TIMEOUT_AFTER_INTERRUPT, TimeUnit.SECONDS);
             }
         }
         cache = newCache; // reassigning cache field is safe, because it's volatile
