@@ -71,6 +71,8 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportDeleteFilterPushDown;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
@@ -91,6 +93,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
+import org.apache.flink.table.operations.DeleteDataOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -1440,6 +1443,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (Exception e) {
                 throw new TableException("Failed to execute ANALYZE TABLE command", e);
             }
+        } else if (operation instanceof DeleteDataOperation) {
+            DeleteDataOperation deleteDataOperation = (DeleteDataOperation) operation;
+            ContextResolvedTable contextResolvedTable =
+                    deleteDataOperation.getContextResolvedTable();
+            DynamicTableSink tableSink =
+                    FactoryUtil.createTableSink(
+                            contextResolvedTable.getCatalog().orElse(null),
+                            contextResolvedTable.getIdentifier(),
+                            contextResolvedTable.getResolvedTable(),
+                            new Configuration(),
+                            resourceManager.getUserClassLoader(),
+                            false);
+            ((SupportDeleteFilterPushDown) tableSink)
+                    .applyDeleteFilter(deleteDataOperation.getFilters());
+            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {

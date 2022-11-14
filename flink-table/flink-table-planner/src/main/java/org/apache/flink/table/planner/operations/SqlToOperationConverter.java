@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.sql.parser.ddl.SqlAddJar;
 import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
 import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
@@ -113,15 +114,20 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportDeleteFilterPushDown;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
+import org.apache.flink.table.operations.DeleteDataOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -181,10 +187,16 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
+import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
+import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
@@ -193,8 +205,13 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlDelete;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -218,7 +235,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
+
+import scala.Option;
+import scala.Tuple2;
 
 /**
  * Mix-in tool class for {@code SqlNode} that allows DDL commands to be converted to {@link
@@ -378,6 +399,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertAnalyzeTable((SqlAnalyzeTable) validated));
         } else if (validated instanceof SqlStopJob) {
             return Optional.of(converter.convertStopJob((SqlStopJob) validated));
+        } else if (validated instanceof SqlDelete) {
+            return Optional.of(converter.convertSqlDelete((SqlDelete) validated));
         } else {
             return Optional.empty();
         }
@@ -1474,6 +1497,112 @@ public class SqlToOperationConverter {
     private Operation convertStopJob(SqlStopJob sqlStopJob) {
         return new StopJobOperation(
                 sqlStopJob.getId(), sqlStopJob.isWithSavepoint(), sqlStopJob.isWithDrain());
+    }
+
+    private Operation convertSqlDelete(SqlDelete sqlDelete) {
+        // Get sink table name.
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(((SqlIdentifier) sqlDelete.getTargetTable()).names);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(identifier);
+        PlannerQueryOperation query =
+                (PlannerQueryOperation)
+                        convertValidatedSqlNodeOrFail(
+                                flinkPlanner, catalogManager, sqlDelete.getSourceSelect());
+        RelRoot relational = flinkPlanner.rel(sqlDelete.getSourceSelect());
+        DynamicTableSink tableSink =
+                FactoryUtil.createTableSink(
+                        contextResolvedTable.getCatalog().orElse(null),
+                        identifier,
+                        contextResolvedTable.getResolvedTable(),
+                        new Configuration(),
+                        Thread.currentThread().getContextClassLoader(),
+                        false);
+        if (relational.rel.getInput(0) instanceof Filter) {
+            Filter filter = (Filter) (relational.rel.getInput(0));
+            Tuple2<RexNode[], RexNode[]> extractedPredicates =
+                    extractPredicates(
+                            filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
+                            filter.getCondition(),
+                            (TableScan) filter.getInput(),
+                            filter.getCluster().getRexBuilder());
+
+            RexNode[] convertiblePredicates = extractedPredicates._1;
+            RexNode[] unconvertedPredicates = extractedPredicates._2;
+            if (convertiblePredicates.length == 0) {
+                // no condition can be translated to expression
+            }
+
+            FlinkContext context = ShortcutUtils.unwrapContext(filter.getInput());
+            RexNodeToExpressionConverter converter =
+                    new RexNodeToExpressionConverter(
+                            filter.getCluster().getRexBuilder(),
+                            filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
+                            context.getFunctionCatalog(),
+                            context.getCatalogManager(),
+                            TimeZone.getTimeZone(
+                                    TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+
+            List<Expression> filters =
+                    Arrays.stream(convertiblePredicates)
+                            .map(
+                                    p -> {
+                                        Option<ResolvedExpression> expr = p.accept(converter);
+                                        if (expr.isDefined()) {
+                                            return expr.get();
+                                        } else {
+                                            throw new TableException(
+                                                    String.format(
+                                                            "%s can not be converted to Expression, please make sure %s can accept %s.",
+                                                            p.toString(),
+                                                            getClass().getSimpleName(),
+                                                            p.toString()));
+                                        }
+                                    })
+                            .collect(Collectors.toList());
+            ExpressionResolver resolver =
+                    ExpressionResolver.resolverFor(
+                                    context.getTableConfig(),
+                                    context.getClassLoader(),
+                                    name -> Optional.empty(),
+                                    context.getFunctionCatalog()
+                                            .asLookup(
+                                                    str -> {
+                                                        throw new TableException(
+                                                                "We should not need to lookup any expressions at this point");
+                                                    }),
+                                    context.getCatalogManager().getDataTypeFactory(),
+                                    (sqlExpression, inputRowType, outputType) -> {
+                                        throw new TableException(
+                                                "SQL expression parsing is not supported at this location.");
+                                    })
+                            .build();
+            List<ResolvedExpression> resolvedExpressions = resolver.resolve(filters);
+            if (tableSink instanceof SupportDeleteFilterPushDown) {
+                if (((SupportDeleteFilterPushDown) tableSink)
+                        .supportDeleteFilterPushDown(resolvedExpressions)) {
+                    return new DeleteDataOperation(contextResolvedTable, resolvedExpressions);
+                }
+            }
+        }
+        return new SinkModifyOperation(contextResolvedTable, query, true);
+    }
+
+    protected Tuple2<RexNode[], RexNode[]> extractPredicates(
+            String[] inputNames, RexNode filterExpression, TableScan scan, RexBuilder rexBuilder) {
+        FlinkContext context = ShortcutUtils.unwrapContext(scan);
+        int maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan);
+        RexNodeToExpressionConverter converter =
+                new RexNodeToExpressionConverter(
+                        rexBuilder,
+                        inputNames,
+                        context.getFunctionCatalog(),
+                        context.getCatalogManager(),
+                        TimeZone.getTimeZone(
+                                TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+
+        return RexNodeExtractor.extractConjunctiveConditions(
+                filterExpression, maxCnfNodeCount, rexBuilder, converter);
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {

@@ -127,6 +127,34 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void t1() throws Exception {
+        tableEnv.executeSql("create table t(a int, b int)");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql("insert into t values (3, 4), (6, 0)");
+
+        tableEnv.executeSql("delete from t where a > 5").await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from t").collect());
+        System.out.println(result);
+    }
+
+    @Test
+    public void t2() throws Exception {
+        tableEnv.executeSql("create table t(a int, b int) partitioned by (c int)");
+        tableEnv.executeSql(
+                "insert into t partition (c = 1) values (1, 2), (2, 3), (3, 4), (6, 0)");
+        tableEnv.executeSql(
+                "insert into t partition (c = 2) values (1, 2), (2, 3), (3, 4), (6, 0)");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+
+        tableEnv.executeSql("delete from t where c > 0").await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from t").collect());
+        assertThat(result.toString()).isEqualTo("[]");
+    }
+
+    @Test
     public void testPluggableDialect() {
         TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         Parser parser = tableEnvInternal.getParser();

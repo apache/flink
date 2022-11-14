@@ -66,6 +66,7 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer;
+import org.apache.flink.table.runtime.operators.sink.SinkDeleteOperator;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
@@ -108,6 +109,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     private final ChangelogMode inputChangelogMode;
     private final boolean isBounded;
+    private final boolean isDelete;
 
     protected CommonExecSink(
             int id,
@@ -116,6 +118,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode inputChangelogMode,
             boolean isBounded,
+            boolean isDelete,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
@@ -123,6 +126,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         this.tableSinkSpec = tableSinkSpec;
         this.inputChangelogMode = inputChangelogMode;
         this.isBounded = isBounded;
+        this.isDelete = isDelete;
     }
 
     @Override
@@ -153,7 +157,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final int inputParallelism = inputTransform.getParallelism();
         final boolean inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT);
         final boolean hasPk = primaryKeys.length > 0;
-
         if (!inputInsertOnly && sinkParallelism != inputParallelism && !hasPk) {
             throw new TableException(
                     String.format(
@@ -174,6 +177,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
         Transformation<RowData> sinkTransform =
                 applyConstraintValidations(inputTransform, config, physicalRowType);
+        if (isDelete) {
+            sinkTransform = applyDeleteRowData(inputTransform);
+        }
 
         if (hasPk) {
             sinkTransform =
@@ -278,6 +284,16 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             // there are no not-null fields, just skip adding the enforcer operator
             return inputTransform;
         }
+    }
+
+    private Transformation<RowData> applyDeleteRowData(Transformation<RowData> inputTransform) {
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransform,
+                "convert to delete",
+                "a operator to convert to delete",
+                new SinkDeleteOperator(),
+                getInputTypeInfo(),
+                inputTransform.getParallelism());
     }
 
     private int[] getNotNullFieldIndices(RowType physicalType) {

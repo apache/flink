@@ -128,6 +128,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 tableSinkSpec,
                 inputChangelogMode,
                 false, // isBounded
+                false,
                 inputProperties,
                 outputType,
                 description);

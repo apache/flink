@@ -67,9 +67,12 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportDeleteFilterPushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -82,8 +85,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
@@ -96,6 +101,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -114,7 +120,11 @@ import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants
 import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
 
 /** Table sink to write to Hive tables. */
-public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {
+public class HiveTableSink
+        implements DynamicTableSink,
+                SupportsPartitioning,
+                SupportsOverwrite,
+                SupportDeleteFilterPushDown {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSink.class);
 
@@ -662,6 +672,53 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     @Override
     public String asSummaryString() {
         return "HiveSink";
+    }
+
+    @Override
+    public boolean supportDeleteFilterPushDown(List<ResolvedExpression> filters) {
+        List<Expression> filterExpression = new ArrayList<>(filters);
+        return HiveTableUtil.makePartitionFilter(
+                        tableSchema.getFieldCount() - getPartitionKeyArray().length,
+                        getPartitionKeys(),
+                        filterExpression,
+                        hiveShim)
+                .isPresent();
+    }
+
+    @Override
+    public void applyDeleteFilter(List<ResolvedExpression> filters) {
+        List<Expression> filterExpression = new ArrayList<>(filters);
+        Optional<String> filterString =
+                HiveTableUtil.makePartitionFilter(
+                        tableSchema.getFieldCount() - getPartitionKeyArray().length,
+                        getPartitionKeys(),
+                        filterExpression,
+                        hiveShim);
+
+        HiveMetastoreClientWrapper client =
+                HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion);
+
+        try {
+            PartitionSpecProxy partitionSpec =
+                    client.listPartitionSpecsByFilter(
+                            identifier.getDatabaseName(),
+                            identifier.getObjectName(),
+                            filterString.get(),
+                            (short) -1);
+            PartitionSpecProxy.PartitionIterator partitions = partitionSpec.getPartitionIterator();
+            while (partitions.hasNext()) {
+                Partition partition = partitions.next();
+                client.dropPartition(
+                        identifier.getDatabaseName(),
+                        identifier.getObjectName(),
+                        partition.getValues(),
+                        true);
+            }
+        } catch (TException e) {
+            throw new UnsupportedOperationException(
+                    "Failed to list partition by filter from HMS, filter expressions: " + filters,
+                    e);
+        }
     }
 
     /**

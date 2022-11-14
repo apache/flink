@@ -41,6 +41,7 @@ class BatchPhysicalSink(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     hints: util.List[RelHint],
+    isDelete: Boolean,
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     abilitySpecs: Array[SinkAbilitySpec])
@@ -53,6 +54,7 @@ class BatchPhysicalSink(
       traitSet,
       inputs.get(0),
       hints,
+      isDelete,
       contextResolvedTable,
       tableSink,
       abilitySpecs)
@@ -66,6 +68,7 @@ class BatchPhysicalSink(
     new BatchExecSink(
       unwrapTableConfig(this),
       tableSinkSpec,
+      isDelete,
       // the input records will not trigger any output of a sink because it has no output,
       // so it's dam behavior is BLOCKING
       InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build(),

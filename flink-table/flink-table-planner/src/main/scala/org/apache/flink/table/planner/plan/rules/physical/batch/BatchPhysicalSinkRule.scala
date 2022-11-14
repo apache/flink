@@ -111,6 +111,7 @@ class BatchPhysicalSinkRule
       newTrait,
       newInput,
       sink.hints,
+      sink.isDelete,
       sink.contextResolvedTable,
       sink.tableSink,
       abilitySpecs.toArray)

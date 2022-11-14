@@ -133,6 +133,7 @@ public final class DynamicSinkUtils {
                 contextResolvedTable,
                 Collections.emptyMap(), // staticPartitions
                 false,
+                false,
                 tableSink);
     }
 
@@ -155,6 +156,7 @@ public final class DynamicSinkUtils {
                 externalModifyOperation.getContextResolvedTable(),
                 Collections.emptyMap(),
                 false,
+                false,
                 tableSink);
     }
 
@@ -174,6 +176,7 @@ public final class DynamicSinkUtils {
                 sinkModifyOperation.getContextResolvedTable(),
                 sinkModifyOperation.getStaticPartitions(),
                 sinkModifyOperation.isOverwrite(),
+                sinkModifyOperation.isDelete(),
                 sink);
     }
 
@@ -184,6 +187,7 @@ public final class DynamicSinkUtils {
             ContextResolvedTable contextResolvedTable,
             Map<String, String> staticPartitions,
             boolean isOverwrite,
+            boolean isDelete,
             DynamicTableSink sink) {
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
@@ -198,6 +202,7 @@ public final class DynamicSinkUtils {
                 tableDebugName,
                 staticPartitions,
                 isOverwrite,
+                isDelete,
                 sink,
                 contextResolvedTable.getResolvedTable(),
                 sinkAbilitySpecs);
@@ -224,6 +229,7 @@ public final class DynamicSinkUtils {
         return LogicalSink.create(
                 finalQuery,
                 hints,
+                isDelete,
                 contextResolvedTable,
                 sink,
                 staticPartitions,
@@ -392,12 +398,15 @@ public final class DynamicSinkUtils {
             String tableDebugName,
             Map<String, String> staticPartitions,
             boolean isOverwrite,
+            boolean isDelete,
             DynamicTableSink sink,
             ResolvedCatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
         validatePartitioning(tableDebugName, staticPartitions, sink, table.getPartitionKeys());
 
         validateAndApplyOverwrite(tableDebugName, isOverwrite, sink, sinkAbilitySpecs);
+
+        // todo: yuxia validate and apply delete
 
         validateAndApplyMetadata(tableDebugName, sink, table.getResolvedSchema(), sinkAbilitySpecs);
     }

@@ -598,6 +598,9 @@ public class HiveTableUtil {
 
         @Override
         public String visit(FieldReferenceExpression fieldReference) {
+            if (fieldReference.getFieldIndex() - partColOffset < 0) {
+                return null;
+            }
             return partColNames.get(fieldReference.getFieldIndex() - partColOffset);
         }
 
