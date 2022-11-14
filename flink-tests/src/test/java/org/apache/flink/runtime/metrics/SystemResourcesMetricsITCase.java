@@ -26,13 +26,14 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,11 +50,21 @@ import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRI
 import static org.junit.Assert.assertEquals;
 
 /** Integration tests for proper initialization of the system resource metrics. */
-public class SystemResourcesMetricsITCase extends TestLogger {
+class SystemResourcesMetricsITCase {
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    @Order(1)
+    static final ContextClassLoaderExtension CONTEXT_CLASS_LOADER_EXTENSION =
+            ContextClassLoaderExtension.builder()
+                    .withServiceEntry(
+                            MetricReporterFactory.class,
+                            SystemResourcesMetricsITCase.TestReporter.class.getName())
+                    .build();
+
+    @RegisterExtension
+    @Order(2)
+    static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
@@ -72,7 +83,7 @@ public class SystemResourcesMetricsITCase extends TestLogger {
     }
 
     @Test
-    public void startTaskManagerAndCheckForRegisteredSystemMetrics() throws Exception {
+    void startTaskManagerAndCheckForRegisteredSystemMetrics() throws Exception {
         assertEquals(1, TestReporter.OPENED_REPORTERS.size());
         TestReporter reporter = TestReporter.OPENED_REPORTERS.iterator().next();
 
