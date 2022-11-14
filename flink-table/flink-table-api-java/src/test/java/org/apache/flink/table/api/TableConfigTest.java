@@ -20,6 +20,8 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.flink.table.api.config.TableConfigOptions;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.DateTimeException;
@@ -121,5 +123,16 @@ public class TableConfigTest {
 
         assertThat(CONFIG_BY_METHOD.getIdleStateRetention()).isEqualTo(Duration.ofHours(1));
         assertThat(CONFIG_BY_CONFIGURATION.getIdleStateRetention()).isEqualTo(Duration.ofHours(1));
+    }
+
+    @Test
+    void testDisplayMaxColumnLength() {
+        configuration.setString("table.display.max-column-width", "100");
+        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_METHOD.set(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH, 100);
+
+        assertThat(CONFIG_BY_METHOD.get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH)).isEqualTo(Integer.valueOf(100));
+        assertThat(CONFIG_BY_CONFIGURATION.get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH))
+                .isEqualTo(Integer.valueOf(100));
     }
 }

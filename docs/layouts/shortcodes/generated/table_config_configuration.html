@@ -21,6 +21,12 @@
             <td>The name of the default database in the initial catalog to be created when instantiating TableEnvironment.</td>
         </tr>
         <tr>
+            <td><h5>table.display.max-column-width</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">30</td>
+            <td>Integer</td>
+            <td>When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating.This only applies to columns with variable-length types (e.g. STRING) in both batch and streaming mode.Fixed-length types are printed using a deterministic column width</td>
+        </tr>
+        <tr>
             <td><h5>table.dml-sync</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

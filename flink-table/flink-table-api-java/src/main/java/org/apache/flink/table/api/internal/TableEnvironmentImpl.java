@@ -966,7 +966,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     DataTypeUtils.expandCompositeTypeToSchema(
                                             sinkOperation.getConsumedDataType()),
                                     resultProvider.getRowDataStringConverter(),
-                                    PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                                    getConfig().get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH),
                                     false,
                                     isStreamingMode))
                     .build();
