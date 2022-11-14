@@ -1156,7 +1156,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 setTokensFor(amContainer);
             } else {
                 LOG.info(
-                        "Cannot use kerberos delegation token manager no valid kerberos credentials provided.");
+                        "Cannot use kerberos delegation token manager, no valid kerberos credentials provided.");
             }
         }
 
