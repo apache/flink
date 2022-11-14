@@ -23,8 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.endpoint.hive.HiveServer2Endpoint;
 import org.apache.flink.table.gateway.containers.HiveContainer;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -73,8 +73,9 @@ import static org.junit.Assert.assertEquals;
 public class SqlGatewayE2ECase extends TestLogger {
 
     private static final Path HIVE_SQL_CONNECTOR_JAR =
-            TestUtils.getResource(".*dependencies/flink-sql-connector-hive-.*.jar");
-    private static final Path HADOOP_CLASS_PATH = TestUtils.getResource(".*hadoop.classpath");
+            ResourceTestUtils.getResource(".*dependencies/flink-sql-connector-hive-.*.jar");
+    private static final Path HADOOP_CLASS_PATH =
+            ResourceTestUtils.getResource(".*hadoop.classpath");
     private static final String GATEWAY_E2E_SQL = "gateway_e2e.sql";
     private static final Configuration ENDPOINT_CONFIG = new Configuration();
     private static final String RESULT_KEY = "$RESULT";

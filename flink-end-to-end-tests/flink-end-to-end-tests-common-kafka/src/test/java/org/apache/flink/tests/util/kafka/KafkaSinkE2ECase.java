@@ -27,7 +27,7 @@ import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SinkTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.testcontainers.containers.KafkaContainer;
@@ -66,15 +66,15 @@ public class KafkaSinkE2ECase extends SinkTestSuiteBase<String> {
             new KafkaSinkExternalContextFactory(
                     kafka.getContainer(),
                     Arrays.asList(
-                            TestUtils.getResource("kafka-connector.jar")
+                            ResourceTestUtils.getResource("kafka-connector.jar")
                                     .toAbsolutePath()
                                     .toUri()
                                     .toURL(),
-                            TestUtils.getResource("kafka-clients.jar")
+                            ResourceTestUtils.getResource("kafka-clients.jar")
                                     .toAbsolutePath()
                                     .toUri()
                                     .toURL(),
-                            TestUtils.getResource("flink-connector-testing.jar")
+                            ResourceTestUtils.getResource("flink-connector-testing.jar")
                                     .toAbsolutePath()
                                     .toUri()
                                     .toURL()));

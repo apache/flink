@@ -155,27 +155,6 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-connector-elasticsearch6</artifactId>
-				<version>${project.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-connector-elasticsearch7</artifactId>
-				<version>${project.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-connector-elasticsearch-base</artifactId>
-				<version>${project.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-connector-files</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>

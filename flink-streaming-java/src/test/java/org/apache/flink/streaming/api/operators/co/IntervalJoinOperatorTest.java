@@ -390,6 +390,8 @@ public class IntervalJoinOperatorTest {
                         1,
                         true,
                         true,
+                        null,
+                        null,
                         TestElem.serializer(),
                         TestElem.serializer(),
                         new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
@@ -426,6 +428,8 @@ public class IntervalJoinOperatorTest {
                         1,
                         true,
                         true,
+                        null,
+                        null,
                         TestElem.serializer(),
                         TestElem.serializer(),
                         new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
@@ -467,6 +471,8 @@ public class IntervalJoinOperatorTest {
                         1,
                         true,
                         true,
+                        null,
+                        null,
                         TestElem.serializer(),
                         TestElem.serializer(),
                         new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
@@ -608,6 +614,8 @@ public class IntervalJoinOperatorTest {
                         upperBound,
                         lowerBoundInclusive,
                         upperBoundInclusive,
+                        null,
+                        null,
                         TestElem.serializer(),
                         TestElem.serializer(),
                         new PassthroughFunction());
@@ -632,6 +640,8 @@ public class IntervalJoinOperatorTest {
                         upperBound,
                         lowerBoundInclusive,
                         upperBoundInclusive,
+                        null,
+                        null,
                         TestElem.serializer(),
                         TestElem.serializer(),
                         new PassthroughFunction());

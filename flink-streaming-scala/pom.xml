@@ -254,9 +254,8 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- activate API compatibility checks -->
 			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
+				<groupId>io.github.zentol.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
 					<parameter>
@@ -272,14 +271,6 @@ under the License.
 						</excludes>
 					</parameter>
 				</configuration>
-				<executions>
-					<execution>
-						<phase>verify</phase>
-						<goals>
-							<goal>cmp</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- Generate the test-jar -->

@@ -17,8 +17,8 @@
 
 package org.apache.flink.tests.scala;
 
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.JobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -65,7 +65,8 @@ public class ScalaFreeITCase extends TestLogger {
                         ScalaJob.class.getCanonicalName(),
                         builder ->
                                 builder.addJar(
-                                        TestUtils.getResource("/scala.jar"), JarLocation.LIB)));
+                                        ResourceTestUtils.getResource("/scala.jar"),
+                                        JarLocation.LIB)));
     }
 
     public ScalaFreeITCase(TestParams testParams) {
@@ -79,7 +80,7 @@ public class ScalaFreeITCase extends TestLogger {
 
     @Test
     public void testScalaFreeJobExecution() throws Exception {
-        final Path jobJar = TestUtils.getResource("/jobs.jar");
+        final Path jobJar = ResourceTestUtils.getResource("/jobs.jar");
 
         try (final ClusterController clusterController = flink.startCluster(1)) {
             // if the job fails then this throws an exception

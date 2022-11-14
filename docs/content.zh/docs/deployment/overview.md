@@ -143,7 +143,7 @@ When deploying Flink, there are often multiple options available for each buildi
                 <ul>
                     <li>Apache Kafka</li>
                     <li>Amazon S3</li>
-                    <li>ElasticSearch</li>
+                    <li>Elasticsearch</li>
                     <li>Apache Cassandra</li>
                 </ul>
                 See <a href="{{< ref "docs/connectors/datastream/overview" >}}">Connectors</a> page.

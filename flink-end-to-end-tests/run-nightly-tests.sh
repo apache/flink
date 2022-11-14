@@ -184,7 +184,9 @@ function run_group_2 {
     run_test "Queryable state (rocksdb) with TM restart end-to-end test" "$END_TO_END_DIR/test-scripts/test_queryable_state_restart_tm.sh" "skip_check_exceptions"
 
     run_test "DataSet allround end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_allround.sh"
-    run_test "Batch SQL end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_sql.sh"
+    run_test "Batch SQL end-to-end test using blocking shuffle" "$END_TO_END_DIR/test-scripts/test_batch_sql.sh blocking"
+    run_test "Batch SQL end-to-end test using hybrid full shuffle" "$END_TO_END_DIR/test-scripts/test_batch_sql.sh hybrid_full"
+    run_test "Batch SQL end-to-end test using hybrid selective shuffle" "$END_TO_END_DIR/test-scripts/test_batch_sql.sh hybrid_selective"
     run_test "Streaming SQL end-to-end test using planner loader" "$END_TO_END_DIR/test-scripts/test_streaming_sql.sh" "skip_check_exceptions"
     run_test "Streaming SQL end-to-end test using planner with Scala version" "$END_TO_END_DIR/test-scripts/test_streaming_sql.sh scala-planner" "skip_check_exceptions"
 
@@ -209,8 +211,6 @@ function run_group_2 {
 
     run_test "State TTL Heap backend end-to-end test" "$END_TO_END_DIR/test-scripts/test_stream_state_ttl.sh hashmap" "skip_check_exceptions"
     run_test "State TTL RocksDb backend end-to-end test" "$END_TO_END_DIR/test-scripts/test_stream_state_ttl.sh rocks" "skip_check_exceptions"
-
-    run_test "SQL Client end-to-end test" "$END_TO_END_DIR/test-scripts/test_sql_client.sh"
 
     run_test "TPC-H end-to-end test" "$END_TO_END_DIR/test-scripts/test_tpch.sh"
     run_test "TPC-DS end-to-end test" "$END_TO_END_DIR/test-scripts/test_tpcds.sh"

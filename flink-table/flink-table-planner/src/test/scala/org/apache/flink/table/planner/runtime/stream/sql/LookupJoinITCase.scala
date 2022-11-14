@@ -28,6 +28,7 @@ import org.apache.flink.table.data.binary.BinaryStringData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
+import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
 import org.apache.flink.types.Row
 
@@ -77,6 +78,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
   @Before
   override def before(): Unit = {
     super.before()
+    if (legacyTableSource) {
+      InMemoryLookupableTableSource.RESOURCE_COUNTER.set(0)
+    } else {
+      TestValuesTableFactory.RESOURCE_COUNTER.set(0)
+      FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0)
+    }
     createScanTable("src", data)
     createScanTable("nullable_src", dataWithNull)
     createLookupTable("user_table", userData)
@@ -94,6 +101,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       assertEquals(0, InMemoryLookupableTableSource.RESOURCE_COUNTER.get())
     } else {
       assertEquals(0, TestValuesTableFactory.RESOURCE_COUNTER.get())
+      assertEquals(0, FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get())
     }
   }
 

@@ -38,7 +38,6 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
-import org.apache.flink.util.function.FunctionUtils;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -64,12 +63,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -79,7 +76,6 @@ import scala.reflect.ClassTag$;
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.guardCompletionWithContextClassLoader;
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.runWithContextClassLoader;
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.withContextClassLoader;
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -199,6 +195,20 @@ public class AkkaRpcService implements RpcService {
     @Override
     public int getPort() {
         return port;
+    }
+
+    public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType, RpcServer rpcServer) {
+        if (selfGatewayType.isInstance(rpcServer)) {
+            @SuppressWarnings("unchecked")
+            C selfGateway = ((C) rpcServer);
+
+            return selfGateway;
+        } else {
+            throw new ClassCastException(
+                    "RpcEndpoint does not implement the RpcGateway interface of type "
+                            + selfGatewayType
+                            + '.');
+        }
     }
 
     // this method does not mutate state and is thus thread-safe
@@ -370,40 +380,6 @@ public class AkkaRpcService implements RpcService {
     }
 
     @Override
-    public <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken) {
-        if (rpcServer instanceof AkkaBasedEndpoint) {
-
-            InvocationHandler fencedInvocationHandler =
-                    new FencedAkkaInvocationHandler<>(
-                            rpcServer.getAddress(),
-                            rpcServer.getHostname(),
-                            ((AkkaBasedEndpoint) rpcServer).getActorRef(),
-                            configuration.getTimeout(),
-                            configuration.getMaximumFramesize(),
-                            configuration.isForceRpcInvocationSerialization(),
-                            null,
-                            () -> fencingToken,
-                            captureAskCallstacks,
-                            flinkClassLoader);
-
-            // Rather than using the System ClassLoader directly, we derive the ClassLoader
-            // from this class . That works better in cases where Flink runs embedded and all Flink
-            // code is loaded dynamically (for example from an OSGI bundle) through a custom
-            // ClassLoader
-            ClassLoader classLoader = getClass().getClassLoader();
-
-            return (RpcServer)
-                    Proxy.newProxyInstance(
-                            classLoader,
-                            new Class<?>[] {RpcServer.class, AkkaBasedEndpoint.class},
-                            fencedInvocationHandler);
-        } else {
-            throw new RuntimeException(
-                    "The given RpcServer must implement the AkkaGateway in order to fence it.");
-        }
-    }
-
-    @Override
     public void stopServer(RpcServer selfGateway) {
         if (selfGateway instanceof AkkaBasedEndpoint) {
             final AkkaBasedEndpoint akkaClient = (AkkaBasedEndpoint) selfGateway;
@@ -489,33 +465,8 @@ public class AkkaRpcService implements RpcService {
     }
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return terminationFuture;
-    }
-
-    @Override
     public ScheduledExecutor getScheduledExecutor() {
         return internalScheduledExecutor;
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
-        checkNotNull(runnable, "runnable");
-        checkNotNull(unit, "unit");
-        checkArgument(delay >= 0L, "delay must be zero or larger");
-
-        return internalScheduledExecutor.schedule(runnable, delay, unit);
-    }
-
-    @Override
-    public void execute(Runnable runnable) {
-        getScheduledExecutor().execute(runnable);
-    }
-
-    @Override
-    public <T> CompletableFuture<T> execute(Callable<T> callable) {
-        return CompletableFuture.supplyAsync(
-                FunctionUtils.uncheckedSupplier(callable::call), getScheduledExecutor());
     }
 
     // ---------------------------------------------------------------------------------------

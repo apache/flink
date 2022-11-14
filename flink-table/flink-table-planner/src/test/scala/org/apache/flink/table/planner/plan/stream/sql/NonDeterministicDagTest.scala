@@ -26,10 +26,10 @@ import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfi
 import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.planner.{JBoolean, JLong}
+import org.apache.flink.table.planner.JBoolean
+import org.apache.flink.table.planner.expressions.utils.{TestNonDeterministicUdaf, TestNonDeterministicUdf, TestNonDeterministicUdtf}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
-import org.apache.flink.table.planner.utils.{CountAccumulator, StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sinks.UpsertStreamTableSink
 import org.apache.flink.table.types.DataType
@@ -41,8 +41,6 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import java.util
-
-import scala.util.Random
 
 @RunWith(classOf[Parameterized])
 class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUpdateStrategy)
@@ -212,9 +210,9 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                |)""".stripMargin)
 
     // custom ND function
-    util.tableEnv.createTemporaryFunction("ndFunc", TestNonDeterministicUdf)
-    util.tableEnv.createTemporaryFunction("ndTableFunc", TestNonDeterministicUdtf)
-    util.tableEnv.createTemporaryFunction("ndAggFunc", TestTestNonDeterministicUdaf)
+    util.tableEnv.createTemporaryFunction("ndFunc", new TestNonDeterministicUdf)
+    util.tableEnv.createTemporaryFunction("ndTableFunc", new TestNonDeterministicUdtf)
+    util.tableEnv.createTemporaryFunction("ndAggFunc", new TestNonDeterministicUdaf)
     // deterministic table function
     util.tableEnv.createTemporaryFunction("str_split", new StringSplit())
   }
@@ -1559,56 +1557,6 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
       thrown.expect(classOf[TableException])
     }
     util.verifyExecPlan(stmtSet)
-  }
-
-  @SerialVersionUID(1L)
-  object TestNonDeterministicUdf extends ScalarFunction {
-    val random = new Random()
-
-    def eval(id: JLong): JLong = {
-      id + random.nextInt()
-    }
-
-    def eval(id: Int): Int = {
-      id + random.nextInt()
-    }
-
-    def eval(id: String): String = {
-      s"$id-${random.nextInt()}"
-    }
-
-    override def isDeterministic: Boolean = false
-  }
-
-  @SerialVersionUID(1L)
-  object TestNonDeterministicUdtf extends TableFunction[String] {
-
-    val random = new Random()
-
-    def eval(id: Int): Unit = {
-      collect(s"${id + random.nextInt()}")
-    }
-
-    def eval(id: String): Unit = {
-      id.split(",").foreach(str => collect(s"$str#${random.nextInt()}"))
-    }
-
-    override def isDeterministic: Boolean = false
-  }
-
-  object TestTestNonDeterministicUdaf extends AggregateFunction[JLong, CountAccumulator] {
-
-    val random = new Random()
-
-    def accumulate(acc: CountAccumulator, in: JLong): Unit = {
-      acc.f0 += (in + random.nextInt())
-    }
-
-    override def getValue(acc: CountAccumulator): JLong = acc.f0
-
-    override def createAccumulator(): CountAccumulator = new CountAccumulator
-
-    override def isDeterministic: Boolean = false
   }
 
   /**

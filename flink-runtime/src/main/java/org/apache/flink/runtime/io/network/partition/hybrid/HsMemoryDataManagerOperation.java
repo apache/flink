@@ -33,12 +33,12 @@ public interface HsMemoryDataManagerOperation {
     BufferBuilder requestBufferFromPool() throws InterruptedException;
 
     /**
-     * This method is called when buffer should mark as readable in {@link HsFileDataIndex}.
+     * This method is called when buffer should mark as released in {@link HsFileDataIndex}.
      *
      * @param subpartitionId the subpartition that target buffer belong to.
-     * @param bufferIndex index of buffer to mark as readable.
+     * @param bufferIndex index of buffer to mark as released.
      */
-    void markBufferReadableFromFile(int subpartitionId, int bufferIndex);
+    void markBufferReleasedFromFile(int subpartitionId, int bufferIndex);
 
     /**
      * This method is called when buffer is consumed.

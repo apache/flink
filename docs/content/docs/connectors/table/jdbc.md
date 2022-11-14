@@ -211,30 +211,48 @@ Connector Options
       <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>, may require this to be set to false in order to stream results.</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.max-rows</h5></td>
+      <td><h5>lookup.cache</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">NONE</td>
+      <td><p>Enum</p>Possible values: NONE, PARTIAL</td>
+      <td>The cache strategy for the lookup table. Currently supports NONE (no caching) and PARTIAL (caching entries on lookup operation in external database).</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.max-rows</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
-      <td>Integer</td>
+      <td>Long</td>
       <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired.
-      Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details.</td>
+      "lookup.cache" must be set to "PARTIAL" to use this option. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details.</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.ttl</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-write</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired.
-      Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
+      <td>The max time to live for each rows in lookup cache after writing into the cache. 
+      "lookup.cache" must be set to "PARTIAL" to use this option. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-access</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The max time to live for each rows in lookup cache after accessing the entry in the cache.
+      "lookup.cache" must be set to "PARTIAL" to use this option. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>Flag to cache missing key, true by default</td>
+      <td>Whether to store an empty value into the cache if the lookup key doesn't match any rows in the table. 
+        "lookup.cache" must be set to "PARTIAL" to use this option.</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -279,6 +297,47 @@ Connector Options
     </tbody>
 </table>
 
+### Deprecated Options
+These deprecated options has been replaced by new options listed above and will be removed eventually. Please consider using new options first.
+<table>
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><h5>lookup.cache.max-rows</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Integer</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.max-rows" instead.</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.ttl</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Duration</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.expire-after-write" instead.</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.caching-missing-key</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">true</td>
+          <td>Boolean</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.caching-missing-key" instead.</td>
+        </tr>
+    </tbody>
+<table>
+
 Features
 --------
 
@@ -306,14 +365,14 @@ The `scan.partition.column` must be a numeric, date, or timestamp column from th
 
 JDBC connector can be used in temporal join as a lookup source (aka. dimension table). Currently, only sync lookup mode is supported.
 
-By default, lookup cache is not enabled. You can enable it by setting both `lookup.cache.max-rows` and `lookup.cache.ttl`.
+By default, lookup cache is not enabled. You can enable it by setting `lookup.cache` to `PARTIAL`.
 
 The lookup cache is used to improve performance of temporal join the JDBC connector. By default, lookup cache is not enabled, so all the requests are sent to external database.
 When lookup cache is enabled, each process (i.e. TaskManager) will hold a cache. Flink will lookup the cache first, and only send requests to external database when cache missing, and update cache with the rows returned.
-The oldest rows in cache will be expired when the cache hit to the max cached rows `lookup.cache.max-rows` or when the row exceeds the max time to live `lookup.cache.ttl`.
-The cached rows might not be the latest, users can tune `lookup.cache.ttl` to a smaller value to have a better fresh data, but this may increase the number of requests send to database. So this is a balance between throughput and correctness.
+The oldest rows in cache will be expired when the cache hit to the max cached rows `lookup.partial-cache.max-rows` or when the row exceeds the max time to live specified by `lookup.partial-cache.expire-after-write` or `lookup.partial-cache.expire-after-access`.
+The cached rows might not be the latest, users can tune expiration options to a smaller value to have a better fresh data, but this may increase the number of requests send to database. So this is a balance between throughput and correctness.
 
-By default, flink will cache the empty query result for a Primary key, you can toggle the behaviour by setting `lookup.cache.caching-missing-key` to false. 
+By default, flink will cache the empty query result for a Primary key, you can toggle the behaviour by setting `lookup.partial-cache.caching-missing-key` to false.
 
 ### Idempotent Writes
 

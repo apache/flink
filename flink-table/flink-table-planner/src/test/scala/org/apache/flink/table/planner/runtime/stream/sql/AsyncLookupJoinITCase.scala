@@ -66,6 +66,11 @@ class AsyncLookupJoinITCase(
   @Before
   override def before(): Unit = {
     super.before()
+    if (legacyTableSource) {
+      InMemoryLookupableTableSource.RESOURCE_COUNTER.set(0)
+    } else {
+      TestValuesTableFactory.RESOURCE_COUNTER.set(0)
+    }
     if (objectReuse) {
       env.getConfig.enableObjectReuse()
     } else {

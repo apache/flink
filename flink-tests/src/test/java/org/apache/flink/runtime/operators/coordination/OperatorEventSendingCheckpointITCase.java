@@ -72,9 +72,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -480,6 +478,12 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
+        public <C extends RpcGateway> C getSelfGateway(
+                Class<C> selfGatewayType, RpcServer rpcServer) {
+            return rpcService.getSelfGateway(selfGatewayType, rpcServer);
+        }
+
+        @Override
         public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
             final CompletableFuture<C> future = rpcService.connect(address, clazz);
             return clazz == TaskExecutorGateway.class ? decorateTmGateway(future) : future;
@@ -497,12 +501,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public <F extends Serializable> RpcServer fenceRpcServer(
-                RpcServer rpcServer, F fencingToken) {
-            return rpcService.fenceRpcServer(rpcServer, fencingToken);
-        }
-
-        @Override
         public void stopServer(RpcServer selfGateway) {
             rpcService.stopServer(selfGateway);
         }
@@ -513,28 +511,8 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public CompletableFuture<Void> getTerminationFuture() {
-            return rpcService.getTerminationFuture();
-        }
-
-        @Override
         public ScheduledExecutor getScheduledExecutor() {
             return rpcService.getScheduledExecutor();
-        }
-
-        @Override
-        public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
-            return rpcService.scheduleRunnable(runnable, delay, unit);
-        }
-
-        @Override
-        public void execute(Runnable runnable) {
-            rpcService.execute(runnable);
-        }
-
-        @Override
-        public <T> CompletableFuture<T> execute(Callable<T> callable) {
-            return rpcService.execute(callable);
         }
 
         @SuppressWarnings("unchecked")

@@ -44,7 +44,6 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.streaming.api.operators.SourceOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -240,7 +239,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                         .setBlockingFetch(true)
                         .build();
         BlockingShutdownSplitFetcherManager<int[], MockSourceSplit> splitFetcherManager =
-                new BlockingShutdownSplitFetcherManager<>(elementsQueue, () -> mockSplitReader);
+                new BlockingShutdownSplitFetcherManager<>(
+                        elementsQueue, () -> mockSplitReader, getConfig());
         final MockSourceReader sourceReader =
                 new MockSourceReader(
                         elementsQueue,
@@ -449,8 +449,9 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
         public BlockingShutdownSplitFetcherManager(
                 FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-                Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-            super(elementsQueue, splitReaderSupplier);
+                Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+                Configuration configuration) {
+            super(elementsQueue, splitReaderSupplier, configuration);
             this.inShutdownSplitFetcherFuture = new CompletableFuture<>();
         }
 
@@ -499,7 +500,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) throws Exception {
+        public void emitWatermark(org.apache.flink.streaming.api.watermark.Watermark watermark)
+                throws Exception {
             watermarks.add(watermark.getTimestamp());
         }
 

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.delegation.hive.parse;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.TableSpec;
-import org.apache.flink.table.planner.delegation.hive.operation.HiveLoadDataOperation;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveLoadDataOperation;
 import org.apache.flink.util.StringUtils;
 
 import org.antlr.runtime.tree.Tree;

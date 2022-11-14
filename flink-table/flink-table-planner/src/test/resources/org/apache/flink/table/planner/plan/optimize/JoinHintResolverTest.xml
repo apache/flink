@@ -346,6 +346,109 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithAgg">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ BrOaDcAsT(T2) */ count(T2.a2) from T2 join T1 on T2.a2 = T1.a1 group by T1.a1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(EXPR$0=[$1])
+  LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
+    LogicalProject(a1=[$2], a2=[$0])
+      LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+        LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+        LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+})]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithFilter">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ BrOaDcAsT(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3 where T1.a1 = T2.a2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalFilter(condition=[=($cor0.a1, $0)])
+    LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+      LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+})], variablesSet=[[$cor0]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithProject">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ BrOaDcAsT(T2) */ a2 + T1.a1 from T2 join T3 on T2.a2 = T3.a3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(EXPR$0=[+($0, $cor0.a1)])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+    LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+})], variablesSet=[[$cor0]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithoutJoinPred">
+    <Resource name="sql">
+      <![CDATA[select /*+ BROADCAST(T1) */* from T1, T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
++- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithSortLimit">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ BrOaDcAsT(T2) */ T2.a2 from T2 join T1 on T2.a2 = T1.a1 order by T1.a1 limit 10)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
+    LogicalProject(a2=[$0], a1=[$2])
+      LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+        LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+        LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+})]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInSubQuery">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ BrOaDcAsT(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+    LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+})]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinHintWithLeftJoinAndLeftSideAsBuildSide">
     <Resource name="sql">
       <![CDATA[select /*+ BROADCAST(T1) */* from T1 left join T2 on T1.a1 = T2.a2]]>
@@ -475,19 +578,6 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[R
       :  :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
       +- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3)]
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinHintWithNonEquiPred">
-    <Resource name="sql">
-      <![CDATA[select /*+ BROADCAST(T1) */* from T1 inner join T2 on T1.a1 > T2.a2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
-+- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
 ]]>
     </Resource>
   </TestCase>
@@ -653,19 +743,34 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithoutJoinPred">
+  <TestCase name="testJoinHintWithSemiJoinAndLeftSideAsBuildSide">
     <Resource name="sql">
-      <![CDATA[select /*+ BROADCAST(T1) */* from T1, T2]]>
+      <![CDATA[select /*+ BROADCAST(T1) */* from T1 where a1 in (select a2 from T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+})]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithNonEquiPred">
+    <Resource name="sql">
+      <![CDATA[select /*+ BROADCAST(T1) */* from T1 inner join T2 on T1.a1 > T2.a2]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
-+- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
++- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
 ]]>
@@ -694,21 +799,6 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinHintWithSemiJoinAndLeftSideAsBuildSide">
-    <Resource name="sql">
-      <![CDATA[select /*+ BROADCAST(T1) */* from T1 where a1 in (select a2 from T2)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalFilter(condition=[IN($0, {
-LogicalProject(a2=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-})]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 ]]>
     </Resource>
   </TestCase>

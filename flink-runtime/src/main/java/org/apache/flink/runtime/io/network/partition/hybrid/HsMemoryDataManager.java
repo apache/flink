@@ -216,8 +216,8 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
     // ------------------------------------
 
     @Override
-    public void markBufferReadableFromFile(int subpartitionId, int bufferIndex) {
-        fileDataIndex.markBufferReadable(subpartitionId, bufferIndex);
+    public void markBufferReleasedFromFile(int subpartitionId, int bufferIndex) {
+        fileDataIndex.markBufferReleased(subpartitionId, bufferIndex);
     }
 
     @Override

@@ -28,19 +28,31 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
+import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
-import org.apache.flink.table.planner.delegation.hive.operation.HiveLoadDataOperation;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveLoadDataOperation;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Table;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +81,10 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             return executeHiveSetOperation((HiveSetOperation) operation);
         } else if (operation instanceof HiveLoadDataOperation) {
             return executeHiveLoadDataOperation((HiveLoadDataOperation) operation);
+        } else if (operation instanceof HiveShowCreateTableOperation) {
+            return executeShowCreateTableOperation((HiveShowCreateTableOperation) operation);
+        } else if (operation instanceof DescribeTableOperation) {
+            return executeDescribeTableOperation((DescribeTableOperation) operation);
         } else if (operation instanceof ExplainOperation) {
             ExplainOperation explainOperation = (ExplainOperation) operation;
             if (explainOperation.getChild() instanceof HiveLoadDataOperation) {
@@ -85,7 +101,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
             throw new FlinkHiveException(
-                    "Only support SET command when the current catalog is HiveCatalog ing Hive dialect.");
+                    "Only support SET command when the current catalog is HiveCatalog in Hive dialect.");
         }
 
         HiveConf hiveConf = ((HiveCatalog) currentCatalog).getHiveConf();
@@ -112,7 +128,10 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 // set key
                 String option =
                         HiveSetProcessor.getVariable(
-                                hiveConf, hiveVariables, hiveSetOperation.getKey().get());
+                                tableConfig.getConfiguration().toMap(),
+                                hiveConf,
+                                hiveVariables,
+                                hiveSetOperation.getKey().get());
                 return Optional.of(buildResultForShowVariable(Collections.singletonList(option)));
             } else {
                 HiveSetProcessor.setVariable(
@@ -153,14 +172,14 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                         hiveLoadDataOperation.getPath(),
                         hiveLoadDataOperation.getTablePath(),
                         hiveLoadDataOperation.getPartitionSpec(),
-                        hiveLoadDataOperation.isSrcLocal(),
-                        hiveLoadDataOperation.isOverwrite());
+                        hiveLoadDataOperation.isOverwrite(),
+                        hiveLoadDataOperation.isSrcLocal());
             } else {
                 hiveCatalog.loadTable(
                         hiveLoadDataOperation.getPath(),
                         hiveLoadDataOperation.getTablePath(),
-                        hiveLoadDataOperation.isSrcLocal(),
-                        hiveLoadDataOperation.isOverwrite());
+                        hiveLoadDataOperation.isOverwrite(),
+                        hiveLoadDataOperation.isSrcLocal());
             }
             return Optional.of(TableResultImpl.TABLE_RESULT_OK);
         } finally {
@@ -215,5 +234,116 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                         .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                         .data(Collections.singletonList(Row.of(explanation)))
                         .build());
+    }
+
+    private Optional<TableResultInternal> executeShowCreateTableOperation(
+            HiveShowCreateTableOperation showCreateTableOperation) {
+        ObjectPath tablePath = showCreateTableOperation.getTablePath();
+        Catalog currentCatalog =
+                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+        if (!(currentCatalog instanceof HiveCatalog)) {
+            throw new FlinkHiveException(
+                    "Only support 'SHOW CREATE TABLE' when the current catalog is HiveCatalog in Hive dialect.");
+        }
+        HiveCatalog hiveCatalog = (HiveCatalog) currentCatalog;
+        HiveConf hiveConf = hiveCatalog.getHiveConf();
+        Hive hive;
+        Table tbl;
+        try {
+            hive = Hive.get(hiveConf);
+            tbl = hive.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
+        } catch (HiveException e) {
+            throw new FlinkHiveException(String.format("Fail to get the table %s.", tablePath), e);
+        }
+
+        if (!HiveCatalog.isHiveTable(tbl.getTTable())) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "The table %s to show isn't a Hive table,"
+                                    + " but 'SHOW CREATE TABLE' only supports Hive table currently.",
+                            tablePath));
+        }
+
+        String showCreateTableString = HiveShowTableUtils.showCreateTable(tablePath, tbl);
+        TableResultInternal resultInternal =
+                TableResultImpl.builder()
+                        .resultKind(ResultKind.SUCCESS)
+                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                        .data(Collections.singletonList(Row.of(showCreateTableString)))
+                        .build();
+        return Optional.of(resultInternal);
+    }
+
+    private Optional<TableResultInternal> executeDescribeTableOperation(
+            DescribeTableOperation describeTableOperation) {
+        // currently, if it's 'describe extended', we still delegate to Flink's own implementation
+        if (describeTableOperation.isExtended()) {
+            return Optional.empty();
+        } else {
+            ObjectIdentifier tableIdentifier = describeTableOperation.getSqlIdentifier();
+            Catalog currentCatalog =
+                    catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+            if (!(currentCatalog instanceof HiveCatalog)) {
+                // delegate to Flink's own implementation
+                return Optional.empty();
+            }
+            HiveCatalog hiveCatalog = (HiveCatalog) currentCatalog;
+            ObjectPath tablePath =
+                    new ObjectPath(
+                            tableIdentifier.getDatabaseName(), tableIdentifier.getObjectName());
+            org.apache.hadoop.hive.metastore.api.Table table;
+            try {
+                table = hiveCatalog.getHiveTable(tablePath);
+            } catch (TableNotExistException e) {
+                throw new FlinkHiveException(
+                        String.format(
+                                "The table or view %s doesn't exist in catalog %s.",
+                                tablePath, catalogManager.getCurrentCatalog()),
+                        e);
+            }
+            if (!HiveCatalog.isHiveTable(table.getParameters())) {
+                // if it's not a Hive table, delegate to Flink's own implementation
+                return Optional.empty();
+            }
+            List<Row> result = new ArrayList<>();
+            // describe table's columns
+            List<FieldSchema> columns = table.getSd().getCols();
+            List<FieldSchema> partitionColumns = table.getPartitionKeys();
+            for (FieldSchema fieldSchema : columns) {
+                result.add(describeColumn(fieldSchema));
+            }
+            for (FieldSchema fieldSchema : partitionColumns) {
+                result.add(describeColumn(fieldSchema));
+            }
+
+            // table's partition information
+            if (!partitionColumns.isEmpty()) {
+                result.add(Row.of("# Partition Information", "", ""));
+                for (FieldSchema fieldSchema : partitionColumns) {
+                    result.add(describeColumn(fieldSchema));
+                }
+            }
+            TableResultInternal tableResultInternal =
+                    TableResultImpl.builder()
+                            .resultKind(ResultKind.SUCCESS)
+                            .schema(
+                                    ResolvedSchema.physical(
+                                            new String[] {"col_name", "data_type", "comment"},
+                                            new DataType[] {
+                                                DataTypes.STRING(),
+                                                DataTypes.STRING(),
+                                                DataTypes.STRING()
+                                            }))
+                            .data(result)
+                            .build();
+            return Optional.of(tableResultInternal);
+        }
+    }
+
+    private Row describeColumn(FieldSchema fieldSchema) {
+        return Row.of(
+                fieldSchema.getName(),
+                fieldSchema.getType(),
+                fieldSchema.getComment() == null ? StringUtils.EMPTY : fieldSchema.getComment());
     }
 }

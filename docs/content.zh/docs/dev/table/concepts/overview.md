@@ -124,8 +124,9 @@ SELECT sessionId, COUNT(*) FROM clicks GROUP BY sessionId;
 
 * [动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}): 描述了动态表的概念。
 * [时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}): 解释了时间属性以及它是如何在 Table API & SQL 中使用的。
-* [流上的 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}): 支持的几种流上的 Join。
 * [时态（temporal）表]({{< ref "docs/dev/table/concepts/versioned_tables" >}}): 描述了时态表的概念。
+* [流上的 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}): 支持的几种流上的 Join。
+* [流上的确定性]({{< ref "docs/dev/table/concepts/determinism" >}}): 解释了流计算的确定性。
 * [查询配置]({{< ref "docs/dev/table/config" >}}): Table API & SQL 特定的配置。
 
 {{< top >}}

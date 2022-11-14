@@ -30,30 +30,29 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
 import com.google.auth.Credentials;
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
 /** Test for {@link SourceFunction}. */
-@RunWith(MockitoJUnitRunner.class)
-public class PubSubSourceTest {
+@ExtendWith(MockitoExtension.class)
+class PubSubSourceTest {
     @Mock private PubSubDeserializationSchema<String> deserializationSchema;
     @Mock private PubSubSource.AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
     @Mock private AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
@@ -66,13 +65,17 @@ public class PubSubSourceTest {
 
     private PubSubSource<String> pubSubSource;
 
-    @Before
-    public void setup() throws Exception {
-        when(pubSubSubscriberFactory.getSubscriber(eq(credentials))).thenReturn(pubsubSubscriber);
-        when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
-        when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-        when(metricGroup.addGroup(any(String.class))).thenReturn(metricGroup);
-        when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
+    @BeforeEach
+    void setup() throws Exception {
+        lenient()
+                .when(pubSubSubscriberFactory.getSubscriber(eq(credentials)))
+                .thenReturn(pubsubSubscriber);
+        lenient().when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+        lenient().when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+        lenient().when(metricGroup.addGroup(any(String.class))).thenReturn(metricGroup);
+        lenient()
+                .when(acknowledgeOnCheckpointFactory.create(any()))
+                .thenReturn(acknowledgeOnCheckpoint);
 
         pubSubSource =
                 new PubSubSource<>(
@@ -85,14 +88,15 @@ public class PubSubSourceTest {
         pubSubSource.setRuntimeContext(streamingRuntimeContext);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testOpenWithoutCheckpointing() throws Exception {
+    @Test
+    void testOpenWithoutCheckpointing() {
         when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
-        pubSubSource.open(null);
+        assertThatThrownBy(() -> pubSubSource.open(null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testOpenWithCheckpointing() throws Exception {
+    void testOpenWithCheckpointing() throws Exception {
         when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 
         pubSubSource.open(null);
@@ -102,18 +106,18 @@ public class PubSubSourceTest {
     }
 
     @Test
-    public void testTypeInformationFromDeserializationSchema() {
+    void testTypeInformationFromDeserializationSchema() {
         TypeInformation<String> schemaTypeInformation = TypeInformation.of(String.class);
         when(deserializationSchema.getProducedType()).thenReturn(schemaTypeInformation);
 
         TypeInformation<String> actualTypeInformation = pubSubSource.getProducedType();
 
-        assertThat(actualTypeInformation, is(schemaTypeInformation));
+        assertThat(actualTypeInformation).isEqualTo(schemaTypeInformation);
         verify(deserializationSchema, times(1)).getProducedType();
     }
 
     @Test
-    public void testNotifyCheckpointComplete() throws Exception {
+    void testNotifyCheckpointComplete() throws Exception {
         pubSubSource.open(null);
         pubSubSource.notifyCheckpointComplete(45L);
 
@@ -121,7 +125,7 @@ public class PubSubSourceTest {
     }
 
     @Test
-    public void testRestoreState() throws Exception {
+    void testRestoreState() throws Exception {
         pubSubSource.open(null);
 
         List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
@@ -131,7 +135,7 @@ public class PubSubSourceTest {
     }
 
     @Test
-    public void testSnapshotState() throws Exception {
+    void testSnapshotState() throws Exception {
         pubSubSource.open(null);
         pubSubSource.snapshotState(1337L, 15000L);
 
@@ -139,13 +143,12 @@ public class PubSubSourceTest {
     }
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() throws Exception {
         doAnswer(
                         (args) -> {
                             DeserializationSchema.InitializationContext context =
                                     args.getArgument(0);
-                            Assert.assertThat(
-                                    context.getMetricGroup(), Matchers.equalTo(metricGroup));
+                            assertThat(context.getMetricGroup()).isEqualTo(metricGroup);
                             return null;
                         })
                 .when(deserializationSchema)

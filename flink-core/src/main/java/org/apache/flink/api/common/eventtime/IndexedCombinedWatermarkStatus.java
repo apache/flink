@@ -42,7 +42,8 @@ public final class IndexedCombinedWatermarkStatus {
     public static IndexedCombinedWatermarkStatus forInputsCount(int inputsCount) {
         CombinedWatermarkStatus.PartialWatermark[] partialWatermarks =
                 IntStream.range(0, inputsCount)
-                        .mapToObj(i -> new CombinedWatermarkStatus.PartialWatermark())
+                        .mapToObj(
+                                i -> new CombinedWatermarkStatus.PartialWatermark(watermark -> {}))
                         .toArray(CombinedWatermarkStatus.PartialWatermark[]::new);
         CombinedWatermarkStatus combinedWatermarkStatus = new CombinedWatermarkStatus();
         for (CombinedWatermarkStatus.PartialWatermark partialWatermark : partialWatermarks) {

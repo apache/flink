@@ -98,7 +98,7 @@ class JsonRowDeserializationSchema(DeserializationSchema):
             j_builder = JBuilder(self._type_info.get_java_type_info())
 
             if self._fail_on_missing_field:
-                j_builder = j_builder.fialOnMissingField()
+                j_builder = j_builder.failOnMissingField()
 
             if self._ignore_parse_errors:
                 j_builder = j_builder.ignoreParseErrors()

@@ -42,7 +42,15 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
 
     @VisibleForTesting
     public WatermarkToDataOutput(PushingAsyncDataInput.DataOutput<?> output) {
-        this(output, watermark -> {});
+        this(
+                output,
+                new TimestampsAndWatermarks.WatermarkUpdateListener() {
+                    @Override
+                    public void updateCurrentEffectiveWatermark(long watermark) {}
+
+                    @Override
+                    public void updateCurrentSplitWatermark(String splitId, long watermark) {}
+                });
     }
 
     /** Creates a new WatermarkOutput against the given DataOutput. */

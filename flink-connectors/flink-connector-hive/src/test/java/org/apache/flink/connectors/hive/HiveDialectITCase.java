@@ -745,32 +745,40 @@ public class HiveDialectITCase {
     public void testCreateFunctionUsingJar() throws Exception {
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1), (2)").await();
-        String udfClass = "addOne";
-        String udfCode =
-                "public class "
-                        + udfClass
+        String udfCodeTemplate =
+                "public class %s"
                         + " extends org.apache.hadoop.hive.ql.exec.UDF {\n"
                         + " public int evaluate(int content) {\n"
                         + "    return content + 1;\n"
                         + " }"
                         + "}\n";
+        String udfClass = "addOne";
+        String udfCode = String.format(udfCodeTemplate, udfClass);
         File jarFile =
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"), "test-udf.jar", udfClass, udfCode);
         // test create function using jar
         tableEnv.executeSql(
                 String.format(
-                        "create function add_one as 'addOne' using jar '%s'", jarFile.getPath()));
+                        "create function add_one as '%s' using jar '%s'",
+                        udfClass, jarFile.getPath()));
         assertThat(
                         CollectionUtil.iteratorToList(
                                         tableEnv.executeSql("select add_one(x) from src").collect())
                                 .toString())
                 .isEqualTo("[+I[2], +I[3]]");
+
         // test create temporary function using jar
+        // create a new jarfile with a new class name
+        udfClass = "addOne1";
+        udfCode = String.format(udfCodeTemplate, udfClass);
+        jarFile =
+                UserClassLoaderJarTestUtils.createJarFile(
+                        tempFolder.newFolder("test-jar-1"), "test-udf-1.jar", udfClass, udfCode);
         tableEnv.executeSql(
                 String.format(
-                        "create temporary function t_add_one as 'addOne' using jar '%s'",
-                        jarFile.getPath()));
+                        "create temporary function t_add_one as '%s' using jar '%s'",
+                        udfClass, jarFile.getPath()));
         assertThat(
                         CollectionUtil.iteratorToList(
                                         tableEnv.executeSql("select t_add_one(x) from src")
@@ -1118,23 +1126,14 @@ public class HiveDialectITCase {
                 CollectionUtil.iteratorToList(tableEnv.executeSql("set system:xxx").collect());
         assertThat(rows.toString()).isEqualTo("[+I[system:xxx=5]]");
 
-        // test 'set'
-        rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set").collect());
-        assertThat(rows.toString())
-                .contains("system:xxx=5")
-                .contains("env:PATH=" + System.getenv("PATH"))
-                .contains("flink:execution.runtime-mode=BATCH")
-                .contains("hivevar:a=1")
-                .contains("common-key=common-val");
-
         // test 'set -v'
         rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set -v").collect());
         assertThat(rows.toString())
                 .contains("system:xxx=5")
                 .contains("env:PATH=" + System.getenv("PATH"))
-                .contains("flink:execution.runtime-mode=BATCH")
                 .contains("hivevar:a=1")
-                .contains("fs.defaultFS=file:///");
+                .contains("hiveconf:fs.defaultFS=file:///")
+                .contains("execution.runtime-mode=BATCH");
 
         // test set env isn't supported
         assertThatThrownBy(() -> tableEnv.executeSql("set env:xxx=yyy"))
@@ -1173,6 +1172,97 @@ public class HiveDialectITCase {
         assertThatThrownBy(() -> tableEnv.executeSql("add archive t1.tgz"))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessage("ADD ARCHIVE is not supported yet. Usage: ADD JAR <file_path>");
+    }
+
+    @Test
+    public void testShowCreateTable() throws Exception {
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql(
+                "create table t1(id BIGINT,\n"
+                        + "  name STRING) WITH (\n"
+                        + "  'connector' = 'datagen' "
+                        + ")");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql(
+                "create table t2 (key string, value string) comment 'show create table' partitioned by (a string, b int)"
+                        + " tblproperties ('k1' = 'v1')");
+
+        // should throw exception for show non-hive table
+        assertThatThrownBy(() -> tableEnv.executeSql("show create table t1"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage(
+                        String.format(
+                                "The table %s to show isn't a Hive table,"
+                                        + " but 'SHOW CREATE TABLE' only supports Hive table currently.",
+                                "default.t1"));
+
+        // show hive table
+        String actualResult =
+                (String)
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("show create table t2").collect())
+                                .get(0)
+                                .getField(0);
+        Table table = hiveCatalog.getHiveTable(new ObjectPath("default", "t2"));
+        String expectLastDdlTime = table.getParameters().get("transient_lastDdlTime");
+        String expectedTableProperties =
+                String.format(
+                        "%s  'k1'='v1', \n  'transient_lastDdlTime'='%s'",
+                        // if it's hive 3.x, table properties should also contain
+                        // 'bucketing_version'='2'
+                        HiveVersionTestUtil.HIVE_310_OR_LATER
+                                ? "  'bucketing_version'='2', \n"
+                                : "",
+                        expectLastDdlTime);
+        String expectedResult =
+                String.format(
+                        "CREATE TABLE `default.t2`(\n"
+                                + "  `key` string, \n"
+                                + "  `value` string)\n"
+                                + "COMMENT 'show create table'\n"
+                                + "PARTITIONED BY ( \n"
+                                + "  `a` string, \n"
+                                + "  `b` int)\n"
+                                + "ROW FORMAT SERDE \n"
+                                + "  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' \n"
+                                + "STORED AS INPUTFORMAT \n"
+                                + "  'org.apache.hadoop.mapred.TextInputFormat' \n"
+                                + "OUTPUTFORMAT \n"
+                                + "  'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'\n"
+                                + "LOCATION\n"
+                                + "  'file:%s'\n"
+                                + "TBLPROPERTIES (\n%s)\n",
+                        warehouse + "/t2", expectedTableProperties);
+        assertThat(actualResult).isEqualTo(expectedResult);
+    }
+
+    @Test
+    public void testDescribeTable() {
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql(
+                "create table t1(id BIGINT,\n"
+                        + "  name STRING) WITH (\n"
+                        + "  'connector' = 'datagen' "
+                        + ")");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql("create table t2(a int, b string, c boolean)");
+        tableEnv.executeSql(
+                "create table t3(a decimal(10, 2), b double, c float) partitioned by (d date)");
+
+        // desc non-hive table
+        List<Row> result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc t1").collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[id, BIGINT, true, null, null, null], +I[name, STRING, true, null, null, null]]");
+        // desc hive table
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc t2").collect());
+        assertThat(result.toString())
+                .isEqualTo("[+I[a, int, ], +I[b, string, ], +I[c, boolean, ]]");
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc default.t3").collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[a, decimal(10,2), ], +I[b, double, ], +I[c, float, ], +I[d, date, ],"
+                                + " +I[# Partition Information, , ], +I[d, date, ]]");
     }
 
     @Test

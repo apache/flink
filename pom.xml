@@ -101,7 +101,7 @@ under the License.
 		<module>flink-walkthroughs</module>
 		<module>flink-kubernetes</module>
 		<module>flink-external-resources</module>
-		<module>tools/ci/java-ci-tools</module>
+		<module>tools/ci/flink-ci-tools</module>
 	</modules>
 
 	<properties>
@@ -255,6 +255,14 @@ under the License.
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
 			<version>${mockito.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
@@ -964,7 +972,7 @@ under the License.
 							<version>3.2.4</version>
 						</plugin>
 						<plugin>
-							<groupId>com.github.siom79.japicmp</groupId>
+							<groupId>io.github.zentol.japicmp</groupId>
 							<artifactId>japicmp-maven-plugin</artifactId>
 							<dependencies>
 								<dependency>
@@ -1124,7 +1132,7 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
-							<groupId>com.github.siom79.japicmp</groupId>
+							<groupId>io.github.zentol.japicmp</groupId>
 							<artifactId>japicmp-maven-plugin</artifactId>
 							<configuration>
 								<skip>true</skip>
@@ -1393,6 +1401,12 @@ under the License.
 						</manifest>
 					</archive>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<!-- activate API compatibility checks -->
+				<groupId>io.github.zentol.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
 			</plugin>
 
 			<plugin>
@@ -1911,8 +1925,6 @@ under the License.
 									i.e. poms which do not contain properties which are derived from this root pom.
 									In particular, the Scala version properties are defined in the root pom and without
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
-									Removing this exclusion will also cause compilation errors in at least
-									1 module (flink-connector-elasticsearch5), for unknown reasons.
 									-->
 									<include>org.apache.flink:flink-shaded-force-shading</include>
 								</includes>
@@ -2125,9 +2137,9 @@ under the License.
 
 				<!-- Configuration for the binary compatibility checker -->
 				<plugin>
-					<groupId>com.github.siom79.japicmp</groupId>
+					<groupId>io.github.zentol.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.11.0</version>
+					<version>0.16.0_m325</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
@@ -2154,6 +2166,7 @@ under the License.
 								<exclude>@org.apache.flink.annotation.Experimental</exclude>
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
+								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
 								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#getSideOutput(org.apache.flink.util.OutputTag)</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.DataStream#DataStream(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.streaming.api.transformations.StreamTransformation)</exclude>
 								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>
@@ -2174,6 +2187,7 @@ under the License.
 								<exclude>org.apache.flink.metrics.Histogram#getMetricType()</exclude>
 								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#sendEventToSourceReader(int,int,org.apache.flink.api.connector.source.SourceEvent)</exclude>
 								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#registeredReadersOfAttempts()</exclude>
+								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>
@@ -2185,6 +2199,9 @@ under the License.
 							<skipPomModules>true</skipPomModules>
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+							<packagingSupporteds>
+								<packagingSupported>jar</packagingSupported>
+							</packagingSupporteds>
 						</parameter>
 						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>

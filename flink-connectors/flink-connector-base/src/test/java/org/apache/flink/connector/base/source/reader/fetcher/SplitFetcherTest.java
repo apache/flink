@@ -182,7 +182,8 @@ public class SplitFetcherTest {
                                 .build(),
                         ExceptionUtils::rethrow,
                         () -> {},
-                        (ignore) -> {});
+                        (ignore) -> {},
+                        false);
 
         // Prepare the splits.
         List<MockSourceSplit> splits = new ArrayList<>();
@@ -255,6 +256,25 @@ public class SplitFetcherTest {
         assertThat(splitReader.isClosed()).isTrue();
     }
 
+    @Test
+    public void testCloseAfterPause() throws InterruptedException {
+        final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
+                new FutureCompletingBlockingQueue<>();
+        final SplitFetcher<Object, TestingSourceSplit> fetcher =
+                createFetcherWithSplit(
+                        "test-split",
+                        queue,
+                        new TestingSplitReader<>(finishedSplitFetch("test-split")));
+
+        fetcher.pause();
+
+        Thread fetcherThread = new Thread(fetcher::shutdown);
+        fetcherThread.start();
+        fetcherThread.join();
+
+        assertThat(fetcher.runOnce()).isFalse();
+    }
+
     // ------------------------------------------------------------------------
     //  testing utils
     // ------------------------------------------------------------------------
@@ -272,7 +292,7 @@ public class SplitFetcherTest {
             final SplitReader<E, TestingSourceSplit> reader,
             final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> queue) {
         return new SplitFetcher<>(
-                0, queue, reader, ExceptionUtils::rethrow, () -> {}, (ignore) -> {});
+                0, queue, reader, ExceptionUtils::rethrow, () -> {}, (ignore) -> {}, false);
     }
 
     private static <E> SplitFetcher<E, TestingSourceSplit> createFetcherWithSplit(

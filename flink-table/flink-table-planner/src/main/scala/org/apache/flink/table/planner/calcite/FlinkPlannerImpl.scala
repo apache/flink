@@ -46,6 +46,7 @@ import javax.annotation.Nullable
 
 import java.lang.{Boolean => JBoolean}
 import java.util
+import java.util.Locale
 import java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConverters._
@@ -250,7 +251,7 @@ class FlinkPlannerImpl(
       JavaScalaConversionUtil.toScala(hints).foreach {
         case hint: SqlHint =>
           val hintName = hint.getName
-          if (JoinStrategy.isJoinStrategy(hintName)) {
+          if (JoinStrategy.isJoinStrategy(hintName.toUpperCase(Locale.ROOT))) {
             return true
           }
       }

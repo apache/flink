@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.DeploymentOptions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
 
 /**
- * If {@link org.apache.flink.configuration.DeploymentOptions#ALLOW_CLIENT_JOB_CONFIGURATIONS} is
- * disabled this error denotes the not allowed configuration.
+ * If {@link DeploymentOptions#PROGRAM_CONFIG_ENABLED} is disabled, this error denotes the not
+ * allowed configuration.
  */
 @Internal
 public class ConfigurationNotAllowedMessage {

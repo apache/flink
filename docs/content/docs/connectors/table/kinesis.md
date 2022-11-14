@@ -846,7 +846,7 @@ You can enable and configure EFO with the following properties:
     This is the preferred strategy for the majority of applications.
     However, jobs with parallelism greater than 1 will result in tasks competing to register and acquire the stream consumer ARN.
     For jobs with very large parallelism this can result in an increased start-up time.
-    The describe operation has a limit of 20 [transactions per second](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html),
+    The `DescribeStreamConsumer` operation has a limit of 20 [transactions per second](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html),
     this means application startup time will increase by roughly `parallelism/20 seconds`.
   * `EAGER`: Stream consumers are registered in the `FlinkKinesisConsumer` constructor.
     If the stream consumer already exists, it will be reused.
@@ -867,7 +867,7 @@ However, consumer names do not have to be unique across data streams.
 Reusing a consumer name will result in existing subscriptions being terminated.
 
 <span class="label label-info">Note</span> With the `LAZY` strategy, stream consumers are de-registered when the job is shutdown gracefully.
-In the event that a job terminates within executing the shutdown hooks, stream consumers will remain active.
+In the event that a job terminates without executing the shutdown hooks, stream consumers will remain active.
 In this situation the stream consumers will be gracefully reused when the application restarts.
 With the `NONE` and `EAGER` strategies, stream consumer de-registration is not performed by `FlinkKinesisConsumer`.
 

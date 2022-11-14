@@ -29,11 +29,13 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -128,6 +130,36 @@ class PulsarOrderedSourceReaderTest extends PulsarSourceReaderTestBase {
             verifyAllMessageAcknowledged(
                     NUM_RECORDS_PER_PARTITION, TopicNameUtils.topicNameWithPartition(topicName, i));
         }
+    }
+
+    @TestTemplate
+    @Timeout(600)
+    void supportsPausingOrResumingSplits(
+            PulsarSourceReaderBase<Integer> reader, Boundedness boundedness, String topicName)
+            throws Exception {
+        final PulsarPartitionSplit split =
+                createPartitionSplit(topicName, 0, boundedness, MessageId.earliest);
+
+        reader.addSplits(Collections.singletonList(split));
+
+        TestingReaderOutput<Integer> output = new TestingReaderOutput<>();
+
+        reader.pauseOrResumeSplits(
+                Collections.singletonList(split.splitId()), Collections.emptyList());
+
+        InputStatus status = reader.pollNext(output);
+        assertThat(status).isEqualTo(InputStatus.NOTHING_AVAILABLE);
+
+        reader.pauseOrResumeSplits(Collections.emptyList(), Collections.singleton(split.splitId()));
+
+        do {
+            status = reader.pollNext(output);
+            Thread.sleep(5);
+        } while (status != InputStatus.MORE_AVAILABLE);
+
+        assertThat(status).isEqualTo(InputStatus.MORE_AVAILABLE);
+
+        reader.close();
     }
 
     private void setupSourceReader(

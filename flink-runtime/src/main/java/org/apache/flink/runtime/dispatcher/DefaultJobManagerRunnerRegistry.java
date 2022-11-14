@@ -85,11 +85,7 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     @Override
     public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor unusedExecutor) {
         if (isRegistered(jobId)) {
-            try {
-                unregister(jobId).close();
-            } catch (Exception e) {
-                return FutureUtils.completedExceptionally(e);
-            }
+            return unregister(jobId).closeAsync();
         }
 
         return FutureUtils.completedVoidFuture();

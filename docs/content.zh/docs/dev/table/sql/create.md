@@ -157,7 +157,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
-  [ LIKE source_table [( <like_options> )] ]
+  [ LIKE source_table [( <like_options> )] | AS select_query ]
    
 <physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
@@ -513,6 +513,48 @@ LIKE Orders_in_file (
 
 **注意：** 源表 `source_table` 可以是一个组合 ID。您可以指定不同 catalog 或者 DB 的表作为源表: 例如，`my_catalog.my_db.MyTable` 指定了源表 `MyTable` 来源于名为 `MyCatalog` 的 catalog  和名为 `my_db` 的 DB ，`my_db.MyTable` 指定了源表 `MyTable` 来源于当前 catalog  和名为 `my_db` 的 DB。
 
+### `AS select_statement`
+
+表也可以通过一个 CTAS 语句中的查询结果来创建并填充数据，CTAS 是一种简单、快捷的创建表并插入数据的方法。
+
+CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 CREATE 部分从 SELECT 查询中获取列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
+
+CTAS 的建表操作需要依赖目标 Catalog。比如，Hive Catalog 会自动在 Hive 中创建物理表。但是基于内存的 Catalog 只会将表的元信息注册在执行 SQL 的 Client 的内存中。
+
+示例如下:
+
+```sql
+CREATE TABLE my_ctas_table
+WITH (
+    'connector' = 'kafka',
+    ...
+)
+AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+结果表 `my_ctas_table` 等效于使用以下语句创建表并写入数据:
+```sql
+CREATE TABLE my_ctas_table (
+    id BIGINT,
+    name STRING,
+    age INT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+ 
+INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+**注意** CTAS 有如下约束：
+* 暂不支持创建临时表。
+* 暂不支持指定列信息。
+* 暂不支持指定 Watermark。
+* 暂不支持创建分区表。
+* 暂不支持主键约束。
+
+**注意** 目前，CTAS 创建的目标表是非原子性的，如果在向表中插入数据时发生错误，该表不会被自动删除。
+
 {{< top >}}
 
 ## CREATE CATALOG
@@ -607,6 +649,6 @@ Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只�
 
 **USING**
 
-指定包含该函数的实现及其依赖的 jar 资源列表。该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]（{{< ref "docs/deployment/filesystems/overview" >}}）中，比如 hdfs/s3/oss。
+指定包含该函数的实现及其依赖的 jar 资源列表。该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]({{< ref "docs/deployment/filesystems/overview" >}}) 中，比如 hdfs/s3/oss。
 
 <span class="label label-danger">注意</span> 目前只有 JAVA、SCALA 语言支持 USING 子句。
