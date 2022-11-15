@@ -31,8 +31,8 @@ Example:
 ::
 
     >>> from pyflink.table.expressions import col, lit
-    >>> Tumble.over(lit(10).minutes) \\
-    ...       .on(col("rowtime")) \\
+    >>> Tumble.over(lit(10).minutes) \
+    ...       .on(col("rowtime")) \
     ...       .alias("w")
 
 .. currentmodule:: pyflink.table.window
@@ -60,9 +60,9 @@ Example:
 ::
 
     >>> from pyflink.table.expressions import col, lit
-    >>> Slide.over(lit(10).minutes) \\
-    ...      .every(lit(5).minutes) \\
-    ...      .on(col("rowtime")) \\
+    >>> Slide.over(lit(10).minutes) \
+    ...      .every(lit(5).minutes) \
+    ...      .on(col("rowtime")) \
     ...      .alias("w")
 
 .. currentmodule:: pyflink.table.window
@@ -112,9 +112,9 @@ Example:
 ::
 
     >>> from pyflink.table.expressions import col, UNBOUNDED_RANGE
-    >>> Over.partition_by(col("a")) \\
-    ...     .order_by(col("rowtime")) \\
-    ...     .preceding(UNBOUNDED_RANGE) \\
+    >>> Over.partition_by(col("a")) \
+    ...     .order_by(col("rowtime")) \
+    ...     .preceding(UNBOUNDED_RANGE) \
     ...     .alias("w")
 
 .. currentmodule:: pyflink.table.window

@@ -20,7 +20,8 @@
 Table
 =====
 
-.. currentmodule:: pyflink.table
+Table
+=====
 
 A :class:`~pyflink.table.Table` object is the core abstraction of the Table API.
 Similar to how the DataStream API has DataStream,
@@ -72,6 +73,8 @@ Example:
     >>> table = t_env.from_path("my_table").select(col("colA").trim(), col("colB") + 12)
     >>> table.execute().print()
 
+.. currentmodule:: pyflink.table
+
 .. autosummary::
     :toctree: api/
 
@@ -114,3 +117,89 @@ Example:
     Table.union_all
     Table.where
     Table.window
+
+
+GroupedTable
+============
+
+A table that has been grouped on a set of grouping keys.
+
+.. currentmodule:: pyflink.table
+
+.. autosummary::
+    :toctree: api/
+
+    GroupedTable.select
+    GroupedTable.aggregate
+    GroupedTable.flat_aggregate
+
+
+GroupWindowedTable
+==================
+
+A table that has been windowed for :class:`~pyflink.table.GroupWindow`.
+
+.. currentmodule:: pyflink.table
+
+.. autosummary::
+    :toctree: api/
+
+    GroupWindowedTable.group_by
+
+
+WindowGroupedTable
+==================
+
+A table that has been windowed and grouped for :class:`~pyflink.table.window.GroupWindow`.
+
+.. currentmodule:: pyflink.table
+
+.. autosummary::
+    :toctree: api/
+
+    WindowGroupedTable.select
+    WindowGroupedTable.aggregate
+
+
+OverWindowedTable
+=================
+
+A table that has been windowed for :class:`~pyflink.table.window.OverWindow`.
+
+Unlike group windows, which are specified in the GROUP BY clause, over windows do not collapse
+rows. Instead over window aggregates compute an aggregate for each input row over a range of
+its neighboring rows.
+
+.. currentmodule:: pyflink.table
+
+.. autosummary::
+    :toctree: api/
+
+    OverWindowedTable.select
+
+
+AggregatedTable
+===============
+
+A table that has been performed on the aggregate function.
+
+.. currentmodule:: pyflink.table.table
+
+.. autosummary::
+    :toctree: api/
+
+    AggregatedTable.select
+
+
+FlatAggregateTable
+==================
+
+A table that performs flatAggregate on a :class:`~pyflink.table.Table`, a
+:class:`~pyflink.table.GroupedTable` or a :class:`~pyflink.table.WindowGroupedTable`
+
+.. currentmodule:: pyflink.table.table
+
+.. autosummary::
+    :toctree: api/
+
+    FlatAggregateTable.select

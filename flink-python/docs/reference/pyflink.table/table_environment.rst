@@ -33,10 +33,10 @@ afterwards.
 Example:
 ::
 
-    >>> EnvironmentSettings.new_instance() \\
-    ...     .in_streaming_mode() \\
-    ...     .with_built_in_catalog_name("my_catalog") \\
-    ...     .with_built_in_database_name("my_database") \\
+    >>> EnvironmentSettings.new_instance() \
+    ...     .in_streaming_mode() \
+    ...     .with_built_in_catalog_name("my_catalog") \
+    ...     .with_built_in_database_name("my_database") \
     ...     .build()
 
 :func:`~EnvironmentSettings.in_streaming_mode` or :func:`~EnvironmentSettings.in_batch_mode`
@@ -65,6 +65,48 @@ might be convenient as shortcuts.
 
 TableConfig
 -----------
+
+Configuration for the current :class:`TableEnvironment` session to adjust Table & SQL API
+programs.
+
+This class is a pure API class that abstracts configuration from various sources. Currently,
+configuration can be set in any of the following layers (in the given order):
+
+- flink-conf.yaml
+- CLI parameters
+- :class:`~pyflink.datastream.StreamExecutionEnvironment` when bridging to DataStream API
+- :func:`~EnvironmentSettings.Builder.with_configuration`
+- :func:`~TableConfig.set`
+
+The latter two represent the application-specific part of the configuration. They initialize
+and directly modify :func:`~TableConfig.get_configuration`. Other layers represent the
+configuration of the execution context and are immutable.
+
+The getter :func:`~TableConfig.get` gives read-only access to the full configuration. However,
+application-specific configuration has precedence. Configuration of outer layers is used for
+defaults and fallbacks. The setter :func:`~TableConfig.set` will only affect
+application-specific configuration.
+
+For common or important configuration options, this class provides getters and setters methods
+with detailed inline documentation.
+
+For more advanced configuration, users can directly access the underlying key-value map via
+:func:`~pyflink.table.TableConfig.get_configuration`.
+
+Example:
+::
+
+    >>> table_config = t_env.get_config()
+    >>> config = Configuration()
+    >>> config.set_string("parallelism.default", "128") \
+    ...       .set_string("pipeline.auto-watermark-interval", "800ms") \
+    ...       .set_string("execution.checkpointing.interval", "30s")
+    >>> table_config.add_configuration(config)
+
+.. note::
+
+    Because options are read at different point in time when performing operations, it is
+    recommended to set configuration options early after instantiating a table environment.
 
 .. currentmodule:: pyflink.table.table_config
 
