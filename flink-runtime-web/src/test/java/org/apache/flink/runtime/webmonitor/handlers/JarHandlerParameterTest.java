@@ -193,6 +193,18 @@ abstract class JarHandlerParameterTest<
     }
 
     @Test
+    void testConfigurationViaConfiguration() throws Exception {
+        final REQB requestBody = getJarRequestWithConfiguration();
+        handleRequest(
+                createRequest(
+                        requestBody,
+                        getUnresolvedJarMessageParameters(),
+                        getUnresolvedJarMessageParameters(),
+                        jarWithManifest));
+        validateGraphWithFlinkConfig(LAST_SUBMITTED_JOB_GRAPH_REFERENCE.get());
+    }
+
+    @Test
     void testProvideJobId() throws Exception {
         JobID jobId = new JobID();
 
@@ -306,6 +318,8 @@ abstract class JarHandlerParameterTest<
 
     abstract REQB getJarRequestBodyWithJobId(JobID jobId);
 
+    abstract REQB getJarRequestWithConfiguration();
+
     abstract void handleRequest(HandlerRequest<REQB> request) throws Exception;
 
     JobGraph validateDefaultGraph() {
@@ -323,11 +337,13 @@ abstract class JarHandlerParameterTest<
         return jobGraph;
     }
 
+    abstract void validateGraphWithFlinkConfig(JobGraph jobGraph);
+
     private static Optional<JobGraph> getLastSubmittedJobGraphAndReset() {
         return Optional.ofNullable(LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null));
     }
 
-    private static ExecutionConfig getExecutionConfig(JobGraph jobGraph) {
+    static ExecutionConfig getExecutionConfig(JobGraph jobGraph) {
         ExecutionConfig executionConfig;
         try {
             executionConfig =

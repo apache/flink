@@ -310,6 +310,12 @@
         },
         "jobId" : {
           "type" : "any"
+        },
+        "flinkConfiguration" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
         }
       }
     },
@@ -368,6 +374,12 @@
         },
         "jobId" : {
           "type" : "any"
+        },
+        "flinkConfiguration" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
         }
       }
     },
@@ -442,6 +454,12 @@
         "restoreMode" : {
           "type" : "string",
           "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+        },
+        "flinkConfiguration" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
         }
       }
     },

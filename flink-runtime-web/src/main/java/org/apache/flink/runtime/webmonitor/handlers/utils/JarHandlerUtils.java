@@ -97,6 +97,8 @@ public class JarHandlerUtils {
                 throws RestHandlerException {
             final JarRequestBody requestBody = request.getRequestBody();
 
+            Configuration configuration = requestBody.getFlinkConfiguration();
+
             final String pathParameter = request.getPathParameter(JarIdPathParameter.class);
             Path jarFile = jarDir.resolve(pathParameter);
 
@@ -116,7 +118,7 @@ public class JarHandlerUtils {
                     fromRequestBodyOrQueryParameter(
                             requestBody.getParallelism(),
                             () -> getQueryParameter(request, ParallelismQueryParameter.class),
-                            CoreOptions.DEFAULT_PARALLELISM.defaultValue(),
+                            configuration.get(CoreOptions.DEFAULT_PARALLELISM),
                             log);
 
             JobID jobId =
@@ -129,8 +131,14 @@ public class JarHandlerUtils {
             return new JarHandlerContext(jarFile, entryClass, programArgs, parallelism, jobId);
         }
 
-        public void applyToConfiguration(final Configuration configuration) {
+        public void applyToConfiguration(
+                final Configuration configuration,
+                final HandlerRequest<? extends JarRequestBody> request) {
             checkNotNull(configuration);
+            checkNotNull(request);
+
+            Configuration restFlinkConfig = request.getRequestBody().getFlinkConfiguration();
+            configuration.addAll(restFlinkConfig);
 
             if (jobId != null) {
                 configuration.set(
@@ -183,6 +191,26 @@ public class JarHandlerUtils {
             } catch (final ProgramInvocationException e) {
                 throw new CompletionException(e);
             }
+        }
+
+        @VisibleForTesting
+        String getEntryClass() {
+            return entryClass;
+        }
+
+        @VisibleForTesting
+        List<String> getProgramArgs() {
+            return programArgs;
+        }
+
+        @VisibleForTesting
+        int getParallelism() {
+            return parallelism;
+        }
+
+        @VisibleForTesting
+        JobID getJobId() {
+            return jobId;
         }
     }
 
