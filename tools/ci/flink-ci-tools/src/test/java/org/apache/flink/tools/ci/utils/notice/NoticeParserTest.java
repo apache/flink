@@ -34,14 +34,14 @@ class NoticeParserTest {
         final Dependency dependency1 =
                 Dependency.create("groupId1", "artifactId1", "version1", null);
         final Dependency dependency2 =
-                Dependency.create("groupId2", "artifactId2", "version2", null);
+                Dependency.create("groupId2", "artifactId2", "version2", "classifier2");
         final List<String> noticeContents =
                 Arrays.asList(
                         module,
                         "",
                         "Some text about the applicable license",
-                        "- " + dependency1,
-                        "- " + dependency2,
+                        "- groupId1:artifactId1:version1",
+                        "- groupId2:artifactId2:classifier2:version2",
                         "",
                         "some epilogue");
 
@@ -57,9 +57,11 @@ class NoticeParserTest {
     @Test
     void testParseNoticeFileBundlesPath() {
         final String module = "some-module";
-        final Dependency dependency = Dependency.create("groupId", "artifactId", "version", null);
+        final Dependency dependency =
+                Dependency.create("groupId", "artifactId", "version", "classifier");
         final List<String> noticeContents =
-                Arrays.asList(module, "", "Something bundles \"" + dependency + "\"");
+                Arrays.asList(
+                        module, "", "Something bundles \"groupId:artifactId:classifier:version\"");
 
         assertThat(NoticeParser.parseNoticeFile(noticeContents))
                 .hasValueSatisfying(
