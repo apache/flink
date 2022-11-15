@@ -1248,10 +1248,15 @@ public class HiveParserSemanticAnalyzer {
             } else {
                 if (ast.getToken().getType() == HiveASTParser.TOK_DESTINATION
                         && ast.getChild(0).getType() == HiveASTParser.TOK_TAB) {
-                    String fullTableName =
-                            getUnescapedName(
-                                    (HiveParserASTNode) ast.getChild(0).getChild(0),
-                                    SessionState.get().getCurrentDatabase());
+                    // keep the logic of getting full table name consistent with how we get table
+                    // from Hive.
+                    // in the case of the table name is `db.t1`, when we get the table from hive,
+                    // it'll be considered as a table named t1 in a database named db
+                    // in here, we keep the consistence
+                    String tableName =
+                            getUnescapedName((HiveParserASTNode) ast.getChild(0).getChild(0));
+                    String[] names = Utilities.getDbTableName(tableName);
+                    String fullTableName = HiveParserBaseSemanticAnalyzer.getDotName(names);
                     qbp.getInsertOverwriteTables().put(fullTableName, ast);
                 }
             }
@@ -1706,14 +1711,23 @@ public class HiveParserSemanticAnalyzer {
                                         .isInsertIntoTable(
                                                 ts.tableHandle.getDbName(),
                                                 ts.tableHandle.getTableName());
+
+                        // then check if the table is in getInsertOverwriteTables or not
+
+                        // keep the logic of getting full table name consistent with how we get
+                        // table from Hive.
+                        // in the case of the table name is `db.t1`, when we get the table from
+                        // hive,
+                        // it'll be considered as a table named t1 in a database named db
+                        // in here, we keep the consistence
+                        String tableName = getUnescapedName((HiveParserASTNode) ast.getChild(0));
+                        String fullTableName =
+                                HiveParserBaseSemanticAnalyzer.getDotName(
+                                        Utilities.getDbTableName(tableName));
                         isTableWrittenTo |=
-                                (qb.getParseInfo()
-                                                .getInsertOverwriteTables()
-                                                .get(
-                                                        getUnescapedName(
-                                                                (HiveParserASTNode) ast.getChild(0),
-                                                                ts.tableHandle.getDbName()))
+                                (qb.getParseInfo().getInsertOverwriteTables().get(fullTableName)
                                         != null);
+
                         assert isTableWrittenTo
                                 : "Inconsistent data structure detected: we are writing to "
                                         + ts.tableHandle

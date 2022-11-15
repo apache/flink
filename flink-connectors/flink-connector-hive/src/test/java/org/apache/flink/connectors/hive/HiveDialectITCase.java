@@ -119,6 +119,35 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testOverWrite() throws Exception {
+        // test overwrite a non-partition table
+        tableEnv.executeSql("create table t1(a int, b int)");
+        tableEnv.executeSql("insert into t1 values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("insert overwrite table `default.t1` values (9, 10)").await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from t1").collect());
+        assertEquals("[+I[9, 10]]", result.toString());
+
+        // test overwrite a static partition table
+        tableEnv.executeSql("create table t2(a int, b int) partitioned by (c int)");
+        tableEnv.executeSql("insert into t2 partition (c = 1) values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("insert overwrite table `default.t2` partition (c = 1) values (7, 8)")
+                .await();
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("select * from t2").collect());
+        assertEquals("[+I[7, 8, 1]]", result.toString());
+
+        // test overwrite dynamic  partition table
+        tableEnv.executeSql("create table t3(a int, b int) partitioned by (c int)");
+        tableEnv.executeSql("insert into t3 partition (c = 1) values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("create table t4(a int, b int, c int)");
+        tableEnv.executeSql("insert into t4 values (5, 6, 1), (7, 8, 2)").await();
+        tableEnv.executeSql("insert overwrite table `default.t2` partition(c) select * from t4")
+                .await();
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("select * from t2").collect());
+        assertEquals("[+I[5, 6, 1], +I[7, 8, 2]]", result.toString());
+    }
+
+    @Test
     public void testPluggableParser() {
         TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         Parser parser = tableEnvInternal.getParser();
