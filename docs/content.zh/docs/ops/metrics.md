@@ -2269,7 +2269,7 @@ Request metrics aggregated over a subset of all entities of the respective type:
   - `/jobs/metrics?jobs=D,E,F`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics?subtask=1,2,3`
 
-<span class="label label-danger">Warning</span> Metric names can contain special characters that you need to be escape when querying metrics.
+<span class="label label-danger">Warning</span> Metric names can contain special characters that you need to escape when querying metrics.
 For example, "`a_+_b`" would be escaped to "`a_%2B_b`".
 
 List of characters that should be escaped:
