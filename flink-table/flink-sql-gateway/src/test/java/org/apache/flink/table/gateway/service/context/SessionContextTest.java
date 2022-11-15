@@ -28,6 +28,7 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
+import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 
 import org.junit.jupiter.api.AfterAll;
@@ -142,23 +143,16 @@ class SessionContextTest {
     public void testStatementSetStateTransition() {
         assertThat(sessionContext.isStatementSetState()).isFalse();
 
-        Configuration emptyConfiguration = new Configuration();
-        TableEnvironmentInternal tableEnv =
-                sessionContext.createOperationExecutor(emptyConfiguration).getTableEnvironment();
+        OperationExecutor executor = sessionContext.createOperationExecutor(new Configuration());
+        TableEnvironmentInternal tableEnv = executor.getTableEnvironment();
         tableEnv.executeSql("CREATE TABLE whatever (f STRING) WITH ('connector' = 'values')");
 
-        sessionContext
-                .createOperationExecutor(emptyConfiguration)
-                .executeStatement(OperationHandle.create(), "BEGIN STATEMENT SET;");
+        executor.executeStatement(OperationHandle.create(), "BEGIN STATEMENT SET;");
 
         assertThat(sessionContext.isStatementSetState()).isTrue();
 
         // invalid statement in Statement Set
-        assertThatThrownBy(
-                        () ->
-                                sessionContext
-                                        .createOperationExecutor(emptyConfiguration)
-                                        .executeStatement(OperationHandle.create(), "SELECT 1;"))
+        assertThatThrownBy(() -> executor.executeStatement(OperationHandle.create(), "SELECT 1;"))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 SqlExecutionException.class,
@@ -170,37 +164,35 @@ class SessionContextTest {
         assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(0);
 
         // valid statement in Statement Set
-        sessionContext
-                .createOperationExecutor(emptyConfiguration)
-                .executeStatement(
-                        OperationHandle.create(), "INSERT INTO whatever VALUES('Hello World');");
+        String insert = "INSERT INTO whatever VALUES('test%s');";
+        int repeat = 3;
+        for (int i = 0; i < repeat; i++) {
+            executor.executeStatement(OperationHandle.create(), String.format(insert, i));
+        }
 
-        assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(1);
-        assertThat(sessionContext.getStatementSetOperations().get(0).asSummaryString())
-                .isEqualTo(
-                        tableEnv.getParser()
-                                .parse("INSERT INTO whatever VALUES('Hello World');")
-                                .get(0)
-                                .asSummaryString());
+        assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(repeat);
+        for (int i = 0; i < repeat; i++) {
+            assertThat(sessionContext.getStatementSetOperations().get(i).asSummaryString())
+                    .isEqualTo(
+                            tableEnv.getParser()
+                                    .parse(String.format(insert, i))
+                                    .get(0)
+                                    .asSummaryString());
+        }
+
         // end Statement Set
         try {
-            sessionContext
-                    .createOperationExecutor(emptyConfiguration)
-                    .executeStatement(OperationHandle.create(), "END;");
+            executor.executeStatement(OperationHandle.create(), "END;");
         } catch (Throwable t) {
-            // just test the Statement Set state transition, so ignore the error that standalone
-            // cluster doesn't exist
+            // just test the Statement Set state transition, so ignore the error that cluster
+            // doesn't exist
         }
 
         assertThat(sessionContext.isStatementSetState()).isFalse();
         assertThat(sessionContext.getStatementSetOperations().size()).isEqualTo(0);
 
         // dangling 'END'
-        assertThatThrownBy(
-                        () ->
-                                sessionContext
-                                        .createOperationExecutor(emptyConfiguration)
-                                        .executeStatement(OperationHandle.create(), "END;"))
+        assertThatThrownBy(() -> executor.executeStatement(OperationHandle.create(), "END;"))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 SqlExecutionException.class,

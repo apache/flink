@@ -56,6 +56,23 @@ create table StreamingTable (
 1 row in set
 !ok
 
+create table StreamingTable2 (
+  id int,
+  str string
+) with (
+  'connector' = 'filesystem',
+  'path' = '$VAR_STREAMING_PATH2',
+  'format' = 'csv'
+);
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 # test only to verify the test job id.
 SET '$internal.pipeline.job-id' = 'c6d2eb2ade68485fb4d1848294150861';
 !output
@@ -110,6 +127,16 @@ INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), 
 1 row in set
 !ok
 
+INSERT INTO StreamingTable2 SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 END;
 !output
 +----------------------------------+
@@ -119,11 +146,6 @@ END;
 +----------------------------------+
 1 row in set
 !ok
-
-END;
-!output
-org.apache.flink.table.gateway.service.utils.SqlExecutionException: No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.
-!error
 
 RESET '$internal.pipeline.job-id';
 !output
@@ -136,6 +158,22 @@ RESET '$internal.pipeline.job-id';
 !ok
 
 SELECT * FROM StreamingTable;
+!output
++----+----+-------------+
+| op | id |         str |
++----+----+-------------+
+| +I |  1 | Hello World |
+| +I |  2 |          Hi |
+| +I |  2 |          Hi |
+| +I |  3 |       Hello |
+| +I |  3 |       World |
+| +I |  4 |         ADD |
+| +I |  5 |        LINE |
++----+----+-------------+
+7 rows in set
+!ok
+
+SELECT * FROM StreamingTable2;
 !output
 +----+----+-------------+
 | op | id |         str |
@@ -213,6 +251,16 @@ INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 
 1 row in set
 !ok
 
+INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 END;
 !output
 +----------------------------------+
@@ -245,8 +293,15 @@ SELECT * FROM BatchTable;
 |  3 |       World |
 |  4 |         ADD |
 |  5 |        LINE |
+|  1 | Hello World |
+|  2 |          Hi |
+|  2 |          Hi |
+|  3 |       Hello |
+|  3 |       World |
+|  4 |         ADD |
+|  5 |        LINE |
 +----+-------------+
-7 rows in set
+14 rows in set
 !ok
 
 # ==========================================================================
