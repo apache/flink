@@ -43,7 +43,8 @@ class BatchPhysicalSink(
     hints: util.List[RelHint],
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
-    abilitySpecs: Array[SinkAbilitySpec])
+    abilitySpecs: Array[SinkAbilitySpec],
+    val isUpdate: Boolean)
   extends Sink(cluster, traitSet, inputRel, hints, contextResolvedTable, tableSink)
   with BatchPhysicalRel {
 
@@ -55,7 +56,8 @@ class BatchPhysicalSink(
       hints,
       contextResolvedTable,
       tableSink,
-      abilitySpecs)
+      abilitySpecs,
+      isUpdate)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -70,6 +72,7 @@ class BatchPhysicalSink(
       // so it's dam behavior is BLOCKING
       InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription)
+      getRelDetailedDescription,
+      isUpdate)
   }
 }

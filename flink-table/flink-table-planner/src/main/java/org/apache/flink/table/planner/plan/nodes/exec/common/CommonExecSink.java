@@ -108,6 +108,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     private final ChangelogMode inputChangelogMode;
     private final boolean isBounded;
+    private final boolean isUpdate;
 
     protected CommonExecSink(
             int id,
@@ -116,6 +117,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode inputChangelogMode,
             boolean isBounded,
+            boolean isUpdate,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
@@ -123,6 +125,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         this.tableSinkSpec = tableSinkSpec;
         this.inputChangelogMode = inputChangelogMode;
         this.isBounded = isBounded;
+        this.isUpdate = isUpdate;
     }
 
     @Override
@@ -146,7 +149,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int[] inputUpsertKey) {
         final ResolvedSchema schema = tableSinkSpec.getContextResolvedTable().getResolvedSchema();
         final SinkRuntimeProvider runtimeProvider =
-                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));
+                tableSink.getSinkRuntimeProvider(
+                        new SinkRuntimeProviderContext(isBounded, isUpdate));
         final RowType physicalRowType = getPhysicalRowType(schema);
         final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);

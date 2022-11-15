@@ -38,6 +38,7 @@ final class LogicalSink(
     traitSet: RelTraitSet,
     input: RelNode,
     hints: util.List[RelHint],
+    val isUpdate: Boolean,
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     val staticPartitions: Map[String, String],
@@ -50,6 +51,7 @@ final class LogicalSink(
       traitSet,
       inputs.head,
       hints,
+      isUpdate,
       contextResolvedTable,
       tableSink,
       staticPartitions,
@@ -65,6 +67,7 @@ object LogicalSink {
       contextResolvedTable: ContextResolvedTable,
       tableSink: DynamicTableSink,
       staticPartitions: util.Map[String, String],
+      isUpdate: Boolean,
       abilitySpecs: Array[SinkAbilitySpec]): LogicalSink = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
     new LogicalSink(
@@ -72,6 +75,7 @@ object LogicalSink {
       traits,
       input,
       hints,
+      isUpdate,
       contextResolvedTable,
       tableSink,
       staticPartitions.toMap,

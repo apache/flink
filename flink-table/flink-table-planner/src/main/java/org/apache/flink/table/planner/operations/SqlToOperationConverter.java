@@ -193,6 +193,7 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
@@ -1488,41 +1489,59 @@ public class SqlToOperationConverter {
         RelRoot relRoot = flinkPlanner.rel(sqlUpdate);
 
         LogicalTableModify tableModify = (LogicalTableModify) relRoot.rel;
-        tableModify.getUpdateColumnList();
-        tableModify.getSourceExpressionList();
 
+        List<RexNode> sourceExpress = tableModify.getSourceExpressionList();
+
+        // get the project
         LogicalProject project = (LogicalProject) relRoot.rel.getInput(0);
+        // get the fields in the project name
+        List<String> fieldNames = project.getRowType().getFieldNames();
         List<Integer> updateColumnIndex = new ArrayList<>();
-        for (String col : tableModify.getUpdateColumnList()) {
-            updateColumnIndex.add(project.getRowType().getFieldNames().indexOf(col));
+        List<String> updateCols = tableModify.getUpdateColumnList();
+        if (updateCols != null) {
+            for (String col : updateCols) {
+                updateColumnIndex.add(fieldNames.indexOf(col));
+            }
         }
         LogicalFilter filter = (LogicalFilter) project.getInput(0);
         RexNode condition = filter.getCondition();
+
         int k = 0;
-        for (int i = 0; i < project.getProjects().size(); i++) {
-            RexNode express = project.getProjects().get(i);
+        List<RexNode> newExpress = new ArrayList<>();
+        RelOptTable targetTable = tableModify.getTable();
+        for (int i = 0; i < targetTable.getRowType().getFieldNames().size(); i++) {
+            RexNode express =
+                    filter.getCluster()
+                            .getRexBuilder()
+                            .makeInputRef(
+                                    targetTable.getRowType().getFieldList().get(i).getType(), i);
             if (updateColumnIndex.contains(i)) {
-                RexNode trueRexNode = tableModify.getSourceExpressionList().get(k++);
+                RexNode trueRexNode = sourceExpress.get(k++);
                 express =
                         filter.getCluster()
                                 .getRexBuilder()
                                 .makeCall(
                                         FlinkSqlOperatorTable.IF, condition, trueRexNode, express);
-                System.out.println(express);
             }
+            newExpress.add(express);
         }
-        for (RexNode express : project.getProjects()) {
-            RexNode rexNode =
-                    filter.getCluster()
-                            .getRexBuilder()
-                            .makeCall(FlinkSqlOperatorTable.IF, condition, express, express);
-            System.out.println(rexNode);
-        }
+        LogicalProject project1 =
+                project.copy(
+                        project.getTraitSet(),
+                        filter.getInput(),
+                        newExpress,
+                        targetTable.getRowType());
 
-        System.out.println(relRoot.rel.explain());
-        System.out.println(sqlUpdate.getTargetTable());
-        System.out.println(sqlUpdate.getOperandList());
-        return null;
+        PlannerQueryOperation query = new PlannerQueryOperation(project1);
+
+        // Get sink table name.
+        List<String> targetTablePath = tableModify.getTable().getQualifiedName();
+
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(identifier);
+
+        return new SinkModifyOperation(contextResolvedTable, query, true);
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {

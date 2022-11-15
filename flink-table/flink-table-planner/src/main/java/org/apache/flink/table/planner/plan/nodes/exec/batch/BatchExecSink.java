@@ -44,7 +44,8 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
             DynamicTableSinkSpec tableSinkSpec,
             InputProperty inputProperty,
             LogicalType outputType,
-            String description) {
+            String description,
+            boolean isUpdate) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecSink.class),
@@ -52,6 +53,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
                 tableSinkSpec,
                 ChangelogMode.insertOnly(),
                 true, // isBounded
+                isUpdate,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

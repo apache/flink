@@ -190,6 +190,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             @Override
             public DataStreamSink<?> consumeDataStream(
                     ProviderContext providerContext, DataStream<RowData> dataStream) {
+                System.out.println("consumeDataStream isUpdate: " + context.isUpdate());
                 return consume(providerContext, dataStream, context.isBounded(), converter);
             }
         };

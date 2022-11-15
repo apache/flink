@@ -142,6 +142,10 @@ public interface DynamicTableSink {
          */
         boolean isBounded();
 
+        default boolean isUpdate() {
+            return false;
+        }
+
         /**
          * Creates type information describing the internal data structures of the given {@link
          * DataType}.

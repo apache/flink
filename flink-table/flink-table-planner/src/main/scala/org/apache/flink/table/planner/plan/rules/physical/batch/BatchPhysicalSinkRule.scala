@@ -113,7 +113,8 @@ class BatchPhysicalSinkRule
       sink.hints,
       sink.contextResolvedTable,
       sink.tableSink,
-      abilitySpecs.toArray)
+      abilitySpecs.toArray,
+      sink.isUpdate)
   }
 }
 

@@ -33,14 +33,26 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.validateOutputDat
 public final class SinkRuntimeProviderContext implements DynamicTableSink.Context {
 
     private final boolean isBounded;
+    private final boolean isUpdated;
 
     public SinkRuntimeProviderContext(boolean isBounded) {
         this.isBounded = isBounded;
+        this.isUpdated = false;
+    }
+
+    public SinkRuntimeProviderContext(boolean isBounded, boolean isUpdated) {
+        this.isBounded = isBounded;
+        this.isUpdated = isUpdated;
     }
 
     @Override
     public boolean isBounded() {
         return isBounded;
+    }
+
+    @Override
+    public boolean isUpdate() {
+        return isUpdated;
     }
 
     @Override

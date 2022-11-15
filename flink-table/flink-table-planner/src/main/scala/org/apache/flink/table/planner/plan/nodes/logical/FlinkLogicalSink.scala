@@ -44,7 +44,8 @@ class FlinkLogicalSink(
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     val staticPartitions: Map[String, String],
-    val abilitySpecs: Array[SinkAbilitySpec])
+    val abilitySpecs: Array[SinkAbilitySpec],
+    val isUpdate: Boolean)
   extends Sink(cluster, traitSet, input, hints, contextResolvedTable, tableSink)
   with FlinkLogicalRel {
 
@@ -57,7 +58,8 @@ class FlinkLogicalSink(
       contextResolvedTable,
       tableSink,
       staticPartitions,
-      abilitySpecs)
+      abilitySpecs,
+      isUpdate)
   }
 
 }
@@ -78,7 +80,8 @@ private class FlinkLogicalSinkConverter
       sink.contextResolvedTable,
       sink.tableSink,
       sink.staticPartitions,
-      sink.abilitySpecs)
+      sink.abilitySpecs,
+      sink.isUpdate)
   }
 }
 
@@ -91,7 +94,8 @@ object FlinkLogicalSink {
       contextResolvedTable: ContextResolvedTable,
       tableSink: DynamicTableSink,
       staticPartitions: Map[String, String] = Map(),
-      abilitySpecs: Array[SinkAbilitySpec] = Array.empty): FlinkLogicalSink = {
+      abilitySpecs: Array[SinkAbilitySpec] = Array.empty,
+      isUpdate: Boolean = false): FlinkLogicalSink = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalSink(
@@ -102,6 +106,7 @@ object FlinkLogicalSink {
       contextResolvedTable,
       tableSink,
       staticPartitions,
-      abilitySpecs)
+      abilitySpecs,
+      isUpdate)
   }
 }
