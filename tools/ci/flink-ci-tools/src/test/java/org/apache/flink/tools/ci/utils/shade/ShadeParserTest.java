@@ -52,7 +52,7 @@ class ShadeParserTest {
         assertThat(dependenciesByModule.get("m1"))
                 .containsExactlyInAnyOrder(
                         Dependency.create("external", "dependency1", "2.1", null),
-                        Dependency.create("external", "dependency4", "2.4", "classifier"));
+                        Dependency.create("external", "dependency4", "classifier:2.4", null));
         assertThat(dependenciesByModule.get("m2"))
                 .containsExactlyInAnyOrder(Dependency.create("internal", "m1", "1.1", null));
     }

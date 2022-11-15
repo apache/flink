@@ -46,7 +46,6 @@ public final class ShadeParser {
                             + "(?<groupId>.*?):"
                             + "(?<artifactId>.*?):"
                             + "(?<type>.*?):"
-                            + "(?:(?<classifier>.*?):)?"
                             + "(?<version>.*?)"
                             + " in the shaded jar");
 
@@ -124,7 +123,7 @@ public final class ShadeParser {
                         dependencyMatcher.group("groupId"),
                         dependencyMatcher.group("artifactId"),
                         dependencyMatcher.group("version"),
-                        dependencyMatcher.group("classifier")));
+                        null));
     }
 
     private ShadeParser() {}
