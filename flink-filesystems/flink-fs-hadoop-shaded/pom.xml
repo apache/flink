@@ -248,18 +248,6 @@ under the License.
 								</relocation>
 							</relocations>
 							<filters>
-								<!-- remove the classes from Hadoop that we replace with our overwritten implementation -->
-								<filter>
-									<artifact>org.apache.hadoop:hadoop-common</artifact>
-									<excludes>
-										<exclude>org/apache/hadoop/conf/Configuration**</exclude>
-										<exclude>org/apache/hadoop/util/NativeCodeLoader**</exclude>
-										<exclude>org/apache/hadoop/util/VersionInfo**</exclude>
-										<exclude>core-default.xml</exclude>
-										<exclude>common-version-info.properties</exclude>
-										<exclude>org.apache.hadoop.application-classloader.properties</exclude>
-									</excludes>
-								</filter>
 								<filter>
 									<artifact>*</artifact>
 									<excludes>

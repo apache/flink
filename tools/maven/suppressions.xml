@@ -68,16 +68,6 @@ under the License.
 		<suppress
 			files="MockBookKeeperClientFactory.java"
 			checks="IllegalImport"/>
-		<!-- Classes copied from Hadoop -->
-		<suppress
-			files="org[\\/]apache[\\/]hadoop[\\/]conf[\\/]Configuration.java"
-			checks=".*"/>
-		<suppress
-			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]NativeCodeLoader.java"
-			checks=".*"/>
-		<suppress
-			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]VersionInfo.java"
-			checks=".*"/>
 		<!-- Classes copied from AWS -->
 		<suppress
 			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"
