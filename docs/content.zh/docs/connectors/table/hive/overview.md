@@ -43,7 +43,7 @@ Flink 与 Hive 的集成包含两个层面。
 
 ## 支持的Hive版本
 
-Flink 支持一下的 Hive 版本。
+Flink 支持以下的 Hive 版本。
 
 - 1.0
     - 1.0.0
