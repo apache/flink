@@ -69,6 +69,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
@@ -90,7 +91,7 @@ public class OperationExecutor {
         this.executionConfig = executionConfig;
     }
 
-    public ResultFetcher configureSession(OperationHandle handle, String statement) {
+    public void configureSession(String statement) throws ExecutionException, InterruptedException {
         TableEnvironmentInternal tableEnv = getTableEnvironment();
         List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
         if (parsedOperations.size() > 1) {
@@ -99,6 +100,7 @@ public class OperationExecutor {
                             + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
         }
         Operation op = parsedOperations.get(0);
+
         if (!(op instanceof SetOperation)
                 && !(op instanceof ResetOperation)
                 && !(op instanceof CreateOperation)
@@ -111,7 +113,15 @@ public class OperationExecutor {
             throw new UnsupportedOperationException(
                     String.format("Unsupported statement for configuring session:\n%s", statement));
         }
-        return executeOperation(tableEnv, handle, op);
+
+        // Ignore the execution result
+        if (op instanceof SetOperation) {
+            callSetOperation(tableEnv, OperationHandle.create(), (SetOperation) op);
+        } else if (op instanceof ResetOperation) {
+            callResetOperation(OperationHandle.create(), (ResetOperation) op);
+        } else {
+            tableEnv.executeInternal(op).await();
+        }
     }
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
@@ -124,7 +134,32 @@ public class OperationExecutor {
                             + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
         }
         Operation op = parsedOperations.get(0);
-        return executeOperation(tableEnv, handle, op);
+        if (op instanceof SetOperation) {
+            return callSetOperation(tableEnv, handle, (SetOperation) op);
+        } else if (op instanceof ResetOperation) {
+            return callResetOperation(handle, (ResetOperation) op);
+        } else if (op instanceof BeginStatementSetOperation) {
+            // TODO: support statement set in the FLINK-27837
+            throw new UnsupportedOperationException();
+        } else if (op instanceof EndStatementSetOperation) {
+            // TODO: support statement set in the FLINK-27837
+            throw new UnsupportedOperationException();
+        } else if (op instanceof ModifyOperation) {
+            return callModifyOperations(
+                    tableEnv, handle, Collections.singletonList((ModifyOperation) op));
+        } else if (op instanceof StatementSetOperation) {
+            return callModifyOperations(
+                    tableEnv, handle, ((StatementSetOperation) op).getOperations());
+        } else if (op instanceof QueryOperation) {
+            TableResultInternal result = tableEnv.executeInternal(op);
+            return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
+        } else {
+            TableResultInternal result = tableEnv.executeInternal(op);
+            return new ResultFetcher(
+                    handle,
+                    result.getResolvedSchema(),
+                    CollectionUtil.iteratorToList(result.collectInternal()));
+        }
     }
 
     public String getCurrentCatalog() {
@@ -225,36 +260,6 @@ public class OperationExecutor {
         TableEnvironmentInternal tableEnv = sessionContext.createTableEnvironment();
         tableEnv.getConfig().getConfiguration().addAll(executionConfig);
         return tableEnv;
-    }
-
-    private ResultFetcher executeOperation(
-            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
-        if (op instanceof SetOperation) {
-            return callSetOperation(tableEnv, handle, (SetOperation) op);
-        } else if (op instanceof ResetOperation) {
-            return callResetOperation(handle, (ResetOperation) op);
-        } else if (op instanceof BeginStatementSetOperation) {
-            // TODO: support statement set in the FLINK-27837
-            throw new UnsupportedOperationException();
-        } else if (op instanceof EndStatementSetOperation) {
-            // TODO: support statement set in the FLINK-27837
-            throw new UnsupportedOperationException();
-        } else if (op instanceof ModifyOperation) {
-            return callModifyOperations(
-                    tableEnv, handle, Collections.singletonList((ModifyOperation) op));
-        } else if (op instanceof StatementSetOperation) {
-            return callModifyOperations(
-                    tableEnv, handle, ((StatementSetOperation) op).getOperations());
-        } else if (op instanceof QueryOperation) {
-            TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
-        } else {
-            TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(
-                    handle,
-                    result.getResolvedSchema(),
-                    CollectionUtil.iteratorToList(result.collectInternal()));
-        }
     }
 
     private ResultFetcher callSetOperation(

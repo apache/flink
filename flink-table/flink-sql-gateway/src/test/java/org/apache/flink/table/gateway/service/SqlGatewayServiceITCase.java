@@ -25,7 +25,6 @@ import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -175,24 +174,27 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         // SET & RESET
-        verifyConfigureSession(sessionHandle, "SET 'key1' = 'value1';");
+        service.configureSession(sessionHandle, "SET 'key1' = 'value1';", 0);
         Map<String, String> config = new HashMap<>();
         config.put("key1", "value1");
         assertThat(service.getSessionConfig(sessionHandle)).containsAllEntriesOf(config);
 
-        verifyConfigureSession(sessionHandle, "RESET 'key1';");
+        service.configureSession(sessionHandle, "RESET 'key1';", 0);
         assertThat(service.getSessionConfig(sessionHandle)).doesNotContainEntry("key1", "value1");
 
         // CREATE & USE & ALTER & DROP
-        verifyConfigureSession(
+        service.configureSession(
                 sessionHandle,
-                "CREATE CATALOG mycat with ('type' = 'generic_in_memory', 'default-database' = 'db');");
+                "CREATE CATALOG mycat with ('type' = 'generic_in_memory', 'default-database' = 'db');",
+                0);
 
-        verifyConfigureSession(sessionHandle, "USE CATALOG mycat;");
+        service.configureSession(sessionHandle, "USE CATALOG mycat;", 0);
         assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("mycat");
 
-        verifyConfigureSession(
-                sessionHandle, "CREATE TABLE db.tbl (score INT) WITH ('connector' = 'datagen');");
+        service.configureSession(
+                sessionHandle,
+                "CREATE TABLE db.tbl (score INT) WITH ('connector' = 'datagen');",
+                0);
 
         Set<TableKind> tableKinds = new HashSet<>();
         tableKinds.add(TableKind.TABLE);
@@ -200,7 +202,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 .contains(
                         new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl"), TableKind.TABLE));
 
-        verifyConfigureSession(sessionHandle, "ALTER TABLE db.tbl RENAME TO tbl1;");
+        service.configureSession(sessionHandle, "ALTER TABLE db.tbl RENAME TO tbl1;", 0);
         assertThat(service.listTables(sessionHandle, "mycat", "db", tableKinds))
                 .doesNotContain(
                         new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl"), TableKind.TABLE))
@@ -208,11 +210,11 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl1"), TableKind.TABLE));
 
         service.configureSession(sessionHandle, "USE CATALOG default_catalog;", 0);
-        verifyConfigureSession(sessionHandle, "DROP CATALOG mycat;");
+        service.configureSession(sessionHandle, "DROP CATALOG mycat;", 0);
         assertThat(service.listCatalogs(sessionHandle)).doesNotContain("mycat");
 
         // LOAD & UNLOAD MODULE
-        verifyConfigureSession(sessionHandle, "LOAD MODULE dummy;");
+        service.configureSession(sessionHandle, "LOAD MODULE dummy;", 0);
 
         TableEnvironmentInternal tableEnv =
                 service.getSession(sessionHandle).createExecutor().getTableEnvironment();
@@ -221,7 +223,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 tableEnv.executeSql("SHOW FULL MODULES;").collect()))
                 .contains(Row.of("dummy", true));
 
-        verifyConfigureSession(sessionHandle, "UNLOAD MODULE dummy;");
+        service.configureSession(sessionHandle, "UNLOAD MODULE dummy;", 0);
         assertThat(
                         CollectionUtil.iteratorToList(
                                 tableEnv.executeSql("SHOW FULL MODULES;").collect()))
@@ -237,7 +239,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
                         .toURI()
                         .toString();
-        verifyConfigureSession(sessionHandle, String.format("ADD JAR '%s';", jarPath));
+        service.configureSession(sessionHandle, String.format("ADD JAR '%s';", jarPath), 0);
 
         assertThat(CollectionUtil.iteratorToList(tableEnv.executeSql("SHOW JARS;").collect()))
                 .isEqualTo(Collections.singletonList(Row.of(new Path(jarPath).getPath())));
@@ -995,22 +997,5 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         tableEnv.executeSql("CREATE TABLE cat2.db0.tbl0 WITH('connector' = 'values')");
 
         return sessionHandle;
-    }
-
-    private void verifyConfigureSession(SessionHandle sessionHandle, String statement) {
-        // Currently, the result of legal statement for configuring session is always
-        // TABLE_RESULT_OK
-        List<RowData> rows =
-                CollectionUtil.iteratorToList(
-                        TableResultInternal.TABLE_RESULT_OK.collectInternal());
-        ResultSet configureResult =
-                new ResultSet(
-                        PAYLOAD,
-                        null,
-                        TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                        rows);
-
-        assertThat(service.configureSession(sessionHandle, statement, 0))
-                .isEqualTo(configureResult);
     }
 }

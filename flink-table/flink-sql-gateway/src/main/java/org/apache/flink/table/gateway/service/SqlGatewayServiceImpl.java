@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -45,8 +44,6 @@ import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -83,7 +80,7 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
-    public ResultSet configureSession(
+    public void configureSession(
             SessionHandle sessionHandle, String statement, long executionTimeoutMs)
             throws SqlGatewayException {
         try {
@@ -92,16 +89,7 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
                 throw new UnsupportedOperationException(
                         "SqlGatewayService doesn't support timeout mechanism now.");
             }
-            OperationHandle operationHandle =
-                    getSession(sessionHandle)
-                            .getOperationManager()
-                            .submitOperation(
-                                    handle ->
-                                            getSession(sessionHandle)
-                                                    .createExecutor()
-                                                    .configureSession(handle, statement));
-            return fetchConfigureSessionResult(sessionHandle, operationHandle);
-
+            getSession(sessionHandle).createExecutor().configureSession(statement);
         } catch (Throwable t) {
             LOG.error("Failed to configure session.", t);
             throw new SqlGatewayException("Failed to configure session.", t);
@@ -345,24 +333,5 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     @VisibleForTesting
     public Session getSession(SessionHandle sessionHandle) {
         return sessionManager.getSession(sessionHandle);
-    }
-
-    /** Fetch all results for configuring session. */
-    private ResultSet fetchConfigureSessionResult(
-            SessionHandle sessionHandle, OperationHandle operationHandle) {
-        ResultSet firstResult = fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE);
-        while (firstResult == ResultSet.NOT_READY_RESULTS) {
-            firstResult = fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE);
-        }
-        ResolvedSchema resolvedSchema = firstResult.getResultSchema();
-        List<RowData> rows = new ArrayList<>(firstResult.getData());
-        Long nextToken = firstResult.getNextToken();
-        while (nextToken != null) {
-            ResultSet result =
-                    fetchResults(sessionHandle, operationHandle, nextToken, Integer.MAX_VALUE);
-            rows.addAll(result.getData());
-            nextToken = result.getNextToken();
-        }
-        return new ResultSet(ResultSet.ResultType.PAYLOAD, null, resolvedSchema, rows);
     }
 }
