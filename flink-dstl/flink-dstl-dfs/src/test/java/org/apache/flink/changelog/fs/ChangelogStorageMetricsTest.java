@@ -260,8 +260,8 @@ public class ChangelogStorageMetricsTest {
 
     @Test
     void testTotalAttemptsPerUpload() throws Exception {
-        int numUploads = 20, maxAttempts = 3;
-        long timeout = 20;
+        int numUploads = 10, maxAttempts = 3;
+        long timeout = 50;
         int numUploadThreads = 4; // must bigger or equal than maxAttempts
 
         ChangelogStorageMetricGroup metrics =
