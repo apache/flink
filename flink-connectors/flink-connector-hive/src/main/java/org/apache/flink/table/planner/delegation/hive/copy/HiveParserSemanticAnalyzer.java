@@ -959,12 +959,16 @@ public class HiveParserSemanticAnalyzer {
                     break;
 
                 case HiveASTParser.TOK_INSERT_INTO:
-                    String currentDatabase = SessionState.get().getCurrentDatabase();
+                    // keep the logic of getting full table name consistent with how we get table
+                    // from Hive.
+                    // in the case of the table name is `db.t1`, when we get the table from hive,
+                    // it'll be considered as a table named t1 in a database named db
+                    // in here, we keep the consistence
                     String tabName =
-                            getUnescapedName(
-                                    (HiveParserASTNode) ast.getChild(0).getChild(0),
-                                    currentDatabase);
-                    qbp.addInsertIntoTable(tabName, ast);
+                            getUnescapedName((HiveParserASTNode) ast.getChild(0).getChild(0));
+                    String[] names = Utilities.getDbTableName(tabName);
+                    String fullTableName = HiveParserBaseSemanticAnalyzer.getDotName(names);
+                    qbp.addInsertIntoTable(fullTableName, ast);
                     // TODO: hive doesn't break here, so we copy what's below here
                     handleTokDestination(ctx1, ast, qbp, plannerCtx);
                     break;
@@ -1253,9 +1257,9 @@ public class HiveParserSemanticAnalyzer {
                     // in the case of the table name is `db.t1`, when we get the table from hive,
                     // it'll be considered as a table named t1 in a database named db
                     // in here, we keep the consistence
-                    String tableName =
+                    String tabName =
                             getUnescapedName((HiveParserASTNode) ast.getChild(0).getChild(0));
-                    String[] names = Utilities.getDbTableName(tableName);
+                    String[] names = Utilities.getDbTableName(tabName);
                     String fullTableName = HiveParserBaseSemanticAnalyzer.getDotName(names);
                     qbp.getInsertOverwriteTables().put(fullTableName, ast);
                 }
