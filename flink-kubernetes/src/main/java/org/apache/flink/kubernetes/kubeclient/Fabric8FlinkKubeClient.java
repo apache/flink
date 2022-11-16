@@ -40,7 +40,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.OwnerReference;
@@ -183,8 +182,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                             .getSpec()
                                                             .getNodeName())
                                             .get());
-                    // When the Ready NodeCondition status is False or Unknown, to force delete the pod
-                    // on it.
+                    // When the Ready NodeCondition status is False or Unknown, to force delete the
+                    // pod on it.
                     this.internalClient
                             .pods()
                             .withName(podName)

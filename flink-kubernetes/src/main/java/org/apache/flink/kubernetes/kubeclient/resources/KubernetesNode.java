@@ -47,25 +47,25 @@ public class KubernetesNode extends KubernetesResource<Node> {
         /**
          * True if the node is healthy and ready to accept pods, False if the node is not healthy
          * and is not accepting pods, and Unknown if the node controller has not heard from the node
-         * in the last node-monitor-grace-period (default is 40 seconds)
+         * in the last node-monitor-grace-period (default is 40 seconds).
          */
         Ready,
         /**
          * True if pressure exists on the disk size—that is, if the disk capacity is low; otherwise
-         * False
+         * False.
          */
         DiskPressure,
         /**
          * True if pressure exists on the node memory—that is, if the node memory is low; otherwise
-         * False
+         * False.
          */
         MemoryPressure,
         /**
          * True if pressure exists on the processes—that is, if there are too many processes on the
-         * node; otherwise False
+         * node; otherwise False.
          */
         PIDPressure,
-        /** True if the network for the node is not correctly configured, otherwise False */
+        /** True if the network for the node is not correctly configured, otherwise False. */
         NetworkUnavailable
     }
 
