@@ -20,12 +20,12 @@ package org.apache.flink.tools.ci.utils.dependency;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
 import org.apache.flink.tools.ci.utils.shared.DependencyTree;
+import org.apache.flink.tools.ci.utils.shared.ParserUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -40,10 +40,12 @@ import java.util.stream.Stream;
 public class DependencyParser {
 
     private static final Pattern DEPENDENCY_COPY_NEXT_MODULE_PATTERN =
-            Pattern.compile(".*maven-dependency-plugin:[^:]+:copy .* @ ([^ _]+)(_[0-9.]+)? --.*");
+            Pattern.compile(
+                    ".*maven-dependency-plugin:[^:]+:copy .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     private static final Pattern DEPENDENCY_TREE_NEXT_MODULE_PATTERN =
-            Pattern.compile(".*maven-dependency-plugin:[^:]+:tree .* @ ([^ _]+)(_[0-9.]+)? --.*");
+            Pattern.compile(
+                    ".*maven-dependency-plugin:[^:]+:tree .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     /** See {@link DependencyParserTreeTest} for examples. */
     private static final Pattern DEPENDENCY_TREE_ITEM_PATTERN =
@@ -97,7 +99,7 @@ public class DependencyParser {
 
     @VisibleForTesting
     static Map<String, Set<Dependency>> parseDependencyCopyOutput(Stream<String> lines) {
-        return parseDependencyOutput(
+        return ParserUtils.parsePluginOutput(
                 lines,
                 DEPENDENCY_COPY_NEXT_MODULE_PATTERN,
                 DependencyParser::parseCopyDependencyBlock);
@@ -105,38 +107,10 @@ public class DependencyParser {
 
     @VisibleForTesting
     static Map<String, DependencyTree> parseDependencyTreeOutput(Stream<String> lines) {
-        return parseDependencyOutput(
+        return ParserUtils.parsePluginOutput(
                 lines,
                 DEPENDENCY_TREE_NEXT_MODULE_PATTERN,
                 DependencyParser::parseTreeDependencyBlock);
-    }
-
-    private static <D> Map<String, D> parseDependencyOutput(
-            Stream<String> lines,
-            Pattern executionLinePattern,
-            Function<Iterator<String>, D> blockParser) {
-        final Map<String, D> result = new LinkedHashMap<>();
-
-        final Iterator<String> iterator = lines.iterator();
-
-        while (iterator.hasNext()) {
-            Matcher moduleMatcher = executionLinePattern.matcher(iterator.next());
-            while (!moduleMatcher.find()) {
-                if (iterator.hasNext()) {
-                    moduleMatcher = executionLinePattern.matcher(iterator.next());
-                } else {
-                    return result;
-                }
-            }
-            final String currentModule = moduleMatcher.group(1);
-
-            if (!iterator.hasNext()) {
-                throw new IllegalStateException("Expected more output from the dependency-plugin.");
-            }
-
-            result.put(currentModule, blockParser.apply(iterator));
-        }
-        return result;
     }
 
     private static Set<Dependency> parseCopyDependencyBlock(Iterator<String> block) {

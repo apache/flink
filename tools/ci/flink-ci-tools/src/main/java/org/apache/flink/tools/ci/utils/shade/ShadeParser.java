@@ -19,12 +19,12 @@ package org.apache.flink.tools.ci.utils.shade;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
+import org.apache.flink.tools.ci.utils.shared.ParserUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -38,7 +38,7 @@ public final class ShadeParser {
 
     private static final Pattern SHADE_NEXT_MODULE_PATTERN =
             Pattern.compile(
-                    ".*:shade \\((?:shade-flink|shade-dist|default)\\) @ ([^ _]+)(_[0-9.]+)? --.*");
+                    ".*:shade \\((?:shade-flink|shade-dist|default)\\) @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     private static final Pattern SHADE_INCLUDE_MODULE_PATTERN =
             Pattern.compile(
@@ -70,29 +70,10 @@ public final class ShadeParser {
 
     @VisibleForTesting
     static Map<String, Set<Dependency>> parseShadeOutput(Stream<String> lines) {
-        final Map<String, Set<Dependency>> result = new LinkedHashMap<>();
-
-        final Iterator<String> iterator =
-                lines.filter(line -> !line.contains(" Excluding ")).iterator();
-
-        while (iterator.hasNext()) {
-            Matcher moduleMatcher = SHADE_NEXT_MODULE_PATTERN.matcher(iterator.next());
-            while (!moduleMatcher.find()) {
-                if (iterator.hasNext()) {
-                    moduleMatcher = SHADE_NEXT_MODULE_PATTERN.matcher(iterator.next());
-                } else {
-                    return result;
-                }
-            }
-            final String currentModule = moduleMatcher.group(1);
-
-            if (!iterator.hasNext()) {
-                throw new IllegalStateException("Expected more output from the shade-plugin.");
-            }
-
-            result.put(currentModule, parseBlock(iterator));
-        }
-        return result;
+        return ParserUtils.parsePluginOutput(
+                lines.filter(line -> !line.contains(" Excluding ")),
+                SHADE_NEXT_MODULE_PATTERN,
+                ShadeParser::parseBlock);
     }
 
     private static Set<Dependency> parseBlock(Iterator<String> block) {
