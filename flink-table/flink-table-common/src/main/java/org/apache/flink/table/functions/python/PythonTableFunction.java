@@ -39,13 +39,15 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
     private static final long serialVersionUID = 1L;
 
     private final String name;
-    private final byte[] serializedScalarFunction;
+    private final byte[] serializedTableFunction;
     private final DataType[] inputTypes;
-    private final DataType resultType;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+
+    private DataType resultType;
+    private String resultTypeString;
 
     public PythonTableFunction(
             String name,
@@ -56,10 +58,48 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
-        this.name = name;
-        this.serializedScalarFunction = serializedScalarFunction;
-        this.inputTypes = inputTypes;
+        this(
+                name,
+                serializedScalarFunction,
+                inputTypes,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
         this.resultType = resultType;
+    }
+
+    public PythonTableFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            DataType[] inputTypes,
+            String resultTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedScalarFunction,
+                inputTypes,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.resultTypeString = resultTypeString;
+    }
+
+    public PythonTableFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            DataType[] inputTypes,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this.name = name;
+        this.serializedTableFunction = serializedScalarFunction;
+        this.inputTypes = inputTypes;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
@@ -73,7 +113,7 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 
     @Override
     public byte[] getSerializedPythonFunction() {
-        return serializedScalarFunction;
+        return serializedTableFunction;
     }
 
     @Override
@@ -118,6 +158,11 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
                     Stream.of(inputTypes).collect(Collectors.toList());
             builder.typedArguments(argumentDataTypes);
         }
+
+        if (resultType == null) {
+            resultType = typeFactory.createDataType(resultTypeString);
+        }
+
         return builder.outputTypeStrategy(TypeStrategies.explicit(resultType)).build();
     }
 

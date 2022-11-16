@@ -36,12 +36,15 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
     private final String name;
     private final byte[] serializedAggregateFunction;
     private final DataType[] inputTypes;
-    private final DataType resultType;
-    private final DataType accumulatorType;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+
+    private DataType resultType;
+    private String resultTypeString;
+    private DataType accumulatorType;
+    private String accumulatorTypeString;
 
     public PythonAggregateFunction(
             String name,
@@ -53,11 +56,51 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedAggregateFunction,
+                inputTypes,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.resultType = resultType;
+        this.accumulatorType = accumulatorType;
+    }
+
+    public PythonAggregateFunction(
+            String name,
+            byte[] serializedAggregateFunction,
+            DataType[] inputTypes,
+            String resultTypeString,
+            String accumulatorTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedAggregateFunction,
+                inputTypes,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.resultTypeString = resultTypeString;
+        this.accumulatorTypeString = accumulatorTypeString;
+    }
+
+    public PythonAggregateFunction(
+            String name,
+            byte[] serializedAggregateFunction,
+            DataType[] inputTypes,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
         this.name = name;
         this.serializedAggregateFunction = serializedAggregateFunction;
         this.inputTypes = inputTypes;
-        this.resultType = resultType;
-        this.accumulatorType = accumulatorType;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
@@ -120,6 +163,15 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
         if (inputTypes != null) {
             builder.typedArguments(inputTypes);
         }
+
+        if (resultType == null) {
+            resultType = typeFactory.createDataType(resultTypeString);
+        }
+
+        if (accumulatorType == null) {
+            accumulatorType = typeFactory.createDataType(accumulatorTypeString);
+        }
+
         return builder.outputTypeStrategy(TypeStrategies.explicit(resultType))
                 .accumulatorTypeStrategy(TypeStrategies.explicit(accumulatorType))
                 .build();

@@ -40,11 +40,13 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
     private final String name;
     private final byte[] serializedScalarFunction;
     private final DataType[] inputTypes;
-    private final DataType resultType;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+
+    private DataType resultType;
+    private String resultTypeString;
 
     public PythonScalarFunction(
             String name,
@@ -55,10 +57,48 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedScalarFunction,
+                inputTypes,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.resultType = resultType;
+    }
+
+    public PythonScalarFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            DataType[] inputTypes,
+            String resultTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedScalarFunction,
+                inputTypes,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.resultTypeString = resultTypeString;
+    }
+
+    public PythonScalarFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            DataType[] inputTypes,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
         this.name = name;
         this.serializedScalarFunction = serializedScalarFunction;
         this.inputTypes = inputTypes;
-        this.resultType = resultType;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
@@ -117,6 +157,11 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
                     Stream.of(inputTypes).collect(Collectors.toList());
             builder.typedArguments(argumentDataTypes);
         }
+
+        if (resultType == null) {
+            resultType = typeFactory.createDataType(resultTypeString);
+        }
+
         return builder.outputTypeStrategy(TypeStrategies.explicit(resultType)).build();
     }
 
