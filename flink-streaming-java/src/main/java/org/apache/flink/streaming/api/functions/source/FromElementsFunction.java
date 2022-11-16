@@ -31,6 +31,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.connector.source.CollectionSource;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
@@ -57,8 +58,10 @@ import java.util.Objects;
  * <p><b>NOTE:</b> This source has a parallelism of 1.
  *
  * @param <T> The type of elements returned by this function.
+ * @deprecated Use {@link CollectionSource} instead.
  */
 @PublicEvolving
+@Deprecated
 public class FromElementsFunction<T>
         implements SourceFunction<T>, CheckpointedFunction, OutputTypeConfigurable<T> {
 

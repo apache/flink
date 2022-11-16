@@ -18,11 +18,17 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.connector.source.IteratorSource;
 
 import java.util.Iterator;
 
-/** A {@link SourceFunction} that reads elements from an {@link Iterator} and emits them. */
+/**
+ * A {@link SourceFunction} that reads elements from an {@link Iterator} and emits them.
+ *
+ * @deprecated Use {@link IteratorSource} instead.
+ */
 @PublicEvolving
+@Deprecated
 public class FromIteratorFunction<T> implements SourceFunction<T> {
 
     private static final long serialVersionUID = 1L;

@@ -23,6 +23,9 @@ import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
+import org.apache.flink.streaming.api.functions.source.FromElementsFunction
+import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -127,12 +130,13 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
   @Test
   def testAvoidIncludingUnionFromInputSide(): Unit = {
+    createNonChainableTableSource()
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |SELECT * FROM
-        |  (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM t)) T1
+        |  (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM nonchainable)) T1
         |  LEFT JOIN y ON T1.a = y.d
         |""".stripMargin
     util.verifyExecPlan(sql)
@@ -141,12 +145,13 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testIncludeUnionForChainableSource(): Unit = {
     createChainableTableSource()
+    createNonChainableTableSource()
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |SELECT * FROM
-        |  (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM t)) T1
+        |  (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM nonchainable)) T1
         |  LEFT JOIN y ON T1.a = y.d
         |""".stripMargin
     util.verifyExecPlan(sql)
@@ -348,6 +353,17 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
       "chainable")
     TableTestUtil
       .createTemporaryView[Integer](util.tableEnv, "chainable", dataStream, Some(Array('a)))
+  }
+
+  def createNonChainableTableSource(): Unit = {
+    val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
+    val dataStream = env.addSource(new FromElementsFunction[(Int, Long, String)]()).javaStream
+    TableTestUtil
+      .createTemporaryView[(Int, Long, String)](
+        util.tableEnv,
+        "nonchainable",
+        dataStream,
+        Some(Array('a, 'b, 'c)))
   }
 }
 

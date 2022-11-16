@@ -229,7 +229,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
-  (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM t)) T1
+  (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM nonchainable)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
@@ -241,7 +241,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :  :- LogicalProject(a=[$0])
    :  :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
    :  +- LogicalProject(a=[$0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, nonchainable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
@@ -252,7 +252,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny
 :  :- Calc(select=[a])
 :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 :  +- Calc(select=[a])
-:     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+:     +- BoundedStreamScan(table=[[default_catalog, default_database, nonchainable]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
@@ -262,7 +262,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
-  (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM t)) T1
+  (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM nonchainable)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
@@ -274,7 +274,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :  :- LogicalProject(a=[$0])
    :  :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
    :  +- LogicalProject(a=[$0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, nonchainable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
@@ -285,7 +285,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny
 :  :- Calc(select=[a])
 :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 :  +- Calc(select=[a])
-:     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+:     +- BoundedStreamScan(table=[[default_catalog, default_database, nonchainable]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
@@ -588,7 +588,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
-  (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM t)) T1
+  (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM nonchainable)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
@@ -600,7 +600,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :  :- LogicalProject(a=[$0])
    :  :  +- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
    :  +- LogicalProject(a=[$0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, nonchainable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
@@ -611,7 +611,7 @@ MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 +- Calc(select=[a])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, nonchainable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -619,7 +619,7 @@ MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
-  (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM t)) T1
+  (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM nonchainable)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
@@ -631,7 +631,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :  :- LogicalProject(a=[$0])
    :  :  +- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
    :  +- LogicalProject(a=[$0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, nonchainable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
@@ -642,7 +642,7 @@ MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 +- Calc(select=[a])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, nonchainable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

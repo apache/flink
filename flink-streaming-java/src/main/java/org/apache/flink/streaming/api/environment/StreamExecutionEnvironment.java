@@ -77,6 +77,8 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.connector.source.CollectionSource;
+import org.apache.flink.streaming.api.connector.source.IteratorSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -85,8 +87,6 @@ import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOpera
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -1248,11 +1248,15 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         Preconditions.checkNotNull(data, "Collection must not be null");
 
         // must not have null elements and mixed elements
-        FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
+        CollectionSource.checkIterable(data, typeInfo.getTypeClass());
 
-        SourceFunction<OUT> function = new FromElementsFunction<>(data);
-        return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED)
-                .setParallelism(1);
+        CollectionSource<OUT> collectionSource = new CollectionSource<>(data);
+        return fromSource(
+                        collectionSource,
+                        WatermarkStrategy.noWatermarks(),
+                        "Collection Source",
+                        typeInfo)
+                .forceNonParallel();
     }
 
     /**
@@ -1297,8 +1301,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             Iterator<OUT> data, TypeInformation<OUT> typeInfo) {
         Preconditions.checkNotNull(data, "The iterator must not be null");
 
-        SourceFunction<OUT> function = new FromIteratorFunction<>(data);
-        return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED);
+        IteratorSource<OUT> source = new IteratorSource<>(data);
+        return fromSource(source, WatermarkStrategy.noWatermarks(), "Collection Source", typeInfo)
+                .forceNonParallel();
     }
 
     /**

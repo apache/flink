@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.runtime.stream.table
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
-import org.apache.flink.runtime.client.JobExecutionException
+import org.apache.flink.streaming.api.functions.source.FromElementsFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
@@ -32,6 +32,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import java.time.{Duration, Instant, LocalDateTime, ZoneOffset}
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -39,7 +40,8 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
   @Test
   def testMissingTimeAttributeThrowsCorrectException(): Unit = {
     val data = List(1L -> "hello", 2L -> "world")
-    val stream = env.fromCollection[(Long, String)](data)
+    // env.fromCollection uses no watermark strategy by default
+    val stream = env.addSource(new FromElementsFunction[(Long, String)](data.asJava))
 
     tEnv.createTemporaryView("test", stream, $"event_time".rowtime(), $"data")
     val result = tEnv.sqlQuery("SELECT * FROM test")

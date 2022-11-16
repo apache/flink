@@ -23,23 +23,25 @@ import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.streaming.api.connector.source.CollectionSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
@@ -80,11 +82,11 @@ public class StreamExecutionEnvironmentTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<String> source = env.fromElements("a", "b");
 
-        FromElementsFunction<String> elementsFunction =
-                (FromElementsFunction<String>) getFunctionFromDataSource(source);
+        CollectionSource<String> collectionSource = getSourceFromDataSource(source);
+
         assertEquals(
                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(env.getConfig()),
-                elementsFunction.getSerializer());
+                collectionSource.getSerializer());
     }
 
     @Test
@@ -95,13 +97,13 @@ public class StreamExecutionEnvironmentTest {
 
         source.returns(customType);
 
-        FromElementsFunction<String> elementsFunction =
-                (FromElementsFunction<String>) getFunctionFromDataSource(source);
+        CollectionSource<String> collectionSource = getSourceFromDataSource(source);
+
         assertNotEquals(
                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(env.getConfig()),
-                elementsFunction.getSerializer());
+                collectionSource.getSerializer());
         assertEquals(
-                customType.createSerializer(env.getConfig()), elementsFunction.getSerializer());
+                customType.createSerializer(env.getConfig()), collectionSource.getSerializer());
     }
 
     @Test
@@ -170,10 +172,10 @@ public class StreamExecutionEnvironmentTest {
         assertTrue(getFunctionFromDataSource(src2) instanceof StatefulSequenceSource);
 
         DataStreamSource<Long> src3 = env.fromElements(0L, 1L, 2L);
-        assertTrue(getFunctionFromDataSource(src3) instanceof FromElementsFunction);
+        assertTrue(getSourceFromDataSource(src3) instanceof CollectionSource);
 
         DataStreamSource<Long> src4 = env.fromCollection(list);
-        assertTrue(getFunctionFromDataSource(src4) instanceof FromElementsFunction);
+        assertTrue(getSourceFromDataSource(src4) instanceof CollectionSource);
     }
 
     /** Verifies that the API method doesn't throw and creates a source of the expected type. */
@@ -416,6 +418,15 @@ public class StreamExecutionEnvironmentTest {
         AbstractUdfStreamOperator<?, ?> operator =
                 (AbstractUdfStreamOperator<?, ?>) getOperatorFromDataStream(dataStreamSource);
         return (SourceFunction<T>) operator.getUserFunction();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T, S extends Source<T, ?, ?>> S getSourceFromDataSource(
+            DataStreamSource<T> dataStreamSource) {
+        dataStreamSource.addSink(new DiscardingSink<>());
+        dataStreamSource.getExecutionEnvironment().getStreamGraph();
+        return (S)
+                ((SourceTransformation<T, ?, ?>) dataStreamSource.getTransformation()).getSource();
     }
 
     private static class DummySplittableIterator<T> extends SplittableIterator<T> {

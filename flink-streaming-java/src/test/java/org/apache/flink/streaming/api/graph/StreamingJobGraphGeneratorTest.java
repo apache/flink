@@ -73,6 +73,7 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -956,7 +957,8 @@ class StreamingJobGraphGeneratorTest {
     void testYieldingOperatorNotChainableToTaskChainedToLegacySource() {
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-        chainEnv.fromElements(1)
+        chainEnv.addSource(new FromElementsFunction<>(1))
+                .returns(Integer.class)
                 .map((x) -> x)
                 // not chainable because of YieldingOperatorFactory and legacy source
                 .transform(
@@ -1003,8 +1005,8 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testYieldingOperatorProperlyChainedOnLegacySources() {
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
-
-        chainEnv.fromElements(1)
+        chainEnv.addSource(new FromElementsFunction<>(1))
+                .returns(Integer.class)
                 .map((x) -> x)
                 // should automatically break chain here
                 .transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>())

@@ -52,10 +52,10 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
@@ -158,7 +158,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
                     Assertions.assertThat(node.getBufferTimeout()).isEqualTo(77L);
                     break;
                 default:
-                    Assertions.assertThat(node.getOperator()).isInstanceOf(StreamSource.class);
+                    Assertions.assertThat(node.getOperatorFactory())
+                            .isInstanceOf(SourceOperatorFactory.class);
             }
         }
     }
@@ -566,15 +567,15 @@ public class StreamGraphGeneratorTest extends TestLogger {
         int maxParallelism = 42;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<Integer> input1 = env.fromElements(1, 2, 3, 4).setMaxParallelism(128);
-        DataStream<Integer> input2 = env.fromElements(1, 2, 3, 4).setMaxParallelism(129);
+        DataStream<Long> input1 = env.fromSequence(1, 4).setMaxParallelism(128);
+        DataStream<Long> input2 = env.fromSequence(1, 4).setMaxParallelism(129);
 
         env.getConfig().setMaxParallelism(maxParallelism);
 
-        DataStream<Integer> keyedResult =
+        DataStream<Long> keyedResult =
                 input1.connect(input2)
                         .keyBy(value -> value, value -> value)
-                        .map(new NoOpIntCoMap());
+                        .map(new NoOpLongCoMap());
 
         keyedResult.addSink(new DiscardingSink<>());
 
@@ -1151,14 +1152,14 @@ public class StreamGraphGeneratorTest extends TestLogger {
         }
     }
 
-    static class NoOpIntCoMap implements CoMapFunction<Integer, Integer, Integer> {
+    static class NoOpLongCoMap implements CoMapFunction<Long, Long, Long> {
         private static final long serialVersionUID = 1886595528149124270L;
 
-        public Integer map1(Integer value) throws Exception {
+        public Long map1(Long value) throws Exception {
             return value;
         }
 
-        public Integer map2(Integer value) throws Exception {
+        public Long map2(Long value) throws Exception {
             return value;
         }
     }
