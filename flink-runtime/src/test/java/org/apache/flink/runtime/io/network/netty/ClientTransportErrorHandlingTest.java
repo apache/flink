@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
@@ -45,6 +46,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -65,6 +67,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ClientTransportErrorHandlingTest {
+    private static final ConnectionID CONNECTION_ID =
+            new ConnectionID(ResourceID.generate(), new InetSocketAddress("localhost", 0), 0);
 
     /**
      * Verifies that failed client requests via {@link PartitionRequestClient} are correctly
@@ -113,10 +117,7 @@ class ClientTransportErrorHandlingTest {
 
         PartitionRequestClient requestClient =
                 new NettyPartitionRequestClient(
-                        ch,
-                        handler,
-                        mock(ConnectionID.class),
-                        mock(PartitionRequestClientFactory.class));
+                        ch, handler, CONNECTION_ID, mock(PartitionRequestClientFactory.class));
 
         // Create input channels
         RemoteInputChannel[] rich =
@@ -396,7 +397,9 @@ class ClientTransportErrorHandlingTest {
     }
 
     private NetworkClientHandler getClientHandler(Channel ch) {
-        return ch.pipeline().get(NetworkClientHandler.class);
+        NetworkClientHandler networkClientHandler = ch.pipeline().get(NetworkClientHandler.class);
+        networkClientHandler.setConnectionId(CONNECTION_ID);
+        return networkClientHandler;
     }
 
     private RemoteInputChannel createRemoteInputChannel() {
