@@ -143,7 +143,7 @@ public class HiveDialectITCase {
         tableEnv.executeSql("insert into t4 values (5, 6, 1), (7, 8, 2)").await();
         tableEnv.executeSql("insert overwrite table `default.t2` partition(c) select * from t4")
                 .await();
-        result = CollectionUtil.iteratorToList(tableEnv.executeSql("select * from t2").collect());
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("select * from t2 order by c").collect());
         assertEquals("[+I[5, 6, 1], +I[7, 8, 2]]", result.toString());
     }
 
