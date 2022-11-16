@@ -65,25 +65,17 @@ public class KubernetesNode extends KubernetesResource<Node> {
          * node; otherwise False
          */
         PIDPressure,
-        /**
-         * True if the network for the node is not correctly configured, otherwise False
-         */
+        /** True if the network for the node is not correctly configured, otherwise False */
         NetworkUnavailable
     }
 
     @VisibleForTesting
     enum NodeConditionStatus {
-        /**
-         * The NodeCondition is normal.
-         */
+        /** The NodeCondition is normal. */
         True,
-        /**
-         * The NodeCondition is out of whack.
-         */
+        /** The NodeCondition is out of whack. */
         False,
-        /**
-         * The NodeCondition is unknown.
-         */
+        /** The NodeCondition is unknown. */
         Unknown
     }
 }

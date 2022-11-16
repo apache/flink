@@ -170,18 +170,25 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     public CompletableFuture<Void> stopPod(String podName) {
         return CompletableFuture.runAsync(
                 () -> {
-                    KubernetesNode kubernetesNode = new KubernetesNode(this.internalClient
-                            .nodes()
-                            .withName(this.internalClient
-                                    .pods()
-                                    .withName(podName)
-                                    .get()
-                                    .getSpec()
-                                    .getNodeName()).get());
-                    // When the Ready NodeCondition is False or Unknown, to force delete the pod
+                    KubernetesNode kubernetesNode =
+                            new KubernetesNode(
+                                    this.internalClient
+                                            .nodes()
+                                            .withName(
+                                                    this.internalClient
+                                                            .pods()
+                                                            .withName(podName)
+                                                            .get()
+                                                            .getSpec()
+                                                            .getNodeName())
+                                            .get());
+                    // When the Ready NodeCondition status is False or Unknown, to force delete the pod
                     // on it.
-                    this.internalClient.pods().withName(podName).withGracePeriod(
-                            kubernetesNode.isNodeNotReady() ? 0 : 30).delete();
+                    this.internalClient
+                            .pods()
+                            .withName(podName)
+                            .withGracePeriod(kubernetesNode.isNodeNotReady() ? 0 : 30)
+                            .delete();
                 },
                 kubeClientExecutorService);
     }
@@ -317,8 +324,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                     new CompletionException(
                                                             new KubernetesException(
                                                                     "Cannot retry "
-                                                                            +
-                                                                            "checkAndUpdateConfigMap with configMap "
+                                                                            + "checkAndUpdateConfigMap with configMap "
                                                                             + configMapName
                                                                             + " because it does "
                                                                             + "not exist.")));
@@ -399,7 +405,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                         service -> {
                                             final Service updatedService =
                                                     new ServiceBuilder(
-                                                            service.getInternalResource())
+                                                                    service.getInternalResource())
                                                             .editSpec()
                                                             .editMatchingPort(
                                                                     servicePortBuilder ->
