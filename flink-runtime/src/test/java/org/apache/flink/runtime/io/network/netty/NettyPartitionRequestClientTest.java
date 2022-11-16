@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
@@ -287,7 +288,8 @@ public class NettyPartitionRequestClientTest {
         try (NetUtils.Port availablePort = NetUtils.getAvailablePort()) {
             int port = availablePort.getPort();
             ConnectionID connectionID =
-                    new ConnectionID(new InetSocketAddress("localhost", port), 0);
+                    new ConnectionID(
+                            ResourceID.generate(), new InetSocketAddress("localhost", port), 0);
             NettyConfig config =
                     new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
             NettyClient nettyClient = new NettyClient(config);
