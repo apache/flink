@@ -53,7 +53,7 @@ sed -i "s#/usr/local/hadoop/bin/container-executor#${NM_CONTAINER_EXECUTOR_PATH}
 # we retry the first call because it can happen that Kerberos is not ready in
 # time
 start_time=$(date +%s)
-until kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey hdfs/$(hostname -f)@${KRB_REALM}"; do
+until kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey hdfs/$(hostname -f)@${KRB_REALM}"; do
     current_time=$(date +%s)
 	time_diff=$((current_time - start_time))
 
@@ -66,13 +66,13 @@ until kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -ra
     fi
 done
 
-kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey mapred/$(hostname -f)@${KRB_REALM}"
-kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey yarn/$(hostname -f)@${KRB_REALM}"
-kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey HTTP/$(hostname -f)@${KRB_REALM}"
+kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey mapred/$(hostname -f)@${KRB_REALM}"
+kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey yarn/$(hostname -f)@${KRB_REALM}"
+kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey HTTP/$(hostname -f)@${KRB_REALM}"
 
-kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k hdfs.keytab hdfs/$(hostname -f) HTTP/$(hostname -f)"
-kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k mapred.keytab mapred/$(hostname -f) HTTP/$(hostname -f)"
-kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k yarn.keytab yarn/$(hostname -f) HTTP/$(hostname -f)"
+kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k hdfs.keytab hdfs/$(hostname -f) HTTP/$(hostname -f)"
+kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k mapred.keytab mapred/$(hostname -f) HTTP/$(hostname -f)"
+kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k yarn.keytab yarn/$(hostname -f) HTTP/$(hostname -f)"
 
 mkdir -p ${KEYTAB_DIR}
 mv hdfs.keytab ${KEYTAB_DIR}
@@ -104,11 +104,11 @@ elif [ "$1" == "master" ]; then
     nohup sudo -E -u mapred $HADOOP_PREFIX/bin/mapred historyserver 2>> /var/log/hadoop/historyserver.err >> /var/log/hadoop/historyserver.out &
 
 
-    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey root@${KRB_REALM}"
-    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k /root/root.keytab root"
+    kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey root@${KRB_REALM}"
+    kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k /root/root.keytab root"
 
-    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -pw hadoop-user hadoop-user@${KRB_REALM}"
-    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k /home/hadoop-user/hadoop-user.keytab hadoop-user"
+    kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -pw hadoop-user hadoop-user@${KRB_REALM}"
+    kadmin -p ${KERBEROS_ADMIN_USER} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k /home/hadoop-user/hadoop-user.keytab hadoop-user"
     chown hadoop-user:hadoop-user /home/hadoop-user/hadoop-user.keytab
 
     kinit -kt /root/root.keytab root
