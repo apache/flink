@@ -81,6 +81,12 @@
             <td>A semicolon-separated list of the jars to package with the job jars to be sent to the cluster. These have to be valid paths.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.jobvertex-parallelism-overrides</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>A parallelism override map (jobVertexId -&gt; parallelism) which will be used to update the parallelism of the corresponding job vertices of submitted JobGraphs.</td>
+        </tr>
+        <tr>
             <td><h5>pipeline.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
