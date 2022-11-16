@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
@@ -60,6 +61,7 @@ import org.junit.Assume;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
@@ -652,6 +654,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             Class<? extends TransportException> expectedClass, Exception cause) {
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
+        handler.setConnectionId(
+                new ConnectionID(ResourceID.generate(), new InetSocketAddress("localhost", 0), 0));
         EmbeddedChannel embeddedChannel =
                 new EmbeddedChannel(
                         // A test handler to trigger the exception.

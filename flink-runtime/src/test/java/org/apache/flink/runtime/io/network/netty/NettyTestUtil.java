@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.util.NetUtils;
 
@@ -224,8 +225,9 @@ public class NettyTestUtil {
             return client;
         }
 
-        ConnectionID getConnectionID(int connectionIndex) {
+        ConnectionID getConnectionID(ResourceID resourceID, int connectionIndex) {
             return new ConnectionID(
+                    resourceID,
                     new InetSocketAddress(
                             server.getConfig().getServerAddress(),
                             server.getConfig().getServerPort()),

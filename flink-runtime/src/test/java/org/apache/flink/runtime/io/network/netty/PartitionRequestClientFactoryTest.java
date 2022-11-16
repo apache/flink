@@ -199,7 +199,7 @@ public class PartitionRequestClientFactoryTest {
                 new PartitionRequestClientFactory(
                         serverAndClient.client(), 2, 1, connectionReuseEnabled);
 
-        ConnectionID connectionID = serverAndClient.getConnectionID(0);
+        ConnectionID connectionID = serverAndClient.getConnectionID(ResourceID.generate(), 0);
         NettyPartitionRequestClient oldClient = factory.createPartitionRequestClient(connectionID);
 
         // close server channel
