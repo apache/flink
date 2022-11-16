@@ -19,7 +19,6 @@
 package org.apache.flink.connector.hbase.sink;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -31,8 +30,6 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.junit.Test;
-
-import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.ZOOKEEPER_ZNODE_PARENT;
 
 /** Test for {@link HBaseSinkFunction}. */
 public class HbaseSinkFunctionTest {
@@ -79,13 +76,6 @@ public class HbaseSinkFunctionTest {
         config.set(HConstants.HBASE_RPC_WRITE_TIMEOUT_KEY, "1000");
         config.set(HConstants.HBASE_CLIENT_META_OPERATION_TIMEOUT, "1000");
         config.set(HConstants.HBASE_CLIENT_RETRIES_NUMBER, "0");
-        return config;
-    }
-
-    private ReadableConfig getHbaseTableConfig() {
-        org.apache.flink.configuration.Configuration config =
-                new org.apache.flink.configuration.Configuration();
-        config.set(ZOOKEEPER_ZNODE_PARENT, ZOOKEEPER_ZNODE_PARENT.defaultValue());
         return config;
     }
 
