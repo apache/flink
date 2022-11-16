@@ -27,6 +27,8 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.util.Arrays;
+
 /** The wrapper of user defined python aggregate function. */
 @Internal
 public class PythonAggregateFunction extends AggregateFunction implements PythonFunction {
@@ -35,13 +37,17 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 
     private final String name;
     private final byte[] serializedAggregateFunction;
-    private final DataType[] inputTypes;
-    private final DataType resultType;
-    private final DataType accumulatorType;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+
+    private DataType[] inputTypes;
+    private String[] inputTypesString;
+    private DataType resultType;
+    private String resultTypeString;
+    private DataType accumulatorType;
+    private String accumulatorTypeString;
 
     public PythonAggregateFunction(
             String name,
@@ -53,11 +59,49 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
-        this.name = name;
-        this.serializedAggregateFunction = serializedAggregateFunction;
+        this(
+                name,
+                serializedAggregateFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
         this.inputTypes = inputTypes;
         this.resultType = resultType;
         this.accumulatorType = accumulatorType;
+    }
+
+    public PythonAggregateFunction(
+            String name,
+            byte[] serializedAggregateFunction,
+            String[] inputTypesString,
+            String resultTypeString,
+            String accumulatorTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedAggregateFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.inputTypesString = inputTypesString;
+        this.resultTypeString = resultTypeString;
+        this.accumulatorTypeString = accumulatorTypeString;
+    }
+
+    public PythonAggregateFunction(
+            String name,
+            byte[] serializedAggregateFunction,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this.name = name;
+        this.serializedAggregateFunction = serializedAggregateFunction;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
@@ -106,20 +150,46 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 
     @Override
     public TypeInformation getResultType() {
+        if (resultType == null && resultTypeString != null) {
+            throw new RuntimeException(
+                    "String format result type is not supported in old type system.");
+        }
         return TypeConversions.fromDataTypeToLegacyInfo(resultType);
     }
 
     @Override
     public TypeInformation getAccumulatorType() {
+        if (accumulatorType == null && accumulatorTypeString != null) {
+            throw new RuntimeException(
+                    "String format accumulator type is not supported in old type system.");
+        }
         return TypeConversions.fromDataTypeToLegacyInfo(accumulatorType);
     }
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         TypeInference.Builder builder = TypeInference.newBuilder();
+
+        if (inputTypesString != null) {
+            inputTypes =
+                    (DataType[])
+                            Arrays.stream(inputTypesString)
+                                    .map(typeFactory::createDataType)
+                                    .toArray();
+        }
+
         if (inputTypes != null) {
             builder.typedArguments(inputTypes);
         }
+
+        if (resultType == null) {
+            resultType = typeFactory.createDataType(resultTypeString);
+        }
+
+        if (accumulatorType == null) {
+            accumulatorType = typeFactory.createDataType(accumulatorTypeString);
+        }
+
         return builder.outputTypeStrategy(TypeStrategies.explicit(resultType))
                 .accumulatorTypeStrategy(TypeStrategies.explicit(accumulatorType))
                 .build();
