@@ -26,6 +26,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapSharedInformer;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesNode;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
@@ -168,7 +169,20 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public CompletableFuture<Void> stopPod(String podName) {
         return CompletableFuture.runAsync(
-                () -> this.internalClient.pods().withName(podName).delete(),
+                () -> {
+                    KubernetesNode kubernetesNode = new KubernetesNode(this.internalClient
+                            .nodes()
+                            .withName(this.internalClient
+                                    .pods()
+                                    .withName(podName)
+                                    .get()
+                                    .getSpec()
+                                    .getNodeName()).get());
+                    // When the Ready NodeCondition is False or Unknown, to force delete the pod
+                    // on it.
+                    this.internalClient.pods().withName(podName).withGracePeriod(
+                            kubernetesNode.isNodeNotReady() ? 0 : 30).delete();
+                },
                 kubeClientExecutorService);
     }
 
@@ -302,9 +316,12 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                             () ->
                                                     new CompletionException(
                                                             new KubernetesException(
-                                                                    "Cannot retry checkAndUpdateConfigMap with configMap "
+                                                                    "Cannot retry "
+                                                                            +
+                                                                            "checkAndUpdateConfigMap with configMap "
                                                                             + configMapName
-                                                                            + " because it does not exist.")));
+                                                                            + " because it does "
+                                                                            + "not exist.")));
                     final Optional<KubernetesConfigMap> maybeUpdate =
                             updateFunction.apply(configMap);
                     if (maybeUpdate.isPresent()) {
@@ -382,7 +399,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                         service -> {
                                             final Service updatedService =
                                                     new ServiceBuilder(
-                                                                    service.getInternalResource())
+                                                            service.getInternalResource())
                                                             .editSpec()
                                                             .editMatchingPort(
                                                                     servicePortBuilder ->
