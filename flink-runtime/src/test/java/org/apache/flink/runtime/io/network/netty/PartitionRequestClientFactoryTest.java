@@ -21,6 +21,9 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -31,13 +34,15 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -49,23 +54,22 @@ import java.util.concurrent.Future;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 /** {@link PartitionRequestClientFactory} test. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class PartitionRequestClientFactoryTest extends TestLogger {
-    @Parameterized.Parameter public boolean connectionReuseEnabled;
+    @Parameter public boolean connectionReuseEnabled;
 
-    @Parameterized.Parameters(name = "connection reuse enabled = {0}")
-    public static Object[] parameters() {
-        return new Object[][] {new Object[] {true}, new Object[] {false}};
+    @Parameters(name = "connectionReuseEnabled={0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
     }
 
-    @Test
-    public void testInterruptsNotCached() throws Exception {
+    @TestTemplate
+    void testInterruptsNotCached() throws Exception {
         NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
         try {
             AwaitingNettyClient nettyClient =
@@ -106,8 +110,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
         interrupted.get();
     }
 
-    @Test
-    public void testExceptionsAreNotCached() throws Exception {
+    @TestTemplate
+    void testExceptionsAreNotCached() throws Exception {
         NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
 
         try {
@@ -117,12 +121,9 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                             connectionReuseEnabled);
 
             final ConnectionID connectionID = nettyServerAndClient.getConnectionID(0);
-            try {
-                factory.createPartitionRequestClient(connectionID);
-                fail("Expected the first request to fail.");
-            } catch (RemoteTransportException expected) {
-                // expected
-            }
+            assertThatThrownBy(() -> factory.createPartitionRequestClient(connectionID))
+                    .withFailMessage("Expected the first request to fail.")
+                    .isInstanceOf(RemoteTransportException.class);
 
             factory.createPartitionRequestClient(connectionID);
         } finally {
@@ -131,8 +132,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
         }
     }
 
-    @Test
-    public void testReuseNettyPartitionRequestClient() throws Exception {
+    @TestTemplate
+    void testReuseNettyPartitionRequestClient() throws Exception {
         NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
         try {
             checkReuseNettyPartitionRequestClient(nettyServerAndClient, 1);
@@ -161,7 +162,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                     nettyServerAndClient.getConnectionID((int) (Math.random() * Integer.MAX_VALUE));
             set.add(factory.createPartitionRequestClient(connectionID));
         }
-        assertTrue(set.size() <= maxNumberOfConnections);
+        assertThat(set.size()).isLessThanOrEqualTo(maxNumberOfConnections);
     }
 
     /**
@@ -214,8 +215,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
         shutdown(serverAndClient);
     }
 
-    @Test
-    public void testNettyClientConnectRetry() throws Exception {
+    @TestTemplate
+    void testNettyClientConnectRetry() throws Exception {
         NettyTestUtil.NettyServerAndClient serverAndClient = createNettyServerAndClient();
         UnstableNettyClient unstableNettyClient =
                 new UnstableNettyClient(serverAndClient.client(), 2);
@@ -231,23 +232,31 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
     }
 
     // see https://issues.apache.org/jira/browse/FLINK-18821
-    @Test(expected = IOException.class)
-    public void testFailureReportedToSubsequentRequests() throws Exception {
+    @TestTemplate
+    void testFailureReportedToSubsequentRequests() throws Exception {
         PartitionRequestClientFactory factory =
                 new PartitionRequestClientFactory(
                         new FailingNettyClient(), 2, 1, connectionReuseEnabled);
-        try {
-            factory.createPartitionRequestClient(
-                    new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
-        } catch (Exception e) {
-            // expected
-        }
-        factory.createPartitionRequestClient(
-                new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+
+        assertThatThrownBy(
+                () ->
+                        factory.createPartitionRequestClient(
+                                new ConnectionID(
+                                        new InetSocketAddress(InetAddress.getLocalHost(), 8080),
+                                        0)));
+
+        assertThatThrownBy(
+                        () ->
+                                factory.createPartitionRequestClient(
+                                        new ConnectionID(
+                                                new InetSocketAddress(
+                                                        InetAddress.getLocalHost(), 8080),
+                                                0)))
+                .isInstanceOf(IOException.class);
     }
 
-    @Test(expected = IOException.class)
-    public void testNettyClientConnectRetryFailure() throws Exception {
+    @TestTemplate
+    void testNettyClientConnectRetryFailure() throws Exception {
         NettyTestUtil.NettyServerAndClient serverAndClient = createNettyServerAndClient();
         UnstableNettyClient unstableNettyClient =
                 new UnstableNettyClient(serverAndClient.client(), 3);
@@ -257,16 +266,20 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                     new PartitionRequestClientFactory(
                             unstableNettyClient, 2, 1, connectionReuseEnabled);
 
-            factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
-
+            assertThatThrownBy(
+                            () -> {
+                                factory.createPartitionRequestClient(
+                                        serverAndClient.getConnectionID(0));
+                            })
+                    .isInstanceOf(IOException.class);
         } finally {
             serverAndClient.client().shutdown();
             serverAndClient.server().shutdown();
         }
     }
 
-    @Test
-    public void testNettyClientConnectRetryMultipleThread() throws Exception {
+    @TestTemplate
+    void testNettyClientConnectRetryMultipleThread() throws Exception {
         NettyTestUtil.NettyServerAndClient serverAndClient = createNettyServerAndClient();
         UnstableNettyClient unstableNettyClient =
                 new UnstableNettyClient(serverAndClient.client(), 2);
@@ -301,10 +314,10 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                     NettyPartitionRequestClient client;
                     try {
                         client = runnableFuture.get();
-                        assertNotNull(client);
+                        assertThat(client).isNotNull();
                     } catch (Exception e) {
                         System.out.println(e.getMessage());
-                        fail();
+                        fail(e.getMessage());
                     }
                 });
 
