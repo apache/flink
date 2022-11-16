@@ -239,6 +239,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        checkErrorAndRethrow();
         while (numPendingRequests.get() != 0) {
             flush();
         }
