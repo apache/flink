@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
@@ -61,6 +62,8 @@ import static org.mockito.Mockito.mock;
 /** {@link PartitionRequestClientFactory} test. */
 @ExtendWith(ParameterizedTestExtension.class)
 public class PartitionRequestClientFactoryTest extends TestLogger {
+    private static final ResourceID RESOURCE_ID = ResourceID.generate();
+
     @Parameter public boolean connectionReuseEnabled;
 
     @Parameters(name = "connectionReuseEnabled={0}")
@@ -78,10 +81,11 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                     new PartitionRequestClientFactory(nettyClient, connectionReuseEnabled);
 
             nettyClient.awaitForInterrupts = true;
-            connectAndInterrupt(factory, nettyServerAndClient.getConnectionID(0));
+            connectAndInterrupt(factory, nettyServerAndClient.getConnectionID(RESOURCE_ID, 0));
 
             nettyClient.awaitForInterrupts = false;
-            factory.createPartitionRequestClient(nettyServerAndClient.getConnectionID(0));
+            factory.createPartitionRequestClient(
+                    nettyServerAndClient.getConnectionID(RESOURCE_ID, 0));
         } finally {
             nettyServerAndClient.client().shutdown();
             nettyServerAndClient.server().shutdown();
@@ -120,7 +124,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                             new UnstableNettyClient(nettyServerAndClient.client(), 1),
                             connectionReuseEnabled);
 
-            final ConnectionID connectionID = nettyServerAndClient.getConnectionID(0);
+            final ConnectionID connectionID = nettyServerAndClient.getConnectionID(RESOURCE_ID, 0);
             assertThatThrownBy(() -> factory.createPartitionRequestClient(connectionID))
                     .withFailMessage("Expected the first request to fail.")
                     .isInstanceOf(RemoteTransportException.class);
@@ -159,7 +163,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                         connectionReuseEnabled);
         for (int i = 0; i < Math.max(100, maxNumberOfConnections); i++) {
             final ConnectionID connectionID =
-                    nettyServerAndClient.getConnectionID((int) (Math.random() * Integer.MAX_VALUE));
+                    nettyServerAndClient.getConnectionID(
+                            RESOURCE_ID, (int) (Math.random() * Integer.MAX_VALUE));
             set.add(factory.createPartitionRequestClient(connectionID));
         }
         assertThat(set.size()).isLessThanOrEqualTo(maxNumberOfConnections);
@@ -203,7 +208,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 new PartitionRequestClientFactory(
                         serverAndClient.client(), 2, 1, connectionReuseEnabled);
 
-        ConnectionID connectionID = serverAndClient.getConnectionID(0);
+        ConnectionID connectionID = serverAndClient.getConnectionID(ResourceID.generate(), 0);
         NettyPartitionRequestClient oldClient = factory.createPartitionRequestClient(connectionID);
 
         // close server channel
@@ -225,7 +230,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 new PartitionRequestClientFactory(
                         unstableNettyClient, 2, 1, connectionReuseEnabled);
 
-        factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
+        factory.createPartitionRequestClient(serverAndClient.getConnectionID(RESOURCE_ID, 0));
 
         serverAndClient.client().shutdown();
         serverAndClient.server().shutdown();
@@ -242,6 +247,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 () ->
                         factory.createPartitionRequestClient(
                                 new ConnectionID(
+                                        ResourceID.generate(),
                                         new InetSocketAddress(InetAddress.getLocalHost(), 8080),
                                         0)));
 
@@ -249,6 +255,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                         () ->
                                 factory.createPartitionRequestClient(
                                         new ConnectionID(
+                                                ResourceID.generate(),
                                                 new InetSocketAddress(
                                                         InetAddress.getLocalHost(), 8080),
                                                 0)))
@@ -269,7 +276,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
             assertThatThrownBy(
                             () -> {
                                 factory.createPartitionRequestClient(
-                                        serverAndClient.getConnectionID(0));
+                                        serverAndClient.getConnectionID(RESOURCE_ID, 0));
                             })
                     .isInstanceOf(IOException.class);
         } finally {
@@ -299,7 +306,8 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                                 try {
                                     client =
                                             factory.createPartitionRequestClient(
-                                                    serverAndClient.getConnectionID(0));
+                                                    serverAndClient.getConnectionID(
+                                                            RESOURCE_ID, 0));
                                 } catch (Exception e) {
                                     fail(e.getMessage());
                                 }
