@@ -40,6 +40,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.OwnerReference;
@@ -323,11 +324,9 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                             () ->
                                                     new CompletionException(
                                                             new KubernetesException(
-                                                                    "Cannot retry "
-                                                                            + "checkAndUpdateConfigMap with configMap "
+                                                                    "Cannot retry checkAndUpdateConfigMap with configMap "
                                                                             + configMapName
-                                                                            + " because it does "
-                                                                            + "not exist.")));
+                                                                            + " because it does not exist.")));
                     final Optional<KubernetesConfigMap> maybeUpdate =
                             updateFunction.apply(configMap);
                     if (maybeUpdate.isPresent()) {
