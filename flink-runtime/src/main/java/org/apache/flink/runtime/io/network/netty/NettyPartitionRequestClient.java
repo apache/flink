@@ -77,6 +77,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
         this.clientHandler = checkNotNull(clientHandler);
         this.connectionId = checkNotNull(connectionId);
         this.clientFactory = checkNotNull(clientFactory);
+        clientHandler.setConnectionId(connectionId);
     }
 
     boolean canBeDisposed() {
@@ -138,8 +139,11 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                             inputChannel.onError(
                                     new LocalTransportException(
                                             String.format(
-                                                    "Sending the partition request to '%s (#%d)' failed.",
+                                                    "Sending the partition request to '%s [%s] (#%d)' failed.",
                                                     connectionId.getAddress(),
+                                                    connectionId
+                                                            .getResourceID()
+                                                            .getStringWithMetadata(),
                                                     connectionId.getConnectionIndex()),
                                             future.channel().localAddress(),
                                             future.cause()));
@@ -197,8 +201,11 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                                     inputChannel.onError(
                                             new LocalTransportException(
                                                     String.format(
-                                                            "Sending the task event to '%s (#%d)' failed.",
+                                                            "Sending the task event to '%s [%s] (#%d)' failed.",
                                                             connectionId.getAddress(),
+                                                            connectionId
+                                                                    .getResourceID()
+                                                                    .getStringWithMetadata(),
                                                             connectionId.getConnectionIndex()),
                                                     future.channel().localAddress(),
                                                     future.cause()));
@@ -275,7 +282,10 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
             final SocketAddress localAddr = tcpChannel.localAddress();
             final SocketAddress remoteAddr = tcpChannel.remoteAddress();
             throw new LocalTransportException(
-                    String.format("Channel to '%s' closed.", remoteAddr), localAddr);
+                    String.format(
+                            "Channel to '%s [%s]' closed.",
+                            remoteAddr, connectionId.getResourceID().getStringWithMetadata()),
+                    localAddr);
         }
     }
 
