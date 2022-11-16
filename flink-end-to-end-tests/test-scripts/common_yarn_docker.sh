@@ -100,13 +100,10 @@ function build_image() {
     echo "Pre-downloading Hadoop tarball"
     local cache_path
     cache_path=$(get_artifact "http://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz")
-    ln "${cache_path}" "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop-2.8.5.tar.gz"
+    ln "${cache_path}" "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
 
     echo "Building Hadoop Docker container"
-    docker build --build-arg HADOOP_VERSION=2.8.5 \
-        -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/Dockerfile" \
-        -t flink/docker-hadoop-secure-cluster:latest \
-        "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/"
+    docker-compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" build
 }
 
 function start_hadoop_cluster_and_prepare_flink() {

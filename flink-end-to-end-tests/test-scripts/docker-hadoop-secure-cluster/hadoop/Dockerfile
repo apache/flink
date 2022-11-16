@@ -53,18 +53,15 @@ RUN set -x \
 
 RUN sed -i 's/^#crypto.policy=unlimited/crypto.policy=unlimited/' $JAVA_HOME/jre/lib/security/java.security
 
-ARG HADOOP_VERSION=2.8.5
-
-COPY hadoop-${HADOOP_VERSION}.tar.gz /tmp/hadoop.tar.gz
+COPY hadoop.tar.gz /tmp/hadoop.tar.gz
 
 RUN set -x \
-    && tar -xf /tmp/hadoop.tar.gz -C /usr/local/ \
+    && mkdir -p /usr/local/hadoop \
+    && tar -xf /tmp/hadoop.tar.gz --strip-components=1 -C /usr/local/hadoop \
     && rm /tmp/hadoop.tar.gz*
 
 WORKDIR /usr/local
 RUN set -x \
-    && ln -s /usr/local/hadoop-${HADOOP_VERSION} /usr/local/hadoop \
-    && chown root:root -R /usr/local/hadoop-${HADOOP_VERSION}/ \
     && chown root:root -R /usr/local/hadoop/ \
     && chown root:yarn /usr/local/hadoop/bin/container-executor \
     && chmod 6050 /usr/local/hadoop/bin/container-executor \
@@ -90,7 +87,7 @@ ENV PATH $PATH:$HADOOP_BIN_HOME
 
 ENV KRB_REALM EXAMPLE.COM
 ENV DOMAIN_REALM example.com
-ENV KERBEROS_ADMIN admin/admin
+ENV KERBEROS_ADMIN_USER admin/admin
 ENV KERBEROS_ADMIN_PASSWORD admin
 ENV KEYTAB_DIR /etc/security/keytabs
 
@@ -136,11 +133,9 @@ EXPOSE 8030 8031 8032 8033 8040 8042 8088 8188
 # Other ports
 EXPOSE 49707 2122
 
-ADD bootstrap.sh /etc/bootstrap.sh
-RUN chown root:root /etc/bootstrap.sh
-RUN chmod 700 /etc/bootstrap.sh
+ADD entrypoint.sh /entrypoint.sh
+RUN chown root:root /entrypoint.sh
+RUN chmod 700 /entrypoint.sh
 
-ENV BOOTSTRAP /etc/bootstrap.sh
-
-ENTRYPOINT ["/etc/bootstrap.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["-h"]
