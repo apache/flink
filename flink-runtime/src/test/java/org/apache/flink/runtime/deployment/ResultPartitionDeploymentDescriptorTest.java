@@ -66,7 +66,8 @@ class ResultPartitionDeploymentDescriptorTest {
 
     private static final ResourceID producerLocation = new ResourceID("producerLocation");
     private static final InetSocketAddress address = new InetSocketAddress("localhost", 10000);
-    private static final ConnectionID connectionID = new ConnectionID(address, connectionIndex);
+    private static final ConnectionID connectionID =
+            new ConnectionID(producerLocation, address, connectionIndex);
 
     /** Tests simple de/serialization with {@link UnknownShuffleDescriptor}. */
     @Test
@@ -85,7 +86,7 @@ class ResultPartitionDeploymentDescriptorTest {
         ShuffleDescriptor shuffleDescriptor =
                 new NettyShuffleDescriptor(
                         producerLocation,
-                        new NetworkPartitionConnectionInfo(connectionID),
+                        new NetworkPartitionConnectionInfo(address, connectionIndex),
                         resultPartitionID);
 
         ResultPartitionDeploymentDescriptor copy =

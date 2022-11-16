@@ -48,7 +48,10 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
     }
 
     public ConnectionID getConnectionId() {
-        return partitionConnectionInfo.getConnectionId();
+        return new ConnectionID(
+                producerLocation,
+                partitionConnectionInfo.getAddress(),
+                partitionConnectionInfo.getConnectionIndex());
     }
 
     @Override
@@ -66,9 +69,10 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
     }
 
     /** Information for connection to partition producer for shuffle exchange. */
-    @FunctionalInterface
     public interface PartitionConnectionInfo extends Serializable {
-        ConnectionID getConnectionId();
+        InetSocketAddress getAddress();
+
+        int getConnectionIndex();
     }
 
     /**
@@ -81,16 +85,22 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
 
         private static final long serialVersionUID = 5992534320110743746L;
 
-        private final ConnectionID connectionID;
+        private final InetSocketAddress address;
+
+        private final int connectionIndex;
 
         @VisibleForTesting
-        public NetworkPartitionConnectionInfo(ConnectionID connectionID) {
-            this.connectionID = connectionID;
+        public NetworkPartitionConnectionInfo(InetSocketAddress address, int connectionIndex) {
+            this.address = address;
+            this.connectionIndex = connectionIndex;
         }
 
-        @Override
-        public ConnectionID getConnectionId() {
-            return connectionID;
+        public InetSocketAddress getAddress() {
+            return address;
+        }
+
+        public int getConnectionIndex() {
+            return connectionIndex;
         }
 
         static NetworkPartitionConnectionInfo fromProducerDescriptor(
@@ -98,7 +108,7 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
             InetSocketAddress address =
                     new InetSocketAddress(
                             producerDescriptor.getAddress(), producerDescriptor.getDataPort());
-            return new NetworkPartitionConnectionInfo(new ConnectionID(address, connectionIndex));
+            return new NetworkPartitionConnectionInfo(address, connectionIndex);
         }
     }
 
@@ -111,7 +121,13 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
         INSTANCE;
 
         @Override
-        public ConnectionID getConnectionId() {
+        public InetSocketAddress getAddress() {
+            throw new UnsupportedOperationException(
+                    "Local execution does not support shuffle connection.");
+        }
+
+        @Override
+        public int getConnectionIndex() {
             throw new UnsupportedOperationException(
                     "Local execution does not support shuffle connection.");
         }
