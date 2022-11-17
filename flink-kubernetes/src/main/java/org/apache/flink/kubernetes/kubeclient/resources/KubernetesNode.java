@@ -18,8 +18,6 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.annotation.VisibleForTesting;
-
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeCondition;
 
@@ -42,8 +40,7 @@ public class KubernetesNode extends KubernetesResource<Node> {
         return false;
     }
 
-    @VisibleForTesting
-    enum NodeConditions {
+    public enum NodeConditions {
         /**
          * True if the node is healthy and ready to accept pods, False if the node is not healthy
          * and is not accepting pods, and Unknown if the node controller has not heard from the node
@@ -69,8 +66,7 @@ public class KubernetesNode extends KubernetesResource<Node> {
         NetworkUnavailable
     }
 
-    @VisibleForTesting
-    enum NodeConditionStatus {
+    public enum NodeConditionStatus {
         /** The NodeCondition is normal. */
         True,
         /** The NodeCondition is out of whack. */

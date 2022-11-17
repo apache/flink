@@ -34,6 +34,8 @@ import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorato
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesNode.NodeConditionStatus;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesNode.NodeConditions;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
@@ -42,6 +44,10 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeBuilder;
+import io.fabric8.kubernetes.api.model.NodeConditionBuilder;
+import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
@@ -76,6 +82,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 
     private static final double JOB_MANAGER_CPU = 2.0;
     private static final int JOB_MANAGER_MEMORY = 768;
+    private static final String TESTING_K8S_NODE_NAME = "flink-node";
 
     private static final String SERVICE_ACCOUNT_NAME = "service-test";
 
@@ -266,15 +273,43 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                         .withName(podName)
                         .endMetadata()
                         .editOrNewSpec()
+                        .withNodeName(TESTING_K8S_NODE_NAME)
                         .endSpec()
                         .build();
 
         this.kubeClient.pods().inNamespace(NAMESPACE).create(pod);
         assertThat(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get())
                 .isNotNull();
-
+        createK8sNode();
         this.flinkKubeClient.stopPod(podName).get();
         assertThat(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get()).isNull();
+        deleteK8sNode();
+    }
+
+    private void createK8sNode() {
+        final Node node =
+                new NodeBuilder()
+                        .editOrNewMetadata()
+                        .withName(TESTING_K8S_NODE_NAME)
+                        .endMetadata()
+                        .build();
+        node.setStatus(
+                new NodeStatusBuilder()
+                        .withConditions(
+                                new NodeConditionBuilder()
+                                        .withType(NodeConditions.Ready.name())
+                                        .withMessage("kubelet is posting ready status")
+                                        .withStatus(NodeConditionStatus.False.name())
+                                        .withReason("KubeletNotReady")
+                                        .build())
+                        .build());
+        this.kubeClient.nodes().create(node);
+        assertThat(this.kubeClient.nodes().withName(TESTING_K8S_NODE_NAME).get()).isNotNull();
+    }
+
+    private void deleteK8sNode() {
+        this.kubeClient.nodes().withName(TESTING_K8S_NODE_NAME).delete();
+        assertThat(this.kubeClient.nodes().withName(TESTING_K8S_NODE_NAME).get()).isNull();
     }
 
     @Test
