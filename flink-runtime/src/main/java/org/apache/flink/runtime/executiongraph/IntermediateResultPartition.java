@@ -209,6 +209,7 @@ public class IntermediateResultPartition {
         dataAllProduced = true;
 
         for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
+            totalResult.markPartitionFinished(consumedPartitionGroup, this);
             consumedPartitionGroup.partitionFinished();
         }
     }
