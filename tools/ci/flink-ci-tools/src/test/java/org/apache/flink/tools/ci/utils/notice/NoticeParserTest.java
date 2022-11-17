@@ -34,14 +34,17 @@ class NoticeParserTest {
         final Dependency dependency1 =
                 Dependency.create("groupId1", "artifactId1", "version1", null);
         final Dependency dependency2 =
-                Dependency.create("groupId2", "artifactId2", "version2", null);
+                Dependency.create("groupId2", "artifactId2", "version2", "classifier2");
+        final Dependency dependency3 =
+                Dependency.create("org.codehaus.woodstox", "stax2-api", "4.2.1", null);
         final List<String> noticeContents =
                 Arrays.asList(
                         module,
                         "",
                         "Some text about the applicable license",
-                        "- " + dependency1,
-                        "- " + dependency2,
+                        "- groupId1:artifactId1:version1",
+                        "- groupId2:artifactId2:classifier2:version2",
+                        "- org.codehaus.woodstox:stax2-api:4.2.1 (https://github.com/FasterXML/stax2-api/tree/stax2-api-4.2.1)",
                         "",
                         "some epilogue");
 
@@ -50,16 +53,19 @@ class NoticeParserTest {
                         contents -> {
                             assertThat(contents.getNoticeModuleName()).isEqualTo(module);
                             assertThat(contents.getDeclaredDependencies())
-                                    .containsExactlyInAnyOrder(dependency1, dependency2);
+                                    .containsExactlyInAnyOrder(
+                                            dependency1, dependency2, dependency3);
                         });
     }
 
     @Test
     void testParseNoticeFileBundlesPath() {
         final String module = "some-module";
-        final Dependency dependency = Dependency.create("groupId", "artifactId", "version", null);
+        final Dependency dependency =
+                Dependency.create("groupId", "artifactId", "version", "classifier");
         final List<String> noticeContents =
-                Arrays.asList(module, "", "Something bundles \"" + dependency + "\"");
+                Arrays.asList(
+                        module, "", "Something bundles \"groupId:artifactId:classifier:version\"");
 
         assertThat(NoticeParser.parseNoticeFile(noticeContents))
                 .hasValueSatisfying(
