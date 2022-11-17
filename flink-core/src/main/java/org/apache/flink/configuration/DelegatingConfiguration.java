@@ -351,7 +351,8 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public <T> Configuration set(ConfigOption<T> option, T value) {
-        return backingConfig.set(prefixOption(option, prefix), value);
+        backingConfig.set(prefixOption(option, prefix), value);
+        return this;
     }
 
     // --------------------------------------------------------------------------------------------
