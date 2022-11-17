@@ -209,7 +209,7 @@ For support of Python3.9 and M1, PyFlink updates a series dependencies version:
     ```
     apache-beam==2.38.0
     arrow==5.0.0
-    pemja==0.2.4
+    pemja==0.2.6
     ```
 
 #### Update dependency version for system resources metrics
