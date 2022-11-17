@@ -28,6 +28,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -48,7 +49,6 @@ import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
@@ -173,15 +173,17 @@ class NettyShuffleEnvironmentTest {
                                 new IntermediateDataSetID(),
                                 ResultPartitionType.PIPELINED,
                                 0,
-                                new ShuffleDescriptor[] {
-                                    new NettyShuffleDescriptorBuilder().buildRemote()
+                                new ShuffleDescriptorAndIndex[] {
+                                    new ShuffleDescriptorAndIndex(
+                                            new NettyShuffleDescriptorBuilder().buildRemote(), 0)
                                 }),
                         new InputGateDeploymentDescriptor(
                                 new IntermediateDataSetID(),
                                 ResultPartitionType.PIPELINED,
                                 1,
-                                new ShuffleDescriptor[] {
-                                    new NettyShuffleDescriptorBuilder().buildRemote()
+                                new ShuffleDescriptorAndIndex[] {
+                                    new ShuffleDescriptorAndIndex(
+                                            new NettyShuffleDescriptorBuilder().buildRemote(), 0)
                                 })));
         for (int i = 0; i < 2; i++) {
             assertThat(
@@ -229,8 +231,11 @@ class NettyShuffleEnvironmentTest {
                                 ids[i],
                                 ResultPartitionType.PIPELINED,
                                 0,
-                                new ShuffleDescriptor[] {
-                                    NettyShuffleDescriptorBuilder.newBuilder().buildRemote()
+                                new ShuffleDescriptorAndIndex[] {
+                                    new ShuffleDescriptorAndIndex(
+                                            NettyShuffleDescriptorBuilder.newBuilder()
+                                                    .buildRemote(),
+                                            0)
                                 }));
             }
 

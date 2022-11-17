@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -307,7 +308,9 @@ public class TaskTest extends TestLogger {
                         new IntermediateDataSetID(),
                         ResultPartitionType.PIPELINED,
                         0,
-                        new ShuffleDescriptor[] {dummyChannel});
+                        new ShuffleDescriptorAndIndex[] {
+                            new ShuffleDescriptorAndIndex(dummyChannel, 0)
+                        });
         testExecutionFailsInNetworkRegistration(
                 Collections.emptyList(), Collections.singletonList(dummyGate));
     }

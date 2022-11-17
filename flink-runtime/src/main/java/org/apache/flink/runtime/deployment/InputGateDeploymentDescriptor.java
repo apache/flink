@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -40,6 +41,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -76,31 +79,38 @@ public class InputGateDeploymentDescriptor implements Serializable {
     private transient ShuffleDescriptor[] inputChannels;
 
     /** Serialized value of shuffle descriptors. */
-    private MaybeOffloaded<ShuffleDescriptor[]> serializedInputChannels;
+    private final List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> serializedInputChannels;
+
+    /** Number of input channels. */
+    private final int numberOfInputChannels;
 
     @VisibleForTesting
     public InputGateDeploymentDescriptor(
             IntermediateDataSetID consumedResultId,
             ResultPartitionType consumedPartitionType,
             @Nonnegative int consumedSubpartitionIndex,
-            ShuffleDescriptor[] inputChannels)
+            ShuffleDescriptorAndIndex[] inputChannels)
             throws IOException {
         this(
                 consumedResultId,
                 consumedPartitionType,
                 new IndexRange(consumedSubpartitionIndex, consumedSubpartitionIndex),
-                new NonOffloaded<>(CompressedSerializedValue.fromObject(inputChannels)));
+                inputChannels.length,
+                Collections.singletonList(
+                        new NonOffloaded<>(CompressedSerializedValue.fromObject(inputChannels))));
     }
 
     public InputGateDeploymentDescriptor(
             IntermediateDataSetID consumedResultId,
             ResultPartitionType consumedPartitionType,
             IndexRange consumedSubpartitionIndexRange,
-            MaybeOffloaded<ShuffleDescriptor[]> serializedInputChannels) {
+            int numberOfInputChannels,
+            List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> serializedInputChannels) {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
         this.consumedSubpartitionIndexRange = checkNotNull(consumedSubpartitionIndexRange);
         this.serializedInputChannels = checkNotNull(serializedInputChannels);
+        this.numberOfInputChannels = numberOfInputChannels;
     }
 
     public IntermediateDataSetID getConsumedResultId() {
@@ -130,42 +140,67 @@ public class InputGateDeploymentDescriptor implements Serializable {
     }
 
     public void loadBigData(@Nullable PermanentBlobService blobService, JobID jobId)
-            throws IOException, ClassNotFoundException {
-        if (serializedInputChannels instanceof Offloaded) {
-            PermanentBlobKey blobKey =
-                    ((Offloaded<ShuffleDescriptor[]>) serializedInputChannels).serializedValueKey;
+            throws IOException {
+        for (int i = 0; i < serializedInputChannels.size(); i++) {
+            MaybeOffloaded<ShuffleDescriptorAndIndex[]> shuffleDescriptors =
+                    serializedInputChannels.get(i);
+            if (shuffleDescriptors instanceof Offloaded) {
+                PermanentBlobKey blobKey =
+                        ((Offloaded<ShuffleDescriptorAndIndex[]>) shuffleDescriptors)
+                                .serializedValueKey;
 
-            Preconditions.checkNotNull(blobService);
+                Preconditions.checkNotNull(blobService);
 
-            // NOTE: Do not delete the ShuffleDescriptor BLOBs since it may be needed again during
-            // recovery. (it is deleted automatically on the BLOB server and cache when its
-            // partition is no longer available or the job enters a terminal state)
-            CompressedSerializedValue<ShuffleDescriptor[]> serializedValue =
-                    CompressedSerializedValue.fromBytes(blobService.readFile(jobId, blobKey));
-            serializedInputChannels = new NonOffloaded<>(serializedValue);
-
-            Preconditions.checkNotNull(serializedInputChannels);
+                // NOTE: Do not delete the ShuffleDescriptor BLOBs since it may be needed again
+                // during
+                // recovery. (it is deleted automatically on the BLOB server and cache when its
+                // partition is no longer available or the job enters a terminal state)
+                CompressedSerializedValue<ShuffleDescriptorAndIndex[]> serializedValue =
+                        CompressedSerializedValue.fromBytes(blobService.readFile(jobId, blobKey));
+                serializedInputChannels.set(i, new NonOffloaded<>(serializedValue));
+            }
         }
     }
 
     public ShuffleDescriptor[] getShuffleDescriptors() {
         try {
             if (inputChannels == null) {
-                if (serializedInputChannels instanceof NonOffloaded) {
-                    NonOffloaded<ShuffleDescriptor[]> nonOffloadedSerializedValue =
-                            (NonOffloaded<ShuffleDescriptor[]>) serializedInputChannels;
-                    inputChannels =
-                            nonOffloadedSerializedValue.serializedValue.deserializeValue(
-                                    getClass().getClassLoader());
-                } else {
-                    throw new IllegalStateException(
-                            "Trying to work with offloaded serialized shuffle descriptors.");
+                inputChannels = new ShuffleDescriptor[numberOfInputChannels];
+                for (MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptors :
+                        serializedInputChannels) {
+                    if (serializedShuffleDescriptors instanceof NonOffloaded) {
+                        NonOffloaded<ShuffleDescriptorAndIndex[]> nonOffloadedSerializedValue =
+                                (NonOffloaded<ShuffleDescriptorAndIndex[]>)
+                                        serializedShuffleDescriptors;
+                        ShuffleDescriptorAndIndex[] shuffleDescriptorAndIndices =
+                                nonOffloadedSerializedValue.serializedValue.deserializeValue(
+                                        getClass().getClassLoader());
+                        putOrReplaceShuffleDescriptors(shuffleDescriptorAndIndices);
+                    } else {
+                        throw new IllegalStateException(
+                                "Trying to work with offloaded serialized shuffle descriptors.");
+                    }
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException("Could not deserialize shuffle descriptors.", e);
         }
         return inputChannels;
+    }
+
+    private void putOrReplaceShuffleDescriptors(
+            ShuffleDescriptorAndIndex[] shuffleDescriptorAndIndices) {
+        for (ShuffleDescriptorAndIndex shuffleDescriptorAndIndex : shuffleDescriptorAndIndices) {
+            ShuffleDescriptor inputChannelDescriptor =
+                    inputChannels[shuffleDescriptorAndIndex.getIndex()];
+            if (inputChannelDescriptor != null) {
+                checkState(
+                        inputChannelDescriptor.isUnknown(),
+                        "Only unknown shuffle descriptor can be replaced.");
+            }
+            inputChannels[shuffleDescriptorAndIndex.getIndex()] =
+                    shuffleDescriptorAndIndex.getShuffleDescriptor();
+        }
     }
 
     @Override

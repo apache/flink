@@ -53,6 +53,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -77,7 +78,7 @@ public class TaskDeploymentDescriptorFactory {
     private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
             resultPartitionRetriever;
     private final BlobWriter blobWriter;
-    private final Map<IntermediateDataSetID, ShuffleDescriptor[]>
+    private final Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
             consumedClusterPartitionShuffleDescriptors;
     private final Function<IntermediateDataSetID, ExecutionVertexInputInfo>
             executionVertexInputInfoRetriever;
@@ -92,7 +93,7 @@ public class TaskDeploymentDescriptorFactory {
             Function<IntermediateResultPartitionID, IntermediateResultPartition>
                     resultPartitionRetriever,
             BlobWriter blobWriter,
-            Map<IntermediateDataSetID, ShuffleDescriptor[]>
+            Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
                     consumedClusterPartitionShuffleDescriptors,
             Function<IntermediateDataSetID, ExecutionVertexInputInfo>
                     executionVertexInputInfoRetriever) {
@@ -150,11 +151,12 @@ public class TaskDeploymentDescriptorFactory {
                             resultId,
                             partitionType,
                             subpartitionRange,
+                            consumedPartitionGroup.size(),
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult, consumedPartitionGroup)));
         }
 
-        for (Map.Entry<IntermediateDataSetID, ShuffleDescriptor[]> entry :
+        for (Map.Entry<IntermediateDataSetID, ShuffleDescriptorAndIndex[]> entry :
                 consumedClusterPartitionShuffleDescriptors.entrySet()) {
             // For FLIP-205, the JobGraph generating side ensure that the cluster partition is
             // produced with only one subpartition. Therefore, we always consume the partition with
@@ -170,43 +172,54 @@ public class TaskDeploymentDescriptorFactory {
         return inputGates;
     }
 
-    private MaybeOffloaded<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(
-            IntermediateResult intermediateResult, ConsumedPartitionGroup consumedPartitionGroup)
-            throws IOException {
-        MaybeOffloaded<ShuffleDescriptor[]> serializedShuffleDescriptors =
+    private List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>>
+            getConsumedPartitionShuffleDescriptors(
+                    IntermediateResult intermediateResult,
+                    ConsumedPartitionGroup consumedPartitionGroup)
+                    throws IOException {
+        CachedShuffleDescriptors cachedShuffleDescriptors =
                 intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
-        if (serializedShuffleDescriptors == null) {
-            serializedShuffleDescriptors =
+        if (cachedShuffleDescriptors == null) {
+            // compute all shuffle descriptors if it is not cached before.
+            MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptors =
                     computeConsumedPartitionShuffleDescriptors(consumedPartitionGroup);
-            intermediateResult.cacheShuffleDescriptors(
-                    consumedPartitionGroup, serializedShuffleDescriptors);
+            cachedShuffleDescriptors =
+                    intermediateResult.cacheShuffleDescriptors(
+                            consumedPartitionGroup, serializedShuffleDescriptors);
+        } else {
+            cachedShuffleDescriptors.serializeShuffleDescriptors(
+                    this::serializeAndTryOffloadShuffleDescriptor);
         }
-        return serializedShuffleDescriptors;
+
+        return cachedShuffleDescriptors.getAllSerializedShuffleDescriptors();
     }
 
-    private MaybeOffloaded<ShuffleDescriptor[]> computeConsumedPartitionShuffleDescriptors(
+    private MaybeOffloaded<ShuffleDescriptorAndIndex[]> computeConsumedPartitionShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup) throws IOException {
 
-        ShuffleDescriptor[] shuffleDescriptors =
-                new ShuffleDescriptor[consumedPartitionGroup.size()];
+        ShuffleDescriptorAndIndex[] shuffleDescriptors =
+                new ShuffleDescriptorAndIndex[consumedPartitionGroup.size()];
         // Each edge is connected to a different result partition
         int i = 0;
         for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
-            shuffleDescriptors[i++] =
-                    getConsumedPartitionShuffleDescriptor(
-                            resultPartitionRetriever.apply(partitionId),
-                            partitionDeploymentConstraint);
+            shuffleDescriptors[i] =
+                    new ShuffleDescriptorAndIndex(
+                            getConsumedPartitionShuffleDescriptor(
+                                    resultPartitionRetriever.apply(partitionId),
+                                    partitionDeploymentConstraint),
+                            i);
+            i++;
         }
-        return serializeAndTryOffloadShuffleDescriptors(shuffleDescriptors);
+        return serializeAndTryOffloadShuffleDescriptor(shuffleDescriptors);
     }
 
-    private MaybeOffloaded<ShuffleDescriptor[]> serializeAndTryOffloadShuffleDescriptors(
-            ShuffleDescriptor[] shuffleDescriptors) throws IOException {
+    private MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
+            ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
 
-        final CompressedSerializedValue<ShuffleDescriptor[]> compressedSerializedValue =
+        final CompressedSerializedValue<ShuffleDescriptorAndIndex[]> compressedSerializedValue =
                 CompressedSerializedValue.fromObject(shuffleDescriptors);
 
-        final Either<SerializedValue<ShuffleDescriptor[]>, PermanentBlobKey>
+        final Either<SerializedValue<ShuffleDescriptorAndIndex[]>, PermanentBlobKey>
                 serializedValueOrBlobKey =
                         BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
 
@@ -222,7 +235,7 @@ public class TaskDeploymentDescriptorFactory {
         final ExecutionVertex executionVertex = execution.getVertex();
         final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
-        Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors;
+        Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]> clusterPartitionShuffleDescriptors;
         try {
             clusterPartitionShuffleDescriptors =
                     getClusterPartitionShuffleDescriptors(executionVertex);
@@ -249,13 +262,13 @@ public class TaskDeploymentDescriptorFactory {
                 executionVertex::getExecutionVertexInputInfo);
     }
 
-    private static Map<IntermediateDataSetID, ShuffleDescriptor[]>
+    private static Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
             getClusterPartitionShuffleDescriptors(ExecutionVertex executionVertex) {
         final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
         final List<IntermediateDataSetID> consumedClusterDataSetIds =
                 executionVertex.getJobVertex().getJobVertex().getIntermediateDataSetIdsToConsume();
-        Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors =
+        Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]> clusterPartitionShuffleDescriptors =
                 new HashMap<>();
 
         for (IntermediateDataSetID consumedClusterDataSetId : consumedClusterDataSetIds) {
@@ -275,8 +288,13 @@ public class TaskDeploymentDescriptorFactory {
 
             clusterPartitionShuffleDescriptors.put(
                     consumedClusterDataSetId,
-                    new ShuffleDescriptor[] {
-                        shuffleDescriptors.get(executionVertex.getParallelSubtaskIndex())
+                    new ShuffleDescriptorAndIndex[] {
+                        new ShuffleDescriptorAndIndex(
+                                shuffleDescriptors.get(executionVertex.getParallelSubtaskIndex()),
+                                // For FLIP-205, the JobGraph generating side ensure that the
+                                // cluster partition is produced with only one subpartition.
+                                // Therefore, this index is always 0.
+                                0)
                     });
         }
         return clusterPartitionShuffleDescriptors;
@@ -410,6 +428,30 @@ public class TaskDeploymentDescriptorFactory {
                                     "Unknown JobType %s. Cannot derive partition location constraint for it.",
                                     jobType));
             }
+        }
+    }
+
+    /**
+     * This class represents the shuffle descriptor with it index in {@link ConsumedPartitionGroup}.
+     */
+    public static class ShuffleDescriptorAndIndex implements Serializable {
+        private static final long serialVersionUID = 852181945034989215L;
+
+        private final ShuffleDescriptor shuffleDescriptor;
+
+        private final int index;
+
+        public ShuffleDescriptorAndIndex(ShuffleDescriptor shuffleDescriptor, int index) {
+            this.shuffleDescriptor = shuffleDescriptor;
+            this.index = index;
+        }
+
+        public ShuffleDescriptor getShuffleDescriptor() {
+            return shuffleDescriptor;
+        }
+
+        public int getIndex() {
+            return index;
         }
     }
 }

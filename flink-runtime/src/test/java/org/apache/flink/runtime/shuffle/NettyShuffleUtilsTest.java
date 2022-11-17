@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -136,11 +137,14 @@ public class NettyShuffleUtilsTest extends TestLogger {
             int numInputChannels)
             throws IOException {
 
-        ShuffleDescriptor[] shuffleDescriptors = new NettyShuffleDescriptor[numInputChannels];
+        ShuffleDescriptorAndIndex[] shuffleDescriptors =
+                new ShuffleDescriptorAndIndex[numInputChannels];
         for (int i = 0; i < numInputChannels; i++) {
             shuffleDescriptors[i] =
-                    createRemoteWithIdAndLocation(
-                            new IntermediateResultPartitionID(), ResourceID.generate());
+                    new ShuffleDescriptorAndIndex(
+                            createRemoteWithIdAndLocation(
+                                    new IntermediateResultPartitionID(), ResourceID.generate()),
+                            i);
         }
 
         InputGateDeploymentDescriptor inputGateDeploymentDescriptor =
