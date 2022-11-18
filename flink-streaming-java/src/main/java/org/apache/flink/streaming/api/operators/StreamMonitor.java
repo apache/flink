@@ -29,6 +29,7 @@ import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import oshi.SystemInfo;
+import oshi.hardware.CentralProcessor;
 import oshi.hardware.HardwareAbstractionLayer;
 
 import java.io.Serializable;
@@ -69,6 +70,8 @@ public class StreamMonitor<T> implements Serializable {
     private int joinInputWidthLeftSide = -1;
     private int joinInputWidthRightSide = -1;
     private int tupleWidthIn = -1;
+
+    private long[] prevTicks;
     private ExecutionConfig config;
 
     public StreamMonitor(HashMap<String, Object> description, T operator) {
@@ -114,6 +117,7 @@ public class StreamMonitor<T> implements Serializable {
                 this.startTime = System.nanoTime();
                 tupleWidthIn = getTupleSize(input);
                 description.put("tupleWidthOut", -1); // not any observation yet
+                prevTicks = new long[CentralProcessor.TickType.values().length];
             }
 
             this.inputCounter++;
@@ -277,8 +281,10 @@ public class StreamMonitor<T> implements Serializable {
     private HashMap<String, Object> addHardwareMetrics(HashMap<String, Object> description) {
         SystemInfo si = new SystemInfo();
         HardwareAbstractionLayer hal = si.getHardware();
-        description.put("totalMemory", hal.getMemory().getTotal());
-        description.put("maxCPUFreq", hal.getProcessor().getMaxFreq());
+        // description.put("totalMemory", hal.getMemory().getTotal());
+        // description.put("maxCPUFreq", hal.getProcessor().getMaxFreq());
+        // description.put(
+        //        "avgCPULoad", hal.getProcessor().getSystemCpuLoadBetweenTicks(prevTicks) * 100);
         return description;
     }
 
