@@ -67,17 +67,17 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-connector-base</include>
-									<include>org.apache.flink:flink-connector-kinesis</include>
-									<include>joda-time:joda-time</include>
-									<include>commons-codec:commons-codec</include>
-									<include>commons-io:commons-io</include>
-									<include>commons-lang:commons-lang</include>
-									<include>commons-logging:commons-logging</include>
-									<include>org.apache.commons:commons-lang3</include>
-									<include>com.google.guava:guava</include>
-									<include>com.google.guava:failureaccess</include>
+									<include>*:*</include>
 								</includes>
+								<excludes>
+									<!-- Exclude unnecessary dependencies.
+									     This is done here to not change the user-facing dependencies
+									     of flink-connector-kinesis. -->
+									<exclude>com.google.guava:listenablefuture</exclude>
+									<exclude>org.checkerframework:checker-qual</exclude>
+									<exclude>com.google.errorprone:error_prone_annotations</exclude>
+									<exclude>com.google.j2objc:j2objc-annotations</exclude>
+								</excludes>
 							</artifactSet>
 							<filters>
 								<filter>
