@@ -71,6 +71,7 @@ import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
@@ -227,6 +228,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final Executor ioExecutor;
 
+    /** {@link MemoryManager} shared across all tasks. */
+    private final SharedResources sharedResources;
+
     // --------- task slot allocation table -----------
 
     private final TaskSlotTable<Task> taskSlotTable;
@@ -342,6 +346,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         this.slotAllocationSnapshotPersistenceService =
                 taskExecutorServices.getSlotAllocationSnapshotPersistenceService();
+
+        this.sharedResources = taskExecutorServices.getSharedResources();
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -737,6 +743,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             tdd.getProducedPartitions(),
                             tdd.getInputGates(),
                             memoryManager,
+                            sharedResources,
                             taskExecutorServices.getIOManager(),
                             taskExecutorServices.getShuffleEnvironment(),
                             taskExecutorServices.getKvStateService(),

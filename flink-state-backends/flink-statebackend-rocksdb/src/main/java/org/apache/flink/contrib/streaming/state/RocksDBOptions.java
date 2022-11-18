@@ -118,10 +118,23 @@ public class RocksDBOptions {
                     .withDescription(
                             String.format(
                                     "The fixed total amount of memory, shared among all RocksDB instances per slot. "
-                                            + "This option overrides the '%s' option when configured. If neither this option, nor the '%s' option"
-                                            + "are set, then each RocksDB column family state has its own memory caches (as controlled by the column "
-                                            + "family options).",
-                                    USE_MANAGED_MEMORY.key(), USE_MANAGED_MEMORY.key()));
+                                            + "This option overrides the '%s' option when configured.",
+                                    USE_MANAGED_MEMORY.key()));
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<MemorySize> FIX_PER_TM_MEMORY_SIZE =
+            ConfigOptions.key("state.backend.rocksdb.memory.fixed-per-tm")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            String.format(
+                                    "The fixed total amount of memory, shared among all RocksDB instances per Task Manager (cluster-level option). "
+                                            + "This option only takes effect if neither '%s' nor '%s' are not configured. If none is configured "
+                                            + "then each RocksDB column family state has its own memory caches (as controlled by the column "
+                                            + "family options). "
+                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (flink-conf.yaml)."
+                                            + "Note, that this feature breaks resource isolation between the slots",
+                                    USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
     public static final ConfigOption<Double> WRITE_BUFFER_RATIO =

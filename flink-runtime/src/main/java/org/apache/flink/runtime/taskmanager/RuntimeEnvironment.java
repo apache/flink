@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
@@ -72,6 +73,7 @@ public class RuntimeEnvironment implements Environment {
     private final UserCodeClassLoader userCodeClassLoader;
 
     private final MemoryManager memManager;
+    private final SharedResources sharedResources;
     private final IOManager ioManager;
     private final BroadcastVariableManager bcVarManager;
     private final TaskStateManager taskStateManager;
@@ -116,6 +118,7 @@ public class RuntimeEnvironment implements Environment {
             Configuration taskConfiguration,
             UserCodeClassLoader userCodeClassLoader,
             MemoryManager memManager,
+            SharedResources sharedResources,
             IOManager ioManager,
             BroadcastVariableManager bcVarManager,
             TaskStateManager taskStateManager,
@@ -143,6 +146,7 @@ public class RuntimeEnvironment implements Environment {
         this.taskConfiguration = checkNotNull(taskConfiguration);
         this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
         this.memManager = checkNotNull(memManager);
+        this.sharedResources = checkNotNull(sharedResources);
         this.ioManager = checkNotNull(ioManager);
         this.bcVarManager = checkNotNull(bcVarManager);
         this.taskStateManager = checkNotNull(taskStateManager);
@@ -217,6 +221,11 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public MemoryManager getMemoryManager() {
         return memManager;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
+        return sharedResources;
     }
 
     @Override

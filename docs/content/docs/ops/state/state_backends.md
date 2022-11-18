@@ -226,7 +226,7 @@ When the above described mechanism (`cache` and `write buffer manager`) is enabl
 {{< /hint >}}
 
 {{< details "Expert Mode" >}}
-To control memory manually, you can set `state.backend.rocksdb.memory.managed` to `false` and configure RocksDB via [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb). Alternatively, you can use the above mentioned cache/buffer-manager mechanism, but set the memory size to a fixed amount independent of Flink's managed memory size (`state.backend.rocksdb.memory.fixed-per-slot` option). Note that in both cases, users need to ensure on their own that enough memory is available outside the JVM for RocksDB.
+To control memory manually, you can set `state.backend.rocksdb.memory.managed` to `false` and configure RocksDB via [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb). Alternatively, you can use the above mentioned cache/buffer-manager mechanism, but set the memory size to a fixed amount independent of Flink's managed memory size (`state.backend.rocksdb.memory.fixed-per-slot` or `state.backend.rocksdb.memory.fixed-per-tm` options). Note that in both cases, users need to ensure on their own that enough memory is available outside the JVM for RocksDB.
 {{< /details >}}
 
 ### Timers (Heap vs. RocksDB)

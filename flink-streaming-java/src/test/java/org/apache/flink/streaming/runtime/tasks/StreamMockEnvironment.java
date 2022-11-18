@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -81,6 +82,8 @@ public class StreamMockEnvironment implements Environment {
     private final TaskInfo taskInfo;
 
     private final MemoryManager memManager;
+
+    private final SharedResources sharedResources;
 
     private final IOManager ioManager;
 
@@ -178,6 +181,7 @@ public class StreamMockEnvironment implements Environment {
         this.outputs = new LinkedList<ResultPartitionWriter>();
         this.memManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(offHeapMemorySize).build();
+        this.sharedResources = new SharedResources();
         this.ioManager = new IOManagerAsync();
         this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
         this.aggregateManager = new TestGlobalAggregateManager();
@@ -244,6 +248,11 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public MemoryManager getMemoryManager() {
         return this.memManager;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
+        return this.sharedResources;
     }
 
     @Override
