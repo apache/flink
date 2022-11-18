@@ -1839,6 +1839,32 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/clientHeartbeat",
+    "method" : "PATCH",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobClientHeartbeatRequestBody",
+      "properties" : {
+        "expiredTimestamp" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+    }
+  }, {
     "url" : "/jobs/:jobid/config",
     "method" : "GET",
     "status-code" : "200 OK",

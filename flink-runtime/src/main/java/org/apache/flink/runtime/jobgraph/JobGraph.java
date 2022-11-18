@@ -70,6 +70,8 @@ public class JobGraph implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    private static final String INITIAL_CLIENT_HEARTBEAT_TIMEOUT = "initialClientHeartbeatTimeout";
+
     // --- job and configuration ---
 
     /** List of task vertices included in this job graph. */
@@ -651,5 +653,13 @@ public class JobGraph implements Serializable {
 
     public List<JobStatusHook> getJobStatusHooks() {
         return this.jobStatusHooks;
+    }
+
+    public void setInitialClientHeartbeatTimeout(long initialClientHeartbeatTimeout) {
+        jobConfiguration.setLong(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, initialClientHeartbeatTimeout);
+    }
+
+    public long getInitialClientHeartbeatTimeout() {
+        return jobConfiguration.getLong(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, Long.MIN_VALUE);
     }
 }

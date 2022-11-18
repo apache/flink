@@ -58,6 +58,9 @@ import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
 import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobClientHeartbeatHeaders;
+import org.apache.flink.runtime.rest.messages.JobClientHeartbeatParameters;
+import org.apache.flink.runtime.rest.messages.JobClientHeartbeatRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -725,6 +728,18 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         throw new CompletionException(asynchronousOperationInfo.getFailureCause());
                     }
                 });
+    }
+
+    @Override
+    public CompletableFuture<Void> reportHeartbeat(JobID jobId, long expiredTimestamp) {
+        JobClientHeartbeatParameters params =
+                new JobClientHeartbeatParameters().resolveJobId(jobId);
+        CompletableFuture<EmptyResponseBody> responseFuture =
+                sendRequest(
+                        JobClientHeartbeatHeaders.getInstance(),
+                        params,
+                        new JobClientHeartbeatRequestBody(expiredTimestamp));
+        return responseFuture.thenApply(ignore -> null);
     }
 
     @Override

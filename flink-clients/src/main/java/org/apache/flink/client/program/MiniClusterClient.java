@@ -195,6 +195,11 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
         return miniCluster.invalidateClusterDataset(new IntermediateDataSetID(clusterDatasetId));
     }
 
+    @Override
+    public CompletableFuture<Void> reportHeartbeat(JobID jobId, long expiredTimestamp) {
+        return miniCluster.reportHeartbeat(jobId, expiredTimestamp);
+    }
+
     /** The type of the Cluster ID for the local {@link MiniCluster}. */
     public enum MiniClusterId {
         INSTANCE

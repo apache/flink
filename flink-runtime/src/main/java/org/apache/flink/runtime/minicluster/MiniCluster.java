@@ -1341,6 +1341,13 @@ public class MiniCluster implements AutoCloseableAsync {
                                         metaInfoMap -> new HashSet<>(metaInfoMap.keySet())));
     }
 
+    public CompletableFuture<Void> reportHeartbeat(JobID jobId, long expiredTimestamp) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.reportJobClientHeartbeat(
+                                jobId, expiredTimestamp, rpcTimeout));
+    }
+
     /** Internal factory for {@link RpcService}. */
     protected interface RpcServiceFactory {
         RpcService createRpcService() throws Exception;
