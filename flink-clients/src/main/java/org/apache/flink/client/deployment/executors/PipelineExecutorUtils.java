@@ -21,8 +21,10 @@ package org.apache.flink.client.deployment.executors;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
+import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -65,6 +67,12 @@ public class PipelineExecutorUtils {
         configuration
                 .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
                 .ifPresent(strJobID -> jobGraph.setJobID(JobID.fromHexString(strJobID)));
+
+        if (configuration.getBoolean(DeploymentOptions.ATTACHED)
+                && configuration.getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+            jobGraph.setInitialClientHeartbeatTimeout(
+                    configuration.getLong(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+        }
 
         jobGraph.addJars(executionConfigAccessor.getJars());
         jobGraph.setClasspaths(executionConfigAccessor.getClasspaths());

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetListHandler;
 import org.apache.flink.runtime.rest.handler.job.GeneratedLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
+import org.apache.flink.runtime.rest.handler.job.JobClientHeartbeatHandler;
 import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
 import org.apache.flink.runtime.rest.handler.job.JobDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
@@ -101,6 +102,7 @@ import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
+import org.apache.flink.runtime.rest.messages.JobClientHeartbeatHeaders;
 import org.apache.flink.runtime.rest.messages.JobConfigHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobIdsWithStatusesOverviewHeaders;
@@ -692,6 +694,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new ShutdownHandler(
                         leaderRetriever, timeout, responseHeaders, ShutdownHeaders.getInstance());
 
+        final JobClientHeartbeatHandler jobClientHeartbeatHandler =
+                new JobClientHeartbeatHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JobClientHeartbeatHeaders.getInstance());
+
         final File webUiDir = restConfiguration.getWebUiDir();
 
         Optional<StaticFileServerHandler<T>> optWebContent;
@@ -877,6 +886,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(YarnStopJobTerminationHeaders.getInstance(), jobStopTerminationHandler));
 
         handlers.add(Tuple2.of(shutdownHandler.getMessageHeaders(), shutdownHandler));
+
+        handlers.add(
+                Tuple2.of(
+                        jobClientHeartbeatHandler.getMessageHeaders(), jobClientHeartbeatHandler));
 
         optWebContent.ifPresent(
                 webContent -> {

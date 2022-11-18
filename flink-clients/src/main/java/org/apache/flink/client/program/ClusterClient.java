@@ -206,4 +206,14 @@ public interface ClusterClient<T> extends AutoCloseable {
     default CompletableFuture<Void> invalidateClusterDataset(AbstractID clusterDatasetId) {
         return CompletableFuture.completedFuture(null);
     }
+
+    /**
+     * The client reports the heartbeat to the dispatcher for aliveness.
+     *
+     * @param jobId The jobId for the client and the job.
+     * @return
+     */
+    default CompletableFuture<Void> reportHeartbeat(JobID jobId, long expiredTimestamp) {
+        return CompletableFuture.completedFuture(null);
+    }
 }
