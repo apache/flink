@@ -311,7 +311,7 @@ try:
     install_requires = ['py4j==0.10.9.3', 'python-dateutil==2.8.0', 'apache-beam==2.38.0',
                         'cloudpickle==2.1.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
                         'pytz>=2018.3', 'fastavro>=1.1.0,<1.4.8', 'requests>=2.26.0',
-                        'protobuf<3.19',
+                        'protobuf>=3.19.0,<=3.21',
                         'pemja==0.2.6;'
                         'python_full_version >= "3.7" and platform_system != "Windows"',
                         'httplib2>=0.19.0,<=0.20.4', apache_flink_libraries_dependency]
