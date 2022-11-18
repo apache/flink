@@ -108,7 +108,7 @@ You can use it to monitor the performance of your Flink connector and applicatio
 
 ### Topic-partition Subscription
 
-Pulsar source provide two ways of topic-partition subscription:
+Pulsar source provides two ways of topic-partition subscription:
 
 - Topic list, subscribing messages from all partitions in a list of topics. For example:
   {{< tabs "pulsar-source-topics" >}}
