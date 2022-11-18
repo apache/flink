@@ -17,6 +17,8 @@
 
 package org.apache.flink.tools.ci.utils.shared;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import com.google.common.graph.Traverser;
 
 import javax.annotation.Nullable;
@@ -110,11 +112,14 @@ public class DependencyTree {
      * @param dependency
      * @return
      */
-    private static String getKey(Dependency dependency) {
+    @VisibleForTesting
+    static String getKey(Dependency dependency) {
         return dependency.getGroupId()
                 + ":"
                 + dependency.getArtifactId()
                 + ":"
-                + dependency.getVersion();
+                + dependency.getVersion()
+                + ":"
+                + dependency.getClassifier().orElse("(no-classifier)");
     }
 }
