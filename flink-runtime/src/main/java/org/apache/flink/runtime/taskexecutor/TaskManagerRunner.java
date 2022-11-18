@@ -380,7 +380,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
             if (metricRegistry != null) {
                 try {
-                    metricRegistry.closeAsync();
+                    terminationFutures.add(metricRegistry.closeAsync());
                 } catch (Exception e) {
                     exception = ExceptionUtils.firstOrSuppressed(e, exception);
                 }
