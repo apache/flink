@@ -119,6 +119,40 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Transitive dependencies that we explicitly declare again because we
+		     bundle the direct dependencies but not these transitive dependencies.
+		     Without this explicit declaration these dependencies would be lost. -->
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>commons-lang</groupId>
+			<artifactId>commons-lang</artifactId>
+			<version>2.6</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-logging</groupId>
+			<artifactId>commons-logging</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Other third-party dependencies -->
 		<dependency>
 			<!-- KPL requires jaxb-api for javax.xml.bind.DatatypeConverter -->
@@ -311,7 +345,6 @@ under the License.
 						<configuration>
 							<!-- required for the Kinesis e2e test -->
 							<shadeTestJar>true</shadeTestJar>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet combine.children="append">
 								<includes>
 									<include>org.apache.flink:flink-connector-aws-base:*</include>
