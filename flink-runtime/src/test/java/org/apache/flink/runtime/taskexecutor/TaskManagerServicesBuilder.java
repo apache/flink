@@ -24,6 +24,7 @@ import org.apache.flink.runtime.execution.librarycache.TestingLibraryCacheManage
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -59,6 +60,7 @@ public class TaskManagerServicesBuilder {
     private TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager;
     private TaskEventDispatcher taskEventDispatcher;
     private LibraryCacheManager libraryCacheManager;
+    private SharedResources sharedResources;
     private long managedMemorySize;
     private SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
 
@@ -84,6 +86,7 @@ public class TaskManagerServicesBuilder {
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
         this.slotAllocationSnapshotPersistenceService =
                 NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
+        sharedResources = new SharedResources();
     }
 
     public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(
@@ -174,6 +177,7 @@ public class TaskManagerServicesBuilder {
                 taskEventDispatcher,
                 Executors.newSingleThreadScheduledExecutor(),
                 libraryCacheManager,
-                slotAllocationSnapshotPersistenceService);
+                slotAllocationSnapshotPersistenceService,
+                sharedResources);
     }
 }

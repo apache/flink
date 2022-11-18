@@ -47,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -100,6 +101,8 @@ public class SavepointEnvironment implements Environment {
 
     private final MemoryManager memoryManager;
 
+    private final SharedResources sharedResources;
+
     private final AccumulatorRegistry accumulatorRegistry;
 
     private final UserCodeClassLoader userCodeClassLoader;
@@ -126,6 +129,7 @@ public class SavepointEnvironment implements Environment {
         this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
         this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
         this.memoryManager = MemoryManager.create(64 * 1024 * 1024, DEFAULT_PAGE_SIZE);
+        this.sharedResources = new SharedResources();
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 
         this.userCodeClassLoader = UserCodeClassLoaderRuntimeContextAdapter.from(ctx);
@@ -198,6 +202,11 @@ public class SavepointEnvironment implements Environment {
     @Override
     public MemoryManager getMemoryManager() {
         return memoryManager;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
+        return sharedResources;
     }
 
     @Override
