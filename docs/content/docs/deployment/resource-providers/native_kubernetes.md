@@ -127,9 +127,9 @@ $ ./bin/flink run-application \
     http://ip:port/my-flink-job.jar
 ```
 {{< hint info >}}
-Now, The jar package supports reading from the [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}#docker-hub-flink-images) or Http/Https in Application Mode.  
+Now, The jar artifact supports downloading from the [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) or Http/Https in Application Mode.  
 The jar package will be downloaded from filesystem to
-[kubernetes.user.artifacts.base.dir]({{< ref "docs/deployment/config" >}}#kubernetes-user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
+[user.artifacts.base.dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
 {{< /hint >}}
 <span class="label label-info">Note</span> `local` schema is still supported. If you use `local` schema,  the jar must be provided in the image or download by a init container like [Example]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#example-of-pod-template).
 

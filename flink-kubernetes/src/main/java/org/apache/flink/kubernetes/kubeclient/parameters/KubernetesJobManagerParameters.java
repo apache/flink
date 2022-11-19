@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -206,6 +207,6 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     }
 
     public String getUserArtifactsBaseDir() {
-        return flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_BASE_DIR);
+        return flinkConfig.getString(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR);
     }
 }

@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.artifact;
+package org.apache.flink.client.program.artifact;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -45,8 +45,6 @@ import java.util.HashMap;
 /** Test for {@link ArtifactUtils}. */
 public class ArtifactUtilsTest {
     private static final Logger LOG = LoggerFactory.getLogger(ArtifactUtilsTest.class);
-    public static final String TEST_NAMESPACE = "flink-artifact-namespace-test";
-    public static final String TEST_CLUSTER_ID = "flink-artifact-cluster-id-test";
     private Configuration configuration;
     @TempDir Path tempDir;
 
@@ -54,20 +52,7 @@ public class ArtifactUtilsTest {
     public void setup() {
         configuration = new Configuration();
         configuration.setString(
-                KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_BASE_DIR,
-                tempDir.toAbsolutePath().toString());
-        configuration.setString(KubernetesConfigOptions.NAMESPACE, TEST_NAMESPACE);
-        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, TEST_CLUSTER_ID);
-    }
-
-    @Test
-    public void testGenerateJarDir() {
-        String baseDir = ArtifactUtils.generateJarDir(configuration);
-        String expectedDir =
-                String.join(
-                        File.separator,
-                        new String[] {tempDir.toString(), TEST_NAMESPACE, TEST_CLUSTER_ID});
-        Assertions.assertEquals(expectedDir, baseDir);
+                ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, tempDir.toAbsolutePath().toString());
     }
 
     @Test
@@ -98,8 +83,7 @@ public class ArtifactUtilsTest {
                                     httpServer.getAddress().getPort()),
                             new Configuration()
                                     .set(
-                                            KubernetesConfigOptions
-                                                    .KUBERNETES_USER_ARTIFACT_HTTP_HEADER,
+                                            ArtifactFetchOptions.USER_ARTIFACT_HTTP_HEADER,
                                             new HashMap<String, String>() {
                                                 {
                                                     put("k1", "v1");

@@ -19,33 +19,36 @@
 package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
+import org.apache.flink.client.program.artifact.ArtifactUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
-import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.FunctionUtils;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /** An {@link ApplicationClusterEntryPoint} for Kubernetes. */
 @Internal
@@ -123,8 +126,7 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(jobClassName)
                 || PackagedProgramUtils.isPython(programArguments))) {
-            final List<File> pipelineJarFiles =
-                    KubernetesUtils.fetchJarFileForApplicationMode(configuration);
+            final List<File> pipelineJarFiles = fetchJarFileForApplicationMode(configuration);
             Preconditions.checkArgument(pipelineJarFiles.size() == 1, "Should only have one jar");
             return DefaultPackagedProgramRetriever.create(
                     userLibDir,
@@ -138,12 +140,29 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
                 userLibDir, jobClassName, programArguments, configuration);
     }
 
-    private static SecurityContext installSecurityContext(Configuration configuration)
-            throws Exception {
-        LOG.info("Kubernetes Application Mode Install security context.");
+    /**
+     * Fetch the user jar from path.
+     *
+     * @param configuration Flink Configuration
+     * @return User jar File
+     */
+    public static List<File> fetchJarFileForApplicationMode(Configuration configuration) {
+        String targetDir = generateJarDir(configuration);
+        return configuration.get(PipelineOptions.JARS).stream()
+                .map(
+                        FunctionUtils.uncheckedFunction(
+                                uri -> ArtifactUtils.fetch(uri, configuration, targetDir)))
+                .collect(Collectors.toList());
+    }
 
-        SecurityUtils.install(new SecurityConfiguration(configuration));
-
-        return SecurityUtils.getInstalledContext();
+    public static String generateJarDir(Configuration configuration) {
+        return String.join(
+                File.separator,
+                new String[] {
+                    new File(configuration.get(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR))
+                            .getAbsolutePath(),
+                    configuration.get(KubernetesConfigOptions.NAMESPACE),
+                    configuration.get(KubernetesConfigOptions.CLUSTER_ID)
+                });
     }
 }

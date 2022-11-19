@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.artifact;
+package org.apache.flink.client.program.artifact;
 
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.commons.io.FileUtils;
@@ -68,19 +67,5 @@ public class ArtifactUtils {
             }
             return targetFile;
         }
-    }
-
-    public static String generateJarDir(Configuration configuration) {
-        return String.join(
-                File.separator,
-                new String[] {
-                    new File(
-                                    configuration.get(
-                                            KubernetesConfigOptions
-                                                    .KUBERNETES_USER_ARTIFACTS_BASE_DIR))
-                            .getAbsolutePath(),
-                    configuration.get(KubernetesConfigOptions.NAMESPACE),
-                    configuration.get(KubernetesConfigOptions.CLUSTER_ID)
-                });
     }
 }
