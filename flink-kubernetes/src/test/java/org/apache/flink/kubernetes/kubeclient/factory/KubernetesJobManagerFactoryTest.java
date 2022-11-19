@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.factory;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -472,8 +473,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
     @Test
     public void testArtifactsEmptyDirVolume() throws IOException {
-        flinkConfig.set(
-                KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
+        flinkConfig.set(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
                         flinkPod, kubernetesJobManagerParameters);
@@ -495,8 +495,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
     @Test
     public void testTurnOffArtifactsEmptyDirVolume() throws IOException {
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_EMPTYDIR_ENABLE, false);
-        flinkConfig.set(
-                KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
+        flinkConfig.set(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
                         flinkPod, kubernetesJobManagerParameters);

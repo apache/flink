@@ -121,7 +121,7 @@ The *job artifacts* are included into the class path of Flink's JVM process with
 * all other necessary dependencies or resources, not included into Flink.
 
 To deploy a cluster for a single job with Docker, you need to
-* make *job artifacts* available locally in all containers under `/opt/flink/usrlib`,
+* make *job artifacts* available locally in all containers under `/opt/flink/usrlib` or pass jar path by *jar-file* argument. 
 * start a JobManager container in the *Application cluster* mode
 * start the required number of TaskManager containers.
 
@@ -175,6 +175,25 @@ To make the **job artifacts available** locally in the container, you can
     $ docker run flink_with_job_artifacts taskmanager
     ```
 
+* **or pass jar path by jar-file argument**  when you start the JobManager:
+
+
+    ```sh
+    $ FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
+    $ docker network create flink-network
+
+    $ docker run \
+        --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
+        --env ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.17-SNAPSHOT.jar \
+        --name=jobmanager \
+        --network flink-network \
+        flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} standalone-job \
+        --job-classname com.job.ClassName \
+        --jar-file s3://my-bucket/my-flink-job.jar
+        [--job-id <job id>] \
+        [--fromSavepoint /path/to/savepoint [--allowNonRestoredState]] \
+        [job arguments]
+  
 The `standalone-job` argument starts a JobManager container in the Application Mode.
 
 #### JobManager additional command line arguments
@@ -198,6 +217,11 @@ You can provide the following additional command line arguments to the cluster e
 * `--allowNonRestoredState` (optional): Skip broken savepoint state
 
   Additionally you can specify this argument to allow that savepoint state is skipped which cannot be restored.
+
+* `--jar-file` (optional): the path of jar artifact 
+
+  You can specify this argument to point the job artifacts stored in [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) or Http/Https. Flink will fetch it when deploy the job.
+  (e.g., s3://my-bucket/my-flink-job.jar).
 
 If the main function of the user job main class accepts arguments, you can also pass them at the end of the `docker run` command.
 
@@ -302,7 +326,7 @@ services:
     image: flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
     ports:
       - "8081:8081"
-    command: standalone-job --job-classname com.job.ClassName [--job-id <job id>] [--fromSavepoint /path/to/savepoint [--allowNonRestoredState]] [job arguments]
+    command: standalone-job --job-classname com.job.ClassName [--job-id <job id>] [--fromSavepoint /path/to/savepoint] [--allowNonRestoredState] ["--jar-file" "/path/to/user-artifact"] [job arguments]
     volumes:
       - /host/path/to/job/artifacts:/opt/flink/usrlib
     environment:
@@ -407,15 +431,15 @@ services:
 
 * Note, that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
   For example, if you would like to use the Kafka Connector create a custom image with the following Dockerfile
-  
+
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
   RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.12/{{< version >}}/flink-sql-connector-kafka_scala{{< scala_version >}}-{{< version >}}.jar
   ```
-  
+
   and reference it (e.g via the `build`) command in the Dockerfile.
-  and reference it (e.g via the `build`) command in the Dockerfile. 
-  SQL Commands like `ADD JAR` will not work for JARs located on the host machine as they only work with the local filesystem, which in this case is Docker's overlay filesystem. 
+  and reference it (e.g via the `build`) command in the Dockerfile.
+  SQL Commands like `ADD JAR` will not work for JARs located on the host machine as they only work with the local filesystem, which in this case is Docker's overlay filesystem.
 
 ## Using Flink Python on Docker
 

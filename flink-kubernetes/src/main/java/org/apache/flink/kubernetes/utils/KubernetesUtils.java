@@ -23,7 +23,6 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.kubernetes.artifact.ArtifactUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
@@ -403,21 +402,6 @@ public class KubernetesUtils {
     public static List<URI> checkJarFileForApplicationMode(Configuration configuration) {
         return configuration.get(PipelineOptions.JARS).stream()
                 .map(FunctionUtils.uncheckedFunction(PackagedProgramUtils::resolveURI))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Fetch the user jar from path.
-     *
-     * @param configuration Flink Configuration
-     * @return User jar File
-     */
-    public static List<File> fetchJarFileForApplicationMode(Configuration configuration) {
-        String targetDir = ArtifactUtils.generateJarDir(configuration);
-        return configuration.get(PipelineOptions.JARS).stream()
-                .map(
-                        FunctionUtils.uncheckedFunction(
-                                uri -> ArtifactUtils.fetch(uri, configuration, targetDir)))
                 .collect(Collectors.toList());
     }
 

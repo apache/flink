@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.artifact;
+package org.apache.flink.client.program.artifact;
 
 import org.apache.flink.configuration.Configuration;
 

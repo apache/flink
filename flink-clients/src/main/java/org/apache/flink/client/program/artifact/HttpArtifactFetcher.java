@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.artifact;
+package org.apache.flink.client.program.artifact;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -44,8 +44,7 @@ public class HttpArtifactFetcher implements ArtifactFetcher {
         URL url = new URL(uri);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         Map<String, String> headers =
-                flinkConfiguration.get(
-                        KubernetesConfigOptions.KUBERNETES_USER_ARTIFACT_HTTP_HEADER);
+                flinkConfiguration.get(ArtifactFetchOptions.USER_ARTIFACT_HTTP_HEADER);
 
         if (headers != null) {
             headers.forEach(conn::setRequestProperty);

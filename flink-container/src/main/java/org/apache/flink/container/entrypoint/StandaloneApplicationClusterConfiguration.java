@@ -38,6 +38,8 @@ final class StandaloneApplicationClusterConfiguration extends EntrypointClusterC
 
     @Nullable private final String jobClassName;
 
+    @Nullable private final String jarFile;
+
     StandaloneApplicationClusterConfiguration(
             @Nonnull String configDir,
             @Nonnull Properties dynamicProperties,
@@ -46,12 +48,14 @@ final class StandaloneApplicationClusterConfiguration extends EntrypointClusterC
             int restPort,
             @Nonnull SavepointRestoreSettings savepointRestoreSettings,
             @Nullable JobID jobId,
-            @Nullable String jobClassName) {
+            @Nullable String jobClassName,
+            @Nullable String jarFile) {
         super(configDir, dynamicProperties, args, hostname, restPort);
         this.savepointRestoreSettings =
                 requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
         this.jobId = jobId;
         this.jobClassName = jobClassName;
+        this.jarFile = jarFile;
     }
 
     @Nonnull
@@ -67,5 +71,10 @@ final class StandaloneApplicationClusterConfiguration extends EntrypointClusterC
     @Nullable
     String getJobClassName() {
         return jobClassName;
+    }
+
+    @Nullable
+    String getJarFile() {
+        return jarFile;
     }
 }

@@ -268,7 +268,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         FileSystem.initialize(configuration, pluginManager);
     }
 
-    private SecurityContext installSecurityContext(Configuration configuration) throws Exception {
+    public static SecurityContext installSecurityContext(Configuration configuration)
+            throws Exception {
         LOG.info("Install security context.");
 
         SecurityUtils.install(new SecurityConfiguration(configuration));
