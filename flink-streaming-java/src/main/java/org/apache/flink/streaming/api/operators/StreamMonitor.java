@@ -19,19 +19,18 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
+import org.apache.flink.streaming.api.operators.util.StreamMonitorMongoClient;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientOptions;
-import com.mongodb.MongoCredential;
-import com.mongodb.ServerAddress;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.internal.connection.ServerAddressHelper;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import oshi.SystemInfo;
+import oshi.hardware.CentralProcessor;
+import oshi.hardware.HardwareAbstractionLayer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -47,117 +46,183 @@ import java.util.Objects;
  * defined length It starts when the first tuple arrives. At the end, the data characteristics are
  * written into the logs per operator.
  */
-public class StreamMonitor implements Serializable {
+public class StreamMonitor<T> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private final HashMap<String, Object> description;
+    private final long duration = 30_000_000_000L; // 30 seconds, starting after first call
+    private final T operator;
+    private final ArrayList<Integer> windowLengths;
+    private final Logger logger;
+    private final boolean disableStreamMonitor;
+    private WindowOperator windowOperator = null;
     private boolean initialized;
     private boolean observationMade;
     private long startTime;
     private int inputCounter;
     private int outputCounter;
-    private final long duration = 30_000_000_000L; // 30 seconds, starting after first call
     private boolean localMode;
     private boolean distributedLogging;
-    private final AbstractUdfStreamOperator operator;
-    private final ArrayList<Double> joinSelectivities;
-    private final ArrayList<Integer> windowLengths;
-    private final Logger logger;
-    private MongoCollection<JSONObject> mongoCollection;
+    private int joinSize1 = 0;
+    private int joinSize2 = 0;
+    private int joinPartners = 0;
+    private int joinInputWidthLeftSide = -1;
+    private int joinInputWidthRightSide = -1;
+    private int tupleWidthIn = -1;
 
-    public StreamMonitor(HashMap<String, Object> description, AbstractUdfStreamOperator operator) {
+    private long[] prevTicks;
+    private ExecutionConfig config;
+
+    public StreamMonitor(HashMap<String, Object> description, T operator) {
         this.description = Objects.requireNonNullElseGet(description, HashMap::new);
-
+        this.disableStreamMonitor = false;
         this.logger = LoggerFactory.getLogger("observation");
         this.description.put("tupleWidthIn", -1);
         this.description.put("tupleWidthOut", -1);
         this.initialized = false;
         this.observationMade = false;
         this.operator = operator;
-        this.joinSelectivities = new ArrayList<>();
         this.windowLengths = new ArrayList<>();
-        if (this.operator instanceof StreamFilter || this.operator instanceof WindowOperator) {
+        if (this.operator instanceof StreamFilter
+                || this.operator instanceof WindowOperator
+                || this.operator instanceof WrappingFunction) {
             this.description.put("realSelectivity", 0.0);
         }
     }
 
     public <T> void reportInput(T input, ExecutionConfig config) {
-        if (!initialized) {
-            initialized = true;
-            Map<String, String> globalJobParametersMap = config.getGlobalJobParameters().toMap();
-            // initialize loggers
-            if (globalJobParametersMap.get("-distributedLogging").equals("true")) {
-                this.distributedLogging = true;
-                String mongoUsername = globalJobParametersMap.get("-mongoUsername");
-                String mongoPassword = globalJobParametersMap.get("-mongoPassword");
-                String mongoDatabase = globalJobParametersMap.get("-mongoDatabase");
-                String mongoAddress = globalJobParametersMap.get("-mongoAddress");
-                Integer mongoPort = Integer.valueOf(globalJobParametersMap.get("-mongoPort"));
-                String mongoCollectionObservations =
-                        globalJobParametersMap.get("-mongoCollectionObservations");
+        reportInput(input, config, false);
+    }
 
-                ServerAddress serverAddress =
-                        ServerAddressHelper.createServerAddress(mongoAddress, mongoPort);
-                MongoCredential mongoCredentials =
-                        MongoCredential.createCredential(
-                                mongoUsername, mongoDatabase, mongoPassword.toCharArray());
-                MongoClientOptions mongoOptions = MongoClientOptions.builder().build();
-                MongoClient mongoClient =
-                        new MongoClient(serverAddress, mongoCredentials, mongoOptions);
-                MongoDatabase db = mongoClient.getDatabase(mongoDatabase);
-                MongoCollection<JSONObject> collection =
-                        db.getCollection(mongoCollectionObservations, JSONObject.class);
-            } else {
-                this.distributedLogging = false;
+    public <T> void reportInput(T input, ExecutionConfig config, Boolean joinStreamLeftSide) {
+        try {
+            if (this.disableStreamMonitor) {
+                return;
             }
-            this.startTime = System.nanoTime();
-            description.put("tupleWidthIn", getTupleSize(input));
-            description.put("tupleWidthOut", -1); // not any observation yet
+            // if this operator is a join operator and left or right side input width isn't
+            // already set
+            if (this.operator instanceof WrappingFunction
+                    && (this.joinInputWidthLeftSide == -1 || this.joinInputWidthRightSide == -1)) {
+                // store left or right input width of join
+                if (this.joinInputWidthLeftSide != -1 && joinStreamLeftSide) {
+                    this.joinInputWidthLeftSide = getTupleSize(input);
+                } else if (this.joinInputWidthRightSide != -1 && !joinStreamLeftSide) {
+                    this.joinInputWidthRightSide = getTupleSize(input);
+                }
+            }
+            if (!initialized) {
+                initialized = true;
+                this.config = config;
+                this.startTime = System.nanoTime();
+                tupleWidthIn = getTupleSize(input);
+                description.put("tupleWidthOut", -1); // not any observation yet
+                prevTicks = new long[CentralProcessor.TickType.values().length];
+            }
+
+            this.inputCounter++;
+            checkIfObservationEnd();
+
+        } catch (Exception e) {
+            System.err.println(
+                    "error while processing reportInput() in StreamMonitor. Error: "
+                            + e.getMessage());
         }
-        this.inputCounter++;
-        checkIfObservationEnd();
     }
 
     public <T> void reportOutput(T output) {
-        description.put("tupleWidthOut", getTupleSize(output));
-        this.outputCounter++;
-        checkIfObservationEnd();
+        try {
+            if (this.disableStreamMonitor) {
+                return;
+            }
+            description.put("tupleWidthOut", getTupleSize(output));
+            this.outputCounter++;
+            checkIfObservationEnd();
+        } catch (Exception e) {
+            System.err.println(
+                    "error while processing reportInput() in StreamMonitor. Error: "
+                            + e.getMessage());
+        }
     }
 
-    //    public void reportJoinSelectivity(int size1, int size2, int joinPartners) {
-    //        if (size1 != 0 && size2 != 0) {
-    //            this.joinSelectivities.add((double) joinPartners / (double) (size1 * size2));
-    //        }
-    //    }
+    public void reportJoinSelectivity(int size1, int size2, int joinPartners) {
+        try {
+            if (this.disableStreamMonitor) {
+                return;
+            }
+            this.joinSize1 += size1;
+            this.joinSize2 += size2;
+            this.joinPartners += joinPartners;
+
+        } catch (Exception e) {
+            System.err.println(
+                    "error while processing reportInput() in StreamMonitor. Error: "
+                            + e.getMessage());
+        }
+        //        if (size1 != 0 && size2 != 0) {
+        //            this.joinSelectivities.add((double) joinPartners / (double) (size1 * size2));
+        //        }
+    }
 
     public <T> void reportWindowLength(T state) {
-        int length;
-        if (state instanceof Long || state instanceof Double || state instanceof Integer) {
-            length = 1;
-        } else {
-            try {
-                length = ((ArrayList<Tuple>) state).size();
-            } catch (ClassCastException e1) {
-                throw new IllegalStateException(e1);
+        try {
+            if (this.disableStreamMonitor) {
+                return;
             }
+            int length;
+            if (state instanceof Long || state instanceof Double || state instanceof Integer) {
+                length = 1;
+            } else {
+                try {
+                    length = ((ArrayList<Tuple>) state).size();
+                } catch (ClassCastException e1) {
+                    throw new IllegalStateException(e1);
+                }
+            }
+            this.windowLengths.add(length);
+        } catch (Exception e) {
+            System.err.println(
+                    "error while processing reportInput() in StreamMonitor. Error: "
+                            + e.getMessage());
         }
-        this.windowLengths.add(length);
     }
 
     private void checkIfObservationEnd() {
+        if (this.disableStreamMonitor) {
+            return;
+        }
         if (!observationMade) {
             long elapsedTime = System.nanoTime() - this.startTime;
             if (elapsedTime > duration) {
+                observationMade = true;
+                Map<String, String> globalJobParametersMap =
+                        config.getGlobalJobParameters().toMap();
+                // initialize loggers
+                this.distributedLogging =
+                        globalJobParametersMap.get("-distributedLogging").equals("true");
+                // put tupleWidthIn into description
+                if (this.operator instanceof WrappingFunction) { // join operator
+                    description.put(
+                            "tupleWidthIn", joinInputWidthLeftSide + joinInputWidthRightSide);
+
+                } else {
+                    // it's not a join operator, so the tupleWidthIn can be put into description
+                    description.put("tupleWidthIn", tupleWidthIn);
+                }
                 description.put(
                         "outputRate", ((double) this.outputCounter * 1e9 / (double) elapsedTime));
                 description.put(
                         "inputRate", ((double) this.inputCounter * 1e9 / (double) elapsedTime));
-                //                if (this.processor instanceof JoinProcessor) {
-                //                    Double average =
-                // this.joinSelectivities.stream().mapToDouble(val -> val).average().orElse(0.0);
-                //                    description.put("realSelectivity", average);
-                //                } else if (this.processor instanceof FilterProcessor) {
+                if (this.operator instanceof WrappingFunction) {
+                    double joinSelectivity =
+                            (double) this.joinPartners / (double) (this.joinSize1 * this.joinSize2);
+                    //                    Double average =
+                    //                            this.joinSelectivities.stream()
+                    //                                    .mapToDouble(val -> val)
+                    //                                    .average()
+                    //                                    .orElse(0.0);
+                    description.put("realSelectivity", joinSelectivity);
+                }
                 if (this.operator instanceof StreamFilter) {
                     description.put(
                             "realSelectivity",
@@ -170,19 +235,61 @@ public class StreamMonitor implements Serializable {
                                     .orElse(0.0);
                     description.put("realSelectivity", ((double) 1 / averageWindowLength));
                 }
+                addHostAndTaskMetrics(description);
+                addHardwareMetrics(description);
                 JSONObject json = new JSONObject();
                 json.putAll(description);
 
-                // Log data characteristics either locally ore in database
-                // if (this.description.get("id") != null && this.localMode) {
-                logger.info(json.toJSONString());
-                //                } else if (this.description.get("id") != null && !this.localMode)
-                // {
-                //                    mongoCollection.insertOne(json);
-                //                }
-                observationMade = true;
+                // Log data characteristics either locally or in database
+                if (this.description.get("id") == null) {
+                    System.out.println(
+                            "StreamMonitor: cannot find id to log to for " + this.operator);
+                }
+                // Map<String, String> allVariables = this.operator.metrics.getAllVariables();
+                if (this.description.get("id") != null && this.distributedLogging) {
+                    StreamMonitorMongoClient.singleton(this.config)
+                            .getMongoCollectionObservations()
+                            .insertOne(json);
+                } else if (this.description.get("id") != null && !this.distributedLogging) {
+                    logger.info(json.toJSONString());
+                }
             }
         }
+    }
+
+    private HashMap<String, Object> addHostAndTaskMetrics(HashMap<String, Object> description) {
+        InternalOperatorMetricGroup metrics;
+        // get metrics from operator. In case of a join, get the metrics instead from
+        // the window operator
+        if (this.operator instanceof WrappingFunction && this.windowOperator != null) {
+            metrics = this.windowOperator.metrics;
+        } else {
+            metrics = ((AbstractStreamOperator) this.operator).metrics;
+        }
+        if (metrics != null) {
+            Map<String, String> allVariables = metrics.getAllVariables();
+            String host = allVariables.get("<tm_id>");
+            String component = allVariables.get("<task_id>");
+            if (host != null) {
+                this.description.put("host", host);
+                this.description.put("component", component);
+            }
+        }
+        return description;
+    }
+
+    private HashMap<String, Object> addHardwareMetrics(HashMap<String, Object> description) {
+        SystemInfo si = new SystemInfo();
+        HardwareAbstractionLayer hal = si.getHardware();
+        // description.put("totalMemory", hal.getMemory().getTotal());
+        // description.put("maxCPUFreq", hal.getProcessor().getMaxFreq());
+        // description.put(
+        //        "avgCPULoad", hal.getProcessor().getSystemCpuLoadBetweenTicks(prevTicks) * 100);
+        return description;
+    }
+
+    public void reportJoinWindowOperator(WindowOperator windowOperator) {
+        this.windowOperator = windowOperator;
     }
 
     private <T> int getTupleSize(T input) {
@@ -193,39 +300,5 @@ public class StreamMonitor implements Serializable {
         } catch (Exception e) {
             return -1;
         }
-
-        //        if (input instanceof Integer || input instanceof String || input instanceof Double
-        // || input instanceof Long) {
-        //            return 1;
-        //        }
-        //
-        //        int size = 0;
-        //        try {
-        //            Values v = (Values) input;
-        //            size = v.size();
-        //        } catch (ClassCastException e1) {
-        //            try {
-        //                TupleImpl v = (TupleImpl) input;
-        //                size = v.size();
-        //            } catch (ClassCastException e2) {
-        //                Pair<Object, Object> p = (Pair<Object, Object>) input;
-        //                try {
-        //                    Values v = (Values) p.getSecond();
-        //                    if (p.getSecond() != null) {
-        //                        size = v.size();
-        //                    }
-        //                } catch (ClassCastException e3) {
-        //                    if (p.getSecond() instanceof Integer || p.getSecond() instanceof
-        // String || p.getSecond()
-        //                            instanceof Double || p.getSecond() instanceof Long) {
-        //                        size = 1;
-        //                    } else {
-        //                        ArrayList<Values> l = (ArrayList<Values>) p.getSecond();
-        //                        size = l.get(0).size();
-        //                    }
-        //                }
-        //            }
-        //        }
-        //        return size;
     }
 }

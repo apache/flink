@@ -128,92 +128,6 @@ public class CoGroupedStreams<T1, T2> {
     // ------------------------------------------------------------------------
 
     /**
-     * CoGrouped streams that have the key for one side defined.
-     *
-     * @param <KEY> The type of the key.
-     */
-    @Public
-    public class Where<KEY> {
-
-        private final KeySelector<T1, KEY> keySelector1;
-        private final TypeInformation<KEY> keyType;
-
-        Where(KeySelector<T1, KEY> keySelector1, TypeInformation<KEY> keyType) {
-            this.keySelector1 = keySelector1;
-            this.keyType = keyType;
-        }
-
-        /**
-         * Specifies a {@link KeySelector} for elements from the second input.
-         *
-         * @param keySelector The KeySelector to be used for extracting the second input's key for
-         *     partitioning.
-         */
-        public EqualTo equalTo(KeySelector<T2, KEY> keySelector) {
-            Preconditions.checkNotNull(keySelector);
-            final TypeInformation<KEY> otherKey =
-                    TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
-            return equalTo(keySelector, otherKey);
-        }
-
-        /**
-         * Specifies a {@link KeySelector} for elements from the second input with explicit type
-         * information for the key type.
-         *
-         * @param keySelector The KeySelector to be used for extracting the key for partitioning.
-         * @param keyType The type information describing the key type.
-         */
-        public EqualTo equalTo(KeySelector<T2, KEY> keySelector, TypeInformation<KEY> keyType) {
-            Preconditions.checkNotNull(keySelector);
-            Preconditions.checkNotNull(keyType);
-
-            if (!keyType.equals(this.keyType)) {
-                throw new IllegalArgumentException(
-                        "The keys for the two inputs are not equal: "
-                                + "first key = "
-                                + this.keyType
-                                + " , second key = "
-                                + keyType);
-            }
-
-            return new EqualTo(input2.clean(keySelector));
-        }
-
-        // --------------------------------------------------------------------
-
-        /**
-         * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
-         */
-        @Public
-        public class EqualTo {
-
-            private final KeySelector<T2, KEY> keySelector2;
-
-            EqualTo(KeySelector<T2, KEY> keySelector2) {
-                this.keySelector2 = requireNonNull(keySelector2);
-            }
-
-            /** Specifies the window on which the co-group operation works. */
-            @PublicEvolving
-            public <W extends Window> WithWindow<T1, T2, KEY, W> window(
-                    WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
-                return new WithWindow<>(
-                        input1,
-                        input2,
-                        keySelector1,
-                        keySelector2,
-                        keyType,
-                        assigner,
-                        null,
-                        null,
-                        null);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------------
-
-    /**
      * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs as
      * well as a {@link WindowAssigner}.
      *
@@ -437,8 +351,6 @@ public class CoGroupedStreams<T1, T2> {
     }
 
     // ------------------------------------------------------------------------
-    //  Data type and type information for Tagged Union
-    // ------------------------------------------------------------------------
 
     /** Internal class for implementing tagged union co-group. */
     @Internal
@@ -449,6 +361,14 @@ public class CoGroupedStreams<T1, T2> {
         private TaggedUnion(T1 one, T2 two) {
             this.one = one;
             this.two = two;
+        }
+
+        public static <T1, T2> TaggedUnion<T1, T2> one(T1 one) {
+            return new TaggedUnion<>(one, null);
+        }
+
+        public static <T1, T2> TaggedUnion<T1, T2> two(T2 two) {
+            return new TaggedUnion<>(null, two);
         }
 
         public boolean isOne() {
@@ -467,14 +387,6 @@ public class CoGroupedStreams<T1, T2> {
             return two;
         }
 
-        public static <T1, T2> TaggedUnion<T1, T2> one(T1 one) {
-            return new TaggedUnion<>(one, null);
-        }
-
-        public static <T1, T2> TaggedUnion<T1, T2> two(T2 two) {
-            return new TaggedUnion<>(null, two);
-        }
-
         @Override
         public boolean equals(Object obj) {
             if (obj == this) {
@@ -489,6 +401,10 @@ public class CoGroupedStreams<T1, T2> {
             return Objects.equals(one, other.one) && Objects.equals(two, other.two);
         }
     }
+
+    // ------------------------------------------------------------------------
+    //  Data type and type information for Tagged Union
+    // ------------------------------------------------------------------------
 
     private static class UnionTypeInfo<T1, T2> extends TypeInformation<TaggedUnion<T1, T2>> {
         private static final long serialVersionUID = 1L;
@@ -775,11 +691,6 @@ public class CoGroupedStreams<T1, T2> {
         }
     }
 
-    // ------------------------------------------------------------------------
-    //  Utility functions that implement the CoGroup logic based on the tagged
-    //  union window reduce
-    // ------------------------------------------------------------------------
-
     private static class Input1Tagger<T1, T2> implements MapFunction<T1, TaggedUnion<T1, T2>> {
         private static final long serialVersionUID = 1L;
 
@@ -788,6 +699,11 @@ public class CoGroupedStreams<T1, T2> {
             return TaggedUnion.one(value);
         }
     }
+
+    // ------------------------------------------------------------------------
+    //  Utility functions that implement the CoGroup logic based on the tagged
+    //  union window reduce
+    // ------------------------------------------------------------------------
 
     private static class Input2Tagger<T1, T2> implements MapFunction<T2, TaggedUnion<T1, T2>> {
         private static final long serialVersionUID = 1L;
@@ -821,7 +737,17 @@ public class CoGroupedStreams<T1, T2> {
         }
     }
 
-    private static class CoGroupWindowFunction<T1, T2, T, KEY, W extends Window>
+    /**
+     * CoGroupWindowFunction is made public for PlanGeneratorFlink to be able to grab StreamMonitor
+     * from the JoinedStream to the WindowOperator.
+     *
+     * @param <T1>
+     * @param <T2>
+     * @param <T>
+     * @param <KEY>
+     * @param <W>
+     */
+    public static class CoGroupWindowFunction<T1, T2, T, KEY, W extends Window>
             extends WrappingFunction<CoGroupFunction<T1, T2, T>>
             implements WindowFunction<TaggedUnion<T1, T2>, T, KEY, W> {
 
@@ -846,6 +772,90 @@ public class CoGroupedStreams<T1, T2> {
                 }
             }
             wrappedFunction.coGroup(oneValues, twoValues, out);
+        }
+    }
+
+    /**
+     * CoGrouped streams that have the key for one side defined.
+     *
+     * @param <KEY> The type of the key.
+     */
+    @Public
+    public class Where<KEY> {
+
+        private final KeySelector<T1, KEY> keySelector1;
+        private final TypeInformation<KEY> keyType;
+
+        Where(KeySelector<T1, KEY> keySelector1, TypeInformation<KEY> keyType) {
+            this.keySelector1 = keySelector1;
+            this.keyType = keyType;
+        }
+
+        /**
+         * Specifies a {@link KeySelector} for elements from the second input.
+         *
+         * @param keySelector The KeySelector to be used for extracting the second input's key for
+         *     partitioning.
+         */
+        public EqualTo equalTo(KeySelector<T2, KEY> keySelector) {
+            Preconditions.checkNotNull(keySelector);
+            final TypeInformation<KEY> otherKey =
+                    TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+            return equalTo(keySelector, otherKey);
+        }
+
+        /**
+         * Specifies a {@link KeySelector} for elements from the second input with explicit type
+         * information for the key type.
+         *
+         * @param keySelector The KeySelector to be used for extracting the key for partitioning.
+         * @param keyType The type information describing the key type.
+         */
+        public EqualTo equalTo(KeySelector<T2, KEY> keySelector, TypeInformation<KEY> keyType) {
+            Preconditions.checkNotNull(keySelector);
+            Preconditions.checkNotNull(keyType);
+
+            if (!keyType.equals(this.keyType)) {
+                throw new IllegalArgumentException(
+                        "The keys for the two inputs are not equal: "
+                                + "first key = "
+                                + this.keyType
+                                + " , second key = "
+                                + keyType);
+            }
+
+            return new EqualTo(input2.clean(keySelector));
+        }
+
+        // --------------------------------------------------------------------
+
+        /**
+         * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
+         */
+        @Public
+        public class EqualTo {
+
+            private final KeySelector<T2, KEY> keySelector2;
+
+            EqualTo(KeySelector<T2, KEY> keySelector2) {
+                this.keySelector2 = requireNonNull(keySelector2);
+            }
+
+            /** Specifies the window on which the co-group operation works. */
+            @PublicEvolving
+            public <W extends Window> WithWindow<T1, T2, KEY, W> window(
+                    WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
+                return new WithWindow<>(
+                        input1,
+                        input2,
+                        keySelector1,
+                        keySelector2,
+                        keyType,
+                        assigner,
+                        null,
+                        null,
+                        null);
+            }
         }
     }
 }

@@ -1210,6 +1210,7 @@ under the License.
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<configuration>
 							<quiet>true</quiet>
+							<javadocExecutable>/usr/bin/javadoc</javadocExecutable>
 						</configuration>
 						<executions>
 							<execution>
