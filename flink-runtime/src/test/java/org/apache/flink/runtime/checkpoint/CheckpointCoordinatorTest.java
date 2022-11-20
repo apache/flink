@@ -62,11 +62,11 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -2732,7 +2732,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
             }
         }
 
-        OperatorStateRepartitioner repartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;
+        OperatorStateRepartitioner<OperatorStateHandle> repartitioner =
+                RoundRobinOperatorStateRepartitioner.INSTANCE;
 
         List<List<OperatorStateHandle>> pshs =
                 repartitioner.repartitionState(
@@ -2752,17 +2753,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         sh.getStateNameToPartitionOffsets().entrySet()) {
 
                     Map<String, List<Long>> stateToOffsets =
-                            actual.get(sh.getDelegateStateHandle());
-                    if (stateToOffsets == null) {
-                        stateToOffsets = new HashMap<>();
-                        actual.put(sh.getDelegateStateHandle(), stateToOffsets);
-                    }
+                            actual.computeIfAbsent(
+                                    sh.getDelegateStateHandle(), k -> new HashMap<>());
 
-                    List<Long> actualOffs = stateToOffsets.get(namedState.getKey());
-                    if (actualOffs == null) {
-                        actualOffs = new ArrayList<>();
-                        stateToOffsets.put(namedState.getKey(), actualOffs);
-                    }
+                    List<Long> actualOffs =
+                            stateToOffsets.computeIfAbsent(
+                                    namedState.getKey(), k -> new ArrayList<>());
                     long[] add = namedState.getValue().getOffsets();
                     for (long l : add) {
                         actualOffs.add(l);
@@ -2933,9 +2929,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
                             for (StreamStateHandle streamStateHandle :
                                     incrementalKeyedStateHandle.getSharedState().values()) {
-                                assertTrue(
-                                        !(streamStateHandle
-                                                instanceof PlaceholderStreamStateHandle));
+                                assertFalse(
+                                        streamStateHandle instanceof PlaceholderStreamStateHandle);
                                 verify(streamStateHandle, never()).discardState();
                                 ++sharedHandleCount;
                             }
@@ -3361,8 +3356,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     }
 
                     @Override
-                    public void restoreCheckpoint(long checkpointId, Integer checkpointData)
-                            throws Exception {}
+                    public void restoreCheckpoint(long checkpointId, Integer checkpointData) {}
 
                     @Override
                     public SimpleVersionedSerializer<Integer> createCheckpointDataSerializer() {
@@ -3373,13 +3367,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             }
 
                             @Override
-                            public byte[] serialize(Integer obj) throws IOException {
+                            public byte[] serialize(Integer obj) {
                                 return new byte[0];
                             }
 
                             @Override
-                            public Integer deserialize(int version, byte[] serialized)
-                                    throws IOException {
+                            public Integer deserialize(int version, byte[] serialized) {
                                 return 1;
                             }
                         };
@@ -3555,13 +3548,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             }
 
                             @Override
-                            public byte[] serialize(Integer obj) throws IOException {
+                            public byte[] serialize(Integer obj) {
                                 return new byte[0];
                             }
 
                             @Override
-                            public Integer deserialize(int version, byte[] serialized)
-                                    throws IOException {
+                            public Integer deserialize(int version, byte[] serialized) {
                                 return 1;
                             }
                         };
@@ -3644,8 +3636,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
             checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint1, "");
 
             // OperatorCoordinator should have been notified of the abortion of checkpoint 1.
-            assertEquals(Collections.singletonList(1L), context.getAbortedCheckpoints());
-            assertEquals(Collections.singletonList(2L), context.getCompletedCheckpoints());
+            assertEquals(Collections.singletonList(checkpointId1), context.getAbortedCheckpoints());
+            assertEquals(
+                    Collections.singletonList(checkpointId2), context.getCompletedCheckpoints());
         } finally {
             checkpointCoordinator.shutdown();
         }
@@ -3837,14 +3830,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .addJobVertex(jobVertexID)
                         .setTransitToRunning(false)
                         .build(EXECUTOR_RESOURCE.getExecutor());
-        CheckpointCoordinator checkpointCoordinator =
-                new CheckpointCoordinatorBuilder()
-                        .setCheckpointCoordinatorConfiguration(
-                                CheckpointCoordinatorConfiguration.builder()
-                                        .setCheckpointInterval(Long.MAX_VALUE)
-                                        .build())
-                        .setCheckpointStorage(new FsStateBackend(checkpointDir.toURI()))
-                        .build(graph);
+        new CheckpointCoordinatorBuilder()
+                .setCheckpointCoordinatorConfiguration(
+                        CheckpointCoordinatorConfiguration.builder()
+                                .setCheckpointInterval(Long.MAX_VALUE)
+                                .build())
+                .setCheckpointStorage(new FileSystemCheckpointStorage(checkpointDir.toURI()))
+                .build(graph);
         Path jobCheckpointPath =
                 new Path(checkpointDir.getAbsolutePath(), graph.getJobID().toString());
         FileSystem fs = FileSystem.get(checkpointDir.toURI());
