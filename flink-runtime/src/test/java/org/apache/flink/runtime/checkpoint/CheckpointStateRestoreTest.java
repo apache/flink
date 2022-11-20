@@ -116,7 +116,7 @@ public class CheckpointStateRestoreTest {
             manuallyTriggeredScheduledExecutor.triggerAll();
 
             PendingCheckpoint pending = coord.getPendingCheckpoints().values().iterator().next();
-            final long checkpointId = pending.getCheckpointId();
+            final long checkpointId = pending.getCheckpointID();
 
             final TaskStateSnapshot subtaskStates = new TaskStateSnapshot();
 
