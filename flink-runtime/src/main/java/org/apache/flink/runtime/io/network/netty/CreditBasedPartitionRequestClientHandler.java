@@ -119,19 +119,15 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        // Unexpected close. In normal operation, the client closes the connection after all input
-        // channels have been removed. This indicates a problem with the remote task manager.
-        if (!inputChannels.isEmpty()) {
-            final SocketAddress remoteAddr = ctx.channel().remoteAddress();
+        final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
-            notifyAllChannelsOfErrorAndClose(
-                    new RemoteTransportException(
-                            "Connection unexpectedly closed by remote task manager '"
-                                    + remoteAddr
-                                    + "'. "
-                                    + "This might indicate that the remote task manager was lost.",
-                            remoteAddr));
-        }
+        notifyAllChannelsOfErrorAndClose(
+                new RemoteTransportException(
+                        "Connection unexpectedly closed by remote task manager '"
+                                + remoteAddr
+                                + "'. "
+                                + "This might indicate that the remote task manager was lost.",
+                        remoteAddr));
 
         super.channelInactive(ctx);
     }
