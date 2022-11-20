@@ -182,7 +182,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
 
     // see https://issues.apache.org/jira/browse/FLINK-18821
     @TestTemplate
-    void testFailureReportedToSubsequentRequests() throws Exception {
+    void testFailureReportedToSubsequentRequests() {
         PartitionRequestClientFactory factory =
                 new PartitionRequestClientFactory(
                         new FailingNettyClient(), 2, 1, connectionReuseEnabled);

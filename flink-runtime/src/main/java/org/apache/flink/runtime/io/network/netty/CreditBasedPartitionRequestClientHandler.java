@@ -275,7 +275,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         }
     }
 
-    private void decodeMsg(Object msg) throws Throwable {
+    private void decodeMsg(Object msg) {
         final Class<?> msgClazz = msg.getClass();
 
         // ---- Buffer --------------------------------------------------------
