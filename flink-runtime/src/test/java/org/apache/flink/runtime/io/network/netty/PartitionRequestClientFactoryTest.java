@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -81,8 +82,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
             factory.createPartitionRequestClient(
                     nettyServerAndClient.getConnectionID(RESOURCE_ID, 0));
         } finally {
-            nettyServerAndClient.client().shutdown();
-            nettyServerAndClient.server().shutdown();
+            shutdown(nettyServerAndClient);
         }
     }
 
@@ -125,8 +125,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
 
             factory.createPartitionRequestClient(connectionID);
         } finally {
-            nettyServerAndClient.client().shutdown();
-            nettyServerAndClient.server().shutdown();
+            shutdown(nettyServerAndClient);
         }
     }
 
@@ -139,8 +138,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
             checkReuseNettyPartitionRequestClient(nettyServerAndClient, 5);
             checkReuseNettyPartitionRequestClient(nettyServerAndClient, 10);
         } finally {
-            nettyServerAndClient.client().shutdown();
-            nettyServerAndClient.server().shutdown();
+            shutdown(nettyServerAndClient);
         }
     }
 
@@ -176,8 +174,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
 
         factory.createPartitionRequestClient(serverAndClient.getConnectionID(RESOURCE_ID, 0));
 
-        serverAndClient.client().shutdown();
-        serverAndClient.server().shutdown();
+        shutdown(serverAndClient);
     }
 
     // see https://issues.apache.org/jira/browse/FLINK-18821
@@ -218,14 +215,12 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                             unstableNettyClient, 2, 1, connectionReuseEnabled);
 
             assertThatThrownBy(
-                            () -> {
-                                factory.createPartitionRequestClient(
-                                        serverAndClient.getConnectionID(RESOURCE_ID, 0));
-                            })
+                            () ->
+                                    factory.createPartitionRequestClient(
+                                            serverAndClient.getConnectionID(RESOURCE_ID, 0)))
                     .isInstanceOf(IOException.class);
         } finally {
-            serverAndClient.client().shutdown();
-            serverAndClient.server().shutdown();
+            shutdown(serverAndClient);
         }
     }
 
@@ -274,8 +269,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 });
 
         threadPoolExecutor.shutdown();
-        serverAndClient.client().shutdown();
-        serverAndClient.server().shutdown();
+        shutdown(serverAndClient);
     }
 
     private NettyTestUtil.NettyServerAndClient createNettyServerAndClient() throws Exception {
