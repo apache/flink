@@ -252,7 +252,7 @@ public class SchedulerTestingUtils {
                                 scheduler.acknowledgeCheckpoint(
                                         pc.getJobId(),
                                         attemptId,
-                                        pc.getCheckpointId(),
+                                        pc.getCheckpointID(),
                                         new CheckpointMetrics(),
                                         null));
     }
@@ -269,7 +269,7 @@ public class SchedulerTestingUtils {
                 checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
         final CompletableFuture<CompletedCheckpoint> future = checkpoint.getCompletionFuture();
 
-        acknowledgePendingCheckpoint(scheduler, checkpoint.getCheckpointId());
+        acknowledgePendingCheckpoint(scheduler, checkpoint.getCheckpointID());
 
         CompletedCheckpoint completed = future.getNow(null);
         assertNotNull("checkpoint not complete", completed);

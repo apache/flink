@@ -232,7 +232,7 @@ public class CheckpointCoordinatorMasterHooksTest {
                         .getAttemptId();
 
         final long checkpointId =
-                cc.getPendingCheckpoints().values().iterator().next().getCheckpointId();
+                cc.getPendingCheckpoints().values().iterator().next().getCheckpointID();
         cc.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID, checkpointId),
                 "Unknown location");
