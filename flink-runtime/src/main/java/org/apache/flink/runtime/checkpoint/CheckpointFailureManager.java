@@ -222,20 +222,16 @@ public class CheckpointFailureManager {
         CheckpointFailureReason reason = exception.getCheckpointFailureReason();
         switch (reason) {
             case PERIODIC_SCHEDULER_SHUTDOWN:
-            case TOO_MANY_CONCURRENT_CHECKPOINTS:
             case TOO_MANY_CHECKPOINT_REQUESTS:
             case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
             case NOT_ALL_REQUIRED_TASKS_RUNNING:
             case CHECKPOINT_SUBSUMED:
             case CHECKPOINT_COORDINATOR_SUSPEND:
             case CHECKPOINT_COORDINATOR_SHUTDOWN:
-            case JOB_FAILURE:
             case JOB_FAILOVER_REGION:
                 // for compatibility purposes with user job behavior
             case CHECKPOINT_DECLINED_TASK_NOT_READY:
             case CHECKPOINT_DECLINED_TASK_CLOSING:
-            case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
-            case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
             case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
             case CHECKPOINT_DECLINED_SUBSUMED:
             case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
