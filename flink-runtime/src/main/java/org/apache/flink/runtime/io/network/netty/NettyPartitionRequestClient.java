@@ -133,7 +133,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
         final ChannelFutureListener listener =
                 new ChannelFutureListener() {
                     @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
+                    public void operationComplete(ChannelFuture future) {
                         if (!future.isSuccess()) {
                             clientHandler.removeInputChannel(inputChannel);
                             inputChannel.onError(
@@ -196,7 +196,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                 .addListener(
                         new ChannelFutureListener() {
                             @Override
-                            public void operationComplete(ChannelFuture future) throws Exception {
+                            public void operationComplete(ChannelFuture future) {
                                 if (!future.isSuccess()) {
                                     inputChannel.onError(
                                             new LocalTransportException(
