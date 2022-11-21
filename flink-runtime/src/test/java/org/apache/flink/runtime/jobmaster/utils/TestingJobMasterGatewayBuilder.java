@@ -67,7 +67,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -136,8 +135,6 @@ public class TestingJobMasterGatewayBuilder {
                                     targetDirectory != null
                                             ? targetDirectory
                                             : UUID.randomUUID().toString());
-    private BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer =
-            (ignoredA, ignoredB) -> {};
     private Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>>
             acknowledgeCheckpointConsumer = ignored -> {};
     private Consumer<DeclineCheckpoint> declineCheckpointConsumer = ignored -> {};
@@ -300,12 +297,6 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setNotifyAllocationFailureConsumer(
-            BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer) {
-        this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
-        return this;
-    }
-
     public TestingJobMasterGatewayBuilder setNotifyNotEnoughResourcesConsumer(
             Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
         this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
@@ -417,7 +408,6 @@ public class TestingJobMasterGatewayBuilder {
                 triggerSavepointFunction,
                 triggerCheckpointFunction,
                 stopWithSavepointFunction,
-                notifyAllocationFailureConsumer,
                 acknowledgeCheckpointConsumer,
                 declineCheckpointConsumer,
                 fencingTokenSupplier,
