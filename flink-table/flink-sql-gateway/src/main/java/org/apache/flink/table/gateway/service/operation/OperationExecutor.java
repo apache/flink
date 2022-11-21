@@ -19,7 +19,16 @@
 package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.cli.ClientOptions;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -55,21 +64,27 @@ import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_HINTS;
@@ -86,10 +101,13 @@ public class OperationExecutor {
     private final SessionContext sessionContext;
     private final Configuration executionConfig;
 
+    private final ClusterClientServiceLoader clusterClientServiceLoader;
+
     @VisibleForTesting
     public OperationExecutor(SessionContext context, Configuration executionConfig) {
         this.sessionContext = context;
         this.executionConfig = executionConfig;
+        this.clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
     }
 
     public ResultFetcher configureSession(OperationHandle handle, String statement) {
@@ -163,6 +181,8 @@ public class OperationExecutor {
         } else if (op instanceof QueryOperation) {
             TableResultInternal result = tableEnv.executeInternal(op);
             return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
+        } else if (op instanceof StopJobOperation) {
+            return callStopJobOperation(handle, (StopJobOperation) op);
         } else {
             return callOperation(tableEnv, handle, op);
         }
@@ -404,5 +424,108 @@ public class OperationExecutor {
                                                         catalogName, databaseName, name),
                                                 TableKind.VIEW))
                         .collect(Collectors.toSet()));
+    }
+
+    public ResultFetcher callStopJobOperation(
+            OperationHandle operationHandle, StopJobOperation stopJobOperation)
+            throws SqlExecutionException {
+        String jobId = stopJobOperation.getJobId();
+        boolean isWithSavepoint = stopJobOperation.isWithSavepoint();
+        boolean isWithDrain = stopJobOperation.isWithDrain();
+        Duration clientTimeout =
+                Configuration.fromMap(sessionContext.getConfigMap())
+                        .get(ClientOptions.CLIENT_TIMEOUT);
+        Optional<String> savepoint;
+        try {
+            savepoint =
+                    runClusterAction(
+                            operationHandle,
+                            clusterClient -> {
+                                if (isWithSavepoint) {
+                                    // blocking get savepoint path
+                                    try {
+                                        return Optional.of(
+                                                clusterClient
+                                                        .stopWithSavepoint(
+                                                                JobID.fromHexString(jobId),
+                                                                isWithDrain,
+                                                                executionConfig.get(
+                                                                        CheckpointingOptions
+                                                                                .SAVEPOINT_DIRECTORY),
+                                                                SavepointFormatType.DEFAULT)
+                                                        .get(
+                                                                clientTimeout.toMillis(),
+                                                                TimeUnit.MILLISECONDS));
+                                    } catch (Exception e) {
+                                        throw new FlinkException(
+                                                "Could not stop job "
+                                                        + stopJobOperation
+                                                        + " in session "
+                                                        + operationHandle.getIdentifier()
+                                                        + ".",
+                                                e);
+                                    }
+                                } else {
+                                    clusterClient.cancel(JobID.fromHexString(jobId));
+                                    return Optional.empty();
+                                }
+                            });
+        } catch (Exception e) {
+            throw new SqlExecutionException(
+                    "Could not stop job " + jobId + " for operation " + operationHandle + ".", e);
+        }
+        return new ResultFetcher(
+                operationHandle,
+                ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
+                Collections.singletonList(
+                        GenericRowData.of(StringData.fromString(savepoint.orElse("")))));
+    }
+
+    /**
+     * Retrieves the {@link ClusterClient} from the session and runs the given {@link ClusterAction}
+     * against it.
+     *
+     * @param operationHandle the specified session handle
+     * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
+     * @param <ClusterID> type of the cluster id
+     * @param <Result>> type of the result
+     * @throws FlinkException if something goes wrong
+     */
+    private <ClusterID, Result> Result runClusterAction(
+            OperationHandle operationHandle, ClusterAction<ClusterID, Result> clusterAction)
+            throws FlinkException {
+        final Configuration configuration = Configuration.fromMap(sessionContext.getConfigMap());
+        final ClusterClientFactory<ClusterID> clusterClientFactory =
+                clusterClientServiceLoader.getClusterClientFactory(configuration);
+
+        final ClusterID clusterId = clusterClientFactory.getClusterId(configuration);
+        Preconditions.checkNotNull(
+                clusterId, "No cluster ID found for operation " + operationHandle);
+
+        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
+                        clusterClientFactory.createClusterDescriptor(configuration);
+                final ClusterClient<ClusterID> clusterClient =
+                        clusterDescriptor.retrieve(clusterId).getClusterClient()) {
+            return clusterAction.runAction(clusterClient);
+        }
+    }
+
+    /**
+     * Internal interface to encapsulate cluster actions which are executed via the {@link
+     * ClusterClient}.
+     *
+     * @param <ClusterID> type of the cluster id
+     * @param <Result>> type of the result
+     */
+    @FunctionalInterface
+    private interface ClusterAction<ClusterID, Result> {
+
+        /**
+         * Run the cluster action with the given {@link ClusterClient}.
+         *
+         * @param clusterClient to run the cluster action against
+         * @throws FlinkException if something goes wrong
+         */
+        Result runAction(ClusterClient<ClusterID> clusterClient) throws FlinkException;
     }
 }
