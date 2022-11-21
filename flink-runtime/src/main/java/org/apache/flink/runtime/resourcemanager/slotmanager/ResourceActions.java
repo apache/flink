@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -44,15 +43,6 @@ public interface ResourceActions {
      * @return whether the resource can be allocated
      */
     boolean allocateResource(WorkerResourceSpec workerResourceSpec);
-
-    /**
-     * Notifies that an allocation failure has occurred.
-     *
-     * @param jobId to which the allocation belonged
-     * @param allocationId identifying the failed allocation
-     * @param cause of the allocation failure
-     */
-    void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause);
 
     /**
      * Notifies that not enough resources are available to fulfill the resource requirements of a

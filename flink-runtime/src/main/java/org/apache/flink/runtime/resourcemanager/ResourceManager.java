@@ -1350,19 +1350,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
-        public void notifyAllocationFailure(
-                JobID jobId, AllocationID allocationId, Exception cause) {
-            validateRunsInMainThread();
-
-            JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
-            if (jobManagerRegistration != null) {
-                jobManagerRegistration
-                        .getJobManagerGateway()
-                        .notifyAllocationFailure(allocationId, cause);
-            }
-        }
-
-        @Override
         public void notifyNotEnoughResourcesAvailable(
                 JobID jobId, Collection<ResourceRequirement> acquiredResources) {
             validateRunsInMainThread();

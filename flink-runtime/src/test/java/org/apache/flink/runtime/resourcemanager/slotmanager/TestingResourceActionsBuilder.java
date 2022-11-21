@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -34,8 +32,6 @@ import java.util.function.Function;
 public class TestingResourceActionsBuilder {
     private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
     private Function<WorkerResourceSpec, Boolean> allocateResourceFunction = (ignored) -> true;
-    private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer =
-            (ignored) -> {};
     private BiConsumer<JobID, Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer =
             (ignoredA, ignoredB) -> {};
 
@@ -61,12 +57,6 @@ public class TestingResourceActionsBuilder {
         return this;
     }
 
-    public TestingResourceActionsBuilder setNotifyAllocationFailureConsumer(
-            Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
-        this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
-        return this;
-    }
-
     public TestingResourceActionsBuilder setNotEnoughResourcesConsumer(
             BiConsumer<JobID, Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
         this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
@@ -77,7 +67,6 @@ public class TestingResourceActionsBuilder {
         return new TestingResourceActions(
                 releaseResourceConsumer,
                 allocateResourceFunction,
-                notifyAllocationFailureConsumer,
                 notifyNotEnoughResourcesConsumer);
     }
 }

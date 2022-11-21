@@ -882,11 +882,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-        internalFailAllocation(null, allocationID, cause);
-    }
-
-    @Override
     public void notifyNotEnoughResourcesAvailable(
             Collection<ResourceRequirement> acquiredResources) {
         slotPoolService.notifyNotEnoughResourcesAvailable(acquiredResources);
