@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
-import org.apache.flink.streaming.api.scala.async.{AsyncRetryPredicate, AsyncRetryStrategy, ResultFuture, RichAsyncFunction}
+import org.apache.flink.streaming.api.scala.async.{AsyncRetryStrategies, ResultFuture, RetryPredicates, RichAsyncFunction}
 import org.apache.flink.test.util.AbstractTestBase
 
 import org.junit.Assert._
@@ -31,7 +31,6 @@ import org.junit.runners.Parameterized.Parameters
 
 import java.{util => ju}
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import java.util.function.Predicate
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -174,7 +173,11 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
 
     val asyncFunction = new OddInputReturnEmptyAsyncFunc
 
-    val asyncRetryStrategy = createFixedRetryStrategy[Int](3, 10)
+    val asyncRetryStrategy =
+      new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 10)
+        .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE[Int])
+        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+        .build()
 
     val timeout = 10000L
     val asyncMapped = if (ordered) {
@@ -194,33 +197,6 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
     }
 
     executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4, 6))
-  }
-
-  private def createFixedRetryStrategy[OUT](
-      maxAttempts: Int,
-      fixedDelayMs: Long): AsyncRetryStrategy[OUT] = {
-    new AsyncRetryStrategy[OUT] {
-
-      override def canRetry(currentAttempts: Int): Boolean = {
-        currentAttempts <= maxAttempts
-      }
-
-      override def getBackoffTimeMillis(currentAttempts: Int): Long = fixedDelayMs
-
-      override def getRetryPredicate(): AsyncRetryPredicate[OUT] = {
-        new AsyncRetryPredicate[OUT] {
-          override def resultPredicate: Option[Predicate[ju.Collection[OUT]]] = {
-            Option(
-              new Predicate[ju.Collection[OUT]] {
-                override def test(t: ju.Collection[OUT]): Boolean = t.isEmpty
-              }
-            )
-          }
-
-          override def exceptionPredicate: Option[Predicate[Throwable]] = Option.empty
-        }
-      }
-    }
   }
 
   @Test
@@ -245,7 +221,8 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
       }
 
     val timeout = 10000L
-    val asyncRetryStrategy = createFixedRetryStrategy[Int](3, 10)
+    val asyncRetryStrategy = new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder[Int](3, 10)
+      .build()
 
     val asyncMapped = if (ordered) {
       AsyncDataStream.orderedWaitWithRetry(
@@ -283,6 +260,7 @@ class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
       resultFuture.complete(Seq(input * 2))
     }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
     invokeLatch.countDown()
@@ -307,6 +285,7 @@ class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
       timeoutLatch.countDown()
     }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     // this sleeping helps reproducing race condition with cancellation
     Thread.sleep(10)
@@ -326,6 +305,7 @@ class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
       resultFuture.complete(Seq(input * 2))
     }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
   }

@@ -307,7 +307,8 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                                 new TaskExecutorRegistrationSuccess(
                                         new InstanceID(),
                                         testingResourceManagerGateway.getOwnResourceId(),
-                                        new ClusterInformation("blobServerHost", 55555))));
+                                        new ClusterInformation("blobServerHost", 55555),
+                                        null)));
         return testingResourceManagerGateway;
     }
 

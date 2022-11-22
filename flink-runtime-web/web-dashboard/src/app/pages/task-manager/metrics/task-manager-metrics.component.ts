@@ -16,19 +16,40 @@
  * limitations under the License.
  */
 
+import { DecimalPipe, NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, startWith, takeUntil } from 'rxjs/operators';
 
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { MetricMap, TaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzProgressModule } from 'ng-zorro-antd/progress';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-task-manager-metrics',
   templateUrl: './task-manager-metrics.component.html',
   styleUrls: ['./task-manager-metrics.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    NzCardModule,
+    NzTableModule,
+    NzToolTipModule,
+    NzProgressModule,
+    DecimalPipe,
+    HumanizeBytesPipe,
+    NzIconModule,
+    NzGridModule,
+    NgForOf,
+    NgIf
+  ],
+  standalone: true
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
   public taskManagerDetail?: TaskManagerDetail;

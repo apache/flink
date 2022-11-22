@@ -101,8 +101,9 @@ public class KerberosDelegationTokenManagerITCase {
         KerberosDelegationTokenManager delegationTokenManager =
                 new KerberosDelegationTokenManager(configuration, null, null);
 
-        assertEquals(2, delegationTokenManager.delegationTokenProviders.size());
+        assertEquals(3, delegationTokenManager.delegationTokenProviders.size());
         assertTrue(delegationTokenManager.isProviderLoaded("hadoopfs"));
+        assertTrue(delegationTokenManager.isProviderLoaded("hbase"));
         assertTrue(delegationTokenManager.isProviderLoaded("test"));
         assertTrue(ExceptionThrowingDelegationTokenProvider.constructed);
         assertFalse(delegationTokenManager.isProviderLoaded("throw"));
@@ -155,7 +156,7 @@ public class KerberosDelegationTokenManagerITCase {
             KerberosLoginProvider kerberosLoginProvider =
                     new KerberosLoginProvider(configuration) {
                         @Override
-                        public UserGroupInformation doLogin() {
+                        public UserGroupInformation doLoginAndReturnUGI() {
                             if (startTokensUpdateCallCount.get() == 2) {
                                 retryExceptionThrown.set(true);
                                 throw new RuntimeException("Intended exception to test retry");

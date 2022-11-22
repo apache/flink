@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
@@ -115,7 +116,13 @@ class SortMergeResultPartitionReadSchedulerTest {
     }
 
     @Test
+    @Timeout(60)
     void testCreateSubpartitionReader() throws Exception {
+        ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        readScheduler =
+                new SortMergeResultPartitionReadScheduler(bufferPool, ioExecutor, new Object());
+
         SortMergeSubpartitionReader subpartitionReader =
                 readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
@@ -123,9 +130,11 @@ class SortMergeResultPartitionReadSchedulerTest {
         assertThat(readScheduler.isRunning()).isTrue();
         assertThat(readScheduler.getDataFileChannel().isOpen()).isTrue();
         assertThat(readScheduler.getIndexFileChannel().isOpen()).isTrue();
+        assertThat(ioExecutor.numQueuedRunnables()).isEqualTo(1);
 
         int numBuffersRead = 0;
         while (numBuffersRead < numBuffersPerSubpartition) {
+            ioExecutor.triggerAll();
             ResultSubpartition.BufferAndBacklog bufferAndBacklog =
                     subpartitionReader.getNextBuffer();
             if (bufferAndBacklog != null) {

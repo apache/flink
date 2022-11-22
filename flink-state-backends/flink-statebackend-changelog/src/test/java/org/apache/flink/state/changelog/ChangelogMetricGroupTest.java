@@ -56,6 +56,7 @@ import static org.apache.flink.state.changelog.ChangelogStateBackendMetricGroup.
 import static org.apache.flink.state.changelog.ChangelogStateBackendMetricGroup.LATEST_INC_SIZE_OF_NON_MATERIALIZATION;
 import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.COMPLETED_MATERIALIZATION;
 import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.FAILED_MATERIALIZATION;
+import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.LAST_DURATION_OF_MATERIALIZATION;
 import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.STARTED_MATERIALIZATION;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -73,6 +74,7 @@ public class ChangelogMetricGroupTest {
     private Counter startedMaterializationCounter;
     private Counter completedMaterializationCounter;
     private Counter failedMaterializationCounter;
+    private Gauge<Long> lastDurationOfMaterializationGauge;
     private Gauge<Long> lastFullSizeOfMaterializationGauge;
     private Gauge<Long> lastIncSizeOfMaterializationGauge;
     private Gauge<Long> lastFullSizeOfNonMaterializationGauge;
@@ -83,10 +85,12 @@ public class ChangelogMetricGroupTest {
         setup(snapshotResult -> snapshotResult);
 
         // The materialization will be skipped if no data updated.
+        assertEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
         periodicMaterializationManager.triggerMaterialization();
         runSnapshot(1L);
         assertEquals(1L, startedMaterializationCounter.getCount());
         assertEquals(1L, completedMaterializationCounter.getCount());
+        assertNotEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
         assertEquals(0L, lastFullSizeOfMaterializationGauge.getValue().longValue());
         assertEquals(0L, lastIncSizeOfMaterializationGauge.getValue().longValue());
         assertEquals(0L, lastFullSizeOfNonMaterializationGauge.getValue().longValue());
@@ -104,6 +108,7 @@ public class ChangelogMetricGroupTest {
         Long lastIncSizeOfNonMaterialization = lastIncSizeOfNonMaterializationGauge.getValue();
         assertNotEquals(0L, lastFullSizeOfMaterialization.longValue());
         assertNotEquals(0L, lastIncSizeOfMaterialization.longValue());
+        assertNotEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
         // The non-materialization size will be zero if no data updated between completed
         // materialization and checkpoint.
         assertEquals(0L, lastFullSizeOfNonMaterialization.longValue());
@@ -128,11 +133,13 @@ public class ChangelogMetricGroupTest {
         setup(snapshotResult -> ExceptionallyDoneFuture.of(new RuntimeException()));
         changelogKeyedStateBackend.setCurrentKey(1);
         state.update(1);
+        assertEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
         periodicMaterializationManager.triggerMaterialization();
         runSnapshot(1L);
         assertEquals(0L, completedMaterializationCounter.getCount());
         assertEquals(1L, failedMaterializationCounter.getCount());
         assertEquals(1L, startedMaterializationCounter.getCount());
+        assertEquals(-1L, lastDurationOfMaterializationGauge.getValue().longValue());
         assertEquals(0L, lastFullSizeOfMaterializationGauge.getValue().longValue());
         assertEquals(0L, lastIncSizeOfMaterializationGauge.getValue().longValue());
         assertNotEquals(0L, lastFullSizeOfNonMaterializationGauge.getValue().longValue());
@@ -175,6 +182,9 @@ public class ChangelogMetricGroupTest {
                 Preconditions.checkNotNull(counterMap.get(COMPLETED_MATERIALIZATION));
         failedMaterializationCounter =
                 Preconditions.checkNotNull(counterMap.get(FAILED_MATERIALIZATION));
+        lastDurationOfMaterializationGauge =
+                Preconditions.checkNotNull(
+                        (Gauge<Long>) gaugeMap.get(LAST_DURATION_OF_MATERIALIZATION));
         lastFullSizeOfMaterializationGauge =
                 Preconditions.checkNotNull(
                         (Gauge<Long>) gaugeMap.get(LATEST_FULL_SIZE_OF_MATERIALIZATION));

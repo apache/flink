@@ -2136,6 +2136,10 @@ components:
       properties:
         entryClass:
           type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
         jobId:
           $ref: '#/components/schemas/JobID'
         parallelism:
@@ -2154,6 +2158,10 @@ components:
           type: boolean
         entryClass:
           type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
         jobId:
           $ref: '#/components/schemas/JobID'
         parallelism:

@@ -16,14 +16,19 @@
  * limitations under the License.
  */
 
+import { DatePipe, NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
+import { BlockedBadgeComponent } from '@flink-runtime-web/components/blocked-badge/blocked-badge.component';
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { TaskManagersItem } from '@flink-runtime-web/interfaces';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 function createSortFn(selector: (item: TaskManagersItem) => number): NzTableSortFn<TaskManagersItem> {
@@ -34,7 +39,9 @@ function createSortFn(selector: (item: TaskManagersItem) => number): NzTableSort
   selector: 'flink-task-manager-list',
   templateUrl: './task-manager-list.component.html',
   styleUrls: ['./task-manager-list.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzCardModule, NzTableModule, NgForOf, BlockedBadgeComponent, NgIf, DatePipe, HumanizeBytesPipe],
+  standalone: true
 })
 export class TaskManagerListComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: TaskManagersItem): string => node.id;

@@ -47,6 +47,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.mapping.Mappings;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -359,6 +360,16 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
                                         inputNode,
                                         nodeAndTrait.f1.getTrait(
                                                 FlinkRelDistributionTraitDef.INSTANCE()));
+            } else if (currentNode instanceof StreamPhysicalChangelogNormalize) {
+                final List<String> inputNodeFields = inputNode.getRowType().getFieldNames();
+                final List<String> currentNodeFields = currentNode.getRowType().getFieldNames();
+                int[] remappedUniqueKeys =
+                        Arrays.stream(((StreamPhysicalChangelogNormalize) currentNode).uniqueKeys())
+                                .map(ukIdx -> inputNodeFields.indexOf(currentNodeFields.get(ukIdx)))
+                                .toArray();
+                currentNode =
+                        ((StreamPhysicalChangelogNormalize) currentNode)
+                                .copy(nodeAndTrait.f1, inputNode, remappedUniqueKeys);
             } else {
                 currentNode =
                         currentNode.copy(nodeAndTrait.f1, Collections.singletonList(inputNode));

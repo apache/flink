@@ -200,7 +200,7 @@ public class KvStateServerTest {
             }
 
             if (bootstrap != null) {
-                EventLoopGroup group = bootstrap.group();
+                EventLoopGroup group = bootstrap.config().group();
                 if (group != null) {
                     // note: no "quiet period" to not trigger Netty#4357
                     group.shutdownGracefully(0, 10, TimeUnit.SECONDS);

@@ -29,6 +29,7 @@ import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rex.RexNode;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -57,8 +58,8 @@ public final class LogicalSort extends Sort {
             List<RelHint> hints,
             RelNode input,
             RelCollation collation,
-            RexNode offset,
-            RexNode fetch) {
+            @Nullable RexNode offset,
+            @Nullable RexNode fetch) {
         super(cluster, traitSet, hints, input, collation, offset, fetch);
         assert traitSet.containsIfApplicable(Convention.NONE);
     }
@@ -77,7 +78,10 @@ public final class LogicalSort extends Sort {
      * @param fetch Expression for number of rows to fetch
      */
     public static LogicalSort create(
-            RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+            RelNode input,
+            RelCollation collation,
+            @Nullable RexNode offset,
+            @Nullable RexNode fetch) {
         RelOptCluster cluster = input.getCluster();
         collation = RelCollationTraitDef.INSTANCE.canonize(collation);
         RelTraitSet traitSet = input.getTraitSet().replace(Convention.NONE).replace(collation);
@@ -91,8 +95,8 @@ public final class LogicalSort extends Sort {
             RelTraitSet traitSet,
             RelNode newInput,
             RelCollation newCollation,
-            RexNode offset,
-            RexNode fetch) {
+            @Nullable RexNode offset,
+            @Nullable RexNode fetch) {
         return new LogicalSort(
                 getCluster(), traitSet, hints, newInput, newCollation, offset, fetch);
     }

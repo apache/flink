@@ -62,7 +62,7 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
     /** Returns the endpoint url to access the container from outside the docker network. */
     public String getContainerEndpointUrl() {
-        return String.format(URL_FORMAT, getContainerIpAddress(), getMappedPort(PORT));
+        return String.format(URL_FORMAT, getHost(), getMappedPort(PORT));
     }
 
     /** Returns the endpoint url to access the host from inside the docker network. */

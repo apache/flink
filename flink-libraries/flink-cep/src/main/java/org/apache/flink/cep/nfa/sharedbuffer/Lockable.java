@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -200,30 +199,11 @@ public final class Lockable<T> {
                 return (TypeSerializerSnapshot<Lockable<E>>) legacySnapshot;
             }
 
-            // In Flink 1.6, this serializer was directly returning the elementSerializer's snapshot
-            // instead of wrapping it in a LockableTypeSerializer(Config)Snapshot.
-            // This caused state information to be written as <LockableTypeSerializer,
-            // SomeArbitrarySerializerSnapshot>,
-            // Therefore we need to preform the following transformation:
-            // 	1. set the prior serializer on the legacySnapshot to be the elementSerializer
-            // 	2. return a LockableTypeSerializerSnapshot that has the legacySnapshot as a nested
-            // snapshot.
-            if (legacySnapshot instanceof TypeSerializerConfigSnapshot) {
-                setElementSerializerAsPriorSerializer(legacySnapshot, this.elementSerializer);
-            }
             LockableTypeSerializerSnapshot<E> lockableSnapshot =
                     new LockableTypeSerializerSnapshot<>();
             CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
                     lockableSnapshot, legacySnapshot);
             return lockableSnapshot;
-        }
-
-        @SuppressWarnings("unchecked")
-        private static <U, E> void setElementSerializerAsPriorSerializer(
-                TypeSerializerSnapshot<U> legacySnapshot, TypeSerializer<E> elementSerializer) {
-            TypeSerializerConfigSnapshot<E> elementLegacySnapshot =
-                    (TypeSerializerConfigSnapshot<E>) legacySnapshot;
-            elementLegacySnapshot.setPriorSerializer(elementSerializer);
         }
     }
 }

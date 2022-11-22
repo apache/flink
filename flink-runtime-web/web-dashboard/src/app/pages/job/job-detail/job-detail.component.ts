@@ -16,19 +16,25 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterOutlet } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
+import { JobStatusComponent } from '@flink-runtime-web/pages/job/job-detail/status/job-status.component';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService, StatusService } from '@flink-runtime-web/services';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 
 @Component({
   selector: 'flink-job-detail',
   templateUrl: './job-detail.component.html',
   styleUrls: ['./job-detail.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgIf, JobStatusComponent, NzSkeletonModule, RouterOutlet, NzAlertModule],
+  standalone: true
 })
 export class JobDetailComponent implements OnInit, OnDestroy {
   isLoading = true;

@@ -71,6 +71,7 @@ import org.apache.calcite.util.ReflectUtil;
 import org.apache.calcite.util.ReflectiveVisitor;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mappings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import javax.annotation.Nonnull;
 
@@ -452,7 +453,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
             // Project projects the original expressions,
             // plus any correlated variables the input wants to pass along.
-            final List<Pair<RexNode, String>> projects = new ArrayList<>();
+            final List<Pair<RexNode, ? extends @Nullable String>> projects = new ArrayList<>();
 
             // If this Project has correlated reference, produce the correlated variables in the new
             // output.
@@ -593,7 +594,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
             // Project projects the original expressions,
             // plus any correlated variables the input wants to pass along.
-            final List<Pair<RexNode, String>> projects = new ArrayList<>();
+            final List<Pair<RexNode, ? extends @Nullable String>> projects = new ArrayList<>();
             final List<RelDataTypeField> newInputOutput = newInput.getRowType().getFieldList();
 
             // oldInput has the original group by keys in the front.

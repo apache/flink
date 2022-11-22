@@ -264,7 +264,10 @@ public class CheckpointFailureManagerITCase extends TestLogger {
 
     private boolean isCheckpointFailure(JobExecutionException jobException) {
         return ExceptionUtils.findThrowable(jobException, FlinkRuntimeException.class)
-                .filter(ex -> ex.getMessage().equals(EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE))
+                .filter(
+                        ex ->
+                                ex.getMessage()
+                                        .startsWith(EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE))
                 .isPresent();
     }
 }

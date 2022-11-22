@@ -154,7 +154,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[1, 3, 4, 5, 6]) AND SEARCH(c, Sarg[_UTF-16LE'xx']))])
+Calc(select=[a, b, CAST('xx' AS VARCHAR(2147483647)) AS c], where=[(SEARCH(b, Sarg[1, 3, 4, 5, 6]) AND (c = 'xx'))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -184,13 +184,13 @@ Calc(select=[a, b, CAST('xx' AS VARCHAR(2147483647)) AS c], where=[((SEARCH(b, S
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[ROW($0, $1, $2)], EXPR$1=[ARRAY(12, $1)], EXPR$2=[MAP($0, $2)])
-+- LogicalFilter(condition=[=(ROW($0, $1, $2), CAST(ROW(_UTF-16LE'foo', 12, 1984-07-12 14:34:24)):RecordType(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" EXPR$0, INTEGER EXPR$1, TIMESTAMP(3) EXPR$2) NOT NULL)])
++- LogicalFilter(condition=[AND(=($0, _UTF-16LE'foo'), =($1, 12), =($2, 1984-07-12 14:34:24))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable5, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ROW(a, b, c) AS EXPR$0, ARRAY(12, b) AS EXPR$1, MAP(a, c) AS EXPR$2], where=[(ROW(a, b, c) = CAST(ROW('foo', 12, 1984-07-12 14:34:24) AS RecordType(VARCHAR(2147483647) EXPR$0, INTEGER EXPR$1, TIMESTAMP(3) EXPR$2)))])
+Calc(select=[ROW('foo', 12, 1984-07-12 14:34:24) AS EXPR$0, ARRAY(12, 12) AS EXPR$1, MAP('foo', 1984-07-12 14:34:24) AS EXPR$2], where=[((a = 'foo') AND (b = 12) AND (c = 1984-07-12 14:34:24))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable5, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -297,7 +297,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..3), (3..4), (4..5), (5..6), (6..+∞)]) OR SEARCH(c, Sarg[_UTF-16LE'xx']))])
+Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..3), (3..4), (4..5), (5..6), (6..+∞)]) OR (c = 'xx'))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

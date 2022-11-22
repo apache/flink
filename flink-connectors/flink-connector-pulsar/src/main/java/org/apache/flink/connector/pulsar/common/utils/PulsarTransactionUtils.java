@@ -60,6 +60,8 @@ public final class PulsarTransactionUtils {
     /**
      * This is a bug in original {@link TransactionCoordinatorClientException#unwrap(Throwable)}
      * method. Pulsar wraps the {@link ExecutionException} which hides the real execution exception.
+     *
+     * <p>This bug should be fixed after the 2.10.0 release. We just keep this for safety.
      */
     public static TransactionCoordinatorClientException unwrap(
             TransactionCoordinatorClientException e) {

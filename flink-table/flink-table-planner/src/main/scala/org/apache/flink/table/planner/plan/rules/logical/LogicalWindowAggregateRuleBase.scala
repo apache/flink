@@ -234,6 +234,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
             aggCall.ignoreNulls(),
             aggCall.getArgList,
             aggCall.filterArg,
+            aggCall.distinctKeys,
             aggCall.collation,
             agg.getGroupCount,
             agg.getInput,

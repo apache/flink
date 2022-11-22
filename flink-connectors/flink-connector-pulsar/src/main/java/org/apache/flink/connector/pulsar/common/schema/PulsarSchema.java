@@ -155,6 +155,9 @@ public final class PulsarSchema<T> implements Serializable {
             oos.writeUTF(entry.getKey());
             oos.writeUTF(entry.getValue());
         }
+
+        // Timestamp
+        oos.writeLong(schemaInfo.getTimestamp());
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
@@ -177,7 +180,17 @@ public final class PulsarSchema<T> implements Serializable {
             properties.put(ois.readUTF(), ois.readUTF());
         }
 
-        this.schemaInfo = new SchemaInfoImpl(name, schemaBytes, type, properties);
+        // Timestamp
+        long timestamp = ois.readLong();
+
+        this.schemaInfo =
+                SchemaInfoImpl.builder()
+                        .name(name)
+                        .schema(schemaBytes)
+                        .type(type)
+                        .properties(properties)
+                        .timestamp(timestamp)
+                        .build();
         this.schema = createSchema(schemaInfo);
     }
 

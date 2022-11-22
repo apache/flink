@@ -69,7 +69,7 @@ public class ParquetFormatStatisticsReportTest extends StatisticsReportTestBase 
         // insert data and get statistics.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
-        assertThat(folder.listFiles()).isNotNull().hasSize(1);
+        assertThat(folder.listFiles()).hasSize(1);
         File[] files = folder.listFiles();
         assert files != null;
         TableStats tableStats =
@@ -84,7 +84,7 @@ public class ParquetFormatStatisticsReportTest extends StatisticsReportTestBase 
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
-        assertThat(folder.listFiles()).isNotNull().hasSize(2);
+        assertThat(folder.listFiles()).hasSize(2);
         File[] files = folder.listFiles();
         List<Path> paths = new ArrayList<>();
         assert files != null;

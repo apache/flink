@@ -75,6 +75,7 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -169,7 +170,10 @@ public abstract class YarnTestBase {
         // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
         Pattern.compile("Exception on heartbeat"),
         Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted"),
-        Pattern.compile("java\\.lang\\.InterruptedException")
+        Pattern.compile("java\\.lang\\.InterruptedException"),
+
+        // this can happen if the hbase delegation token provider is not available
+        Pattern.compile("ClassNotFoundException : \"org.apache.hadoop.hbase.HBaseConfiguration\"")
     };
 
     // Temp directory which is deleted after the unit test.
@@ -221,6 +225,9 @@ public abstract class YarnTestBase {
         YARN_CONFIGURATION.setFloat(
                 YarnConfiguration.NM_MAX_PER_DISK_UTILIZATION_PERCENTAGE, 99.0F);
         YARN_CONFIGURATION.set(YarnConfiguration.YARN_APPLICATION_CLASSPATH, getYarnClasspath());
+        YARN_CONFIGURATION.setInt(
+                YarnConfiguration.RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_MS, 1000);
+        YARN_CONFIGURATION.setInt(YarnConfiguration.RESOURCEMANAGER_CONNECT_MAX_WAIT_MS, 5000);
     }
 
     /**
@@ -235,7 +242,7 @@ public abstract class YarnTestBase {
             File classPathFile =
                     TestUtils.findFile(start, (dir, name) -> name.equals("yarn.classpath"));
             return FileUtils.readFileToString(
-                    classPathFile); // potential NPE is supposed to be fatal
+                    classPathFile, StandardCharsets.UTF_8); // potential NPE is supposed to be fatal
         } catch (Throwable t) {
             LOG.error(
                     "Error while getting YARN classpath in {}",

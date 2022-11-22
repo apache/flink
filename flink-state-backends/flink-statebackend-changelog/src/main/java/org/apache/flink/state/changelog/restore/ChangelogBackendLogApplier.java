@@ -52,7 +52,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Map;
 
-import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE;
 import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
 import static org.apache.flink.state.changelog.restore.FunctionDelegationHelper.delegateAggregateFunction;
 import static org.apache.flink.state.changelog.restore.FunctionDelegationHelper.delegateReduceFunction;
@@ -206,8 +205,7 @@ class ChangelogBackendLogApplier {
     private static StateMetaInfoSnapshot readStateMetaInfoSnapshot(
             DataInputView in, ClassLoader classLoader) throws IOException {
         int version = in.readInt();
-        StateMetaInfoReader reader =
-                StateMetaInfoSnapshotReadersWriters.getReader(version, KEYED_STATE);
+        StateMetaInfoReader reader = StateMetaInfoSnapshotReadersWriters.getReader(version);
         return reader.readStateMetaInfoSnapshot(in, classLoader);
     }
 

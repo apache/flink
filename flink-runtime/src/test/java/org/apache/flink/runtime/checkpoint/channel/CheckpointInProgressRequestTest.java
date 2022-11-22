@@ -67,8 +67,7 @@ public class CheckpointInProgressRequestTest {
                 unused -> {
                     cancelCounter.incrementAndGet();
                     await(cb);
-                },
-                false);
+                });
     }
 
     private void await(CyclicBarrier cb) {

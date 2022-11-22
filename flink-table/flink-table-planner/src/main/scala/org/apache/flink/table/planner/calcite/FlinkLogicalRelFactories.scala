@@ -83,7 +83,7 @@ object FlinkLogicalRelFactories {
         input: RelNode,
         hints: util.List[RelHint],
         childExprs: util.List[_ <: RexNode],
-        fieldNames: util.List[String]): RelNode = {
+        fieldNames: util.List[_ <: String]): RelNode = {
       val rexBuilder = input.getCluster.getRexBuilder
       val inputRowType = input.getRowType
       val programBuilder = new RexProgramBuilder(inputRowType, rexBuilder)

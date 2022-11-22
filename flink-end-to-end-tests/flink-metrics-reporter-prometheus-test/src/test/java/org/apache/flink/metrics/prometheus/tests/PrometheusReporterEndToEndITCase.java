@@ -18,7 +18,6 @@
 
 package org.apache.flink.metrics.prometheus.tests;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.prometheus.PrometheusReporterFactory;
@@ -154,13 +153,12 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
     private static Configuration getFlinkConfig() {
         final Configuration config = new Configuration();
 
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "prom."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                PrometheusReporterFactory.class.getName());
+        MetricOptions.forReporter(config, "prom")
+                .set(
+                        MetricOptions.REPORTER_FACTORY_CLASS,
+                        PrometheusReporterFactory.class.getName())
+                .setString("port", "9000-9100");
 
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "prom.port", "9000-9100");
         return config;
     }
 

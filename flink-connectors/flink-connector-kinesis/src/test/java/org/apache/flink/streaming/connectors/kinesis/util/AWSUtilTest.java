@@ -19,27 +19,38 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 
+import com.amazonaws.AmazonWebServiceClient;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.WebIdentityTokenCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
 
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ROLE_ARN;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ROLE_EXTERNAL_ID;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ROLE_SESSION_NAME;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ROLE_STS_ENDPOINT;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
@@ -49,6 +60,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for AWSUtil. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(AWSUtil.class)
+@PowerMockIgnore({"javax.net.ssl.*", "javax.security.*"})
 public class AWSUtilTest {
 
     @Rule private final ExpectedException exception = ExpectedException.none();
@@ -161,6 +173,67 @@ public class AWSUtilTest {
         assertThat(credentials.getAWSAccessKeyId()).isEqualTo("22222222222222222222");
         assertThat(credentials.getAWSSecretKey())
                 .isEqualTo("wJalrXUtnFEMI/K7MDENG/bPxRfiCY2222222222");
+    }
+
+    @Test
+    public void testGetCredentialsProviderAssumeRole() throws Exception {
+        Properties testConfig = new Properties();
+        testConfig.setProperty(AWS_CREDENTIALS_PROVIDER, "ASSUME_ROLE");
+        testConfig.setProperty(AWS_REGION, "us-east-1");
+        testConfig.setProperty(AWS_ROLE_ARN, "arn");
+        testConfig.setProperty(AWS_ROLE_EXTERNAL_ID, "external_id");
+        testConfig.setProperty(AWS_ROLE_SESSION_NAME, "session_name");
+
+        AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(testConfig);
+
+        assertThat(credentialsProvider).isInstanceOf(STSAssumeRoleSessionCredentialsProvider.class);
+
+        STSAssumeRoleSessionCredentialsProvider assumeRoleCredentialsProvider =
+                (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
+
+        assertThat(TestUtils.<String>getField("roleArn", assumeRoleCredentialsProvider))
+                .isEqualTo("arn");
+        assertThat(TestUtils.<String>getField("roleSessionName", assumeRoleCredentialsProvider))
+                .isEqualTo("session_name");
+        assertThat(TestUtils.<String>getField("roleExternalId", assumeRoleCredentialsProvider))
+                .isEqualTo("external_id");
+
+        AWSSecurityTokenServiceClient stsService =
+                TestUtils.getField("securityTokenService", assumeRoleCredentialsProvider);
+
+        boolean isEndpointOverridden =
+                TestUtils.getField(
+                        "isEndpointOverridden", AmazonWebServiceClient.class, stsService);
+        assertThat(isEndpointOverridden).isEqualTo(false);
+    }
+
+    @Test
+    public void testGetCredentialsProviderAssumeRoleWithCustomStsEndpoint() throws Exception {
+        Properties testConfig = new Properties();
+        testConfig.setProperty(AWS_CREDENTIALS_PROVIDER, "ASSUME_ROLE");
+        testConfig.setProperty(AWS_REGION, "us-east-1");
+        testConfig.setProperty(AWS_ROLE_ARN, "arn");
+        testConfig.setProperty(AWS_ROLE_EXTERNAL_ID, "external_id");
+        testConfig.setProperty(AWS_ROLE_SESSION_NAME, "session_name");
+        testConfig.setProperty(AWS_ROLE_STS_ENDPOINT, "https://sts.us-east-1.amazonaws.com");
+
+        AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(testConfig);
+
+        assertThat(credentialsProvider).isInstanceOf(STSAssumeRoleSessionCredentialsProvider.class);
+
+        STSAssumeRoleSessionCredentialsProvider assumeRoleCredentialsProvider =
+                (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
+
+        AWSSecurityTokenServiceClient stsService =
+                TestUtils.getField("securityTokenService", assumeRoleCredentialsProvider);
+
+        boolean isEndpointOverridden =
+                TestUtils.getField(
+                        "isEndpointOverridden", AmazonWebServiceClient.class, stsService);
+        URI endpoint = TestUtils.getField("endpoint", AmazonWebServiceClient.class, stsService);
+
+        assertThat(isEndpointOverridden).isEqualTo(true);
+        assertThat(endpoint).isEqualTo(URI.create("https://sts.us-east-1.amazonaws.com"));
     }
 
     @Test

@@ -115,14 +115,14 @@ under the License.
 			<!-- https://mvnrepository.com/artifact/io.confluent/kafka-avro-serializer -->
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-avro-serializer</artifactId>
-			<version>6.2.2</version>
+			<version>7.2.2</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-schema-registry-client</artifactId>
-			<version>6.2.2</version>
+			<version>7.2.2</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -155,6 +155,12 @@ under the License.
 			<artifactId>flink-connector-kafka</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+		</dependency>
+		<!-- Needed by Schema Registry -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>30.1.1-jre</version>
 		</dependency>
 	</dependencies>
 
@@ -236,6 +242,14 @@ under the License.
 							<artifactId>kafka-clients</artifactId>
 							<version>3.2.3</version>
 							<destFileName>kafka-clients.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>com.google.guava</groupId>
+							<artifactId>guava</artifactId>
+							<version>30.1.1-jre</version>
+							<destFileName>guava.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</artifactItem>

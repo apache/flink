@@ -143,7 +143,7 @@ under the License.
 		<curator.version>5.2.0</curator.version>
 		<avro.version>1.11.1</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
-		<jackson-bom.version>2.13.4</jackson-bom.version>
+		<jackson-bom.version>2.13.4.20221013</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -175,7 +175,7 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.15.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.16.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.27.1</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
@@ -532,13 +532,26 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-lang3</artifactId>
-				<version>3.3.2</version>
+				<version>3.12.0</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-text</artifactId>
+				<version>1.10.0</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.xerial.snappy</groupId>
 				<artifactId>snappy-java</artifactId>
 				<version>1.1.8.3</version>
+				<exclusions>
+					<exclusion>
+						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
+						<groupId>org.osgi</groupId>
+						<artifactId>org.osgi.core</artifactId>
+					</exclusion>
+				</exclusions>
 			</dependency>
 
 			<dependency>
@@ -705,6 +718,13 @@ under the License.
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
 				<version>1.21</version>
+				<exclusions>
+					<exclusion>
+						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
+						<groupId>org.osgi</groupId>
+						<artifactId>org.osgi.core</artifactId>
+					</exclusion>
+				</exclusions>
 			</dependency>
 
 			<!-- Managed dependency required for HBase in flink-connector-hbase -->
@@ -859,7 +879,7 @@ under the License.
 				<!-- Bumped for security purposes and making it work with Jackson dependencies (2.10.1) -->
 				<groupId>org.yaml</groupId>
 				<artifactId>snakeyaml</artifactId>
-				<version>1.27</version>
+				<version>1.31</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
@@ -974,32 +994,6 @@ under the License.
 							<version>3.2.4</version>
 						</plugin>
 						<plugin>
-							<groupId>io.github.zentol.japicmp</groupId>
-							<artifactId>japicmp-maven-plugin</artifactId>
-							<dependencies>
-								<dependency>
-									<groupId>javax.xml.bind</groupId>
-									<artifactId>jaxb-api</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-impl</artifactId>
-									<version>2.3.1</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-core</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>javax.activation</groupId>
-									<artifactId>activation</artifactId>
-									<version>1.1.1</version>
-								</dependency>
-							</dependencies>
-						</plugin>
-						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
@@ -1012,6 +1006,7 @@ under the License.
 							<configuration>
 								<additionalJOptions>
 									<additionalJOption>--add-exports=java.base/sun.net.util=ALL-UNNAMED</additionalJOption>
+									<additionalJOption>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</additionalJOption>
 								</additionalJOptions>
 							</configuration>
 						</plugin>
@@ -1218,13 +1213,6 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
-
-		<profile>
-            <!-- Kept for backwards compatiblity, the doc buildbot expects
-                 this profile to exist.-->
-			<id>aggregate-scaladoc</id>
-		</profile>
-
 
 		<profile>
 			<!-- used for SNAPSHOT and regular releases -->
@@ -1501,7 +1489,7 @@ under the License.
 						<exclude>flink-table/flink-table-planner/src/test/resources/json/*.json</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
-						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
+						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/hadoop/config/keystore.jks</exclude>
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
@@ -1719,12 +1707,12 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<exclude>org.yaml:snakeyaml:(,1.26]</exclude>
+										<exclude>org.yaml:snakeyaml:(,1.30]</exclude>
 									</excludes>
 									<includes>
 										<!-- Snakeyaml is pulled in by many modules without using it in production,
 											so there's no benefit in us investing time into bumping these. -->
-										<include>org.yaml:snakeyaml:(,1.26]:*:test</include>
+										<include>org.yaml:snakeyaml:(,1.30]:*:test</include>
 									</includes>
 									<message>Older snakeyaml versions are not allowed due to security vulnerabilities.</message>
 								</bannedDependencies>
@@ -2031,7 +2019,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>3.0.0-M1</version>
+					<version>3.1.0</version>
 				</plugin>
 
 				<plugin>
@@ -2145,26 +2133,8 @@ under the License.
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
-								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#getSideOutput(org.apache.flink.util.OutputTag)</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.DataStream#DataStream(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.streaming.api.transformations.StreamTransformation)</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction#invoke(java.lang.Object)</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.metrics.Metric#getMetricType()</exclude>
-								<exclude>org.apache.flink.metrics.Counter#getMetricType()</exclude>
-								<exclude>org.apache.flink.metrics.Meter#getMetricType()</exclude>
-								<exclude>org.apache.flink.metrics.Gauge#getMetricType()</exclude>
-								<exclude>org.apache.flink.metrics.Histogram#getMetricType()</exclude>
-								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#sendEventToSourceReader(int,int,org.apache.flink.api.connector.source.SourceEvent)</exclude>
-								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#registeredReadersOfAttempts()</exclude>
+								<!-- UnionSerializerConfigSnapshot was a PublicEvolving and Deprecated class that has been removed, embedded inside a Public CoGroupedStreams class, triggering this false failure -->
+								<exclude>org.apache.flink.streaming.api.datastream.CoGroupedStreams$UnionSerializerConfigSnapshot</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

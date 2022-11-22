@@ -473,6 +473,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "entryClass" : {
       "type" : "string"
     },
+    "flinkConfiguration" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "string"
+      }
+    },
     "jobId" : {
       "type" : "any"
     },
@@ -563,6 +569,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "entryClass" : {
       "type" : "string"
+    },
+    "flinkConfiguration" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "string"
+      }
     },
     "jobId" : {
       "type" : "any"

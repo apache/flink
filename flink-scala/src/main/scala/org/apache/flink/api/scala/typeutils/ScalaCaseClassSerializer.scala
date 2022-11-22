@@ -18,14 +18,10 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
 import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializer.lookupConstructor
 
 import java.io.ObjectInputStream
 
-import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe
 
 /**
@@ -38,8 +34,7 @@ import scala.reflect.runtime.universe
 class ScalaCaseClassSerializer[T <: Product](
     clazz: Class[T],
     scalaFieldSerializers: Array[TypeSerializer[_]]
-) extends CaseClassSerializer[T](clazz, scalaFieldSerializers)
-  with SelfResolvingTypeSerializer[T] {
+) extends CaseClassSerializer[T](clazz, scalaFieldSerializers) {
 
   @transient
   private var constructor = lookupConstructor(clazz)
@@ -50,26 +45,6 @@ class ScalaCaseClassSerializer[T <: Product](
 
   override def snapshotConfiguration(): TypeSerializerSnapshot[T] = {
     new ScalaCaseClassSerializerSnapshot[T](this)
-  }
-
-  override def resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-      s: TypeSerializerConfigSnapshot[T]): TypeSerializerSchemaCompatibility[T] = {
-
-    require(s.isInstanceOf[TupleSerializerConfigSnapshot[_]])
-
-    val configSnapshot = s.asInstanceOf[TupleSerializerConfigSnapshot[T]]
-    val nestedSnapshots = configSnapshot.getNestedSerializersAndConfigs.asScala
-      .map(t => t.f1)
-      .toArray
-
-    val newCompositeSnapshot =
-      new ScalaCaseClassSerializerSnapshot[T](configSnapshot.getTupleClass)
-
-    delegateCompatibilityCheckToNewSnapshot(
-      this,
-      newCompositeSnapshot,
-      nestedSnapshots: _*
-    )
   }
 
   private def readObject(in: ObjectInputStream): Unit = {

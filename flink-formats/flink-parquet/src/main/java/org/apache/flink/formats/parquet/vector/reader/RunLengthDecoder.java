@@ -265,8 +265,17 @@ final class RunLengthDecoder {
                     while (valueIndex < this.currentCount) {
                         // values are bit packed 8 at a time, so reading bitWidth will always work
                         ByteBuffer buffer = in.slice(bitWidth);
-                        this.packer.unpack8Values(
-                                buffer, buffer.position(), this.currentBuffer, valueIndex);
+                        if (buffer.hasArray()) {
+                            // byte array has better performance than ByteBuffer
+                            this.packer.unpack8Values(
+                                    buffer.array(),
+                                    buffer.arrayOffset() + buffer.position(),
+                                    this.currentBuffer,
+                                    valueIndex);
+                        } else {
+                            this.packer.unpack8Values(
+                                    buffer, buffer.position(), this.currentBuffer, valueIndex);
+                        }
                         valueIndex += 8;
                     }
                     return;

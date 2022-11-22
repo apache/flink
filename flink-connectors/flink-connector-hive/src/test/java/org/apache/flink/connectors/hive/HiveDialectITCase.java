@@ -1287,7 +1287,7 @@ public class HiveDialectITCase {
     private void verifyUnsupportedOperation(String ddl) {
         assertThatThrownBy(() -> tableEnv.executeSql(ddl))
                 .isInstanceOf(ValidationException.class)
-                .getCause()
+                .cause()
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 

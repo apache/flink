@@ -20,10 +20,13 @@ package org.apache.flink.connector.pulsar.source.reader.emitter;
 
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
-import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarOrderedSourceReader;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarUnorderedSourceReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
+import org.apache.flink.util.Collector;
+
+import org.apache.pulsar.client.api.Message;
 
 /**
  * The {@link RecordEmitter} implementation for both {@link PulsarOrderedSourceReader} and {@link
@@ -31,15 +34,61 @@ import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
  * emitter.
  */
 public class PulsarRecordEmitter<T>
-        implements RecordEmitter<PulsarMessage<T>, T, PulsarPartitionSplitState> {
+        implements RecordEmitter<Message<byte[]>, T, PulsarPartitionSplitState> {
+
+    private final PulsarDeserializationSchema<T> deserializationSchema;
+    private final SourceOutputWrapper<T> sourceOutputWrapper;
+
+    public PulsarRecordEmitter(PulsarDeserializationSchema<T> deserializationSchema) {
+        this.deserializationSchema = deserializationSchema;
+        this.sourceOutputWrapper = new SourceOutputWrapper<>();
+    }
 
     @Override
     public void emitRecord(
-            PulsarMessage<T> element, SourceOutput<T> output, PulsarPartitionSplitState splitState)
+            Message<byte[]> element, SourceOutput<T> output, PulsarPartitionSplitState splitState)
             throws Exception {
-        // Sink the record to source output.
-        output.collect(element.getValue(), element.getEventTime());
-        // Update the split state.
-        splitState.setLatestConsumedId(element.getId());
+        // Update the source output.
+        sourceOutputWrapper.setSourceOutput(output);
+        sourceOutputWrapper.setTimestamp(element);
+
+        // Deserialize the message and since it to output.
+        deserializationSchema.deserialize(element, sourceOutputWrapper);
+        splitState.setLatestConsumedId(element.getMessageId());
+
+        // Release the messages if we use message pool in Pulsar.
+        element.release();
+    }
+
+    private static class SourceOutputWrapper<T> implements Collector<T> {
+
+        private SourceOutput<T> sourceOutput;
+        private long timestamp;
+
+        @Override
+        public void collect(T record) {
+            if (timestamp > 0) {
+                sourceOutput.collect(record, timestamp);
+            } else {
+                sourceOutput.collect(record);
+            }
+        }
+
+        @Override
+        public void close() {
+            // Nothing to do here.
+        }
+
+        private void setSourceOutput(SourceOutput<T> sourceOutput) {
+            this.sourceOutput = sourceOutput;
+        }
+
+        /**
+         * Get the event timestamp from Pulsar. Zero means there is no event time. See {@link
+         * Message#getEventTime()} to get the reason why it returns zero.
+         */
+        private void setTimestamp(Message<?> message) {
+            this.timestamp = message.getEventTime();
+        }
     }
 }

@@ -43,7 +43,7 @@ import java.util.Properties;
 public class FlinkKafkaProducerMigrationTest extends KafkaMigrationTestBase {
     @Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_15);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_16);
     }
 
     @Override

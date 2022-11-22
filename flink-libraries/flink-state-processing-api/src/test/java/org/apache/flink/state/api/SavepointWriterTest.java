@@ -22,43 +22,42 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.utils.CustomStateBackendFactory;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the savepoint writer. */
-public class SavepointWriterTest {
+class SavepointWriterTest {
 
-    @Test(expected = CustomStateBackendFactory.ExpectedException.class)
-    public void testCustomStateBackend() throws Exception {
+    @Test
+    void testCustomStateBackend() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration configuration = new Configuration();
         configuration.set(
                 StateBackendOptions.STATE_BACKEND,
                 CustomStateBackendFactory.class.getCanonicalName());
         configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        env.configure(configuration);
-
-        DataStream<String> input = env.fromElements("");
-
-        StateBootstrapTransformation<String> transformation =
-                OperatorTransformation.bootstrapWith(input)
-                        .keyBy(element -> element)
-                        .transform(new Bootstrapper());
-
-        SavepointWriter.newSavepoint(128)
-                .withOperator(OperatorIdentifier.forUid("uid"), transformation)
-                .write("file:///tmp/path");
-
-        env.execute();
+        assertThatThrownBy(() -> env.configure(configuration))
+                .isInstanceOf(CustomStateBackendFactory.ExpectedException.class);
     }
 
-    private static class Bootstrapper extends KeyedStateBootstrapFunction<String, String> {
+    @Test
+    void testCantCreateSavepointFromNothing() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        @Override
-        public void processElement(String value, Context ctx) throws Exception {}
+        assertThatThrownBy(() -> SavepointWriter.newSavepoint(env, 128).write("file:///tmp/path"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("at least one operator to be created");
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    void testMustContainOneOperatorWithoutEnvironment() {
+        assertThatThrownBy(() -> SavepointWriter.newSavepoint(128).write("file:///tmp/path"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("if no execution environment was provided");
     }
 }

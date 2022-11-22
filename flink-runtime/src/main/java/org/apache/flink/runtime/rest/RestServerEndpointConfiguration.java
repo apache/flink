@@ -27,7 +27,7 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
@@ -175,7 +175,7 @@ public final class RestServerEndpointConfiguration {
 
         final Map<String, String> responseHeaders =
                 Collections.singletonMap(
-                        HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,
+                        HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN.toString(),
                         config.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
 
         return new RestServerEndpointConfiguration(

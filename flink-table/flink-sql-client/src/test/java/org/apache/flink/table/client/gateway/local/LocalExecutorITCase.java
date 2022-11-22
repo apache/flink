@@ -51,18 +51,15 @@ import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,11 +79,10 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MA
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
-import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
-public class LocalExecutorITCase extends TestLogger {
+class LocalExecutorITCase {
 
     private static final int NUM_TMS = 2;
     private static final int NUM_SLOTS_PER_TM = 2;
@@ -112,7 +108,7 @@ public class LocalExecutorITCase extends TestLogger {
     private static URL udfDependency;
 
     @BeforeAll
-    public static void setup(@InjectClusterClient ClusterClient<?> injectedClusterClient)
+    static void setup(@InjectClusterClient ClusterClient<?> injectedClusterClient)
             throws Exception {
         clusterClient = injectedClusterClient;
         File udfJar =
@@ -138,7 +134,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    public void testCompleteStatement() {
+    void testCompleteStatement() {
         final Executor executor = createLocalExecutor();
         String sessionId = executor.openSession("test-session");
         assertThat(sessionId).isEqualTo("test-session");
@@ -164,8 +160,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionChangelog() throws Exception {
+    void testStreamQueryExecutionChangelog() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -212,8 +207,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
+    void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -262,8 +256,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionTable() throws Exception {
+    void testStreamQueryExecutionTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -288,8 +281,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
+    void testStreamQueryExecutionTableMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -315,8 +307,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionLimitedTable() throws Exception {
+    void testStreamQueryExecutionLimitedTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -337,8 +328,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testBatchQueryExecution() throws Exception {
+    void testBatchQueryExecution() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -384,8 +374,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testBatchQueryExecutionMultipleTimes() throws Exception {
+    void testBatchQueryExecutionMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -433,8 +422,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStopJob() throws Exception {
+    void testStopJob() throws Exception {
         final Map<String, String> configMap = new HashMap<>();
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
@@ -466,7 +454,7 @@ public class LocalExecutorITCase extends TestLogger {
             } while (jobStatus != JobStatus.RUNNING);
 
             Optional<String> savepoint = executor.stopJob(sessionId, jobId.toString(), true, true);
-            assertThat(savepoint.isPresent()).isTrue();
+            assertThat(savepoint).isPresent();
         } finally {
             executor.closeSession(sessionId);
         }
@@ -475,11 +463,6 @@ public class LocalExecutorITCase extends TestLogger {
     // --------------------------------------------------------------------------------------------
     // Helper method
     // --------------------------------------------------------------------------------------------
-
-    private TableResult executeSql(Executor executor, String sessionId, String sql) {
-        Operation operation = executor.parseStatement(sessionId, sql);
-        return executor.executeOperation(sessionId, operation);
-    }
 
     private ResultDescriptor executeQuery(Executor executor, String sessionId, String query) {
         Operation operation = executor.parseStatement(sessionId, query);
@@ -593,31 +576,6 @@ public class LocalExecutorITCase extends TestLogger {
             }
         }
         return actualResults;
-    }
-
-    private void verifySinkResult(String path) throws IOException {
-        final List<String> actualResults = new ArrayList<>();
-        TestBaseUtils.readAllResultLines(actualResults, path);
-        final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:01\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:02\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:03\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:04\"");
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:05\"");
-        expectedResults.add("FALSE,\"hello world!!!!\",\"2020-01-01 00:00:06\"");
-        TestBaseUtils.compareResultCollections(
-                expectedResults, actualResults, Comparator.naturalOrder());
-    }
-
-    private void executeAndVerifySinkResult(
-            Executor executor, String sessionId, String statement, String resultPath)
-            throws Exception {
-        final TableResult tableResult = executeSql(executor, sessionId, statement);
-        checkState(tableResult.getJobClient().isPresent());
-        // wait for job completion
-        tableResult.await();
-        // verify result
-        verifySinkResult(resultPath);
     }
 
     private Map<String, String> getDefaultSessionConfigMap() {

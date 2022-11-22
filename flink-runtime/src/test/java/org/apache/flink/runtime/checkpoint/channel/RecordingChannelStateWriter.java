@@ -33,7 +33,7 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
     private long lastStartedCheckpointId = -1;
     private long lastFinishedCheckpointId = -1;
     private ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
-    private ListMultimap<ResultSubpartitionInfo, Buffer> adedOutput = LinkedListMultimap.create();
+    private ListMultimap<ResultSubpartitionInfo, Buffer> addedOutput = LinkedListMultimap.create();
 
     public RecordingChannelStateWriter() {
         super(false);
@@ -44,8 +44,8 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
         lastFinishedCheckpointId = -1;
         addedInput.values().forEach(Buffer::recycleBuffer);
         addedInput.clear();
-        adedOutput.values().forEach(Buffer::recycleBuffer);
-        adedOutput.clear();
+        addedOutput.values().forEach(Buffer::recycleBuffer);
+        addedOutput.clear();
     }
 
     @Override
@@ -73,7 +73,7 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
     public void addOutputData(
             long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
         checkCheckpointId(checkpointId);
-        adedOutput.putAll(info, Arrays.asList(data));
+        addedOutput.putAll(info, Arrays.asList(data));
     }
 
     public long getLastStartedCheckpointId() {
@@ -89,6 +89,6 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
     }
 
     public ListMultimap<ResultSubpartitionInfo, Buffer> getAddedOutput() {
-        return adedOutput;
+        return addedOutput;
     }
 }

@@ -52,11 +52,7 @@ function setup_kafka_dist {
 function setup_confluent_dist {
   # download confluent
   mkdir -p $TEST_DATA_DIR
-  if [[ $CONFLUENT_MAJOR_VERSION =~ ^[6] ]]; then
-    CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-community-$CONFLUENT_VERSION.tar.gz"
-  else
-    CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-community-$CONFLUENT_VERSION-2.12.tar.gz"
-  fi
+  CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-community-$CONFLUENT_VERSION.tar.gz"
   echo "Downloading confluent from $CONFLUENT_URL"
   cache_path=$(get_artifact $CONFLUENT_URL)
   ln "$cache_path" "${TEST_DATA_DIR}/confluent.tgz"

@@ -112,7 +112,7 @@ pygmentsUseClasses = true
 
 [module]
 [[module.imports]]
-  path = 'github.com/apache/flink-connector-elasticsearch/docs'
+  path = 'connectors'
 [[module.imports.mounts]]
   source = 'content'
   target = 'content'

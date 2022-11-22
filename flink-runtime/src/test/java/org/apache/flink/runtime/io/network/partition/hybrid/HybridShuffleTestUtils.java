@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.util.TestCounter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -39,9 +38,6 @@ public class HybridShuffleTestUtils {
             int subpartitionId, int... bufferIndexes) {
         List<BufferIndexAndChannel> bufferIndexAndChannels = new ArrayList<>();
         for (int bufferIndex : bufferIndexes) {
-            MemorySegment segment =
-                    MemorySegmentFactory.allocateUnpooledSegment(MEMORY_SEGMENT_SIZE);
-            NetworkBuffer buffer = new NetworkBuffer(segment, (ignore) -> {});
             bufferIndexAndChannels.add(new BufferIndexAndChannel(bufferIndex, subpartitionId));
         }
         return bufferIndexAndChannels;

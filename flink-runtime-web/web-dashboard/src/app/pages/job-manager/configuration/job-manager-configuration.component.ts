@@ -20,6 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
+import { ConfigurationCardsComponent } from '@flink-runtime-web/components/configuration-cards/configuration-cards.component';
 import { ClusterConfiguration, EnvironmentInfo } from '@flink-runtime-web/interfaces';
 import { JobManagerService } from '@flink-runtime-web/services';
 
@@ -27,7 +28,9 @@ import { JobManagerService } from '@flink-runtime-web/services';
   selector: 'flink-job-manager-configuration',
   templateUrl: './job-manager-configuration.component.html',
   styleUrls: ['./job-manager-configuration.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ConfigurationCardsComponent],
+  standalone: true
 })
 export class JobManagerConfigurationComponent implements OnInit, OnDestroy {
   listOfConfig: ClusterConfiguration[] = [];

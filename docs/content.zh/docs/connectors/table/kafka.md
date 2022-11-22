@@ -471,13 +471,12 @@ ROW<`version` INT, `behavior` STRING>
 ### 起始消费位点
 
 `scan.startup.mode` 配置项决定了 Kafka consumer 的启动模式。有效值为：
-<ul>
-<li><span markdown="span">`group-offsets`</span>：从 Zookeeper/Kafka 中某个指定的消费组已提交的偏移量开始。</li>
-<li><span markdown="span">`earliest-offset`</span>：从可能的最早偏移量开始。</li>
-<li><span markdown="span">`latest-offset`</span>：从最末尾偏移量开始。</li>
-<li><span markdown="span">`timestamp`</span>：从用户为每个 partition 指定的时间戳开始。</li>
-<li><span markdown="span">`specific-offsets`</span>：从用户为每个 partition 指定的偏移量开始。</li>
-</ul>
+
+* `group-offsets`：从 Zookeeper/Kafka 中某个指定的消费组已提交的偏移量开始。
+* `earliest-offset`：从可能的最早偏移量开始。
+* `latest-offset`：从最末尾偏移量开始。
+* `timestamp`：从用户为每个 partition 指定的时间戳开始。
+* `specific-offsets`：从用户为每个 partition 指定的偏移量开始。
 
 默认值 `group-offsets` 表示从 Zookeeper/Kafka 中最近一次已提交的偏移量开始消费。
 

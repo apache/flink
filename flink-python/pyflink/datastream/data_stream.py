@@ -893,7 +893,8 @@ class DataStream(object):
 
         .. versionadded:: 1.16.0
         """
-        return DataStream(self._j_data_stream.getSideOutput(output_tag.get_java_output_tag()))
+        ds = DataStream(self._j_data_stream.getSideOutput(output_tag.get_java_output_tag()))
+        return ds.map(lambda i: i, output_type=output_tag.type_info)
 
     def cache(self) -> 'CachedDataStream':
         """

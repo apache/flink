@@ -31,8 +31,9 @@ import org.apache.pulsar.client.api.Schema;
 
 import java.util.Objects;
 
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES;
-import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_PENDING_MESSAGES_ON_PARALLELISM;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_ENABLE_SINK_METRICS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_RECOMMIT_TIMES;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MESSAGE_KEY_HASH;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL;
@@ -51,8 +52,8 @@ public class SinkConfiguration extends PulsarConfiguration {
     private final int partitionSwitchSize;
     private final MessageKeyHash messageKeyHash;
     private final boolean enableSchemaEvolution;
-    private final int maxPendingMessages;
     private final int maxRecommitTimes;
+    private final boolean enableMetrics;
 
     public SinkConfiguration(Configuration configuration) {
         super(configuration);
@@ -63,8 +64,9 @@ public class SinkConfiguration extends PulsarConfiguration {
         this.partitionSwitchSize = getInteger(PULSAR_BATCHING_MAX_MESSAGES);
         this.messageKeyHash = get(PULSAR_MESSAGE_KEY_HASH);
         this.enableSchemaEvolution = get(PULSAR_WRITE_SCHEMA_EVOLUTION);
-        this.maxPendingMessages = get(PULSAR_MAX_PENDING_MESSAGES_ON_PARALLELISM);
         this.maxRecommitTimes = get(PULSAR_MAX_RECOMMIT_TIMES);
+        this.enableMetrics =
+                get(PULSAR_ENABLE_SINK_METRICS) && get(PULSAR_STATS_INTERVAL_SECONDS) > 0;
     }
 
     /** The delivery guarantee changes the behavior of {@link PulsarWriter}. */
@@ -111,17 +113,14 @@ public class SinkConfiguration extends PulsarConfiguration {
         return enableSchemaEvolution;
     }
 
-    /**
-     * Pulsar message is sent asynchronously. Set this option for limiting the pending messages in a
-     * Pulsar writer instance.
-     */
-    public int getMaxPendingMessages() {
-        return maxPendingMessages;
-    }
-
     /** The maximum allowed recommitting time for a Pulsar transaction. */
     public int getMaxRecommitTimes() {
         return maxRecommitTimes;
+    }
+
+    /** Whether to expose the metrics from Pulsar Producer. */
+    public boolean isEnableMetrics() {
+        return enableMetrics;
     }
 
     @Override
@@ -141,8 +140,8 @@ public class SinkConfiguration extends PulsarConfiguration {
                 && partitionSwitchSize == that.partitionSwitchSize
                 && enableSchemaEvolution == that.enableSchemaEvolution
                 && messageKeyHash == that.messageKeyHash
-                && maxPendingMessages == that.maxPendingMessages
-                && maxRecommitTimes == that.maxRecommitTimes;
+                && maxRecommitTimes == that.maxRecommitTimes
+                && enableMetrics == that.enableMetrics;
     }
 
     @Override
@@ -154,7 +153,7 @@ public class SinkConfiguration extends PulsarConfiguration {
                 partitionSwitchSize,
                 messageKeyHash,
                 enableSchemaEvolution,
-                maxPendingMessages,
-                maxRecommitTimes);
+                maxRecommitTimes,
+                enableMetrics);
     }
 }

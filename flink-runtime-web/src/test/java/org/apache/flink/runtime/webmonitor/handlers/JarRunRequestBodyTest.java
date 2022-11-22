@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,7 +45,8 @@ public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRun
                 new JobID(),
                 true,
                 "foo/bar",
-                RestoreMode.CLAIM);
+                RestoreMode.CLAIM,
+                Collections.singletonMap("key", "value"));
     }
 
     @Override
@@ -59,5 +61,7 @@ public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRun
                 .isEqualTo(expected.getAllowNonRestoredState());
         assertThat(actual.getSavepointPath()).isEqualTo(expected.getSavepointPath());
         assertThat(actual.getRestoreMode()).isEqualTo(expected.getRestoreMode());
+        assertThat(actual.getFlinkConfiguration().toMap())
+                .containsExactlyEntriesOf(expected.getFlinkConfiguration().toMap());
     }
 }

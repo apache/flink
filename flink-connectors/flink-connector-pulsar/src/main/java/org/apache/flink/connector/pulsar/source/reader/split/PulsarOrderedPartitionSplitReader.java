@@ -21,9 +21,9 @@ package org.apache.flink.connector.pulsar.source.reader.split;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarOrderedSourceReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -45,11 +45,9 @@ import static org.apache.flink.connector.pulsar.source.enumerator.cursor.Message
 /**
  * The split reader a given {@link PulsarPartitionSplit}, it would be closed once the {@link
  * PulsarOrderedSourceReader} is closed.
- *
- * @param <OUT> the type of the pulsar source message that would be serialized to downstream.
  */
 @Internal
-public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplitReaderBase<OUT> {
+public class PulsarOrderedPartitionSplitReader extends PulsarPartitionSplitReaderBase {
     private static final Logger LOG =
             LoggerFactory.getLogger(PulsarOrderedPartitionSplitReader.class);
 
@@ -57,8 +55,8 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
-            PulsarDeserializationSchema<OUT> deserializationSchema) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, deserializationSchema);
+            SourceReaderMetricGroup metricGroup) {
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, metricGroup);
     }
 
     @Override
@@ -70,9 +68,6 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
     protected void finishedPollMessage(Message<byte[]> message) {
         // Nothing to do here.
         LOG.debug("Finished polling message {}", message);
-
-        // Release message
-        message.release();
     }
 
     @Override

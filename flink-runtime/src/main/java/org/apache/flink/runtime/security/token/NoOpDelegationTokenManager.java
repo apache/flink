@@ -37,7 +37,7 @@ public class NoOpDelegationTokenManager implements DelegationTokenManager {
     }
 
     @Override
-    public void start() {
+    public void start(DelegationTokenListener delegationTokenListener) {
         LOG.debug("start");
     }
 

@@ -363,7 +363,7 @@ public class ConfigurationUtils {
                             pair -> {
                                 if (pair.size() != 2) {
                                     throw new IllegalArgumentException(
-                                            "Could not parse pair in the map " + pair);
+                                            "Map item is not a key-value pair (missing ':'?)");
                                 }
                             })
                     .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));

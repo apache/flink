@@ -27,11 +27,17 @@ public interface RetryStrategy {
     void stopFollowingAttempts();
 
     /**
-     * Handle the exception after the test execution.
+     * Handle an exception that occurred during the annotated test attempt.
+     *
+     * <p>This method can swallow the exception to pass the test.
      *
      * @param testName the test name
      * @param attemptIndex test attempt index that starts from 1
      * @param throwable the throwable that the test case throws
+     * @throws org.opentest4j.TestAbortedException When handling a test attempt failure, throwing
+     *     this exception indicates another attempt should be made.
+     * @throws Throwable Propagating the original exception, or throwing any other exception
+     *     indicates that the test has definitively failed and no further attempts should be made.
      */
     void handleException(String testName, int attemptIndex, Throwable throwable) throws Throwable;
 }

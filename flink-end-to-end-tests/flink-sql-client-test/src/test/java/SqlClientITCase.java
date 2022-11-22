@@ -261,8 +261,20 @@ public class SqlClientITCase {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
 
+        final int numPartitions = 1;
+        final short replicationFactor = 1;
         try (AdminClient admin = AdminClient.create(props)) {
-            admin.createTopics(Collections.singletonList(new NewTopic(topic, 1, (short) 1)));
+            admin.createTopics(
+                            Collections.singletonList(
+                                    new NewTopic(topic, numPartitions, replicationFactor)))
+                    .all()
+                    .get();
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Fail to create topic [%s partitions: %d replicas: %d].",
+                            topic, numPartitions, replicationFactor),
+                    e);
         }
 
         try (Producer<Bytes, String> producer =

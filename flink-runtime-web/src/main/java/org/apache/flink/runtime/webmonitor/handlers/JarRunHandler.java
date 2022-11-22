@@ -97,9 +97,10 @@ public class JarRunHandler
         effectiveConfiguration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
 
         final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
-        context.applyToConfiguration(effectiveConfiguration);
+        context.applyToConfiguration(effectiveConfiguration, request);
         SavepointRestoreSettings.toConfiguration(
-                getSavepointRestoreSettings(request), effectiveConfiguration);
+                getSavepointRestoreSettings(request, effectiveConfiguration),
+                effectiveConfiguration);
 
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
 
@@ -126,7 +127,9 @@ public class JarRunHandler
     }
 
     private SavepointRestoreSettings getSavepointRestoreSettings(
-            final @Nonnull HandlerRequest<JarRunRequestBody> request) throws RestHandlerException {
+            final @Nonnull HandlerRequest<JarRunRequestBody> request,
+            final Configuration effectiveConfiguration)
+            throws RestHandlerException {
 
         final JarRunRequestBody requestBody = request.getRequestBody();
 
@@ -134,20 +137,24 @@ public class JarRunHandler
                 fromRequestBodyOrQueryParameter(
                         requestBody.getAllowNonRestoredState(),
                         () -> getQueryParameter(request, AllowNonRestoredStateQueryParameter.class),
-                        false,
+                        effectiveConfiguration.get(
+                                SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE),
                         log);
         final String savepointPath =
                 fromRequestBodyOrQueryParameter(
-                        emptyToNull(requestBody.getSavepointPath()),
+                        requestBody.getSavepointPath(),
                         () ->
                                 emptyToNull(
                                         getQueryParameter(
                                                 request, SavepointPathQueryParameter.class)),
-                        null,
+                        effectiveConfiguration.get(SavepointConfigOptions.SAVEPOINT_PATH),
                         log);
         final RestoreMode restoreMode =
                 Optional.ofNullable(requestBody.getRestoreMode())
-                        .orElseGet(SavepointConfigOptions.RESTORE_MODE::defaultValue);
+                        .orElseGet(
+                                () ->
+                                        effectiveConfiguration.get(
+                                                SavepointConfigOptions.RESTORE_MODE));
         final SavepointRestoreSettings savepointRestoreSettings;
         if (savepointPath != null) {
             savepointRestoreSettings =

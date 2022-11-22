@@ -36,11 +36,22 @@ public class NoticeParser {
 
     // "- org.apache.htrace:htrace-core:3.1.0-incubating"
     private static final Pattern NOTICE_DEPENDENCY_PATTERN =
-            Pattern.compile("- (?<groupId>[^ :]+):(?<artifactId>[^:]+):(?<version>[^ ]+)($| )");
+            Pattern.compile(
+                    "- "
+                            + "(?<groupId>[^ ]*?):"
+                            + "(?<artifactId>[^ ]*?):"
+                            + "(?:(?<classifier>[^ ]*?):)?"
+                            + "(?<version>[^ ]*?)"
+                            + "($| )");
     // "This project bundles "net.jcip:jcip-annotations:1.0".
     private static final Pattern NOTICE_BUNDLES_DEPENDENCY_PATTERN =
             Pattern.compile(
-                    ".*bundles \"(?<groupId>[^:]+):(?<artifactId>[^:]+):(?<version>[^\"]+)\".*");
+                    ".*bundles \""
+                            + "(?<groupId>[^ ]*?):"
+                            + "(?<artifactId>[^ ]*?):"
+                            + "(?:(?<classifier>[^ ]*?):)?"
+                            + "(?<version>[^ ]*?)"
+                            + "\".*");
 
     public static Optional<NoticeContents> parseNoticeFile(Path noticeFile) throws IOException {
         // 1st line contains module name
@@ -75,7 +86,8 @@ public class NoticeParser {
             String groupId = matcher.group("groupId");
             String artifactId = matcher.group("artifactId");
             String version = matcher.group("version");
-            return Optional.of(Dependency.create(groupId, artifactId, version));
+            String classifier = matcher.group("classifier");
+            return Optional.of(Dependency.create(groupId, artifactId, version, classifier));
         }
         return Optional.empty();
     }

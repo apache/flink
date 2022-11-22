@@ -19,7 +19,6 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /** Serializer for [[Either]]. */
@@ -129,15 +128,6 @@ class EitherSerializer[A, B](
     legacySnapshot match {
       case correctSnapshot: ScalaEitherSerializerSnapshot[A, B] =>
         correctSnapshot
-
-      case legacySnapshot: EitherSerializerConfigSnapshot[A, B] =>
-        val transformedSnapshot = new ScalaEitherSerializerSnapshot[A, B]()
-        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-          transformedSnapshot,
-          legacySnapshot.getNestedSerializersAndConfigs.get(0).f1,
-          legacySnapshot.getNestedSerializersAndConfigs.get(1).f1
-        )
-        transformedSnapshot
     }
   }
 }

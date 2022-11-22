@@ -717,9 +717,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             }
         } catch (Exception e) {
             throw new IllegalArgumentException(
-                    String.format(
-                            "Could not parse value '%s' for key '%s'.",
-                            rawValue.map(Object::toString).orElse(""), option.key()),
+                    GlobalConfiguration.isSensitive(option.key())
+                            ? String.format("Could not parse value for key '%s'.", option.key())
+                            : String.format(
+                                    "Could not parse value '%s' for key '%s'.",
+                                    rawValue.map(Object::toString).orElse(""), option.key()),
                     e);
         }
     }
@@ -762,6 +764,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                         return Optional.empty();
                     };
             return applyWithOption(configOption, applier).orElse(false);
+        }
+    }
+
+    /**
+     * Removes given key from the configuration.
+     *
+     * @param key key of a config option to remove
+     * @return true is config has been removed, false otherwise
+     */
+    public boolean removeKey(String key) {
+        synchronized (this.confData) {
+            boolean removed = this.confData.remove(key) != null;
+            removed |= removePrefixMap(confData, key);
+            return removed;
         }
     }
 

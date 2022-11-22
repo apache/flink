@@ -26,8 +26,9 @@ import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+
+import org.apache.pulsar.client.api.Message;
 
 import java.util.HashMap;
 import java.util.List;
@@ -36,14 +37,10 @@ import java.util.function.Supplier;
 
 import static java.util.Collections.singletonList;
 
-/**
- * Common fetcher manager abstraction for both ordered & unordered message.
- *
- * @param <T> The decoded message type for flink.
- */
+/** Common fetcher manager abstraction for both ordered & unordered message. */
 @Internal
-public abstract class PulsarFetcherManagerBase<T>
-        extends SplitFetcherManager<PulsarMessage<T>, PulsarPartitionSplit> {
+public abstract class PulsarFetcherManagerBase
+        extends SplitFetcherManager<Message<byte[]>, PulsarPartitionSplit> {
 
     private final Map<String, Integer> splitFetcherMapping = new HashMap<>();
     private final Map<Integer, Boolean> fetcherStatus = new HashMap<>();
@@ -57,8 +54,8 @@ public abstract class PulsarFetcherManagerBase<T>
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      */
     protected PulsarFetcherManagerBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<T>>> elementsQueue,
-            Supplier<SplitReader<PulsarMessage<T>, PulsarPartitionSplit>> splitReaderSupplier,
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<Message<byte[]>>> elementsQueue,
+            Supplier<SplitReader<Message<byte[]>, PulsarPartitionSplit>> splitReaderSupplier,
             Configuration configuration) {
         super(elementsQueue, splitReaderSupplier, configuration);
     }
@@ -70,7 +67,7 @@ public abstract class PulsarFetcherManagerBase<T>
     @Override
     public void addSplits(List<PulsarPartitionSplit> splitsToAdd) {
         for (PulsarPartitionSplit split : splitsToAdd) {
-            SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> fetcher =
+            SplitFetcher<Message<byte[]>, PulsarPartitionSplit> fetcher =
                     getOrCreateFetcher(split.splitId());
             fetcher.addSplits(singletonList(split));
             // This method could be executed multiple times.
@@ -79,16 +76,28 @@ public abstract class PulsarFetcherManagerBase<T>
     }
 
     @Override
-    protected void startFetcher(SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> fetcher) {
+    protected void startFetcher(SplitFetcher<Message<byte[]>, PulsarPartitionSplit> fetcher) {
         if (fetcherStatus.get(fetcher.fetcherId()) != Boolean.TRUE) {
             fetcherStatus.put(fetcher.fetcherId(), true);
             super.startFetcher(fetcher);
         }
     }
 
-    protected SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> getOrCreateFetcher(
+    /** Close the finished split related fetcher. */
+    public void closeFetcher(String splitId) {
+        Integer fetchId = splitFetcherMapping.remove(splitId);
+        if (fetchId != null) {
+            fetcherStatus.remove(fetchId);
+            SplitFetcher<Message<byte[]>, PulsarPartitionSplit> fetcher = fetchers.remove(fetchId);
+            if (fetcher != null) {
+                fetcher.shutdown();
+            }
+        }
+    }
+
+    protected SplitFetcher<Message<byte[]>, PulsarPartitionSplit> getOrCreateFetcher(
             String splitId) {
-        SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> fetcher;
+        SplitFetcher<Message<byte[]>, PulsarPartitionSplit> fetcher;
         Integer fetcherId = splitFetcherMapping.get(splitId);
 
         if (fetcherId == null) {

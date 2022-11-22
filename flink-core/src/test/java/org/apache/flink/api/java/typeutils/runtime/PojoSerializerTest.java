@@ -339,9 +339,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    pojoSerializerConfigSnapshot,
-                    pojoSerializer1);
+                    new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -355,8 +353,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
             pojoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            pojoSerializer2);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         @SuppressWarnings("unchecked")
@@ -387,9 +384,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    pojoSerializerConfigSnapshot,
-                    pojoSerializer);
+                    new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -406,8 +401,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
             pojoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            pojoSerializer);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         @SuppressWarnings("unchecked")
@@ -455,9 +449,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    pojoSerializerConfigSnapshot,
-                    pojoSerializer);
+                    new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -471,8 +463,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
             pojoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            pojoSerializer);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         // reconfigure - check reconfiguration result and that subclass serializer cache is
@@ -527,9 +518,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    pojoSerializerConfigSnapshot,
-                    pojoSerializer);
+                    new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -545,8 +534,7 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
             pojoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            pojoSerializer);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         // reconfigure - check reconfiguration result and that

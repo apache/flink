@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import static java.util.Collections.emptyMap;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.CONSUMER_CONFIG_PREFIX;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.SOURCE_CONFIG_PREFIX;
 
@@ -202,6 +203,19 @@ public final class PulsarSourceOptions {
                                     .linebreak()
                                     .text(
                                             "In this case, a single consumer will still receive all the keys, but they may be coming in different orders.")
+                                    .build());
+
+    public static final ConfigOption<Boolean> PULSAR_ENABLE_SOURCE_METRICS =
+            ConfigOptions.key(SOURCE_CONFIG_PREFIX + "enableMetrics")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The metrics from Pulsar Consumer are only exposed if you enable this option.")
+                                    .text(
+                                            "You should set the %s to a positive value if you enable this option.",
+                                            code(PULSAR_STATS_INTERVAL_SECONDS.key()))
                                     .build());
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -583,13 +597,6 @@ public final class PulsarSourceOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("If enabled, the consumer will automatically retry messages.");
-
-    public static final ConfigOption<Integer> PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "autoUpdatePartitionsIntervalSeconds")
-                    .intType()
-                    .defaultValue(60)
-                    .withDescription(
-                            "The interval (in seconds) of updating partitions. This only works if autoUpdatePartitions is enabled.");
 
     public static final ConfigOption<Boolean> PULSAR_REPLICATE_SUBSCRIPTION_STATE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "replicateSubscriptionState")

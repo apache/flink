@@ -101,7 +101,7 @@ public class FatalExceptionClassifierTest {
         assertThat(caughtException.get())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Buffer manipulation calculations resulted in a reference exception")
-                .getCause()
+                .cause()
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("Base NullPointerException");
     }
@@ -131,7 +131,7 @@ public class FatalExceptionClassifierTest {
         assertThat(caughtException)
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Buffer manipulation calculations resulted in a calculation exception")
-                .getCause()
+                .cause()
                 .isInstanceOf(ArithmeticException.class)
                 .hasMessage("Base arithmetic exception");
     }

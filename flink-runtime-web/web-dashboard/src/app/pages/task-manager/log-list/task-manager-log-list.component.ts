@@ -14,11 +14,13 @@
  *   limitations under the License.
  */
 
+import { DecimalPipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLinkWithHref } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
+import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
 import { TaskManagerLogItem } from '@flink-runtime-web/interfaces';
 import {
   TASK_MANAGER_MODULE_CONFIG,
@@ -26,6 +28,7 @@ import {
   TaskManagerModuleConfig
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { TaskManagerService } from '@flink-runtime-web/services';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 import { typeDefinition } from '../../../utils/strong-type';
 
@@ -33,7 +36,9 @@ import { typeDefinition } from '../../../utils/strong-type';
   selector: 'flink-task-manager-log-list',
   templateUrl: './task-manager-log-list.component.html',
   styleUrls: ['./task-manager-log-list.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
+  standalone: true
 })
 export class TaskManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: TaskManagerLogItem): string => log.name;

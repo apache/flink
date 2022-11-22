@@ -16,22 +16,53 @@
  * limitations under the License.
  */
 
+import { DatePipe, NgForOf, NgIf } from '@angular/common';
 import { HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, UntypedFormBuilder, UntypedFormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
+import { DagreComponent } from '@flink-runtime-web/components/dagre/dagre.component';
+import { FileReadDirective } from '@flink-runtime-web/components/file-read.directive';
 import { JarFilesItem } from '@flink-runtime-web/interfaces';
 import { JarService, StatusService } from '@flink-runtime-web/services';
-import { DagreComponent } from '@flink-runtime-web/share/common/dagre/dagre.component';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzDrawerModule } from 'ng-zorro-antd/drawer';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+import { NzProgressModule } from 'ng-zorro-antd/progress';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 @Component({
   selector: 'flink-submit',
   templateUrl: './submit.component.html',
   styleUrls: ['./submit.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    NzCardModule,
+    NzTableModule,
+    NgIf,
+    NgForOf,
+    DatePipe,
+    NzPopconfirmModule,
+    NzFormModule,
+    NzInputModule,
+    ReactiveFormsModule,
+    NzIconModule,
+    NzCheckboxModule,
+    NzButtonModule,
+    FileReadDirective,
+    NzProgressModule,
+    NzDrawerModule,
+    DagreComponent
+  ],
+  standalone: true
 })
 export class SubmitComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: JarFilesItem): string => node.id;
@@ -44,7 +75,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   public noAccess = false;
   public isUploading = false;
   public progress = 0;
-  public validateForm: FormGroup;
+  public validateForm: UntypedFormGroup;
   public planVisible = false;
 
   @ViewChild(DagreComponent, { static: true }) private readonly dagreComponent: DagreComponent;
@@ -54,7 +85,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   constructor(
     private readonly jarService: JarService,
     private readonly statusService: StatusService,
-    private readonly fb: FormBuilder,
+    private readonly fb: UntypedFormBuilder,
     private readonly router: Router,
     private readonly cdr: ChangeDetectorRef
   ) {}

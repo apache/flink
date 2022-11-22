@@ -313,8 +313,9 @@ public class CheckpointStatsTrackerTest {
                                 CheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC,
                                 CheckpointStatsTracker
-                                        .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC)));
-        assertEquals(11, registeredGaugeNames.size());
+                                        .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC,
+                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ID_METRIC)));
+        assertEquals(12, registeredGaugeNames.size());
     }
 
     /**
@@ -345,7 +346,7 @@ public class CheckpointStatsTrackerTest {
         CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
-        assertEquals(11, registeredGauges.size());
+        assertEquals(12, registeredGauges.size());
 
         // Check initial values
         Gauge<Long> numCheckpoints =
@@ -395,6 +396,10 @@ public class CheckpointStatsTrackerTest {
                         registeredGauges.get(
                                 CheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC);
+        Gauge<Long> latestCompletedId =
+                (Gauge<Long>)
+                        registeredGauges.get(
+                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ID_METRIC);
 
         assertEquals(Long.valueOf(0), numCheckpoints.getValue());
         assertEquals(Integer.valueOf(0), numInProgressCheckpoints.getValue());
@@ -407,6 +412,7 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(-1), latestProcessedData.getValue());
         assertEquals(Long.valueOf(-1), latestPersistedData.getValue());
         assertEquals("n/a", latestCompletedExternalPath.getValue());
+        assertEquals(Long.valueOf(-1), latestCompletedId.getValue());
 
         PendingCheckpointStats pending =
                 stats.reportPendingCheckpoint(
@@ -461,6 +467,7 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(persistedData), latestPersistedData.getValue());
         assertEquals(Long.valueOf(ackTimestamp), latestCompletedDuration.getValue());
         assertEquals(externalPath, latestCompletedExternalPath.getValue());
+        assertEquals(Long.valueOf(0), latestCompletedId.getValue());
 
         // Check failed
         PendingCheckpointStats nextPending =
@@ -479,6 +486,7 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Integer.valueOf(0), numInProgressCheckpoints.getValue());
         assertEquals(Long.valueOf(1), numCompletedCheckpoints.getValue());
         assertEquals(Long.valueOf(1), numFailedCheckpoints.getValue()); // one failed now
+        assertEquals(Long.valueOf(0), latestCompletedId.getValue());
 
         // Check restore
         long restoreTimestamp = 183419283L;
@@ -495,6 +503,7 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Integer.valueOf(0), numInProgressCheckpoints.getValue());
         assertEquals(Long.valueOf(1), numCompletedCheckpoints.getValue());
         assertEquals(Long.valueOf(1), numFailedCheckpoints.getValue());
+        assertEquals(Long.valueOf(0), latestCompletedId.getValue());
 
         assertEquals(Long.valueOf(restoreTimestamp), latestRestoreTimestamp.getValue());
 
@@ -509,6 +518,7 @@ public class CheckpointStatsTrackerTest {
 
         thirdPending.reportSubtaskStats(jobVertexID, subtaskStats);
         stats.reportCompletedCheckpoint(thirdPending.toCompletedCheckpointStats(null));
+        assertEquals(Long.valueOf(2), latestCompletedId.getValue());
 
         // Verify external path is "n/a", because internal checkpoint won't generate external path.
         assertEquals("n/a", latestCompletedExternalPath.getValue());

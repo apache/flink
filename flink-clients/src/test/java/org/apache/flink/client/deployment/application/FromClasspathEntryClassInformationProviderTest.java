@@ -58,10 +58,6 @@ class FromClasspathEntryClassInformationProviderTest {
     ClasspathProviderExtension testJobEntryClassClasspathProvider =
             ClasspathProviderExtension.createWithTestJobOnly();
 
-    @RegisterExtension
-    ClasspathProviderExtension onlyTextFileClasspathProvider =
-            ClasspathProviderExtension.createWithTextFileOnly();
-
     @Test
     void testJobClassOnUserClasspathWithExplicitJobClassName() throws IOException, FlinkException {
         FromClasspathEntryClassInformationProvider testInstance =
@@ -72,19 +68,6 @@ class FromClasspathEntryClassInformationProviderTest {
         assertThat(testInstance.getJobClassName())
                 .contains(singleEntryClassClasspathProvider.getJobClassName());
         assertThat(testInstance.getJarFile()).isEmpty();
-    }
-
-    @Test
-    void testJobClassOnUserClasspathWithOnlyTestFileOnClasspath() {
-        assertThatThrownBy(
-                        () -> {
-                            // we want to check that the right exception is thrown if the user
-                            // classpath is empty
-                            FromClasspathEntryClassInformationProvider.create(
-                                    "SomeJobClassName",
-                                    onlyTextFileClasspathProvider.getURLUserClasspath());
-                        })
-                .isInstanceOf(FlinkException.class);
     }
 
     @Test

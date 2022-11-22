@@ -67,7 +67,7 @@ public enum TopicRoutingMode implements DescribedEnum {
                     code(TopicRouter.class.getSimpleName())));
 
     private final String name;
-    private final InlineElement desc;
+    private final transient InlineElement desc;
 
     TopicRoutingMode(String name, InlineElement desc) {
         this.name = name;

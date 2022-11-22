@@ -51,6 +51,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -98,7 +99,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSink() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "tstopic_" + format;
+        final String topic = "tstopic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -204,7 +205,10 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         List<String> currencies = Arrays.asList("Euro", "Dollar", "Yen", "Dummy");
         List<String> topics =
                 currencies.stream()
-                        .map(currency -> String.format("%s_%s", currency, format))
+                        .map(
+                                currency ->
+                                        String.format(
+                                                "%s_%s_%s", currency, format, UUID.randomUUID()))
                         .collect(Collectors.toList());
         // Because kafka connector currently doesn't support write data into multiple topic
         // together,
@@ -279,7 +283,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSinkWithMetadata() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "metadata_topic_" + format;
+        final String topic = "metadata_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -371,7 +375,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSinkWithKeyAndPartialValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "key_partial_value_topic_" + format;
+        final String topic = "key_partial_value_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -452,7 +456,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "key_full_value_topic_" + format;
+        final String topic = "key_full_value_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -536,10 +540,11 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String orderTopic = "temporal_join_topic_order_" + format;
+        final String orderTopic = "temporal_join_topic_order_" + format + "_" + UUID.randomUUID();
         createTestTopic(orderTopic, 1, 1);
 
-        final String productTopic = "temporal_join_topic_product_" + format;
+        final String productTopic =
+                "temporal_join_topic_product_" + format + "_" + UUID.randomUUID();
         createTestTopic(productTopic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -672,7 +677,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testPerPartitionWatermarkKafka() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "per_partition_watermark_topic_" + format;
+        final String topic = "per_partition_watermark_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 4, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -762,7 +767,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testPerPartitionWatermarkWithIdleSource() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "idle_partition_watermark_topic_" + format;
+        final String topic = "idle_partition_watermark_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 4, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -975,7 +980,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // in order to make sure the topic can be created.
         final String resetStrategy = "none";
         final String tableName = resetStrategy + "Table";
-        final String topic = "groupOffset_" + format;
+        final String topic = "groupOffset_" + format + "_" + UUID.randomUUID();
         String groupId = resetStrategy + (new Random()).nextInt();
 
         TableResult tableResult = null;

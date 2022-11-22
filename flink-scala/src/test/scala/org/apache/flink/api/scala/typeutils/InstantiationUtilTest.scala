@@ -64,7 +64,7 @@ class InstantiationUtilTest extends TestLogger {
 
     InstantiationUtil.serializeObject(baos, instance)
 
-    InstantiationUtil.deserializeObject(baos.toByteArray, getClass.getClassLoader, true)
+    InstantiationUtil.deserializeObject(baos.toByteArray, getClass.getClassLoader)
   }
 }
 

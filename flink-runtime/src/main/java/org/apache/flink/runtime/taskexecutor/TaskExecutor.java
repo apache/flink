@@ -93,6 +93,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenUpdater;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
@@ -268,7 +269,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Nullable private UUID currentRegistrationTimeoutId;
 
-    private Map<JobID, Collection<CompletableFuture<ExecutionState>>>
+    private final Map<JobID, Collection<CompletableFuture<ExecutionState>>>
             taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
 
     private final ThreadInfoSampleService threadInfoSampleService;
@@ -1315,6 +1316,32 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         return CompletableFuture.completedFuture(ThreadDumpInfo.dumpAndCreate(stacktraceMaxDepth));
     }
 
+    @Override
+    public CompletableFuture<Acknowledge> updateDelegationTokens(
+            ResourceManagerId resourceManagerId, byte[] tokens) {
+        log.info(
+                "Receive update delegation tokens from resource manager with leader id {}.",
+                resourceManagerId);
+
+        if (!isConnectedToResourceManager(resourceManagerId)) {
+            final String message =
+                    String.format(
+                            "TaskManager is not connected to the resource manager %s.",
+                            resourceManagerId);
+            log.debug(message);
+            return FutureUtils.completedExceptionally(new TaskManagerException(message));
+        }
+
+        try {
+            DelegationTokenUpdater.addCurrentUserCredentials(tokens);
+            return CompletableFuture.completedFuture(Acknowledge.get());
+        } catch (Throwable t) {
+            log.error("Could not update delegation tokens.", t);
+            ExceptionUtils.rethrowIfFatalError(t);
+            return FutureUtils.completedExceptionally(t);
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Internal resource manager connection methods
     // ------------------------------------------------------------------------
@@ -2341,6 +2368,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final InstanceID taskExecutorRegistrationId = success.getRegistrationId();
             final ClusterInformation clusterInformation = success.getClusterInformation();
             final ResourceManagerGateway resourceManagerGateway = connection.getTargetGateway();
+
+            if (success.getInitialTokens() != null) {
+                try {
+                    log.info("Receive initial delegation tokens from resource manager");
+                    DelegationTokenUpdater.addCurrentUserCredentials(success.getInitialTokens());
+                } catch (Throwable t) {
+                    log.error("Could not update delegation tokens.", t);
+                    ExceptionUtils.rethrowIfFatalError(t);
+                }
+            }
 
             runAsync(
                     () -> {

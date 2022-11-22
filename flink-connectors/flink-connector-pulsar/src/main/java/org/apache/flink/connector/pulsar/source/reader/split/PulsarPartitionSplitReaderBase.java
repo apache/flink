@@ -28,15 +28,17 @@ import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.StopCondition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
-import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
-import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessageCollector;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -52,27 +54,40 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.MSG_NUM_IN_RECEIVER_QUEUE;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.NUM_ACKS_FAILED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.NUM_ACKS_SENT;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.NUM_BATCH_RECEIVE_FAILED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.NUM_BYTES_RECEIVED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.NUM_MSGS_RECEIVED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.NUM_RECEIVE_FAILED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.PULSAR_CONSUMER_METRIC_NAME;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.RATE_BYTES_RECEIVED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.RATE_MSGS_RECEIVED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.TOTAL_ACKS_FAILED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.TOTAL_ACKS_SENT;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.TOTAL_BATCH_RECEIVED_FAILED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.TOTAL_BYTES_RECEIVED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.TOTAL_MSGS_RECEIVED;
+import static org.apache.flink.connector.pulsar.common.metrics.MetricNames.TOTAL_RECEIVED_FAILED;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode.JOIN;
 import static org.apache.pulsar.client.api.KeySharedPolicy.stickyHashRange;
 
-/**
- * The common partition split reader.
- *
- * @param <OUT> the type of the pulsar source message that would be serialized to downstream.
- */
-abstract class PulsarPartitionSplitReaderBase<OUT>
-        implements SplitReader<PulsarMessage<OUT>, PulsarPartitionSplit> {
+/** The common partition split reader. */
+abstract class PulsarPartitionSplitReaderBase
+        implements SplitReader<Message<byte[]>, PulsarPartitionSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarPartitionSplitReaderBase.class);
 
     protected final PulsarClient pulsarClient;
     protected final PulsarAdmin pulsarAdmin;
     protected final SourceConfiguration sourceConfiguration;
-    protected final PulsarDeserializationSchema<OUT> deserializationSchema;
+    protected final SourceReaderMetricGroup metricGroup;
 
     protected Consumer<byte[]> pulsarConsumer;
     protected PulsarPartitionSplit registeredSplit;
@@ -81,16 +96,16 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
-            PulsarDeserializationSchema<OUT> deserializationSchema) {
+            SourceReaderMetricGroup metricGroup) {
         this.pulsarClient = pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.sourceConfiguration = sourceConfiguration;
-        this.deserializationSchema = deserializationSchema;
+        this.metricGroup = metricGroup;
     }
 
     @Override
-    public RecordsWithSplitIds<PulsarMessage<OUT>> fetch() throws IOException {
-        RecordsBySplits.Builder<PulsarMessage<OUT>> builder = new RecordsBySplits.Builder<>();
+    public RecordsWithSplitIds<Message<byte[]>> fetch() throws IOException {
+        RecordsBySplits.Builder<Message<byte[]>> builder = new RecordsBySplits.Builder<>();
 
         // Return when no split registered to this reader.
         if (pulsarConsumer == null || registeredSplit == null) {
@@ -99,10 +114,9 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         StopCursor stopCursor = registeredSplit.getStopCursor();
         String splitId = registeredSplit.splitId();
-        PulsarMessageCollector<OUT> collector = new PulsarMessageCollector<>(splitId, builder);
         Deadline deadline = Deadline.fromNow(sourceConfiguration.getMaxFetchTime());
 
-        // Consume message from pulsar until it was woke up by flink reader.
+        // Consume messages from pulsar until it was woken up by flink reader.
         for (int messageNum = 0;
                 messageNum < sourceConfiguration.getMaxFetchRecords() && deadline.hasTimeLeft();
                 messageNum++) {
@@ -116,11 +130,9 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
                 StopCondition condition = stopCursor.shouldStop(message);
 
                 if (condition == StopCondition.CONTINUE || condition == StopCondition.EXACTLY) {
-                    // Deserialize message.
-                    collector.setMessage(message);
-                    deserializationSchema.deserialize(message, collector);
-
-                    // Acknowledge message if need.
+                    // Collect original message.
+                    builder.add(splitId, message);
+                    // Acknowledge the message if you need.
                     finishedPollMessage(message);
                 }
 
@@ -252,6 +264,43 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         }
 
         // Create the consumer configuration by using common utils.
-        return sneakyClient(consumerBuilder::subscribe);
+        Consumer<byte[]> consumer = sneakyClient(consumerBuilder::subscribe);
+
+        // Exposing the consumer metrics.
+        exposeConsumerMetrics(consumer);
+
+        return consumer;
+    }
+
+    private void exposeConsumerMetrics(Consumer<byte[]> consumer) {
+        if (sourceConfiguration.isEnableMetrics()) {
+            String consumerIdentity = consumer.getConsumerName();
+            if (Strings.isNullOrEmpty(consumerIdentity)) {
+                consumerIdentity = UUID.randomUUID().toString();
+            }
+
+            MetricGroup group =
+                    metricGroup
+                            .addGroup(PULSAR_CONSUMER_METRIC_NAME)
+                            .addGroup(consumer.getTopic())
+                            .addGroup(consumerIdentity);
+            ConsumerStats stats = consumer.getStats();
+
+            group.gauge(NUM_MSGS_RECEIVED, stats::getNumMsgsReceived);
+            group.gauge(NUM_BYTES_RECEIVED, stats::getNumBytesReceived);
+            group.gauge(RATE_MSGS_RECEIVED, stats::getRateMsgsReceived);
+            group.gauge(RATE_BYTES_RECEIVED, stats::getRateBytesReceived);
+            group.gauge(NUM_ACKS_SENT, stats::getNumAcksSent);
+            group.gauge(NUM_ACKS_FAILED, stats::getNumAcksFailed);
+            group.gauge(NUM_RECEIVE_FAILED, stats::getNumReceiveFailed);
+            group.gauge(NUM_BATCH_RECEIVE_FAILED, stats::getNumBatchReceiveFailed);
+            group.gauge(TOTAL_MSGS_RECEIVED, stats::getTotalMsgsReceived);
+            group.gauge(TOTAL_BYTES_RECEIVED, stats::getTotalBytesReceived);
+            group.gauge(TOTAL_RECEIVED_FAILED, stats::getTotalReceivedFailed);
+            group.gauge(TOTAL_BATCH_RECEIVED_FAILED, stats::getTotaBatchReceivedFailed);
+            group.gauge(TOTAL_ACKS_SENT, stats::getTotalAcksSent);
+            group.gauge(TOTAL_ACKS_FAILED, stats::getTotalAcksFailed);
+            group.gauge(MSG_NUM_IN_RECEIVER_QUEUE, stats::getMsgNumInReceiverQueue);
+        }
     }
 }

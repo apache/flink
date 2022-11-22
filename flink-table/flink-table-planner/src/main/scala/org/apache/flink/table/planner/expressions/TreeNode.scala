@@ -81,7 +81,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    * children change.
    */
   private[flink] def makeCopy(newArgs: Array[AnyRef]): A = {
-    val ctors = getClass.getConstructors.filter(_.getParameterTypes.length > 0)
+    val ctors = getClass.getConstructors.filter(_.getParameterCount > 0)
     if (ctors.isEmpty) {
       throw new RuntimeException(s"No valid constructor for ${getClass.getSimpleName}")
     }
@@ -89,7 +89,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
     val defaultCtor = ctors
       .find {
         ctor =>
-          if (ctor.getParameterTypes.length != newArgs.length) {
+          if (ctor.getParameterCount != newArgs.length) {
             false
           } else if (newArgs.contains(null)) {
             false
@@ -98,7 +98,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
             TypeInfoCheckUtils.isAssignable(argsClasses, ctor.getParameterTypes)
           }
       }
-      .getOrElse(ctors.maxBy(_.getParameterTypes.length))
+      .getOrElse(ctors.maxBy(_.getParameterCount))
 
     try {
       defaultCtor.newInstance(newArgs: _*).asInstanceOf[A]

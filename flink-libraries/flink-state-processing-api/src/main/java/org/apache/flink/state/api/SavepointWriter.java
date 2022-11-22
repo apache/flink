@@ -36,6 +36,7 @@ import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.api.runtime.StateBootstrapTransformationWithID;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -48,6 +49,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
@@ -59,8 +61,16 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND
 @PublicEvolving
 public class SavepointWriter {
 
+    @Nullable private final StreamExecutionEnvironment executionEnvironment;
+
     private final Map<OperatorIdentifier, OperatorIdentifier> uidTransformationMap =
             new HashMap<>();
+
+    /** @deprecated use {@link #fromExistingSavepoint(StreamExecutionEnvironment, String)} */
+    @Deprecated
+    public static SavepointWriter fromExistingSavepoint(String path) throws IOException {
+        return new SavepointWriter(readSavepointMetadata(path), null, null);
+    }
 
     /**
      * Loads an existing savepoint. Useful if you want to modify or extend the state of an existing
@@ -69,25 +79,22 @@ public class SavepointWriter {
      *
      * @param path The path to an existing savepoint on disk.
      * @return A {@link SavepointWriter}.
-     * @see #fromExistingSavepoint(String, StateBackend)
+     * @see #fromExistingSavepoint(StreamExecutionEnvironment, String, StateBackend)
      * @see #withConfiguration(ConfigOption, Object)
      */
-    public static SavepointWriter fromExistingSavepoint(String path) throws IOException {
-        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
+    public static SavepointWriter fromExistingSavepoint(
+            StreamExecutionEnvironment executionEnvironment, String path) throws IOException {
+        return new SavepointWriter(readSavepointMetadata(path), null, executionEnvironment);
+    }
 
-        int maxParallelism =
-                metadata.getOperatorStates().stream()
-                        .map(OperatorState::getMaxParallelism)
-                        .max(Comparator.naturalOrder())
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Savepoint must contain at least one operator state."));
-
-        SavepointMetadataV2 savepointMetadata =
-                new SavepointMetadataV2(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
-        return new SavepointWriter(savepointMetadata, null);
+    /**
+     * @deprecated use {@link #fromExistingSavepoint(StreamExecutionEnvironment, String,
+     *     StateBackend)}
+     */
+    @Deprecated
+    public static SavepointWriter fromExistingSavepoint(String path, StateBackend stateBackend)
+            throws IOException {
+        return new SavepointWriter(readSavepointMetadata(path), stateBackend, null);
     }
 
     /**
@@ -99,8 +106,13 @@ public class SavepointWriter {
      * @return A {@link SavepointWriter}.
      * @see #fromExistingSavepoint(String)
      */
-    public static SavepointWriter fromExistingSavepoint(String path, StateBackend stateBackend)
+    public static SavepointWriter fromExistingSavepoint(
+            StreamExecutionEnvironment executionEnvironment, String path, StateBackend stateBackend)
             throws IOException {
+        return new SavepointWriter(readSavepointMetadata(path), stateBackend, executionEnvironment);
+    }
+
+    private static SavepointMetadataV2 readSavepointMetadata(String path) throws IOException {
         CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
 
         int maxParallelism =
@@ -112,10 +124,14 @@ public class SavepointWriter {
                                         new RuntimeException(
                                                 "Savepoint must contain at least one operator state."));
 
-        SavepointMetadataV2 savepointMetadata =
-                new SavepointMetadataV2(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
-        return new SavepointWriter(savepointMetadata, stateBackend);
+        return new SavepointMetadataV2(
+                maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+    }
+
+    /** @deprecated use {@link #newSavepoint(StreamExecutionEnvironment, int)} */
+    @Deprecated
+    public static SavepointWriter newSavepoint(int maxParallelism) {
+        return new SavepointWriter(createSavepointMetadata(maxParallelism), null, null);
     }
 
     /**
@@ -124,21 +140,19 @@ public class SavepointWriter {
      *
      * @param maxParallelism The max parallelism of the savepoint.
      * @return A {@link SavepointWriter}.
-     * @see #newSavepoint(StateBackend, int)
+     * @see #newSavepoint(StreamExecutionEnvironment, StateBackend, int)
      * @see #withConfiguration(ConfigOption, Object)
      */
-    public static SavepointWriter newSavepoint(int maxParallelism) {
-        Preconditions.checkArgument(
-                maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
-                "Maximum parallelism must be between 1 and "
-                        + UPPER_BOUND_MAX_PARALLELISM
-                        + ". Found: "
-                        + maxParallelism);
+    public static SavepointWriter newSavepoint(
+            StreamExecutionEnvironment executionEnvironment, int maxParallelism) {
+        return new SavepointWriter(
+                createSavepointMetadata(maxParallelism), null, executionEnvironment);
+    }
 
-        SavepointMetadataV2 metadata =
-                new SavepointMetadataV2(
-                        maxParallelism, Collections.emptyList(), Collections.emptyList());
-        return new SavepointWriter(metadata, null);
+    /** @deprecated use {@link #newSavepoint(StreamExecutionEnvironment, StateBackend, int)} */
+    @Deprecated
+    public static SavepointWriter newSavepoint(StateBackend stateBackend, int maxParallelism) {
+        return new SavepointWriter(createSavepointMetadata(maxParallelism), stateBackend, null);
     }
 
     /**
@@ -147,9 +161,17 @@ public class SavepointWriter {
      * @param stateBackend The state backend of the savepoint used for keyed state.
      * @param maxParallelism The max parallelism of the savepoint.
      * @return A {@link SavepointWriter}.
-     * @see #newSavepoint(int)
+     * @see #newSavepoint(StreamExecutionEnvironment, int)
      */
-    public static SavepointWriter newSavepoint(StateBackend stateBackend, int maxParallelism) {
+    public static SavepointWriter newSavepoint(
+            StreamExecutionEnvironment executionEnvironment,
+            StateBackend stateBackend,
+            int maxParallelism) {
+        return new SavepointWriter(
+                createSavepointMetadata(maxParallelism), stateBackend, executionEnvironment);
+    }
+
+    private static SavepointMetadataV2 createSavepointMetadata(int maxParallelism) {
         Preconditions.checkArgument(
                 maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
                 "Maximum parallelism must be between 1 and "
@@ -157,10 +179,8 @@ public class SavepointWriter {
                         + ". Found: "
                         + maxParallelism);
 
-        SavepointMetadataV2 metadata =
-                new SavepointMetadataV2(
-                        maxParallelism, Collections.emptyList(), Collections.emptyList());
-        return new SavepointWriter(metadata, stateBackend);
+        return new SavepointMetadataV2(
+                maxParallelism, Collections.emptyList(), Collections.emptyList());
     }
 
     /**
@@ -174,11 +194,15 @@ public class SavepointWriter {
 
     private final Configuration configuration;
 
-    private SavepointWriter(SavepointMetadataV2 metadata, @Nullable StateBackend stateBackend) {
+    private SavepointWriter(
+            SavepointMetadataV2 metadata,
+            @Nullable StateBackend stateBackend,
+            @Nullable StreamExecutionEnvironment executionEnvironment) {
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
         this.metadata = metadata;
         this.stateBackend = stateBackend;
         this.configuration = new Configuration();
+        this.executionEnvironment = executionEnvironment;
     }
 
     /** @deprecated use {@link #removeOperator(OperatorIdentifier)} */
@@ -286,29 +310,28 @@ public class SavepointWriter {
 
         List<StateBootstrapTransformationWithID<?>> newOperatorTransformations =
                 metadata.getNewOperators();
-        DataStream<OperatorState> newOperatorStates =
+        Optional<DataStream<OperatorState>> newOperatorStates =
                 writeOperatorStates(newOperatorTransformations, configuration, savepointPath);
+
+        if (executionEnvironment == null && !newOperatorStates.isPresent()) {
+            throw new IllegalStateException(
+                    "Savepoint must contain at least one operator if no execution environment was provided.");
+        }
 
         List<OperatorState> existingOperators = metadata.getExistingOperators();
 
-        DataStream<OperatorState> finalOperatorStates;
-        if (existingOperators.isEmpty()) {
-            finalOperatorStates = newOperatorStates;
-        } else {
-            DataStream<OperatorState> existingOperatorStates =
-                    newOperatorStates
-                            .getExecutionEnvironment()
-                            .fromCollection(existingOperators)
-                            .name("existingOperatorStates");
-
-            existingOperatorStates
-                    .flatMap(new StatePathExtractor())
-                    .setParallelism(1)
-                    .addSink(new OutputFormatSinkFunction<>(new FileCopyFunction(path)));
-
-            finalOperatorStates = newOperatorStates.union(existingOperatorStates);
+        if (!newOperatorStates.isPresent() && existingOperators.isEmpty()) {
+            throw new IllegalStateException(
+                    "Savepoint must contain at least one operator to be created.");
         }
-        finalOperatorStates
+
+        getFinalOperatorStates(
+                        executionEnvironment != null
+                                ? executionEnvironment
+                                : newOperatorStates.get().getExecutionEnvironment(),
+                        existingOperators,
+                        newOperatorStates.orElse(null),
+                        path)
                 .transform(
                         "reduce(OperatorState)",
                         TypeInformation.of(CheckpointMetadata.class),
@@ -322,7 +345,31 @@ public class SavepointWriter {
                 .name(path);
     }
 
-    private DataStream<OperatorState> writeOperatorStates(
+    private static DataStream<OperatorState> getFinalOperatorStates(
+            StreamExecutionEnvironment executionEnvironment,
+            List<OperatorState> existingOperators,
+            @Nullable DataStream<OperatorState> newOperatorStates,
+            String path) {
+        if (existingOperators.isEmpty()) {
+            return newOperatorStates;
+        }
+
+        DataStream<OperatorState> existingOperatorStates =
+                executionEnvironment
+                        .fromCollection(existingOperators)
+                        .name("existingOperatorStates");
+
+        existingOperatorStates
+                .flatMap(new StatePathExtractor())
+                .setParallelism(1)
+                .addSink(new OutputFormatSinkFunction<>(new FileCopyFunction(path)));
+
+        return newOperatorStates != null
+                ? newOperatorStates.union(existingOperatorStates)
+                : existingOperatorStates;
+    }
+
+    private Optional<DataStream<OperatorState>> writeOperatorStates(
             List<StateBootstrapTransformationWithID<?>> newOperatorStates,
             Configuration config,
             Path savepointWritePath) {
@@ -337,11 +384,7 @@ public class SavepointWriter {
                                                 config,
                                                 metadata.getMaxParallelism(),
                                                 savepointWritePath))
-                .reduce(DataStream::union)
-                .orElseThrow(
-                        () ->
-                                new IllegalStateException(
-                                        "Savepoint must contain at least one operator"));
+                .reduce(DataStream::union);
     }
 
     private static class CheckpointMetadataCheckpointMetadataMapFunction

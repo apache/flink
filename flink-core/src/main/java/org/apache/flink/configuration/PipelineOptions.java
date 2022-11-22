@@ -95,7 +95,7 @@ public class PipelineOptions {
     public static final ConfigOption<Duration> AUTO_WATERMARK_INTERVAL =
             key("pipeline.auto-watermark-interval")
                     .durationType()
-                    .defaultValue(Duration.ZERO)
+                    .defaultValue(Duration.ofMillis(200))
                     .withDescription(
                             "The interval of the automatic watermark emission. Watermarks are used throughout"
                                     + " the streaming system to keep track of the progress of time. They are used, for example,"

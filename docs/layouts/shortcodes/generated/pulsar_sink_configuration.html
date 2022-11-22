@@ -15,16 +15,16 @@
             <td>Optional delivery guarantee when committing.<br /><br />Possible values:<ul><li>"exactly-once": Records are only delivered exactly-once also under failover scenarios. To build a complete exactly-once pipeline is required that the source and sink support exactly-once and are properly configured.</li><li>"at-least-once": Records are ensured to be delivered but it may happen that the same record is delivered multiple times. Usually, this guarantee is faster than the exactly-once delivery.</li><li>"none": Records are delivered on a best effort basis. It is often the fastest way to process records but it may happen that records are lost or duplicated.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>pulsar.sink.enableMetrics</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>The metrics from Pulsar Producer are only exposed if you enable this option.You should set the <code class="highlighter-rouge">pulsar.client.statsIntervalSeconds</code> to a positive value if you enable this option.</td>
+        </tr>
+        <tr>
             <td><h5>pulsar.sink.enableSchemaEvolution</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If you enable this option and use PulsarSerializationSchema.pulsarSchema(), we would consume and deserialize the message by using Pulsar's <code class="highlighter-rouge">Schema</code>.</td>
-        </tr>
-        <tr>
-            <td><h5>pulsar.sink.maxPendingMessages</h5></td>
-            <td style="word-wrap: break-word;">1000</td>
-            <td>Integer</td>
-            <td>The maximum number of pending messages in one sink parallelism.</td>
         </tr>
         <tr>
             <td><h5>pulsar.sink.maxRecommitTimes</h5></td>

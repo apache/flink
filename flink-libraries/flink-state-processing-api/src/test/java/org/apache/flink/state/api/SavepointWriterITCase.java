@@ -123,8 +123,8 @@ public class SavepointWriterITCase extends AbstractTestBase {
 
         SavepointWriter writer =
                 backend == null
-                        ? SavepointWriter.newSavepoint(128)
-                        : SavepointWriter.newSavepoint(backend, 128);
+                        ? SavepointWriter.newSavepoint(env, 128)
+                        : SavepointWriter.newSavepoint(env, backend, 128);
 
         writer.withOperator(OperatorIdentifier.forUid(ACCOUNT_UID), transformation)
                 .withOperator(getUidHashFromUid(CURRENCY_UID), broadcastTransformation)
@@ -175,8 +175,8 @@ public class SavepointWriterITCase extends AbstractTestBase {
 
         SavepointWriter writer =
                 backend == null
-                        ? SavepointWriter.fromExistingSavepoint(savepointPath)
-                        : SavepointWriter.fromExistingSavepoint(savepointPath, backend);
+                        ? SavepointWriter.fromExistingSavepoint(env, savepointPath)
+                        : SavepointWriter.fromExistingSavepoint(env, savepointPath, backend);
 
         writer.removeOperator(OperatorIdentifier.forUid(CURRENCY_UID))
                 .withOperator(getUidHashFromUid(MODIFY_UID), transformation)

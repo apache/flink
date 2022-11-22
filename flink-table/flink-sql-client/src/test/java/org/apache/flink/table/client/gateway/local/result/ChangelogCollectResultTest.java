@@ -29,7 +29,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.stream.IntStream;
@@ -37,10 +37,10 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ChangelogCollectResult}. */
-public class ChangelogCollectResultTest {
+class ChangelogCollectResultTest {
 
     @Test
-    public void testRetrieveChanges() throws Exception {
+    void testRetrieveChanges() throws Exception {
         int totalCount = ChangelogCollectResult.CHANGE_RECORD_BUFFER_SIZE * 2;
         CloseableIterator<Row> data =
                 CloseableIterator.adapterForIterator(

@@ -116,7 +116,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.2.4</version>
+			<version>0.2.6</version>
 		</dependency>
 
 		<!-- Protobuf dependencies -->
@@ -282,8 +282,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-elasticsearch7</artifactId>
-			<!-- Intentionally use the 1.16-SNAPSHOT version until some release is complete -->
-			<version>1.16-SNAPSHOT</version>
+			<version>1.16.0</version>
 			<scope>test</scope>
 		</dependency>
 

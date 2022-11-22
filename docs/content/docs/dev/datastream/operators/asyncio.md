@@ -140,8 +140,8 @@ DataStream<Tuple2<String, String>> resultStream =
 // create an async retry strategy via utility class or a user defined strategy
 AsyncRetryStrategy asyncRetryStrategy =
 	new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 100L) // maxAttempts=3, fixedDelay=100ms
-		.retryIfResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
-		.retryIfException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+		.ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
+		.ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
 		.build();
 
 // apply the async I/O transformation with retry
@@ -185,7 +185,11 @@ val resultStream: DataStream[(String, String)] =
 
 // apply the async I/O transformation with retry
 // create an AsyncRetryStrategy
-val asyncRetryStrategy: AsyncRetryStrategy[OUT] = ...
+val asyncRetryStrategy: AsyncRetryStrategy[String] =
+  new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 100L) // maxAttempts=3, fixedDelay=100ms
+    .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
+    .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+    .build();
 
 // apply the async I/O transformation with retry
 val resultStream: DataStream[(String, String)] =

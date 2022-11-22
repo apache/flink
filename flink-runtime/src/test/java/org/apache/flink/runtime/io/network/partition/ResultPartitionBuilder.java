@@ -47,6 +47,8 @@ public class ResultPartitionBuilder {
 
     private int numTargetKeyGroups = 1;
 
+    private boolean isBroadcast = false;
+
     private ResultPartitionManager partitionManager = new ResultPartitionManager();
 
     private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
@@ -211,6 +213,11 @@ public class ResultPartitionBuilder {
         return this;
     }
 
+    public ResultPartitionBuilder setBroadcast(boolean broadcast) {
+        isBroadcast = broadcast;
+        return this;
+    }
+
     public ResultPartition build() {
         ResultPartitionFactory resultPartitionFactory =
                 new ResultPartitionFactory(
@@ -244,6 +251,7 @@ public class ResultPartitionBuilder {
                 partitionType,
                 numberOfSubpartitions,
                 numTargetKeyGroups,
+                isBroadcast,
                 factory);
     }
 }

@@ -38,7 +38,7 @@ public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOpera
 
     @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_16);
     }
 
     public AbstractKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {

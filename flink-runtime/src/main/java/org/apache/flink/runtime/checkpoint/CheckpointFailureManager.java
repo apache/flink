@@ -203,8 +203,13 @@ public class CheckpointFailureManager {
             checkFailureCounter(exception, checkpointId);
             if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
                 clearCount();
-                errorHandler.accept(
-                        new FlinkRuntimeException(EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE));
+                String exceptionMessage =
+                        String.format(
+                                "%s The latest checkpoint failed due to %s, view the Checkpoint History tab"
+                                        + " or the Job Manager log to find out why continuous checkpoints failed.",
+                                EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE,
+                                exception.getCheckpointFailureReason().message());
+                errorHandler.accept(new FlinkRuntimeException(exceptionMessage));
             }
         }
     }

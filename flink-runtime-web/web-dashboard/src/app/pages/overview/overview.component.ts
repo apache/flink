@@ -21,14 +21,18 @@ import { Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
 import { mergeMap, share, takeUntil } from 'rxjs/operators';
 
+import { JobListComponent } from '@flink-runtime-web/components/job-list/job-list.component';
 import { JobsItem } from '@flink-runtime-web/interfaces';
+import { OverviewStatisticComponent } from '@flink-runtime-web/pages/overview/statistic/overview-statistic.component';
 import { JobService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview',
   templateUrl: './overview.component.html',
   styleUrls: ['./overview.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [OverviewStatisticComponent, JobListComponent],
+  standalone: true
 })
 export class OverviewComponent implements OnInit, OnDestroy {
   public jobData$: Observable<JobsItem[]>;

@@ -19,6 +19,7 @@ package org.apache.flink.tools.ci.suffixcheck;
 
 import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
+import org.apache.flink.tools.ci.utils.shared.DependencyTree;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +99,7 @@ public class ScalaSuffixChecker {
         final Set<String> cleanModules = new HashSet<>();
         final Set<String> infectedModules = new HashSet<>();
 
-        final Map<String, Set<Dependency>> dependenciesByModule =
+        final Map<String, DependencyTree> dependenciesByModule =
                 DependencyParser.parseDependencyTreeOutput(path);
 
         for (String module : dependenciesByModule.keySet()) {
@@ -108,7 +109,8 @@ public class ScalaSuffixChecker {
             }
             LOG.trace("Processing module '{}'.", moduleName);
 
-            final Collection<Dependency> dependencies = dependenciesByModule.get(module);
+            final List<Dependency> dependencies =
+                    dependenciesByModule.get(module).flatten().collect(Collectors.toList());
 
             boolean infected = false;
             for (Dependency dependency : dependencies) {

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, Input, OnInit, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import { filter, mergeMap, take, takeUntil } from 'rxjs/operators';
@@ -24,12 +25,16 @@ import { JobVertexSubTask } from '@flink-runtime-web/interfaces';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobOverviewSubtasksTableAction } from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
 import { TaskManagerService } from '@flink-runtime-web/services';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @Component({
   selector: 'flink-completed-job-subtasks-table-action',
   templateUrl: './completed-job-subtasks-table-action.component.html',
   styleUrls: ['./completed-job-subtasks-table-action.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgIf, NzDropDownModule, NzIconModule],
+  standalone: true
 })
 export class CompletedJobSubtasksTableActionComponent implements OnInit, OnDestroy, JobOverviewSubtasksTableAction {
   @Input() subtask?: JobVertexSubTask;

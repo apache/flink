@@ -26,12 +26,12 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.connector.pulsar.testutils.function.ControlSource;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.sink.PulsarSinkTestContext;
-import org.apache.flink.connector.pulsar.testutils.sink.PulsarSinkTestSuiteBase;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
+import org.apache.flink.connector.testframe.testsuites.SinkTestSuiteBase;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -51,6 +51,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.flinkSchema;
+import static org.apache.pulsar.client.api.Schema.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for using PulsarSink writing to a Pulsar cluster. */
@@ -59,7 +60,7 @@ class PulsarSinkITCase {
 
     /** Integration test based on connector testing framework. */
     @Nested
-    class IntegrationTest extends PulsarSinkTestSuiteBase {
+    class IntegrationTest extends SinkTestSuiteBase<String> {
 
         @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
@@ -104,6 +105,7 @@ class PulsarSinkITCase {
             // A random topic with partition 4.
             String topic = randomAlphabetic(8);
             operator().createTopic(topic, 4);
+            operator().createSchema(topic, STRING);
             int counts = ThreadLocalRandom.current().nextInt(100, 200);
 
             ControlSource source =

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
@@ -45,9 +46,14 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 && ((StreamSource) operator).getUserFunction()
                         instanceof InputFormatSourceFunction) {
             return new SimpleInputFormatOperatorFactory<OUT>((StreamSource) operator);
-        } else if (operator instanceof StreamSink
-                && ((StreamSink) operator).getUserFunction() instanceof OutputFormatSinkFunction) {
-            return new SimpleOutputFormatOperatorFactory<>((StreamSink) operator);
+        } else if (operator instanceof UserFunctionProvider
+                && (((UserFunctionProvider<Function>) operator).getUserFunction()
+                        instanceof OutputFormatSinkFunction)) {
+            return new SimpleOutputFormatOperatorFactory<>(
+                    (((OutputFormatSinkFunction<?>)
+                                    ((UserFunctionProvider<Function>) operator).getUserFunction())
+                            .getFormat()),
+                    operator);
         } else if (operator instanceof AbstractUdfStreamOperator) {
             return new SimpleUdfStreamOperatorFactory<OUT>((AbstractUdfStreamOperator) operator);
         } else {

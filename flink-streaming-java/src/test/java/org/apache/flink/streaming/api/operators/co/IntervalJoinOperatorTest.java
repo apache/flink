@@ -34,6 +34,7 @@ import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
@@ -558,6 +559,34 @@ public class IntervalJoinOperatorTest {
                 .close();
     }
 
+    @Test
+    public void testLateData() throws Exception {
+        OutputTag<TestElem> leftLateTag = new OutputTag<TestElem>("left_late") {};
+        OutputTag<TestElem> rightLateTag = new OutputTag<TestElem>("right_late") {};
+        setupHarness(-1, true, 1, true, leftLateTag, rightLateTag)
+                .processElement1(3)
+                .processElement2(3)
+                .processWatermark1(3)
+                .processWatermark2(3)
+                .processElement1(4)
+                .processElement2(4)
+                .processElement1(1) // the left side element is late
+                .processElement2(2) // the right side element is late
+                .processElement1(5)
+                .processElement2(5)
+                .andExpect(
+                        streamRecordOf(3, 3),
+                        streamRecordOf(3, 4),
+                        streamRecordOf(4, 3),
+                        streamRecordOf(4, 4),
+                        streamRecordOf(4, 5),
+                        streamRecordOf(5, 4),
+                        streamRecordOf(5, 5))
+                .expectLateRecords(leftLateTag, createStreamRecord(1, "lhs"))
+                .expectLateRecords(rightLateTag, createStreamRecord(2, "rhs"))
+                .close();
+    }
+
     private void assertEmpty(MapState<Long, ?> state) throws Exception {
         boolean stateIsEmpty = Iterables.size(state.keys()) == 0;
         Assert.assertTrue("state not empty", stateIsEmpty);
@@ -581,9 +610,8 @@ public class IntervalJoinOperatorTest {
         Assert.assertEquals(message, ts.length, Iterables.size(state.keys()));
     }
 
-    private void assertOutput(
-            Iterable<StreamRecord<Tuple2<TestElem, TestElem>>> expectedOutput,
-            Queue<Object> actualOutput) {
+    private <T1, T2> void assertOutput(
+            Iterable<StreamRecord<T1>> expectedOutput, Queue<T2> actualOutput) {
 
         int actualSize =
                 actualOutput.stream()
@@ -596,7 +624,7 @@ public class IntervalJoinOperatorTest {
         Assert.assertEquals(
                 "Expected and actual size of stream records different", expectedSize, actualSize);
 
-        for (StreamRecord<Tuple2<TestElem, TestElem>> record : expectedOutput) {
+        for (StreamRecord<T1> record : expectedOutput) {
             Assert.assertTrue(actualOutput.contains(record));
         }
     }
@@ -631,7 +659,9 @@ public class IntervalJoinOperatorTest {
             long lowerBound,
             boolean lowerBoundInclusive,
             long upperBound,
-            boolean upperBoundInclusive)
+            boolean upperBoundInclusive,
+            OutputTag<TestElem> leftLateDataOutputTag,
+            OutputTag<TestElem> rightLateDataOutputTag)
             throws Exception {
 
         IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator =
@@ -640,8 +670,8 @@ public class IntervalJoinOperatorTest {
                         upperBound,
                         lowerBoundInclusive,
                         upperBoundInclusive,
-                        null,
-                        null,
+                        leftLateDataOutputTag,
+                        rightLateDataOutputTag,
                         TestElem.serializer(),
                         TestElem.serializer(),
                         new PassthroughFunction());
@@ -654,6 +684,17 @@ public class IntervalJoinOperatorTest {
                         TypeInformation.of(String.class));
 
         return new JoinTestBuilder(t, operator);
+    }
+
+    private JoinTestBuilder setupHarness(
+            long lowerBound,
+            boolean lowerBoundInclusive,
+            long upperBound,
+            boolean upperBoundInclusive)
+            throws Exception {
+
+        return setupHarness(
+                lowerBound, lowerBoundInclusive, upperBound, upperBoundInclusive, null, null);
     }
 
     private class JoinTestBuilder {
@@ -769,6 +810,13 @@ public class IntervalJoinOperatorTest {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+            return this;
+        }
+
+        @SafeVarargs
+        public final JoinTestBuilder expectLateRecords(
+                OutputTag<TestElem> tag, StreamRecord<TestElem>... elems) {
+            assertOutput(Lists.newArrayList(elems), testHarness.getSideOutput(tag));
             return this;
         }
 

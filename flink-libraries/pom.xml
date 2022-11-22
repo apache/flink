@@ -33,9 +33,6 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-gelly</module>
-		<module>flink-gelly-scala</module>
-		<module>flink-gelly-examples</module>
 		<module>flink-cep</module>
 		<module>flink-cep-scala</module>
 		<module>flink-state-processing-api</module>

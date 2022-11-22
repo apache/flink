@@ -141,7 +141,7 @@ public abstract class SerializerTestBase<T> {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out), configSnapshot, serializer);
+                    new DataOutputViewStreamWrapper(out), configSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -150,8 +150,7 @@ public abstract class SerializerTestBase<T> {
             restoredConfig =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            getSerializer());
+                            Thread.currentThread().getContextClassLoader());
         }
 
         TypeSerializerSchemaCompatibility<T> strategy =

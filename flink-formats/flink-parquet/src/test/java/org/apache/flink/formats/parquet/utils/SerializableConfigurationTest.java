@@ -20,7 +20,7 @@ package org.apache.flink.formats.parquet.utils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.jetbrains.annotations.Nullable;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URL;
@@ -29,10 +29,10 @@ import static org.apache.flink.util.InstantiationUtil.deserializeObject;
 import static org.apache.flink.util.InstantiationUtil.serializeObject;
 
 /** Test for {@link SerializableConfiguration}. */
-public class SerializableConfigurationTest {
+class SerializableConfigurationTest {
 
     @Test
-    public void testResource() throws IOException, ClassNotFoundException {
+    void testResource() throws IOException, ClassNotFoundException {
         ClassLoader cl =
                 new ClassLoader(Thread.currentThread().getContextClassLoader()) {
                     @Nullable

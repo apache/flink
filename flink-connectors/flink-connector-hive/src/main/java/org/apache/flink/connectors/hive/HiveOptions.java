@@ -100,7 +100,7 @@ public class HiveOptions {
             key("table.exec.hive.calculate-partition-size.thread-num")
                     .intType()
                     .defaultValue(3)
-                    .withDeprecatedKeys("The thread number to calculate partition's size.");
+                    .withDescription("The thread number to calculate partition's size.");
 
     public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED =
             key("table.exec.hive.sink.sort-by-dynamic-partition.enable")
@@ -156,7 +156,7 @@ public class HiveOptions {
                     key("table.exec.hive.sink.statistic-auto-gather.thread-num")
                             .intType()
                             .defaultValue(3)
-                            .withDeprecatedKeys(
+                            .withDescription(
                                     "The number of threads used to gather statistic during writing Hive Table"
                                             + " when the table is stored as ORC or Parquet format."
                                             + " The default value is 3.");

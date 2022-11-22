@@ -19,10 +19,9 @@
 package org.apache.flink.formats.sequencefile;
 
 import org.apache.hadoop.conf.Configuration;
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Before;
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -30,11 +29,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
-
 /** Tests for the {@link SerializableHadoopConfiguration}. */
-public class SerializableHadoopConfigurationTest {
+class SerializableHadoopConfigurationTest {
 
     private static final String TEST_KEY = "test-key";
 
@@ -42,14 +38,14 @@ public class SerializableHadoopConfigurationTest {
 
     private Configuration configuration;
 
-    @Before
-    public void createConfigWithCustomProperty() {
+    @BeforeEach
+    void createConfigWithCustomProperty() {
         this.configuration = new Configuration();
         configuration.set(TEST_KEY, TEST_VALUE);
     }
 
     @Test
-    public void customPropertiesSurviveSerializationDeserialization()
+    void customPropertiesSurviveSerializationDeserialization()
             throws IOException, ClassNotFoundException {
         final SerializableHadoopConfiguration serializableConfigUnderTest =
                 new SerializableHadoopConfiguration(configuration);
@@ -57,32 +53,17 @@ public class SerializableHadoopConfigurationTest {
         final SerializableHadoopConfiguration deserializableConfigUnderTest =
                 deserializeAndGetConfiguration(serializedConfigUnderTest);
 
-        assertThat(deserializableConfigUnderTest.get())
-                .satisfies(matching(hasTheSamePropertiesAs(configuration)));
-    }
-
-    // ----------------------------------------	Matchers ---------------------------------------- //
-
-    private static TypeSafeMatcher<Configuration> hasTheSamePropertiesAs(
-            final Configuration expectedConfig) {
-        return new TypeSafeMatcher<Configuration>() {
-            @Override
-            protected boolean matchesSafely(Configuration actualConfig) {
-                final String value = actualConfig.get(TEST_KEY);
-                return actualConfig != expectedConfig
-                        && value != null
-                        && expectedConfig.get(TEST_KEY).equals(value);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a Hadoop Configuration with property: key=")
-                        .appendValue(TEST_KEY)
-                        .appendText(" and value=")
-                        .appendValue(TEST_VALUE);
-            }
-        };
+        Assertions.<Configuration>assertThat(deserializableConfigUnderTest.get())
+                .describedAs(
+                        "a Hadoop Configuration with property: key=%s and value=%s",
+                        TEST_KEY, TEST_VALUE)
+                .satisfies(
+                        actualConfig -> {
+                            Assertions.assertThat(actualConfig)
+                                    .isNotSameAs(serializableConfigUnderTest.get());
+                            Assertions.assertThat(actualConfig.get(TEST_KEY))
+                                    .isEqualTo(serializableConfigUnderTest.get().get(TEST_KEY));
+                        });
     }
 
     // ----------------------------------------	Helper Methods

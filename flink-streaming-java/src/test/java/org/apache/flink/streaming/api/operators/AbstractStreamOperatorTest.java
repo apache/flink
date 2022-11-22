@@ -48,6 +48,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -437,7 +438,7 @@ public class AbstractStreamOperatorTest {
         final int subtaskIndex = 0;
         final List<Integer> keyGroupsToWrite = Arrays.asList(2, 3, 8);
 
-        final byte[] testSnapshotData = "TEST".getBytes();
+        final byte[] testSnapshotData = "TEST".getBytes(StandardCharsets.UTF_8);
         final CustomRawKeyedStateTestOperator testOperator =
                 new CustomRawKeyedStateTestOperator(testSnapshotData, keyGroupsToWrite);
 

@@ -320,12 +320,13 @@ public class EventSerializer {
         }
         final CheckpointOptions.AlignmentType alignmentType =
                 CheckpointOptions.AlignmentType.values()[buffer.get()];
-        final long alignmentTimeout = buffer.getLong();
+        final long alignedCheckpointTimeout = buffer.getLong();
 
         return new CheckpointBarrier(
                 id,
                 timestamp,
-                new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout));
+                new CheckpointOptions(
+                        snapshotType, locationRef, alignmentType, alignedCheckpointTimeout));
     }
 
     private static SavepointType decodeSavepointType(byte checkpointTypeCode, ByteBuffer buffer)

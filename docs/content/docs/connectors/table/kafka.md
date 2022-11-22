@@ -521,13 +521,12 @@ Note that topic list and topic pattern only work in sources. In sinks, Flink cur
 ### Start Reading Position
 
 The config option `scan.startup.mode` specifies the startup mode for Kafka consumer. The valid enumerations are:
-<ul>
-<li><span markdown="span">`group-offsets`</span>: start from committed offsets in ZK / Kafka brokers of a specific consumer group.</li>
-<li><span markdown="span">`earliest-offset`</span>: start from the earliest offset possible.</li>
-<li><span markdown="span">`latest-offset`</span>: start from the latest offset.</li>
-<li><span markdown="span">`timestamp`</span>: start from user-supplied timestamp for each partition.</li>
-<li><span markdown="span">`specific-offsets`</span>: start from user-supplied specific offsets for each partition.</li>
-</ul>
+
+* `group-offsets`: start from committed offsets in ZK / Kafka brokers of a specific consumer group.
+* `earliest-offset`: start from the earliest offset possible.
+* `latest-offset`: start from the latest offset.
+* `timestamp`: start from user-supplied timestamp for each partition.
+* `specific-offsets`: start from user-supplied specific offsets for each partition.
 
 The default option value is `group-offsets` which indicates to consume from last committed offsets in ZK / Kafka brokers.
 

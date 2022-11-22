@@ -64,13 +64,38 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
     }
 
-    /**
-     * Here we override the super method to avoid test error from `describe schema` supported in
-     * original calcite.
-     */
+    // ignore test methods that we don't support
+    // BEGIN
+    // ARRAY_AGG
+    @Disabled
+    @Test
+    void testArrayAgg() {}
+
+    // DESCRIBE SCHEMA
     @Disabled
     @Test
     void testDescribeSchema() {}
+
+    // DESCRIBE STATEMENT
+    @Disabled
+    @Test
+    void testDescribeStatement() {}
+
+    // GROUP CONCAT
+    @Disabled
+    @Test
+    void testGroupConcat() {}
+
+    // EXPLAIN AS DOT
+    @Disabled
+    @Test
+    void testExplainAsDot() {}
+
+    // STRING_AGG
+    @Disabled
+    @Test
+    void testStringAgg() {}
+    // END
 
     @Test
     void testUseCatalog() {
@@ -285,14 +310,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("show columns in catalog1.db1.tbl not like '%'")
                 .ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL` NOT LIKE '%'");
     }
-
-    /**
-     * Here we override the super method to avoid test error from `describe statement` supported in
-     * original calcite.
-     */
-    @Disabled
-    @Test
-    void testDescribeStatement() {}
 
     @Test
     void testAlterTable() {
@@ -1059,6 +1076,25 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  ^a^.b.c = 'ab',\n"
                         + "  a.b.c1 = 'aabb')\n";
         sql(sql).fails("(?s).*Encountered \"a\" at line 6, column 3.\n.*");
+    }
+
+    @Test
+    void testCreateTableLikeWithoutOption() {
+        final String sql =
+                "create table source_table(\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ")\n"
+                        + "LIKE parent_table";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  `A` INTEGER,\n"
+                        + "  `B` BIGINT,\n"
+                        + "  `C` STRING\n"
+                        + ")\n"
+                        + "LIKE `PARENT_TABLE`";
+        sql(sql).ok(expected);
     }
 
     @Test

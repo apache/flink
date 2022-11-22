@@ -68,11 +68,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -433,18 +429,6 @@ public class KafkaSinkITCase {
         standardProps.put("zookeeper.session.timeout.ms", ZK_TIMEOUT_MILLIS);
         standardProps.put("zookeeper.connection.timeout.ms", ZK_TIMEOUT_MILLIS);
         return standardProps;
-    }
-
-    private static Consumer<byte[], byte[]> createTestConsumer(
-            String topic, Properties properties) {
-        final Properties consumerConfig = new Properties();
-        consumerConfig.putAll(properties);
-        consumerConfig.put("key.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        final KafkaConsumer<byte[], byte[]> kafkaConsumer = new KafkaConsumer<>(consumerConfig);
-        kafkaConsumer.subscribe(Collections.singletonList(topic));
-        return kafkaConsumer;
     }
 
     private void createTestTopic(String topic, int numPartitions, short replicationFactor)

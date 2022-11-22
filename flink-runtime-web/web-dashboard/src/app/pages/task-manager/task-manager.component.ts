@@ -17,12 +17,17 @@
  */
 
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+
+import { TaskManagerStatusComponent } from '@flink-runtime-web/pages/task-manager/status/task-manager-status.component';
 
 @Component({
   selector: 'flink-task-manager',
   templateUrl: './task-manager.component.html',
   styleUrls: ['./task-manager.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TaskManagerStatusComponent, RouterOutlet],
+  standalone: true
 })
 export class TaskManagerComponent {
   constructor() {}

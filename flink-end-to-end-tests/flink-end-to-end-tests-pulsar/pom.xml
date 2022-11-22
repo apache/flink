@@ -31,7 +31,7 @@ under the License.
 	<name>Flink : E2E Tests : Pulsar</name>
 
 	<properties>
-		<pulsar.version>2.10.1</pulsar.version>
+		<pulsar.version>2.10.2</pulsar.version>
 		<bouncycastle.version>1.69</bouncycastle.version>
 		<jaxb-api.version>2.3.1</jaxb-api.version>
 	</properties>

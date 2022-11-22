@@ -343,7 +343,7 @@ a savepoint for the Scala DataStream API please manually pass in all type inform
 int maxParallelism = 128;
 
 SavepointWriter
-    .newSavepoint(new HashMapStateBackend(), maxParallelism)
+    .newSavepoint(env, new HashMapStateBackend(), maxParallelism)
     .withOperator(OperatorIdentifier.forUid("uid1"), transformation1)
     .withOperator(OperatorIdentifier.forUid("uid2"), transformation2)
     .write(savepointPath);
@@ -489,7 +489,7 @@ Besides creating a savepoint from scratch, you can base one off an existing save
 
 ```java
 SavepointWriter
-    .fromExistingSavepoint(oldPath, new HashMapStateBackend())
+    .fromExistingSavepoint(env, oldPath, new HashMapStateBackend())
     .withOperator(OperatorIdentifier.forUid("uid"), transformation)
     .write(newPath);
 ```

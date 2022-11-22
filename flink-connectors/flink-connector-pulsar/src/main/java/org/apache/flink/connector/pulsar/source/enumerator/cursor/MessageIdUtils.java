@@ -25,6 +25,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.pulsar.client.impl.MessageIdImpl.convertToMessageIdImpl;
 
 /** The helper class for Pulsar's message id. */
 @Internal
@@ -42,11 +43,14 @@ public final class MessageIdUtils {
     public static MessageId nextMessageId(MessageId messageId) {
         MessageIdImpl idImpl = unwrapMessageId(messageId);
 
-        if (idImpl.getEntryId() < 0) {
-            return newMessageId(idImpl.getLedgerId(), 0, idImpl.getPartitionIndex());
+        long ledgerId = idImpl.getLedgerId();
+        long entryId = idImpl.getEntryId();
+        int partitionIndex = idImpl.getPartitionIndex();
+
+        if (entryId < 0) {
+            return new MessageIdImpl(ledgerId, 0, partitionIndex);
         } else {
-            return newMessageId(
-                    idImpl.getLedgerId(), idImpl.getEntryId() + 1, idImpl.getPartitionIndex());
+            return new MessageIdImpl(ledgerId, entryId + 1, partitionIndex);
         }
     }
 
@@ -55,17 +59,15 @@ public final class MessageIdUtils {
      * message id. We don't support the batch message for its low performance now.
      */
     public static MessageIdImpl unwrapMessageId(MessageId messageId) {
-        MessageIdImpl idImpl = MessageIdImpl.convertToMessageIdImpl(messageId);
+        MessageIdImpl idImpl = convertToMessageIdImpl(messageId);
         if (idImpl instanceof BatchMessageIdImpl) {
             int batchSize = ((BatchMessageIdImpl) idImpl).getBatchSize();
-            checkArgument(batchSize == 1, "We only support normal message id currently.");
+            checkArgument(
+                    batchSize <= 1,
+                    "We only support normal message id currently. This batch size is %d",
+                    batchSize);
         }
 
         return idImpl;
-    }
-
-    /** Hide the message id implementation. */
-    public static MessageId newMessageId(long ledgerId, long entryId, int partitionIndex) {
-        return new MessageIdImpl(ledgerId, entryId, partitionIndex);
     }
 }

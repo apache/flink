@@ -20,10 +20,10 @@ package org.apache.flink.connector.pulsar.source.reader.split;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
-import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarUnorderedSourceReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,15 +47,14 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.createTransaction;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.unwrap;
 
 /**
  * The split reader a given {@link PulsarPartitionSplit}, it would be closed once the {@link
  * PulsarUnorderedSourceReader} is closed.
- *
- * @param <OUT> the type of the pulsar source message that would be serialized to downstream.
  */
 @Internal
-public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSplitReaderBase<OUT> {
+public class PulsarUnorderedPartitionSplitReader extends PulsarPartitionSplitReaderBase {
     private static final Logger LOG =
             LoggerFactory.getLogger(PulsarUnorderedPartitionSplitReader.class);
 
@@ -66,9 +66,9 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
-            PulsarDeserializationSchema<OUT> deserializationSchema,
+            SourceReaderMetricGroup metricGroup,
             TransactionCoordinatorClient coordinatorClient) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, deserializationSchema);
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, metricGroup);
 
         this.coordinatorClient = coordinatorClient;
     }
@@ -109,9 +109,6 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
         if (sourceConfiguration.isEnableAutoAcknowledgeMessage()) {
             sneakyClient(() -> pulsarConsumer.acknowledge(message));
         }
-
-        // Release message
-        message.release();
     }
 
     @Override
@@ -124,10 +121,14 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
                 try {
                     coordinatorClient.abort(uncommittedTransactionId);
                 } catch (TransactionCoordinatorClientException e) {
-                    LOG.error(
-                            "Failed to abort the uncommitted transaction {} when restart the reader",
-                            uncommittedTransactionId,
-                            e);
+                    TransactionCoordinatorClientException exception = unwrap(e);
+                    // The aborted transaction would return a not found exception.
+                    if (!(exception instanceof TransactionNotFoundException)) {
+                        LOG.error(
+                                "Failed to abort the uncommitted transaction {} when restart the reader",
+                                uncommittedTransactionId,
+                                e);
+                    }
                 }
             }
 

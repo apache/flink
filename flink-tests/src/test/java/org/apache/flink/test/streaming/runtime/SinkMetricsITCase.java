@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -133,22 +132,28 @@ public class SinkMetricsITCase extends TestLogger {
         for (OperatorMetricGroup group : groups) {
             Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
             // There are only 2 splits assigned; so two groups will not update metrics.
-            // There is no other way to access the counter via OperatorMetricGroup, we have to use
-            // metrics from the reporter.
-            if (((Counter) metrics.get(MetricNames.NUM_RECORDS_SEND)).getCount() == 0) {
+            if (group.getIOMetricGroup().getNumRecordsOutCounter().getCount() == 0) {
                 continue;
             }
             subtaskWithMetrics++;
+
             // SinkWriterMetricGroup metrics
-            assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_SEND))
+            assertThatCounter(metrics.get(MetricNames.IO_NUM_RECORDS_OUT))
                     .isEqualTo(processedRecordsPerSubtask);
-            assertThatCounter(metrics.get(MetricNames.NUM_BYTES_SEND))
+            assertThatCounter(metrics.get(MetricNames.IO_NUM_BYTES_OUT))
                     .isEqualTo(processedRecordsPerSubtask * MetricWriter.RECORD_SIZE_IN_BYTES);
             // MetricWriter is just incrementing errors every even record
             assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_OUT_ERRORS))
                     .isEqualTo((processedRecordsPerSubtask + 1) / 2);
+
+            // Test "send" metric series has the same value as "out" metric series.
+            assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_SEND))
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(metrics.get(MetricNames.NUM_BYTES_SEND))
+                    .isEqualTo(processedRecordsPerSubtask * MetricWriter.RECORD_SIZE_IN_BYTES);
             assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_SEND_ERRORS))
                     .isEqualTo((processedRecordsPerSubtask + 1) / 2);
+
             // check if the latest send time is fetched
             assertThatGauge(metrics.get(MetricNames.CURRENT_SEND_TIME))
                     .isEqualTo((processedRecordsPerSubtask - 1) * MetricWriter.BASE_SEND_TIME);
@@ -172,12 +177,11 @@ public class SinkMetricsITCase extends TestLogger {
         public void write(Long element, Context context) {
             super.write(element, context);
             sendTime = element * BASE_SEND_TIME;
-            metricGroup.getNumRecordsSendCounter().inc();
+            metricGroup.getIOMetricGroup().getNumRecordsOutCounter().inc();
             if (element % 2 == 0) {
                 metricGroup.getNumRecordsOutErrorsCounter().inc();
-                metricGroup.getNumRecordsSendErrorsCounter().inc();
             }
-            metricGroup.getNumBytesSendCounter().inc(RECORD_SIZE_IN_BYTES);
+            metricGroup.getIOMetricGroup().getNumBytesOutCounter().inc(RECORD_SIZE_IN_BYTES);
         }
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -136,5 +137,14 @@ public class DelegatingConfigurationTest {
         }
         // Verification
         assertEquals(properties, mapProperties);
+    }
+
+    @Test
+    public void testSetReturnsDelegatingConfiguration() {
+        final Configuration conf = new Configuration();
+        final DelegatingConfiguration delegatingConf = new DelegatingConfiguration(conf, "prefix.");
+
+        Assertions.assertThat(delegatingConf.set(CoreOptions.DEFAULT_PARALLELISM, 1))
+                .isSameAs(delegatingConf);
     }
 }

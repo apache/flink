@@ -28,7 +28,9 @@ package org.apache.flink.util;
  */
 public class DockerImageVersions {
 
-    public static final String KAFKA = "confluentinc/cp-kafka:6.2.2";
+    public static final String KAFKA = "confluentinc/cp-kafka:7.2.2";
+
+    public static final String SCHEMA_REGISTRY = "confluentinc/cp-schema-registry:7.2.2";
 
     public static final String RABBITMQ = "rabbitmq:3.9.8-management-alpine";
 
@@ -36,7 +38,7 @@ public class DockerImageVersions {
 
     public static final String LOCALSTACK = "localstack/localstack:0.13.3";
 
-    public static final String PULSAR = "apachepulsar/pulsar:2.10.1";
+    public static final String PULSAR = "apachepulsar/pulsar:2.10.2";
 
     public static final String CASSANDRA_4_0 = "cassandra:4.0.3";
 

@@ -412,8 +412,7 @@ public final class DataSetUtils {
      *
      * @return A ChecksumHashCode that represents the count and checksum of elements in the data
      *     set.
-     * @deprecated replaced with {@code org.apache.flink.graph.asm.dataset.ChecksumHashCode} in
-     *     Gelly
+     * @deprecated This method will be removed at some point.
      */
     @Deprecated
     public static <T> Utils.ChecksumHashCode checksumHashCode(DataSet<T> input) throws Exception {

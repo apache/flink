@@ -23,9 +23,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /** Tests for hybrid shuffle mode. */
+@Disabled("Enable this test after FLINK-29419 being resolved.")
 class HybridShuffleITCase extends BatchShuffleITCaseBase {
 
     @Test

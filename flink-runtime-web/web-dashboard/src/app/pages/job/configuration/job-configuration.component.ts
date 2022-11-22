@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
+import { NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobConfig } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 import { JobLocalService } from '../job-local.service';
 
@@ -29,7 +32,9 @@ import { JobLocalService } from '../job-local.service';
   selector: 'flink-job-configuration',
   templateUrl: './job-configuration.component.html',
   styleUrls: ['./job-configuration.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzCardModule, NzTableModule, NgIf, NgForOf],
+  standalone: true
 })
 export class JobConfigurationComponent implements OnInit, OnDestroy {
   public config: JobConfig;

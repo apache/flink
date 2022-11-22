@@ -26,11 +26,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -45,9 +43,6 @@ import org.apache.flink.util.clock.SystemClock;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
@@ -370,34 +365,6 @@ class DeclarativeSlotPoolServiceTest {
         declarativeSlotPoolService.start(jobMasterId, address, mainThreadExecutor);
 
         return declarativeSlotPoolService;
-    }
-
-    private Matcher<AllocatedSlotInfo> matchesWithSlotContext(SimpleSlotContext simpleSlotContext) {
-        return new AllocatedSlotInfoMatcher(simpleSlotContext);
-    }
-
-    private static final class AllocatedSlotInfoMatcher extends TypeSafeMatcher<AllocatedSlotInfo> {
-
-        private final SlotContext slotContext;
-
-        private AllocatedSlotInfoMatcher(SlotContext slotContext) {
-            this.slotContext = slotContext;
-        }
-
-        @Override
-        protected boolean matchesSafely(AllocatedSlotInfo item) {
-            return item.getAllocationId().equals(slotContext.getAllocationId())
-                    && item.getSlotIndex() == slotContext.getPhysicalSlotNumber();
-        }
-
-        @Override
-        public void describeTo(Description description) {
-            description
-                    .appendText("expect allocated slot info with allocation id ")
-                    .appendValue(slotContext.getAllocationId())
-                    .appendText(" and slot index ")
-                    .appendValue(slotContext.getPhysicalSlotNumber());
-        }
     }
 
     @Nonnull
