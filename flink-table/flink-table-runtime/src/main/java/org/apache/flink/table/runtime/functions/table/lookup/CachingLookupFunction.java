@@ -111,7 +111,7 @@ public class CachingLookupFunction extends LookupFunction {
         cache.open(cacheMetricGroup);
         if (cache instanceof LookupFullCache) {
             // TODO add Configuration into FunctionContext
-            ((LookupFullCache) cache).open(new Configuration());
+            ((LookupFullCache) cache).open(new Configuration(), context.getUserCodeClassLoader());
         }
         if (delegate != null) {
             delegate.open(context);

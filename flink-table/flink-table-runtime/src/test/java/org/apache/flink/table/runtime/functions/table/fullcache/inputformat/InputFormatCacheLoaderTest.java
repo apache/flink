@@ -209,6 +209,12 @@ class InputFormatCacheLoaderTest {
         // noinspection rawtypes
         GeneratedProjection generatedProjection =
                 new GeneratedProjection("", "", new Object[0]) {
+
+                    @Override
+                    public Class<Projection> compile(ClassLoader classLoader) {
+                        return Projection.class;
+                    }
+
                     @Override
                     public Projection newInstance(ClassLoader classLoader) {
                         return row -> {
@@ -224,7 +230,7 @@ class InputFormatCacheLoaderTest {
                         generatedProjection);
         InputFormatCacheLoader cacheLoader =
                 new InputFormatCacheLoader(inputFormat, keySelector, rightRowSerializer);
-        cacheLoader.open(new Configuration());
+        cacheLoader.open(new Configuration(), this.getClass().getClassLoader());
         return cacheLoader;
     }
 }

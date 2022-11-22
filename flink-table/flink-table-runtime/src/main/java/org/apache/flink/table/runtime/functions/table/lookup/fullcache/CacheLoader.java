@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.ThreadSafeSimpleCounter;
@@ -42,7 +41,7 @@ import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.U
 /**
  * Abstract task that loads data in Full cache from source provided by {@link ScanRuntimeProvider}.
  */
-public abstract class CacheLoader extends AbstractRichFunction implements Runnable, Serializable {
+public abstract class CacheLoader implements Runnable, Serializable, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(CacheLoader.class);
 
     protected transient volatile ConcurrentHashMap<RowData, Collection<RowData>> cache;
@@ -61,8 +60,7 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
 
     protected abstract void reloadCache() throws Exception;
 
-    @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(Configuration parameters, ClassLoader classLoader) throws Exception {
         firstLoadLatch = new CountDownLatch(1);
     }
 

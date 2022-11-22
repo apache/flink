@@ -164,7 +164,9 @@ public class LookupFullCacheTest {
                                 ThrowingRunnable.unchecked(
                                         () -> {
                                             cache.open(metricGroup);
-                                            cache.open(new Configuration());
+                                            cache.open(
+                                                    new Configuration(),
+                                                    this.getClass().getClassLoader());
                                         }),
                                 executor);
                 futures.add(future);
@@ -207,7 +209,7 @@ public class LookupFullCacheTest {
         fullCache.open(metricGroup);
         assertThat(cacheLoader.isAwaitTriggered()).isFalse();
         assertThat(cacheLoader.getNumLoads()).isZero();
-        fullCache.open(new Configuration());
+        fullCache.open(new Configuration(), this.getClass().getClassLoader());
         assertThat(cacheLoader.isAwaitTriggered()).isTrue();
         assertThat(cacheLoader.getNumLoads()).isEqualTo(1);
         assertThat(cacheLoader.getCache()).isEqualTo(TestCacheLoader.DATA);

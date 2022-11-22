@@ -60,9 +60,10 @@ public class LookupFullCache implements LookupCache {
         cacheLoader.open(metricGroup);
     }
 
-    public synchronized void open(Configuration parameters) throws Exception {
+    public synchronized void open(Configuration parameters, ClassLoader classLoader)
+            throws Exception {
         if (reloadTriggerContext == null) {
-            cacheLoader.open(parameters);
+            cacheLoader.open(parameters, classLoader);
             reloadTriggerContext =
                     new ReloadTriggerContext(
                             cacheLoader,
