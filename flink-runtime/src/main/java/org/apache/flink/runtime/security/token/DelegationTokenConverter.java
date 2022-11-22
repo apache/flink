@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
 
@@ -26,6 +28,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 /** Delegation token serializer and deserializer functionality. */
+@Internal
 public class DelegationTokenConverter {
     /** Serializes delegation tokens. */
     public static byte[] serialize(Credentials credentials) throws IOException {

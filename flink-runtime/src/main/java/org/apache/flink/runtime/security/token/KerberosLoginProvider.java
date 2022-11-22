@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.hadoop.HadoopUserUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -32,6 +33,7 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Provides Kerberos login functionality. */
+@Internal
 public class KerberosLoginProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(KerberosLoginProvider.class);
