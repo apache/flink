@@ -480,7 +480,7 @@ public abstract class YarnTestBase {
      */
     public static void ensureNoProhibitedStringInLogFiles(
             final String[] prohibited, final Pattern[] whitelisted) {
-        File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        File cwd = new File("target/test/data/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         assertThat(cwd).exists();
         assertThat(cwd).isDirectory();
 
