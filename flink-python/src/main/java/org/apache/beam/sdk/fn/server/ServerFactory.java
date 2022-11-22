@@ -42,10 +42,17 @@ import java.util.function.Supplier;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+// This class is copied from Beam's org.apache.beam.sdk.fn.server.ServerFactory,
+// can be removed after https://github.com/apache/beam/issues/21598 is fixed.
+//
+// Changed lines: 53~55
+
 /** A {@link Server gRPC server} factory. */
 public abstract class ServerFactory {
 
-    private static final int KEEP_ALIVE_TIME_SEC = 20;
+    // The BDP ping period is locally-decided and the keep alive time is 20 seconds in client
+    // side, so we choose the server to allow pings every 19 seconds.
+    private static final int KEEP_ALIVE_TIME_SEC = 19;
 
     /** Create a default {@link InetSocketAddressServerFactory}. */
     public static ServerFactory createDefault() {
