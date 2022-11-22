@@ -34,6 +34,15 @@ public class MutatedConfigurationException extends Exception {
     private static final long serialVersionUID = -2417524218857151612L;
 
     public MutatedConfigurationException(Collection<String> errorMessages) {
-        super(String.join("\n", errorMessages));
+        super(prettyFormat(errorMessages));
+    }
+
+    private static String prettyFormat(Collection<String> errorMessages) {
+        StringBuilder builder =
+                new StringBuilder("Not allowed configuration change(s) were detected:");
+        for (String error : errorMessages) {
+            builder.append("\n - " + error);
+        }
+        return builder.toString();
     }
 }
