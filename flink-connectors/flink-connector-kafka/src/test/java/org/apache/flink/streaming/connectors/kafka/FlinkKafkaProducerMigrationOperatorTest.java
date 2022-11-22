@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
 import org.junit.jupiter.api.Disabled;
 
 import java.util.Arrays;
