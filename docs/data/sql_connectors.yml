@@ -178,6 +178,14 @@ aws-kinesis-firehose:
   maven: flink-connector-kinesis-firehose
   sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/$version/flink-sql-connector-aws-kinesis-firehose-$version.jar
 
+dynamodb:
+    name: Amazon DynamoDB
+    category: connector
+    versions:
+        - version: 3.0.0
+          maven: flink-connector-dynamodb
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-dynamodb/3.0.0-1.16/flink-sql-connector-dynamodb-3.0.0-1.16.jar
+
 pulsar:
     name: Pulsar
     category: connector

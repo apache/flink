@@ -106,6 +106,11 @@ under the License.
         <td>只有当更新是幂等时，保证精确一次</td>
     </tr>
     <tr>
+        <td>Amazon DynamoDB</td>
+        <td>至少一次</td>
+        <td></td>
+    </tr>
+        <tr>
         <td>Amazon Kinesis Data Streams</td>
         <td>至少一次</td>
         <td></td>
