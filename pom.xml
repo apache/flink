@@ -2105,7 +2105,7 @@ under the License.
 				<plugin>
 					<groupId>io.github.zentol.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.16.0_m325</version>
+					<version>0.17.1.1_m325</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
