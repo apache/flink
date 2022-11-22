@@ -36,7 +36,7 @@ public class PythonOptions {
     public static final ConfigOption<Integer> MAX_BUNDLE_SIZE =
             ConfigOptions.key("python.fn-execution.bundle.size")
                     .intType()
-                    .defaultValue(100000)
+                    .defaultValue(1000)
                     .withDescription(
                             "The maximum number of elements to include in a bundle for Python "
                                     + "user-defined function execution. The elements are processed asynchronously. "
@@ -57,7 +57,7 @@ public class PythonOptions {
     public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE =
             ConfigOptions.key("python.fn-execution.arrow.batch.size")
                     .intType()
-                    .defaultValue(10000)
+                    .defaultValue(1000)
                     .withDescription(
                             "The maximum number of elements to include in an arrow batch for Python "
                                     + "user-defined function execution. The arrow batch size should not exceed the "
