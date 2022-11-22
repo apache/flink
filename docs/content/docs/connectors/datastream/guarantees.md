@@ -111,6 +111,11 @@ state updates) of Flink coupled with bundled sinks:
         <td>exactly once only for idempotent updates</td>
     </tr>
     <tr>
+        <td>Amazon DynamoDB</td>
+        <td>at least once</td>
+        <td></td>
+    </tr>
+    <tr>
         <td>Amazon Kinesis Data Streams</td>
         <td>at least once</td>
         <td></td>
