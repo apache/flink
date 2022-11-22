@@ -74,6 +74,20 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
+    public void testElementConvertOpenIsInvoked() {
+        TestElementConverter elementConverter = new TestElementConverter();
+        assertThat(elementConverter.getOpenCallCount()).isEqualTo(0);
+
+        new AsyncSinkWriterImplBuilder()
+                .elementConverter(elementConverter)
+                .context(sinkInitContext)
+                .build();
+
+        // The open() method should be called in the AsyncSinkWriter constructor
+        assertThat(elementConverter.getOpenCallCount()).isEqualTo(1);
+    }
+
+    @Test
     public void testNumberOfRecordsIsAMultipleOfBatchSizeResultsInThatNumberOfRecordsBeingWritten()
             throws IOException, InterruptedException {
         performNormalWriteOfEightyRecordsToMock();
@@ -1025,29 +1039,7 @@ public class AsyncSinkWriterTest {
         private final int delay;
 
         private AsyncSinkWriterImpl(
-                Sink.InitContext context,
-                int maxBatchSize,
-                int maxInFlightRequests,
-                int maxBufferedRequests,
-                long maxBatchSizeInBytes,
-                long maxTimeInBufferMS,
-                long maxRecordSizeInBytes,
-                boolean simulateFailures,
-                int delay) {
-            this(
-                    context,
-                    maxBatchSize,
-                    maxInFlightRequests,
-                    maxBufferedRequests,
-                    maxBatchSizeInBytes,
-                    maxTimeInBufferMS,
-                    maxRecordSizeInBytes,
-                    simulateFailures,
-                    delay,
-                    Collections.emptyList());
-        }
-
-        private AsyncSinkWriterImpl(
+                ElementConverter<String, Integer> elementConverter,
                 Sink.InitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests,
@@ -1060,7 +1052,7 @@ public class AsyncSinkWriterTest {
                 List<BufferedRequestState<Integer>> bufferedState) {
 
             super(
-                    (elem, ctx) -> Integer.parseInt(elem),
+                    elementConverter,
                     context,
                     AsyncSinkWriterConfiguration.builder()
                             .setMaxBatchSize(maxBatchSize)
@@ -1183,6 +1175,8 @@ public class AsyncSinkWriterTest {
     /** A builder for {@link AsyncSinkWriterImpl}. */
     private class AsyncSinkWriterImplBuilder {
 
+        private ElementConverter<String, Integer> elementConverter =
+                (elem, ctx) -> Integer.parseInt(elem);
         private boolean simulateFailures = false;
         private int delay = 0;
         private Sink.InitContext context;
@@ -1192,6 +1186,12 @@ public class AsyncSinkWriterTest {
         private long maxBatchSizeInBytes = 110;
         private long maxTimeInBufferMS = 1_000;
         private long maxRecordSizeInBytes = maxBatchSizeInBytes;
+
+        private AsyncSinkWriterImplBuilder elementConverter(
+                ElementConverter<String, Integer> elementConverter) {
+            this.elementConverter = elementConverter;
+            return this;
+        }
 
         private AsyncSinkWriterImplBuilder context(Sink.InitContext context) {
             this.context = context;
@@ -1240,6 +1240,7 @@ public class AsyncSinkWriterTest {
 
         private AsyncSinkWriterImpl build() {
             return new AsyncSinkWriterImpl(
+                    elementConverter,
                     context,
                     maxBatchSize,
                     maxInFlightRequests,
@@ -1248,12 +1249,14 @@ public class AsyncSinkWriterTest {
                     maxTimeInBufferMS,
                     maxRecordSizeInBytes,
                     simulateFailures,
-                    delay);
+                    delay,
+                    Collections.emptyList());
         }
 
         private AsyncSinkWriterImpl buildWithState(
                 List<BufferedRequestState<Integer>> bufferedState) {
             return new AsyncSinkWriterImpl(
+                    elementConverter,
                     context,
                     maxBatchSize,
                     maxInFlightRequests,
@@ -1283,7 +1286,18 @@ public class AsyncSinkWriterTest {
                 CountDownLatch blockedThreadLatch,
                 CountDownLatch delayedStartLatch,
                 boolean blockForLimitedTime) {
-            super(context, 3, maxInFlightRequests, 20, 100, 100, 100, false, 0);
+            super(
+                    (elem, ctx) -> Integer.parseInt(elem),
+                    context,
+                    3,
+                    maxInFlightRequests,
+                    20,
+                    100,
+                    100,
+                    100,
+                    false,
+                    0,
+                    Collections.emptyList());
             this.blockedThreadLatch = blockedThreadLatch;
             this.delayedStartLatch = delayedStartLatch;
             this.blockForLimitedTime = blockForLimitedTime;
