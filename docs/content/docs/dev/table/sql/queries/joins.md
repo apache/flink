@@ -163,11 +163,11 @@ CREATE TABLE currency_rates (
 );
 
 SELECT 
-     order_id,
-     price,
-     currency,
-     conversion_rate,
-     order_time
+     orders.order_id,
+     orders.price,
+     orders.currency,
+     currency_rates.conversion_rate,
+     orders.order_time
 FROM orders
 LEFT JOIN currency_rates FOR SYSTEM_TIME AS OF orders.order_time
 ON orders.currency = currency_rates.currency;
