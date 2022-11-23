@@ -40,14 +40,14 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.List;
@@ -57,30 +57,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.assertStatsMetrics;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for failure of checkpoint coordinator. */
-public class CheckpointCoordinatorFailureTest extends TestLogger {
+class CheckpointCoordinatorFailureTest extends TestLogger {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     /**
      * Tests that a failure while storing a completed checkpoint in the completed checkpoint store
      * will properly fail the originating pending checkpoint and clean upt the completed checkpoint.
      */
     @Test
-    public void testFailingCompletedCheckpointStoreAdd() throws Exception {
+    void testFailingCompletedCheckpointStoreAdd() throws Exception {
         JobVertexID jobVertexId = new JobVertexID();
 
         final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
@@ -107,12 +103,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
         manuallyTriggeredScheduledExecutor.triggerAll();
 
-        assertEquals(1, coord.getNumberOfPendingCheckpoints());
+        assertThat(coord.getNumberOfPendingCheckpoints()).isOne();
 
         PendingCheckpoint pendingCheckpoint =
                 coord.getPendingCheckpoints().values().iterator().next();
 
-        assertFalse(pendingCheckpoint.isDisposed());
+        assertThat(pendingCheckpoint.isDisposed()).isFalse();
 
         final long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
@@ -172,7 +168,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         }
 
         // make sure that the pending checkpoint has been discarded after we could not complete it
-        assertTrue(pendingCheckpoint.isDisposed());
+        assertThat(pendingCheckpoint.isDisposed()).isTrue();
 
         // make sure that the subtask state has been discarded after we could not complete it.
         verify(operatorSubtaskState).discardState();
@@ -187,12 +183,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
     }
 
     @Test
-    public void testCleanupForGenericFailure() throws Exception {
+    void testCleanupForGenericFailure() throws Exception {
         testStoringFailureHandling(new FlinkRuntimeException("Expected exception"), 1);
     }
 
     @Test
-    public void testCleanupOmissionForPossibleInconsistentStateException() throws Exception {
+    void testCleanupOmissionForPossibleInconsistentStateException() throws Exception {
         testStoringFailureHandling(new PossibleInconsistentStateException(), 0);
     }
 
@@ -264,9 +260,8 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
                     "unknown location");
             fail("CheckpointException should have been thrown.");
         } catch (CheckpointException e) {
-            assertThat(
-                    e.getCheckpointFailureReason(),
-                    is(CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE));
+            assertThat(e.getCheckpointFailureReason())
+                    .isEqualTo(CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE);
         }
 
         AbstractCheckpointStats actualStats =
@@ -275,11 +270,11 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
                         .getHistory()
                         .getCheckpointById(checkpointIDCounter.getLast());
 
-        assertEquals(checkpointIDCounter.getLast(), actualStats.getCheckpointId());
-        assertEquals(CheckpointStatsStatus.FAILED, actualStats.getStatus());
+        assertThat(actualStats.getCheckpointId()).isEqualTo(checkpointIDCounter.getLast());
+        assertThat(actualStats.getStatus()).isEqualTo(CheckpointStatsStatus.FAILED);
         assertStatsMetrics(vertex.getJobvertexId(), 0, expectedReportedMetrics, actualStats);
 
-        assertThat(cleanupCallCount.get(), is(expectedCleanupCalls));
+        assertThat(cleanupCallCount.get()).isEqualTo(expectedCleanupCalls);
     }
 
     private static final class FailingCompletedCheckpointStore

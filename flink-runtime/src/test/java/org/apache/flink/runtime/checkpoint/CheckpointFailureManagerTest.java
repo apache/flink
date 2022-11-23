@@ -17,24 +17,21 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
-
-import java.io.IOException;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
 import static org.apache.flink.runtime.checkpoint.CheckpointProperties.forCheckpoint;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the checkpoint failure manager. */
-public class CheckpointFailureManagerTest extends TestLogger {
+class CheckpointFailureManagerTest extends TestLogger {
 
     @Test
-    public void testIgnoresPastCheckpoints() throws IOException, JobException {
+    void testIgnoresPastCheckpoints() {
         TestFailJobCallback callback = new TestFailJobCallback();
         CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
         CheckpointProperties checkpointProperties = forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION);
@@ -50,11 +47,11 @@ public class CheckpointFailureManagerTest extends TestLogger {
                 checkpointProperties, new CheckpointException(CHECKPOINT_EXPIRED), 3L);
         failureManager.handleJobLevelCheckpointException(
                 checkpointProperties, new CheckpointException(CHECKPOINT_EXPIRED), 4L);
-        assertEquals(0, callback.getInvokeCounter());
+        assertThat(callback.getInvokeCounter()).isZero();
     }
 
     @Test
-    public void testContinuousFailure() throws IOException, JobException {
+    void testContinuousFailure() {
         TestFailJobCallback callback = new TestFailJobCallback();
         CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
         CheckpointProperties checkpointProperties = forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION);
@@ -77,11 +74,11 @@ public class CheckpointFailureManagerTest extends TestLogger {
                 checkpointProperties,
                 new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED),
                 4);
-        assertEquals(1, callback.getInvokeCounter());
+        assertThat(callback.getInvokeCounter()).isOne();
     }
 
     @Test
-    public void testBreakContinuousFailure() throws IOException, JobException {
+    void testBreakContinuousFailure() {
         TestFailJobCallback callback = new TestFailJobCallback();
         CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
         CheckpointProperties checkpointProperties = forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION);
@@ -106,11 +103,11 @@ public class CheckpointFailureManagerTest extends TestLogger {
 
         failureManager.handleJobLevelCheckpointException(
                 checkpointProperties, new CheckpointException(CHECKPOINT_EXPIRED), 5);
-        assertEquals(0, callback.getInvokeCounter());
+        assertThat(callback.getInvokeCounter()).isZero();
     }
 
     @Test
-    public void testTotalCountValue() throws IOException, JobException {
+    void testTotalCountValue() {
         TestFailJobCallback callback = new TestFailJobCallback();
         CheckpointProperties checkpointProperties = forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION);
         CheckpointFailureManager failureManager = new CheckpointFailureManager(0, callback);
@@ -121,12 +118,11 @@ public class CheckpointFailureManagerTest extends TestLogger {
 
         // IO_EXCEPTION, CHECKPOINT_DECLINED, FINALIZE_CHECKPOINT_FAILURE, CHECKPOINT_EXPIRED and
         // CHECKPOINT_ASYNC_EXCEPTION
-        assertEquals(5, callback.getInvokeCounter());
+        assertThat(callback.getInvokeCounter()).isEqualTo(5);
     }
 
     @Test
-    public void testIgnoreOneCheckpointRepeatedlyCountMultiTimes()
-            throws IOException, JobException {
+    void testIgnoreOneCheckpointRepeatedlyCountMultiTimes() {
         TestFailJobCallback callback = new TestFailJobCallback();
         CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
         CheckpointProperties checkpointProperties = forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION);
@@ -151,7 +147,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
                 checkpointProperties,
                 new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED),
                 2);
-        assertEquals(0, callback.getInvokeCounter());
+        assertThat(callback.getInvokeCounter()).isZero();
     }
 
     /** A failure handler callback for testing. */
