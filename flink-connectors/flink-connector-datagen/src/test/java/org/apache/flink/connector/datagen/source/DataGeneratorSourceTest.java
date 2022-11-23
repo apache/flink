@@ -16,14 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.connector.source.lib;
+package org.apache.flink.connector.datagen.source;
 
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
@@ -31,19 +35,57 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
 
-import org.junit.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.LongStream;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link NumberSequenceSource}. */
-public class NumberSequenceSourceTest {
+/** Tests for the {@link DataGeneratorSource}. */
+class DataGeneratorSourceTest {
 
     @Test
-    public void testReaderCheckpoints() throws Exception {
+    @DisplayName("Correctly restores SplitEnumerator from a snapshot.")
+    void testRestoreEnumerator() throws Exception {
+        final GeneratorFunction<Long, Long> generatorFunctionStateless = index -> index;
+        final DataGeneratorSource<Long> dataGeneratorSource =
+                new DataGeneratorSource<>(generatorFunctionStateless, 100, Types.LONG);
+
+        final int parallelism = 2;
+        final MockSplitEnumeratorContext<NumberSequenceSource.NumberSequenceSplit> context =
+                new MockSplitEnumeratorContext<>(parallelism);
+
+        SplitEnumerator<
+                        NumberSequenceSource.NumberSequenceSplit,
+                        Collection<NumberSequenceSource.NumberSequenceSplit>>
+                enumerator = dataGeneratorSource.createEnumerator(context);
+
+        // start() is not strictly necessary in the current implementation, but should logically be
+        // executed in this order (protect against any breaking changes in the start() method).
+        enumerator.start();
+
+        Collection<NumberSequenceSource.NumberSequenceSplit> enumeratorState =
+                enumerator.snapshotState(0);
+        assertThat(enumeratorState).hasSize(parallelism);
+
+        enumerator = dataGeneratorSource.restoreEnumerator(context, enumeratorState);
+
+        // Verify that splits were restored and can be assigned
+        assertThat(context.getSplitsAssignmentSequence()).isEmpty();
+        for (NumberSequenceSource.NumberSequenceSplit ignored : enumeratorState) {
+            enumerator.handleSplitRequest(0, "hostname");
+        }
+        assertThat(context.getSplitsAssignmentSequence()).hasSize(enumeratorState.size());
+    }
+
+    @Test
+    @DisplayName("Uses the underlying NumberSequenceSource correctly for checkpointing.")
+    void testReaderCheckpoints() throws Exception {
         final long from = 177;
         final long mid = 333;
         final long to = 563;
@@ -75,33 +117,19 @@ public class NumberSequenceSourceTest {
         }
 
         final List<Long> result = out.getEmittedRecords();
-        validateSequence(result, from, to);
+        final Iterable<Long> expected = LongStream.range(from, to + 1)::iterator;
+
+        assertThat(result).containsExactlyElementsOf(expected);
     }
 
-    private static void validateSequence(
-            final List<Long> sequence, final long from, final long to) {
-        if (sequence.size() != to - from + 1) {
-            failSequence(sequence, from, to);
-        }
-
-        long nextExpected = from;
-        for (Long next : sequence) {
-            if (next != nextExpected++) {
-                failSequence(sequence, from, to);
-            }
-        }
-    }
-
-    private static void failSequence(final List<Long> sequence, final long from, final long to) {
-        fail(
-                String.format(
-                        "Expected: A sequence [%d, %d], but found: sequence (size %d) : %s",
-                        from, to, sequence.size(), sequence));
-    }
-
-    private static SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> createReader() {
+    private static SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> createReader()
+            throws Exception {
         // the arguments passed in the source constructor matter only to the enumerator
-        return new NumberSequenceSource(0L, 0L).createReader(new DummyReaderContext());
+        GeneratorFunction<Long, Long> generatorFunctionStateless = index -> index;
+        DataGeneratorSource<Long> dataGeneratorSource =
+                new DataGeneratorSource<>(generatorFunctionStateless, Long.MAX_VALUE, Types.LONG);
+
+        return dataGeneratorSource.createReader(new DummyReaderContext());
     }
 
     // ------------------------------------------------------------------------

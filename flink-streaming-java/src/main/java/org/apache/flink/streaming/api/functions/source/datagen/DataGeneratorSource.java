@@ -33,8 +33,11 @@ import javax.annotation.Nullable;
 /**
  * A data generator source that abstract data generator. It can be used to easy startup/test for
  * streaming job and performance testing. It is stateful, re-scalable, possibly in parallel.
+ *
+ * @deprecated Use {@code org.apache.flink.connector.datagen.source.DataGeneratorSource} instead.
  */
 @Experimental
+@Deprecated
 public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
         implements CheckpointedFunction {
 
