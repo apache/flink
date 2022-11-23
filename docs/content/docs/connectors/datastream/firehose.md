@@ -2,6 +2,8 @@
 title: Firehose
 weight: 5
 type: docs
+aliases:
+  - /dev/connectors/firehose.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
