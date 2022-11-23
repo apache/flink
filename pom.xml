@@ -2136,8 +2136,6 @@ under the License.
 								<!-- UnionSerializerConfigSnapshot was a PublicEvolving and Deprecated class that has been removed, embedded inside a Public CoGroupedStreams class, triggering this false failure -->
 								<exclude>org.apache.flink.streaming.api.datastream.CoGroupedStreams$UnionSerializerConfigSnapshot</exclude>
 								<exclude>org.apache.flink.api.connector.source.SourceReaderContext#currentParallelism()</exclude>
-								<!-- This is temporary for https://github.com/siom79/japicmp/issues/341. -->
-								<exclude>org.apache.flink.api.common.state.CheckpointListener#notifyCheckpointComplete(long)</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>
