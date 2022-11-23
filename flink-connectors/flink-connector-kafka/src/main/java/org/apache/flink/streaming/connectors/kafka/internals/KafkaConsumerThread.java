@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -258,7 +259,7 @@ public class KafkaConsumerThread<T> extends Thread {
                 // over
                 if (records == null) {
                     try {
-                        records = consumer.poll(pollTimeout);
+                        records = consumer.poll(Duration.ofMillis(pollTimeout));
                     } catch (WakeupException we) {
                         continue;
                     }

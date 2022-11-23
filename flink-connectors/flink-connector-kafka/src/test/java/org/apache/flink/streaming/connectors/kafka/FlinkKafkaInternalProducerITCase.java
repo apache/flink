@@ -238,7 +238,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
             kafkaConsumer.subscribe(Collections.singletonList(topicName));
             ConsumerRecords<String, String> records = ConsumerRecords.empty();
             while (records.isEmpty()) {
-                records = kafkaConsumer.poll(10000);
+                records = kafkaConsumer.poll(Duration.ofMillis(10000));
             }
 
             ConsumerRecord<String, String> record = Iterables.getOnlyElement(records);
