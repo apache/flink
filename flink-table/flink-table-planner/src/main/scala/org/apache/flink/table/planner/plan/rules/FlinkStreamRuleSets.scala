@@ -75,7 +75,7 @@ object FlinkStreamRuleSets {
     CoreRules.FILTER_REDUCE_EXPRESSIONS,
     CoreRules.PROJECT_REDUCE_EXPRESSIONS,
     CoreRules.CALC_REDUCE_EXPRESSIONS,
-    CoreRules.JOIN_REDUCE_EXPRESSIONS
+    FlinkJoinReduceExpressionsRule.INSTANCE
   )
 
   /** RuleSet to simplify coalesce invocations */

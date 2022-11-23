@@ -129,6 +129,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 joinType,
                 true,
                 !joinType.generatesNullsOnLeft(),
+                //                !joinType.generatesNullsOnRight(),
                 !joinType.generatesNullsOnRight()
                         && !TemporalJoinUtil.containsInitialTemporalJoinCondition(
                                 join.getCondition()),
@@ -172,6 +173,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                         joinType,
                         false,
                         !joinType.generatesNullsOnRight(),
+                        //                        !joinType.generatesNullsOnLeft(),
                         !joinType.generatesNullsOnLeft()
                                 && !TemporalJoinUtil.containsInitialTemporalJoinCondition(
                                         join.getCondition()),
@@ -366,7 +368,10 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                                 joinRel.getRight().getRowType(),
                                 filter);
                 if (!rightFilters.contains(shiftedFilter)) {
-                    rightFilters.add(shiftedFilter);
+                    if (joinInfo.nonEquiConditions.stream()
+                            .noneMatch(TemporalJoinUtil::containsInitialTemporalJoinCondition)) {
+                        rightFilters.add(shiftedFilter);
+                    }
                 }
             } else if (rightKeyBitsWithOffset.contains(inputBits)) {
                 ImmutableIntList rightKeysWithOffset =
