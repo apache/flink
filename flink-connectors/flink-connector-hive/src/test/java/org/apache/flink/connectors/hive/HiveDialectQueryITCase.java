@@ -938,6 +938,35 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testCastToBoolean() throws Exception {
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select cast('false' as boolean), cast ('true' as boolean),"
+                                                + " cast('XXXX' as boolean), cast ('' as boolean),  cast ('  True  ' as boolean)")
+                                .collect());
+        assertThat(result.toString()).isEqualTo("[+I[false, true, null, null, true]]");
+
+        try {
+            tableEnv.executeSql("create table b_src(a string)");
+            tableEnv.executeSql("create table b_dest(a boolean)");
+            tableEnv.executeSql(
+                            "insert into b_src values ('false'), ('true'), ('xxx'), (''), (' True ')")
+                    .await();
+            tableEnv.executeSql("insert into b_dest select * from b_src").await();
+
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from b_dest").collect());
+            assertThat(result.toString())
+                    .isEqualTo("[+I[false], +I[true], +I[null], +I[null], +I[true]]");
+        } finally {
+            tableEnv.executeSql("drop table b_src");
+            tableEnv.executeSql("drop table b_dest");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
