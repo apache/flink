@@ -28,16 +28,17 @@ import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -48,20 +49,18 @@ import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
 import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link ChannelStateCheckpointWriter} test. */
-public class ChannelStateCheckpointWriterTest {
+class ChannelStateCheckpointWriterTest {
     private static final RunnableWithException NO_OP_RUNNABLE = () -> {};
     private final Random random = new Random();
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
     @Test
-    public void testFileHandleSize() throws Exception {
+    void testFileHandleSize() throws Exception {
         int numChannels = 3;
         int numWritesPerChannel = 4;
         int numBytesPerWrite = 5;
@@ -71,8 +70,12 @@ public class ChannelStateCheckpointWriterTest {
                         result,
                         new FsCheckpointStreamFactory(
                                         getSharedInstance(),
-                                        fromLocalFile(temporaryFolder.newFolder("checkpointsDir")),
-                                        fromLocalFile(temporaryFolder.newFolder("sharedStateDir")),
+                                        fromLocalFile(
+                                                TempDirUtils.newFolder(
+                                                        temporaryFolder, "checkpointsDir")),
+                                        fromLocalFile(
+                                                TempDirUtils.newFolder(
+                                                        temporaryFolder, "sharedStateDir")),
                                         numBytesPerWrite - 1,
                                         numBytesPerWrite - 1)
                                 .createCheckpointStateOutputStream(EXCLUSIVE));
@@ -90,18 +93,17 @@ public class ChannelStateCheckpointWriterTest {
         writer.completeOutput();
 
         for (InputChannelStateHandle handle : result.inputChannelStateHandles.get()) {
-            assertEquals(
-                    (Integer.BYTES + numBytesPerWrite) * numWritesPerChannel,
-                    handle.getStateSize());
+            assertThat(handle.getStateSize())
+                    .isEqualTo((Integer.BYTES + numBytesPerWrite) * numWritesPerChannel);
         }
     }
 
     @Test
     @SuppressWarnings("ConstantConditions")
-    public void testSmallFilesNotWritten() throws Exception {
+    void testSmallFilesNotWritten() throws Exception {
         int threshold = 100;
-        File checkpointsDir = temporaryFolder.newFolder("checkpointsDir");
-        File sharedStateDir = temporaryFolder.newFolder("sharedStateDir");
+        File checkpointsDir = TempDirUtils.newFolder(temporaryFolder, "checkpointsDir");
+        File sharedStateDir = TempDirUtils.newFolder(temporaryFolder, "sharedStateDir");
         FsCheckpointStreamFactory checkpointStreamFactory =
                 new FsCheckpointStreamFactory(
                         getSharedInstance(),
@@ -121,13 +123,13 @@ public class ChannelStateCheckpointWriterTest {
         writer.writeInput(new InputChannelInfo(1, 2), buffer);
         writer.completeOutput();
         writer.completeInput();
-        assertTrue(result.isDone());
-        assertEquals(0, checkpointsDir.list().length);
-        assertEquals(0, sharedStateDir.list().length);
+        assertThat(result.isDone()).isTrue();
+        assertThat(checkpointsDir).isEmptyDirectory();
+        assertThat(sharedStateDir).isEmptyDirectory();
     }
 
     @Test
-    public void testEmptyState() throws Exception {
+    void testEmptyState() throws Exception {
         MemoryCheckpointOutputStream stream =
                 new MemoryCheckpointOutputStream(1000) {
                     @Override
@@ -139,22 +141,22 @@ public class ChannelStateCheckpointWriterTest {
         ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult(), stream);
         writer.completeOutput();
         writer.completeInput();
-        assertTrue(stream.isClosed());
+        assertThat(stream.isClosed()).isTrue();
     }
 
     @Test
-    public void testRecyclingBuffers() throws Exception {
+    void testRecyclingBuffers() {
         ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult());
         NetworkBuffer buffer =
                 new NetworkBuffer(
                         MemorySegmentFactory.allocateUnpooledSegment(10, null),
                         FreeingBufferRecycler.INSTANCE);
         writer.writeInput(new InputChannelInfo(1, 2), buffer);
-        assertTrue(buffer.isRecycled());
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     @Test
-    public void testFlush() throws Exception {
+    void testFlush() throws Exception {
         class FlushRecorder extends DataOutputStream {
             private boolean flushed = false;
 
@@ -184,21 +186,21 @@ public class ChannelStateCheckpointWriterTest {
         writer.completeInput();
         writer.completeOutput();
 
-        assertTrue(dataStream.flushed);
+        assertThat(dataStream.flushed).isTrue();
     }
 
     @Test
-    public void testResultCompletion() throws Exception {
+    void testResultCompletion() throws Exception {
         ChannelStateWriteResult result = new ChannelStateWriteResult();
         ChannelStateCheckpointWriter writer = createWriter(result);
         writer.completeInput();
-        assertFalse(result.isDone());
+        assertThat(result.isDone()).isFalse();
         writer.completeOutput();
-        assertTrue(result.isDone());
+        assertThat(result.isDone()).isTrue();
     }
 
     @Test
-    public void testRecordingOffsets() throws Exception {
+    void testRecordingOffsets() throws Exception {
         Map<InputChannelInfo, Integer> offsetCounts = new HashMap<>();
         offsetCounts.put(new InputChannelInfo(1, 1), 1);
         offsetCounts.put(new InputChannelInfo(1, 2), 2);
@@ -218,12 +220,14 @@ public class ChannelStateCheckpointWriterTest {
         for (InputChannelStateHandle handle : result.inputChannelStateHandles.get()) {
             int headerSize = Integer.BYTES;
             int lengthSize = Integer.BYTES;
-            assertEquals(singletonList((long) headerSize), handle.getOffsets());
-            assertEquals(
-                    headerSize + lengthSize + numBytes * offsetCounts.remove(handle.getInfo()),
-                    handle.getDelegate().getStateSize());
+            assertThat(handle.getOffsets()).isEqualTo(singletonList((long) headerSize));
+            assertThat(handle.getDelegate().getStateSize())
+                    .isEqualTo(
+                            headerSize
+                                    + lengthSize
+                                    + numBytes * offsetCounts.remove(handle.getInfo()));
         }
-        assertTrue(offsetCounts.isEmpty());
+        assertThat(offsetCounts).isEmpty();
     }
 
     private byte[] getData(int len) {
@@ -233,8 +237,7 @@ public class ChannelStateCheckpointWriterTest {
     }
 
     private void write(
-            ChannelStateCheckpointWriter writer, InputChannelInfo channelInfo, byte[] data)
-            throws Exception {
+            ChannelStateCheckpointWriter writer, InputChannelInfo channelInfo, byte[] data) {
         MemorySegment segment = wrap(data);
         NetworkBuffer buffer =
                 new NetworkBuffer(
@@ -245,13 +248,12 @@ public class ChannelStateCheckpointWriterTest {
         writer.writeInput(channelInfo, buffer);
     }
 
-    private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result)
-            throws Exception {
+    private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result) {
         return createWriter(result, new MemoryCheckpointOutputStream(1000));
     }
 
     private ChannelStateCheckpointWriter createWriter(
-            ChannelStateWriteResult result, CheckpointStateOutputStream stream) throws Exception {
+            ChannelStateWriteResult result, CheckpointStateOutputStream stream) {
         return new ChannelStateCheckpointWriter(
                 "dummy task",
                 0,

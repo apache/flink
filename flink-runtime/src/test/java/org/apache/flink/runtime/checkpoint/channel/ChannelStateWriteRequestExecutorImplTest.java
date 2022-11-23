@@ -21,44 +21,49 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestDispatcher.NO_OP;
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link ChannelStateWriteRequestExecutorImpl} test. */
-public class ChannelStateWriteRequestExecutorImplTest {
+class ChannelStateWriteRequestExecutorImplTest {
 
     private static final String TASK_NAME = "test task";
 
-    @Test(expected = IllegalStateException.class)
-    public void testCloseAfterSubmit() throws Exception {
-        testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submit);
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testCloseAfterSubmitPriority() throws Exception {
-        testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submitPriority);
+    @Test
+    void testCloseAfterSubmit() {
+        assertThatThrownBy(() -> testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submit))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testSubmitFailure() throws Exception {
+    void testCloseAfterSubmitPriority() {
+        assertThatThrownBy(
+                        () ->
+                                testCloseAfterSubmit(
+                                        ChannelStateWriteRequestExecutor::submitPriority))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testSubmitFailure() throws Exception {
         testSubmitFailure(ChannelStateWriteRequestExecutor::submit);
     }
 
     @Test
-    public void testSubmitPriorityFailure() throws Exception {
+    void testSubmitPriorityFailure() throws Exception {
         testSubmitFailure(ChannelStateWriteRequestExecutor::submitPriority);
     }
 
@@ -73,8 +78,8 @@ public class ChannelStateWriteRequestExecutorImplTest {
         closingDeque.setWorker(worker);
         TestWriteRequest request = new TestWriteRequest();
         requestFun.accept(worker, request);
-        assertTrue(closingDeque.isEmpty());
-        assertFalse(request.isCancelled());
+        assertThat(closingDeque).isEmpty();
+        assertThat(request.isCancelled()).isFalse();
     }
 
     private void testSubmitFailure(
@@ -91,15 +96,15 @@ public class ChannelStateWriteRequestExecutorImplTest {
             // expected: executor not started;
             return;
         } finally {
-            assertTrue(request.cancelled);
-            assertTrue(deque.isEmpty());
+            assertThat(request.cancelled).isTrue();
+            assertThat(deque).isEmpty();
         }
         throw new RuntimeException("expected exception not thrown");
     }
 
     @Test
     @SuppressWarnings("CallToThreadRun")
-    public void testCleanup() throws IOException {
+    void testCleanup() throws IOException {
         TestWriteRequest request = new TestWriteRequest();
         LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
         deque.add(request);
@@ -110,13 +115,13 @@ public class ChannelStateWriteRequestExecutorImplTest {
         worker.close();
         worker.run();
 
-        assertTrue(requestProcessor.isStopped());
-        assertTrue(deque.isEmpty());
-        assertTrue(request.isCancelled());
+        assertThat(requestProcessor.isStopped()).isTrue();
+        assertThat(deque).isEmpty();
+        assertThat(request.isCancelled()).isTrue();
     }
 
     @Test
-    public void testIgnoresInterruptsWhileRunning() throws Exception {
+    void testIgnoresInterruptsWhileRunning() throws Exception {
         TestRequestDispatcher requestProcessor = new TestRequestDispatcher();
         LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
         try (ChannelStateWriteRequestExecutorImpl worker =
@@ -132,7 +137,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
     }
 
     @Test
-    public void testCanBeClosed() throws Exception {
+    void testCanBeClosed() throws Exception {
         long checkpointId = 1L;
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
@@ -162,7 +167,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
     }
 
     @Test
-    public void testRecordsException() throws IOException {
+    void testRecordsException() throws IOException {
         TestException testException = new TestException();
         TestRequestDispatcher throwingRequestProcessor =
                 new TestRequestDispatcher() {
@@ -172,7 +177,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
                     }
                 };
         LinkedBlockingDeque<ChannelStateWriteRequest> deque =
-                new LinkedBlockingDeque<>(Arrays.asList(new TestWriteRequest()));
+                new LinkedBlockingDeque<>(Collections.singletonList(new TestWriteRequest()));
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
                         TASK_NAME, throwingRequestProcessor, deque);
