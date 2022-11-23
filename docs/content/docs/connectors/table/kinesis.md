@@ -180,6 +180,7 @@ Connector Options
     <tr>
       <td><h5>aws.trust.all.certificates</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>If true accepts all SSL certificates.</td>
@@ -724,6 +725,7 @@ Connector Options
     <tr>
       <td><h5>sink.http-client.max-concurrency</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10000</td>
       <td>Integer</td>
       <td>
@@ -733,6 +735,7 @@ Connector Options
     <tr>
       <td><h5>sink.http-client.read-timeout</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">360000</td>
       <td>Integer</td>
       <td>
@@ -742,6 +745,7 @@ Connector Options
     <tr>
       <td><h5>sink.http-client.protocol.version</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">HTTP2</td>
       <td>String</td>
       <td>Http version used by Kinesis Client.</td>
@@ -749,6 +753,7 @@ Connector Options
     <tr>
       <td><h5>sink.batch.max-size</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">500</td>
       <td>Integer</td>
       <td>Maximum batch size of elements to be passed to <code>KinesisAsyncClient</code> to be written downstream.</td>
@@ -756,6 +761,7 @@ Connector Options
     <tr>
       <td><h5>sink.requests.max-inflight</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">16</td>
       <td>Integer</td>
       <td>Request threshold for uncompleted requests by <code>KinesisAsyncClient</code>before blocking new write requests and applying backpressure.</td>
@@ -763,6 +769,7 @@ Connector Options
     <tr>
       <td><h5>sink.requests.max-buffered</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">10000</td>
       <td>String</td>
       <td>Request buffer threshold for buffered requests by <code>KinesisAsyncClient</code> before blocking new write requests and applying backpressure.</td>
@@ -770,6 +777,7 @@ Connector Options
     <tr>
       <td><h5>sink.flush-buffer.size</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">5242880</td>
       <td>Long</td>
       <td>Threshold value in bytes for writer buffer in <code>KinesisAsyncClient</code> before flushing.</td>
@@ -777,6 +785,7 @@ Connector Options
     <tr>
       <td><h5>sink.flush-buffer.timeout</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">5000</td>
       <td>Long</td>
       <td>Threshold time in milliseconds for an element to be in a buffer of<code>KinesisAsyncClient</code> before flushing.</td>
