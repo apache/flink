@@ -22,15 +22,23 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import java.util.Optional;
 
 /**
- * Delegation token provider API. Instances of token providers are loaded by {@link
- * DelegationTokenManager} through service loader.
+ * Delegation token provider API for Hadoop components. Instances of token providers are loaded by
+ * {@link DelegationTokenManager} through service loader.
+ *
+ * <h2>Important Notes</h2>
+ *
+ * <p>"obtainDelegationTokens" function is running in "UserGroupInformation.doAs" context so
+ * authentication is handled inside {@link DelegationTokenManager}
+ *
+ * <p>Tokens are stored in {@link UserGroupInformation}
  */
 @Experimental
-public interface DelegationTokenProvider {
+public interface HadoopDelegationTokenProvider {
     /** Name of the service to provide delegation tokens. This name should be unique. */
     String serviceName();
 

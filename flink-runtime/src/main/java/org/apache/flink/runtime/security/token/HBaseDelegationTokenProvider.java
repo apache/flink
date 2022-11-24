@@ -41,7 +41,7 @@ import java.util.Optional;
  * tend to move this but that would be a breaking change.
  */
 @Experimental
-public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
+public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseDelegationTokenProvider.class);
 

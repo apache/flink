@@ -21,7 +21,6 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -72,7 +71,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
 
     private final KerberosLoginProvider kerberosLoginProvider;
 
-    @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
+    @VisibleForTesting final Map<String, HadoopDelegationTokenProvider> delegationTokenProviders;
 
     @Nullable private final ScheduledExecutor scheduledExecutor;
 
@@ -105,7 +104,6 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
             @Nullable ExecutorService ioExecutor,
             KerberosLoginProvider kerberosLoginProvider) {
         this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
-        SecurityConfiguration securityConfiguration = new SecurityConfiguration(configuration);
         this.tokensRenewalTimeRatio = configuration.get(KERBEROS_TOKENS_RENEWAL_TIME_RATIO);
         this.renewalRetryBackoffPeriod =
                 configuration.get(KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF).toMillis();
@@ -115,14 +113,14 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
         this.ioExecutor = ioExecutor;
     }
 
-    private Map<String, DelegationTokenProvider> loadProviders() {
+    private Map<String, HadoopDelegationTokenProvider> loadProviders() {
         LOG.info("Loading delegation token providers");
 
-        ServiceLoader<DelegationTokenProvider> serviceLoader =
-                ServiceLoader.load(DelegationTokenProvider.class);
+        ServiceLoader<HadoopDelegationTokenProvider> serviceLoader =
+                ServiceLoader.load(HadoopDelegationTokenProvider.class);
 
-        Map<String, DelegationTokenProvider> providers = new HashMap<>();
-        for (DelegationTokenProvider provider : serviceLoader) {
+        Map<String, HadoopDelegationTokenProvider> providers = new HashMap<>();
+        for (HadoopDelegationTokenProvider provider : serviceLoader) {
             try {
                 if (isProviderEnabled(provider.serviceName())) {
                     provider.init(configuration);

@@ -25,14 +25,16 @@ import org.apache.hadoop.security.Credentials;
 import java.util.Optional;
 
 /**
- * An example implementation of {@link DelegationTokenProvider} which throws exception when enabled.
+ * An example implementation of {@link HadoopDelegationTokenProvider} which throws exception when
+ * enabled.
  */
-public class ExceptionThrowingDelegationTokenProvider implements DelegationTokenProvider {
+public class ExceptionThrowingHadoopDelegationTokenProvider
+        implements HadoopDelegationTokenProvider {
 
     public static volatile boolean enabled = false;
     public static volatile boolean constructed = false;
 
-    public ExceptionThrowingDelegationTokenProvider() {
+    public ExceptionThrowingHadoopDelegationTokenProvider() {
         constructed = true;
     }
 
