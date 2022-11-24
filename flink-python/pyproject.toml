@@ -22,7 +22,7 @@ requires = [
     "setuptools>=18.0",
     "wheel",
     "apache-beam==2.38.0",
-    "cython==0.29.24"
+    "cython==0.29.32"
 ]
 
 [tool.cibuildwheel]
