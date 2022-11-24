@@ -1081,23 +1081,23 @@ public class Task
                         currentState,
                         newState);
                 LOG.debug(
-                        "{} ({}) switched from {} to {} due to CancelTaskException: {}",
+                        "{} ({}) switched from {} to {} due to CancelTaskException:",
                         taskNameWithSubtask,
                         executionId,
                         currentState,
                         newState,
-                        ExceptionUtils.stringifyException(cause));
+                        cause);
             } else {
                 // proper failure of the task. record the exception as the root
                 // cause
                 failureCause = cause;
                 LOG.warn(
-                        "{} ({}) switched from {} to {} with failure cause: {}",
+                        "{} ({}) switched from {} to {} with failure cause:",
                         taskNameWithSubtask,
                         executionId,
                         currentState,
                         newState,
-                        ExceptionUtils.stringifyException(cause));
+                        cause);
             }
 
             return true;
