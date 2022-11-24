@@ -379,6 +379,7 @@ public final class ReporterSetup {
         if (reporterClassName != null) {
             LOG.warn(
                     "The reporter configuration of '{}' configures the reporter class, which is a deprecated approach to configure reporters."
+                            + " The used reporter might not support this configuration, which would cause errors while loading the reporter."
                             + " Please configure a factory class instead: '{}{}.{}: <factoryClass>' to ensure that the configuration"
                             + " continues to work with future versions.",
                     reporterName,
