@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.hadoop.HadoopDependency;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 
 /** A factory for {@link KerberosDelegationTokenManager}. */
+@Internal
 public class KerberosDelegationTokenManagerFactory {
 
     private static final Logger LOG =

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
@@ -26,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /** Delegation token updater functionality. */
+@Internal
 public final class DelegationTokenUpdater {
 
     private static final Logger LOG = LoggerFactory.getLogger(DelegationTokenUpdater.class);

@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Listener for delegation tokens state changes in the {@link DelegationTokenManager}.
  *
  * <p>By registering it in the manager one can receive callbacks when events are happening related
  * to delegation tokens.
  */
+@Internal
 public interface DelegationTokenListener {
 
     /** Callback function when new delegation tokens obtained. */

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.Preconditions;
@@ -39,6 +40,7 @@ import java.util.Optional;
  * flink-connector-hbase-base but HBase connection can be made without the connector. All in all I
  * tend to move this but that would be a breaking change.
  */
+@Experimental
 public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseDelegationTokenProvider.class);

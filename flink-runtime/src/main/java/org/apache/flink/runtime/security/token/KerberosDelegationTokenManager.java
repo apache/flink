@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -58,6 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * with user-provided credentials, and contacts all the configured secure services to obtain
  * delegation tokens to be distributed to the rest of the application.
  */
+@Internal
 public class KerberosDelegationTokenManager implements DelegationTokenManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(KerberosDelegationTokenManager.class);
