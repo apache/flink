@@ -26,6 +26,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -190,6 +191,10 @@ public class EdgeManagerBuildUtil {
         ConsumedPartitionGroup consumedPartitionGroup =
                 ConsumedPartitionGroup.fromSinglePartition(
                         numConsumers, consumedPartitionId, intermediateResult.getResultType());
+        finishAllDataProducedPartitions(
+                intermediateResult,
+                Collections.singletonList(consumedPartitionId),
+                consumedPartitionGroup);
         registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
         return consumedPartitionGroup;
     }
@@ -201,8 +206,23 @@ public class EdgeManagerBuildUtil {
         ConsumedPartitionGroup consumedPartitionGroup =
                 ConsumedPartitionGroup.fromMultiplePartitions(
                         numConsumers, consumedPartitions, intermediateResult.getResultType());
+        finishAllDataProducedPartitions(
+                intermediateResult, consumedPartitions, consumedPartitionGroup);
         registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
         return consumedPartitionGroup;
+    }
+
+    private static void finishAllDataProducedPartitions(
+            IntermediateResult intermediateResult,
+            List<IntermediateResultPartitionID> consumedPartitionIds,
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        for (IntermediateResultPartitionID consumedPartitionId : consumedPartitionIds) {
+            // this is for dynamic graph as consumedPartitionGroup has not been created when the
+            // partition becomes finished.
+            if (intermediateResult.getPartitionById(consumedPartitionId).hasDataAllProduced()) {
+                consumedPartitionGroup.partitionFinished();
+            }
+        }
     }
 
     private static void registerConsumedPartitionGroupToEdgeManager(
