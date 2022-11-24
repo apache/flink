@@ -820,8 +820,7 @@ public class HiveParserBaseSemanticAnalyzer {
             case HiveASTParser.StringLiteral:
                 return unescapeSQLString(expr.getText());
             case HiveASTParser.KW_FALSE:
-                // UDFToBoolean casts any non-empty string to true, so set this to false
-                return "";
+                return "FALSE";
             case HiveASTParser.KW_TRUE:
                 return "TRUE";
             case HiveASTParser.MINUS:
