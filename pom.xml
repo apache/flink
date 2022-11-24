@@ -125,7 +125,7 @@ under the License.
 		<flink.shaded.version>16.1</flink.shaded.version>
 		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
-		<slf4j.version>1.7.32</slf4j.version>
+		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
