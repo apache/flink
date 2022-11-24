@@ -368,7 +368,10 @@ public class TableSchema {
                     } else {
                         throw new IllegalArgumentException("Unsupported column type: " + column);
                     }
-                    builder.withComment(comments.get(column.getName()));
+                    String colName = column.getName();
+                    if (comments.containsKey(colName)) {
+                        builder.withComment(comments.get(colName));
+                    }
                 });
 
         watermarkSpecs.forEach(

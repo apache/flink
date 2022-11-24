@@ -1624,31 +1624,27 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .map(
                         (c) -> {
                             final LogicalType logicalType = c.getDataType().getLogicalType();
-                            if (nonComments) {
-                                return new Object[] {
-                                    c.getName(),
-                                    logicalType.copy(true).asSummaryString(),
-                                    logicalType.isNullable(),
-                                    fieldToPrimaryKey.getOrDefault(c.getName(), null),
-                                    c.explainExtras().orElse(null),
-                                    fieldToWatermark.getOrDefault(c.getName(), null)
-                                };
+                            final ArrayList<Object> result =
+                                    new ArrayList<>(
+                                            Arrays.asList(
+                                                    c.getName(),
+                                                    logicalType.copy(true).asSummaryString(),
+                                                    logicalType.isNullable(),
+                                                    fieldToPrimaryKey.getOrDefault(
+                                                            c.getName(), null),
+                                                    c.explainExtras().orElse(null),
+                                                    fieldToWatermark.getOrDefault(
+                                                            c.getName(), null)));
+                            if (!nonComments) {
+                                result.add(c.getComment().orElse(null));
                             }
-                            return new Object[] {
-                                c.getName(),
-                                logicalType.copy(true).asSummaryString(),
-                                logicalType.isNullable(),
-                                fieldToPrimaryKey.getOrDefault(c.getName(), null),
-                                c.explainExtras().orElse(null),
-                                fieldToWatermark.getOrDefault(c.getName(), null),
-                                c.getComment().orElse(null)
-                            };
+                            return result.toArray();
                         })
                 .toArray(Object[][]::new);
     }
 
     private boolean isSchemaNonColumnComments(ResolvedSchema schema) {
-        return schema.getColumns().stream().noneMatch(col -> col.getComment().isPresent());
+        return schema.getColumns().stream().map(Column::getComment).noneMatch(Optional::isPresent);
     }
 
     private TableResultInternal buildResult(String[] headers, DataType[] types, Object[][] rows) {
