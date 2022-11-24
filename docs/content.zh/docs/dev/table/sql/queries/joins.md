@@ -165,7 +165,7 @@ CREATE TABLE currency_rates (
 SELECT 
      order_id,
      price,
-     currency,
+     orders.currency,
      conversion_rate,
      order_time
 FROM orders
