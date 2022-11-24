@@ -173,7 +173,10 @@ public abstract class YarnTestBase {
         Pattern.compile("java\\.lang\\.InterruptedException"),
 
         // this can happen if the hbase delegation token provider is not available
-        Pattern.compile("ClassNotFoundException : \"org.apache.hadoop.hbase.HBaseConfiguration\"")
+        Pattern.compile("ClassNotFoundException : \"org.apache.hadoop.hbase.HBaseConfiguration\""),
+
+        // This happens in YARN shutdown
+        Pattern.compile("Rejected TaskExecutor registration at the ResourceManager")
     };
 
     // Temp directory which is deleted after the unit test.
@@ -608,10 +611,13 @@ public abstract class YarnTestBase {
     public static boolean verifyStringsInNamedLogFiles(
             final String[] mustHave, final ApplicationId applicationId, final String fileName) {
         final List<String> mustHaveList = Arrays.asList(mustHave);
-        final File cwd = new File("target", YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        final File cwd =
+                new File("target/test/data/", YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         if (!cwd.exists() || !cwd.isDirectory()) {
+            LOG.info("Directory doesn't exist: {}", cwd.getAbsolutePath());
             return false;
         }
+        LOG.info("Directory exist: {}", cwd.getAbsolutePath());
 
         final File foundFile =
                 TestUtils.findFile(
@@ -639,6 +645,7 @@ public abstract class YarnTestBase {
                                             }
                                         }
                                         if (foundSet.containsAll(mustHaveList)) {
+                                            LOG.info("Contains");
                                             return true;
                                         }
                                     }
@@ -649,6 +656,7 @@ public abstract class YarnTestBase {
                                                     + " file: "
                                                     + f.getAbsolutePath());
                                 }
+                                LOG.info("Not contains");
                                 return false;
                             }
                         });
@@ -666,8 +674,9 @@ public abstract class YarnTestBase {
 
     public static boolean verifyTokenKindInContainerCredentials(
             final Collection<String> tokens, final String containerId) throws IOException {
-        File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        File cwd = new File("target/test/data/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         if (!cwd.exists() || !cwd.isDirectory()) {
+            LOG.info("Directory doesn't exist: {}", cwd.getAbsolutePath());
             return false;
         }
 
@@ -701,7 +710,7 @@ public abstract class YarnTestBase {
     }
 
     public static String getContainerIdByLogName(String logName) {
-        File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        File cwd = new File("target/test/data/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         File containerLog =
                 TestUtils.findFile(
                         cwd.getAbsolutePath(),
