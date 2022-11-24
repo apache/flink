@@ -26,7 +26,7 @@ import org.apache.flink.table.gateway.rest.message.operation.OperationStatusResp
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Abstract operation related message headers. */
-public abstract class AbstactOperationHeaders
+public abstract class AbstractOperationHeaders
         implements SqlGatewayMessageHeaders<
                 EmptyRequestBody, OperationStatusResponseBody, OperationMessageParameters> {
 
