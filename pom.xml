@@ -991,7 +991,7 @@ under the License.
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-shade-plugin</artifactId>
-							<version>3.4.0</version>
+							<version>3.4.1</version>
 						</plugin>
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
@@ -2070,7 +2070,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.1.1</version>
+					<version>3.4.1</version>
 				</plugin>
 
 				<plugin>
