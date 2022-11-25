@@ -20,11 +20,9 @@ package org.apache.flink.connector.datagen.source;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -184,8 +182,9 @@ class DataGeneratorSourceITCase extends TestLogger {
 
         final GeneratorFunction<Long, Long> generatorFunction = index -> 1L;
 
+        int numCycles = 3;
         // Allow each subtask to produce at least 3 cycles, gated by checkpoints
-        int count = capacityPerCycle * 3;
+        int count = capacityPerCycle * numCycles;
         final DataGeneratorSource<Long> generatorSource =
                 new DataGeneratorSource<>(
                         generatorFunction,
@@ -195,24 +194,18 @@ class DataGeneratorSourceITCase extends TestLogger {
 
         final DataStreamSource<Long> streamSource =
                 env.fromSource(generatorSource, WatermarkStrategy.noWatermarks(), "Data Generator");
-        final DataStream<Tuple2<Integer, Long>> map =
-                streamSource.map(new SubtaskAndCheckpointMapper());
-        final List<Tuple2<Integer, Long>> results = map.executeAndCollect(1000);
+        final DataStream<Integer> map = streamSource.map(new SubtaskMapper());
+        final List<Integer> results = map.executeAndCollect(1000);
 
-        final Map<Tuple2<Integer, Long>, Integer> collect =
-                results.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        x -> (new Tuple2<>(x.f0, x.f1)), summingInt(x -> 1)));
-        for (Map.Entry<Tuple2<Integer, Long>, Integer> entry : collect.entrySet()) {
-            assertThat(entry.getValue()).isEqualTo(capacityPerSubtaskPerCycle);
+        final Map<Integer, Integer> collect =
+                results.stream().collect(Collectors.groupingBy(x -> x, summingInt(x -> 1)));
+        for (Map.Entry<Integer, Integer> entry : collect.entrySet()) {
+            assertThat(entry.getValue()).isEqualTo(capacityPerSubtaskPerCycle * numCycles);
         }
     }
 
-    private static class SubtaskAndCheckpointMapper
-            extends RichMapFunction<Long, Tuple2<Integer, Long>> implements CheckpointListener {
+    private static class SubtaskMapper extends RichMapFunction<Long, Integer> {
 
-        private long checkpointId = 0;
         private int subtaskIndex;
 
         @Override
@@ -221,13 +214,8 @@ class DataGeneratorSourceITCase extends TestLogger {
         }
 
         @Override
-        public Tuple2<Integer, Long> map(Long value) {
-            return new Tuple2<>(subtaskIndex, checkpointId);
-        }
-
-        @Override
-        public void notifyCheckpointComplete(long checkpointId) {
-            this.checkpointId = checkpointId;
+        public Integer map(Long value) {
+            return subtaskIndex;
         }
     }
 
