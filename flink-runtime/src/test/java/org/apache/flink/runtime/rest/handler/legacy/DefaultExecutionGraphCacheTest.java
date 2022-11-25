@@ -148,7 +148,6 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
                 fail("The execution graph future should have been completed exceptionally.");
             } catch (ExecutionException ee) {
-                ee.printStackTrace();
                 assertTrue(ee.getCause() instanceof FlinkException);
             }
 
