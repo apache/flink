@@ -45,29 +45,29 @@ You can use Azure Blob Storage objects like regular files by specifying paths in
 
 ```plain
 // WASB unencrypted access
-wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>
+wasb://<your-container>@<your-azure-account>.blob.core.windows.net/<object-path>
 
 // WASB SSL encrypted access
-wasbs://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>
+wasbs://<your-container>@<your-azure-account>.blob.core.windows.net/<object-path>
 
 // ABFS unecrypted access
-abfs://<your-container>@$<your-azure-account>.dfs.core.windows.net/<object-path>
+abfs://<your-container>@<your-azure-account>.dfs.core.windows.net/<object-path>
 
 // ABFS SSL encrypted access
-abfss://<your-container>@$<your-azure-account>.dfs.core.windows.net/<object-path>
+abfss://<your-container>@<your-azure-account>.dfs.core.windows.net/<object-path>
 ```
 
 See below for how to use Azure Blob Storage in a Flink job:
 
 ```java
 // Read from Azure Blob storage
-env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+env.readTextFile("wasb://<your-container>@<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // Write to Azure Blob storage
-stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+stream.writeAsText("wasb://<your-container>@<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // Use Azure Blob Storage as checkpoint storage
-env.getCheckpointConfig().setCheckpointStorage("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+env.getCheckpointConfig().setCheckpointStorage("wasb://<your-container>@<your-azure-account>.blob.core.windows.net/<object-path>");
 ```
 
 ### Shaded Hadoop Azure Blob Storage file system
