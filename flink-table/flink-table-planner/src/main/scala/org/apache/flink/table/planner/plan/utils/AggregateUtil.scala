@@ -27,7 +27,7 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, DeclarativeAggregateFunction, Sum0AggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, Sum0AggFunction}
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
@@ -500,36 +500,46 @@ object AggregateUtil extends Enumeration {
       argIndexes: Array[Int],
       udf: UserDefinedFunction,
       hasStateBackedDataViews: Boolean,
-      needsRetraction: Boolean): AggregateInfo = call.getAggregation match {
+      needsRetraction: Boolean): AggregateInfo =
+    call.getAggregation match {
+      case bridging: BridgingSqlAggFunction =>
+        // The FunctionDefinition maybe also instance of DeclarativeAggregateFunction
+        if (bridging.getDefinition.isInstanceOf[DeclarativeAggregateFunction]) {
+          createAggregateInfoFromInternalFunction(
+            call,
+            udf,
+            index,
+            argIndexes,
+            needsRetraction,
+            hasStateBackedDataViews)
+        } else {
+          createAggregateInfoFromBridgingFunction(
+            inputRowType,
+            call,
+            index,
+            argIndexes,
+            hasStateBackedDataViews,
+            needsRetraction)
+        }
+      case _: AggSqlFunction =>
+        createAggregateInfoFromLegacyFunction(
+          inputRowType,
+          call,
+          index,
+          argIndexes,
+          udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
+          hasStateBackedDataViews,
+          needsRetraction)
 
-    case _: BridgingSqlAggFunction =>
-      createAggregateInfoFromBridgingFunction(
-        inputRowType,
-        call,
-        index,
-        argIndexes,
-        hasStateBackedDataViews,
-        needsRetraction)
-
-    case _: AggSqlFunction =>
-      createAggregateInfoFromLegacyFunction(
-        inputRowType,
-        call,
-        index,
-        argIndexes,
-        udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
-        hasStateBackedDataViews,
-        needsRetraction)
-
-    case _: SqlAggFunction =>
-      createAggregateInfoFromInternalFunction(
-        call,
-        udf,
-        index,
-        argIndexes,
-        needsRetraction,
-        hasStateBackedDataViews)
-  }
+      case _: SqlAggFunction =>
+        createAggregateInfoFromInternalFunction(
+          call,
+          udf,
+          index,
+          argIndexes,
+          needsRetraction,
+          hasStateBackedDataViews)
+    }
 
   private def createAggregateInfoFromBridgingFunction(
       inputRowType: RowType,

@@ -1013,6 +1013,25 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    /**
+     * Special "+" operator used internally for implementing native hive SUM/AVG aggregations on a
+     * Decimal type. Here is used to prevent the normal {@link #PLUS} from overriding the special
+     * calculation for precision and scale needed by the aggregate function. {@link
+     * LogicalTypeMerging#findAdditionDecimalType} will add 1 to the precision of the plus result
+     * type, but for hive we just keep the precision as input type.
+     */
+    public static final BuiltInFunctionDefinition HIVE_AGG_DECIMAL_PLUS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("HIVE_AGG_DECIMAL_PLUS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.DECIMAL),
+                                    logical(LogicalTypeRoot.DECIMAL)))
+                    .outputTypeStrategy(SpecificTypeStrategies.HIVE_AGG_DECIMAL_PLUS)
+                    .runtimeProvided()
+                    .build();
+
     /** Combines numeric subtraction and "datetime - interval" arithmetic. */
     public static final BuiltInFunctionDefinition MINUS =
             BuiltInFunctionDefinition.newBuilder()

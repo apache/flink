@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.aggfunctions;
+package org.apache.flink.table.functions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.functions.FunctionKind;
-import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Preconditions;
@@ -50,8 +49,9 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRe
  * <p>Note: Developer of DeclarativeAggregateFunction should guarantee that the inferred type of
  * {@link #getValueExpression} is the same as {@link #getResultType()}
  *
- * <p>See an full example: {@link AvgAggFunction}.
+ * <p>See an full example: {@code AvgAggFunction}.
  */
+@PublicEvolving
 public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 
     private transient Set<String> aggBufferNamesCache;
@@ -160,7 +160,7 @@ public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
     }
 
     @Override
-    public final FunctionKind getKind() {
+    public FunctionKind getKind() {
         return FunctionKind.OTHER;
     }
 
