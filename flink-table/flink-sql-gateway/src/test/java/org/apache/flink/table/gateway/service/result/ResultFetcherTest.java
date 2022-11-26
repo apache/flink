@@ -208,6 +208,19 @@ public class ResultFetcherTest extends TestLogger {
     }
 
     @Test
+    public void testFetchResultsMultipleTimesWithLimitedFetchSizeBiggerSizeInOrientation() {
+        int bufferSize = data.size();
+        ResultFetcher fetcher =
+                buildResultFetcher(Collections.singletonList(data.iterator()), bufferSize);
+
+        int fetchSize = data.size() * 2;
+        runFetchMultipleTimes(
+                bufferSize,
+                fetchSize,
+                token -> fetcher.fetchResults(FetchOrientation.FETCH_NEXT, fetchSize));
+    }
+
+    @Test
     public void testFetchResultInParallel() throws Exception {
         ResultFetcher fetcher =
                 buildResultFetcher(Collections.singletonList(data.iterator()), data.size() / 2);
