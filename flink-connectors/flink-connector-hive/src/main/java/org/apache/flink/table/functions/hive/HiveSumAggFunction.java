@@ -16,29 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.aggfunctions;
+package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalPlus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.tryCast;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 
-/** built-in sum aggregate function. */
-public abstract class SumAggFunction extends DeclarativeAggregateFunction {
+/** built-in hive sum aggregate function. */
+public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     private final UnresolvedReferenceExpression sum = unresolvedRef("sum");
+    private DataType resultType;
 
     @Override
     public int operandCount() {
@@ -56,6 +60,11 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
     }
 
     @Override
+    public DataType getResultType() {
+        return resultType;
+    }
+
+    @Override
     public Expression[] initialValuesExpressions() {
         return new Expression[] {/* sum = */ nullOf(getResultType())};
     }
@@ -66,14 +75,16 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
             /* sum = */ ifThenElse(
                     isNull(operand(0)),
                     sum,
-                    ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0))))
+                    ifThenElse(
+                            isNull(sum),
+                            tryCast(operand(0), typeLiteral(getResultType())),
+                            adjustedPlus(sum, tryCast(operand(0), typeLiteral(getResultType())))))
         };
     }
 
     @Override
     public Expression[] retractExpressions() {
-        throw new TableException(
-                "This function does not support retraction, Please choose SumWithRetractAggFunction.");
+        throw new TableException("Sum aggregate function does not support retraction.");
     }
 
     @Override
@@ -87,83 +98,48 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
         };
     }
 
-    protected UnresolvedCallExpression adjustedPlus(
-            UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
-        return plus(arg1, arg2);
-    }
-
     @Override
     public Expression getValueExpression() {
         return sum;
     }
 
-    /** Built-in Int Sum aggregate function. */
-    public static class IntSumAggFunction extends SumAggFunction {
-
-        @Override
-        public DataType getResultType() {
-            return DataTypes.INT();
+    @Override
+    public void setArguments(CallContext callContext) {
+        if (resultType == null) {
+            resultType = initResultType(callContext.getArgumentDataTypes().get(0));
         }
     }
 
-    /** Built-in Byte Sum aggregate function. */
-    public static class ByteSumAggFunction extends SumAggFunction {
-        @Override
-        public DataType getResultType() {
-            return DataTypes.TINYINT();
+    private DataType initResultType(DataType argsType) {
+        switch (argsType.getLogicalType().getTypeRoot()) {
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+                return DataTypes.BIGINT();
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case FLOAT:
+            case DOUBLE:
+            case CHAR:
+            case VARCHAR:
+                return DataTypes.DOUBLE();
+            case DECIMAL:
+                DecimalType sumType =
+                        (DecimalType) LogicalTypeMerging.findSumAggType(argsType.getLogicalType());
+                return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
+            default:
+                throw new TableException(
+                        String.format(
+                                "Sum aggregate function does not support type: '%s'. Please re-check the data type.",
+                                argsType.getLogicalType().getTypeRoot()));
         }
     }
 
-    /** Built-in Short Sum aggregate function. */
-    public static class ShortSumAggFunction extends SumAggFunction {
-        @Override
-        public DataType getResultType() {
-            return DataTypes.SMALLINT();
-        }
-    }
-
-    /** Built-in Long Sum aggregate function. */
-    public static class LongSumAggFunction extends SumAggFunction {
-        @Override
-        public DataType getResultType() {
-            return DataTypes.BIGINT();
-        }
-    }
-
-    /** Built-in Float Sum aggregate function. */
-    public static class FloatSumAggFunction extends SumAggFunction {
-        @Override
-        public DataType getResultType() {
-            return DataTypes.FLOAT();
-        }
-    }
-
-    /** Built-in Double Sum aggregate function. */
-    public static class DoubleSumAggFunction extends SumAggFunction {
-        @Override
-        public DataType getResultType() {
-            return DataTypes.DOUBLE();
-        }
-    }
-
-    /** Built-in Decimal Sum aggregate function. */
-    public static class DecimalSumAggFunction extends SumAggFunction {
-        private final DataType returnType;
-
-        public DecimalSumAggFunction(DecimalType decimalType) {
-            DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
-            this.returnType = DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
-        }
-
-        @Override
-        public DataType getResultType() {
-            return returnType;
-        }
-
-        @Override
-        protected UnresolvedCallExpression adjustedPlus(
-                UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
-            return aggDecimalPlus(arg1, arg2);
+    private UnresolvedCallExpression adjustedPlus(Expression arg1, Expression arg2) {
+        if (getResultType().getLogicalType() instanceof DecimalType) {
+            return aggDecimalPlus(arg1, cast(arg2, typeLiteral(getResultType())));
+        } else {
+            return plus(arg1, cast(arg2, typeLiteral(getResultType())));
         }
     }
 }

@@ -48,6 +48,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 
 /** Builder for {@link Expression}s. */
 public class ExpressionBuilder {
@@ -158,6 +159,10 @@ public class ExpressionBuilder {
 
     public static UnresolvedCallExpression cast(Expression child, Expression type) {
         return call(CAST, child, type);
+    }
+
+    public static UnresolvedCallExpression tryCast(Expression child, Expression type) {
+        return call(TRY_CAST, child, type);
     }
 
     public static UnresolvedCallExpression reinterpretCast(
