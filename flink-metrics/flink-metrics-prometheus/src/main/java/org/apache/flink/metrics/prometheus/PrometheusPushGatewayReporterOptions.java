@@ -111,8 +111,18 @@ public class PrometheusPushGatewayReporterOptions {
                                                     "Prometheus requirements"))
                                     .build());
     public static final ConfigOption<Boolean> ENABLE_HISTOGRAM_MAX =
-            PrometheusReporterOptions.ENABLE_HISTOGRAM_MAX;
+            ConfigOptions.key("histogramMax")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Specifies whether to enable maximum from histogram or not. If enabled, "
+                                    + "the histogram metrics will include quantile=1.0 which is equivalent to max.");
 
     public static final ConfigOption<Boolean> ENABLE_HISTOGRAM_MIN =
-            PrometheusReporterOptions.ENABLE_HISTOGRAM_MIN;
+            ConfigOptions.key("histogramMin")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Specifies whether to enable minimum from histogram or not. If enabled, "
+                                    + "the histogram metrics will include quantile=0.0 which is equivalent to min.");
 }

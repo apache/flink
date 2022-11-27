@@ -175,6 +175,8 @@ Parameters:
 
 - `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations). In order to be able to run several instances of the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
 - `filterLabelValueCharacters` - (optional) Specifies whether to filter label value characters. If enabled, all characters not matching \[a-zA-Z0-9:_\] will be removed, otherwise no characters will be removed. Before disabling this option please ensure that your label values meet the [Prometheus requirements](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels).
+- `histogramMax` - (optional) emit max of histogram metrics into Prometheus as quantile 1.0.
+- `histogramMin` - (optional) emit min of histogram metrics into Prometheus as quantile 0.0.
 
 Example configuration:
 

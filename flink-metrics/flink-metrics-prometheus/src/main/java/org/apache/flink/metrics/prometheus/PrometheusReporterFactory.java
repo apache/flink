@@ -38,13 +38,13 @@ public class PrometheusReporterFactory implements MetricReporterFactory {
 
         Boolean histogramMaxEnabled =
                 metricConfig.getBoolean(
-                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MAX.key(),
-                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MAX.defaultValue());
+                        PrometheusPushGatewayReporterOptions.ENABLE_HISTOGRAM_MAX.key(),
+                        PrometheusPushGatewayReporterOptions.ENABLE_HISTOGRAM_MAX.defaultValue());
 
         Boolean histogramMinEnabled =
                 metricConfig.getBoolean(
-                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MIN.key(),
-                        PrometheusReporterOptions.ENABLE_HISTOGRAM_MIN.defaultValue());
+                        PrometheusPushGatewayReporterOptions.ENABLE_HISTOGRAM_MIN.key(),
+                        PrometheusPushGatewayReporterOptions.ENABLE_HISTOGRAM_MIN.defaultValue());
         return new PrometheusReporter(ports, histogramMaxEnabled, histogramMinEnabled);
     }
 }
