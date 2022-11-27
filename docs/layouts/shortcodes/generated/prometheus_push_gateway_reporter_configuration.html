@@ -27,6 +27,18 @@
             <td>Specifies the grouping key which is the group and global labels of all metrics. The label name and value are separated by '=', and labels are separated by ';', e.g., <code class="highlighter-rouge">k1=v1;k2=v2</code>. Please ensure that your grouping key meets the <a href="https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels">Prometheus requirements</a>.</td>
         </tr>
         <tr>
+            <td><h5>metrics.reporter.prometheus.histogramMax</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Specifies whether to enable maximum from histogram or not. If enabled, the histogram metrics will include quantile=1.0 which is equivalent to max.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.prometheus.histogramMin</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Specifies whether to enable minimum from histogram or not. If enabled, the histogram metrics will include quantile=0.0 which is equivalent to min.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.reporter.prometheus.hostUrl</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
