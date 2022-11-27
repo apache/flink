@@ -120,10 +120,9 @@ For more information take a look at [Curator's error handling](https://curator.a
 
 ## ZooKeeper Versions
 
-Flink ships with separate ZooKeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution
-and thus used by default, whereas 3.5 is placed in the `opt` directory.
+Flink ships with separate ZooKeeper clients for 3.5 and 3.6, with 3.5 being in the `lib` directory of the distribution
+and thus used by default, whereas 3.6 is placed in the `opt` directory.
 
-The 3.5 client allows you to secure the ZooKeeper connection via SSL, but _may_ not work with 3.4- ZooKeeper installations.
 
 You can control which version is used by Flink by placing either jar in the `lib` directory.
 
