@@ -1277,7 +1277,7 @@ public class KinesisDataFetcher<T> {
                     globalWatermark = watermarkTracker.updateWatermark(nextWatermark);
                     propagatedLocalWatermark = nextWatermark;
                 } else {
-                    globalWatermark = watermarkTracker.getWatermark();
+                    globalWatermark = watermarkTracker.updateWatermark(Long.MIN_VALUE);
                     LOG.info(
                             "WatermarkSyncCallback subtask: {} is idle",
                             indexOfThisConsumerSubtask);

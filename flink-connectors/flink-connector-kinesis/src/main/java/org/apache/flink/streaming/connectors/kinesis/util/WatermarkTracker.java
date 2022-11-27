@@ -95,8 +95,6 @@ public abstract class WatermarkTracker implements Closeable, Serializable {
      */
     public abstract long updateWatermark(final long localWatermark);
 
-    public abstract long getWatermark();
-
     protected long getCurrentTime() {
         return System.currentTimeMillis();
     }

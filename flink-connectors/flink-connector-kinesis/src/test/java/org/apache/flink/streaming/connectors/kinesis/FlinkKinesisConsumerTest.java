@@ -931,15 +931,15 @@ public class FlinkKinesisConsumerTest extends TestLogger {
                 };
 
         new Thread(
-                        () -> {
-                            try {
-                                sourceFunc.run(sourceContext);
-                            } catch (InterruptedException e) {
-                                // expected on cancel
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
+                () -> {
+                    try {
+                        sourceFunc.run(sourceContext);
+                    } catch (InterruptedException e) {
+                        // expected on cancel
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
                 .start();
 
         shard1.put("1");
@@ -1097,15 +1097,15 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 
         final AtomicReference<Exception> sourceThreadError = new AtomicReference<>();
         new Thread(
-                        () -> {
-                            try {
-                                sourceFunc.run(sourceContext);
-                            } catch (InterruptedException e) {
-                                // expected on cancel
-                            } catch (Exception e) {
-                                sourceThreadError.set(e);
-                            }
-                        })
+                () -> {
+                    try {
+                        sourceFunc.run(sourceContext);
+                    } catch (InterruptedException e) {
+                        // expected on cancel
+                    } catch (Exception e) {
+                        sourceThreadError.set(e);
+                    }
+                })
                 .start();
 
         ArrayList<Object> expectedResults = new ArrayList<>();
@@ -1245,11 +1245,6 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         public long updateWatermark(long localWatermark) {
             WATERMARK.set(localWatermark);
             return localWatermark;
-        }
-
-        @Override
-        public long getWatermark() {
-            return WATERMARK.get();
         }
 
         static void assertGlobalWatermark(long expected) {
