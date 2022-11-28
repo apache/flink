@@ -450,7 +450,8 @@ public class HiveDDLUtils {
             if (literal instanceof SqlCharStringLiteral) {
                 SqlCharStringLiteral stringLiteral = (SqlCharStringLiteral) literal;
                 String unescaped =
-                        StringEscapeUtils.unescapeJava(stringLiteral.getNlsString().getValue());
+                        StringEscapeUtils.unescapeJava(
+                                stringLiteral.getValueAs(NlsString.class).getValue());
                 return SqlLiteral.createCharString(unescaped, stringLiteral.getParserPosition());
             }
             return literal;

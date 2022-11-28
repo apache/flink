@@ -213,8 +213,8 @@ object FlinkRexUtil {
     val binaryComparisonExprReduced =
       sameExprMerged.accept(new BinaryComparisonExprReducer(rexBuilder))
 
-    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, executor)
-    rexSimplify.simplify(binaryComparisonExprReduced)
+    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, executor)
+    rexSimplify.simplifyUnknownAs(binaryComparisonExprReduced, RexUnknownAs.falseIf(true))
   }
 
   val BINARY_COMPARISON: util.Set[SqlKind] = util.EnumSet.of(
