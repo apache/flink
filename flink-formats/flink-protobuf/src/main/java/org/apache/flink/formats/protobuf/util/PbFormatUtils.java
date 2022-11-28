@@ -23,6 +23,7 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.ProtobufInternalUtils;
 
@@ -34,6 +35,15 @@ public class PbFormatUtils {
             String parentJavaFullName =
                     getFullJavaName(descriptor.getContainingType(), outerProtoName);
             return parentJavaFullName + "." + descriptor.getName();
+        } else if (descriptor.getFullName().contains("google")) {
+            Descriptors.FileDescriptor file = descriptor.getFile();
+            DescriptorProtos.FileOptions options = file.getOptions();
+            String pkg = options.getJavaPackage() + ".";
+            if (pkg.trim().equals(".")) {
+                pkg = outerProtoName;
+            }
+            return pkg + descriptor.getName();
+
         } else {
             // top level message
             return outerProtoName + descriptor.getName();

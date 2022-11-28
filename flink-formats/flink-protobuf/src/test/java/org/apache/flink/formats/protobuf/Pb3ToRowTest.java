@@ -24,6 +24,7 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -38,6 +39,7 @@ public class Pb3ToRowTest {
     public void testDeserialization() throws Exception {
         Pb3Test.InnerMessageTest innerMessageTest =
                 Pb3Test.InnerMessageTest.newBuilder().setA(1).setB(2).build();
+        Timestamp ts = Timestamp.newBuilder().build();
         Pb3Test mapTest =
                 Pb3Test.newBuilder()
                         .setA(1)
@@ -52,6 +54,7 @@ public class Pb3ToRowTest {
                         .putMap1("a", "b")
                         .putMap1("c", "d")
                         .putMap2("f", innerMessageTest)
+                        .setTs(ts)
                         .build();
 
         RowData row = ProtobufTestHelper.pbBytesToRow(Pb3Test.class, mapTest.toByteArray());
@@ -85,6 +88,8 @@ public class Pb3ToRowTest {
 
         assertEquals(1, rowData.getInt(0));
         assertEquals(2L, rowData.getLong(1));
+
+        assertEquals(ts.getNanos(), row.getTimestamp(11, 3).getNanoOfMillisecond());
     }
 
     @Test
