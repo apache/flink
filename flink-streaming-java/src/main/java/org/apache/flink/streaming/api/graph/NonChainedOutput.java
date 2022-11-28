@@ -59,7 +59,7 @@ public class NonChainedOutput implements Serializable {
     private final OutputTag<?> outputTag;
 
     /** The corresponding data partitioner. */
-    private final StreamPartitioner<?> partitioner;
+    private StreamPartitioner<?> partitioner;
 
     /** Target {@link ResultPartitionType}. */
     private final ResultPartitionType partitionType;
@@ -117,6 +117,10 @@ public class NonChainedOutput implements Serializable {
 
     public OutputTag<?> getOutputTag() {
         return outputTag;
+    }
+
+    public void setPartitioner(StreamPartitioner<?> partitioner) {
+        this.partitioner = partitioner;
     }
 
     public StreamPartitioner<?> getPartitioner() {
