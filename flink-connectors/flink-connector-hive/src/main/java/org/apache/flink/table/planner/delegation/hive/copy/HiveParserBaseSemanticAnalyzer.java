@@ -434,8 +434,21 @@ public class HiveParserBaseSemanticAnalyzer {
         String tableName;
         switch (tabNameNode.getChildCount()) {
             case 1:
+                // try to handle the case: `db.t1`, `cat.db.t`
                 tableName = unescapeIdentifier(tabNameNode.getChild(0).getText());
-                return UnresolvedIdentifier.of(tableName);
+                String[] names = tableName.split("\\.");
+                switch (names.length) {
+                    case 1:
+                        return UnresolvedIdentifier.of(tableName);
+                    case 2:
+                        return UnresolvedIdentifier.of(names[0], names[1]);
+                    case 3:
+                        return UnresolvedIdentifier.of(names[0], names[1], names[2]);
+                    default:
+                        throw new SemanticException(
+                                HiveParserErrorMsg.getMsg(
+                                        ErrorMsg.INVALID_TABLE_NAME, tabNameNode));
+                }
             case 2:
                 dbName = unescapeIdentifier(tabNameNode.getChild(0).getText());
                 tableName = unescapeIdentifier(tabNameNode.getChild(1).getText());

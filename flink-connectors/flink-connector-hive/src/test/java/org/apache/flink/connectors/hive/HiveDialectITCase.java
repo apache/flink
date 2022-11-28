@@ -167,6 +167,79 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testOverWrite() throws Exception {
+        tableEnv.executeSql("create database db1");
+        // test overwrite a non-partition table
+        tableEnv.executeSql("create table db1.t1(a int, b int)");
+        tableEnv.executeSql("insert into `db1.t1` values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("insert overwrite table `db1.t1` values (9, 10)").await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from db1.t1").collect());
+        assertThat(result.toString()).isEqualTo("[+I[9, 10]]");
+
+        // test overwrite a static partition table
+        tableEnv.executeSql("create table db1.t2(a int, b int) partitioned by (c int)");
+        tableEnv.executeSql("insert into db1.t2 partition (c = 1) values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("insert overwrite table `db1.t2` partition (c = 1) values (7, 8)")
+                .await();
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from db1.t2").collect());
+        assertThat(result.toString()).isEqualTo("[+I[7, 8, 1]]");
+
+        // test overwrite dynamic  partition table
+        tableEnv.executeSql("create table db1.t3(a int, b int) partitioned by (c int)");
+        tableEnv.executeSql("insert into `db1.t3` partition (c = 1) values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("create table db1.t4(a int, b int, c int)");
+        tableEnv.executeSql("insert into `db1.t4` values (5, 6, 1), (7, 8, 2)").await();
+        tableEnv.executeSql("insert overwrite table `db1.t3` partition(c) select * from `db1.t4`")
+                .await();
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from db1.t3 order by c").collect());
+        assertThat(result.toString()).isEqualTo("[+I[5, 6, 1], +I[7, 8, 2]]");
+    }
+
+    @Test
+    public void testOverWriteWithCatalog() throws Exception {
+        tableEnv.executeSql("create database db1");
+        // test overwrite a non-partition table
+        tableEnv.executeSql("create table db1.t1(a int, b int)");
+        tableEnv.executeSql("insert into `test-catalog.db1.t1` values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("insert overwrite table `test-catalog.db1.t1` values (9, 10)").await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from db1.t1").collect());
+        assertThat(result.toString()).isEqualTo("[+I[9, 10]]");
+
+        // test overwrite a static partition table
+        tableEnv.executeSql("create table db1.t2(a int, b int) partitioned by (c int)");
+        tableEnv.executeSql("insert into db1.t2 partition (c = 1) values (1, 2), (4, 5)").await();
+        tableEnv.executeSql(
+                        "insert overwrite table `test-catalog.db1.t2` partition (c = 1) values (7, 8)")
+                .await();
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from db1.t2").collect());
+        assertThat(result.toString()).isEqualTo("[+I[7, 8, 1]]");
+
+        // test overwrite dynamic  partition table
+        tableEnv.executeSql("create table db1.t3(a int, b int) partitioned by (c int)");
+        tableEnv.executeSql("insert into `db1.t3` partition (c = 1) values (1, 2), (4, 5)").await();
+        tableEnv.executeSql("create table db1.t4(a int, b int, c int)");
+        tableEnv.executeSql("insert into `test-catalog.db1.t4` values (5, 6, 1), (7, 8, 2)")
+                .await();
+        tableEnv.executeSql(
+                        "insert overwrite table `test-catalog.db1.t3` partition(c) select * from `db1.t4`")
+                .await();
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from db1.t3 order by c").collect());
+        assertThat(result.toString()).isEqualTo("[+I[5, 6, 1], +I[7, 8, 2]]");
+    }
+
+    @Test
     public void testCreateDatabase() throws Exception {
         tableEnv.executeSql("create database db1 comment 'db1 comment'");
         Database db = hiveCatalog.getHiveDatabase("db1");
