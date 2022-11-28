@@ -1342,11 +1342,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         for (JobVertex vertex : jobGraph.getVertices()) {
             String override = overrides.get(vertex.getID().toHexString());
             if (override != null) {
+                int currentParallelism = vertex.getParallelism();
                 int overrideParallelism = Integer.parseInt(override);
                 log.info(
                         "Changing job vertex {} parallelism from {} to {}",
                         vertex.getID(),
-                        vertex.getParallelism(),
+                        currentParallelism,
                         overrideParallelism);
                 vertex.setParallelism(overrideParallelism);
             }
