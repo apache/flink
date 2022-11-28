@@ -36,6 +36,9 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
      */
     SequenceNumber nextSequenceNumber();
 
+    /** Appends the provided **metadata** to this log. No persistency guarantees. */
+    void appendMeta(byte[] value) throws IOException;
+
     /** Appends the provided data to this log. No persistency guarantees. */
     void append(int keyGroup, byte[] value) throws IOException;
 
