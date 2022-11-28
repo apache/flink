@@ -46,7 +46,7 @@ import java.util.Set;
 
 /** Delegation token provider for Hadoop filesystems. */
 @Experimental
-public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider {
+public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenProvider {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(HadoopFSDelegationTokenProvider.class);

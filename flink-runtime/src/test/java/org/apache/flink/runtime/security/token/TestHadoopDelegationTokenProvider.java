@@ -24,8 +24,8 @@ import org.apache.hadoop.security.Credentials;
 
 import java.util.Optional;
 
-/** An example implementation of {@link DelegationTokenProvider} which does nothing. */
-public class TestDelegationTokenProvider implements DelegationTokenProvider {
+/** An example implementation of {@link HadoopDelegationTokenProvider} which does nothing. */
+public class TestHadoopDelegationTokenProvider implements HadoopDelegationTokenProvider {
 
     @Override
     public String serviceName() {
