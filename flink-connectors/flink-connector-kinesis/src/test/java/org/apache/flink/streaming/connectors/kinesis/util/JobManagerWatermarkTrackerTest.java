@@ -67,6 +67,7 @@ public class JobManagerWatermarkTrackerTest {
         public void run(SourceContext<Integer> ctx) {
             assertThat(tracker.updateWatermark(998)).isEqualTo(998);
             assertThat(tracker.updateWatermark(999)).isEqualTo(999);
+            assertThat(tracker.updateWatermark(Long.MIN_VALUE)).isEqualTo(999);
         }
 
         @Override

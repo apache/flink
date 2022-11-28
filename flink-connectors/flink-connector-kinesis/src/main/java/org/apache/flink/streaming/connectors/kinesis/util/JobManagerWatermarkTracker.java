@@ -129,6 +129,11 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+            // no op to get global watermark without updating it
+            if (value.watermark == Long.MIN_VALUE) {
+                addCount--;
+                return accumulator;
+            }
             WatermarkState ws = accumulator.get(value.id);
             if (ws == null) {
                 accumulator.put(value.id, ws = new WatermarkState());
