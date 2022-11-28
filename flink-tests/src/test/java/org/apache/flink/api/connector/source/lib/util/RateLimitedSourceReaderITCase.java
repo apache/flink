@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -103,7 +104,8 @@ public class RateLimitedSourceReaderITCase extends TestLogger {
 
     private static class MockRateLimiterStrategy implements RateLimiterStrategy {
 
-        private static final List<MockRateLimiter> rateLimiters = new ArrayList<>();
+        private static final List<MockRateLimiter> rateLimiters =
+                Collections.synchronizedList(new ArrayList<>());
 
         @Override
         public RateLimiter createRateLimiter(int parallelism) {
