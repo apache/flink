@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.flink.runtime.state.changelog.StateChange.META_KEY_GROUP;
 
 @NotThreadSafe
 class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChangelogStateHandle> {
@@ -55,6 +57,16 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
 
     public InMemoryStateChangelogWriter(KeyGroupRange keyGroupRange) {
         this.keyGroupRange = keyGroupRange;
+    }
+
+    @Override
+    public void appendMeta(byte[] value) throws IOException {
+        Preconditions.checkState(!closed, "LogWriter is closed");
+        LOG.trace("append metadata: {} bytes", value.length);
+        changesByKeyGroup
+                .computeIfAbsent(META_KEY_GROUP, unused -> new TreeMap<>())
+                .put(sqn, value);
+        sqn = sqn.next();
     }
 
     @Override
@@ -96,8 +108,16 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
 
     private Stream<Tuple2<SequenceNumber, StateChange>> toChangeStream(
             NavigableMap<SequenceNumber, byte[]> changeMap, SequenceNumber after, int keyGroup) {
+        if (keyGroup == META_KEY_GROUP) {
+            return changeMap.tailMap(after, true).entrySet().stream()
+                    .map(e2 -> Tuple2.of(e2.getKey(), StateChange.ofMetadataChange(e2.getValue())));
+        }
         return changeMap.tailMap(after, true).entrySet().stream()
-                .map(e2 -> Tuple2.of(e2.getKey(), new StateChange(keyGroup, e2.getValue())));
+                .map(
+                        e2 ->
+                                Tuple2.of(
+                                        e2.getKey(),
+                                        StateChange.ofDataChange(keyGroup, e2.getValue())));
     }
 
     @Override
