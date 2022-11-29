@@ -196,14 +196,18 @@ public class VertexwiseSchedulingStrategy
 
     /** The factory for creating {@link VertexwiseSchedulingStrategy}. */
     public static class Factory implements SchedulingStrategyFactory {
+        private final InputConsumableDecider.Factory inputConsumableDeciderFactory;
+
+        public Factory(InputConsumableDecider.Factory inputConsumableDeciderFactory) {
+            this.inputConsumableDeciderFactory = inputConsumableDeciderFactory;
+        }
+
         @Override
         public SchedulingStrategy createInstance(
                 final SchedulerOperations schedulerOperations,
                 final SchedulingTopology schedulingTopology) {
             return new VertexwiseSchedulingStrategy(
-                    schedulerOperations,
-                    schedulingTopology,
-                    DefaultInputConsumableDecider.Factory.INSTANCE);
+                    schedulerOperations, schedulingTopology, inputConsumableDeciderFactory);
         }
     }
 }

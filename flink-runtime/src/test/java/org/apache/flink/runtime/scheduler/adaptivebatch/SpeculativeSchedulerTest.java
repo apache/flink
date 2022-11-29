@@ -61,6 +61,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -71,6 +73,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
@@ -342,12 +345,20 @@ class SpeculativeSchedulerTest {
         assertThat(scheduler.getExecutionGraph().getState()).isEqualTo(JobStatus.FAILING);
     }
 
-    @Test
-    void testSpeculativeExecutionCombinedWithAdaptiveScheduling() throws Exception {
+    static Stream<ResultPartitionType> supportedResultPartitionType() {
+        return Stream.of(
+                ResultPartitionType.BLOCKING,
+                ResultPartitionType.HYBRID_FULL,
+                ResultPartitionType.HYBRID_SELECTIVE);
+    }
+
+    @ParameterizedTest
+    @MethodSource("supportedResultPartitionType")
+    void testSpeculativeExecutionCombinedWithAdaptiveScheduling(
+            ResultPartitionType resultPartitionType) throws Exception {
         final JobVertex source = createNoOpVertex("source", 1);
         final JobVertex sink = createNoOpVertex("sink", -1);
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
         final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
 
         final ComponentMainThreadExecutor mainThreadExecutor =
