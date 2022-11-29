@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -120,7 +119,6 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
         return unfinishedPartitions.decrementAndGet();
     }
 
-    @VisibleForTesting
     public int getNumberOfUnfinishedPartitions() {
         return unfinishedPartitions.get();
     }
