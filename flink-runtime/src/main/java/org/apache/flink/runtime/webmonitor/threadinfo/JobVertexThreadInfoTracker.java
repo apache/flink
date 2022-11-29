@@ -274,7 +274,9 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         }
 
         return executionAttemptsByLocation.entrySet().stream()
-                .collect(Collectors.toMap(e -> e.getKey(), e -> ImmutableSet.copyOf(e.getValue())));
+                .collect(
+                        Collectors.toMap(
+                                Map.Entry::getKey, e -> ImmutableSet.copyOf(e.getValue())));
     }
 
     @VisibleForTesting
@@ -353,7 +355,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                         vertexStatsCache.put(key, createStatsFn.apply(threadInfoStats));
                         resultAvailableFuture.complete(null);
                     } else {
-                        LOG.debug(
+                        LOG.error(
                                 "Failed to gather a thread info sample for {}",
                                 vertex.getName(),
                                 throwable);
