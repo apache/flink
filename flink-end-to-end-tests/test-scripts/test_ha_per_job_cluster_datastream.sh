@@ -113,7 +113,6 @@ function run_ha_test() {
     # jm killing loop
     set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
 
-    setup_flink_shaded_zookeeper ${ZOOKEEPER_VERSION}
     start_local_zk
 
     echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, incremSnapshots=${INCREM} and zk=${ZOOKEEPER_VERSION}."

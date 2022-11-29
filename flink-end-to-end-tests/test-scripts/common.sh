@@ -114,22 +114,6 @@ function revert_flink_dir() {
     CURL_SSL_ARGS=""
 }
 
-function setup_flink_shaded_zookeeper() {
-  local version=$1
-  # if it is already in lib we don't have to do anything
-  if ! [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-${version}* ]; then
-    if ! [ -e "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* ]; then
-      echo "Could not find ZK ${version} in opt or lib."
-      exit 1
-    else
-      # contents of 'opt' must not be changed since it is not backed up in common.sh#backup_flink_dir
-      # it is fine to delete jars from 'lib' since it is backed up and will be restored after the test
-      rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-*
-      cp "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* "${FLINK_DIR}/lib"
-    fi
-  fi
-}
-
 function add_optional_lib() {
     local lib_name=$1
     cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
