@@ -44,14 +44,6 @@ under the License.
 				<include>org.apache.logging.log4j:log4j-1.2-api</include>
 			</includes>
 		</dependencySet>
-		<dependencySet>
-			<outputDirectory>lib</outputDirectory>
-			<unpack>false</unpack>
-			<includes>
-				<include>org.apache.flink:flink-shaded-zookeeper-3:jar:${zookeeper.version}-${flink.shaded.version}</include>
-			</includes>
-			<outputFileNameMapping>flink-shaded-zookeeper-${zookeeper.version}.jar</outputFileNameMapping>
-		</dependencySet>
 	</dependencySets>
 
 	<files>
