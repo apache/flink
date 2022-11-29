@@ -179,20 +179,19 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         return getSubpartitionMemoryDataManager(subpartitionId).registerNewConsumer(consumerId);
     }
 
-    /** Close this {@link HsMemoryDataManager}, it means no data can append to memory. */
+    /**
+     * Close this {@link HsMemoryDataManager}, it means no data can append to memory and all buffer
+     * taken by this class will recycle.
+     */
     public void close() {
-        Decision decision = callWithLock(() -> spillStrategy.onResultPartitionClosed(this));
-        handleDecision(Optional.of(decision));
+        spillAndReleaseAllData();
         spiller.close();
         poolSizeChecker.shutdown();
     }
 
-    /**
-     * Release this {@link HsMemoryDataManager}, it means all memory taken by this class will
-     * recycle.
-     */
-    public void release() {
-        spiller.release();
+    private void spillAndReleaseAllData() {
+        Decision decision = callWithLock(() -> spillStrategy.onResultPartitionClosed(this));
+        handleDecision(Optional.of(decision));
     }
 
     public void setOutputMetrics(HsOutputMetrics metrics) {

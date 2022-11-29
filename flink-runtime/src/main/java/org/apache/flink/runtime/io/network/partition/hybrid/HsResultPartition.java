@@ -264,15 +264,12 @@ public class HsResultPartition extends ResultPartition {
 
     @Override
     protected void releaseInternal() {
-        // release is called when release by scheduler, later than close.
+        // release is called when release by scheduler or failed.
         // mainly work :
         // 1. release read scheduler.
         // 2. delete shuffle file.
-        // 3. release all data in memory.
 
         fileDataManager.release();
-
-        checkNotNull(memoryDataManager).release();
     }
 
     @Override
