@@ -119,10 +119,6 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 
     void registerConsumedPartitionGroup(ConsumedPartitionGroup consumedPartitionGroup) {
         consumedPartitionGroups.add(consumedPartitionGroup);
-
-        if (getState() == ResultPartitionState.ALL_DATA_PRODUCED) {
-            consumedPartitionGroup.partitionFinished();
-        }
     }
 
     void setProducer(TestingSchedulingExecutionVertex producer) {
