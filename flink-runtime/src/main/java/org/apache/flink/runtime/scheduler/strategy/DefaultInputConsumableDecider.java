@@ -34,7 +34,7 @@ import java.util.function.Function;
  * <p>For canBePipelined consumed partition group: whether all result partitions in the group are
  * scheduled.
  */
-class DefaultInputConsumableDecider implements InputConsumableDecider {
+public class DefaultInputConsumableDecider implements InputConsumableDecider {
     private final Function<IntermediateResultPartitionID, SchedulingResultPartition>
             resultPartitionRetriever;
 
