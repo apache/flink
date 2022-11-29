@@ -135,7 +135,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         Optional<JobVertexThreadInfoStats> result =
                 tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
         // cached result is returned instead of unusedThreadInfoStats
-        assertThat(threadInfoStatsDefaultSample).isEqualTo(result.get());
+        assertThat(result).isPresent().hasValue(threadInfoStatsDefaultSample);
     }
 
     /** Tests that cached result is NOT reused after refresh interval. */
