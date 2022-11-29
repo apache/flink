@@ -730,7 +730,8 @@ public class HiveParserCalcitePlanner {
                 || (left.getToken().getType() == HiveASTParser.TOK_PTBLFUNCTION)) {
             String tableName =
                     HiveParserBaseSemanticAnalyzer.getUnescapedUnqualifiedTableName(
-                                    (HiveParserASTNode) left.getChild(0))
+                                    (HiveParserASTNode) left.getChild(0),
+                                    hiveConf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true))
                             .toLowerCase();
             leftTableAlias =
                     left.getChildCount() == 1
@@ -758,7 +759,8 @@ public class HiveParserCalcitePlanner {
                 || right.getToken().getType() == HiveASTParser.TOK_PTBLFUNCTION) {
             String tableName =
                     HiveParserBaseSemanticAnalyzer.getUnescapedUnqualifiedTableName(
-                                    (HiveParserASTNode) right.getChild(0))
+                                    (HiveParserASTNode) right.getChild(0),
+                                    hiveConf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true))
                             .toLowerCase();
             rightTableAlias =
                     right.getChildCount() == 1
@@ -2235,7 +2237,11 @@ public class HiveParserCalcitePlanner {
                                     expr.getChildCount() == 0
                                             ? null
                                             : HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                                                            (HiveParserASTNode) expr.getChild(0))
+                                                            (HiveParserASTNode) expr.getChild(0),
+                                                            hiveConf.getBoolean(
+                                                                    HiveParser
+                                                                            .TABLE_NAME_IS_STRICT_MODE,
+                                                                    true))
                                                     .toLowerCase(),
                                     expr,
                                     exprNodeDescs,

@@ -167,7 +167,8 @@ public class HiveDialectITCase {
     }
 
     @Test
-    public void testOverWrite() throws Exception {
+    public void testOverWriteInNonStrictMode() throws Exception {
+        hiveCatalog.getHiveConf().setBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, false);
         tableEnv.executeSql("create database db1");
         // test overwrite a non-partition table
         tableEnv.executeSql("create table db1.t1(a int, b int)");
@@ -202,7 +203,8 @@ public class HiveDialectITCase {
     }
 
     @Test
-    public void testOverWriteWithCatalog() throws Exception {
+    public void testOverWriteWithCatalogInNonStrictMode() throws Exception {
+        hiveCatalog.getHiveConf().setBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, false);
         tableEnv.executeSql("create database db1");
         // test overwrite a non-partition table
         tableEnv.executeSql("create table db1.t1(a int, b int)");
@@ -237,6 +239,16 @@ public class HiveDialectITCase {
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select * from db1.t3 order by c").collect());
         assertThat(result.toString()).isEqualTo("[+I[5, 6, 1], +I[7, 8, 2]]");
+    }
+
+    @Test
+    public void testInStrictMode() {
+        tableEnv.executeSql("create database db1");
+        // test overwrite a non-partition table
+        tableEnv.executeSql("create table db1.t1(a int, b int)");
+        assertThatThrownBy(() -> tableEnv.executeSql("insert into `db1.t1` values (1, 2), (4, 5)"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Table test-catalog.default.db1.t1 doesn't exist.");
     }
 
     @Test

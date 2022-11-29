@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
 import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.TableSpec;
@@ -476,11 +477,18 @@ public class HiveParserSemanticAnalyzer {
                 getUnescapedName(
                                 tableTree,
                                 catalogManager.getCurrentCatalog(),
-                                catalogManager.getCurrentDatabase())
+                                catalogManager.getCurrentDatabase(),
+                                conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true))
                         .toLowerCase();
-        String originTableName = getUnescapedOriginTableName(tableTree);
+        String originTableName =
+                getUnescapedOriginTableName(
+                        tableTree, conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
 
-        String alias = findSimpleTableName(tabref, aliasIndex);
+        String alias =
+                findSimpleTableName(
+                        tabref,
+                        aliasIndex,
+                        conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
 
         if (propsIndex >= 0) {
             Tree propsAST = tabref.getChild(propsIndex);
@@ -952,7 +960,8 @@ public class HiveParserSemanticAnalyzer {
                             getUnescapedName(
                                     (HiveParserASTNode) ast.getChild(0).getChild(0),
                                     catalogManager.getCurrentCatalog(),
-                                    catalogManager.getCurrentDatabase());
+                                    catalogManager.getCurrentDatabase(),
+                                    conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
                     qbp.addInsertIntoTable(tabName, ast);
                     // TODO: hive doesn't break here, so we copy what's below here
                     handleTokDestination(ctx1, ast, qbp, plannerCtx);
@@ -1107,11 +1116,15 @@ public class HiveParserSemanticAnalyzer {
                 case HiveASTParser.TOK_ANALYZE:
                     // Case of analyze command
                     String tableName =
-                            getUnescapedName((HiveParserASTNode) ast.getChild(0).getChild(0))
+                            getUnescapedName(
+                                            (HiveParserASTNode) ast.getChild(0).getChild(0),
+                                            conf.getBoolean(
+                                                    HiveParser.TABLE_NAME_IS_STRICT_MODE, true))
                                     .toLowerCase();
                     String originTableName =
                             getUnescapedOriginTableName(
-                                    (HiveParserASTNode) ast.getChild(0).getChild(0));
+                                    (HiveParserASTNode) ast.getChild(0).getChild(0),
+                                    conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
 
                     qb.setTabAlias(tableName, originTableName, tableName);
                     qb.addAlias(tableName);
@@ -1145,7 +1158,10 @@ public class HiveParserSemanticAnalyzer {
                             && destination.getChild(1).getType() == HiveASTParser.TOK_IFNOTEXISTS) {
                         ObjectIdentifier tableIdentifier =
                                 getObjectIdentifier(
-                                        catalogManager, (HiveParserASTNode) tab.getChild(0));
+                                        catalogManager,
+                                        (HiveParserASTNode) tab.getChild(0),
+                                        conf.getBoolean(
+                                                HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
 
                         Tree partitions = tab.getChild(1);
                         int numChildren = partitions.getChildCount();
@@ -1239,7 +1255,8 @@ public class HiveParserSemanticAnalyzer {
                             getUnescapedName(
                                     (HiveParserASTNode) ast.getChild(0).getChild(0),
                                     catalogManager.getCurrentCatalog(),
-                                    catalogManager.getCurrentDatabase());
+                                    catalogManager.getCurrentDatabase(),
+                                    conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
                     qbp.getInsertOverwriteTables().put(fullTableName, ast);
                 }
             }
@@ -1304,7 +1321,8 @@ public class HiveParserSemanticAnalyzer {
                     getUnescapedName(
                             (HiveParserASTNode) ast.getChild(0).getChild(0),
                             catalogManager.getCurrentCatalog(),
-                            catalogManager.getCurrentDatabase());
+                            catalogManager.getCurrentDatabase(),
+                            conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
             qbp.setDestSchemaForClause(ctx1.dest, targetColNames);
             Set<String> targetColumns = new HashSet<>(targetColNames);
             if (targetColNames.size() != targetColumns.size()) {
@@ -1608,7 +1626,11 @@ public class HiveParserSemanticAnalyzer {
                                                                 (HiveParserASTNode) ast.getChild(0),
                                                                 ts.tableIdentifier.getCatalogName(),
                                                                 ts.tableIdentifier
-                                                                        .getDatabaseName()))
+                                                                        .getDatabaseName(),
+                                                                conf.getBoolean(
+                                                                        HiveParser
+                                                                                .TABLE_NAME_IS_STRICT_MODE,
+                                                                        true)))
                                         != null);
                         assert isTableWrittenTo
                                 : "Inconsistent data structure detected: we are writing to "
@@ -1668,7 +1690,11 @@ public class HiveParserSemanticAnalyzer {
                                 } else {
                                     // allocate a temporary output dir on the location of the table
                                     String tableName =
-                                            getUnescapedName((HiveParserASTNode) ast.getChild(0));
+                                            getUnescapedName(
+                                                    (HiveParserASTNode) ast.getChild(0),
+                                                    conf.getBoolean(
+                                                            HiveParser.TABLE_NAME_IS_STRICT_MODE,
+                                                            true));
                                     String[] names = Utilities.getDbTableName(tableName);
                                     try {
                                         Warehouse wh = new Warehouse(conf);

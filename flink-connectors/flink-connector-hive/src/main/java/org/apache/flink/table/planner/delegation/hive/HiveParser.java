@@ -79,6 +79,8 @@ public class HiveParser extends ParserImpl {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveParser.class);
 
+    public static final String TABLE_NAME_IS_STRICT_MODE = "table.name.strict.mode";
+
     // need to maintain the HiveParserASTNode types for DDLs
     private static final Set<Integer> DDL_NODES;
 

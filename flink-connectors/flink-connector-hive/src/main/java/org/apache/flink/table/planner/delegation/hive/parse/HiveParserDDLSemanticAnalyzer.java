@@ -931,7 +931,9 @@ public class HiveParserDDLSemanticAnalyzer {
                     if (child.getChildCount() > 0) {
                         likeTableName =
                                 HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                                        (HiveParserASTNode) child.getChild(0));
+                                        (HiveParserASTNode) child.getChild(0),
+                                        conf.getBoolean(
+                                                HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
                         if (likeTableName != null) {
                             if (commandType == ctas) {
                                 throw new ValidationException(
@@ -1273,7 +1275,8 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertAlterDatabaseOwner(HiveParserASTNode ast) throws SemanticException {
         String dbName =
                 HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                        (HiveParserASTNode) ast.getChild(0));
+                        (HiveParserASTNode) ast.getChild(0),
+                        conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
         PrincipalDesc principalDesc =
                 HiveParserAuthorizationParseUtils.getPrincipalDesc(
                         (HiveParserASTNode) ast.getChild(1));
@@ -1298,7 +1301,8 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertAlterDatabaseLocation(HiveParserASTNode ast) throws SemanticException {
         String dbName =
                 HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                        (HiveParserASTNode) ast.getChild(0));
+                        (HiveParserASTNode) ast.getChild(0),
+                        conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
         String newLocation =
                 HiveParserBaseSemanticAnalyzer.unescapeSQLString(ast.getChild(1).getText());
         CatalogDatabase originDB = getDatabase(dbName);
@@ -1384,7 +1388,8 @@ public class HiveParserDDLSemanticAnalyzer {
             throws SemanticException {
         String tableName =
                 HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                        (HiveParserASTNode) ast.getChild(0));
+                        (HiveParserASTNode) ast.getChild(0),
+                        conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
         boolean ifExists = (ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null);
 
         ObjectIdentifier identifier = parseObjectIdentifier(tableName);
@@ -1779,7 +1784,8 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertShowPartitions(HiveParserASTNode ast) throws SemanticException {
         String tableName =
                 HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                        (HiveParserASTNode) ast.getChild(0));
+                        (HiveParserASTNode) ast.getChild(0),
+                        conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
         List<Map<String, String>> partSpecs = getPartitionSpecs(ast);
         // We only can have a single partition spec
         assert (partSpecs.size() <= 1);

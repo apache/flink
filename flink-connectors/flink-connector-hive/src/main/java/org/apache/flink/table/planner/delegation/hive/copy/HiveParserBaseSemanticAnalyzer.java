@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
+import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.planner.delegation.hive.HiveParserRexNodeConverter;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
@@ -417,6 +418,13 @@ public class HiveParserBaseSemanticAnalyzer {
         return catalogManager.qualifyIdentifier(qualifiedTableName);
     }
 
+    public static ObjectIdentifier getObjectIdentifier(
+            CatalogManager catalogManager, HiveParserASTNode tabNameNode, boolean strictMode)
+            throws SemanticException {
+        UnresolvedIdentifier qualifiedTableName = getQualifiedTableName(tabNameNode, strictMode);
+        return catalogManager.qualifyIdentifier(qualifiedTableName);
+    }
+
     public static ObjectIdentifier parseCompoundName(
             CatalogManager catalogManager, String compoundName) {
         String[] names = compoundName.split("\\.");
@@ -425,6 +433,11 @@ public class HiveParserBaseSemanticAnalyzer {
 
     public static UnresolvedIdentifier getQualifiedTableName(HiveParserASTNode tabNameNode)
             throws SemanticException {
+        return getQualifiedTableName(tabNameNode, true);
+    }
+
+    public static UnresolvedIdentifier getQualifiedTableName(
+            HiveParserASTNode tabNameNode, boolean strictMode) throws SemanticException {
         if (tabNameNode.getType() != HiveASTParser.TOK_TABNAME) {
             throw new SemanticException(
                     HiveParserErrorMsg.getMsg(ErrorMsg.INVALID_TABLE_NAME, tabNameNode));
@@ -436,18 +449,22 @@ public class HiveParserBaseSemanticAnalyzer {
             case 1:
                 // try to handle the case: `db.t1`, `cat.db.t`
                 tableName = unescapeIdentifier(tabNameNode.getChild(0).getText());
-                String[] names = tableName.split("\\.");
-                switch (names.length) {
-                    case 1:
-                        return UnresolvedIdentifier.of(tableName);
-                    case 2:
-                        return UnresolvedIdentifier.of(names[0], names[1]);
-                    case 3:
-                        return UnresolvedIdentifier.of(names[0], names[1], names[2]);
-                    default:
-                        throw new SemanticException(
-                                HiveParserErrorMsg.getMsg(
-                                        ErrorMsg.INVALID_TABLE_NAME, tabNameNode));
+                if (!strictMode) {
+                    String[] names = tableName.split("\\.");
+                    switch (names.length) {
+                        case 1:
+                            return UnresolvedIdentifier.of(tableName);
+                        case 2:
+                            return UnresolvedIdentifier.of(names[0], names[1]);
+                        case 3:
+                            return UnresolvedIdentifier.of(names[0], names[1], names[2]);
+                        default:
+                            throw new SemanticException(
+                                    HiveParserErrorMsg.getMsg(
+                                            ErrorMsg.INVALID_TABLE_NAME, tabNameNode));
+                    }
+                } else {
+                    return UnresolvedIdentifier.of(tableName);
                 }
             case 2:
                 dbName = unescapeIdentifier(tabNameNode.getChild(0).getText());
@@ -525,13 +542,13 @@ public class HiveParserBaseSemanticAnalyzer {
      * @return the table name without schema qualification (i.e., if name is "catalog.db.table" or
      *     "table", returns "table")
      */
-    public static String getUnescapedUnqualifiedTableName(HiveParserASTNode node)
+    public static String getUnescapedUnqualifiedTableName(HiveParserASTNode node, boolean isStrict)
             throws SemanticException {
         assert node.getChildCount() <= 3;
 
         node = (HiveParserASTNode) node.getChild(node.getChildCount() - 1);
 
-        return getUnescapedName(node);
+        return getUnescapedName(node, isStrict);
     }
 
     /**
@@ -541,20 +558,22 @@ public class HiveParserBaseSemanticAnalyzer {
      * @return for table node, return the table that users specific like catalog.db.tab, db.tab or
      *     tab. For column node column, return col.
      */
-    public static String getUnescapedName(HiveParserASTNode tableOrColumnNode)
+    public static String getUnescapedName(HiveParserASTNode tableOrColumnNode, boolean isStrict)
             throws SemanticException {
-        return getUnescapedName(tableOrColumnNode, null, null);
+        return getUnescapedName(tableOrColumnNode, null, null, isStrict);
     }
 
     public static String getUnescapedName(
             HiveParserASTNode tableOrColumnNode,
             @Nullable String currentCatalog,
-            @Nullable String currentDatabase)
+            @Nullable String currentDatabase,
+            boolean isStrict)
             throws SemanticException {
         int tokenType = tableOrColumnNode.getToken().getType();
         if (tokenType == HiveASTParser.TOK_TABNAME) {
             // table node
-            UnresolvedIdentifier tableIdentifier = getQualifiedTableName(tableOrColumnNode);
+            UnresolvedIdentifier tableIdentifier =
+                    getQualifiedTableName(tableOrColumnNode, isStrict);
             return getDotName(
                     tableIdentifier.getCatalogName().orElse(currentCatalog),
                     tableIdentifier.getDatabaseName().orElse(currentDatabase),
@@ -573,9 +592,9 @@ public class HiveParserBaseSemanticAnalyzer {
      * @param node the table node
      * @return "catalog.db.table", "db.table" or "table"
      */
-    public static String getUnescapedOriginTableName(HiveParserASTNode node)
+    public static String getUnescapedOriginTableName(HiveParserASTNode node, boolean isStrict)
             throws SemanticException {
-        UnresolvedIdentifier tableIdentifier = getQualifiedTableName(node);
+        UnresolvedIdentifier tableIdentifier = getQualifiedTableName(node, isStrict);
         return getDotName(
                 tableIdentifier.getCatalogName().orElse(null),
                 tableIdentifier.getDatabaseName().orElse(null),
@@ -786,7 +805,7 @@ public class HiveParserBaseSemanticAnalyzer {
         return exprs;
     }
 
-    static String findSimpleTableName(HiveParserASTNode tabref, int aliasIndex)
+    static String findSimpleTableName(HiveParserASTNode tabref, int aliasIndex, boolean isStrict)
             throws SemanticException {
         assert tabref.getType() == HiveASTParser.TOK_TABREF;
         HiveParserASTNode tableTree = (HiveParserASTNode) (tabref.getChild(0));
@@ -795,7 +814,7 @@ public class HiveParserBaseSemanticAnalyzer {
         if (aliasIndex != 0) {
             alias = unescapeIdentifier(tabref.getChild(aliasIndex).getText());
         } else {
-            alias = getUnescapedUnqualifiedTableName(tableTree);
+            alias = getUnescapedUnqualifiedTableName(tableTree, isStrict);
         }
         return alias;
     }
@@ -2149,7 +2168,10 @@ public class HiveParserBaseSemanticAnalyzer {
 
             // get table metadata
             tableIdentifier =
-                    getObjectIdentifier(catalogManager, (HiveParserASTNode) ast.getChild(0));
+                    getObjectIdentifier(
+                            catalogManager,
+                            (HiveParserASTNode) ast.getChild(0),
+                            conf.getBoolean(HiveParser.TABLE_NAME_IS_STRICT_MODE, true));
             if (ast.getToken().getType() != HiveASTParser.TOK_CREATETABLE
                     && ast.getToken().getType() != HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW) {
                 table = getCatalogBaseTable(catalogManager, tableIdentifier);
