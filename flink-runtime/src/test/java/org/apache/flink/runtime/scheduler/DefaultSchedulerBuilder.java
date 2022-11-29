@@ -307,7 +307,8 @@ public class DefaultSchedulerBuilder {
                 shuffleMaster,
                 rpcTimeout,
                 vertexParallelismDecider,
-                defaultMaxParallelism);
+                defaultMaxParallelism,
+                false);
     }
 
     public SpeculativeScheduler buildSpeculativeScheduler() throws Exception {
@@ -336,7 +337,8 @@ public class DefaultSchedulerBuilder {
                 rpcTimeout,
                 vertexParallelismDecider,
                 defaultMaxParallelism,
-                blocklistOperations);
+                blocklistOperations,
+                true);
     }
 
     private ExecutionGraphFactory createExecutionGraphFactory(boolean isDynamicGraph) {

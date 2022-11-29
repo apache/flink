@@ -33,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -90,6 +91,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
     private final Map<IntermediateDataSetID, BlockingResultInfo> blockingResultInfos;
 
+    private final boolean hybridOnlyConsumeFinishedPartition;
+
     public AdaptiveBatchScheduler(
             final Logger log,
             final JobGraph jobGraph,
@@ -114,7 +117,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
             final VertexParallelismDecider vertexParallelismDecider,
-            int defaultMaxParallelism)
+            int defaultMaxParallelism,
+            boolean hybridOnlyConsumeFinishedPartition)
             throws Exception {
 
         super(
@@ -154,6 +158,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                         getExecutionGraph()::getJobVertex);
 
         this.blockingResultInfos = new HashMap<>();
+
+        this.hybridOnlyConsumeFinishedPartition = hybridOnlyConsumeFinishedPartition;
     }
 
     @Override
@@ -216,6 +222,17 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         }
 
         super.resetForNewExecution(executionVertexId);
+    }
+
+    @Override
+    protected MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
+        return (rp) ->
+                // for blocking result partition case, it always needs mark
+                // partition finished. for hybrid only consume finished partition case, as
+                // downstream needs the producer's finished status to start consuming the produced
+                // data, the notification of partition finished is required.
+                rp.isBlockingOrBlockingPersistentResultPartition()
+                        || hybridOnlyConsumeFinishedPartition;
     }
 
     void initializeVerticesIfPossible() {

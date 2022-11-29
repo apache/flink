@@ -295,6 +295,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final List<JobStatusHook> jobStatusHooks;
 
+    private final MarkPartitionFinishedStrategy markPartitionFinishedStrategy;
+
     // --------------------------------------------------------------------------------------------
     //   Constructors
     // --------------------------------------------------------------------------------------------
@@ -318,7 +320,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             VertexParallelismStore vertexParallelismStore,
             boolean isDynamic,
             ExecutionJobVertex.Factory executionJobVertexFactory,
-            List<JobStatusHook> jobStatusHooks)
+            List<JobStatusHook> jobStatusHooks,
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy)
             throws IOException {
 
         this.executionGraphId = new ExecutionGraphID();
@@ -389,6 +392,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
 
         this.jobStatusHooks = checkNotNull(jobStatusHooks);
+
+        this.markPartitionFinishedStrategy = markPartitionFinishedStrategy;
 
         LOG.info(
                 "Created execution graph {} for job {}.",
@@ -1683,5 +1688,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateDataSetID) {
         return partitionTracker.getClusterPartitionShuffleDescriptors(intermediateDataSetID);
+    }
+
+    @Override
+    public MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
+        return markPartitionFinishedStrategy;
     }
 }

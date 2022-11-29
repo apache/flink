@@ -159,6 +159,12 @@
             <td>Total Process Memory size for the JobManager. This includes all the memory that a JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. In containerized setups, this should be set to the container memory. See also 'jobmanager.memory.flink.size' for Total Flink Memory size configuration.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.partition.hybrid.only-consume-finished-partition</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Boolean</td>
+            <td>Controls whether the scheduler only allows downstream task consume finished partition. Note that this option is allowed only when <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>, and if you also enable speculative execution(<code class="highlighter-rouge">jobmanager.adaptive-batch-scheduler.speculative.enabled</code> has been set to true),this option can only be set to true.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.resource-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

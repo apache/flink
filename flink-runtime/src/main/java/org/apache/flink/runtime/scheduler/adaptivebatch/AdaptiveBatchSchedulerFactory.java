@@ -59,6 +59,7 @@ import org.apache.flink.runtime.scheduler.SimpleExecutionSlotAllocator;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.util.SlotSelectionStrategyUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
@@ -113,6 +114,10 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
 
         final boolean enableSpeculativeExecution =
                 jobMasterConfiguration.getBoolean(JobManagerOptions.SPECULATIVE_ENABLED);
+
+        final boolean hybridOnlyConsumeFinishedPartition =
+                getHybridOnlyConsumeFinishedPartition(
+                        jobMasterConfiguration, enableSpeculativeExecution);
 
         final List<Consumer<ComponentMainThreadExecutor>> startUpActions = new ArrayList<>();
         final Consumer<ComponentMainThreadExecutor> combinedStartUpActions =
@@ -178,7 +183,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     DefaultVertexParallelismDecider.from(jobMasterConfiguration),
                     DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
                             jobMasterConfiguration),
-                    blocklistOperations);
+                    blocklistOperations,
+                    hybridOnlyConsumeFinishedPartition);
         } else {
             return new AdaptiveBatchScheduler(
                     log,
@@ -206,8 +212,23 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     rpcTimeout,
                     DefaultVertexParallelismDecider.from(jobMasterConfiguration),
                     DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
-                            jobMasterConfiguration));
+                            jobMasterConfiguration),
+                    hybridOnlyConsumeFinishedPartition);
         }
+    }
+
+    private boolean getHybridOnlyConsumeFinishedPartition(
+            Configuration configuration, boolean enableSpeculativeExecution) {
+        final boolean hybridOnlyConsumeFinishedPartition =
+                configuration
+                        .getOptional(JobManagerOptions.ONLY_CONSUME_FINISHED_PARTITION)
+                        .orElse(enableSpeculativeExecution);
+        if (enableSpeculativeExecution) {
+            Preconditions.checkState(
+                    hybridOnlyConsumeFinishedPartition,
+                    "For speculative execution, only supports consume finished partition now.");
+        }
+        return hybridOnlyConsumeFinishedPartition;
     }
 
     private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(

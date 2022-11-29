@@ -122,7 +122,8 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             final Time rpcTimeout,
             final VertexParallelismDecider vertexParallelismDecider,
             final int defaultMaxParallelism,
-            final BlocklistOperations blocklistOperations)
+            final BlocklistOperations blocklistOperations,
+            final boolean hybridOnlyConsumeFinishedPartition)
             throws Exception {
 
         super(
@@ -149,7 +150,8 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 shuffleMaster,
                 rpcTimeout,
                 vertexParallelismDecider,
-                defaultMaxParallelism);
+                defaultMaxParallelism,
+                hybridOnlyConsumeFinishedPartition);
 
         this.maxConcurrentExecutions =
                 jobMasterConfiguration.getInteger(

@@ -56,11 +56,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.JobStatusProvider;
+import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -371,6 +373,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         new DefaultVertexAttemptNumberStore(),
                         vertexParallelismStore,
                         deploymentStateTimeMetrics,
+                        getMarkPartitionFinishedStrategy(),
                         log);
 
         newExecutionGraph.setInternalTaskFailuresListener(
@@ -558,6 +561,11 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     protected abstract long getNumberOfRestarts();
+
+    protected MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
+        // blocking partition always need mark finished.
+        return ResultPartitionType::isBlockingOrBlockingPersistentResultPartition;
+    }
 
     private Map<ExecutionVertexID, ExecutionVertexVersion> incrementVersionsOfAllVertices() {
         return executionVertexVersioner.recordVertexModifications(

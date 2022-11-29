@@ -120,7 +120,7 @@ class DefaultExecutionTopologyTest {
 
         assertThat(schedulingResultPartition.getState()).isEqualTo(ResultPartitionState.CREATED);
 
-        ev.finishAllBlockingPartitions();
+        ev.finishPartitionsIfNeeded();
         assertThat(schedulingResultPartition.getState())
                 .isEqualTo(ResultPartitionState.ALL_DATA_PRODUCED);
     }

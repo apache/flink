@@ -650,6 +650,26 @@ public class JobManagerOptions {
                     .withDescription(
                             "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
 
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> ONLY_CONSUME_FINISHED_PARTITION =
+            key("jobmanager.partition.hybrid.only-consume-finished-partition")
+                    .booleanType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Controls whether the scheduler only allows downstream task consume finished partition. "
+                                                    + "Note that this option is allowed only when %s has been set to %s, "
+                                                    + "and if you also enable speculative execution(%s has been set to true),"
+                                                    + "this option can only be set to true.",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()),
+                                            code(SPECULATIVE_ENABLED.key()))
+                                    .build());
+
     // ---------------------------------------------------------------------------------------------
 
     private JobManagerOptions() {

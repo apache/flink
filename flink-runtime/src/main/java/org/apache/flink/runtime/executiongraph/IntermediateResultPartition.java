@@ -194,10 +194,10 @@ public class IntermediateResultPartition {
     }
 
     void markFinished() {
-        // Sanity check that this is only called on blocking partitions.
-        if (getResultType().canBePipelinedConsumed()) {
+        // Sanity check that this is only called on not must be pipelined partitions.
+        if (getResultType().mustBePipelinedConsumed()) {
             throw new IllegalStateException(
-                    "Tried to mark a non-blocking result partition as finished");
+                    "Tried to mark a must-be-pipelined result partition as finished");
         }
 
         // Sanity check to make sure a result partition cannot be marked as finished twice.

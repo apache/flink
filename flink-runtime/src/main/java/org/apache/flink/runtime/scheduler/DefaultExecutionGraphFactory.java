@@ -33,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
+import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -140,6 +141,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
             ExecutionStateUpdateListener executionStateUpdateListener,
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
             Logger log)
             throws Exception {
         ExecutionDeploymentListener executionDeploymentListener =
@@ -175,7 +177,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         vertexParallelismStore,
                         checkpointStatsTrackerFactory,
                         isDynamicGraph,
-                        executionJobVertexFactory);
+                        executionJobVertexFactory,
+                        markPartitionFinishedStrategy);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();

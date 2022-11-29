@@ -92,7 +92,8 @@ public class DefaultExecutionGraphBuilder {
             VertexParallelismStore vertexParallelismStore,
             Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory,
             boolean isDynamicGraph,
-            ExecutionJobVertex.Factory executionJobVertexFactory)
+            ExecutionJobVertex.Factory executionJobVertexFactory,
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -139,7 +140,8 @@ public class DefaultExecutionGraphBuilder {
                             vertexParallelismStore,
                             isDynamicGraph,
                             executionJobVertexFactory,
-                            jobGraph.getJobStatusHooks());
+                            jobGraph.getJobStatusHooks(),
+                            markPartitionFinishedStrategy);
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }

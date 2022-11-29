@@ -120,4 +120,6 @@ public interface InternalExecutionGraphAccessor {
     /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
     List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateResultPartition);
+
+    MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy();
 }

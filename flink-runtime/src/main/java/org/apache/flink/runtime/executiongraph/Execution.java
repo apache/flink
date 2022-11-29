@@ -975,7 +975,7 @@ public class Execution
 
     private void finishPartitionsAndUpdateConsumers() {
         final List<IntermediateResultPartition> finishedPartitions =
-                getVertex().finishAllBlockingPartitions();
+                getVertex().finishPartitionsIfNeeded();
 
         for (IntermediateResultPartition partition : finishedPartitions) {
             updatePartitionConsumers(partition);

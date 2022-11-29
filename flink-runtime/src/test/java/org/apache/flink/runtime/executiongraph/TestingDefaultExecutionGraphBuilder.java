@@ -35,6 +35,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
@@ -176,7 +177,8 @@ public class TestingDefaultExecutionGraphBuilder {
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
                 () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()),
                 isDynamicGraph,
-                executionJobVertexFactory);
+                executionJobVertexFactory,
+                ResultPartitionType::isBlockingOrBlockingPersistentResultPartition);
     }
 
     public DefaultExecutionGraph build(ScheduledExecutorService executorService)
