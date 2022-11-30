@@ -28,6 +28,7 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -40,12 +41,13 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 
     private final String name;
     private final byte[] serializedTableFunction;
-    private final DataType[] inputTypes;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
 
+    private DataType[] inputTypes;
+    private String[] inputTypesString;
     private DataType resultType;
     private String resultTypeString;
 
@@ -61,18 +63,18 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
         this(
                 name,
                 serializedScalarFunction,
-                inputTypes,
                 pythonFunctionKind,
                 deterministic,
                 takesRowAsInput,
                 pythonEnv);
+        this.inputTypes = inputTypes;
         this.resultType = resultType;
     }
 
     public PythonTableFunction(
             String name,
             byte[] serializedScalarFunction,
-            DataType[] inputTypes,
+            String[] inputTypesString,
             String resultTypeString,
             PythonFunctionKind pythonFunctionKind,
             boolean deterministic,
@@ -81,25 +83,23 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
         this(
                 name,
                 serializedScalarFunction,
-                inputTypes,
                 pythonFunctionKind,
                 deterministic,
                 takesRowAsInput,
                 pythonEnv);
+        this.inputTypesString = inputTypesString;
         this.resultTypeString = resultTypeString;
     }
 
     public PythonTableFunction(
             String name,
             byte[] serializedScalarFunction,
-            DataType[] inputTypes,
             PythonFunctionKind pythonFunctionKind,
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
         this.name = name;
         this.serializedTableFunction = serializedScalarFunction;
-        this.inputTypes = inputTypes;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
@@ -147,12 +147,25 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 
     @Override
     public TypeInformation<Row> getResultType() {
+        if (resultType == null && resultTypeString != null) {
+            throw new RuntimeException(
+                    "String format result type is not supported in old type system.");
+        }
         return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(resultType);
     }
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         TypeInference.Builder builder = TypeInference.newBuilder();
+
+        if (inputTypesString != null) {
+            inputTypes =
+                    (DataType[])
+                            Arrays.stream(inputTypesString)
+                                    .map(typeFactory::createDataType)
+                                    .toArray();
+        }
+
         if (inputTypes != null) {
             final List<DataType> argumentDataTypes =
                     Stream.of(inputTypes).collect(Collectors.toList());

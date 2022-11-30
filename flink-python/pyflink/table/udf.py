@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 import abc
-import collections
 import functools
 import inspect
 from typing import Union, List, Type, Callable, TypeVar, Generic, Iterable
@@ -180,7 +179,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         """
         raise RuntimeError("Method merge is not implemented")
 
-    def get_result_type(self) -> DataType:
+    def get_result_type(self) -> Union[DataType, str]:
         """
         Returns the DataType of the AggregateFunction's result.
 
@@ -189,7 +188,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         """
         raise RuntimeError("Method get_result_type is not implemented")
 
-    def get_accumulator_type(self) -> DataType:
+    def get_accumulator_type(self) -> Union[DataType, str]:
         """
         Returns the DataType of the AggregateFunction's accumulator.
 
@@ -323,15 +322,18 @@ class UserDefinedFunctionWrapper(object):
 
         if input_types is not None:
             from pyflink.table.types import RowType
-            if not isinstance(input_types, collections.abc.Iterable) \
-                    or isinstance(input_types, RowType):
+            if isinstance(input_types, RowType):
+                input_types = input_types.field_types()
+            elif isinstance(input_types, (DataType, str)):
                 input_types = [input_types]
+            else:
+                input_types = list(input_types)
 
             for input_type in input_types:
-                if not isinstance(input_type, DataType):
+                if not isinstance(input_type, (DataType, str)):
                     raise TypeError(
-                        "Invalid input_type: input_type should be DataType but contains {}".format(
-                            input_type))
+                        "Invalid input_type: input_type should be DataType or str but contains {}"
+                        .format(input_type))
 
         self._func = func
         self._input_types = input_types
@@ -377,8 +379,11 @@ class UserDefinedFunctionWrapper(object):
                     raise TypeError("Unsupported func_type: %s." % self._func_type)
 
             if self._input_types is not None:
-                j_input_types = java_utils.to_jarray(
-                    gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
+                if isinstance(self._input_types[0], str):
+                    j_input_types = java_utils.to_jarray(gateway.jvm.String, self._input_types)
+                else:
+                    j_input_types = java_utils.to_jarray(
+                        gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
             else:
                 j_input_types = None
             j_function_kind = get_python_function_kind()
@@ -447,12 +452,23 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
         super(UserDefinedTableFunctionWrapper, self).__init__(
             func, input_types, "general", deterministic, name)
 
-        from pyflink.table.types import RowType, RowField
-        if not isinstance(result_types, (str, RowType, collections.abc.Iterable)):
+        from pyflink.table.types import RowType
+        if isinstance(result_types, RowType):
+            # DataTypes.ROW([DataTypes.FIELD("f0", DataTypes.INT()),
+            #               DataTypes.FIELD("f1", DataTypes.BIGINT())])
+            result_types = result_types.field_types()
+        elif isinstance(result_types, str):
+            # ROW<f0 INT, f1 BIGINT>
+            result_types = result_types
+        elif isinstance(result_types, DataType):
+            # DataTypes.INT()
             result_types = [result_types]
+        else:
+            # [DataTypes.INT(), DataTypes.BIGINT()]
+            result_types = list(result_types)
 
         for result_type in result_types:
-            if not isinstance(result_type, (DataType, str, RowField)):
+            if not isinstance(result_type, (DataType, str)):
                 raise TypeError(
                     "Invalid result_type: result_type should be DataType or str but contains {}"
                     .format(result_type))
@@ -462,22 +478,16 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
     def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         gateway = get_gateway()
 
-        from pyflink.table.types import RowType
-
-        if isinstance(self._result_types, RowType):
-            j_result_type = _to_java_data_type(self._result_types)
-        elif isinstance(self._result_types, str):
+        if isinstance(self._result_types, str):
             j_result_type = self._result_types
+        elif isinstance(self._result_types[0], DataType):
+            j_result_types = java_utils.to_jarray(
+                gateway.jvm.DataType, [_to_java_data_type(i) for i in self._result_types])
+            j_result_type = gateway.jvm.DataTypes.ROW(j_result_types)
         else:
-            if isinstance(self._result_types[0], DataType):
-                j_result_types = java_utils.to_jarray(
-                    gateway.jvm.DataType,
-                    [_to_java_data_type(i) for i in self._result_types])
-                j_result_type = gateway.jvm.DataTypes.ROW(j_result_types)
-            else:
-                j_result_type = 'Row<{0}>'.format(
-                    ','.join(['f{0} {1}'.format(i, result_type)
-                              for i, result_type in enumerate(self._result_types)]))
+            j_result_type = 'Row<{0}>'.format(','.join(
+                ['f{0} {1}'.format(i, result_type)
+                 for i, result_type in enumerate(self._result_types)]))
         PythonTableFunction = gateway.jvm \
             .org.apache.flink.table.functions.python.PythonTableFunction
         j_table_function = PythonTableFunction(
@@ -532,8 +542,11 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
 
     def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         if self._func_type == "pandas":
-            from pyflink.table.types import DataTypes
-            self._accumulator_type = DataTypes.ARRAY(self._result_type)
+            if isinstance(self._result_type, DataType):
+                from pyflink.table.types import DataTypes
+                self._accumulator_type = DataTypes.ARRAY(self._result_type)
+            else:
+                self._accumulator_type = 'ARRAY<{0}>'.format(self._result_type)
 
         if j_input_types is not None:
             gateway = get_gateway()
@@ -546,7 +559,7 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
         if isinstance(self._accumulator_type, DataType):
             j_accumulator_type = _to_java_data_type(self._accumulator_type)
         else:
-            j_accumulator_type = self._result_type
+            j_accumulator_type = self._accumulator_type
 
         gateway = get_gateway()
         if self._is_table_aggregate:
@@ -599,7 +612,7 @@ def _create_udtaf(f, input_types, result_type, accumulator_type, func_type, dete
 
 
 def udf(f: Union[Callable, ScalarFunction, Type] = None,
-        input_types: Union[List[DataType], DataType] = None,
+        input_types: Union[List[DataType], DataType, str, List[str]] = None,
         result_type: Union[DataType, str] = None,
         deterministic: bool = None, name: str = None, func_type: str = "general",
         udf_type: str = None) -> Union[UserDefinedScalarFunctionWrapper, Callable]:
@@ -660,8 +673,9 @@ def udf(f: Union[Callable, ScalarFunction, Type] = None,
 
 
 def udtf(f: Union[Callable, TableFunction, Type] = None,
-         input_types: Union[List[DataType], DataType] = None,
-         result_types: Union[List[DataType], DataType] = None, deterministic: bool = None,
+         input_types: Union[List[DataType], DataType, str, List[str]] = None,
+         result_types: Union[List[DataType], DataType, str, List[str]] = None,
+         deterministic: bool = None,
          name: str = None) -> Union[UserDefinedTableFunctionWrapper, Callable]:
     """
     Helper method for creating a user-defined table function.
@@ -712,8 +726,9 @@ def udtf(f: Union[Callable, TableFunction, Type] = None,
 
 
 def udaf(f: Union[Callable, AggregateFunction, Type] = None,
-         input_types: Union[List[DataType], DataType] = None, result_type: DataType = None,
-         accumulator_type: DataType = None, deterministic: bool = None, name: str = None,
+         input_types: Union[List[DataType], DataType, str, List[str]] = None,
+         result_type: Union[DataType, str] = None, accumulator_type: Union[DataType, str] = None,
+         deterministic: bool = None, name: str = None,
          func_type: str = "general") -> Union[UserDefinedAggregateFunctionWrapper, Callable]:
     """
     Helper method for creating a user-defined aggregate function.
@@ -759,8 +774,10 @@ def udaf(f: Union[Callable, AggregateFunction, Type] = None,
 
 
 def udtaf(f: Union[Callable, TableAggregateFunction, Type] = None,
-          input_types: Union[List[DataType], DataType] = None, result_type: DataType = None,
-          accumulator_type: DataType = None, deterministic: bool = None, name: str = None,
+          input_types: Union[List[DataType], DataType, str, List[str]] = None,
+          result_type: Union[DataType, str] = None,
+          accumulator_type: Union[DataType, str] = None,
+          deterministic: bool = None, name: str = None,
           func_type: str = 'general') -> Union[UserDefinedAggregateFunctionWrapper, Callable]:
     """
     Helper method for creating a user-defined table aggregate function.
