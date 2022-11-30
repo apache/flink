@@ -133,7 +133,7 @@ Connector Options
         <th class="text-center" style="width: 42%">Description</th>
     </tr>
     <tr>
-      <th colspan="5" class="text-left" style="width: 100%">Common Options</th>
+      <th colspan="6" class="text-left" style="width: 100%">Common Options</th>
     </tr>
     </thead>
     <tbody>
@@ -188,7 +188,7 @@ Connector Options
     </tbody>
     <thead>
     <tr>
-      <th colspan="5" class="text-left" style="width: 100%">Authentication Options</th>
+      <th colspan="6" class="text-left" style="width: 100%">Authentication Options</th>
     </tr>
     </thead>
     <tbody>
@@ -283,7 +283,7 @@ Connector Options
     </tbody>
     <thead>
     <tr>
-      <th colspan="5" class="text-left" style="width: 100%">Source Options</th>
+      <th colspan="6" class="text-left" style="width: 100%">Source Options</th>
     </tr>
     </thead>
     <tbody>
@@ -690,7 +690,7 @@ Connector Options
     </tbody>
     <thead>
     <tr>
-      <th colspan="5" class="text-left" style="width: 100%">Sink Options</th>
+      <th colspan="6" class="text-left" style="width: 100%">Sink Options</th>
     </tr>
     </thead>
     <tbody>
@@ -789,6 +789,14 @@ Connector Options
       <td style="word-wrap: break-word;">5000</td>
       <td>Long</td>
       <td>Threshold time in milliseconds for an element to be in a buffer of<code>KinesisAsyncClient</code> before flushing.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.fail-on-error</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Flag used for retrying failed requests. If set any request failure will not be retried and will fail the job.</td>
     </tr>
     </tbody>
 </table>
