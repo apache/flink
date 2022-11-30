@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -258,10 +257,13 @@ public class BlobServerCleanupTest extends TestLogger {
         testFailedCleanup(
                 new JobID(),
                 (testInstance, jobId, executor) ->
-                        assertThat(testInstance.globalCleanupAsync(new JobID(), executor))
-                                .failsWithin(Duration.ofMillis(100))
-                                .withThrowableOfType(ExecutionException.class)
-                                .withCauseInstanceOf(IOException.class),
+                        assertThatThrownBy(
+                                        () ->
+                                                testInstance
+                                                        .globalCleanupAsync(new JobID(), executor)
+                                                        .get())
+                                .isInstanceOf(ExecutionException.class)
+                                .hasCauseInstanceOf(IOException.class),
                 blobStore);
     }
 
@@ -279,10 +281,13 @@ public class BlobServerCleanupTest extends TestLogger {
         testFailedCleanup(
                 new JobID(),
                 (testInstance, jobId, executor) ->
-                        assertThat(testInstance.globalCleanupAsync(new JobID(), executor))
-                                .failsWithin(Duration.ofMillis(100))
-                                .withThrowableOfType(ExecutionException.class)
-                                .withCause(actualException),
+                        assertThatThrownBy(
+                                        () ->
+                                                testInstance
+                                                        .globalCleanupAsync(new JobID(), executor)
+                                                        .get())
+                                .isInstanceOf(ExecutionException.class)
+                                .hasCause(actualException),
                 blobStore);
     }
 
