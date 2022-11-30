@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 
+import static org.apache.flink.table.data.DecimalData.MAX_COMPACT_PRECISION;
 import static org.apache.flink.table.data.DecimalData.MAX_INT_DIGITS;
 import static org.apache.flink.table.data.DecimalData.MAX_LONG_DIGITS;
 import static org.apache.flink.table.data.DecimalData.POW10;
@@ -104,7 +105,10 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData add(DecimalData v1, DecimalData v2, int precision, int scale) {
-        if (v1.isCompact() && v2.isCompact() && v1.scale == v2.scale) {
+        if (v1.isCompact()
+                && v2.isCompact()
+                && v1.scale == v2.scale
+                && precision <= MAX_COMPACT_PRECISION) {
             assert scale == v1.scale; // no need to rescale
             try {
                 long ls = Math.addExact(v1.longVal, v2.longVal); // checks overflow
@@ -118,7 +122,10 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData subtract(DecimalData v1, DecimalData v2, int precision, int scale) {
-        if (v1.isCompact() && v2.isCompact() && v1.scale == v2.scale) {
+        if (v1.isCompact()
+                && v2.isCompact()
+                && v1.scale == v2.scale
+                && precision <= MAX_COMPACT_PRECISION) {
             assert scale == v1.scale; // no need to rescale
             try {
                 long ls = Math.subtractExact(v1.longVal, v2.longVal); // checks overflow
