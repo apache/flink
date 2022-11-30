@@ -92,7 +92,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
     changelogRow("+U", "Euro", "no1", 118L, "2020-08-16T00:01:00"),
     changelogRow("-U", "US Dollar", "no1", 102L, "2020-08-16T00:02:00"),
     changelogRow("+U", "US Dollar", "no1", 106L, "2020-08-16T00:02:00"),
-    changelogRow("-D", "RMB", "no1", 708L, "2020-08-16T00:02:00")
+    changelogRow("-D", "RMB", "no1", 702L, "2020-08-16T00:02:00")
   )
 
   val rowTimeCurrencyDataUsingBeforeTime = List(
