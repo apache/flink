@@ -116,7 +116,8 @@ public class SingleInputGateFactory {
             @Nonnull ShuffleIOOwnerContext owner,
             int gateIndex,
             @Nonnull InputGateDeploymentDescriptor igdd,
-            @Nonnull PartitionProducerStateProvider partitionProducerStateProvider) {
+            @Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
+            @Nonnull InputChannelMetrics metrics) {
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(networkBufferPool, floatingNetworkBuffersPerGate);
 
@@ -148,8 +149,6 @@ public class SingleInputGateFactory {
                         maybeCreateBufferDebloater(
                                 owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)));
 
-        InputChannelMetrics metrics =
-                new InputChannelMetrics(networkInputGroup, owner.getParentGroup());
         createInputChannels(owningTaskName, igdd, inputGate, subpartitionIndexRange, metrics);
         return inputGate;
     }
