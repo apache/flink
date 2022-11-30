@@ -29,7 +29,6 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
@@ -88,7 +87,7 @@ class DataGeneratorSourceTest {
     void testReaderCheckpoints() throws Exception {
         final long from = 177;
         final long mid = 333;
-        final long to = 563;
+        final long to = 561;
         final long elementsPerCycle = (to - from) / 3;
 
         final TestingReaderOutput<Long> out = new TestingReaderOutput<>();
@@ -99,25 +98,27 @@ class DataGeneratorSourceTest {
                         new NumberSequenceSource.NumberSequenceSplit("split-1", from, mid),
                         new NumberSequenceSource.NumberSequenceSplit("split-2", mid + 1, to)));
 
-        long remainingInCycle = elementsPerCycle;
-        while (reader.pollNext(out) != InputStatus.END_OF_INPUT) {
-            if (--remainingInCycle <= 0) {
-                remainingInCycle = elementsPerCycle;
-                // checkpoint
-                List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
+        for (int cycle = 0; cycle < 3; cycle++) {
+            // this call is not required but mimics what happens at runtime
+            reader.pollNext(out);
+            for (int elementInCycle = 0; elementInCycle < elementsPerCycle; elementInCycle++) {
+                reader.isAvailable().get();
+                reader.pollNext(out);
+            }
+            // checkpoint
+            List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
 
-                // re-create and restore
-                reader = createReader();
-                if (splits.isEmpty()) {
-                    reader.notifyNoMoreSplits();
-                } else {
-                    reader.addSplits(splits);
-                }
+            // re-create and restore
+            reader = createReader();
+            if (splits.isEmpty()) {
+                reader.notifyNoMoreSplits();
+            } else {
+                reader.addSplits(splits);
             }
         }
 
         final List<Long> result = out.getEmittedRecords();
-        final Iterable<Long> expected = LongStream.range(from, to + 1)::iterator;
+        final Iterable<Long> expected = LongStream.range(from, to)::iterator;
 
         assertThat(result).containsExactlyElementsOf(expected);
     }
