@@ -49,7 +49,9 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -60,8 +62,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -194,6 +199,46 @@ class NettyShuffleEnvironmentTest {
                                                     MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS))
                                     .getValue())
                     .isZero();
+        }
+    }
+
+    @Test
+    void testInputChannelMetricsOnlyRegisterOnce() throws IOException {
+        try (NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder().build()) {
+            Map<String, Integer> metricRegisteredCounter = new HashMap<>();
+            InterceptingTaskMetricGroup taskMetricGroup =
+                    new InterceptingTaskMetricGroup() {
+                        @Override
+                        protected void addMetric(String name, Metric metric) {
+                            metricRegisteredCounter.compute(
+                                    name,
+                                    (metricName, registerCount) ->
+                                            registerCount == null ? 1 : registerCount + 1);
+                            super.addMetric(name, metric);
+                        }
+                    };
+            ShuffleIOOwnerContext ownerContext =
+                    environment.createShuffleIOOwnerContext(
+                            "faker owner", new ExecutionAttemptID(), taskMetricGroup);
+            final int numberOfGates = 3;
+            List<InputGateDeploymentDescriptor> gateDeploymentDescriptors = new ArrayList<>();
+            IntermediateDataSetID[] ids = new IntermediateDataSetID[numberOfGates];
+            for (int i = 0; i < numberOfGates; i++) {
+                ids[i] = new IntermediateDataSetID();
+                gateDeploymentDescriptors.add(
+                        new InputGateDeploymentDescriptor(
+                                ids[i],
+                                ResultPartitionType.PIPELINED,
+                                0,
+                                new ShuffleDescriptor[] {
+                                    NettyShuffleDescriptorBuilder.newBuilder().buildRemote()
+                                }));
+            }
+
+            environment.createInputGates(
+                    ownerContext, (ignore1, ignore2, ignore3) -> {}, gateDeploymentDescriptors);
+            // all metric should only be registered once.
+            assertThat(metricRegisteredCounter).allSatisfy((k, v) -> assertThat(v).isOne());
         }
     }
 
