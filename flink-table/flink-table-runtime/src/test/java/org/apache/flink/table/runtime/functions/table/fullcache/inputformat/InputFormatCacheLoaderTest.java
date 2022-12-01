@@ -161,7 +161,7 @@ class InputFormatCacheLoaderTest {
     @Test
     void testCloseDuringReload() throws Exception {
         AtomicInteger recordsCounter = new AtomicInteger(0);
-        int totalRecords = TestCacheLoader.DATA.size() + 1; // 1 key with 2 records
+        int totalRecords = TestCacheLoader.DATA.values().stream().mapToInt(Collection::size).sum();
         CountDownLatch latch = new CountDownLatch(1);
         Runnable reloadAction =
                 ThrowingRunnable.unchecked(
