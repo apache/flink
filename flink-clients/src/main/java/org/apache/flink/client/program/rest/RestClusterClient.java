@@ -431,6 +431,11 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 .thenAccept(
                         jobGraphFile -> {
                             try {
+                                // Preserve the job graph for caching.
+                                final java.nio.file.Path jobGraphDir = Paths.get(System.getProperty("java.io.tmpdir"), "jobgraphs");
+                                Files.createDirectories(jobGraphDir);
+                                Files.copy(jobGraphFile, Paths.get(jobGraphDir.toString(), "flink-jobgraph." + jobGraph.getJobID() + ".bin"));
+
                                 Files.delete(jobGraphFile);
                             } catch (IOException e) {
                                 LOG.warn("Could not delete temporary file {}.", jobGraphFile, e);
