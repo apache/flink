@@ -82,7 +82,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.base.Preconditions.checkState;
@@ -154,11 +156,10 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
     @Test
     public void runStressTest() throws Exception {
         Deadline deadline = Deadline.fromNow(Duration.ofMillis(TEST_DURATION));
-        Optional<File> externalizedCheckpoint = Optional.empty();
+        File externalizedCheckpoint = null;
         while (deadline.hasTimeLeft()) {
-            externalizedCheckpoint =
-                    Optional.of(runAndTakeExternalCheckpoint(externalizedCheckpoint));
-            cleanDirectoryExcept(externalizedCheckpoint.get());
+            externalizedCheckpoint = runAndTakeExternalCheckpoint(externalizedCheckpoint);
+            cleanDirectoryExcept(externalizedCheckpoint);
         }
     }
 
@@ -215,7 +216,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
 
         DataStream<Record> stream =
                 sources.rebalance()
-                        .map((MapFunction<Record, Record>) value -> value.validate())
+                        .map((MapFunction<Record, Record>) Record::validate)
                         .keyBy(Record::getSourceId)
                         // add small throttling to prevent WindowOperator from blowing up
                         .map(new ThrottlingMap(100));
@@ -233,20 +234,20 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
 
     private void cleanDirectoryExcept(File externalizedCheckpoint) throws IOException {
         File directoryToKeep = externalizedCheckpoint.getParentFile();
-        for (File directory : temporaryFolder.getRoot().listFiles()) {
+        for (File directory : requireNonNull(temporaryFolder.getRoot().listFiles())) {
             if (!directory.equals(directoryToKeep)) {
                 FileUtils.deleteDirectory(directory);
             }
         }
     }
 
-    private File runAndTakeExternalCheckpoint(Optional<File> startingCheckpoint) throws Exception {
+    private File runAndTakeExternalCheckpoint(@Nullable File startingCheckpoint) throws Exception {
 
         StreamExecutionEnvironment env = defineEnvironment();
         testProgram(env);
 
         StreamGraph streamGraph = env.getStreamGraph();
-        startingCheckpoint
+        Optional.ofNullable(startingCheckpoint)
                 .map(File::toString)
                 .map(SavepointRestoreSettings::forPath)
                 .ifPresent(streamGraph::setSavepointRestoreSettings);
@@ -284,9 +285,10 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
             checkpointDir = fileVisitor.getMaxCheckpointDir();
         }
         if (checkpointDir == null) {
-            List<Path> files =
-                    Files.walk(Paths.get(rootDir.getPath())).collect(Collectors.toList());
-            throw new IllegalStateException("Failed to find _metadata file among " + files);
+            try (Stream<Path> savepoint = Files.walk(Paths.get(rootDir.getPath()))) {
+                List<Path> files = savepoint.collect(Collectors.toList());
+                throw new IllegalStateException("Failed to find _metadata file among " + files);
+            }
         }
         return checkpointDir.toFile();
     }
@@ -439,7 +441,7 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
                     context.getOperatorStateStore()
                             .getListState(new ListStateDescriptor<>("state", Long.class));
             // We are not supporting rescaling
-            nextValue = getOnlyElement(nextState.get(), 0L);
+            nextValue = requireNonNull(getOnlyElement(nextState.get(), 0L));
         }
     }
 
@@ -490,10 +492,6 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         public int sourceId;
         public long value;
         public byte[] payload;
-
-        public Record() {
-            this(0, 0, SMALL_RECORD_SIZE);
-        }
 
         public Record(int sourceId, long value, int payloadSize) {
             this.sourceId = sourceId;
