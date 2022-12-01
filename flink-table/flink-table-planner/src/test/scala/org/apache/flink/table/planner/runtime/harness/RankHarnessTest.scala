@@ -230,7 +230,6 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     val data = new mutable.MutableList[(String, Int, Int)]
     val t = env.fromCollection(data).toTable(tEnv, 'word, 'cnt, 'type)
     tEnv.createTemporaryView("T", t)
-    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
 
     val sql =
       """
