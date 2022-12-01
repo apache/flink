@@ -68,18 +68,20 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
@@ -277,18 +279,9 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
 
         for (int i = 0; i <= 1000 && checkpointDir == null; i++) {
             Thread.sleep(5);
-            try (Stream<Path> files = Files.walk(Paths.get(rootDir.getPath()))) {
-                checkpointDir =
-                        files.filter(Files::isRegularFile)
-                                .filter(path -> path.endsWith("_metadata"))
-                                .map(path -> path.getParent())
-                                .sorted(
-                                        Comparator.comparingInt(
-                                                UnalignedCheckpointStressITCase
-                                                        ::getCheckpointNumberFromPath))
-                                .reduce((first, second) -> second)
-                                .orElse(null);
-            }
+            MaxCheckpointFileVisitor fileVisitor = new MaxCheckpointFileVisitor();
+            Files.walkFileTree(Paths.get(rootDir.getPath()), fileVisitor);
+            checkpointDir = fileVisitor.getMaxCheckpointDir();
         }
         if (checkpointDir == null) {
             List<Path> files =
@@ -557,6 +550,38 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
                 Thread.sleep(NORMAL_RECORD_SLEEP);
             }
             return value.validate();
+        }
+    }
+
+    /** The file visitor which is looking for the most recent checkpoint. */
+    private static class MaxCheckpointFileVisitor extends SimpleFileVisitor<Path> {
+        private Path maxCheckpointDir;
+
+        @Override
+        public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes) {
+            if (path.endsWith("_metadata")) {
+                int curCheckpointId = getCheckpointNumberFromPath(path.getParent());
+                int prevCheckpointId =
+                        maxCheckpointDir == null
+                                ? -1
+                                : getCheckpointNumberFromPath(maxCheckpointDir);
+                if (prevCheckpointId < curCheckpointId) {
+                    maxCheckpointDir = path.getParent();
+                }
+            }
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFileFailed(Path file, IOException ex) throws IOException {
+            if (ex instanceof NoSuchFileException) {
+                return FileVisitResult.CONTINUE;
+            }
+            throw ex;
+        }
+
+        public Path getMaxCheckpointDir() {
+            return maxCheckpointDir;
         }
     }
 }
