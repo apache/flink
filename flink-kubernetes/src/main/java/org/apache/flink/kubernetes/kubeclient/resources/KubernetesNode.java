@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeCondition;
 
 import java.util.List;
+import java.util.Objects;
 
 /** Represent KubernetesNode resource in kubernetes. */
 public class KubernetesNode extends KubernetesResource<Node> {
@@ -31,15 +32,21 @@ public class KubernetesNode extends KubernetesResource<Node> {
 
     public boolean isNodeNotReady() {
         List<NodeCondition> nodeConditions = this.getInternalResource().getStatus().getConditions();
-        for (NodeCondition nodeCondition : nodeConditions) {
-            if (NodeConditions.Ready.name().equals(nodeCondition.getType())) {
-                return NodeConditionStatus.False.name().equals(nodeCondition.getStatus())
-                        || NodeConditionStatus.Unknown.name().equals(nodeCondition.getStatus());
-            }
+        if (Objects.nonNull(nodeConditions) && !nodeConditions.isEmpty()) {
+            return nodeConditions.stream()
+                    .anyMatch(
+                            e ->
+                                    NodeConditions.Ready.name().equals(e.getType())
+                                            && (NodeConditionStatus.False.name()
+                                                            .equals(e.getStatus())
+                                                    || NodeConditionStatus.Unknown.name()
+                                                            .equals(e.getStatus())));
         }
+
         return false;
     }
 
+    /** Conditions for node. */
     public enum NodeConditions {
         /**
          * True if the node is healthy and ready to accept pods, False if the node is not healthy
@@ -66,6 +73,7 @@ public class KubernetesNode extends KubernetesResource<Node> {
         NetworkUnavailable
     }
 
+    /** Condition status for node. */
     public enum NodeConditionStatus {
         /** The NodeCondition is normal. */
         True,
