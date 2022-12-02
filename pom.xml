@@ -1387,7 +1387,7 @@ under the License.
 				<inherited>false</inherited>
 				<executions>
 					<execution>
-						<phase>verify</phase>
+						<phase>validate</phase>
 						<goals>
 							<goal>check</goal>
 						</goals>
