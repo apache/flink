@@ -3073,7 +3073,7 @@ public class TaskExecutorTest extends TestLogger {
             // cancel tasks
             // verify that the resource is not released as long as there are tasks running
             for (int i = 0; i < executions.size(); i++) {
-                int numRemaining = slots.length - i + 1;
+                int numRemaining = slots.length - (i + 1);
                 ctx.taskExecutor.cancelTask(executions.get(i), timeout).get();
                 waitForTasks(ctx, numTasks -> numTasks > numRemaining);
                 if (numRemaining > 0) {
