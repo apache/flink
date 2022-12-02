@@ -109,6 +109,10 @@ class DataGeneratorSourceTest {
             }
             // checkpoint
             List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
+            // first cycle partially consumes the first split
+            // second cycle consumes the remaining first split and partially consumes the second
+            // third cycle consumes remaining second split
+            assertThat(splits).hasSize(numCycles - cycle - 1);
 
             // re-create and restore
             reader = createReader();
