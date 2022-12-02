@@ -101,24 +101,6 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testAggAfterUnionWithMiniBatch(): Unit = {
-    util.tableEnv.getConfig
-      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
-    util.tableEnv.getConfig
-      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    val query =
-      """
-        |SELECT a, sum(b), count(distinct c)
-        |FROM (
-        |  SELECT * FROM T1
-        |  UNION ALL
-        |  SELECT * FROM T2
-        |) GROUP BY a
-      """.stripMargin
-    util.verifyExecPlan(query)
-  }
-
-  @Test
   def testGroupByWithoutWindow(): Unit = {
     util.verifyExecPlan("SELECT COUNT(a) FROM MyTable GROUP BY b")
   }
