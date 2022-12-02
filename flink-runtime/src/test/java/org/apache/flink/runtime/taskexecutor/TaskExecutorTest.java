@@ -3039,7 +3039,7 @@ public class TaskExecutorTest extends TestLogger {
     public void testSharedResourcesLifecycle() throws Exception {
         SharedResourceCollectingInvokable.reset();
         AllocationID[] slots =
-                range(0, 5).mapToObj(i -> new AllocationID()).toArray(AllocationID[]::new);
+                range(0, 10).mapToObj(i -> new AllocationID()).toArray(AllocationID[]::new);
 
         try (TaskExecutorTestingContext ctx = createTaskExecutorTestingContext(slots.length)) {
             // prepare: start services
@@ -3073,7 +3073,7 @@ public class TaskExecutorTest extends TestLogger {
             // cancel tasks
             // verify that the resource is not released as long as there are tasks running
             for (int i = 0; i < executions.size(); i++) {
-                int numRemaining = slots.length - i;
+                int numRemaining = slots.length - i + 1;
                 ctx.taskExecutor.cancelTask(executions.get(i), timeout).get();
                 waitForTasks(ctx, numTasks -> numTasks > numRemaining);
                 if (numRemaining > 0) {
