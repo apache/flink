@@ -102,10 +102,19 @@ class DataGeneratorSourceTest {
 
         for (int cycle = 0; cycle < numCycles; cycle++) {
             // this call is not required but mimics what happens at runtime
-            reader.pollNext(out);
+            assertThat(reader.pollNext(out))
+                    .as(
+                            "Each poll should return a NOTHING_AVAILABLE status to explicitly trigger the availability check through in SourceReader.isAvailable")
+                    .isSameAs(InputStatus.NOTHING_AVAILABLE);
             for (int elementInCycle = 0; elementInCycle < elementsPerCycle; elementInCycle++) {
-                reader.isAvailable().get();
-                reader.pollNext(out);
+                assertThat(reader.isAvailable())
+                        .as(
+                                "There should be always data available because the test doesn't rely on any no rate-limiting strategy and splits are provided.")
+                        .isCompleted();
+                assertThat(reader.pollNext(out))
+                        .as(
+                                "Each poll should return a NOTHING_AVAILABLE status to explicitly trigger the availability check through in SourceReader.isAvailable")
+                        .isSameAs(InputStatus.NOTHING_AVAILABLE);
             }
             // checkpoint
             List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
@@ -123,8 +132,11 @@ class DataGeneratorSourceTest {
             }
         }
 
-        reader.isAvailable().get();
-        assertThat(reader.pollNext(out)).isEqualTo(InputStatus.END_OF_INPUT);
+        assertThat(reader.isAvailable())
+                .as(
+                        "There should be always data available because the test doesn't rely on any no rate-limiting strategy and splits are provided.")
+                .isCompleted();
+        assertThat(reader.pollNext(out)).isSameAs(InputStatus.END_OF_INPUT);
 
         final List<Long> result = out.getEmittedRecords();
         final Iterable<Long> expected = LongStream.range(from, to + 1)::iterator;
