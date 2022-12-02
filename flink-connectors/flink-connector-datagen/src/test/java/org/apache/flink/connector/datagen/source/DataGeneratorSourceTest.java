@@ -111,6 +111,8 @@ class DataGeneratorSourceTest {
                         .as(
                                 "There should be always data available because the test doesn't rely on any no rate-limiting strategy and splits are provided.")
                         .isCompleted();
+                // this never returns END_OF_INPUT because IteratorSourceReaderBase#pollNext does
+                // not immediately return END_OF_INPUT when the input is exhausted
                 assertThat(reader.pollNext(out))
                         .as(
                                 "Each poll should return a NOTHING_AVAILABLE status to explicitly trigger the availability check through in SourceReader.isAvailable")
@@ -132,6 +134,8 @@ class DataGeneratorSourceTest {
             }
         }
 
+        // we need to go again through isAvailable because IteratorSourceReaderBase#pollNext does
+        // not immediately return END_OF_INPUT when the input is exhausted
         assertThat(reader.isAvailable())
                 .as(
                         "There should be always data available because the test doesn't rely on any no rate-limiting strategy and splits are provided.")
