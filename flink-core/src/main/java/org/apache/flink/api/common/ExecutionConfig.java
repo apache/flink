@@ -344,6 +344,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return this;
     }
 
+    @Internal
+    public void resetParallelism() {
+        configuration.removeConfig(CoreOptions.DEFAULT_PARALLELISM);
+    }
+
     /**
      * Gets the maximum degree of parallelism defined for the program.
      *
