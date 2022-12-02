@@ -86,10 +86,11 @@ class DataGeneratorSourceTest {
     @Test
     @DisplayName("Uses the underlying NumberSequenceSource correctly for checkpointing.")
     void testReaderCheckpoints() throws Exception {
+        final int numCycles = 3;
         final long from = 0;
         final long mid = 156;
         final long to = 383;
-        final long elementsPerCycle = (to - from + 1) / 3;
+        final long elementsPerCycle = (to - from + 1) / numCycles;
 
         final TestingReaderOutput<Long> out = new TestingReaderOutput<>();
 
@@ -99,7 +100,7 @@ class DataGeneratorSourceTest {
                         new NumberSequenceSource.NumberSequenceSplit("split-1", from, mid),
                         new NumberSequenceSource.NumberSequenceSplit("split-2", mid + 1, to)));
 
-        for (int cycle = 0; cycle < 3; cycle++) {
+        for (int cycle = 0; cycle < numCycles; cycle++) {
             // this call is not required but mimics what happens at runtime
             reader.pollNext(out);
             for (int elementInCycle = 0; elementInCycle < elementsPerCycle; elementInCycle++) {
