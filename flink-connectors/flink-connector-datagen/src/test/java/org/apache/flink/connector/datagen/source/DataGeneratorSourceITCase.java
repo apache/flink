@@ -177,20 +177,19 @@ class DataGeneratorSourceITCase extends TestLogger {
 
         env.setParallelism(PARALLELISM);
 
-        int capacityPerSubtaskPerCycle = 2;
-        int capacityPerCycle = // avoid rounding errors when spreading records among subtasks
-                PARALLELISM * capacityPerSubtaskPerCycle;
+        int capacityPerSubtaskPerCheckpoint = 2;
+        int capacityPerCheckpoint = // avoid rounding errors when spreading records among subtasks
+                PARALLELISM * capacityPerSubtaskPerCheckpoint;
 
         final GeneratorFunction<Long, Long> generatorFunction = index -> 1L;
 
-        int numCycles = 3;
-        // Allow each subtask to produce at least 3 cycles, gated by checkpoints
-        int count = capacityPerCycle * numCycles;
+        // produce slightly more elements than the checkpoint-rate-limit would allow
+        int count = capacityPerCheckpoint + 1;
         final DataGeneratorSource<Long> generatorSource =
                 new DataGeneratorSource<>(
                         generatorFunction,
                         count,
-                        RateLimiterStrategy.perCheckpoint(capacityPerCycle),
+                        RateLimiterStrategy.perCheckpoint(capacityPerCheckpoint),
                         Types.LONG);
 
         final DataStreamSource<Long> streamSource =
@@ -198,7 +197,7 @@ class DataGeneratorSourceITCase extends TestLogger {
         final DataStream<Long> map = streamSource.flatMap(new FirstCheckpointFilter());
         final List<Long> results = map.executeAndCollect(1000);
 
-        assertThat(results).hasSize(capacityPerCycle);
+        assertThat(results).hasSize(capacityPerCheckpoint);
     }
 
     private static class FirstCheckpointFilter

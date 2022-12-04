@@ -109,7 +109,7 @@ class DataGeneratorSourceTest {
             for (int elementInCycle = 0; elementInCycle < elementsPerCycle; elementInCycle++) {
                 assertThat(reader.isAvailable())
                         .as(
-                                "There should be always data available because the test doesn't rely on any no rate-limiting strategy and splits are provided.")
+                                "There should be always data available because the test utilizes no rate-limiting strategy and splits are provided.")
                         .isCompleted();
                 // this never returns END_OF_INPUT because IteratorSourceReaderBase#pollNext does
                 // not immediately return END_OF_INPUT when the input is exhausted
@@ -138,7 +138,7 @@ class DataGeneratorSourceTest {
         // not immediately return END_OF_INPUT when the input is exhausted
         assertThat(reader.isAvailable())
                 .as(
-                        "There should be always data available because the test doesn't rely on any no rate-limiting strategy and splits are provided.")
+                        "There should be always data available because the test utilizes no rate-limiting strategy and splits are provided.")
                 .isCompleted();
         assertThat(reader.pollNext(out)).isSameAs(InputStatus.END_OF_INPUT);
 
