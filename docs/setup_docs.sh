@@ -33,11 +33,27 @@ EOF
 echo "Created temporary file" $goModFileLocation/go.mod
 
 # Make Hugo retrieve modules which are used for externally hosted documentation
-currentBranch=$(git branch --show-current)
+currentBranch=$(git rev-parse --abbrev-ref HEAD)
 
-if [[ ! "$currentBranch" =~ ^release- ]] || [[ -z "$currentBranch" ]]; then
-  # If the current branch is master or not provided, get the documentation from the main branch
-  $(command -v hugo) mod get -u github.com/apache/flink-connector-elasticsearch/docs@main
-  # Since there's no documentation yet available for a release branch,
-  # we only get the documentation from the main branch
-fi
+function integrate_connector_docs {
+  connector=$1
+  ref=$2
+  git clone --single-branch --branch ${ref} https://github.com/apache/flink-connector-${connector}
+  theme_dir="../themes/connectors"
+  mkdir -p "${theme_dir}"
+  rsync -a flink-connector-${connector}/docs/content* "${theme_dir}/"
+}
+
+# Integrate the connector documentation
+
+rm -rf themes/connectors/*
+rm -rf tmp
+mkdir tmp
+cd tmp
+
+# Since there's no documentation yet available for a release branch,
+# we only get the documentation from the main branch
+integrate_connector_docs aws v3.0.0
+
+cd ..
+rm -rf tmp

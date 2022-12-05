@@ -108,3 +108,15 @@ pygmentsUseClasses = true
   languageName = '中文版'
   contentDir = 'content.zh'
   weight = 2
+
+[module]
+[[module.imports]]
+  path = 'connectors'
+[[module.imports.mounts]]
+  source = 'content'
+  target = 'content'
+  lang = 'en'
+[[module.imports.mounts]]
+  source = 'content.zh'
+  target = 'content'
+  lang = 'zh'
