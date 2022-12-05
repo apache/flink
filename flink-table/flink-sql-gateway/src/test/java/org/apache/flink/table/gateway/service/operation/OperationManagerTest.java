@@ -136,6 +136,7 @@ public class OperationManagerTest {
                             try {
                                 Thread.sleep(100);
                             } catch (Throwable ignore) {
+
                             }
                             operationManager.closeOperation(operationHandle);
                         })
