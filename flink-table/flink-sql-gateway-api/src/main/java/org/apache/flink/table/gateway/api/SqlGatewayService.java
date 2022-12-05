@@ -68,8 +68,14 @@ public interface SqlGatewayService {
 
     /**
      * Using the statement to initialize the Session. It's only allowed to execute
-     * SET/RESET/CREATE/DROP/USE/ALTER/LOAD MODULE/UNLOAD MODULE/ADD JAR. The execution should be
-     * finished before returning because jobs submitted later may depend on it.
+     * SET/RESET/CREATE/DROP/USE/ALTER/LOAD MODULE/UNLOAD MODULE/ADD JAR.
+     *
+     * <p>It returns until the execution finishes.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param statement the statement used to configure the session.
+     * @param executionTimeoutMs the execution timeout. Please use non-positive value to forbid the
+     *     timeout mechanism.
      */
     void configureSession(SessionHandle sessionHandle, String statement, long executionTimeoutMs)
             throws SqlGatewayException;

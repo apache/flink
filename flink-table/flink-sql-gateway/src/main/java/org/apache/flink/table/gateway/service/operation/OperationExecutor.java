@@ -69,7 +69,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
@@ -91,13 +90,12 @@ public class OperationExecutor {
         this.executionConfig = executionConfig;
     }
 
-    public void configureSession(String statement) throws ExecutionException, InterruptedException {
+    public void configureSession(String statement) {
         TableEnvironmentInternal tableEnv = getTableEnvironment();
         List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
         if (parsedOperations.size() > 1) {
             throw new UnsupportedOperationException(
-                    "Unsupported SQL statement! Execute statement only accepts a single SQL statement or "
-                            + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
+                    "Unsupported SQL statement! Configure session only accepts a single SQL statement.");
         }
         Operation op = parsedOperations.get(0);
 
@@ -111,16 +109,26 @@ public class OperationExecutor {
                 && !(op instanceof UnloadModuleOperation)
                 && !(op instanceof AddJarOperation)) {
             throw new UnsupportedOperationException(
-                    String.format("Unsupported statement for configuring session:\n%s", statement));
+                    String.format(
+                            "Unsupported statement for configuring session:%s\n"
+                                    + "The configureSession API only supports to execute statement of type "
+                                    + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
+                                    + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
+                                    + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
+                                    + "CREATE CATALOG, DROP CATALOG, "
+                                    + "USE CATALOG, USE [CATALOG.]DATABASE, "
+                                    + "CREATE VIEW, DROP VIEW, "
+                                    + "LOAD MODULE, UNLOAD MODULE, USE MODULE, "
+                                    + "ADD JAR.",
+                            statement));
         }
 
-        // Ignore the execution result
         if (op instanceof SetOperation) {
             callSetOperation(tableEnv, OperationHandle.create(), (SetOperation) op);
         } else if (op instanceof ResetOperation) {
             callResetOperation(OperationHandle.create(), (ResetOperation) op);
         } else {
-            tableEnv.executeInternal(op).await();
+            tableEnv.executeInternal(op);
         }
     }
 
@@ -207,8 +215,11 @@ public class OperationExecutor {
     }
 
     public Set<FunctionInfo> listUserDefinedFunctions(String catalogName, String databaseName) {
-        return sessionContext.getSessionState().functionCatalog
-                .getUserDefinedFunctions(catalogName, databaseName).stream()
+        return sessionContext
+                .getSessionState()
+                .functionCatalog
+                .getUserDefinedFunctions(catalogName, databaseName)
+                .stream()
                 // Load the CatalogFunction from the remote catalog is time wasted. Set the
                 // FunctionKind null.
                 .map(FunctionInfo::new)
@@ -367,7 +378,10 @@ public class OperationExecutor {
 
     private Set<TableInfo> listViews(String catalogName, String databaseName) {
         return Collections.unmodifiableSet(
-                sessionContext.getSessionState().catalogManager.listViews(catalogName, databaseName)
+                sessionContext
+                        .getSessionState()
+                        .catalogManager
+                        .listViews(catalogName, databaseName)
                         .stream()
                         .map(
                                 name ->

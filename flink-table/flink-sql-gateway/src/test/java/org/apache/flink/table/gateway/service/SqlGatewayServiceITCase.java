@@ -19,12 +19,12 @@
 package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -56,7 +56,6 @@ import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.TableFunc0;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -215,19 +214,18 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         // LOAD & UNLOAD MODULE
         service.configureSession(sessionHandle, "LOAD MODULE dummy;", 0);
-
-        TableEnvironmentInternal tableEnv =
-                service.getSession(sessionHandle).createExecutor().getTableEnvironment();
-        assertThat(
-                        CollectionUtil.iteratorToList(
-                                tableEnv.executeSql("SHOW FULL MODULES;").collect()))
-                .contains(Row.of("dummy", true));
+        validateStatementResult(
+                sessionHandle,
+                "SHOW FULL MODULES",
+                Arrays.asList(
+                        GenericRowData.of(StringData.fromString("core"), true),
+                        GenericRowData.of(StringData.fromString("dummy"), true)));
 
         service.configureSession(sessionHandle, "UNLOAD MODULE dummy;", 0);
-        assertThat(
-                        CollectionUtil.iteratorToList(
-                                tableEnv.executeSql("SHOW FULL MODULES;").collect()))
-                .isEqualTo(Collections.singletonList(Row.of("core", true)));
+        validateStatementResult(
+                sessionHandle,
+                "SHOW MODULES",
+                Collections.singletonList(GenericRowData.of(StringData.fromString("core"))));
 
         // ADD JAR
         String udfClassName = GENERATED_LOWER_UDF_CLASS + new Random().nextInt(50);
@@ -238,11 +236,12 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 udfClassName,
                                 String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
                         .toURI()
-                        .toString();
+                        .getPath();
         service.configureSession(sessionHandle, String.format("ADD JAR '%s';", jarPath), 0);
-
-        assertThat(CollectionUtil.iteratorToList(tableEnv.executeSql("SHOW JARS;").collect()))
-                .isEqualTo(Collections.singletonList(Row.of(new Path(jarPath).getPath())));
+        validateStatementResult(
+                sessionHandle,
+                "SHOW JARS",
+                Collections.singletonList(GenericRowData.of(StringData.fromString(jarPath))));
     }
 
     @Test
@@ -807,7 +806,13 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
-                                "Unsupported statement for configuring session:\nSELECT 1;"));
+                                "Unsupported statement for configuring session:SELECT 1;\n"
+                                        + "The configureSession API only supports to execute statement of type "
+                                        + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
+                                        + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
+                                        + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
+                                        + "CREATE CATALOG, DROP CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, "
+                                        + "CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE, USE MODULE, ADD JAR."));
     }
 
     @Test
@@ -997,5 +1002,16 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         tableEnv.executeSql("CREATE TABLE cat2.db0.tbl0 WITH('connector' = 'values')");
 
         return sessionHandle;
+    }
+
+    private void validateStatementResult(
+            SessionHandle sessionHandle, String statement, List<RowData> expected) {
+        TableEnvironmentInternal tableEnv =
+                service.getSession(sessionHandle).createExecutor().getTableEnvironment();
+        assertThat(
+                        CollectionUtil.iteratorToList(
+                                ((TableResultInternal) tableEnv.executeSql(statement))
+                                        .collectInternal()))
+                .isEqualTo(expected);
     }
 }
