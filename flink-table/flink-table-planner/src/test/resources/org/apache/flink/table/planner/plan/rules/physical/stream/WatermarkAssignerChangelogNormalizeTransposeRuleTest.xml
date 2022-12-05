@@ -220,11 +220,9 @@ Calc(select=[a, b, f], where=[f], changelogMode=[I])
    :     +- Calc(select=[CAST(ingestion_time AS TIMESTAMP(3) *ROWTIME*) AS ingestion_time, a, b], changelogMode=[I])
    :        +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b, ingestion_time], changelogMode=[I])
    +- Exchange(distribution=[hash[a]], changelogMode=[I,UA,D])
-      +- ChangelogNormalize(key=[a], changelogMode=[I,UA,D])
-         +- Exchange(distribution=[hash[a]], changelogMode=[I,UA,D])
-            +- WatermarkAssigner(rowtime=[ingestion_time], watermark=[ingestion_time], changelogMode=[I,UA,D])
-               +- Calc(select=[CAST(ingestion_time AS TIMESTAMP(3) *ROWTIME*) AS ingestion_time, a, f], changelogMode=[I,UA,D])
-                  +- TableSourceScan(table=[[default_catalog, default_database, t2, project=[a, f], metadata=[ts]]], fields=[a, f, ingestion_time], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[ingestion_time], watermark=[ingestion_time], changelogMode=[I,UA,D])
+         +- Calc(select=[CAST(ingestion_time AS TIMESTAMP(3) *ROWTIME*) AS ingestion_time, a, f], changelogMode=[I,UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, t2, project=[a, f], metadata=[ts]]], fields=[a, f, ingestion_time], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>
