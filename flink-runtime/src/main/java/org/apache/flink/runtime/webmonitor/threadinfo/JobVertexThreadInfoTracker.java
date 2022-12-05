@@ -269,7 +269,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
 
                 ExecutionAttemptID attemptId = execution.getAttemptId();
                 groupedAttemptIds.add(attemptId);
-                executionAttemptsByLocation.put(tmLocation, ImmutableSet.copyOf(groupedAttemptIds));
+                executionAttemptsByLocation.put(tmLocation, groupedAttemptIds);
             }
         }
 
