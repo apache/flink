@@ -645,7 +645,7 @@ public class StreamGraphGenerator {
                             + RuntimeExecutionMode.STREAMING.name());
         }
 
-        if (iterate.getFeedbackEdges().size() <= 0) {
+        if (iterate.getFeedbackEdges().isEmpty()) {
             throw new IllegalStateException(
                     "Iteration " + iterate + " does not have any feedback edges.");
         }

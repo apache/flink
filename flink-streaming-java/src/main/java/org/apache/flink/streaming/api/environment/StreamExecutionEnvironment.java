@@ -2268,7 +2268,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     private StreamGraphGenerator getStreamGraphGenerator(List<Transformation<?>> transformations) {
-        if (transformations.size() <= 0) {
+        if (transformations.isEmpty()) {
             throw new IllegalStateException(
                     "No operators defined in streaming topology. Cannot execute.");
         }
