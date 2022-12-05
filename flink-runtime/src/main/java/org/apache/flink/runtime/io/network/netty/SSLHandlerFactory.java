@@ -18,18 +18,20 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Suppliers;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import javax.net.ssl.SSLEngine;
 
+import java.util.function.Supplier;
+
 import static java.util.Objects.requireNonNull;
 
 /** Creates and configures {@link SslHandler} instances. */
 public class SSLHandlerFactory {
-
-    private final SslContext sslContext;
+    private final Supplier<SslContext> sslContextSupplier;
 
     private final int handshakeTimeoutMs;
 
@@ -47,17 +49,31 @@ public class SSLHandlerFactory {
             final int handshakeTimeoutMs,
             final int closeNotifyFlushTimeoutMs) {
 
-        this.sslContext = requireNonNull(sslContext, "sslContext must not be null");
+        this(
+                Suppliers.ofInstance(requireNonNull(sslContext)),
+                handshakeTimeoutMs,
+                closeNotifyFlushTimeoutMs);
+    }
+
+    public SSLHandlerFactory(
+            final Supplier<SslContext> sslContextSupplier,
+            final int handshakeTimeoutMs,
+            final int closeNotifyFlushTimeoutMs) {
+        this.sslContextSupplier = sslContextSupplier;
         this.handshakeTimeoutMs = handshakeTimeoutMs;
         this.closeNotifyFlushTimeoutMs = closeNotifyFlushTimeoutMs;
     }
 
     public SslHandler createNettySSLHandler(ByteBufAllocator allocator) {
-        return createNettySSLHandler(createSSLEngine(allocator));
+        return createNettySSLHandler(context().newEngine(allocator));
     }
 
     public SslHandler createNettySSLHandler(ByteBufAllocator allocator, String hostname, int port) {
-        return createNettySSLHandler(createSSLEngine(allocator, hostname, port));
+        return createNettySSLHandler(context().newEngine(allocator, hostname, port));
+    }
+
+    private SslContext context() {
+        return sslContextSupplier.get();
     }
 
     private SslHandler createNettySSLHandler(SSLEngine sslEngine) {
@@ -70,13 +86,5 @@ public class SSLHandlerFactory {
         }
 
         return sslHandler;
-    }
-
-    private SSLEngine createSSLEngine(ByteBufAllocator allocator) {
-        return sslContext.newEngine(allocator);
-    }
-
-    private SSLEngine createSSLEngine(ByteBufAllocator allocator, String hostname, int port) {
-        return sslContext.newEngine(allocator, hostname, port);
     }
 }

@@ -217,6 +217,14 @@ public class SecurityOptions {
                     .withDescription(
                             "Turns on SSL for external communication via the REST endpoints.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
+    public static final ConfigOption<String> SSL_REST_SSL_CONTEXT_SUPPLIER =
+            key("security.ssl.rest.ssl-context-supplier")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "A fully qualified class name that implements the SslContextSupplier interface.");
+
     /** Enable mututal SSL authentication for external REST endpoints. */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<Boolean> SSL_REST_AUTHENTICATION_ENABLED =
@@ -497,6 +505,14 @@ public class SecurityOptions {
                                     .build());
 
     // ------------------------ ssl parameters --------------------------------
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
+    public static final ConfigOption<String> SSL_INTERNAL_SSL_CONTEXT_SUPPLIER =
+            key("security.ssl.internal.ssl-context-supplier")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "A fully qualified class name that implements the SslContextSupplier interface.");
 
     /** SSL session cache size. */
     @Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)

@@ -24,10 +24,16 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContextBuilder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider;
 
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -43,6 +49,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -171,6 +178,14 @@ public class SSLUtilsTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testRESTClientSSLCustomSupplier() throws Exception {
+        runCustomFactoryTest(
+                createRestSslConfigWithCustomSupplier(),
+                true,
+                SSLUtils::createRestClientSSLEngineFactory);
+    }
+
     // ------------------------ server --------------------------
 
     /** Tests that REST Server SSL Engine is created given a valid SSL configuration. */
@@ -221,6 +236,14 @@ public class SSLUtilsTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testRESTServerSSLCustomSupplier() throws Exception {
+        runCustomFactoryTest(
+                createRestSslConfigWithCustomSupplier(),
+                false,
+                SSLUtils::createRestServerSSLEngineFactory);
+    }
+
     // ----------------------- mutual auth contexts --------------------------
 
     @Test
@@ -228,6 +251,22 @@ public class SSLUtilsTest extends TestLogger {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
         assertNotNull(SSLUtils.createInternalServerSSLEngineFactory(config));
         assertNotNull(SSLUtils.createInternalClientSSLEngineFactory(config));
+    }
+
+    @Test
+    public void testInternalSSLServerCustomSupplier() throws Exception {
+        runCustomFactoryTest(
+                createInternalSslConfigWithCustomSupplier(),
+                false,
+                SSLUtils::createInternalServerSSLEngineFactory);
+    }
+
+    @Test
+    public void testInternalSSLClientCustomSupplier() throws Exception {
+        runCustomFactoryTest(
+                createInternalSslConfigWithCustomSupplier(),
+                true,
+                SSLUtils::createInternalClientSSLEngineFactory);
     }
 
     @Test
@@ -438,6 +477,67 @@ public class SSLUtilsTest extends TestLogger {
 
     // ------------------------------- utils ----------------------------------
 
+    @FunctionalInterface
+    private interface ThrowingFunction<A, B> {
+        B apply(A a) throws Exception;
+    }
+
+    /** A test {@link SslContextSupplier} that captures the calls made to its get method. */
+    public static class TestSslContextSupplier implements SslContextSupplier {
+
+        private static class Call {
+            final Configuration configuration;
+            final boolean clientMode;
+            final SslProvider sslProvider;
+
+            Call(Configuration configuration, boolean clientMode, SslProvider sslProvider) {
+                this.configuration = configuration;
+                this.clientMode = clientMode;
+                this.sslProvider = sslProvider;
+            }
+        }
+
+        private static final ThreadLocal<List<Call>> calls =
+                ThreadLocal.withInitial(ArrayList::new);
+
+        static void reset() {
+            calls.remove();
+        }
+
+        static List<Call> calls() {
+            return calls.get();
+        }
+
+        @Override
+        public SslContext get(
+                Configuration configuration, boolean clientMode, SslProvider provider) {
+            try {
+                calls.get().add(new Call(configuration, clientMode, provider));
+                return SslContextBuilder.forClient().build();
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
+    private void runCustomFactoryTest(
+            Configuration config,
+            boolean expectedClientMode,
+            ThrowingFunction<Configuration, SSLHandlerFactory> fn)
+            throws Exception {
+        TestSslContextSupplier.reset();
+        SSLHandlerFactory sslHandlerFactory = fn.apply(config);
+
+        sslHandlerFactory.createNettySSLHandler(ByteBufAllocator.DEFAULT);
+
+        List<TestSslContextSupplier.Call> calls = TestSslContextSupplier.calls();
+
+        MatcherAssert.assertThat(calls.size(), Matchers.greaterThan(0));
+        for (TestSslContextSupplier.Call call : calls) {
+            assertEquals(call.clientMode, expectedClientMode);
+        }
+    }
+
     private Configuration createRestSslConfigWithKeyStore() {
         final Configuration config = new Configuration();
         config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
@@ -451,6 +551,15 @@ public class SSLUtilsTest extends TestLogger {
         config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
         addSslProviderConfig(config, sslProvider);
         addRestTrustStoreConfig(config);
+        return config;
+    }
+
+    private Configuration createRestSslConfigWithCustomSupplier() {
+        final Configuration config = new Configuration();
+        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        config.set(
+                SecurityOptions.SSL_REST_SSL_CONTEXT_SUPPLIER,
+                TestSslContextSupplier.class.getName());
         return config;
     }
 
@@ -489,6 +598,15 @@ public class SSLUtilsTest extends TestLogger {
         addSslProviderConfig(config, sslProvider);
         addInternalKeyStoreConfig(config);
         addInternalTrustStoreConfig(config);
+        return config;
+    }
+
+    private Configuration createInternalSslConfigWithCustomSupplier() {
+        final Configuration config = new Configuration();
+        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(
+                SecurityOptions.SSL_INTERNAL_SSL_CONTEXT_SUPPLIER,
+                TestSslContextSupplier.class.getName());
         return config;
     }
 
