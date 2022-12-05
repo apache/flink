@@ -167,13 +167,13 @@ upsert-kafka:
           sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$version/flink-sql-connector-kafka-$version.jar
 
 kinesis:
-    name: Kinesis
+    name: Amazon Kinesis Data Streams
     category: connector
     maven: flink-connector-kinesis
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/$version/flink-sql-connector-kinesis-$version.jar
 
 aws-kinesis-firehose:
-  name: AWS Kinesis Firehose
+  name: Amazon Kinesis Data Firehose
   category: connector
   maven: flink-connector-kinesis-firehose
   sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/$version/flink-sql-connector-aws-kinesis-firehose-$version.jar

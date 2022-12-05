@@ -47,7 +47,7 @@ under the License.
             <td>根据你的版本用恰当的 Kafka 连接器</td>
         </tr>
         <tr>
-            <td>AWS Kinesis Streams</td>
+            <td>Amazon Kinesis Data Streams</td>
             <td>精确一次</td>
             <td></td>
         </tr>
@@ -106,7 +106,12 @@ under the License.
         <td>只有当更新是幂等时，保证精确一次</td>
     </tr>
     <tr>
-        <td>AWS Kinesis Streams</td>
+        <td>Amazon Kinesis Data Analytics</td>
+        <td>至少一次</td>
+        <td></td>
+    </tr>
+        <tr>
+        <td>Amazon Kinesis Data Firehose</td>
         <td>至少一次</td>
         <td></td>
     </tr>
