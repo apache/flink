@@ -598,14 +598,32 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
   def testEventTimeTemporalJoinWithNonEqualCondition(): Unit = {
     val sql = "INSERT INTO rowtime_default_sink " +
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
-      " FROM orders_rowtime AS o JOIN versioned_currency_with_multi_key " +
+      " FROM orders_rowtime AS o JOIN currency_using_update_before_time " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
-      " and o.order_id < 5 and r.rate > 114"
+      " and o.order_id < 5 and r.rate > 102"
     tEnv.executeSql(sql).await()
     val expected = List(
-      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
-      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01")
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01"
+    )
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+  }
+
+  @Test
+  def testEventTimeTemporalJoinEqualConditionOnKey(): Unit = {
+    val sql = "INSERT INTO rowtime_default_sink " +
+      " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
+      " FROM orders_rowtime AS o JOIN currency_using_update_before_time " +
+      " FOR SYSTEM_TIME AS OF o.order_time as r " +
+      " ON o.currency = r.currency and o.currency_no = r.currency_no " +
+      " and o.currency = 'Euro' and r.rate > 102"
+    tEnv.executeSql(sql).await()
+    val expected = List(
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01"
+    )
     assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
