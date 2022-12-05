@@ -73,6 +73,12 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink</td>
     </tr>
     <tr>
+      <td><a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a></td>
+      <td></td>
+      <td>Not supported</td>
+      <td>Streaming Sink</td>
+    </tr>
+    <tr>
       <td><a href="{{< ref "docs/connectors/table/jdbc" >}}">JDBC</a></td>
       <td></td>
       <td>Bounded Scan, Lookup</td>
