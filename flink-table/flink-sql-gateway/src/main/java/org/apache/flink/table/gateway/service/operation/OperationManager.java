@@ -137,6 +137,10 @@ public class OperationManager {
                 });
     }
 
+    public void waitOperationTermination(OperationHandle operationHandle) throws Exception {
+        getOperation(operationHandle).awaitOperationTermination();
+    }
+
     /**
      * Get the {@link OperationInfo} of the operation.
      *
@@ -307,15 +311,9 @@ public class OperationManager {
         }
 
         public ResolvedSchema getResultSchema() throws Exception {
-            synchronized (status) {
-                while (!status.get().isTerminalStatus()) {
-                    status.wait();
-                }
-            }
+            awaitOperationTermination();
             OperationStatus current = status.get();
-            if (current == OperationStatus.ERROR) {
-                throw operationError;
-            } else if (current != OperationStatus.FINISHED) {
+            if (current != OperationStatus.FINISHED) {
                 throw new IllegalStateException(
                         String.format(
                                 "The result schema is available when the Operation is in FINISHED state but the current status is %s.",
@@ -326,6 +324,18 @@ public class OperationManager {
 
         public OperationInfo getOperationInfo() {
             return new OperationInfo(status.get(), operationError);
+        }
+
+        public void awaitOperationTermination() throws Exception {
+            synchronized (status) {
+                while (!status.get().isTerminalStatus()) {
+                    status.wait();
+                }
+            }
+            OperationStatus current = status.get();
+            if (current == OperationStatus.ERROR) {
+                throw operationError;
+            }
         }
 
         private ResultSet fetchResultsInternal(Supplier<ResultSet> results) {

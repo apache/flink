@@ -38,6 +38,7 @@ import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 
@@ -89,7 +90,15 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
                 throw new UnsupportedOperationException(
                         "SqlGatewayService doesn't support timeout mechanism now.");
             }
-            getSession(sessionHandle).createExecutor().configureSession(statement);
+
+            OperationManager operationManager = getSession(sessionHandle).getOperationManager();
+            OperationHandle operationHandle =
+                    operationManager.submitOperation(
+                            handle ->
+                                    getSession(sessionHandle)
+                                            .createExecutor()
+                                            .configureSession(handle, statement));
+            operationManager.waitOperationTermination(operationHandle);
         } catch (Throwable t) {
             LOG.error("Failed to configure session.", t);
             throw new SqlGatewayException("Failed to configure session.", t);

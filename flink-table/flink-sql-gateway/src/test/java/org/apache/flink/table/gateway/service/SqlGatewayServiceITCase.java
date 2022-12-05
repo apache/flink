@@ -213,19 +213,19 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         assertThat(service.listCatalogs(sessionHandle)).doesNotContain("mycat");
 
         // LOAD & UNLOAD MODULE
-        service.configureSession(sessionHandle, "LOAD MODULE dummy;", 0);
         validateStatementResult(
                 sessionHandle,
                 "SHOW FULL MODULES",
-                Arrays.asList(
-                        GenericRowData.of(StringData.fromString("core"), true),
-                        GenericRowData.of(StringData.fromString("dummy"), true)));
+                Collections.singletonList(GenericRowData.of(StringData.fromString("core"), true)));
 
-        service.configureSession(sessionHandle, "UNLOAD MODULE dummy;", 0);
+        service.configureSession(sessionHandle, "UNLOAD MODULE core;", 0);
+        validateStatementResult(sessionHandle, "SHOW FULL MODULES", Collections.emptyList());
+
+        service.configureSession(sessionHandle, "LOAD MODULE core;", 0);
         validateStatementResult(
                 sessionHandle,
-                "SHOW MODULES",
-                Collections.singletonList(GenericRowData.of(StringData.fromString("core"))));
+                "SHOW FULL MODULES",
+                Collections.singletonList(GenericRowData.of(StringData.fromString("core"), true)));
 
         // ADD JAR
         String udfClassName = GENERATED_LOWER_UDF_CLASS + new Random().nextInt(50);

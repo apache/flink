@@ -90,7 +90,7 @@ public class OperationExecutor {
         this.executionConfig = executionConfig;
     }
 
-    public void configureSession(String statement) {
+    public ResultFetcher configureSession(OperationHandle handle, String statement) {
         TableEnvironmentInternal tableEnv = getTableEnvironment();
         List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
         if (parsedOperations.size() > 1) {
@@ -124,12 +124,17 @@ public class OperationExecutor {
         }
 
         if (op instanceof SetOperation) {
-            callSetOperation(tableEnv, OperationHandle.create(), (SetOperation) op);
+            callSetOperation(tableEnv, handle, (SetOperation) op);
         } else if (op instanceof ResetOperation) {
-            callResetOperation(OperationHandle.create(), (ResetOperation) op);
+            callResetOperation(handle, (ResetOperation) op);
         } else {
             tableEnv.executeInternal(op);
         }
+        return new ResultFetcher(
+                handle,
+                TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                CollectionUtil.iteratorToList(
+                        TableResultInternal.TABLE_RESULT_OK.collectInternal()));
     }
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
@@ -215,11 +220,8 @@ public class OperationExecutor {
     }
 
     public Set<FunctionInfo> listUserDefinedFunctions(String catalogName, String databaseName) {
-        return sessionContext
-                .getSessionState()
-                .functionCatalog
-                .getUserDefinedFunctions(catalogName, databaseName)
-                .stream()
+        return sessionContext.getSessionState().functionCatalog
+                .getUserDefinedFunctions(catalogName, databaseName).stream()
                 // Load the CatalogFunction from the remote catalog is time wasted. Set the
                 // FunctionKind null.
                 .map(FunctionInfo::new)
@@ -378,10 +380,7 @@ public class OperationExecutor {
 
     private Set<TableInfo> listViews(String catalogName, String databaseName) {
         return Collections.unmodifiableSet(
-                sessionContext
-                        .getSessionState()
-                        .catalogManager
-                        .listViews(catalogName, databaseName)
+                sessionContext.getSessionState().catalogManager.listViews(catalogName, databaseName)
                         .stream()
                         .map(
                                 name ->
