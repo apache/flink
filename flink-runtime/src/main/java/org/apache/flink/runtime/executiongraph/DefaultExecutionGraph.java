@@ -1150,7 +1150,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         if (state == current) {
             state = newState;
             if (newState == JobStatus.FAILED) {
-                LOG.error(
+                LOG.warn(
                         "Job {} ({}) switched from state {} to {}.",
                         getJobName(),
                         getJobID(),
