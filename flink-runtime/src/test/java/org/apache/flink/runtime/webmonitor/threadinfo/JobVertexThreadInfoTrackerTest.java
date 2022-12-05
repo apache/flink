@@ -20,16 +20,21 @@ package org.apache.flink.runtime.webmonitor.threadinfo;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
@@ -49,6 +54,7 @@ import javax.annotation.Nonnull;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -65,7 +71,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createScheduler;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link JobVertexThreadInfoTracker}. */
@@ -74,6 +82,12 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     private static final int REQUEST_ID = 0;
     private static final ExecutionJobVertex EXECUTION_JOB_VERTEX = createExecutionJobVertex();
     private static final ExecutionVertex[] TASK_VERTICES = EXECUTION_JOB_VERTEX.getTaskVertices();
+    private static final Set<ExecutionAttemptID> ATTEMPT_IDS =
+            Arrays.stream(TASK_VERTICES)
+                    .map(
+                            executionVertex ->
+                                    executionVertex.getCurrentExecutionAttempt().getAttemptId())
+                    .collect(Collectors.toSet());
     private static final JobID JOB_ID = new JobID();
 
     private static ThreadInfoSample threadInfoSample;
@@ -338,8 +352,18 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     private static ExecutionJobVertex createExecutionJobVertex() {
         try {
             JobVertex jobVertex = new JobVertex("testVertex");
+            jobVertex.setParallelism(10);
             jobVertex.setInvokableClass(AbstractInvokable.class);
-            return ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex);
+
+            final SchedulerBase scheduler =
+                    createScheduler(
+                            JobGraphTestUtils.streamingJobGraph(jobVertex),
+                            ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                            new DirectScheduledExecutorService());
+            final ExecutionGraph eg = scheduler.getExecutionGraph();
+            scheduler.startScheduling();
+            ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+            return scheduler.getExecutionJobVertex(jobVertex.getID());
         } catch (Exception e) {
             throw new RuntimeException("Failed to create ExecutionJobVertex.");
         }
@@ -382,6 +406,9 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                 int ignored2,
                 Duration ignored3,
                 int ignored4) {
+            assertThat(executionsWithGateways.size() == 1).isTrue();
+            assertThat(executionsWithGateways.keySet().iterator().next()).isEqualTo(ATTEMPT_IDS);
+
             return CompletableFuture.completedFuture(
                     jobVertexThreadInfoStats[(counter++) % jobVertexThreadInfoStats.length]);
         }
