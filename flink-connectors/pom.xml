@@ -42,7 +42,6 @@ under the License.
 		<module>flink-connector-hive</module>
 		<module>flink-connector-jdbc</module>
 		<module>flink-connector-rabbitmq</module>
-		<module>flink-connector-cassandra</module>
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
 		<module>flink-connector-aws-base</module>
