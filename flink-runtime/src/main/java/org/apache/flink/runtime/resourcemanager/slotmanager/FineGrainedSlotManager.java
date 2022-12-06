@@ -346,19 +346,20 @@ public class FineGrainedSlotManager implements SlotManager {
                             : findMatchingPendingTaskManager(
                                     totalResourceProfile, defaultSlotResourceProfile);
 
-            if (!matchedPendingTaskManagerOptional.isPresent()
+            if (resourceAllocator.isSupported()
+                    && !matchedPendingTaskManagerOptional.isPresent()
                     && isMaxTotalResourceExceededAfterAdding(totalResourceProfile)) {
-                if (resourceAllocator.isSupported()) {
-                    LOG.info(
-                            "Releasing task manager {}. The max total resource limitation <{}, {}> is reached.",
-                            taskExecutorConnection.getResourceID(),
-                            maxTotalCpu,
-                            maxTotalMem.toHumanReadableString());
-                    resourceAllocator.releaseResource(
-                            taskExecutorConnection.getInstanceID(),
-                            new FlinkExpectedException(
-                                    "The max total resource limitation is reached."));
-                }
+
+                LOG.info(
+                        "Releasing task manager {}. The max total resource limitation <{}, {}> is reached.",
+                        taskExecutorConnection.getResourceID(),
+                        maxTotalCpu,
+                        maxTotalMem.toHumanReadableString());
+                resourceAllocator.releaseResource(
+                        taskExecutorConnection.getInstanceID(),
+                        new FlinkExpectedException(
+                                "The max total resource limitation is reached."));
+
                 return false;
             }
 
@@ -745,17 +746,17 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private boolean allocateResource(PendingTaskManager pendingTaskManager) {
+        if (!resourceAllocator.isSupported()) {
+            // resource cannot be allocated
+            return false;
+        }
+
         if (isMaxTotalResourceExceededAfterAdding(pendingTaskManager.getTotalResourceProfile())) {
             LOG.info(
                     "Could not allocate {}. Max total resource limitation <{}, {}> is reached.",
                     pendingTaskManager,
                     maxTotalCpu,
                     maxTotalMem.toHumanReadableString());
-            return false;
-        }
-
-        if (!resourceAllocator.isSupported()) {
-            // resource cannot be allocated
             return false;
         }
 

@@ -259,7 +259,7 @@ class DeclarativeSlotManagerTest {
         final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
 
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
-        final ResourceAllocator resourceAllocator = new NonSupportedResourceAllocatorImpl();
+        final ResourceAllocator resourceAllocator = NonSupportedResourceAllocatorImpl.INSTANCE;
 
         try (DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()

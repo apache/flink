@@ -153,16 +153,15 @@ class TaskExecutorManager implements AutoCloseable {
             SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
             ResourceProfile defaultSlotResourceProfile) {
-        if (isMaxSlotNumExceededAfterRegistration(initialSlotReport)) {
-            if (resourceAllocator.isSupported()) {
-                LOG.info(
-                        "The total number of slots exceeds the max limitation {}, releasing the excess task executor.",
-                        maxSlotNum);
-                resourceAllocator.releaseResource(
-                        taskExecutorConnection.getInstanceID(),
-                        new FlinkExpectedException(
-                                "The total number of slots exceeds the max limitation."));
-            }
+        if (resourceAllocator.isSupported()
+                && isMaxSlotNumExceededAfterRegistration(initialSlotReport)) {
+            LOG.info(
+                    "The total number of slots exceeds the max limitation {}, releasing the excess task executor.",
+                    maxSlotNum);
+            resourceAllocator.releaseResource(
+                    taskExecutorConnection.getInstanceID(),
+                    new FlinkExpectedException(
+                            "The total number of slots exceeds the max limitation."));
             return false;
         }
 

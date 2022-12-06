@@ -27,6 +27,8 @@ public class NonSupportedResourceAllocatorImpl implements ResourceAllocator {
     public static final NonSupportedResourceAllocatorImpl INSTANCE =
             new NonSupportedResourceAllocatorImpl();
 
+    private NonSupportedResourceAllocatorImpl() {}
+
     @Override
     public boolean isSupported() {
         return false;
