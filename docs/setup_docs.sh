@@ -51,8 +51,6 @@ rm -rf tmp
 mkdir tmp
 cd tmp
 
-# Since there's no documentation yet available for a release branch,
-# we only get the documentation from the main branch
 integrate_connector_docs elasticsearch v3.0.0
 integrate_connector_docs aws v3.0.0
 
