@@ -575,16 +575,14 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         + "  'connector' = 'blackhole'\n"
                         + ")\n";
 
-        service.executeStatement(sessionHandle, createTable1, 0, new Configuration());
-        OperationHandle operationHandle =
-                service.executeStatement(sessionHandle, createTable2, 0, new Configuration());
-        CommonTestUtils.waitUtil(
-                () ->
-                        service.getOperationInfo(sessionHandle, operationHandle)
-                                .getStatus()
-                                .isTerminalStatus(),
-                Duration.ofSeconds(100),
-                "Failed to wait operation finish.");
+        service.getSession(sessionHandle)
+                .createExecutor()
+                .getTableEnvironment()
+                .executeSql(createTable1);
+        service.getSession(sessionHandle)
+                .createExecutor()
+                .getTableEnvironment()
+                .executeSql(createTable2);
 
         List<String> expectedTableHints =
                 Arrays.asList(

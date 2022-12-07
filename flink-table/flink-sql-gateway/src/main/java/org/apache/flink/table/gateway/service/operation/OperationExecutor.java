@@ -38,6 +38,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
+import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
@@ -71,6 +72,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_HINTS;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_VALUE;
@@ -257,9 +259,17 @@ public class OperationExecutor {
                 .getDefinition();
     }
 
-    public List<String> getCompletionHints(String statement, int position) {
-        return Arrays.asList(
-                getTableEnvironment().getParser().getCompletionHints(statement, position));
+    public ResultSet getCompletionHints(String statement, int position) {
+        return new ResultSet(
+                ResultSet.ResultType.EOS,
+                null,
+                ResolvedSchema.of(Column.physical(COMPLETION_HINTS, DataTypes.STRING())),
+                Arrays.stream(
+                                getTableEnvironment()
+                                        .getParser()
+                                        .getCompletionHints(statement, position))
+                        .map(hint -> GenericRowData.of(StringData.fromString(hint)))
+                        .collect(Collectors.toList()));
     }
 
     // --------------------------------------------------------------------------------------------

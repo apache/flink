@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -49,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 /** The implementation of the {@link SqlGatewayService} interface. */
 public class SqlGatewayServiceImpl implements SqlGatewayService {
@@ -342,7 +344,26 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     public List<String> completeStatement(
             SessionHandle sessionHandle, String statement, int position)
             throws SqlGatewayException {
-        return getSession(sessionHandle).createExecutor().getCompletionHints(statement, position);
+        try {
+            OperationManager operationManager = getSession(sessionHandle).getOperationManager();
+            OperationHandle operationHandle =
+                    operationManager.submitOperation(
+                            () ->
+                                    getSession(sessionHandle)
+                                            .createExecutor()
+                                            .getCompletionHints(statement, position));
+            operationManager.awaitOperationTermination(operationHandle);
+
+            ResultSet resultSet =
+                    fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE);
+            return resultSet.getData().stream()
+                    .map(data -> data.getString(0))
+                    .map(StringData::toString)
+                    .collect(Collectors.toList());
+        } catch (Throwable t) {
+            LOG.error("Failed to get statement completion hints.", t);
+            throw new SqlGatewayException("Failed to get statement completion hints.", t);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
