@@ -41,18 +41,22 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** TestInputFormat that reads data from (2 + delta) splits which share the same {@code queue}. */
+/**
+ * TestInputFormat that reads data from (initNum + delta) splits which share the same {@code queue}.
+ */
 public class FullCacheTestInputFormat
         extends RichInputFormat<RowData, FullCacheTestInputFormat.QueueInputSplit> {
 
     public static final AtomicInteger OPEN_CLOSED_COUNTER = new AtomicInteger(0);
-    private static final int DEFAULT_NUM_SPLITS = 2;
+    public static final int DEFAULT_NUM_SPLITS = 2;
+    public static final int DEFAULT_DELTA_NUM_SPLITS = 0;
 
     // RowData is not serializable, so we store Rows
     private final Collection<Row> dataRows;
     private final DataFormatConverters.RowConverter rowConverter;
     private final GeneratedProjection generatedProjection;
     private final boolean projectable;
+    private final int numSplits;
     private final int deltaNumSplits;
 
     private transient ConcurrentLinkedQueue<RowData> queue;
@@ -68,12 +72,14 @@ public class FullCacheTestInputFormat
             Collection<Row> dataRows,
             Optional<GeneratedProjection> generatedProjection,
             DataFormatConverters.RowConverter rowConverter,
+            int numSplits,
             int deltaNumSplits) {
         // for unit tests
         this.dataRows = dataRows;
         this.projectable = generatedProjection.isPresent();
         this.generatedProjection = generatedProjection.orElse(null);
         this.rowConverter = rowConverter;
+        this.numSplits = numSplits;
         this.deltaNumSplits = deltaNumSplits;
     }
 
@@ -86,20 +92,21 @@ public class FullCacheTestInputFormat
         this.projectable = generatedProjection.isPresent();
         this.generatedProjection = generatedProjection.orElse(null);
         this.rowConverter = rowConverter;
-        this.deltaNumSplits = 0;
+        this.numSplits = DEFAULT_NUM_SPLITS;
+        this.deltaNumSplits = DEFAULT_DELTA_NUM_SPLITS;
     }
 
     @Override
     public QueueInputSplit[] createInputSplits(int minNumSplits) throws IOException {
         int delta = loadCounter > 0 ? deltaNumSplits : 0;
-        int numSplits = DEFAULT_NUM_SPLITS + delta;
+        int currentSplits = numSplits + delta;
         ConcurrentLinkedQueue<RowData> queue = new ConcurrentLinkedQueue<>();
-        QueueInputSplit[] splits = new QueueInputSplit[numSplits];
-        IntStream.range(0, numSplits).forEach(i -> splits[i] = new QueueInputSplit(queue, i));
+        QueueInputSplit[] splits = new QueueInputSplit[currentSplits];
+        IntStream.range(0, currentSplits).forEach(i -> splits[i] = new QueueInputSplit(queue, i));
         dataRows.forEach(row -> queue.add(rowConverter.toInternal(row)));
         // divide data evenly between InputFormat copies
         loadCounter++;
-        maxReadRecords = (int) Math.ceil((double) queue.size() / numSplits);
+        maxReadRecords = (int) Math.ceil((double) queue.size() / currentSplits);
         return splits;
     }
 

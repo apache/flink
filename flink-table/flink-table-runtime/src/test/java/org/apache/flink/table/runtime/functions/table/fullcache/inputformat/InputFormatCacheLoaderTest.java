@@ -19,12 +19,14 @@
 package org.apache.flink.table.runtime.functions.table.fullcache.inputformat;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.source.lookup.cache.InterceptingCacheMetricGroup;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.functions.table.fullcache.TestCacheLoader;
+import org.apache.flink.table.runtime.functions.table.lookup.fullcache.CacheLoader;
 import org.apache.flink.table.runtime.functions.table.lookup.fullcache.inputformat.InputFormatCacheLoader;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
@@ -35,7 +37,6 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,20 +48,17 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.UNINITIALIZED;
+import static org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat.DEFAULT_DELTA_NUM_SPLITS;
+import static org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat.DEFAULT_NUM_SPLITS;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link InputFormatCacheLoader}. */
@@ -79,43 +77,46 @@ class InputFormatCacheLoaderTest {
     @ParameterizedTest
     @MethodSource("deltaNumSplits")
     void testReadWithDifferentSplits(int deltaNumSplits) throws Exception {
-        InputFormatCacheLoader cacheLoader = createCacheLoader(deltaNumSplits);
-        cacheLoader.open(UnregisteredMetricsGroup.createCacheMetricGroup());
-        cacheLoader.run();
-        ConcurrentHashMap<RowData, Collection<RowData>> cache = cacheLoader.getCache();
-        assertCacheContent(cache);
-        cacheLoader.run();
-        assertThat(cacheLoader.getCache()).isNotSameAs(cache); // new instance of cache after reload
-        cacheLoader.close();
-        assertThat(cacheLoader.getCache().size()).isZero(); // cache is cleared after close
+        try (InputFormatCacheLoader cacheLoader = createCacheLoader(deltaNumSplits)) {
+            cacheLoader.open(UnregisteredMetricsGroup.createCacheMetricGroup());
+            run(cacheLoader);
+            ConcurrentHashMap<RowData, Collection<RowData>> cache = cacheLoader.getCache();
+            assertCacheContent(cache);
+            run(cacheLoader);
+            // new instance of cache after reload
+            assertThat(cacheLoader.getCache()).isNotSameAs(cache);
+            cacheLoader.close();
+            assertThat(cacheLoader.getCache().size()).isZero(); // cache is cleared after close
+        }
     }
 
     @Test
     void testCacheMetrics() throws Exception {
-        InputFormatCacheLoader cacheLoader = createCacheLoader(0);
-        InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
-        cacheLoader.open(metricGroup);
-        // These metrics are registered
-        assertThat(metricGroup.loadCounter).isNotNull();
-        assertThat(metricGroup.loadCounter.getCount()).isEqualTo(0);
-        assertThat(metricGroup.numLoadFailuresCounter).isNotNull();
-        assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
-        assertThat(metricGroup.numCachedRecordsGauge).isNotNull();
-        assertThat(metricGroup.numCachedRecordsGauge.getValue()).isEqualTo(0);
-        assertThat(metricGroup.latestLoadTimeGauge).isNotNull();
-        assertThat(metricGroup.latestLoadTimeGauge.getValue()).isEqualTo(UNINITIALIZED);
+        try (InputFormatCacheLoader cacheLoader = createCacheLoader(DEFAULT_DELTA_NUM_SPLITS)) {
+            InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
+            cacheLoader.open(metricGroup);
+            // These metrics are registered
+            assertThat(metricGroup.loadCounter).isNotNull();
+            assertThat(metricGroup.loadCounter.getCount()).isEqualTo(0);
+            assertThat(metricGroup.numLoadFailuresCounter).isNotNull();
+            assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
+            assertThat(metricGroup.numCachedRecordsGauge).isNotNull();
+            assertThat(metricGroup.numCachedRecordsGauge.getValue()).isEqualTo(0);
+            assertThat(metricGroup.latestLoadTimeGauge).isNotNull();
+            assertThat(metricGroup.latestLoadTimeGauge.getValue()).isEqualTo(UNINITIALIZED);
 
-        // These metrics are left blank
-        assertThat(metricGroup.hitCounter).isNull();
-        assertThat(metricGroup.missCounter).isNull();
-        assertThat(metricGroup.numCachedBytesGauge).isNull(); // not supported currently
+            // These metrics are left blank
+            assertThat(metricGroup.hitCounter).isNull();
+            assertThat(metricGroup.missCounter).isNull();
+            assertThat(metricGroup.numCachedBytesGauge).isNull(); // not supported currently
 
-        cacheLoader.run();
+            run(cacheLoader);
 
-        assertThat(metricGroup.loadCounter.getCount()).isEqualTo(1);
-        assertThat(metricGroup.latestLoadTimeGauge.getValue()).isNotEqualTo(UNINITIALIZED);
-        assertThat(metricGroup.numCachedRecordsGauge.getValue())
-                .isEqualTo(TestCacheLoader.DATA.size());
+            assertThat(metricGroup.loadCounter.getCount()).isEqualTo(1);
+            assertThat(metricGroup.latestLoadTimeGauge.getValue()).isNotEqualTo(UNINITIALIZED);
+            assertThat(metricGroup.numCachedRecordsGauge.getValue())
+                    .isEqualTo(TestCacheLoader.DATA.size());
+        }
     }
 
     @Test
@@ -125,64 +126,47 @@ class InputFormatCacheLoaderTest {
                 () -> {
                     throw exception;
                 };
-        InputFormatCacheLoader cacheLoader = createCacheLoader(0, reloadAction);
-        InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
-        cacheLoader.open(metricGroup);
-        assertThatThrownBy(cacheLoader::run).hasRootCause(exception);
-        assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(1);
+        try (InputFormatCacheLoader cacheLoader =
+                createCacheLoader(DEFAULT_NUM_SPLITS, DEFAULT_DELTA_NUM_SPLITS, reloadAction)) {
+            InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
+            cacheLoader.open(metricGroup);
+            assertThatThrownBy(() -> run(cacheLoader)).hasRootCause(exception);
+            assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(1);
+        }
     }
 
-    @Test
-    void testInterruptDuringReload() throws Exception {
-        CountDownLatch recordsProcessingLatch = new CountDownLatch(1);
+    /**
+     * Cache loader creates additional threads in case of multiple input splits. In both cases cache
+     * loader must correctly react on close and interrupt all threads.
+     */
+    @ParameterizedTest
+    @MethodSource("numSplits")
+    void testCloseDuringReload(int numSplits) throws Exception {
+        OneShotLatch reloadLatch = new OneShotLatch();
         Runnable reloadAction =
                 () -> {
-                    try {
-                        // wait should be interrupted if everything works ok
-                        if (!recordsProcessingLatch.await(5, TimeUnit.SECONDS)) {
-                            throw new RuntimeException("timeout");
-                        }
-                    } catch (InterruptedException ignored) {
-                        Thread.currentThread().interrupt(); // restore interrupted status
-                    }
+                    reloadLatch.trigger();
+                    assertThatThrownBy(() -> new OneShotLatch().await())
+                            .as("Wait should be interrupted if everything works ok")
+                            .isInstanceOf(InterruptedException.class);
+                    Thread.currentThread().interrupt(); // restore interrupted status
                 };
-        InputFormatCacheLoader cacheLoader = createCacheLoader(0, reloadAction);
         InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
-        cacheLoader.open(metricGroup);
-
-        // check interruption
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> future = executorService.submit(cacheLoader);
-        executorService.shutdownNow(); // internally interrupts a thread
-        assertThatNoException().isThrownBy(future::get); // wait for the end
+        CompletableFuture<Void> future;
+        try (InputFormatCacheLoader cacheLoader =
+                createCacheLoader(numSplits, DEFAULT_DELTA_NUM_SPLITS, reloadAction)) {
+            cacheLoader.open(metricGroup);
+            future = cacheLoader.reloadAsync();
+            reloadLatch.await(5000, TimeUnit.MILLISECONDS);
+        }
+        // try-with-resources calls #close, which should wait for the end of reload
+        assertThat(future.isDone()).isTrue();
+        assertThat(metricGroup.loadCounter.getCount()).isEqualTo(1);
         assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
     }
 
-    @Test
-    void testCloseDuringReload() throws Exception {
-        AtomicInteger recordsCounter = new AtomicInteger(0);
-        int totalRecords = TestCacheLoader.DATA.values().stream().mapToInt(Collection::size).sum();
-        CountDownLatch latch = new CountDownLatch(1);
-        Runnable reloadAction =
-                ThrowingRunnable.unchecked(
-                        () -> {
-                            recordsCounter.incrementAndGet();
-                            latch.await();
-                        });
-        InputFormatCacheLoader cacheLoader = createCacheLoader(0, reloadAction);
-        InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
-        cacheLoader.open(metricGroup);
-
-        // check closing
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> future = executorService.submit(cacheLoader);
-        cacheLoader.close();
-        latch.countDown();
-        future.get(); // wait for the end
-        executorService.shutdown();
-        // check that we didn't process all elements, but reacted on closing
-        assertThat(recordsCounter).hasValueLessThan(totalRecords);
-        assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
+    static Stream<Arguments> numSplits() {
+        return Stream.of(Arguments.of(1), Arguments.of(2));
     }
 
     static Stream<Arguments> deltaNumSplits() {
@@ -198,12 +182,16 @@ class InputFormatCacheLoaderTest {
                         assertThat(rows).containsExactlyInAnyOrderElementsOf(actual.get(key)));
     }
 
-    private InputFormatCacheLoader createCacheLoader(int deltaNumSplits) throws Exception {
-        return createCacheLoader(deltaNumSplits, () -> {});
+    private void run(CacheLoader cacheLoader) {
+        cacheLoader.reloadAsync().join();
     }
 
-    private InputFormatCacheLoader createCacheLoader(int deltaNumSplits, Runnable reloadAction)
-            throws Exception {
+    private InputFormatCacheLoader createCacheLoader(int deltaNumSplits) throws Exception {
+        return createCacheLoader(DEFAULT_NUM_SPLITS, deltaNumSplits, () -> {});
+    }
+
+    private InputFormatCacheLoader createCacheLoader(
+            int numSplits, int deltaNumSplits, Runnable reloadAction) throws Exception {
         DataType rightRowDataType =
                 DataTypes.ROW(
                         DataTypes.FIELD("f0", DataTypes.INT()),
@@ -223,7 +211,8 @@ class InputFormatCacheLoaderTest {
                         .map(converter::toExternal)
                         .collect(Collectors.toList());
         FullCacheTestInputFormat inputFormat =
-                new FullCacheTestInputFormat(dataRows, Optional.empty(), converter, deltaNumSplits);
+                new FullCacheTestInputFormat(
+                        dataRows, Optional.empty(), converter, numSplits, deltaNumSplits);
         RowType keyType = (RowType) DataTypes.ROW(DataTypes.INT()).getLogicalType();
 
         // noinspection rawtypes

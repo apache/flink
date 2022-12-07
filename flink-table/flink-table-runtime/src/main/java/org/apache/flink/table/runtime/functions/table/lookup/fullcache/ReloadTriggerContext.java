@@ -26,11 +26,11 @@ import java.util.function.Consumer;
 /** Runtime implementation of {@link CacheReloadTrigger.Context}. */
 public class ReloadTriggerContext implements CacheReloadTrigger.Context {
 
-    private final Runnable reloadTask;
+    private final CacheLoader cacheLoader;
     private final Consumer<Throwable> reloadFailCallback;
 
-    public ReloadTriggerContext(Runnable reloadTask, Consumer<Throwable> reloadFailCallback) {
-        this.reloadTask = reloadTask;
+    public ReloadTriggerContext(CacheLoader cacheLoader, Consumer<Throwable> reloadFailCallback) {
+        this.cacheLoader = cacheLoader;
         this.reloadFailCallback = reloadFailCallback;
     }
 
@@ -49,7 +49,8 @@ public class ReloadTriggerContext implements CacheReloadTrigger.Context {
 
     @Override
     public CompletableFuture<Void> triggerReload() {
-        return CompletableFuture.runAsync(reloadTask)
+        return cacheLoader
+                .reloadAsync()
                 .exceptionally(
                         th -> {
                             reloadFailCallback.accept(th);

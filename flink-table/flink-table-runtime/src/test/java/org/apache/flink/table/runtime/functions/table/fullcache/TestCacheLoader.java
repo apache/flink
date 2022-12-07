@@ -68,7 +68,7 @@ public class TestCacheLoader extends CacheLoader {
     }
 
     @Override
-    protected void reloadCache() throws Exception {
+    protected void updateCache() {
         cache = new ConcurrentHashMap<>(DATA);
         numLoads++;
         if (numLoads == 2) {

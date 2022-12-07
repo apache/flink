@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.ThreadSafeSimpleCounter;
@@ -33,8 +32,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.UNINITIALIZED;
@@ -42,15 +46,17 @@ import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.U
 /**
  * Abstract task that loads data in Full cache from source provided by {@link ScanRuntimeProvider}.
  */
-public abstract class CacheLoader extends AbstractRichFunction implements Runnable, Serializable {
+public abstract class CacheLoader implements AutoCloseable, Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(CacheLoader.class);
+    protected static final long TIMEOUT_AFTER_INTERRUPT_MS = 10000;
 
     protected transient volatile ConcurrentHashMap<RowData, Collection<RowData>> cache;
 
     // 2 reloads can't be executed simultaneously, so they are performed under lock
     private final ReentrantLock reloadLock = new ReentrantLock();
     // runtime waits for the first load to complete to start an execution lookup join
-    private CountDownLatch firstLoadLatch;
+    private transient CountDownLatch firstLoadLatch;
+    private transient ExecutorService reloadExecutor;
 
     // Cache metrics
     private transient Counter loadCounter;
@@ -59,11 +65,11 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
 
     protected volatile boolean isStopped;
 
-    protected abstract void reloadCache() throws Exception;
+    protected abstract void updateCache() throws Exception;
 
-    @Override
     public void open(Configuration parameters) throws Exception {
         firstLoadLatch = new CountDownLatch(1);
+        reloadExecutor = Executors.newSingleThreadExecutor();
     }
 
     public void open(CacheMetricGroup cacheMetricGroup) {
@@ -92,8 +98,11 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
         firstLoadLatch.await();
     }
 
-    @Override
-    public void run() {
+    public CompletableFuture<Void> reloadAsync() {
+        return CompletableFuture.runAsync(this::reload, reloadExecutor);
+    }
+
+    private void reload() {
         if (isStopped) {
             return;
         }
@@ -102,7 +111,7 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
         try {
             LOG.info("Lookup 'FULL' cache loading triggered.");
             long start = System.currentTimeMillis();
-            reloadCache();
+            updateCache();
             latestLoadTimeMs = System.currentTimeMillis() - start;
             loadCounter.inc();
             LOG.info(
@@ -128,15 +137,18 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
     @Override
     public void close() throws Exception {
         isStopped = true;
-        // if reload is in progress, we will wait until it is over
-        // current reload should already be interrupted, so block won't take much time
-        reloadLock.lock();
-        try {
-            if (cache != null) {
-                cache.clear();
+        if (reloadExecutor != null) {
+            reloadExecutor.shutdownNow(); // interrupt active reload
+            if (!reloadExecutor.awaitTermination(
+                    TIMEOUT_AFTER_INTERRUPT_MS, TimeUnit.MILLISECONDS)) {
+                throw new TimeoutException(
+                        "Lookup 'FULL' cache reload thread was not terminated after closing in timeout of "
+                                + TIMEOUT_AFTER_INTERRUPT_MS
+                                + " ms.");
             }
-        } finally {
-            reloadLock.unlock();
+        }
+        if (cache != null) {
+            cache.clear();
         }
     }
 }
