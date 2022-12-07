@@ -71,7 +71,7 @@ echo "============ Checking Javadocs ============"
 
 # use the same invocation as .github/workflows/docs.sh
 run_mvn javadoc:aggregate -DadditionalJOption='-Xdoclint:none' \
-      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true \
+      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true -Drat.skip=true \
       -Dheader=someTestHeader > javadoc.out
 EXIT_CODE=$?
 if [ $EXIT_CODE != 0 ] ; then
