@@ -124,17 +124,12 @@ public class OperationExecutor {
         }
 
         if (op instanceof SetOperation) {
-            callSetOperation(tableEnv, handle, (SetOperation) op);
+            return callSetOperation(tableEnv, handle, (SetOperation) op);
         } else if (op instanceof ResetOperation) {
-            callResetOperation(handle, (ResetOperation) op);
+            return callResetOperation(handle, (ResetOperation) op);
         } else {
-            tableEnv.executeInternal(op);
+            return callOperation(tableEnv, handle, op);
         }
-        return new ResultFetcher(
-                handle,
-                TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                CollectionUtil.iteratorToList(
-                        TableResultInternal.TABLE_RESULT_OK.collectInternal()));
     }
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
@@ -167,11 +162,7 @@ public class OperationExecutor {
             TableResultInternal result = tableEnv.executeInternal(op);
             return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
         } else {
-            TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(
-                    handle,
-                    result.getResolvedSchema(),
-                    CollectionUtil.iteratorToList(result.collectInternal()));
+            return callOperation(tableEnv, handle, op);
         }
     }
 
@@ -220,8 +211,11 @@ public class OperationExecutor {
     }
 
     public Set<FunctionInfo> listUserDefinedFunctions(String catalogName, String databaseName) {
-        return sessionContext.getSessionState().functionCatalog
-                .getUserDefinedFunctions(catalogName, databaseName).stream()
+        return sessionContext
+                .getSessionState()
+                .functionCatalog
+                .getUserDefinedFunctions(catalogName, databaseName)
+                .stream()
                 // Load the CatalogFunction from the remote catalog is time wasted. Set the
                 // FunctionKind null.
                 .map(FunctionInfo::new)
@@ -346,6 +340,15 @@ public class OperationExecutor {
                                                 .toString()))));
     }
 
+    private ResultFetcher callOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
+        TableResultInternal result = tableEnv.executeInternal(op);
+        return new ResultFetcher(
+                handle,
+                result.getResolvedSchema(),
+                CollectionUtil.iteratorToList(result.collectInternal()));
+    }
+
     private Set<TableInfo> listTables(
             String catalogName, String databaseName, boolean includeViews) {
         CatalogManager catalogManager = sessionContext.getSessionState().catalogManager;
@@ -380,7 +383,10 @@ public class OperationExecutor {
 
     private Set<TableInfo> listViews(String catalogName, String databaseName) {
         return Collections.unmodifiableSet(
-                sessionContext.getSessionState().catalogManager.listViews(catalogName, databaseName)
+                sessionContext
+                        .getSessionState()
+                        .catalogManager
+                        .listViews(catalogName, databaseName)
                         .stream()
                         .map(
                                 name ->

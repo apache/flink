@@ -28,7 +28,9 @@ import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
+import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -37,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,8 +52,11 @@ public class OperationManagerTest {
             ThreadUtils.newThreadPool(5, 500, 60_0000, "operation-manager-test");
 
     private static OperationManager operationManager;
-
     private static ResultSet defaultResultSet;
+
+    private final ThreadFactory threadFactory =
+            new ExecutorThreadFactory(
+                    "SqlGatewayService Test Pool", IgnoreExceptionHandler.INSTANCE);
 
     @BeforeAll
     public static void setUp() {
@@ -86,7 +92,7 @@ public class OperationManagerTest {
     @Test
     public void testRunOperationSynchronously() throws Exception {
         OperationHandle operationHandle = operationManager.submitOperation(() -> defaultResultSet);
-        operationManager.waitOperationTermination(operationHandle);
+        operationManager.awaitOperationTermination(operationHandle);
 
         assertThat(operationManager.getOperationInfo(operationHandle).getStatus())
                 .isEqualTo(OperationStatus.FINISHED);
@@ -105,17 +111,8 @@ public class OperationManagerTest {
                             return defaultResultSet;
                         });
 
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(100);
-                            } catch (Throwable ignored) {
-                            }
-                            operationManager.cancelOperation(operationHandle);
-                        })
-                .start();
-
-        operationManager.waitOperationTermination(operationHandle);
+        threadFactory.newThread(() -> operationManager.cancelOperation(operationHandle)).start();
+        operationManager.awaitOperationTermination(operationHandle);
 
         assertThat(operationManager.getOperationInfo(operationHandle).getStatus())
                 .isEqualTo(OperationStatus.CANCELED);
@@ -131,18 +128,8 @@ public class OperationManagerTest {
                             return defaultResultSet;
                         });
 
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(100);
-                            } catch (Throwable ignore) {
-
-                            }
-                            operationManager.closeOperation(operationHandle);
-                        })
-                .start();
-
-        operationManager.waitOperationTermination(operationHandle);
+        threadFactory.newThread(() -> operationManager.closeOperation(operationHandle)).start();
+        operationManager.awaitOperationTermination(operationHandle);
 
         assertThatThrownBy(() -> operationManager.getOperation(operationHandle))
                 .satisfies(
@@ -161,7 +148,7 @@ public class OperationManagerTest {
                             throw new SqlExecutionException("Execution error.");
                         });
 
-        assertThatThrownBy(() -> operationManager.waitOperationTermination(operationHandle))
+        assertThatThrownBy(() -> operationManager.awaitOperationTermination(operationHandle))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 SqlExecutionException.class, "Execution error."));

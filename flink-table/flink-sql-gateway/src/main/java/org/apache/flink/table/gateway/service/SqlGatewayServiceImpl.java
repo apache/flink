@@ -98,7 +98,7 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
                                     getSession(sessionHandle)
                                             .createExecutor()
                                             .configureSession(handle, statement));
-            operationManager.waitOperationTermination(operationHandle);
+            operationManager.awaitOperationTermination(operationHandle);
         } catch (Throwable t) {
             LOG.error("Failed to configure session.", t);
             throw new SqlGatewayException("Failed to configure session.", t);

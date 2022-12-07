@@ -137,8 +137,8 @@ public class OperationManager {
                 });
     }
 
-    public void waitOperationTermination(OperationHandle operationHandle) throws Exception {
-        getOperation(operationHandle).awaitOperationTermination();
+    public void awaitOperationTermination(OperationHandle operationHandle) throws Exception {
+        getOperation(operationHandle).awaitTermination();
     }
 
     /**
@@ -311,7 +311,7 @@ public class OperationManager {
         }
 
         public ResolvedSchema getResultSchema() throws Exception {
-            awaitOperationTermination();
+            awaitTermination();
             OperationStatus current = status.get();
             if (current != OperationStatus.FINISHED) {
                 throw new IllegalStateException(
@@ -326,7 +326,7 @@ public class OperationManager {
             return new OperationInfo(status.get(), operationError);
         }
 
-        public void awaitOperationTermination() throws Exception {
+        public void awaitTermination() throws Exception {
             synchronized (status) {
                 while (!status.get().isTerminalStatus()) {
                     status.wait();
