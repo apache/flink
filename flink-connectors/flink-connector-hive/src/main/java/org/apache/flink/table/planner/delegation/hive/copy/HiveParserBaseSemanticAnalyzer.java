@@ -60,6 +60,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.rex.RexWindowBounds;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -972,12 +973,12 @@ public class HiveParserBaseSemanticAnalyzer {
                 case PRECEDING:
                     if (amt == null) {
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         SqlWindow.createUnboundedPreceding(dummyPos), null);
                     } else {
                         SqlCall call = (SqlCall) SqlWindow.createPreceding(amt, dummyPos);
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         call,
                                         cluster.getRexBuilder()
                                                 .makeCall(call.getOperator(), amtLiteral));
@@ -985,18 +986,18 @@ public class HiveParserBaseSemanticAnalyzer {
                     break;
 
                 case CURRENT:
-                    res = RexWindowBound.create(SqlWindow.createCurrentRow(dummyPos), null);
+                    res = RexWindowBounds.create(SqlWindow.createCurrentRow(dummyPos), null);
                     break;
 
                 case FOLLOWING:
                     if (amt == null) {
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         SqlWindow.createUnboundedFollowing(dummyPos), null);
                     } else {
                         SqlCall call = (SqlCall) SqlWindow.createFollowing(amt, dummyPos);
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         call,
                                         cluster.getRexBuilder()
                                                 .makeCall(call.getOperator(), amtLiteral));

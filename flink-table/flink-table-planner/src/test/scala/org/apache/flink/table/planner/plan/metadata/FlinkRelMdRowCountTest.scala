@@ -21,6 +21,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
 import com.google.common.collect.Lists
+import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun.SqlCountAggFunction
 import org.apache.calcite.util.ImmutableBitSet
@@ -172,8 +173,11 @@ class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
         new SqlCountAggFunction("COUNT"),
         false,
         false,
+        false,
         List[Integer](3),
         -1,
+        null,
+        RelCollations.EMPTY,
         2,
         ts,
         null,

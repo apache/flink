@@ -24,10 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCa
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, Lists}
-import org.apache.calcite.rel.{RelCollationImpl, RelFieldCollation}
+import org.apache.calcite.rel.{RelCollationImpl, RelCollations, RelFieldCollation}
 import org.apache.calcite.rel.core.{AggregateCall, CorrelationId, JoinRelType, Window}
 import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.calcite.rex.{RexInputRef, RexNode, RexProgram, RexUtil, RexWindowBound}
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexProgram, RexUtil, RexWindowBound, RexWindowBounds}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, DOUBLE}
 import org.apache.calcite.sql.SqlWindow
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
@@ -337,8 +337,11 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
             FlinkSqlOperatorTable.AUXILIARY_GROUP,
             false,
             false,
+            false,
             List[Integer](1),
             -1,
+            null,
+            RelCollations.EMPTY,
             1,
             ts,
             null,
@@ -347,8 +350,11 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
             FlinkSqlOperatorTable.AUXILIARY_GROUP,
             false,
             false,
+            false,
             List[Integer](2),
             -1,
+            null,
+            RelCollations.EMPTY,
             1,
             ts,
             null,
@@ -357,8 +363,11 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
             new SqlCountAggFunction("COUNT"),
             false,
             false,
+            false,
             List[Integer](3),
             -1,
+            null,
+            RelCollations.EMPTY,
             2,
             ts,
             null,
@@ -481,21 +490,35 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     // rank() over (partition by c order by d) as rk,
     // max(d) over(partition by c order by d) as max_d from MyTable4
     val rankAggCall =
-      AggregateCall.create(SqlStdOperatorTable.RANK, false, ImmutableList.of(), -1, longType, "rk")
+      AggregateCall.create(
+        SqlStdOperatorTable.RANK,
+        false,
+        false,
+        false,
+        ImmutableList.of[Integer](),
+        -1,
+        null,
+        RelCollations.EMPTY,
+        longType,
+        "rk")
     val maxAggCall = AggregateCall.create(
       SqlStdOperatorTable.MAX,
       false,
+      false,
+      false,
       ImmutableList.of(Integer.valueOf(3)),
       -1,
+      null,
+      RelCollations.EMPTY,
       doubleType,
       "max_d")
     val overAggGroups = ImmutableList.of(
       new Window.Group(
         ImmutableBitSet.of(2),
         true,
-        RexWindowBound.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
-        RexWindowBound.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
-        RelCollationImpl.of(
+        RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
+        RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+        RelCollations.of(
           new RelFieldCollation(
             1,
             RelFieldCollation.Direction.ASCENDING,
@@ -506,12 +529,14 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
             longType,
             ImmutableList.of[RexNode](),
             0,
+            false,
             false),
           new Window.RexWinAggCall(
             SqlStdOperatorTable.MAX,
             doubleType,
             util.Arrays.asList(new RexInputRef(3, doubleType)),
             1,
+            false,
             false)
         )
       ))
