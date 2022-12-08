@@ -43,6 +43,8 @@ import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
+import org.apache.flink.runtime.heartbeat.RecordingHeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -186,7 +188,8 @@ import static org.junit.Assert.fail;
 /** Tests for the {@link TaskExecutor}. */
 public class TaskExecutorTest extends TestLogger {
 
-    public static final HeartbeatServices HEARTBEAT_SERVICES = new HeartbeatServices(1000L, 1000L);
+    public static final HeartbeatServices HEARTBEAT_SERVICES =
+            new HeartbeatServicesImpl(1000L, 1000L);
 
     private static final TaskExecutorResourceSpec TM_RESOURCE_SPEC =
             new TaskExecutorResourceSpec(
@@ -208,7 +211,7 @@ public class TaskExecutorTest extends TestLogger {
     private static final Time timeout = Time.milliseconds(10000L);
 
     private static final HeartbeatServices failedRpcEnabledHeartbeatServices =
-            new HeartbeatServices(1L, 10000000L, 1);
+            new HeartbeatServicesImpl(1L, 10000000L, 1);
 
     private TestingRpcService rpc;
 
@@ -483,7 +486,7 @@ public class TaskExecutorTest extends TestLogger {
     @Test
     public void testHeartbeatTimeoutWithResourceManager() throws Exception {
         runResourceManagerHeartbeatTest(
-                new HeartbeatServices(1L, 3L),
+                new HeartbeatServicesImpl(1L, 3L),
                 (ignoredResourceManagerGateway) -> {},
                 (ignoredA, ignoredB, ignoredC) -> {});
     }
@@ -880,7 +883,8 @@ public class TaskExecutorTest extends TestLogger {
                 createTaskExecutorTestingContext(
                         TestingTaskSlotTable.<Task>newBuilder()
                                 .closeAsyncReturns(taskSlotTableClosingFuture)
-                                .build());
+                                .build(),
+                        HEARTBEAT_SERVICES);
         final CompletableFuture<Void> taskExecutorTerminationFuture;
         try {
             submissionContext.start();
@@ -1770,7 +1774,7 @@ public class TaskExecutorTest extends TestLogger {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
         final TaskExecutor taskExecutor =
-                createTaskExecutor(taskManagerServices, new HeartbeatServices(10L, 10L));
+                createTaskExecutor(taskManagerServices, new HeartbeatServicesImpl(10L, 10L));
 
         taskExecutor.start();
 
@@ -2859,11 +2863,13 @@ public class TaskExecutorTest extends TestLogger {
     private TaskExecutorTestingContext createTaskExecutorTestingContext(int numberOfSlots)
             throws IOException {
         return createTaskExecutorTestingContext(
-                TaskSlotUtils.createTaskSlotTable(numberOfSlots, EXECUTOR_RESOURCE.getExecutor()));
+                TaskSlotUtils.createTaskSlotTable(numberOfSlots, EXECUTOR_RESOURCE.getExecutor()),
+                HEARTBEAT_SERVICES);
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(
-            final TaskSlotTable<Task> taskSlotTable) throws IOException {
+            final TaskSlotTable<Task> taskSlotTable, HeartbeatServices heartbeatServices)
+            throws IOException {
         final OneShotLatch offerSlotsLatch = new OneShotLatch();
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
@@ -2896,7 +2902,7 @@ public class TaskExecutorTest extends TestLogger {
                                 .setTaskStateManager(stateStoresManager)
                                 .setTaskChangelogStoragesManager(changelogStoragesManager)
                                 .build(),
-                        HEARTBEAT_SERVICES,
+                        heartbeatServices,
                         metricGroup);
 
         jobManagerLeaderRetriever.notifyListener(
@@ -3041,7 +3047,13 @@ public class TaskExecutorTest extends TestLogger {
         AllocationID[] slots =
                 range(0, 10).mapToObj(i -> new AllocationID()).toArray(AllocationID[]::new);
 
-        try (TaskExecutorTestingContext ctx = createTaskExecutorTestingContext(slots.length)) {
+        try (TaskExecutorTestingContext ctx =
+                createTaskExecutorTestingContext(
+                        TaskSlotUtils.createTaskSlotTable(
+                                slots.length, EXECUTOR_RESOURCE.getExecutor()),
+                        // prevent heartbeat timeouts from failing the tests focused on other
+                        // aspects
+                        HeartbeatServices.noOp())) {
             // prepare: start services
             ctx.start();
             ResourceManagerId rmId = getResourceManagerId();

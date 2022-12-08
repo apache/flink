@@ -31,6 +31,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -84,7 +85,7 @@ import static org.mockito.Mockito.mock;
 /** Simple environment setup for task executor task. */
 class TaskSubmissionTestEnvironment implements AutoCloseable {
 
-    private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+    private final HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 1000L);
     private final TestingRpcService testingRpcService;
     private final TaskExecutorBlobService taskExecutorBlobService =
             NoOpTaskExecutorBlobService.INSTANCE;

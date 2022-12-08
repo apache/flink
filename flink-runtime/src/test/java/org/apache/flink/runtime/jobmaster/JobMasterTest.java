@@ -29,6 +29,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
@@ -202,8 +204,11 @@ class JobMasterTest {
         rpcService = new TestingRpcService();
 
         fastHeartbeatServices =
-                new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout, -1);
-        heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout, 1);
+                new HeartbeatServicesImpl(
+                        fastHeartbeatInterval,
+                        fastHeartbeatTimeout,
+                        HeartbeatManagerOptions.FAILED_RPC_DETECTION_DISABLED);
+        heartbeatServices = new HeartbeatServicesImpl(heartbeatInterval, heartbeatTimeout, 1);
     }
 
     @BeforeEach
@@ -264,7 +269,7 @@ class JobMasterTest {
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
                         .withHighAvailabilityServices(haServices)
-                        .withHeartbeatServices(new HeartbeatServices(1L, 10000L))
+                        .withHeartbeatServices(new HeartbeatServicesImpl(1L, 10000L))
                         .createJobMaster()) {
 
             jobMaster.start();
@@ -408,7 +413,7 @@ class JobMasterTest {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
-                        .withHeartbeatServices(new HeartbeatServices(5L, 1000L))
+                        .withHeartbeatServices(new HeartbeatServicesImpl(5L, 1000L))
                         .withSlotPoolServiceSchedulerFactory(
                                 DefaultSlotPoolServiceSchedulerFactory.create(
                                         new TestingSlotPoolFactory(hasReceivedSlotOffers),

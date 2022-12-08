@@ -16,14 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.heartbeat.HeartbeatListener;
-import org.apache.flink.runtime.heartbeat.HeartbeatManager;
-import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -31,15 +26,22 @@ import org.slf4j.Logger;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-/** Special {@link HeartbeatServices} which creates a {@link RecordingHeartbeatManagerImpl}. */
-final class RecordingHeartbeatServices extends HeartbeatServices {
+import static org.apache.flink.configuration.HeartbeatManagerOptions.FAILED_RPC_DETECTION_DISABLED;
+
+/** Special {@link HeartbeatServicesImpl} which creates a {@link RecordingHeartbeatManagerImpl}. */
+public final class RecordingHeartbeatServices implements HeartbeatServices {
 
     private final BlockingQueue<ResourceID> unmonitoredTargets;
 
     private final BlockingQueue<ResourceID> monitoredTargets;
 
+    private final long heartbeatInterval;
+
+    private final long heartbeatTimeout;
+
     public RecordingHeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
-        super(heartbeatInterval, heartbeatTimeout);
+        this.heartbeatInterval = heartbeatInterval;
+        this.heartbeatTimeout = heartbeatTimeout;
 
         this.unmonitoredTargets = new ArrayBlockingQueue<>(1);
         this.monitoredTargets = new ArrayBlockingQueue<>(1);
@@ -53,13 +55,30 @@ final class RecordingHeartbeatServices extends HeartbeatServices {
             Logger log) {
         return new RecordingHeartbeatManagerImpl<>(
                 heartbeatTimeout,
-                failedRpcRequestsUntilUnreachable,
+                FAILED_RPC_DETECTION_DISABLED,
                 resourceId,
                 heartbeatListener,
                 mainThreadExecutor,
                 log,
                 unmonitoredTargets,
                 monitoredTargets);
+    }
+
+    @Override
+    public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
+            ResourceID resourceId,
+            HeartbeatListener<I, O> heartbeatListener,
+            ScheduledExecutor mainThreadExecutor,
+            Logger log) {
+
+        return new HeartbeatManagerSenderImpl<>(
+                heartbeatInterval,
+                heartbeatTimeout,
+                FAILED_RPC_DETECTION_DISABLED,
+                resourceId,
+                heartbeatListener,
+                mainThreadExecutor,
+                log);
     }
 
     public BlockingQueue<ResourceID> getUnmonitoredTargets() {

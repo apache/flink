@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.heartbeat;
 
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -35,9 +36,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @param <O> Type of the payload being sent to the associated heartbeat target
  */
-public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
+public class DefaultHeartbeatMonitor<O> implements HeartbeatMonitor<O>, Runnable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HeartbeatMonitorImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultHeartbeatMonitor.class);
 
     /** Resource ID of the monitored heartbeat target. */
     private final ResourceID resourceID;
@@ -63,7 +64,7 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
 
     private volatile long lastHeartbeat;
 
-    HeartbeatMonitorImpl(
+    DefaultHeartbeatMonitor(
             ResourceID resourceID,
             HeartbeatTarget<O> heartbeatTarget,
             ScheduledExecutor scheduledExecutor,
@@ -82,7 +83,9 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
         this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
 
         Preconditions.checkArgument(
-                failedRpcRequestsUntilUnreachable > 0 || failedRpcRequestsUntilUnreachable == -1,
+                failedRpcRequestsUntilUnreachable > 0
+                        || failedRpcRequestsUntilUnreachable
+                                == HeartbeatManagerOptions.FAILED_RPC_DETECTION_DISABLED,
                 "The number of failed heartbeat RPC requests has to be larger than 0 or -1 (deactivated).");
         this.failedRpcRequestsUntilUnreachable = failedRpcRequestsUntilUnreachable;
 
@@ -188,7 +191,7 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
     }
 
     /**
-     * The factory that instantiates {@link HeartbeatMonitorImpl}.
+     * The factory that instantiates {@link DefaultHeartbeatMonitor}.
      *
      * @param <O> Type of the outgoing heartbeat payload
      */
@@ -203,7 +206,7 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
                 long heartbeatTimeoutIntervalMs,
                 int failedRpcRequestsUntilUnreachable) {
 
-            return new HeartbeatMonitorImpl<>(
+            return new DefaultHeartbeatMonitor<>(
                     resourceID,
                     heartbeatTarget,
                     mainThreadExecutor,

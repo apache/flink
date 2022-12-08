@@ -50,6 +50,8 @@ public class HeartbeatManagerOptions {
     private static final String HEARTBEAT_RPC_FAILURE_THRESHOLD_KEY =
             "heartbeat.rpc-failure-threshold";
 
+    public static final int FAILED_RPC_DETECTION_DISABLED = -1;
+
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Integer> HEARTBEAT_RPC_FAILURE_THRESHOLD =
             key(HEARTBEAT_RPC_FAILURE_THRESHOLD_KEY)
@@ -68,7 +70,9 @@ public class HeartbeatManagerOptions {
                                             TextElement.code(HEARTBEAT_RPC_FAILURE_THRESHOLD_KEY),
                                             TextElement.code(HEARTBEAT_TIMEOUT.key()),
                                             TextElement.code(HEARTBEAT_INTERVAL.key()),
-                                            TextElement.code("-1"))
+                                            TextElement.code(
+                                                    Integer.toString(
+                                                            FAILED_RPC_DETECTION_DISABLED)))
                                     .build());
 
     // ------------------------------------------------------------------------

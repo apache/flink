@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
@@ -57,7 +58,7 @@ public class TaskExecutorBuilder {
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
 
-    private HeartbeatServices heartbeatServices = new HeartbeatServices(1 << 20, 1 << 20);
+    private HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1 << 20, 1 << 20);
 
     private TaskManagerMetricGroup taskManagerMetricGroup =
             UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
