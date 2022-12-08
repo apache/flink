@@ -356,7 +356,6 @@ under the License.
 					<!-- Base config -->
 					<createDependencyReducedPom>true</createDependencyReducedPom>
 					<keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
-					<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 					<filters combine.children="append">
 						<filter>
 							<artifact>*:*</artifact>
