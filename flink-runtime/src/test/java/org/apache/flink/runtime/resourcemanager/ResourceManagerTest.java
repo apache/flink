@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -93,12 +94,14 @@ class ResourceManagerTest {
 
     private static final Time TIMEOUT = Time.minutes(2L);
 
-    private static final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
+    private static final HeartbeatServices heartbeatServices =
+            new HeartbeatServicesImpl(1000L, 10000L);
 
-    private static final HeartbeatServices fastHeartbeatServices = new HeartbeatServices(1L, 1L);
+    private static final HeartbeatServices fastHeartbeatServices =
+            new HeartbeatServicesImpl(1L, 1L);
 
     private static final HeartbeatServices failedRpcEnabledHeartbeatServices =
-            new HeartbeatServices(1L, 10000000L, 1);
+            new HeartbeatServicesImpl(1L, 10000000L, 1);
 
     private static final HardwareDescription hardwareDescription =
             new HardwareDescription(42, 1337L, 1337L, 0L);
