@@ -36,7 +36,7 @@ import java.util.List;
  * <p>Example: DDL like the below for modify column/constraint/watermark.
  *
  * <pre>{@code
- * -- add single column
+ * -- modify single column
  * ALTER TABLE mytable MODIFY new_column STRING COMMENT 'new_column docs';
  *
  * -- modify multiple columns, constraint, and watermark

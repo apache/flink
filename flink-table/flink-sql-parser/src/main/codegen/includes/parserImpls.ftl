@@ -771,7 +771,7 @@ SqlTableColumn TypedColumn(TableCreationContext context) :
     SqlDataTypeSpec type;
 }
 {
-    name = SimpleIdentifier() {pos = getPos();}
+    name = CompoundIdentifier() {pos = getPos();}
     type = ExtendedDataType()
     (
         tableColumn = MetadataColumn(context, name, type)
@@ -905,7 +905,7 @@ void AddOrModifyColumn(AlterTableContext context) :
     [
         (
             <AFTER>
-            referencedColumn = SimpleIdentifier()
+            referencedColumn = CompoundIdentifier()
             {
                 columnPos = new SqlTableColumnPosition(
                     getPos(),
