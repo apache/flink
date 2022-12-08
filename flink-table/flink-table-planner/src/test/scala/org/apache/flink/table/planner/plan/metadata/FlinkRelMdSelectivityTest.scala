@@ -24,10 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCa
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, Lists}
-import org.apache.calcite.rel.{RelCollationImpl, RelCollations, RelFieldCollation}
+import org.apache.calcite.rel.{RelCollations, RelFieldCollation}
 import org.apache.calcite.rel.core.{AggregateCall, CorrelationId, JoinRelType, Window}
 import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.calcite.rex.{RexInputRef, RexNode, RexProgram, RexUtil, RexWindowBound, RexWindowBounds}
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexProgram, RexUtil, RexWindowBounds}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, DOUBLE}
 import org.apache.calcite.sql.SqlWindow
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
