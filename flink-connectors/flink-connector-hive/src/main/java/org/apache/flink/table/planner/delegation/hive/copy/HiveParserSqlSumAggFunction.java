@@ -36,6 +36,7 @@ import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Optionality;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,11 +63,15 @@ public class HiveParserSqlSumAggFunction extends SqlAggFunction
             SqlOperandTypeChecker operandTypeChecker) {
         super(
                 "sum",
+                null,
                 SqlKind.SUM,
                 returnTypeInference,
                 operandTypeInference,
                 operandTypeChecker,
-                SqlFunctionCategory.NUMERIC);
+                SqlFunctionCategory.NUMERIC,
+                false,
+                false,
+                Optionality.FORBIDDEN);
         this.returnTypeInference = returnTypeInference;
         this.operandTypeChecker = operandTypeChecker;
         this.operandTypeInference = operandTypeInference;

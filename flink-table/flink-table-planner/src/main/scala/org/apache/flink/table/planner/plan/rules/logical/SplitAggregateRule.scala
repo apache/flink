@@ -384,9 +384,7 @@ class SplitAggregateRule
               FlinkSqlOperatorTable.EQUALS,
               countInputRef,
               relBuilder.getRexBuilder.makeBigintLiteral(JBigDecimal.valueOf(0)))
-            val ifTrue = relBuilder.cast(
-              relBuilder.getRexBuilder.constantNull(),
-              aggCall.`type`.getSqlTypeName)
+            val ifTrue = relBuilder.getRexBuilder.makeNullLiteral(aggCall.`type`)
             val ifFalse = relBuilder.call(FlinkSqlOperatorTable.DIVIDE, sumInputRef, countInputRef)
             relBuilder.call(FlinkSqlOperatorTable.IF, equals, ifTrue, ifFalse)
           } else {
