@@ -1,0 +1,428 @@
+<?xml version="1.0" ?>
+<!--
+  ~  Licensed to the Apache Software Foundation (ASF) under one or more
+  ~  contributor license agreements.  See the NOTICE file distributed with
+  ~  this work for additional information regarding copyright ownership.
+  ~  The ASF licenses this file to You under the Apache License, Version 2.0
+  ~  (the "License"); you may not use this file except in compliance with
+  ~  the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~  Unless required by applicable law or agreed to in writing, software
+  ~  distributed under the License is distributed on an "AS IS" BASIS,
+  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~  See the License for the specific language governing permissions and
+  ~  limitations under the License.
+  -->
+<Root>
+  <TestCase name="testDisableLocalHashUnionTranspose[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3) group by type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(type=[$1], price=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalUnion(all=[true])
+         :  :- LogicalProject(price=[$3], type=[$4])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+         :  +- LogicalProject(price=[$3], type=[$4])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+         +- LogicalProject(price=[$3], type=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[type], select=[type, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[type]])
+      +- LocalHashAggregate(groupBy=[type], select=[type, Partial_SUM(price) AS sum$0])
+         +- Union(all=[true], union=[type, price])
+            :- Union(all=[true], union=[type, price])
+            :  :- TableSourceScan(table=[[default_catalog, default_database, table1, project=[type, price], metadata=[]]], fields=[type, price])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[type, price], metadata=[]]], fields=[type, price])
+            +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[type, price], metadata=[]]], fields=[type, price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDisableLocalHashUnionTranspose[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3) group by type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(type=[$1], price=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalUnion(all=[true])
+         :  :- LogicalProject(price=[$3], type=[$4])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+         :  +- LogicalProject(price=[$3], type=[$4])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+         +- LogicalProject(price=[$3], type=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GlobalGroupAggregate(groupBy=[type], select=[type, SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[type]])
+      +- LocalGroupAggregate(groupBy=[type], select=[type, SUM(price) AS sum$0])
+         +- Union(all=[true], union=[type, price])
+            :- Union(all=[true], union=[type, price])
+            :  :- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            :  :  +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[type, price], metadata=[]]], fields=[type, price])
+            :  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[type, price], metadata=[]]], fields=[type, price])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[type, price], metadata=[]]], fields=[type, price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableLocalHashUnionTranspose[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3) group by type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(type=[$1], price=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalUnion(all=[true])
+         :  :- LogicalProject(price=[$3], type=[$4])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+         :  +- LogicalProject(price=[$3], type=[$4])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+         +- LogicalProject(price=[$3], type=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[type], select=[type, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[type]])
+      +- Union(all=[true], union=[type, sum$0])
+         :- Union(all=[true], union=[type, sum$0])
+         :  :- LocalHashAggregate(groupBy=[type], select=[type, Partial_SUM(price) AS sum$0])
+         :  :  +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[type, price], metadata=[]]], fields=[type, price])
+         :  +- LocalHashAggregate(groupBy=[type], select=[type, Partial_SUM(price) AS sum$0])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[type, price], metadata=[]]], fields=[type, price])
+         +- LocalHashAggregate(groupBy=[type], select=[type, Partial_SUM(price) AS sum$0])
+            +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[type, price], metadata=[]]], fields=[type, price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableLocalHashUnionTranspose[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3) group by type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(type=[$1], price=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalUnion(all=[true])
+         :  :- LogicalProject(price=[$3], type=[$4])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+         :  +- LogicalProject(price=[$3], type=[$4])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+         +- LogicalProject(price=[$3], type=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GlobalGroupAggregate(groupBy=[type], select=[type, SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[type]])
+      +- Union(all=[true], union=[type, sum$0])
+         :- Union(all=[true], union=[type, sum$0])
+         :  :- LocalGroupAggregate(groupBy=[type], select=[type, SUM(price) AS sum$0])
+         :  :  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+         :  :     +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[type, price], metadata=[]]], fields=[type, price])
+         :  +- LocalGroupAggregate(groupBy=[type], select=[type, SUM(price) AS sum$0])
+         :     +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[type, price], metadata=[]]], fields=[type, price])
+         +- LocalGroupAggregate(groupBy=[type], select=[type, SUM(price) AS sum$0])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[type, price], metadata=[]]], fields=[type, price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableLocalHashUnionTransposeNoGroup[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
++- LogicalProject(price=[$0])
+   +- LogicalUnion(all=[true])
+      :- LogicalUnion(all=[true])
+      :  :- LogicalProject(price=[$3], type=[$4])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+      :  +- LogicalProject(price=[$3], type=[$4])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+      +- LogicalProject(price=[$3], type=[$4])
+         +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GlobalGroupAggregate(select=[SUM(sum$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Union(all=[true], union=[sum$0])
+      :- Union(all=[true], union=[sum$0])
+      :  :- LocalGroupAggregate(select=[SUM(price) AS sum$0])
+      :  :  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+      :  :     +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[price], metadata=[]]], fields=[price])
+      :  +- LocalGroupAggregate(select=[SUM(price) AS sum$0])
+      :     +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[price], metadata=[]]], fields=[price])
+      +- LocalGroupAggregate(select=[SUM(price) AS sum$0])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[price], metadata=[]]], fields=[price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableLocalHashUnionTransposeNoGroup[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
++- LogicalProject(price=[$0])
+   +- LogicalUnion(all=[true])
+      :- LogicalUnion(all=[true])
+      :  :- LogicalProject(price=[$3], type=[$4])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+      :  +- LogicalProject(price=[$3], type=[$4])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+      +- LogicalProject(price=[$3], type=[$4])
+         +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Union(all=[true], union=[sum$0])
+      :- Union(all=[true], union=[sum$0])
+      :  :- LocalHashAggregate(select=[Partial_SUM(price) AS sum$0])
+      :  :  +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[price], metadata=[]]], fields=[price])
+      :  +- LocalHashAggregate(select=[Partial_SUM(price) AS sum$0])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[price], metadata=[]]], fields=[price])
+      +- LocalHashAggregate(select=[Partial_SUM(price) AS sum$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[price], metadata=[]]], fields=[price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLocalSortAggUnionTranspose[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3) group by type]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(type=[$1], price=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalUnion(all=[true])
+         :  :- LogicalProject(price=[$3], type=[$4])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+         :  +- LogicalProject(price=[$3], type=[$4])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+         +- LogicalProject(price=[$3], type=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[true], groupBy=[type], select=[type, Final_SUM(sum$0) AS EXPR$0])
+   +- Sort(orderBy=[type ASC])
+      +- Exchange(distribution=[hash[type]])
+         +- Union(all=[true], union=[type, sum$0])
+            :- Union(all=[true], union=[type, sum$0])
+            :  :- LocalSortAggregate(groupBy=[type], select=[type, Partial_SUM(price) AS sum$0])
+            :  :  +- Sort(orderBy=[type ASC])
+            :  :     +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[type, price], metadata=[]]], fields=[type, price])
+            :  +- LocalSortAggregate(groupBy=[type], select=[type, Partial_SUM(price) AS sum$0])
+            :     +- Sort(orderBy=[type ASC])
+            :        +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[type, price], metadata=[]]], fields=[type, price])
+            +- LocalSortAggregate(groupBy=[type], select=[type, Partial_SUM(price) AS sum$0])
+               +- Sort(orderBy=[type ASC])
+                  +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[type, price], metadata=[]]], fields=[type, price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLocalSortAggUnionTransposeNoGroup[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[select sum(price) from (select price, type from table1 union all select price, type from table2 union all select price, type from table3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
++- LogicalProject(price=[$0])
+   +- LogicalUnion(all=[true])
+      :- LogicalUnion(all=[true])
+      :  :- LogicalProject(price=[$3], type=[$4])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+      :  +- LogicalProject(price=[$3], type=[$4])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+      +- LogicalProject(price=[$3], type=[$4])
+         +- LogicalTableScan(table=[[default_catalog, default_database, table3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Union(all=[true], union=[sum$0])
+      :- Union(all=[true], union=[sum$0])
+      :  :- LocalSortAggregate(select=[Partial_SUM(price) AS sum$0])
+      :  :  +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[price], metadata=[]]], fields=[price])
+      :  +- LocalSortAggregate(select=[Partial_SUM(price) AS sum$0])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[price], metadata=[]]], fields=[price])
+      +- LocalSortAggregate(select=[Partial_SUM(price) AS sum$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, table3, project=[price], metadata=[]]], fields=[price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDisableExpandUnionTranspose[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[select count(distinct price), count(distinct type) from (select price, type from table1 union all select price, type from table2) ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalUnion(all=[true])
+   :- LogicalProject(price=[$3], type=[$4])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+   +- LogicalProject(price=[$3], type=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_COUNT(price) FILTER $g_1 AS count$0, Partial_COUNT(type) FILTER $g_2 AS count$1])
+      +- Calc(select=[price, type, =(CASE(=($e, 1), 1, 2), 1) AS $g_1, =(CASE(=($e, 1), 1, 2), 2) AS $g_2])
+         +- HashAggregate(isMerge=[true], groupBy=[price, type, $e], select=[price, type, $e])
+            +- Exchange(distribution=[hash[price, type, $e]])
+               +- LocalHashAggregate(groupBy=[price, type, $e], select=[price, type, $e])
+                  +- Expand(projects=[{price, null AS type, 1 AS $e}, {null AS price, type, 2 AS $e}])
+                     +- Union(all=[true], union=[price, type])
+                        :- TableSourceScan(table=[[default_catalog, default_database, table1, project=[price, type], metadata=[]]], fields=[price, type])
+                        +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[price, type], metadata=[]]], fields=[price, type])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableExpandUnionTranspose[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[select count(distinct price), count(distinct type) from (select price, type from table1 union all select price, type from table2) ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalUnion(all=[true])
+   :- LogicalProject(price=[$3], type=[$4])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+   +- LogicalProject(price=[$3], type=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_COUNT(price) FILTER $g_1 AS count$0, Partial_COUNT(type) FILTER $g_2 AS count$1])
+      +- Calc(select=[price, type, =(CASE(=($e, 1), 1, 2), 1) AS $g_1, =(CASE(=($e, 1), 1, 2), 2) AS $g_2])
+         +- HashAggregate(isMerge=[true], groupBy=[price, type, $e], select=[price, type, $e])
+            +- Exchange(distribution=[hash[price, type, $e]])
+               +- Union(all=[true], union=[price, type, $e])
+                  :- LocalHashAggregate(groupBy=[price, type, $e], select=[price, type, $e])
+                  :  +- Expand(projects=[{price, null AS type, 1 AS $e}, {null AS price, type, 2 AS $e}])
+                  :     +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[price, type], metadata=[]]], fields=[price, type])
+                  +- LocalHashAggregate(groupBy=[price, type, $e], select=[price, type, $e])
+                     +- Expand(projects=[{price, null AS type, 1 AS $e}, {null AS price, type, 2 AS $e}])
+                        +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[price, type], metadata=[]]], fields=[price, type])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDisableExpandUnionTranspose[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[select count(distinct price), count(distinct type) from (select price, type from table1 union all select price, type from table2) ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalUnion(all=[true])
+   :- LogicalProject(price=[$3], type=[$4])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+   +- LogicalProject(price=[$3], type=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GlobalGroupAggregate(partialFinalType=[FINAL], select=[$SUM0(count$0) AS $f0, $SUM0(count$1) AS $f1])
++- Exchange(distribution=[single])
+   +- IncrementalGroupAggregate(partialAggGrouping=[$f2, $f3], finalAggGrouping=[], select=[COUNT(distinct$0 count$0) AS count$0, COUNT(distinct$1 count$1) AS count$1])
+      +- Exchange(distribution=[hash[$f2, $f3]])
+         +- LocalGroupAggregate(groupBy=[$f2, $f3], partialFinalType=[PARTIAL], select=[$f2, $f3, COUNT(distinct$0 price) FILTER $g_1 AS count$0, COUNT(distinct$1 type) FILTER $g_2 AS count$1, DISTINCT(price) AS distinct$0, DISTINCT(type) AS distinct$1])
+            +- Calc(select=[price, type, $f2, $f3, =($e, 1) AS $g_1, =($e, 2) AS $g_2])
+               +- Expand(projects=[{price, type, $f2, null AS $f3, 1 AS $e}, {price, type, null AS $f2, $f3, 2 AS $e}])
+                  +- Calc(select=[price, type, MOD(HASH_CODE(price), 1024) AS $f2, MOD(HASH_CODE(type), 1024) AS $f3])
+                     +- Union(all=[true], union=[price, type])
+                        :- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                        :  +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[price, type], metadata=[]]], fields=[price, type])
+                        +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[price, type], metadata=[]]], fields=[price, type])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableExpandUnionTranspose[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[select count(distinct price), count(distinct type) from (select price, type from table1 union all select price, type from table2) ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalUnion(all=[true])
+   :- LogicalProject(price=[$3], type=[$4])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+   +- LogicalProject(price=[$3], type=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, table2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_COUNT(price) FILTER $g_1 AS count$0, Partial_COUNT(type) FILTER $g_2 AS count$1])
+      +- Calc(select=[price, type, =(CASE(=($e, 1), 1, 2), 1) AS $g_1, =(CASE(=($e, 1), 1, 2), 2) AS $g_2])
+         +- HashAggregate(isMerge=[true], groupBy=[price, type, $e], select=[price, type, $e])
+            +- Exchange(distribution=[hash[price, type, $e]])
+               +- Union(all=[true], union=[price, type, $e])
+                  :- LocalHashAggregate(groupBy=[price, type, $e], select=[price, type, $e])
+                  :  +- Expand(projects=[{price, null AS type, 1 AS $e}, {null AS price, type, 2 AS $e}])
+                  :     +- TableSourceScan(table=[[default_catalog, default_database, table1, project=[price, type], metadata=[]]], fields=[price, type])
+                  +- LocalHashAggregate(groupBy=[price, type, $e], select=[price, type, $e])
+                     +- Expand(projects=[{price, null AS type, 1 AS $e}, {null AS price, type, 2 AS $e}])
+                        +- TableSourceScan(table=[[default_catalog, default_database, table2, project=[price, type], metadata=[]]], fields=[price, type])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

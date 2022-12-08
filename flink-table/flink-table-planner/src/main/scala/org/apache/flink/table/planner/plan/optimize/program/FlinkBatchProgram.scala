@@ -41,6 +41,7 @@ object FlinkBatchProgram {
   val PHYSICAL = "physical"
   val PHYSICAL_REWRITE = "physical_rewrite"
   val DYNAMIC_PARTITION_PRUNING = "dynamic_partition_pruning"
+  val PHYSICAL_REWRITE_COLLECTION = "physical_rewrite_collection"
 
   def buildProgram(tableConfig: ReadableConfig): FlinkChainedProgram[BatchOptimizeContext] = {
     val chainedProgram = new FlinkChainedProgram[BatchOptimizeContext]()
@@ -290,7 +291,17 @@ object FlinkBatchProgram {
     )
 
     // convert dynamic partition pruning scan source
-    chainedProgram.addLast(DYNAMIC_PARTITION_PRUNING, new FlinkDynamicPartitionPruningProgram)
+  chainedProgram.addLast(DYNAMIC_PARTITION_PRUNING, new FlinkDynamicPartitionPruningProgram)
+
+    // physical rewrite
+    chainedProgram.addLast(
+      PHYSICAL_REWRITE_COLLECTION,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkBatchRuleSets.PHYSICAL_REWRITE_TRANSPOSE)
+        .build()
+    )
 
     chainedProgram
   }

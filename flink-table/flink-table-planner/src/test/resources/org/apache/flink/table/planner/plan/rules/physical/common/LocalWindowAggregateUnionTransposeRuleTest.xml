@@ -1,0 +1,68 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testLocalWindowAggregate[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[SELECT
+   a,
+   window_start,
+   window_end,
+   count(*),
+   sum(d)
+FROM TABLE(TUMBLE(TABLE UNION_SOURCE, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+GROUP BY a, window_start, window_end]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)])
++- LogicalProject(a=[$0], window_start=[$6], window_end=[$7], d=[$3])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE($5, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+         +- LogicalUnion(all=[true])
+            :- LogicalUnion(all=[true])
+            :  :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+            :  :  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+            :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+            :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+            :     +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+            :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4])
++- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS EXPR$3, SUM(sum$1) AS EXPR$4, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[a]])
+      +- Union(all=[true], union=[a, count1$0, sum$1, $slice_end])
+         :- Union(all=[true], union=[a, count1$0, sum$1, $slice_end])
+         :  :- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, slice_end('w$) AS $slice_end])
+         :  :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+         :  :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a, d, rowtime], metadata=[]]], fields=[a, d, rowtime])
+         :  +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, slice_end('w$) AS $slice_end])
+         :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, d, rowtime], metadata=[]]], fields=[a, d, rowtime])
+         +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, slice_end('w$) AS $slice_end])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable3, project=[a, d, rowtime], metadata=[]]], fields=[a, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

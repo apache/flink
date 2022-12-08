@@ -470,7 +470,10 @@ object FlinkStreamRuleSets {
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE,
     // optimize ChangelogNormalize
-    PushCalcPastChangelogNormalizeRule.INSTANCE
+    PushCalcPastChangelogNormalizeRule.INSTANCE,
+    StreamLocalAggregateUnionTransposeRule.EXPAND_INSTANCE,
+    StreamLocalAggregateUnionTransposeRule.LOCAL_GROUP_AGG_INSTANCE,
+    StreamLocalAggregateUnionTransposeRule.LOCAL_WINDOW_AGG_INSTANCE
   )
 
 }

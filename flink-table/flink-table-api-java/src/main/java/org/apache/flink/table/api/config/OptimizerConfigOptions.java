@@ -213,4 +213,10 @@ public class OptimizerConfigOptions {
          */
         IGNORE
     }
+
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_LOCAL_AGG_UNION_TRANSPOSE_ENABLED =
+            key("table.optimizer.local-agg-union.transpose.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription("Whether to push the local agg pass the union node");
 }

@@ -442,4 +442,11 @@ object FlinkBatchRuleSets {
     PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
     PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
   )
+
+  val PHYSICAL_REWRITE_TRANSPOSE = RuleSets.ofList(
+    BatchLocalAggUnionTransposeRule.LOCAL_HASH_AGG_INSTANCE,
+    BatchLocalAggUnionTransposeRule.EXPAND_INSTANCE,
+    BatchLocalAggUnionTransposeRule.LOCAL_SORT_AGG_INSTANCE,
+    BatchLocalSortAggWithKeysUnionTransposeRule.LOCAL_SORT_AGG_WITH_KEYS_INSTANCE
+  )
 }
