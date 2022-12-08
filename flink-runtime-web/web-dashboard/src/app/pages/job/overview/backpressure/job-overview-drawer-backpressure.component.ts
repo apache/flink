@@ -99,6 +99,7 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
         this.now = Date.now();
         this.backpressure = data;
         this.listOfSubTaskBackpressure = data?.subtasks || [];
+        this.listOfSubTaskBackpressure.sort(this.sortByBusyRatio);
         this.cdr.markForCheck();
       });
   }
@@ -128,5 +129,9 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
     } else {
       return `${Math.round(value * 100)}%`;
     }
+  }
+
+  sortByBusyRatio(a: JobBackpressureSubtask, b: JobBackpressureSubtask): number {
+    return a.busyRatio - b.busyRatio;
   }
 }
