@@ -133,9 +133,7 @@ public class VertexwiseSchedulingStrategy
                                             schedulingTopology.getVertex(vertexId);
                                     checkState(vertex.getState() == ExecutionState.CREATED);
                                     return inputConsumableDecider.isInputConsumable(
-                                            vertexId,
-                                            Collections.emptySet(),
-                                            consumableStatusCache);
+                                            vertex, Collections.emptySet(), consumableStatusCache);
                                 })
                         .collect(Collectors.toSet());
 

@@ -26,31 +26,31 @@ import java.util.Set;
 /** Mock {@link InputConsumableDecider} for testing. */
 public class TestingInputConsumableDecider implements InputConsumableDecider {
 
-    private final Set<ExecutionVertexID> inputConsumableExecutionVertices = new HashSet<>();
+    private final Set<SchedulingExecutionVertex> inputConsumableExecutionVertices = new HashSet<>();
 
-    private final Set<ExecutionVertexID> sourceVertices = new HashSet<>();
+    private final Set<SchedulingExecutionVertex> sourceVertices = new HashSet<>();
 
-    private ExecutionVertexID lastExecutionToDecideInputConsumable;
+    private SchedulingExecutionVertex lastExecutionToDecideInputConsumable;
 
     @Override
     public boolean isInputConsumable(
-            ExecutionVertexID executionVertexID,
+            SchedulingExecutionVertex executionVertex,
             Set<ExecutionVertexID> verticesToDeploy,
             Map<ConsumedPartitionGroup, Boolean> consumableStatusCache) {
-        lastExecutionToDecideInputConsumable = executionVertexID;
-        return sourceVertices.contains(executionVertexID)
-                || inputConsumableExecutionVertices.contains(executionVertexID);
+        lastExecutionToDecideInputConsumable = executionVertex;
+        return sourceVertices.contains(executionVertex)
+                || inputConsumableExecutionVertices.contains(executionVertex);
     }
 
-    public void setInputConsumable(ExecutionVertexID executionVertex) {
+    public void setInputConsumable(SchedulingExecutionVertex executionVertex) {
         inputConsumableExecutionVertices.add(executionVertex);
     }
 
-    public void addSourceVertices(Collection<ExecutionVertexID> sourceVertices) {
+    public void addSourceVertices(Collection<SchedulingExecutionVertex> sourceVertices) {
         this.sourceVertices.addAll(sourceVertices);
     }
 
-    public ExecutionVertexID getLastExecutionToDecideInputConsumable() {
+    public SchedulingExecutionVertex getLastExecutionToDecideInputConsumable() {
         return lastExecutionToDecideInputConsumable;
     }
 }

@@ -18,28 +18,26 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
 /**
- * {@link InputConsumableDecider} is responsible for determining weather the input of an
+ * {@link InputConsumableDecider} is responsible for determining whether the input of an
  * executionVertex is consumable.
  */
 public interface InputConsumableDecider {
     /**
-     * Determining weather the input of an execution vertex is consumable.
+     * Determining whether the input of an execution vertex is consumable.
      *
-     * @param executionVertexID identifier of this {@link ExecutionVertex}.
-     * @param verticesToSchedule vertices that are not yet scheduled by already decided to be
+     * @param executionVertex to be determined whether it's input is consumable.
+     * @param verticesToSchedule vertices that are not yet scheduled but already decided to be
      *     scheduled.
      * @param consumableStatusCache a cache for {@link ConsumedPartitionGroup} consumable status.
      *     This is to avoid repetitive computation.
      */
     boolean isInputConsumable(
-            ExecutionVertexID executionVertexID,
+            SchedulingExecutionVertex executionVertex,
             Set<ExecutionVertexID> verticesToSchedule,
             Map<ConsumedPartitionGroup, Boolean> consumableStatusCache);
 

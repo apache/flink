@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -100,10 +101,7 @@ class VertexwiseSchedulingStrategyTest {
         expectedScheduledVertices.add(Collections.singletonList(source.get(0)));
         expectedScheduledVertices.add(Collections.singletonList(source.get(1)));
 
-        inputConsumableDecider.addSourceVertices(
-                source.stream()
-                        .map(TestingSchedulingExecutionVertex::getId)
-                        .collect(Collectors.toSet()));
+        inputConsumableDecider.addSourceVertices(new HashSet<>(source));
 
         schedulingStrategy.startScheduling();
         assertLatestScheduledVerticesAreEqualTo(
@@ -115,10 +113,7 @@ class VertexwiseSchedulingStrategyTest {
         final VertexwiseSchedulingStrategy schedulingStrategy =
                 createSchedulingStrategy(testingSchedulingTopology);
 
-        inputConsumableDecider.addSourceVertices(
-                source.stream()
-                        .map(TestingSchedulingExecutionVertex::getId)
-                        .collect(Collectors.toSet()));
+        inputConsumableDecider.addSourceVertices(new HashSet<>(source));
 
         final Set<ExecutionVertexID> verticesToRestart =
                 Stream.of(source, map, sink)
@@ -142,23 +137,20 @@ class VertexwiseSchedulingStrategyTest {
         final VertexwiseSchedulingStrategy schedulingStrategy =
                 createSchedulingStrategy(testingSchedulingTopology);
 
-        inputConsumableDecider.addSourceVertices(
-                source.stream()
-                        .map(TestingSchedulingExecutionVertex::getId)
-                        .collect(Collectors.toSet()));
+        inputConsumableDecider.addSourceVertices(new HashSet<>(source));
 
         schedulingStrategy.startScheduling();
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
 
         // trigger map1 scheduled
         final TestingSchedulingExecutionVertex source1 = source.get(0);
-        inputConsumableDecider.setInputConsumable(map.get(0).getId());
+        inputConsumableDecider.setInputConsumable(map.get(0));
         schedulingStrategy.onExecutionStateChange(source1.getId(), ExecutionState.FINISHED);
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
 
         // trigger map2 scheduled
         final TestingSchedulingExecutionVertex source2 = source.get(1);
-        inputConsumableDecider.setInputConsumable(map.get(1).getId());
+        inputConsumableDecider.setInputConsumable(map.get(1));
         schedulingStrategy.onExecutionStateChange(source2.getId(), ExecutionState.FINISHED);
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
 
@@ -168,14 +160,15 @@ class VertexwiseSchedulingStrategyTest {
         assertThat(
                         inputConsumableDecider
                                 .getLastExecutionToDecideInputConsumable()
+                                .getId()
                                 .getJobVertexId())
                 .isEqualTo(sink.get(0).getId().getJobVertexId());
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
 
         // trigger sink1, sink2 scheduled
         final TestingSchedulingExecutionVertex map2 = map.get(1);
-        inputConsumableDecider.setInputConsumable(sink.get(0).getId());
-        inputConsumableDecider.setInputConsumable(sink.get(1).getId());
+        inputConsumableDecider.setInputConsumable(sink.get(0));
+        inputConsumableDecider.setInputConsumable(sink.get(1));
         schedulingStrategy.onExecutionStateChange(map2.getId(), ExecutionState.FINISHED);
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(6);
 
@@ -208,10 +201,7 @@ class VertexwiseSchedulingStrategyTest {
                 topology.addExecutionVertices().withParallelism(2).finish();
 
         final VertexwiseSchedulingStrategy schedulingStrategy = createSchedulingStrategy(topology);
-        inputConsumableDecider.addSourceVertices(
-                producers.stream()
-                        .map(TestingSchedulingExecutionVertex::getId)
-                        .collect(Collectors.toSet()));
+        inputConsumableDecider.addSourceVertices(new HashSet<>(producers));
         schedulingStrategy.startScheduling();
 
         final List<TestingSchedulingExecutionVertex> consumers =
@@ -238,8 +228,8 @@ class VertexwiseSchedulingStrategyTest {
                 consumers.stream()
                         .map(TestingSchedulingExecutionVertex::getId)
                         .collect(Collectors.toList()));
-        inputConsumableDecider.setInputConsumable(consumers.get(0).getId());
-        inputConsumableDecider.setInputConsumable(consumers.get(1).getId());
+        inputConsumableDecider.setInputConsumable(consumers.get(0));
+        inputConsumableDecider.setInputConsumable(consumers.get(1));
         schedulingStrategy.onExecutionStateChange(
                 producers.get(1).getId(), ExecutionState.FINISHED);
 
@@ -255,11 +245,9 @@ class VertexwiseSchedulingStrategyTest {
     }
 
     VertexwiseSchedulingStrategy createSchedulingStrategy(SchedulingTopology schedulingTopology) {
-        final VertexwiseSchedulingStrategy schedulingStrategy =
-                new VertexwiseSchedulingStrategy(
-                        testingSchedulerOperation,
-                        schedulingTopology,
-                        (ignore1, ignore2) -> inputConsumableDecider);
-        return schedulingStrategy;
+        return new VertexwiseSchedulingStrategy(
+                testingSchedulerOperation,
+                schedulingTopology,
+                (ignore1, ignore2) -> inputConsumableDecider);
     }
 }

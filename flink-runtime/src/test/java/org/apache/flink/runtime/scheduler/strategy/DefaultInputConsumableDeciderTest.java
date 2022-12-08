@@ -52,11 +52,11 @@ class DefaultInputConsumableDeciderTest {
 
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(0).getId(), Collections.emptySet(), new HashMap<>()))
+                                consumer.get(0), Collections.emptySet(), new HashMap<>()))
                 .isFalse();
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(1).getId(), Collections.emptySet(), new HashMap<>()))
+                                consumer.get(1), Collections.emptySet(), new HashMap<>()))
                 .isFalse();
     }
 
@@ -80,11 +80,11 @@ class DefaultInputConsumableDeciderTest {
 
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(0).getId(), Collections.emptySet(), new HashMap<>()))
+                                consumer.get(0), Collections.emptySet(), new HashMap<>()))
                 .isTrue();
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(1).getId(), Collections.emptySet(), new HashMap<>()))
+                                consumer.get(1), Collections.emptySet(), new HashMap<>()))
                 .isTrue();
     }
 
@@ -108,11 +108,11 @@ class DefaultInputConsumableDeciderTest {
 
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(0).getId(), Collections.emptySet(), new HashMap<>()))
+                                consumer.get(0), Collections.emptySet(), new HashMap<>()))
                 .isFalse();
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(1).getId(), Collections.emptySet(), new HashMap<>()))
+                                consumer.get(1), Collections.emptySet(), new HashMap<>()))
                 .isFalse();
     }
 
@@ -140,11 +140,11 @@ class DefaultInputConsumableDeciderTest {
 
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(0).getId(), vertexToDeploy, new HashMap<>()))
+                                consumer.get(0), vertexToDeploy, new HashMap<>()))
                 .isTrue();
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(1).getId(), vertexToDeploy, new HashMap<>()))
+                                consumer.get(1), vertexToDeploy, new HashMap<>()))
                 .isTrue();
     }
 
@@ -177,15 +177,13 @@ class DefaultInputConsumableDeciderTest {
 
         assertThat(
                         inputConsumableDecider.isInputConsumable(
-                                consumer.get(0).getId(), Collections.emptySet(), new HashMap<>()))
+                                consumer.get(0), Collections.emptySet(), new HashMap<>()))
                 .isFalse();
     }
 
     private DefaultInputConsumableDecider createDefaultInputConsumableDecider(
             Set<ExecutionVertexID> scheduledVertices, SchedulingTopology schedulingTopology) {
         return new DefaultInputConsumableDecider(
-                scheduledVertices::contains,
-                schedulingTopology::getVertex,
-                schedulingTopology::getResultPartition);
+                scheduledVertices::contains, schedulingTopology::getResultPartition);
     }
 }

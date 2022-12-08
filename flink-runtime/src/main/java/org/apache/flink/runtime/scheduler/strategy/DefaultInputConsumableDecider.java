@@ -34,31 +34,25 @@ import java.util.function.Function;
  * <p>For canBePipelined consumed partition group: whether all result partitions in the group are
  * scheduled.
  */
-public class DefaultInputConsumableDecider implements InputConsumableDecider {
-    private final Function<ExecutionVertexID, SchedulingExecutionVertex> executionVertexRetriever;
-
+class DefaultInputConsumableDecider implements InputConsumableDecider {
     private final Function<IntermediateResultPartitionID, SchedulingResultPartition>
             resultPartitionRetriever;
 
     private final Function<ExecutionVertexID, Boolean> scheduledVertexRetriever;
 
-    public DefaultInputConsumableDecider(
+    DefaultInputConsumableDecider(
             Function<ExecutionVertexID, Boolean> scheduledVertexRetriever,
-            Function<ExecutionVertexID, SchedulingExecutionVertex> executionVertexRetriever,
             Function<IntermediateResultPartitionID, SchedulingResultPartition>
                     resultPartitionRetriever) {
         this.scheduledVertexRetriever = scheduledVertexRetriever;
-        this.executionVertexRetriever = executionVertexRetriever;
         this.resultPartitionRetriever = resultPartitionRetriever;
     }
 
     @Override
     public boolean isInputConsumable(
-            ExecutionVertexID executionVertexID,
+            SchedulingExecutionVertex executionVertex,
             Set<ExecutionVertexID> verticesToSchedule,
             Map<ConsumedPartitionGroup, Boolean> consumableStatusCache) {
-        SchedulingExecutionVertex executionVertex =
-                executionVertexRetriever.apply(executionVertexID);
         for (ConsumedPartitionGroup consumedPartitionGroup :
                 executionVertex.getConsumedPartitionGroups()) {
 
@@ -107,9 +101,7 @@ public class DefaultInputConsumableDecider implements InputConsumableDecider {
                 SchedulingTopology schedulingTopology,
                 Function<ExecutionVertexID, Boolean> scheduledVertexRetriever) {
             return new DefaultInputConsumableDecider(
-                    scheduledVertexRetriever,
-                    schedulingTopology::getVertex,
-                    schedulingTopology::getResultPartition);
+                    scheduledVertexRetriever, schedulingTopology::getResultPartition);
         }
     }
 }
