@@ -30,6 +30,7 @@ import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Optionality;
 
 /**
  * Counterpart of hive's
@@ -50,11 +51,15 @@ public class HiveParserSqlCountAggFunction extends SqlAggFunction
             SqlOperandTypeChecker operandTypeChecker) {
         super(
                 "count",
+                null,
                 SqlKind.COUNT,
                 returnTypeInference,
                 operandTypeInference,
                 operandTypeChecker,
-                SqlFunctionCategory.NUMERIC);
+                SqlFunctionCategory.NUMERIC,
+                false,
+                false,
+                Optionality.FORBIDDEN);
         this.isDistinct = isDistinct;
         this.returnTypeInference = returnTypeInference;
         this.operandTypeChecker = operandTypeChecker;

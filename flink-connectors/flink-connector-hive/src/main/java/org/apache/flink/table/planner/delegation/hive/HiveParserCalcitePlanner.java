@@ -60,6 +60,8 @@ import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.ViewExpanders;
@@ -1218,7 +1220,8 @@ public class HiveParserCalcitePlanner {
             gbInputRexNodes.add(cluster.getRexBuilder().makeInputRef(srcRel, 0));
         }
 
-        return LogicalAggregate.create(gbInputRel, groupSet, transformedGroupSets, aggregateCalls);
+        return LogicalAggregate.create(
+                gbInputRel, ImmutableList.of(), groupSet, transformedGroupSets, aggregateCalls);
     }
 
     // Generate GB plan.
@@ -2409,7 +2412,11 @@ public class HiveParserCalcitePlanner {
                     ImmutableBitSet.range(res.getRowType().getFieldList().size());
             res =
                     LogicalAggregate.create(
-                            res, groupSet, Collections.emptyList(), Collections.emptyList());
+                            res,
+                            ImmutableList.of(),
+                            groupSet,
+                            Collections.emptyList(),
+                            Collections.emptyList());
             HiveParserRowResolver groupByOutputRowResolver = new HiveParserRowResolver();
             for (int i = 0; i < outRR.getColumnInfos().size(); i++) {
                 ColumnInfo colInfo = outRR.getColumnInfos().get(i);
