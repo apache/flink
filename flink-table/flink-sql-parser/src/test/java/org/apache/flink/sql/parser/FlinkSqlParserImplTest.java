@@ -331,7 +331,35 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testAlterTableAddSinlgeColumn() {
+    void testAlterTableAddNestedColumn() {
+        // add a row column
+        sql("alter table t1 add new_column array<row(f0 int, f1 bigint)> comment 'new_column docs'")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` ARRAY< ROW(`F0` INTEGER, `F1` BIGINT) > COMMENT 'new_column docs'\n"
+                                + ")");
+
+        sql("alter table t1 add (new_row row(f0 int, f1 bigint) comment 'new_column docs', f2 as new_row.f0 + 1)")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_ROW` ROW(`F0` INTEGER, `F1` BIGINT) COMMENT 'new_column docs',\n"
+                                + "  `F2` AS (`NEW_ROW`.`F0` + 1)\n"
+                                + ")");
+
+        // add a field to the row
+        sql("alter table t1 add (new_row.f2 array<int>)")
+                .ok("ALTER TABLE `T1` ADD (\n" + "  `NEW_ROW`.`F2` ARRAY< INTEGER >\n" + ")");
+
+        // add a field to the row with after
+        sql("alter table t1 add (new_row.f2 array<int> after new_row.f0)")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_ROW`.`F2` ARRAY< INTEGER > AFTER `NEW_ROW`.`F0`\n"
+                                + ")");
+    }
+
+    @Test
+    void testAlterTableAddSingleColumn() {
         sql("alter table t1 add new_column string comment 'new_column docs'")
                 .ok(
                         "ALTER TABLE `T1` ADD (\n"
@@ -409,6 +437,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
                         + ")";
         sql(sql1).ok(expected1);
+
+        final String sql2 =
+                "alter table t1 add (\n"
+                        + "col_int int primary key not enforced,\n"
+                        + "log_ts string comment 'log timestamp string' first,\n"
+                        + "ts AS to_timestamp(log_ts) after log_ts,\n"
+                        + "col_meta int metadata from 'mk1' virtual comment 'comment_str' after col_b,\n"
+                        + "primary key (id) not enforced,\n"
+                        + "unique (a, b),\n"
+                        + "watermark for ts as ts - interval '3' second\n"
+                        + ")";
+        sql(sql2).node(new ValidationMatcher().fails("Duplicate primary key definition"));
     }
 
     @Test
@@ -428,6 +468,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "ALTER TABLE `T1` MODIFY (\n"
                                 + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
                                 + ")");
+        // modify column type
+        sql("alter table t1 modify new_column array<string not null> not null")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` ARRAY< STRING NOT NULL > NOT NULL\n"
+                                + ")");
+
         // modify compute column
         sql("alter table t1 modify col_int as col_a - col_b after col_b")
                 .ok(
@@ -439,6 +486,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "ALTER TABLE `T1` MODIFY (\n"
                                 + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
+                                + ")");
+
+        // modify nested column
+        sql("alter table t1 modify row_column.f0 int not null comment 'change nullability'")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `ROW_COLUMN`.`F0` INTEGER NOT NULL COMMENT 'change nullability'\n"
+                                + ")");
+
+        // modify nested column, shift position
+        sql("alter table t1 modify row_column.f0 int after row_column.f2")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `ROW_COLUMN`.`F0` INTEGER AFTER `ROW_COLUMN`.`F2`\n"
                                 + ")");
     }
 
@@ -997,6 +1058,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "(?s).*Encountered \"\\(\" at line 4, column 14.\n"
                         + "Was expecting one of:\n"
                         + "    \"AS\" ...\n"
+                        + "    \".\" ...\n"
                         + "    \"STRING\" ...\n"
                         + ".*";
         sql(sql0).fails(expect0);
