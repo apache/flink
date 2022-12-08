@@ -200,13 +200,10 @@ class VertexwiseSchedulingStrategyTest {
                 .finish();
 
         final VertexwiseSchedulingStrategy schedulingStrategy = createSchedulingStrategy(topology);
-        inputConsumableDecider.addSourceVertices(
-                producers.stream()
-                        .map(TestingSchedulingExecutionVertex::getId)
-                        .collect(Collectors.toSet()));
+        inputConsumableDecider.addSourceVertices(new HashSet<>(producers));
 
-        inputConsumableDecider.setInputConsumable(consumers.get(0).getId());
-        inputConsumableDecider.setInputConsumable(consumers.get(1).getId());
+        inputConsumableDecider.setInputConsumable(consumers.get(0));
+        inputConsumableDecider.setInputConsumable(consumers.get(1));
 
         schedulingStrategy.startScheduling();
 

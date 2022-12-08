@@ -26,8 +26,8 @@ import org.apache.flink.util.IterableUtils;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,8 +137,9 @@ public class VertexwiseSchedulingStrategy
             Set<ExecutionVertexID> currentVertices, Set<ExecutionVertexID> verticesToSchedule) {
         Set<ExecutionVertexID> nextVertices = new HashSet<>();
         // cache consumedPartitionGroup's consumable status to avoid compute repeatedly.
-        final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new HashMap<>();
-        final Set<ConsumerVertexGroup> visitedConsumerVertexGroup = new HashSet<>();
+        final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new IdentityHashMap<>();
+        final Set<ConsumerVertexGroup> visitedConsumerVertexGroup =
+                Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (ExecutionVertexID currentVertex : currentVertices) {
             if (isVertexSchedulable(currentVertex, consumableStatusCache, verticesToSchedule)) {
@@ -160,8 +161,7 @@ public class VertexwiseSchedulingStrategy
                     if (!visitedConsumerVertexGroup.contains(consumerVertexGroup)) {
                         visitedConsumerVertexGroup.add(consumerVertexGroup);
                         nextVertices.addAll(
-                                canBePipelinedConsumerVertexGroups.stream()
-                                        .flatMap(IterableUtils::toStream)
+                                IterableUtils.toStream(consumerVertexGroup)
                                         .collect(Collectors.toSet()));
                     }
                 }
@@ -177,7 +177,9 @@ public class VertexwiseSchedulingStrategy
         return !verticesToSchedule.contains(vertex)
                 && !scheduledVertices.contains(vertex)
                 && inputConsumableDecider.isInputConsumable(
-                        vertex, verticesToSchedule, consumableStatusCache);
+                        schedulingTopology.getVertex(vertex),
+                        verticesToSchedule,
+                        consumableStatusCache);
     }
 
     private void scheduleVerticesOneByOne(final Set<ExecutionVertexID> verticesToSchedule) {
