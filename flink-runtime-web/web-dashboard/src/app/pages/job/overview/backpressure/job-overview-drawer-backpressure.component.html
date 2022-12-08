@@ -21,7 +21,7 @@
   [nzLoading]="isLoading"
   [nzData]="listOfSubTaskBackpressure"
   [nzScroll]="{ y: 'calc( 100% - 90px )' }"
-  [nzWidthConfig]="['33.33%', '33.33%', '33.33%']"
+  [nzWidthConfig]="['24%', '28%', '24%', '24%']"
   [nzFrontPagination]="false"
   [nzShowPagination]="false"
   [nzVirtualItemSize]="36"
@@ -31,7 +31,7 @@
 >
   <thead>
     <tr>
-      <th colspan="3" class="title">
+      <th colspan="4" class="title">
         <span *ngIf="selectedVertex?.detail?.status === 'RUNNING'">
           Measurement:
           <span *ngIf="backpressure['end-timestamp']">
@@ -59,6 +59,7 @@
       <th>SubTask</th>
       <th [nzSortFn]="sortByBusyRatio">Backpressured / Idle / Busy</th>
       <th>Backpressure Status</th>
+      <th>Thread Dump</th>
     </tr>
   </thead>
   <tbody>
@@ -85,6 +86,18 @@
               [data]="{ state: subtask['backpressure-level'] }"
               [component]="stateBadgeComponent"
             ></flink-dynamic-host>
+          </td>
+          <td>
+            <a
+              *ngIf="mapOfSubtask.get(subtask['subtask'])"
+              [routerLink]="[
+                '/task-manager',
+                mapOfSubtask.get(subtask['subtask'])['taskmanager-id'],
+                'thread-dump'
+              ]"
+            >
+              Dump
+            </a>
           </td>
         </tr>
         <ng-container *ngIf="expandSet.has(subtask['subtask'])">
