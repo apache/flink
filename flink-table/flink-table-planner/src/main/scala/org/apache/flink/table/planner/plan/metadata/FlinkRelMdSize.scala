@@ -126,7 +126,7 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
     // get each column's RexNode (RexLiteral, RexInputRef or null)
     val projectNodes = (0 until fieldCount).map {
       i =>
-        val initNode: RexNode = rel.getCluster.getRexBuilder.constantNull()
+        val initNode: RexNode = rel.getCluster.getRexBuilder.makeNullLiteral(rel.getRowType)
         rel.projects.foldLeft(initNode) {
           (mergeNode, project) =>
             (mergeNode, project.get(i)) match {

@@ -133,7 +133,8 @@ public class OverConvertRule implements CallExpressionConvertRule {
                                     isPhysical,
                                     true,
                                     false,
-                                    isDistinct));
+                                    isDistinct,
+                                    false));
         }
         return Optional.empty();
     }

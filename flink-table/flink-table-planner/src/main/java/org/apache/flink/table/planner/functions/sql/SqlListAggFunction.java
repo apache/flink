@@ -29,6 +29,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.Optionality;
 
 import java.util.List;
 
@@ -57,7 +58,8 @@ public class SqlListAggFunction extends SqlAggFunction {
                                 OperandTypes.and(OperandTypes.CHARACTER, OperandTypes.LITERAL))),
                 SqlFunctionCategory.SYSTEM,
                 false,
-                false);
+                false,
+                Optionality.FORBIDDEN);
     }
 
     @Override
