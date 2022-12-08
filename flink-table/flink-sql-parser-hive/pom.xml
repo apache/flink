@@ -78,8 +78,6 @@ under the License.
 				[INFO] +- org.apache.calcite:calcite-core:jar:1.28.0:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.19.0:compile
 				[INFO] |  +- org.checkerframework:checker-qual:jar:3.10.0:compile
-				[INFO] |  +- org.codehaus.janino:commons-compiler:jar:3.1.8:runtime
-				[INFO] |  \- org.codehaus.janino:janino:jar:3.1.8:runtime
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
@@ -163,6 +161,14 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.calcite</groupId>
 					<artifactId>calcite-linq4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>janino</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>commons-compiler</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.google.code.findbugs</groupId>
