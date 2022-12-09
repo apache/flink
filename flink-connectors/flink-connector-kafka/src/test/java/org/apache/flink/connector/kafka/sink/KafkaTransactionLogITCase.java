@@ -18,8 +18,6 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionRecord;
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -28,7 +26,6 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
@@ -52,7 +49,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KafkaTransactionLog} to retrieve abortable Kafka transactions. */
 @Testcontainers
-@ExtendWith(TestLoggerExtension.class)
 public class KafkaTransactionLogITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkITCase.class);

@@ -17,10 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -32,7 +29,6 @@ import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
@@ -53,7 +49,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
-@ExtendWith(TestLoggerExtension.class)
 class FlinkKafkaInternalProducerITCase {
 
     private static final Logger LOG =

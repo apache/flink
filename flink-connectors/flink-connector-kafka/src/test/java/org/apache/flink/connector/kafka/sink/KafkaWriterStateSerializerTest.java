@@ -17,10 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 
@@ -30,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for serializing and deserialzing {@link KafkaWriterState} with {@link
  * KafkaWriterStateSerializer}.
  */
-@ExtendWith(TestLoggerExtension.class)
 public class KafkaWriterStateSerializerTest {
 
     private static final KafkaWriterStateSerializer SERIALIZER = new KafkaWriterStateSerializer();
