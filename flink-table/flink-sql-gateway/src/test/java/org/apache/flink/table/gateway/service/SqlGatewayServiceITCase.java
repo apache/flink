@@ -584,23 +584,20 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 .getTableEnvironment()
                 .executeSql(createTable2);
 
-        List<String> expectedTableHints =
+        validateCompletionHints(
+                sessionHandle,
+                "SELECT * FROM Ta",
                 Arrays.asList(
                         "default_catalog.default_database.Table1",
-                        "default_catalog.default_database.Table2");
-        String incompleteSql = "SELECT * FROM Ta";
-        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
-                .isEqualTo(expectedTableHints);
+                        "default_catalog.default_database.Table2"));
 
-        List<String> expectedClause = Collections.singletonList("WHERE");
-        incompleteSql = "SELECT * FROM Table1 WH";
-        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
-                .isEqualTo(expectedClause);
+        validateCompletionHints(
+                sessionHandle, "SELECT * FROM Table1 WH", Collections.singletonList("WHERE"));
 
-        List<String> expectedField = Collections.singletonList("IntegerField1");
-        incompleteSql = "SELECT * FROM Table1 WHERE Inte";
-        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
-                .isEqualTo(expectedField);
+        validateCompletionHints(
+                sessionHandle,
+                "SELECT * FROM Table1 WHERE Inte",
+                Collections.singletonList("IntegerField1"));
     }
 
     @Test
@@ -1062,5 +1059,13 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 ((TableResultInternal) tableEnv.executeSql(statement))
                                         .collectInternal()))
                 .isEqualTo(expected);
+    }
+
+    private void validateCompletionHints(
+            SessionHandle sessionHandle,
+            String incompleteSql,
+            List<String> expectedCompletionHints) {
+        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
+                .isEqualTo(expectedCompletionHints);
     }
 }
