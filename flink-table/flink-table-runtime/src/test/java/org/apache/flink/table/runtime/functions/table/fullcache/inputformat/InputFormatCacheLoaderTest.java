@@ -78,7 +78,7 @@ class InputFormatCacheLoaderTest {
     @MethodSource("deltaNumSplits")
     void testReadWithDifferentSplits(int deltaNumSplits) throws Exception {
         try (InputFormatCacheLoader cacheLoader = createCacheLoader(deltaNumSplits)) {
-            cacheLoader.open(UnregisteredMetricsGroup.createCacheMetricGroup());
+            cacheLoader.initializeMetrics(UnregisteredMetricsGroup.createCacheMetricGroup());
             run(cacheLoader);
             ConcurrentHashMap<RowData, Collection<RowData>> cache = cacheLoader.getCache();
             assertCacheContent(cache);
@@ -94,7 +94,7 @@ class InputFormatCacheLoaderTest {
     void testCacheMetrics() throws Exception {
         try (InputFormatCacheLoader cacheLoader = createCacheLoader(DEFAULT_DELTA_NUM_SPLITS)) {
             InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
-            cacheLoader.open(metricGroup);
+            cacheLoader.initializeMetrics(metricGroup);
             // These metrics are registered
             assertThat(metricGroup.loadCounter).isNotNull();
             assertThat(metricGroup.loadCounter.getCount()).isEqualTo(0);
@@ -129,7 +129,7 @@ class InputFormatCacheLoaderTest {
         try (InputFormatCacheLoader cacheLoader =
                 createCacheLoader(DEFAULT_NUM_SPLITS, DEFAULT_DELTA_NUM_SPLITS, reloadAction)) {
             InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
-            cacheLoader.open(metricGroup);
+            cacheLoader.initializeMetrics(metricGroup);
             assertThatThrownBy(() -> run(cacheLoader)).hasRootCause(exception);
             assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(1);
         }
@@ -155,7 +155,7 @@ class InputFormatCacheLoaderTest {
         CompletableFuture<Void> future;
         try (InputFormatCacheLoader cacheLoader =
                 createCacheLoader(numSplits, DEFAULT_DELTA_NUM_SPLITS, reloadAction)) {
-            cacheLoader.open(metricGroup);
+            cacheLoader.initializeMetrics(metricGroup);
             future = cacheLoader.reloadAsync();
             reloadLatch.await(5000, TimeUnit.MILLISECONDS);
         }

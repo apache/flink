@@ -72,7 +72,7 @@ public abstract class CacheLoader implements AutoCloseable, Serializable {
         reloadExecutor = Executors.newSingleThreadExecutor();
     }
 
-    public void open(CacheMetricGroup cacheMetricGroup) {
+    public void initializeMetrics(CacheMetricGroup cacheMetricGroup) {
         if (loadCounter == null) {
             loadCounter = new ThreadSafeSimpleCounter();
         }

@@ -57,7 +57,7 @@ public class LookupFullCache implements LookupCache {
         }
         metricGroup.hitCounter(hitCounter);
         metricGroup.missCounter(new SimpleCounter()); // always zero
-        cacheLoader.open(metricGroup);
+        cacheLoader.initializeMetrics(metricGroup);
     }
 
     public synchronized void open(Configuration parameters) throws Exception {
