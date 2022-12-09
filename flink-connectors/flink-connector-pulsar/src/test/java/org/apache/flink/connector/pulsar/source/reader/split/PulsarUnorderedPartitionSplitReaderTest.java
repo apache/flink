@@ -21,8 +21,10 @@ package org.apache.flink.connector.pulsar.source.reader.split;
 import org.apache.flink.connector.pulsar.testutils.extension.SubType;
 
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.junit.jupiter.api.Disabled;
 
 /** Unit tests for {@link PulsarUnorderedPartitionSplitReaderTest}. */
+@Disabled("FLINK-30351")
 class PulsarUnorderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTestBase {
     @SubType SubscriptionType subscriptionType = SubscriptionType.Shared;
 }

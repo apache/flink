@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
 import org.apache.flink.tests.util.pulsar.common.PulsarContainerTestEnvironment;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.Tag;
  */
 @SuppressWarnings("unused")
 @Tag("org.apache.flink.testutils.junit.FailsOnJava11")
+@Disabled("FLINK-30351")
 public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<String> {
 
     // Defines the Semantic.
