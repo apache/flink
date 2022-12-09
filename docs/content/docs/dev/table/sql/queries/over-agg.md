@@ -82,8 +82,9 @@ A `ROWS` interval is a count-based interval. It defines exactly how many rows ar
 
 ```sql
 ROWS BETWEEN 10 PRECEDING AND CURRENT ROW
-WINDOW
 ```
+
+### WINDOW
 
 The `WINDOW` clause can be used to define an `OVER` window outside of the `SELECT` clause. It can make queries more readable and also allows us to reuse the window definition for multiple aggregates.
 
