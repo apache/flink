@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.util.NlsString;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -179,7 +180,7 @@ class SqlCreateTableConverter {
         String tableComment =
                 sqlCreateTable
                         .getComment()
-                        .map(comment -> comment.getNlsString().getValue())
+                        .map(comment -> comment.getValueAs(NlsString.class).getValue())
                         .orElse(null);
 
         return new CatalogTableImpl(mergedSchema, partitionKeys, mergedOptions, tableComment);

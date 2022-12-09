@@ -203,6 +203,7 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.util.NlsString;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -910,7 +911,7 @@ public class SqlToOperationConverter {
         String databaseComment =
                 sqlCreateDatabase
                         .getComment()
-                        .map(comment -> comment.getNlsString().getValue())
+                        .map(comment -> comment.getValueAs(NlsString.class).getValue())
                         .orElse(null);
         // set with properties
         Map<String, String> properties = new HashMap<>();
@@ -1094,7 +1095,10 @@ public class SqlToOperationConverter {
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
         String comment =
-                sqlCreateView.getComment().map(c -> c.getNlsString().getValue()).orElse(null);
+                sqlCreateView
+                        .getComment()
+                        .map(c -> c.getValueAs(NlsString.class).getValue())
+                        .orElse(null);
         CatalogView catalogView =
                 convertViewQuery(
                         query,
