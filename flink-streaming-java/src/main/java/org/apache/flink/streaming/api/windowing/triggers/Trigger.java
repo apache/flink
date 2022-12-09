@@ -179,7 +179,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
          * @param <S> The type of the state.
          * @return The partitioned state object.
          * @throws UnsupportedOperationException Thrown, if no partitioned state is available for
-         *     the function (function is not part os a KeyedStream).
+         *     the function (function is not part of a KeyedStream).
          */
         <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
 
@@ -195,7 +195,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
          * @param <S> The type of the state.
          * @return The partitioned state object.
          * @throws UnsupportedOperationException Thrown, if no partitioned state is available for
-         *     the function (function is not part os a KeyedStream).
+         *     the function (function is not part of a KeyedStream).
          * @deprecated Use {@link #getPartitionedState(StateDescriptor)}.
          */
         @Deprecated
@@ -214,7 +214,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
          * @param <S> The type of the state.
          * @return The partitioned state object.
          * @throws UnsupportedOperationException Thrown, if no partitioned state is available for
-         *     the function (function is not part os a KeyedStream).
+         *     the function (function is not part of a KeyedStream).
          * @deprecated Use {@link #getPartitionedState(StateDescriptor)}.
          */
         @Deprecated
