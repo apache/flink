@@ -314,36 +314,7 @@ public class TableSchema {
 
     /** Helps to migrate to the new {@link Schema} class. */
     public Schema toSchema() {
-        final Schema.Builder builder = Schema.newBuilder();
-
-        columns.forEach(
-                column -> {
-                    if (column instanceof PhysicalColumn) {
-                        final PhysicalColumn c = (PhysicalColumn) column;
-                        builder.column(c.getName(), c.getType());
-                    } else if (column instanceof MetadataColumn) {
-                        final MetadataColumn c = (MetadataColumn) column;
-                        builder.columnByMetadata(
-                                c.getName(),
-                                c.getType(),
-                                c.getMetadataAlias().orElse(null),
-                                c.isVirtual());
-                    } else if (column instanceof ComputedColumn) {
-                        final ComputedColumn c = (ComputedColumn) column;
-                        builder.columnByExpression(c.getName(), c.getExpression());
-                    } else {
-                        throw new IllegalArgumentException("Unsupported column type: " + column);
-                    }
-                });
-
-        watermarkSpecs.forEach(
-                spec -> builder.watermark(spec.getRowtimeAttribute(), spec.getWatermarkExpr()));
-
-        if (primaryKey != null) {
-            builder.primaryKeyNamed(primaryKey.getName(), primaryKey.getColumns());
-        }
-
-        return builder.build();
+        return toSchema(Collections.emptyMap());
     }
 
     /** Helps to migrate to the new {@link Schema} class, retain comments when needed. */
