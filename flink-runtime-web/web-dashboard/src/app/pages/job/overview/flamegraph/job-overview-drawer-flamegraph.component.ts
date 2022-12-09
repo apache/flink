@@ -24,7 +24,7 @@ import { mergeMap, takeUntil, tap } from 'rxjs/operators';
 
 import { FlameGraphComponent } from '@flink-runtime-web/components/flame-graph/flame-graph.component';
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
-import { JobFlameGraph, NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { FlameGraphType, JobFlameGraph, NodesItemCorrect } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
 import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -50,12 +50,13 @@ import { JobLocalService } from '../../job-local.service';
   standalone: true
 })
 export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
+  readonly FlameGraphType = FlameGraphType;
   public isLoading = true;
   public now = Date.now();
   public selectedVertex: NodesItemCorrect | null;
   public flameGraph = {} as JobFlameGraph;
 
-  public graphType = 'on_cpu';
+  public graphType = FlameGraphType.ON_CPU;
 
   private readonly destroy$ = new Subject<void>();
 
