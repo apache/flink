@@ -25,7 +25,7 @@ Type:
   <label
     nz-radio-button
     [nzValue]="FlameGraphType.ON_CPU"
-    (click)="selectFrameGraphType()"
+    (click)="selectFrameGraphType(FlameGraphType.ON_CPU)"
     title="Includes Thread.State.[RUNNABLE, NEW]"
   >
     On-CPU
@@ -33,7 +33,7 @@ Type:
   <label
     nz-radio-button
     [nzValue]="FlameGraphType.OFF_CPU"
-    (click)="selectFrameGraphType()"
+    (click)="selectFrameGraphType(FlameGraphType.OFF_CPU)"
     title="Includes Thread.State.[WAITING, TIMED_WAITING, BLOCKED]"
   >
     Off-CPU
@@ -41,7 +41,7 @@ Type:
   <label
     nz-radio-button
     [nzValue]="FlameGraphType.FULL"
-    (click)="selectFrameGraphType()"
+    (click)="selectFrameGraphType(FlameGraphType.FULL)"
     title="Includes stack traces of threads in all states"
   >
     Mixed

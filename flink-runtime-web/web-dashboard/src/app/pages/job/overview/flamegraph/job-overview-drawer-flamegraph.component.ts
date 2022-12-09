@@ -67,7 +67,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
   ) {}
 
   public ngOnInit(): void {
-    this.requestFlameGraph();
+    this.requestFlameGraph(this.graphType);
   }
 
   public ngOnDestroy(): void {
@@ -75,12 +75,12 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private requestFlameGraph(): void {
+  private requestFlameGraph(graphType: FlameGraphType): void {
     this.jobLocalService
       .jobWithVertexChanges()
       .pipe(
         tap(data => (this.selectedVertex = data.vertex)),
-        mergeMap(data => this.jobService.loadOperatorFlameGraph(data.job.jid, data.vertex!.id, this.graphType)),
+        mergeMap(data => this.jobService.loadOperatorFlameGraph(data.job.jid, data.vertex!.id, graphType)),
         takeUntil(this.destroy$)
       )
       .subscribe(
@@ -89,7 +89,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
           if (this.flameGraph.endTimestamp !== data['endTimestamp']) {
             this.isLoading = false;
             this.flameGraph = data;
-            this.flameGraph.graphType = this.graphType;
+            this.flameGraph.graphType = graphType;
           }
           this.cdr.markForCheck();
         },
@@ -100,9 +100,9 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
       );
   }
 
-  public selectFrameGraphType(): void {
+  public selectFrameGraphType(graphType: FlameGraphType): void {
     this.destroy$.next();
     this.flameGraph = {} as JobFlameGraph;
-    this.requestFlameGraph();
+    this.requestFlameGraph(graphType);
   }
 }
