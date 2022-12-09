@@ -23,13 +23,15 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -42,55 +44,58 @@ import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteReque
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeOutput;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.write;
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link ChannelStateWriteRequestDispatcherImpl} tests. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ChannelStateWriteRequestDispatcherTest {
 
-    private final List<ChannelStateWriteRequest> requests;
-    private final Optional<Class<?>> expectedException;
-    public static final long CHECKPOINT_ID = 42L;
-
-    @Parameters
-    public static Object[][] data() {
-
-        return new Object[][] {
-            // valid calls
-            new Object[] {empty(), asList(start(), completeIn(), completeOut())},
-            new Object[] {empty(), asList(start(), writeIn(), completeIn())},
-            new Object[] {empty(), asList(start(), writeOut(), completeOut())},
-            new Object[] {empty(), asList(start(), writeOutFuture(), completeOut())},
-            new Object[] {empty(), asList(start(), completeIn(), writeOut())},
-            new Object[] {empty(), asList(start(), completeIn(), writeOutFuture())},
-            new Object[] {empty(), asList(start(), completeOut(), writeIn())},
-            // invalid without start
-            new Object[] {of(IllegalArgumentException.class), singletonList(writeIn())},
-            new Object[] {of(IllegalArgumentException.class), singletonList(writeOut())},
-            new Object[] {of(IllegalArgumentException.class), singletonList(writeOutFuture())},
-            new Object[] {of(IllegalArgumentException.class), singletonList(completeIn())},
-            new Object[] {of(IllegalArgumentException.class), singletonList(completeOut())},
-            // invalid double complete
-            new Object[] {
-                of(IllegalArgumentException.class), asList(start(), completeIn(), completeIn())
-            },
-            new Object[] {
-                of(IllegalArgumentException.class), asList(start(), completeOut(), completeOut())
-            },
-            // invalid write after complete
-            new Object[] {
-                of(IllegalStateException.class), asList(start(), completeIn(), writeIn())
-            },
-            new Object[] {
-                of(IllegalStateException.class), asList(start(), completeOut(), writeOut())
-            },
-            new Object[] {
-                of(IllegalStateException.class), asList(start(), completeOut(), writeOutFuture())
-            },
-            // invalid double start
-            new Object[] {of(IllegalStateException.class), asList(start(), start())}
-        };
+    @Parameters(name = "expectedException={0} requests={1}")
+    public static List<Object[]> data() {
+        return Arrays.asList(
+                // valid calls
+                new Object[] {empty(), asList(start(), completeIn(), completeOut())},
+                new Object[] {empty(), asList(start(), writeIn(), completeIn())},
+                new Object[] {empty(), asList(start(), writeOut(), completeOut())},
+                new Object[] {empty(), asList(start(), writeOutFuture(), completeOut())},
+                new Object[] {empty(), asList(start(), completeIn(), writeOut())},
+                new Object[] {empty(), asList(start(), completeIn(), writeOutFuture())},
+                new Object[] {empty(), asList(start(), completeOut(), writeIn())},
+                // invalid without start
+                new Object[] {of(IllegalArgumentException.class), singletonList(writeIn())},
+                new Object[] {of(IllegalArgumentException.class), singletonList(writeOut())},
+                new Object[] {of(IllegalArgumentException.class), singletonList(writeOutFuture())},
+                new Object[] {of(IllegalArgumentException.class), singletonList(completeIn())},
+                new Object[] {of(IllegalArgumentException.class), singletonList(completeOut())},
+                // invalid double complete
+                new Object[] {
+                    of(IllegalArgumentException.class), asList(start(), completeIn(), completeIn())
+                },
+                new Object[] {
+                    of(IllegalArgumentException.class),
+                    asList(start(), completeOut(), completeOut())
+                },
+                // invalid write after complete
+                new Object[] {
+                    of(IllegalStateException.class), asList(start(), completeIn(), writeIn())
+                },
+                new Object[] {
+                    of(IllegalStateException.class), asList(start(), completeOut(), writeOut())
+                },
+                new Object[] {
+                    of(IllegalStateException.class),
+                    asList(start(), completeOut(), writeOutFuture())
+                },
+                // invalid double start
+                new Object[] {of(IllegalStateException.class), asList(start(), start())});
     }
+
+    @Parameter public Optional<Class<Exception>> expectedException;
+
+    @Parameter(value = 1)
+    public List<ChannelStateWriteRequest> requests;
+
+    private static final long CHECKPOINT_ID = 42L;
 
     private static CheckpointInProgressRequest completeOut() {
         return completeOutput(CHECKPOINT_ID);
@@ -139,14 +144,8 @@ public class ChannelStateWriteRequestDispatcherTest {
                 new CheckpointStorageLocationReference(new byte[] {1}));
     }
 
-    public ChannelStateWriteRequestDispatcherTest(
-            Optional<Class<?>> expectedException, List<ChannelStateWriteRequest> requests) {
-        this.requests = requests;
-        this.expectedException = expectedException;
-    }
-
-    @Test
-    public void doRun() {
+    @TestTemplate
+    void doRun() {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
                         "dummy task",

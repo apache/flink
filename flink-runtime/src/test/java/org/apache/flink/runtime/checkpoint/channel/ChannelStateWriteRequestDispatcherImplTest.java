@@ -26,20 +26,19 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.Function;
 
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.util.CloseableIterator.ofElements;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link ChannelStateWriteRequestDispatcherImpl} test. */
-public class ChannelStateWriteRequestDispatcherImplTest {
+class ChannelStateWriteRequestDispatcherImplTest {
 
     @Test
-    public void testPartialInputChannelStateWrite() throws Exception {
+    void testPartialInputChannelStateWrite() throws Exception {
         testBuffersRecycled(
                 buffers ->
                         ChannelStateWriteRequest.write(
@@ -49,7 +48,7 @@ public class ChannelStateWriteRequestDispatcherImplTest {
     }
 
     @Test
-    public void testPartialResultSubpartitionStateWrite() throws Exception {
+    void testPartialResultSubpartitionStateWrite() throws Exception {
         testBuffersRecycled(
                 buffers ->
                         ChannelStateWriteRequest.write(
@@ -57,7 +56,7 @@ public class ChannelStateWriteRequestDispatcherImplTest {
     }
 
     @Test
-    public void testConcurrentUnalignedCheckpoint() throws Exception {
+    void testConcurrentUnalignedCheckpoint() throws Exception {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
                         "dummy task",
@@ -68,16 +67,16 @@ public class ChannelStateWriteRequestDispatcherImplTest {
         processor.dispatch(
                 ChannelStateWriteRequest.start(
                         1L, result, CheckpointStorageLocationReference.getDefault()));
-        assertFalse(result.isDone());
+        assertThat(result.isDone()).isFalse();
 
         processor.dispatch(
                 ChannelStateWriteRequest.start(
                         2L,
                         new ChannelStateWriteResult(),
                         CheckpointStorageLocationReference.getDefault()));
-        assertTrue(result.isDone());
-        assertTrue(result.getInputChannelStateHandles().isCompletedExceptionally());
-        assertTrue(result.getResultSubpartitionStateHandles().isCompletedExceptionally());
+        assertThat(result.isDone()).isTrue();
+        assertThat(result.getInputChannelStateHandles()).isCompletedExceptionally();
+        assertThat(result.getResultSubpartitionStateHandles()).isCompletedExceptionally();
     }
 
     private void testBuffersRecycled(
@@ -98,9 +97,7 @@ public class ChannelStateWriteRequestDispatcherImplTest {
 
         NetworkBuffer[] buffers = new NetworkBuffer[] {buffer(), buffer()};
         dispatcher.dispatch(requestBuilder.apply(buffers));
-        for (NetworkBuffer buffer : buffers) {
-            assertTrue(buffer.isRecycled());
-        }
+        assertThat(buffers).allMatch(NetworkBuffer::isRecycled);
     }
 
     private NetworkBuffer buffer() {
