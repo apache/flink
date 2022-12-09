@@ -182,10 +182,7 @@ class ChannelStateWriterImplTest {
 
     @Test
     void testAddDataNotStarted() {
-        assertThatThrownBy(
-                        () ->
-                                executeCallbackAndProcessWithSyncWorker(
-                                        (Consumer<ChannelStateWriter>) this::callAddInputData))
+        assertThatThrownBy(() -> executeCallbackAndProcessWithSyncWorker(this::callAddInputData))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
