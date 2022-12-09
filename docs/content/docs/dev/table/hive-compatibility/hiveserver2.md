@@ -245,6 +245,7 @@ import java.sql.Statement;
 
 public class JdbcConnection {
     public static void main(String[] args) throws Exception {
+        Class.forName("org.apache.hive.jdbc.HiveDriver");
         try (
                 // Please replace the JDBC URI with your actual host, port and database.
                 Connection connection = DriverManager.getConnection("jdbc:hive2://{host}:{port}/{database};auth=noSasl"); 

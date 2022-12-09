@@ -159,7 +159,7 @@ Start the Flink SQL Gateway as a daemon to submit Flink SQL.
 You can configure the SQL Gateway when starting the SQL Gateway below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
 
 ```bash
-$ ./sql-gateway -Dkey=value
+$ ./bin/sql-gateway.sh -Dkey=value
 ```
 
 <table class="configuration table table-bordered">
