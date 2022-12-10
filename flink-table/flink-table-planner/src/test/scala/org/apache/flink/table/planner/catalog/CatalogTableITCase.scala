@@ -31,7 +31,7 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
-import org.junit.{Before, Rule, Test}
+import org.junit.{Before, Ignore, Rule, Test}
 import org.junit.Assert.{assertEquals, assertNotEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
@@ -946,6 +946,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array("t1")))
   }
 
+  @Ignore("FLINK-29072")
   @Test
   def testAlterTable(): Unit = {
     val ddl1 =

@@ -24,12 +24,12 @@ import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableReset;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
 import org.apache.flink.sql.parser.ddl.SqlAlterView;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewAs;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
@@ -160,10 +160,10 @@ import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
-import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
@@ -188,7 +188,6 @@ import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -235,6 +234,7 @@ public class SqlToOperationConverter {
     private final FlinkPlannerImpl flinkPlanner;
     private final CatalogManager catalogManager;
     private final SqlCreateTableConverter createTableConverter;
+    private final AlterSchemaConverter alterSchemaConverter;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -247,6 +247,12 @@ public class SqlToOperationConverter {
                         catalogManager,
                         this::getQuotedSqlString,
                         this::validateTableConstraint);
+        this.alterSchemaConverter =
+                new AlterSchemaConverter(
+                        flinkPlanner.getOrCreateSqlValidator(),
+                        this::validateTableConstraint,
+                        this::getQuotedSqlString,
+                        catalogManager.getSchemaResolver());
     }
 
     /**
@@ -495,28 +501,6 @@ public class SqlToOperationConverter {
         } else if (sqlAlterTable instanceof SqlAlterTableReset) {
             return convertAlterTableReset(
                     tableIdentifier, (CatalogTable) baseTable, (SqlAlterTableReset) sqlAlterTable);
-        } else if (sqlAlterTable instanceof SqlAlterTableAddConstraint) {
-            SqlTableConstraint constraint =
-                    ((SqlAlterTableAddConstraint) sqlAlterTable).getConstraint();
-            validateTableConstraint(constraint);
-            TableSchema oriSchema =
-                    TableSchema.fromResolvedSchema(
-                            baseTable
-                                    .getUnresolvedSchema()
-                                    .resolve(catalogManager.getSchemaResolver()));
-            // Sanity check for constraint.
-            TableSchema.Builder builder = TableSchemaUtils.builderWithGivenSchema(oriSchema);
-            if (constraint.getConstraintName().isPresent()) {
-                builder.primaryKey(
-                        constraint.getConstraintName().get(), constraint.getColumnNames());
-            } else {
-                builder.primaryKey(constraint.getColumnNames());
-            }
-            builder.build();
-            return new AlterTableAddConstraintOperation(
-                    tableIdentifier,
-                    constraint.getConstraintName().orElse(null),
-                    constraint.getColumnNames());
         } else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
             SqlAlterTableDropConstraint dropConstraint =
                     ((SqlAlterTableDropConstraint) sqlAlterTable);
@@ -571,6 +555,11 @@ public class SqlToOperationConverter {
                     tableIdentifier,
                     optionalCatalogTable.get(),
                     (SqlAlterTableCompact) sqlAlterTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableSchema) {
+            return convertAlterTableSchema(
+                    tableIdentifier,
+                    optionalCatalogTable.get().getResolvedTable(),
+                    (SqlAlterTableSchema) sqlAlterTable);
         } else {
             throw new ValidationException(
                     String.format(
@@ -682,6 +671,21 @@ public class SqlToOperationConverter {
                 String.format(
                         "ALTER TABLE COMPACT operation is not supported for non-managed table %s",
                         tableIdentifier));
+    }
+
+    private AlterTableSchemaOperation convertAlterTableSchema(
+            ObjectIdentifier tableIdentifier,
+            ResolvedCatalogTable originalTable,
+            SqlAlterTableSchema alterTableSchema) {
+
+        return new AlterTableSchemaOperation(
+                tableIdentifier,
+                CatalogTable.of(
+                        alterSchemaConverter.applySchemaChange(
+                                alterTableSchema, originalTable.getUnresolvedSchema()),
+                        originalTable.getComment(),
+                        originalTable.getPartitionKeys(),
+                        originalTable.getOptions()));
     }
 
     /** Convert CREATE FUNCTION statement. */
@@ -1487,7 +1491,7 @@ public class SqlToOperationConverter {
         if (constraint.isEnforced()) {
             throw new ValidationException(
                     "Flink doesn't support ENFORCED mode for "
-                            + "PRIMARY KEY constraint. ENFORCED/NOT ENFORCED  controls if the constraint "
+                            + "PRIMARY KEY constraint. ENFORCED/NOT ENFORCED controls if the constraint "
                             + "checks are performed on the incoming/outgoing data. "
                             + "Flink does not own the data therefore the only supported mode "
                             + "is the NOT ENFORCED mode");

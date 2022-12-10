@@ -38,7 +38,6 @@ import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
@@ -125,7 +124,6 @@ import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
-import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
@@ -994,31 +992,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterTablePropertiesOp.getCatalogTable(),
                             alterTablePropertiesOp.getTableIdentifier(),
                             false);
-                } else if (alterTableOperation instanceof AlterTableAddConstraintOperation) {
-                    AlterTableAddConstraintOperation addConstraintOP =
-                            (AlterTableAddConstraintOperation) operation;
-                    CatalogTable oriTable =
-                            catalogManager
-                                    .getTable(addConstraintOP.getTableIdentifier())
-                                    .get()
-                                    .getResolvedTable();
-                    TableSchema.Builder builder =
-                            TableSchemaUtils.builderWithGivenSchema(oriTable.getSchema());
-                    if (addConstraintOP.getConstraintName().isPresent()) {
-                        builder.primaryKey(
-                                addConstraintOP.getConstraintName().get(),
-                                addConstraintOP.getColumnNames());
-                    } else {
-                        builder.primaryKey(addConstraintOP.getColumnNames());
-                    }
-                    CatalogTable newTable =
-                            new CatalogTableImpl(
-                                    builder.build(),
-                                    oriTable.getPartitionKeys(),
-                                    oriTable.getOptions(),
-                                    oriTable.getComment());
-                    catalogManager.alterTable(
-                            newTable, addConstraintOP.getTableIdentifier(), false);
                 } else if (alterTableOperation instanceof AlterTableDropConstraintOperation) {
                     AlterTableDropConstraintOperation dropConstraintOperation =
                             (AlterTableDropConstraintOperation) operation;

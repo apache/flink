@@ -396,34 +396,107 @@ org.apache.flink.table.api.ValidationException: ALTER TABLE RESET does not suppo
 !error
 
 # ==========================================================================
+# test alter table add schema
+# ==========================================================================
+
+# test alter table schema add an existed column
+alter table orders2 add product string first;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Failed to execute ALTER TABLE statement.
+Try to add a column `product` which already exists in the table.
+!error
+
+# test alter table schema add a column after a nonexistent column
+alter table orders2 add user_id string after shipment_info;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Failed to execute ALTER TABLE statement.
+Referenced column `shipment_info` by 'AFTER' does not exist in the table.
+!error
+
+# test alter table add one column
+alter table orders2 add product_id bigint not null after `user`;
+[INFO] Execute statement succeed.
+!info
+
+# verify table schema using SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `user` BIGINT NOT NULL,
+  `product_id` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
+# test alter table add multiple columns
+alter table orders2 add (user_email string not null after `user`, cleaned_product as coalesce(product, 'missing_sku') after product, trade_order_id bigint not null first);
+[INFO] Execute statement succeed.
+!info
+
+# verify table schema using SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `trade_order_id` BIGINT NOT NULL,
+  `user` BIGINT NOT NULL,
+  `user_email` VARCHAR(2147483647) NOT NULL,
+  `product_id` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `cleaned_product` AS COALESCE(`product`, 'missing_sku'),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
+# ==========================================================================
 # test describe table
 # ==========================================================================
 
 describe orders2;
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+
-|    name |                        type |  null |       key |        extras |                  watermark |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+
-|    user |                      BIGINT | FALSE | PRI(user) |               |                            |
-| product |                 VARCHAR(32) |  TRUE |           |               |                            |
-|  amount |                         INT |  TRUE |           |               |                            |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+
-5 rows in set
++-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
+|            name |                        type |  null |       key |                                extras |                  watermark |
++-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
+|  trade_order_id |                      BIGINT | FALSE |           |                                       |                            |
+|            user |                      BIGINT | FALSE | PRI(user) |                                       |                            |
+|      user_email |                      STRING | FALSE |           |                                       |                            |
+|      product_id |                      BIGINT | FALSE |           |                                       |                            |
+|         product |                 VARCHAR(32) |  TRUE |           |                                       |                            |
+| cleaned_product |                 VARCHAR(32) | FALSE |           | AS COALESCE(`product`, 'missing_sku') |                            |
+|          amount |                         INT |  TRUE |           |                                       |                            |
+|              ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |                                       | `ts` - INTERVAL '1' SECOND |
+|           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           |                         AS PROCTIME() |                            |
++-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
+9 rows in set
 !ok
 
 # test desc table
 desc orders2;
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+
-|    name |                        type |  null |       key |        extras |                  watermark |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+
-|    user |                      BIGINT | FALSE | PRI(user) |               |                            |
-| product |                 VARCHAR(32) |  TRUE |           |               |                            |
-|  amount |                         INT |  TRUE |           |               |                            |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+
-5 rows in set
++-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
+|            name |                        type |  null |       key |                                extras |                  watermark |
++-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
+|  trade_order_id |                      BIGINT | FALSE |           |                                       |                            |
+|            user |                      BIGINT | FALSE | PRI(user) |                                       |                            |
+|      user_email |                      STRING | FALSE |           |                                       |                            |
+|      product_id |                      BIGINT | FALSE |           |                                       |                            |
+|         product |                 VARCHAR(32) |  TRUE |           |                                       |                            |
+| cleaned_product |                 VARCHAR(32) | FALSE |           | AS COALESCE(`product`, 'missing_sku') |                            |
+|          amount |                         INT |  TRUE |           |                                       |                            |
+|              ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |                                       | `ts` - INTERVAL '1' SECOND |
+|           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           |                         AS PROCTIME() |                            |
++-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
+9 rows in set
 !ok
 
 # ==========================================================================
