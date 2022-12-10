@@ -320,10 +320,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql(sql0).ok(expected0);
         final String sql1 = "alter table t1 " + "add constraint ct1 primary key(a, b) not enforced";
         final String expected1 =
-                "ALTER TABLE `T1` " + "ADD CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED";
+                "ALTER TABLE `T1` ADD (\n"
+                        + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                        + ")";
         sql(sql1).ok(expected1);
         final String sql2 = "alter table t1 " + "add unique(a, b)";
-        final String expected2 = "ALTER TABLE `T1` " + "ADD UNIQUE (`A`, `B`)";
+        final String expected2 = "ALTER TABLE `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")";
         sql(sql2).ok(expected2);
         final String sql3 = "alter table t1 drop constraint ct1";
         final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
