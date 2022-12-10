@@ -36,7 +36,7 @@ import java.util.Collection;
 public class HashMapStateBackendMigrationTest
         extends StateBackendMigrationTestBase<HashMapStateBackend> {
 
-    @TempDir public static File tmpCheckpointPath;
+    @TempDir static File tmpCheckpointPath;
 
     @Parameter() public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
 

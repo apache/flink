@@ -89,7 +89,7 @@ public class ChangelogStateDiscardTest {
     private static final Random RANDOM = new Random();
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnMaterialization() throws Exception {
+    void testPreEmptiveUploadDiscardedOnMaterialization() throws Exception {
         singleBackendTest(
                 (backend, writer, uploader) -> {
                     changeAndLogRandomState(backend, uploader.results::size);
@@ -102,7 +102,7 @@ public class ChangelogStateDiscardTest {
     }
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnSubsumption() throws Exception {
+    void testPreEmptiveUploadDiscardedOnSubsumption() throws Exception {
         singleBackendTest(
                 (backend, writer, uploader) -> {
                     changeAndLogRandomState(backend, uploader.results::size);
@@ -115,7 +115,7 @@ public class ChangelogStateDiscardTest {
     }
 
     @Test
-    public void testPreEmptiveUploadNotDiscardedWithoutNotification() throws Exception {
+    void testPreEmptiveUploadNotDiscardedWithoutNotification() throws Exception {
         singleBackendTest(
                 (backend, writer, uploader) -> {
                     changeAndLogRandomState(backend, uploader.results::size);
@@ -126,7 +126,7 @@ public class ChangelogStateDiscardTest {
     }
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnMaterializationIfCompletedLater() throws Exception {
+    void testPreEmptiveUploadDiscardedOnMaterializationIfCompletedLater() throws Exception {
         final TaskChangelogRegistry registry =
                 TaskChangelogRegistry.defaultChangelogRegistry(directExecutor());
         final TestingUploadScheduler scheduler = new TestingUploadScheduler(registry);
@@ -149,7 +149,7 @@ public class ChangelogStateDiscardTest {
     }
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnClose() throws Exception {
+    void testPreEmptiveUploadDiscardedOnClose() throws Exception {
         final List<TestingStreamStateHandle> afterCheckpoint = new ArrayList<>();
         final List<TestingStreamStateHandle> beforeCheckpoint = new ArrayList<>();
         singleBackendTest(
@@ -179,7 +179,7 @@ public class ChangelogStateDiscardTest {
      * </ol>
      */
     @Test
-    public void testPreEmptiveUploadForMultipleBackends() throws Exception {
+    void testPreEmptiveUploadForMultipleBackends() throws Exception {
         // using the same range (rescaling not involved)
         final KeyGroupRange kgRange = KeyGroupRange.of(0, 10);
         final JobID jobId = new JobID();

@@ -44,7 +44,7 @@ import java.io.IOException;
 /** Tests for {@link ChangelogStateBackend} delegating {@link FsStateBackend}. */
 public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest {
 
-    @TempDir public static File tmPath;
+    @TempDir static File tmPath;
 
     @Override
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {
@@ -88,7 +88,7 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
     }
 
     @TestTemplate
-    public void testMaterializedRestore() throws Exception {
+    void testMaterializedRestore() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestore(
@@ -96,7 +96,7 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
     }
 
     @TestTemplate
-    public void testMaterializedRestoreWithWrappedState() throws Exception {
+    void testMaterializedRestoreWithWrappedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         Configuration configuration = new Configuration();
@@ -112,7 +112,7 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
     }
 
     @TestTemplate
-    public void testMaterializedRestorePriorityQueue() throws Exception {
+    void testMaterializedRestorePriorityQueue() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(

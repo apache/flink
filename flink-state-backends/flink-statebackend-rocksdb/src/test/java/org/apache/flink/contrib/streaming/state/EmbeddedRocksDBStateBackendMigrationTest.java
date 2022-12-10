@@ -37,7 +37,7 @@ import java.util.List;
 public class EmbeddedRocksDBStateBackendMigrationTest
         extends StateBackendMigrationTestBase<EmbeddedRocksDBStateBackend> {
 
-    @TempDir public static File tmpCheckpointPath;
+    @TempDir static File tmpCheckpointPath;
 
     @Parameter(value = 0)
     public boolean enableIncrementalCheckpointing;

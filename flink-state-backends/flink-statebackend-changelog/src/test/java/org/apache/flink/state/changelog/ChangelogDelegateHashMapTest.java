@@ -41,7 +41,7 @@ import java.io.IOException;
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
 
-    @TempDir public static File tmPath;
+    @TempDir static File tmPath;
 
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {
         return ChangelogStateBackendTestUtils.createTaskStateManager(tmPath);
@@ -79,7 +79,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
     }
 
     @TestTemplate
-    public void testMaterializedRestore() throws Exception {
+    void testMaterializedRestore() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestore(
@@ -87,7 +87,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
     }
 
     @TestTemplate
-    public void testMaterializedRestoreWithWrappedState() throws Exception {
+    void testMaterializedRestoreWithWrappedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         Configuration configuration = new Configuration();
@@ -103,7 +103,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
     }
 
     @TestTemplate
-    public void testMaterializedRestorePriorityQueue() throws Exception {
+    void testMaterializedRestorePriorityQueue() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(

@@ -43,24 +43,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ChangelogMapStateTest {
 
     @Test
-    public void testValuesIterator() throws Exception {
+    void testValuesIterator() throws Exception {
         testIterator(singletonMap("key", "value"), state -> state.values().iterator(), "value");
     }
 
     @Test
-    public void testKeysIterator() throws Exception {
+    void testKeysIterator() throws Exception {
         testIterator(singletonMap("key", "value"), state -> state.keys().iterator(), "key");
     }
 
     @Test
-    public void testEntriesIterator() throws Exception {
+    void testEntriesIterator() throws Exception {
         Map<String, String> map = singletonMap("key", "value");
         Map.Entry<String, String> entry = map.entrySet().iterator().next();
         testIterator(map, state -> state.entries().iterator(), entry);
     }
 
     @Test
-    public void testEntryUpdateRecorded() throws Exception {
+    void testEntryUpdateRecorded() throws Exception {
         testRecorded(
                 singletonMap("x", "y"),
                 state ->
@@ -72,7 +72,7 @@ public class ChangelogMapStateTest {
     }
 
     @Test
-    public void testPutRecorded() throws Exception {
+    void testPutRecorded() throws Exception {
         testRecorded(
                 emptyMap(),
                 state -> state.put("x", "y"),
@@ -80,7 +80,7 @@ public class ChangelogMapStateTest {
     }
 
     @Test
-    public void testPutAllRecorded() throws Exception {
+    void testPutAllRecorded() throws Exception {
         Map<String, String> map = singletonMap("x", "y");
         testRecorded(
                 emptyMap(),
@@ -89,7 +89,7 @@ public class ChangelogMapStateTest {
     }
 
     @Test
-    public void testRemoveRecorded() throws Exception {
+    void testRemoveRecorded() throws Exception {
         testRecorded(
                 singletonMap("x", "y"),
                 state -> state.remove("x"),
@@ -97,7 +97,7 @@ public class ChangelogMapStateTest {
     }
 
     @Test
-    public void testGetNotRecorded() throws Exception {
+    void testGetNotRecorded() throws Exception {
         testRecorded(
                 singletonMap("x", "y"),
                 state -> state.get("x"),
@@ -105,7 +105,7 @@ public class ChangelogMapStateTest {
     }
 
     @Test
-    public void testClearRecorded() throws Exception {
+    void testClearRecorded() throws Exception {
         testRecorded(
                 singletonMap("x", "y"),
                 ChangelogMapState::clear,

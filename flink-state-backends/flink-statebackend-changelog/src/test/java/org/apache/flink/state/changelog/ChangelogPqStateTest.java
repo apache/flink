@@ -47,12 +47,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ChangelogPqStateTest {
 
     @Test
-    public void testValuesIterator() throws Exception {
+    void testValuesIterator() throws Exception {
         testIterator(singletonList("value"), ChangelogKeyGroupedPriorityQueue::iterator, "value");
     }
 
     @Test
-    public void testPutRecorded() throws Exception {
+    void testPutRecorded() throws Exception {
         testRecorded(
                 emptyList(),
                 state -> state.add("x"),
@@ -60,7 +60,7 @@ public class ChangelogPqStateTest {
     }
 
     @Test
-    public void testPollRecorded() throws Exception {
+    void testPollRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
                 ChangelogKeyGroupedPriorityQueue::poll,
@@ -68,7 +68,7 @@ public class ChangelogPqStateTest {
     }
 
     @Test
-    public void testRemoveRecorded() throws Exception {
+    void testRemoveRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
                 state -> state.remove("x"),
@@ -84,7 +84,7 @@ public class ChangelogPqStateTest {
     }
 
     @Test
-    public void testGetNotRecorded() throws Exception {
+    void testGetNotRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
                 ChangelogKeyGroupedPriorityQueue::peek,

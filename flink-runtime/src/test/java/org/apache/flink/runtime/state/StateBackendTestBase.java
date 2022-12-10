@@ -80,7 +80,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
 
@@ -137,16 +137,16 @@ import static org.mockito.Mockito.verify;
  * <p>NOTE: Please ensure to close and dispose any created keyed state backend in tests.
  */
 @SuppressWarnings("serial")
-@ExtendWith(ParameterizedTestExtension.class)
-public abstract class StateBackendTestBase<B extends AbstractStateBackend> extends TestLogger {
+@ExtendWith({ParameterizedTestExtension.class, TestLoggerExtension.class})
+public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
     @BeforeEach
-    public void before() throws Exception {
+    void before() throws Exception {
         env = buildMockEnv();
     }
 
     @AfterEach
-    public void after() {
+    void after() {
         IOUtils.closeQuietly(env);
     }
 
@@ -261,7 +261,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testEnableStateLatencyTracking() throws Exception {
+    void testEnableStateLatencyTracking() throws Exception {
         ConfigurableStateBackend stateBackend = getStateBackend();
         Configuration config = new Configuration();
         config.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
@@ -299,7 +299,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testIsSafeToReuseState() throws Exception {
+    void testIsSafeToReuseState() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
@@ -311,12 +311,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testKeyGroupedInternalPriorityQueue() throws Exception {
+    void testKeyGroupedInternalPriorityQueue() throws Exception {
         testKeyGroupedInternalPriorityQueue(false);
     }
 
     @TestTemplate
-    public void testKeyGroupedInternalPriorityQueueAddAll() throws Exception {
+    void testKeyGroupedInternalPriorityQueueAddAll() throws Exception {
         testKeyGroupedInternalPriorityQueue(true);
     }
 
@@ -375,7 +375,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testGetKeys() throws Exception {
+    void testGetKeys() throws Exception {
         final int namespace1ElementsNum = 1000;
         final int namespace2ElementsNum = 1000;
         String fieldName = "get-keys-test";
@@ -442,7 +442,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testGetKeysAndNamespaces() throws Exception {
+    void testGetKeysAndNamespaces() throws Exception {
         final int elementsNum = 1000;
         String fieldName = "get-keys-test";
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -493,7 +493,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testBackendUsesRegisteredKryoDefaultSerializer() throws Exception {
+    void testBackendUsesRegisteredKryoDefaultSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -564,7 +564,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testBackendUsesRegisteredKryoDefaultSerializerUsingGetOrCreate() throws Exception {
+    void testBackendUsesRegisteredKryoDefaultSerializerUsingGetOrCreate() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -637,7 +637,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testBackendUsesRegisteredKryoSerializer() throws Exception {
+    void testBackendUsesRegisteredKryoSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         env.getExecutionConfig()
@@ -706,7 +706,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testBackendUsesRegisteredKryoSerializerUsingGetOrCreate() throws Exception {
+    void testBackendUsesRegisteredKryoSerializerUsingGetOrCreate() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -784,7 +784,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * performed with Kryo's default {@link com.esotericsoftware.kryo.serializers.FieldSerializer}.
      */
     @TestTemplate
-    public void testKryoRegisteringRestoreResilienceWithRegisteredType() throws Exception {
+    void testKryoRegisteringRestoreResilienceWithRegisteredType() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -862,7 +862,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
+    void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
@@ -983,7 +983,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                                             .isInstanceOf(ExpectedKryoTestException.class),
                             actual ->
                                     assertThat(actual)
-                                            .hasFieldOrProperty("cause")
                                             .hasCauseInstanceOf(ExpectedKryoTestException.class));
             snapshot2.discardState();
         } finally {
@@ -1005,7 +1004,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * @throws Exception expects {@link ExpectedKryoTestException} to be thrown.
      */
     @TestTemplate
-    public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
+    void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
@@ -1121,7 +1120,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                                             .isInstanceOf(ExpectedKryoTestException.class),
                             actual ->
                                     assertThat(actual)
-                                            .hasFieldOrProperty("cause")
                                             .hasCauseInstanceOf(ExpectedKryoTestException.class));
         } finally {
             // ensure that native resources are also released in case of exception
@@ -1133,7 +1131,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testKryoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
+    void testKryoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -1259,7 +1257,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testPojoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
+    void testPojoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -1359,7 +1357,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testValueState() throws Exception {
+    void testValueState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -1568,7 +1566,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testValueStateWorkWithTtl() throws Exception {
+    void testValueStateWorkWithTtl() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
@@ -1595,7 +1593,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testValueStateRace() throws Exception {
+    void testValueStateRace() throws Exception {
         final Integer namespace = 1;
 
         final ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
@@ -1726,7 +1724,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testMultipleValueStates() throws Exception {
+    void testMultipleValueStates() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -1808,7 +1806,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testValueStateNullUpdate() throws Exception {
+    void testValueStateNullUpdate() throws Exception {
         // precondition: LongSerializer must fail on null value. this way the test would fail
         // later if null values where actually stored in the state instead of acting as clear()
         try {
@@ -1877,7 +1875,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked,rawtypes")
-    public void testListState() throws Exception {
+    void testListState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -2110,7 +2108,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * {@code null}.
      */
     @TestTemplate
-    public void testListStateAddNull() throws Exception {
+    void testListStateAddNull() throws Exception {
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
         CheckpointableKeyedStateBackend<String> keyedBackend =
@@ -2135,7 +2133,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * ListState#addAll(List)} to be called with {@code null} entries in the list of entries to add.
      */
     @TestTemplate
-    public void testListStateAddAllNullEntries() throws Exception {
+    void testListStateAddAllNullEntries() throws Exception {
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
 
@@ -2165,7 +2163,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * ListState#addAll(List)} to be called with {@code null}.
      */
     @TestTemplate
-    public void testListStateAddAllNull() throws Exception {
+    void testListStateAddAllNull() throws Exception {
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
 
@@ -2191,7 +2189,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * ListState#addAll(List)} to be called with {@code null} entries in the list of entries to add.
      */
     @TestTemplate
-    public void testListStateUpdateNullEntries() throws Exception {
+    void testListStateUpdateNullEntries() throws Exception {
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
 
@@ -2222,7 +2220,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * ListState#addAll(List)} to be called with {@code null}.
      */
     @TestTemplate
-    public void testListStateUpdateNull() throws Exception {
+    void testListStateUpdateNull() throws Exception {
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
 
@@ -2244,7 +2242,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testListStateAPIs() throws Exception {
+    void testListStateAPIs() throws Exception {
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
 
@@ -2319,7 +2317,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testListStateMerging() throws Exception {
+    void testListStateMerging() throws Exception {
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
 
@@ -2437,7 +2435,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testReducingState() throws Exception {
+    void testReducingState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -2647,7 +2645,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testReducingStateAddAndGet() throws Exception {
+    void testReducingStateAddAndGet() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", (a, b) -> a + b, Long.class);
@@ -2705,7 +2703,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testReducingStateMerging() throws Exception {
+    void testReducingStateMerging() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", (a, b) -> a + b, Long.class);
@@ -2826,7 +2824,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testAggregatingStateAddAndGetWithMutableAccumulator() throws Exception {
+    void testAggregatingStateAddAndGetWithMutableAccumulator() throws Exception {
 
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
@@ -2885,7 +2883,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testAggregatingStateMergingWithMutableAccumulator() throws Exception {
+    void testAggregatingStateMergingWithMutableAccumulator() throws Exception {
 
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
@@ -3007,7 +3005,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testAggregatingStateAddAndGetWithImmutableAccumulator() throws Exception {
+    void testAggregatingStateAddAndGetWithImmutableAccumulator() throws Exception {
 
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
@@ -3066,7 +3064,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testAggregatingStateMergingWithImmutableAccumulator() throws Exception {
+    void testAggregatingStateMergingWithImmutableAccumulator() throws Exception {
 
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
@@ -3189,7 +3187,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked,rawtypes")
-    public void testMapState() throws Exception {
+    void testMapState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -3536,7 +3534,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testMapStateIsEmpty() throws Exception {
+    void testMapStateIsEmpty() throws Exception {
         MapStateDescriptor<Integer, Long> kvId =
                 new MapStateDescriptor<>("id", Integer.class, Long.class);
 
@@ -3573,7 +3571,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * more details.
      */
     @TestTemplate
-    public void testMapStateIteratorArbitraryAccess() throws Exception {
+    void testMapStateIteratorArbitraryAccess() throws Exception {
         MapStateDescriptor<Integer, Long> kvId =
                 new MapStateDescriptor<>("id", Integer.class, Long.class);
 
@@ -3622,7 +3620,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     /** Verify that {@link ValueStateDescriptor} allows {@code null} as default. */
     @TestTemplate
-    public void testValueStateNullAsDefaultValue() throws Exception {
+    void testValueStateNullAsDefaultValue() throws Exception {
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
 
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -3649,7 +3647,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     /** Verify that an empty {@code ValueState} will yield the default value. */
     @TestTemplate
-    public void testValueStateDefaultValue() throws Exception {
+    void testValueStateDefaultValue() throws Exception {
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, "Hello");
 
         KeyedStateHandle keyedStateHandle;
@@ -3699,7 +3697,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     /** Verify that an empty {@code ReduceState} yields {@code null}. */
     @TestTemplate
-    public void testReducingStateDefaultValue() throws Exception {
+    void testReducingStateDefaultValue() throws Exception {
         ReducingStateDescriptor<String> kvId =
                 new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
 
@@ -3726,7 +3724,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     /** Verify that an empty {@code ListState} yields {@code null}. */
     @TestTemplate
-    public void testListStateDefaultValue() throws Exception {
+    void testListStateDefaultValue() throws Exception {
         ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -3752,7 +3750,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     /** Verify that an empty {@code MapState} yields {@code null}. */
     @TestTemplate
-    public void testMapStateDefaultValue() throws Exception {
+    void testMapStateDefaultValue() throws Exception {
         MapStateDescriptor<String, String> kvId =
                 new MapStateDescriptor<>("id", String.class, String.class);
 
@@ -3784,7 +3782,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testSnapshotNonAccessedState() throws Exception {
+    void testSnapshotNonAccessedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         final String stateName = "test-name";
@@ -3862,7 +3860,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * groups. Then we make sure that the state is only available in the correct backend.
      */
     @TestTemplate
-    public void testKeyGroupSnapshotRestoreScaleDown() throws Exception {
+    void testKeyGroupSnapshotRestoreScaleDown() throws Exception {
         testKeyGroupSnapshotRestore(4, 2, 128);
     }
 
@@ -3877,7 +3875,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * groups. Then we make sure that the state is only available in the correct backend.
      */
     @TestTemplate
-    public void testKeyGroupSnapshotRestoreScaleUp() throws Exception {
+    void testKeyGroupSnapshotRestoreScaleUp() throws Exception {
         testKeyGroupSnapshotRestore(2, 4, 128);
     }
 
@@ -3892,7 +3890,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * groups. Then we make sure that the state is only available in the correct backend.
      */
     @TestTemplate
-    public void testKeyGroupsSnapshotRestoreNoRescale() throws Exception {
+    void testKeyGroupsSnapshotRestoreNoRescale() throws Exception {
         testKeyGroupSnapshotRestore(2, 2, 128);
     }
 
@@ -3909,7 +3907,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * unevenly.
      */
     @TestTemplate
-    public void testKeyGroupsSnapshotRestoreScaleDownUnEvenDistribute() throws Exception {
+    void testKeyGroupsSnapshotRestoreScaleDownUnEvenDistribute() throws Exception {
         testKeyGroupSnapshotRestore(77, 15, 128);
     }
 
@@ -4027,7 +4025,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testRestoreWithWrongKeySerializer() throws Exception {
+    void testRestoreWithWrongKeySerializer() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
@@ -4078,7 +4076,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testValueStateRestoreWithWrongSerializers() throws Exception {
+    void testValueStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
@@ -4137,7 +4135,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testListStateRestoreWithWrongSerializers() throws Exception {
+    void testListStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
@@ -4195,7 +4193,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testReducingStateRestoreWithWrongSerializers() throws Exception {
+    void testReducingStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
@@ -4257,7 +4255,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testMapStateRestoreWithWrongSerializers() throws Exception {
+    void testMapStateRestoreWithWrongSerializers() throws Exception {
         assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
@@ -4318,7 +4316,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testCopyDefaultValue() throws Exception {
+    void testCopyDefaultValue() throws Exception {
         ValueStateDescriptor<IntValue> kvId =
                 new ValueStateDescriptor<>("id", IntValue.class, new IntValue(-1));
 
@@ -4350,7 +4348,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * This test makes sure that this is prohibited now.
      */
     @TestTemplate
-    public void testRequireNonNullNamespace() throws Exception {
+    void testRequireNonNullNamespace() throws Exception {
         ValueStateDescriptor<IntValue> kvId =
                 new ValueStateDescriptor<>("id", IntValue.class, new IntValue(-1));
 
@@ -4503,7 +4501,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     /** Tests registration with the KvStateRegistry. */
     @TestTemplate
-    public void testQueryableStateRegistration() throws Exception {
+    void testQueryableStateRegistration() throws Exception {
         KvStateRegistry registry = env.getKvStateRegistry();
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
@@ -4574,7 +4572,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testEmptyStateCheckpointing() throws Exception {
+    void testEmptyStateCheckpointing() throws Exception {
 
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
@@ -4608,7 +4606,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testNumStateEntries() throws Exception {
+    void testNumStateEntries() throws Exception {
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4663,7 +4661,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * previous snapshot is still running and blocking.
      */
     @TestTemplate
-    public void testParallelAsyncSnapshots() throws Exception {
+    void testParallelAsyncSnapshots() throws Exception {
         assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch blocker = new OneShotLatch();
         OneShotLatch waiter = new OneShotLatch();
@@ -4741,7 +4739,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testNonConcurrentSnapshotTransformerAccess() throws Exception {
+    void testNonConcurrentSnapshotTransformerAccess() throws Exception {
         BlockerCheckpointStreamFactory streamFactory =
                 new BlockerCheckpointStreamFactory(1024 * 1024);
         CheckpointableKeyedStateBackend<Integer> backend = null;
@@ -4758,7 +4756,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testAsyncSnapshot() throws Exception {
+    void testAsyncSnapshot() throws Exception {
         assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch waiter = new OneShotLatch();
         BlockerCheckpointStreamFactory streamFactory =
@@ -4853,7 +4851,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * KeyedStateFunction)}.
      */
     @TestTemplate
-    public void testConcurrentModificationWithApplyToAllKeys() throws Exception {
+    void testConcurrentModificationWithApplyToAllKeys() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -4943,7 +4941,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testApplyToAllKeysLambdaFunction() throws Exception {
+    void testApplyToAllKeysLambdaFunction() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -4976,7 +4974,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testAsyncSnapshotCancellation() throws Exception {
+    void testAsyncSnapshotCancellation() throws Exception {
         assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch blocker = new OneShotLatch();
         OneShotLatch waiter = new OneShotLatch();
@@ -5042,7 +5040,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testMapStateGetKeys() throws Exception {
+    void testMapStateGetKeys() throws Exception {
         final int namespace1ElementsNum = 1000;
         final int namespace2ElementsNum = 1000;
         String fieldName = "get-keys-test";
@@ -5113,7 +5111,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testMapStateGetKeysAndNamespaces() throws Exception {
+    void testMapStateGetKeysAndNamespaces() throws Exception {
         final int elementsNum = 1000;
         String fieldName = "get-keys-test";
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -5159,7 +5157,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @TestTemplate
-    public void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
+    void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         ExecutorService executorService = Executors.newScheduledThreadPool(1);
         CheckpointableKeyedStateBackend<Integer> backend =

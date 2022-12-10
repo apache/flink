@@ -44,7 +44,7 @@ import java.io.IOException;
 public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         extends EmbeddedRocksDBStateBackendTest {
 
-    @TempDir public static File tmPath;
+    @TempDir static File tmPath;
 
     @Override
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {
@@ -68,7 +68,7 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
 
     @TestTemplate
     @Disabled("The type of handle returned from snapshot() is not incremental")
-    public void testSharedIncrementalStateDeRegistration() {}
+    void testSharedIncrementalStateDeRegistration() {}
 
     @Override
     protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
@@ -92,7 +92,7 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testMaterializedRestore() throws Exception {
+    void testMaterializedRestore() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestore(
@@ -100,7 +100,7 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testMaterializedRestoreWithWrappedState() throws Exception {
+    void testMaterializedRestoreWithWrappedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         Configuration configuration = new Configuration();
@@ -116,7 +116,7 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testMaterializedRestorePriorityQueue() throws Exception {
+    void testMaterializedRestorePriorityQueue() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(

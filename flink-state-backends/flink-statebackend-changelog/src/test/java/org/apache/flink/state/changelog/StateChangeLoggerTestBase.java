@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 abstract class StateChangeLoggerTestBase<Namespace> {
     /** A basic test for appending the metadata on first state access. */
     @Test
-    public void testMetadataOperationLogged() throws IOException {
+    void testMetadataOperationLogged() throws IOException {
         TestingStateChangelogWriter writer = new TestingStateChangelogWriter();
         InternalKeyContextImpl<String> keyContext =
                 new InternalKeyContextImpl<>(KeyGroupRange.of(1, 1000), 1000);

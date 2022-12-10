@@ -105,8 +105,8 @@ public class EmbeddedRocksDBStateBackendTest
     private ValueState<Integer> testState1;
     private ValueState<String> testState2;
 
-    @TempDir public static File tmpCheckpointPath;
-    @TempDir public static File tmpDbPath;
+    @TempDir static File tmpCheckpointPath;
+    @TempDir static File tmpDbPath;
 
     @Parameters
     public static List<Object[]> modes() throws IOException {
@@ -196,7 +196,7 @@ public class EmbeddedRocksDBStateBackendTest
 
     // small safety net for instance cleanups, so that no native objects are left
     @AfterEach
-    public void cleanupRocksDB() {
+    void cleanupRocksDB() {
         if (keyedStateBackend != null) {
             IOUtils.closeQuietly(keyedStateBackend);
             keyedStateBackend.dispose();
@@ -310,7 +310,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testCorrectMergeOperatorSet() throws Exception {
+    void testCorrectMergeOperatorSet() throws Exception {
         prepareRocksDB();
         final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
         RocksDBKeyedStateBackend<Integer> test = null;
@@ -346,7 +346,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testReleasingSnapshotAfterBackendClosed() throws Exception {
+    void testReleasingSnapshotAfterBackendClosed() throws Exception {
         setupRocksKeyedStateBackend();
 
         try {
@@ -384,7 +384,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testDismissingSnapshot() throws Exception {
+    void testDismissingSnapshot() throws Exception {
         setupRocksKeyedStateBackend();
         try {
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
@@ -403,7 +403,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testDismissingSnapshotNotRunnable() throws Exception {
+    void testDismissingSnapshotNotRunnable() throws Exception {
         setupRocksKeyedStateBackend();
         try {
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
@@ -431,7 +431,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testCompletingSnapshot() throws Exception {
+    void testCompletingSnapshot() throws Exception {
         setupRocksKeyedStateBackend();
         try {
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
@@ -468,7 +468,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testCancelRunningSnapshot() throws Exception {
+    void testCancelRunningSnapshot() throws Exception {
         setupRocksKeyedStateBackend();
         try {
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
@@ -506,7 +506,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testDisposeDeletesAllDirectories() throws Exception {
+    void testDisposeDeletesAllDirectories() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         Collection<File> allFilesInDbDir =
@@ -540,7 +540,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testSharedIncrementalStateDeRegistration() throws Exception {
+    void testSharedIncrementalStateDeRegistration() throws Exception {
         if (enableIncrementalCheckpointing) {
             CheckpointableKeyedStateBackend<Integer> backend =
                     createKeyedBackend(IntSerializer.INSTANCE);
@@ -622,7 +622,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @TestTemplate
-    public void testMapStateClear() throws Exception {
+    void testMapStateClear() throws Exception {
         setupRocksKeyedStateBackend();
         MapStateDescriptor<Integer, String> kvId =
                 new MapStateDescriptor<>("id", Integer.class, String.class);

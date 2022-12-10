@@ -81,7 +81,7 @@ public class ChangelogMetricGroupTest {
     private Gauge<Long> lastIncSizeOfNonMaterializationGauge;
 
     @Test
-    public void testCompletedMaterialization() throws Exception {
+    void testCompletedMaterialization() throws Exception {
         setup(snapshotResult -> snapshotResult);
 
         // The materialization will be skipped if no data updated.
@@ -128,7 +128,7 @@ public class ChangelogMetricGroupTest {
     }
 
     @Test
-    public void testFailedMaterialization() throws Exception {
+    void testFailedMaterialization() throws Exception {
         setup(snapshotResult -> ExceptionallyDoneFuture.of(new RuntimeException()));
         changelogKeyedStateBackend.setCurrentKey(1);
         state.update(1);

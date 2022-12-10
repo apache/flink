@@ -41,7 +41,7 @@ import java.util.List;
  */
 public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBackend> {
 
-    @TempDir public static File tmpCheckpointPath;
+    @TempDir static File tmpCheckpointPath;
 
     @Parameters
     public static List<Object[]> modes() {
@@ -87,23 +87,23 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
     // disable these because the verification does not work for this state backend
     @Override
     @TestTemplate
-    public void testValueStateRestoreWithWrongSerializers() {}
+    void testValueStateRestoreWithWrongSerializers() {}
 
     @Override
     @TestTemplate
-    public void testListStateRestoreWithWrongSerializers() {}
+    void testListStateRestoreWithWrongSerializers() {}
 
     @Override
     @TestTemplate
-    public void testReducingStateRestoreWithWrongSerializers() {}
+    void testReducingStateRestoreWithWrongSerializers() {}
 
     @Override
     @TestTemplate
-    public void testMapStateRestoreWithWrongSerializers() {}
+    void testMapStateRestoreWithWrongSerializers() {}
 
     @Disabled
     @TestTemplate
-    public void testConcurrentMapIfQueryable() throws Exception {
+    protected void testConcurrentMapIfQueryable() throws Exception {
         super.testConcurrentMapIfQueryable();
     }
 }

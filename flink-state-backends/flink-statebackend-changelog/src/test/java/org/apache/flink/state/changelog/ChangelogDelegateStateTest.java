@@ -64,37 +64,37 @@ public class ChangelogDelegateStateTest {
     @Parameter public Supplier<AbstractStateBackend> backend;
 
     @BeforeEach
-    public void before() {
+    void before() {
         env = MockEnvironment.builder().build();
         env.setCheckpointStorageAccess(new DummyCheckpointingStorageAccess());
     }
 
     @AfterEach
-    public void after() {
+    void after() {
         IOUtils.closeQuietly(env);
     }
 
     @TestTemplate
-    public void testDelegatingValueState() throws Exception {
+    void testDelegatingValueState() throws Exception {
         testDelegatingState(
                 new ValueStateDescriptor<>("id", String.class), ChangelogValueState.class);
     }
 
     @TestTemplate
-    public void testDelegatingListState() throws Exception {
+    void testDelegatingListState() throws Exception {
         testDelegatingState(
                 new ListStateDescriptor<>("id", String.class), ChangelogListState.class);
     }
 
     @TestTemplate
-    public void testDelegatingMapState() throws Exception {
+    void testDelegatingMapState() throws Exception {
         testDelegatingState(
                 new MapStateDescriptor<>("id", Integer.class, String.class),
                 ChangelogMapState.class);
     }
 
     @TestTemplate
-    public void testDelegatingReducingState() throws Exception {
+    void testDelegatingReducingState() throws Exception {
         testDelegatingState(
                 new ReducingStateDescriptor<>(
                         "id", (value1, value2) -> value1 + "," + value2, String.class),
@@ -102,7 +102,7 @@ public class ChangelogDelegateStateTest {
     }
 
     @TestTemplate
-    public void testDelegatingAggregatingState() throws Exception {
+    void testDelegatingAggregatingState() throws Exception {
         testDelegatingState(
                 new AggregatingStateDescriptor<>(
                         "my-state",

@@ -45,12 +45,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ChangelogListStateTest {
 
     @Test
-    public void testValuesIterator() throws Exception {
+    void testValuesIterator() throws Exception {
         testIterator(singletonList("value"), state -> state.get().iterator(), "value");
     }
 
     @Test
-    public void testPutRecorded() throws Exception {
+    void testPutRecorded() throws Exception {
         testRecorded(
                 emptyList(),
                 state -> state.add("x"),
@@ -58,7 +58,7 @@ public class ChangelogListStateTest {
     }
 
     @Test
-    public void testAddAllRecorded() throws Exception {
+    void testAddAllRecorded() throws Exception {
         List<String> list = Arrays.asList("a", "b", "c");
         testRecorded(
                 emptyList(),
@@ -67,7 +67,7 @@ public class ChangelogListStateTest {
     }
 
     @Test
-    public void testGetNotRecorded() throws Exception {
+    void testGetNotRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
                 ChangelogListState::get,
@@ -75,7 +75,7 @@ public class ChangelogListStateTest {
     }
 
     @Test
-    public void testClearRecorded() throws Exception {
+    void testClearRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
                 ChangelogListState::clear,

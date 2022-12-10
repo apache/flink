@@ -138,9 +138,4 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
 
         return keyedStateBackend;
     }
-
-    @Override
-    public String toString() {
-        return "ChangelogStateBackend{" + "delegatedStateBackend=" + delegatedStateBackend + '}';
-    }
 }

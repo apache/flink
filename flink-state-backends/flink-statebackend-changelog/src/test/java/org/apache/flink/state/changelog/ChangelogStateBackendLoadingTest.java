@@ -76,7 +76,7 @@ public class ChangelogStateBackendLoadingTest {
     private final String backendKey = StateBackendOptions.STATE_BACKEND.key();
 
     @Test
-    public void testLoadingDefault() throws Exception {
+    void testLoadingDefault() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         null, TernaryBoolean.UNDEFINED, config(), cl, null);
@@ -86,7 +86,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testApplicationDefinedHasPrecedence() throws Exception {
+    void testApplicationDefinedHasPrecedence() throws Exception {
         final StateBackend appBackend = new MockStateBackend();
         // "rocksdb" should not take effect
         final StateBackend backend =
@@ -105,7 +105,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testApplicationDefinedChangelogStateBackend() throws Exception {
+    void testApplicationDefinedChangelogStateBackend() throws Exception {
         final StateBackend appBackend = new MockStateBackend();
         // "rocksdb" should not take effect
         final StateBackend backend =
@@ -124,7 +124,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testApplicationEnableChangelogStateBackend() throws Exception {
+    void testApplicationEnableChangelogStateBackend() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         null, TernaryBoolean.TRUE, config(false), cl, null);
@@ -136,7 +136,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testApplicationDisableChangelogStateBackend() throws Exception {
+    void testApplicationDisableChangelogStateBackend() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         null, TernaryBoolean.FALSE, config(true), cl, null);
@@ -144,7 +144,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testLoadingChangelogForRecovery() throws Exception {
+    void testLoadingChangelogForRecovery() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.loadStateBackendFromKeyedStateHandles(
                         new MockStateBackend(),
@@ -156,7 +156,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testRecursiveDelegation() {
+    void testRecursiveDelegation() {
         assertThatThrownBy(
                         () -> {
                             final StateBackend appBackend =
@@ -180,43 +180,43 @@ public class ChangelogStateBackendLoadingTest {
     // These tests can be simplified.
     //
     @Test
-    public void testLoadingMemoryStateBackendFromConfig() throws Exception {
+    void testLoadingMemoryStateBackendFromConfig() throws Exception {
         testLoadingStateBackend(
                 "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, true);
     }
 
     @Test
-    public void testLoadingMemoryStateBackend() throws Exception {
+    void testLoadingMemoryStateBackend() throws Exception {
         testLoadingStateBackend(
                 "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, false);
     }
 
     @Test
-    public void testLoadingFsStateBackendFromConfig() throws Exception {
+    void testLoadingFsStateBackendFromConfig() throws Exception {
         testLoadingStateBackend(
                 "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, true);
     }
 
     @Test
-    public void testLoadingFsStateBackend() throws Exception {
+    void testLoadingFsStateBackend() throws Exception {
         testLoadingStateBackend(
                 "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, false);
     }
 
     @Test
-    public void testLoadingHashMapStateBackendFromConfig() throws Exception {
+    void testLoadingHashMapStateBackendFromConfig() throws Exception {
         testLoadingStateBackend(
                 "hashmap", HashMapStateBackend.class, JobManagerCheckpointStorage.class, true);
     }
 
     @Test
-    public void testLoadingHashMapStateBackend() throws Exception {
+    void testLoadingHashMapStateBackend() throws Exception {
         testLoadingStateBackend(
                 "hashmap", HashMapStateBackend.class, JobManagerCheckpointStorage.class, false);
     }
 
     @Test
-    public void testLoadingRocksDBStateBackendFromConfig() throws Exception {
+    void testLoadingRocksDBStateBackendFromConfig() throws Exception {
         testLoadingStateBackend(
                 "rocksdb",
                 EmbeddedRocksDBStateBackend.class,
@@ -225,7 +225,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testLoadingRocksDBStateBackend() throws Exception {
+    void testLoadingRocksDBStateBackend() throws Exception {
         testLoadingStateBackend(
                 "rocksdb",
                 EmbeddedRocksDBStateBackend.class,
@@ -234,7 +234,7 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testEnableChangelogStateBackendInStreamExecutionEnvironment() throws Exception {
+    void testEnableChangelogStateBackendInStreamExecutionEnvironment() throws Exception {
         StreamExecutionEnvironment env = getEnvironment();
         assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
                 env, TernaryBoolean.UNDEFINED, null);

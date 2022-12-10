@@ -72,7 +72,7 @@ public class ChangelogKeyedStateBackendTest {
     public long materializationId;
 
     @TestTemplate
-    public void testCheckpointConfirmation() throws Exception {
+    void testCheckpointConfirmation() throws Exception {
         MockKeyedStateBackend<Integer> mock = createMock();
         ChangelogKeyedStateBackend<Integer> changelog = createChangelog(mock);
         try {

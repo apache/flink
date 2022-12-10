@@ -37,9 +37,9 @@ public class RocksDBStateBackendMigrationTest
     // Store it because we need it for the cleanup test.
     public static String dbPath;
 
-    @TempDir public static File tmpDbPath;
+    @TempDir static File tmpDbPath;
 
-    @TempDir public static File tmpCheckpointPath;
+    @TempDir static File tmpCheckpointPath;
 
     @Parameter public boolean enableIncrementalCheckpointing;
 
