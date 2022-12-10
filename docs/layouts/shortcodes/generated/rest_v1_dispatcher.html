@@ -704,21 +704,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "string"
       }
     },
-    "environment" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:EnvironmentVariableItem",
-        "properties" : {
-          "key" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
-      }
-    },
     "jvm" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:JVMInfo",
@@ -1547,6 +1532,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "processed_data" : {
             "type" : "integer"
           },
+          "savepointFormat" : {
+            "type" : "string"
+          },
           "state_size" : {
             "type" : "integer"
           },
@@ -1614,6 +1602,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             },
             "processed_data" : {
               "type" : "integer"
+            },
+            "savepointFormat" : {
+              "type" : "string"
             },
             "state_size" : {
               "type" : "integer"
@@ -1713,6 +1704,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             },
             "processed_data" : {
               "type" : "integer"
+            },
+            "savepointFormat" : {
+              "type" : "string"
             },
             "state_size" : {
               "type" : "integer"
@@ -2057,6 +2051,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "processed_data" : {
       "type" : "integer"
+    },
+    "savepointFormat" : {
+      "type" : "string"
     },
     "state_size" : {
       "type" : "integer"
@@ -2721,21 +2718,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "array",
       "items" : {
         "type" : "string"
-      }
-    },
-    "environment" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:EnvironmentVariableItem",
-        "properties" : {
-          "key" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
       }
     },
     "jvm" : {
