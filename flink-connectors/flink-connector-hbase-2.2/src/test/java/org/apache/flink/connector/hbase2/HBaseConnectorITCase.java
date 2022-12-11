@@ -312,6 +312,61 @@ public class HBaseConnectorITCase extends HBaseTestBase {
     }
 
     @Test
+    public void testPartialColumnTableSink() throws Exception {
+        StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
+
+        // register HBase table testTable1 which contains test data
+        String table1DDL = createHBaseTableDDL(TEST_TABLE_1, false);
+        tEnv.executeSql(table1DDL);
+
+        String table2DDL = createHBaseTableDDL(TEST_TABLE_4, false);
+        tEnv.executeSql(table2DDL);
+
+        String query =
+                "INSERT INTO "
+                        + TEST_TABLE_4
+                        + " (rowkey, family3) "
+                        + " SELECT"
+                        + " rowkey,"
+                        + " family3"
+                        + " FROM "
+                        + TEST_TABLE_1;
+
+        tEnv.executeSql(query).await();
+
+        // start a batch scan job to verify contents in HBase table
+        TableEnvironment batchEnv = TableEnvironment.create(batchSettings);
+        batchEnv.executeSql(table2DDL);
+
+        Table table =
+                batchEnv.sqlQuery(
+                        "SELECT "
+                                + "  h.rowkey, "
+                                + "  h.family1.col1, "
+                                + "  h.family2.col1, "
+                                + "  h.family2.col2, "
+                                + "  h.family3.col1, "
+                                + "  h.family3.col2, "
+                                + "  h.family3.col3 "
+                                + "FROM "
+                                + TEST_TABLE_4
+                                + " AS h");
+        List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
+        String expected =
+                "+I[1, null, null, null, 1.01, false, Welt-1]\n"
+                        + "+I[2, null, null, null, 2.02, true, Welt-2]\n"
+                        + "+I[3, null, null, null, 3.03, false, Welt-3]\n"
+                        + "+I[4, null, null, null, 4.04, true, Welt-4]\n"
+                        + "+I[5, null, null, null, 5.05, false, Welt-5]\n"
+                        + "+I[6, null, null, null, 6.06, true, Welt-6]\n"
+                        + "+I[7, null, null, null, 7.07, false, Welt-7]\n"
+                        + "+I[8, null, null, null, 8.08, true, Welt-8]\n";
+
+        TestBaseUtils.compareResultAsText(results, expected);
+    }
+
+    @Test
     public void testTableSourceSinkWithDDL() throws Exception {
         StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);

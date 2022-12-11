@@ -43,6 +43,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
     protected static final String TEST_TABLE_1 = "testTable1";
     protected static final String TEST_TABLE_2 = "testTable2";
     protected static final String TEST_TABLE_3 = "testTable3";
+    protected static final String TEST_TABLE_4 = "testTable4";
 
     protected static final String ROW_KEY = "rowkey";
 
@@ -92,6 +93,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
         createHBaseTable1();
         createHBaseTable2();
         createHBaseTable3();
+        createHBaseTable4();
     }
 
     private static void createHBaseTable1() throws IOException {
@@ -230,6 +232,12 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                 };
         TableName tableName = TableName.valueOf(TEST_TABLE_3);
         createTable(tableName, families, SPLIT_KEYS);
+    }
+
+    private static void createHBaseTable4() {
+        // create a table
+        TableName tableName = TableName.valueOf(TEST_TABLE_4);
+        createTable(tableName, FAMILIES, SPLIT_KEYS);
     }
 
     private static Put putRow(

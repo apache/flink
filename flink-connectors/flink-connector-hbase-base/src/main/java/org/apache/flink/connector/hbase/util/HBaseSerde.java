@@ -140,6 +140,9 @@ public class HBaseSerde {
                 // get family key
                 byte[] familyKey = families[f];
                 RowData familyRow = row.getRow(i, qualifiers[f].length);
+                if (familyRow == null) {
+                    continue;
+                }
                 for (int q = 0; q < this.qualifiers[f].length; q++) {
                     // get quantifier key
                     byte[] qualifier = qualifiers[f][q];
