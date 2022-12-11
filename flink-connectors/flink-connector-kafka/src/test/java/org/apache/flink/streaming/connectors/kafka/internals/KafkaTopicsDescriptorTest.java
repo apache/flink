@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KafkaTopicsDescriptor}. */
 @RunWith(Parameterized.class)
-public class KafkaTopicsDescriptorTest {
+class KafkaTopicsDescriptorTest {
 
     @Parameterized.Parameters
     public static Collection<Object[]> data() {
@@ -57,7 +57,7 @@ public class KafkaTopicsDescriptorTest {
     }
 
     @Test
-    public void testIsMatchingTopic() {
+    void testIsMatchingTopic() {
         KafkaTopicsDescriptor topicsDescriptor =
                 new KafkaTopicsDescriptor(fixedTopics, topicPattern);
 

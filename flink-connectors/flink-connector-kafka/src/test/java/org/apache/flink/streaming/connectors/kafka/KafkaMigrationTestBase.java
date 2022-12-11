@@ -90,7 +90,7 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
     /** Manually run this to write binary snapshot data. */
     @Disabled
     @Test
-    public void writeSnapshot() throws Exception {
+    void writeSnapshot() throws Exception {
         try {
             checkState(flinkGenerateSavepointVersion.isPresent());
             startClusters();

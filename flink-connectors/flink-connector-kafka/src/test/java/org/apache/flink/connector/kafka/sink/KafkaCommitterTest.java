@@ -18,14 +18,12 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.connector.sink2.mocks.MockCommitRequest;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -35,8 +33,7 @@ import java.util.Properties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KafkaCommitter}. */
-@ExtendWith({TestLoggerExtension.class})
-public class KafkaCommitterTest {
+class KafkaCommitterTest {
 
     private static final int PRODUCER_ID = 0;
     private static final short EPOCH = 0;
@@ -44,7 +41,7 @@ public class KafkaCommitterTest {
 
     /** Causes a network error by inactive broker and tests that a retry will happen. */
     @Test
-    public void testRetryCommittableOnRetriableError() throws IOException, InterruptedException {
+    void testRetryCommittableOnRetriableError() throws IOException, InterruptedException {
         Properties properties = getProperties();
         try (final KafkaCommitter committer = new KafkaCommitter(properties);
                 FlinkKafkaInternalProducer<Object, Object> producer =
@@ -66,7 +63,7 @@ public class KafkaCommitterTest {
     }
 
     @Test
-    public void testFailJobOnUnknownFatalError() throws IOException, InterruptedException {
+    void testFailJobOnUnknownFatalError() throws IOException, InterruptedException {
         Properties properties = getProperties();
         try (final KafkaCommitter committer = new KafkaCommitter(properties);
                 FlinkKafkaInternalProducer<Object, Object> producer =
@@ -87,7 +84,7 @@ public class KafkaCommitterTest {
     }
 
     @Test
-    public void testKafkaCommitterClosesProducer() throws IOException, InterruptedException {
+    void testKafkaCommitterClosesProducer() throws IOException, InterruptedException {
         Properties properties = getProperties();
         FlinkKafkaInternalProducer<Object, Object> producer =
                 new FlinkKafkaInternalProducer(properties, TRANSACTIONAL_ID) {

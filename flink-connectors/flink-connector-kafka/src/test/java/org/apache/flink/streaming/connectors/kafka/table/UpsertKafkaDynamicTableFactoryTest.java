@@ -61,6 +61,7 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -78,7 +79,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link UpsertKafkaDynamicTableFactory}. */
-public class UpsertKafkaDynamicTableFactoryTest {
+class UpsertKafkaDynamicTableFactoryTest {
 
     private static final String SOURCE_TOPIC = "sourceTopic_1";
 
@@ -136,7 +137,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
                     ",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
 
     @Test
-    public void testTableSource() {
+    void testTableSource() {
         final DataType producedDataType = SOURCE_SCHEMA.toPhysicalRowDataType();
         // Construct table source using options and table source factory
         final DynamicTableSource actualSource =
@@ -161,7 +162,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSink() {
+    void testTableSink() {
         // Construct table sink using options and table sink factory.
         final DynamicTableSink actualSink = createTableSink(SINK_SCHEMA, getFullSinkOptions());
 
@@ -194,7 +195,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
 
     @SuppressWarnings("rawtypes")
     @Test
-    public void testBufferedTableSink() {
+    void testBufferedTableSink() {
         // Construct table sink using options and table sink factory.
         final DynamicTableSink actualSink =
                 createTableSink(
@@ -248,7 +249,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSinkWithParallelism() {
+    void testTableSinkWithParallelism() {
         final Map<String, String> modifiedOptions =
                 getModifiedOptions(
                         getFullSinkOptions(), options -> options.put("sink.parallelism", "100"));
@@ -278,7 +279,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSinkAutoCompleteSchemaRegistrySubject() {
+    void testTableSinkAutoCompleteSchemaRegistrySubject() {
         // value.format + key.format
         verifyEncoderSubject(
                 options -> {
@@ -388,7 +389,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testCreateSourceTableWithoutPK() {
+    void testCreateSourceTableWithoutPK() {
         ResolvedSchema illegalSchema =
                 ResolvedSchema.of(
                         Column.physical("window_start", DataTypes.STRING()),
@@ -405,7 +406,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testCreateSinkTableWithoutPK() {
+    void testCreateSinkTableWithoutPK() {
         ResolvedSchema illegalSchema =
                 ResolvedSchema.of(
                         Column.physical("region", DataTypes.STRING()),
@@ -420,7 +421,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testSerWithCDCFormatAsValue() {
+    void testSerWithCDCFormatAsValue() {
 
         assertThatThrownBy(
                         () ->
@@ -449,7 +450,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testDeserWithCDCFormatAsValue() {
+    void testDeserWithCDCFormatAsValue() {
 
         assertThatThrownBy(
                         () ->
@@ -478,7 +479,7 @@ public class UpsertKafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testInvalidSinkBufferFlush() {
+    void testInvalidSinkBufferFlush() {
         assertThatThrownBy(
                         () ->
                                 createTableSink(

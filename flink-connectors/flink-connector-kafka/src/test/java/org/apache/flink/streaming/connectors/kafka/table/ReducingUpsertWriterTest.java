@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ReducingUpsertWriter}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ReducingUpsertWriterTest {
+class ReducingUpsertWriterTest {
     @Parameters(name = "object reuse = {0}")
     public static Object[] enableObjectReuse() {
         return new Boolean[] {true, false};
@@ -146,7 +146,7 @@ public class ReducingUpsertWriterTest {
     @Parameter public boolean enableObjectReuse;
 
     @Test
-    public void testWriteData() throws Exception {
+    void testWriteData() throws Exception {
         final MockedSinkWriter writer = new MockedSinkWriter();
         final ReducingUpsertWriter<?> bufferedWriter = createBufferedWriter(writer);
 
@@ -213,7 +213,7 @@ public class ReducingUpsertWriterTest {
     }
 
     @Test
-    public void testFlushDataWhenCheckpointing() throws Exception {
+    void testFlushDataWhenCheckpointing() throws Exception {
         final MockedSinkWriter writer = new MockedSinkWriter();
         final ReducingUpsertWriter<?> bufferedWriter = createBufferedWriter(writer);
         // write all data, there should be 3 records are still buffered

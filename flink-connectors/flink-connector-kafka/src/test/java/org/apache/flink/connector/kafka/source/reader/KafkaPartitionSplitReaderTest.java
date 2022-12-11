@@ -69,7 +69,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link KafkaPartitionSplitReader}. */
-public class KafkaPartitionSplitReaderTest {
+class KafkaPartitionSplitReaderTest {
     private static final int NUM_SUBTASKS = 3;
     private static final String TOPIC1 = "topic1";
     private static final String TOPIC2 = "topic2";
@@ -99,14 +99,14 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     @Test
-    public void testHandleSplitChangesAndFetch() throws Exception {
+    void testHandleSplitChangesAndFetch() throws Exception {
         KafkaPartitionSplitReader reader = createReader();
         assignSplitsAndFetchUntilFinish(reader, 0);
         assignSplitsAndFetchUntilFinish(reader, 1);
     }
 
     @Test
-    public void testWakeUp() throws Exception {
+    void testWakeUp() throws Exception {
         KafkaPartitionSplitReader reader = createReader();
         TopicPartition nonExistingTopicPartition = new TopicPartition("NotExist", 0);
         assignSplits(
@@ -135,7 +135,7 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     @Test
-    public void testWakeupThenAssign() throws IOException {
+    void testWakeupThenAssign() throws IOException {
         KafkaPartitionSplitReader reader = createReader();
         // Assign splits with records
         assignSplits(reader, splitsByOwners.get(0));
@@ -153,7 +153,7 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     @Test
-    public void testNumBytesInCounter() throws Exception {
+    void testNumBytesInCounter() throws Exception {
         final OperatorMetricGroup operatorMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
         final Counter numBytesInCounter =
@@ -235,7 +235,7 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     @Test
-    public void testAssignEmptySplit() throws Exception {
+    void testAssignEmptySplit() throws Exception {
         KafkaPartitionSplitReader reader = createReader();
         final KafkaPartitionSplit normalSplit =
                 new KafkaPartitionSplit(
@@ -275,7 +275,7 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     @Test
-    public void testUsingCommittedOffsetsWithNoneOffsetResetStrategy() {
+    void testUsingCommittedOffsetsWithNoneOffsetResetStrategy() {
         final Properties props = new Properties();
         props.setProperty(
                 ConsumerConfig.GROUP_ID_CONFIG, "using-committed-offset-with-none-offset-reset");

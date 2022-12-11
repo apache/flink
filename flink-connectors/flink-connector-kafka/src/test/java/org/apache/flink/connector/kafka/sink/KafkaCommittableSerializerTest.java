@@ -27,12 +27,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for serializing and deserialzing {@link KafkaCommittable} with {@link
  * KafkaCommittableSerializer}.
  */
-public class KafkaCommittableSerializerTest {
+class KafkaCommittableSerializerTest {
 
     private static final KafkaCommittableSerializer SERIALIZER = new KafkaCommittableSerializer();
 
     @Test
-    public void testCommittableSerDe() throws IOException {
+    void testCommittableSerDe() throws IOException {
         final String transactionalId = "test-id";
         final short epoch = 5;
         final KafkaCommittable committable = new KafkaCommittable(1L, epoch, transactionalId, null);

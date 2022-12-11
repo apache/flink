@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.fail;
  * <p>Do not run this class in the same junit execution with other tests in your IDE. This may lead
  * leaking threads.
  */
-public class FlinkKafkaProducerITCase extends KafkaTestBase {
+class FlinkKafkaProducerITCase extends KafkaTestBase {
 
     protected String transactionalId;
     protected Properties extraProperties;
@@ -86,12 +86,12 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void resourceCleanUpNone() throws Exception {
+    void resourceCleanUpNone() throws Exception {
         resourceCleanUp(FlinkKafkaProducer.Semantic.NONE);
     }
 
     @Test
-    public void resourceCleanUpAtLeastOnce() throws Exception {
+    void resourceCleanUpAtLeastOnce() throws Exception {
         resourceCleanUp(FlinkKafkaProducer.Semantic.AT_LEAST_ONCE);
     }
 
@@ -125,7 +125,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
      * will not clash with previous transactions using same transactional.ids.
      */
     @Test
-    public void testRestoreToCheckpointAfterExceedingProducersPool() throws Exception {
+    void testRestoreToCheckpointAfterExceedingProducersPool() throws Exception {
         String topic = "flink-kafka-producer-fail-before-notify";
 
         try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 =
@@ -220,7 +220,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
      * committed records that were created after this lingering transaction.
      */
     @Test
-    public void testFailBeforeNotifyAndResumeWorkAfterwards() throws Exception {
+    void testFailBeforeNotifyAndResumeWorkAfterwards() throws Exception {
         String topic = "flink-kafka-producer-fail-before-notify";
 
         OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 = createTestHarness(topic);
@@ -274,7 +274,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testFailAndRecoverSameCheckpointTwice() throws Exception {
+    void testFailAndRecoverSameCheckpointTwice() throws Exception {
         String topic = "flink-kafka-producer-fail-and-recover-same-checkpoint-twice";
 
         OperatorSubtaskState snapshot1;
@@ -331,7 +331,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
      * read committed records that were created after this lingering transaction.
      */
     @Test
-    public void testScaleDownBeforeFirstCheckpoint() throws Exception {
+    void testScaleDownBeforeFirstCheckpoint() throws Exception {
         String topic = "scale-down-before-first-checkpoint";
 
         List<AutoCloseable> operatorsToClose = new ArrayList<>();
@@ -401,7 +401,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
      * so it has to generate new ones that are greater then 4.
      */
     @Test
-    public void testScaleUpAfterScalingDown() throws Exception {
+    void testScaleUpAfterScalingDown() throws Exception {
         String topic = "scale-up-after-scaling-down";
 
         final int parallelism1 = 4;
@@ -531,7 +531,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testRecoverCommittedTransaction() throws Exception {
+    void testRecoverCommittedTransaction() throws Exception {
         String topic = "flink-kafka-producer-recover-committed-transaction";
 
         OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic);
@@ -560,7 +560,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testRunOutOfProducersInThePool() throws Exception {
+    void testRunOutOfProducersInThePool() throws Exception {
         String topic = "flink-kafka-run-out-of-producers";
 
         try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
@@ -583,7 +583,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testMigrateFromAtLeastOnceToExactlyOnce() throws Exception {
+    void testMigrateFromAtLeastOnceToExactlyOnce() throws Exception {
         String topic = "testMigrateFromAtLeastOnceToExactlyOnce";
         testRecoverWithChangeSemantics(
                 topic,
@@ -594,7 +594,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testMigrateFromAtExactlyOnceToAtLeastOnce() throws Exception {
+    void testMigrateFromAtExactlyOnceToAtLeastOnce() throws Exception {
         String topic = "testMigrateFromExactlyOnceToAtLeastOnce";
         testRecoverWithChangeSemantics(
                 topic,
@@ -605,7 +605,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testDefaultTransactionalIdPrefix() throws Exception {
+    void testDefaultTransactionalIdPrefix() throws Exception {
         Properties properties = createProperties();
         String topic = "testCustomizeTransactionalIdPrefix";
         FlinkKafkaProducer<Integer> kafkaProducer =
@@ -642,7 +642,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testCustomizeTransactionalIdPrefix() throws Exception {
+    void testCustomizeTransactionalIdPrefix() throws Exception {
         String transactionalIdPrefix = "my-prefix";
 
         Properties properties = createProperties();
@@ -675,7 +675,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
-    public void testRestoreUsingDifferentTransactionalIdPrefix() throws Exception {
+    void testRestoreUsingDifferentTransactionalIdPrefix() throws Exception {
         String topic = "testCustomizeTransactionalIdPrefix";
         Properties properties = createProperties();
 

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internals.metrics;
 
 import org.apache.flink.metrics.Gauge;
+
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.common.Metric;

@@ -33,8 +33,10 @@ import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.util.UserCodeClassLoader;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -52,6 +54,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -73,7 +76,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the standalone KafkaWriter. */
 @Testcontainers
-public class KafkaWriterITCase {
+class KafkaWriterITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriterITCase.class);
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
@@ -116,7 +119,7 @@ public class KafkaWriterITCase {
     }
 
     @Test
-    public void testIncreasingRecordBasedCounters() throws Exception {
+    void testIncreasingRecordBasedCounters() throws Exception {
         final OperatorIOMetricGroup operatorIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
         final InternalSinkWriterMetricGroup metricGroup =
@@ -153,7 +156,7 @@ public class KafkaWriterITCase {
     }
 
     @Test
-    public void testCurrentSendTimeMetric() throws Exception {
+    void testCurrentSendTimeMetric() throws Exception {
         final InternalSinkWriterMetricGroup metricGroup =
                 InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup());
         try (final KafkaWriter<Integer> writer =
@@ -216,7 +219,7 @@ public class KafkaWriterITCase {
     }
 
     @Test
-    public void testMetadataPublisher() throws Exception {
+    void testMetadataPublisher() throws Exception {
         List<String> metadataList = new ArrayList<>();
         try (final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(

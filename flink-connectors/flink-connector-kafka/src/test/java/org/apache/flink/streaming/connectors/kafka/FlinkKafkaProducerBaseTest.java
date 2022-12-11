@@ -60,11 +60,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the {@link FlinkKafkaProducerBase}. */
-public class FlinkKafkaProducerBaseTest {
+class FlinkKafkaProducerBaseTest {
 
     /** Tests that the constructor eagerly checks bootstrap servers are set in config. */
     @Test
-    public void testInstantiationFailsWhenBootstrapServersMissing() {
+    void testInstantiationFailsWhenBootstrapServersMissing() {
         // no bootstrap servers set in props
         Properties props = new Properties();
         // should throw IllegalArgumentException
@@ -83,7 +83,7 @@ public class FlinkKafkaProducerBaseTest {
      * deserializers if not set.
      */
     @Test
-    public void testKeyValueDeserializersSetIfMissing() {
+    void testKeyValueDeserializersSetIfMissing() {
         Properties props = new Properties();
         props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:12345");
         // should set missing key value deserializers
@@ -102,7 +102,7 @@ public class FlinkKafkaProducerBaseTest {
     /** Tests that partitions list is determinate and correctly provided to custom partitioner. */
     @SuppressWarnings("unchecked")
     @Test
-    public void testPartitionerInvokedWithDeterminatePartitionList() throws Exception {
+    void testPartitionerInvokedWithDeterminatePartitionList() throws Exception {
         FlinkKafkaPartitioner<String> mockPartitioner = mock(FlinkKafkaPartitioner.class);
 
         RuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
@@ -149,7 +149,7 @@ public class FlinkKafkaProducerBaseTest {
      * should be rethrown.
      */
     @Test
-    public void testAsyncErrorRethrownOnInvoke() throws Throwable {
+    void testAsyncErrorRethrownOnInvoke() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
                         FakeStandardProducerConfig.get(),
@@ -186,7 +186,7 @@ public class FlinkKafkaProducerBaseTest {
      * should be rethrown.
      */
     @Test
-    public void testAsyncErrorRethrownOnCheckpoint() throws Throwable {
+    void testAsyncErrorRethrownOnCheckpoint() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
                         FakeStandardProducerConfig.get(),
@@ -228,7 +228,7 @@ public class FlinkKafkaProducerBaseTest {
      */
     @SuppressWarnings("unchecked")
     @Test
-    @Timeout(5000L)
+    @Timeout(5L)
     public void testAsyncErrorRethrownOnCheckpointAfterFlush() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
@@ -290,7 +290,7 @@ public class FlinkKafkaProducerBaseTest {
      */
     @SuppressWarnings("unchecked")
     @Test
-    @Timeout(10000L)
+    @Timeout(10L)
     public void testAtLeastOnceProducer() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
@@ -364,7 +364,7 @@ public class FlinkKafkaProducerBaseTest {
      */
     @SuppressWarnings("unchecked")
     @Test
-    @Timeout(10000L)
+    @Timeout(10L)
     public void testDoesNotWaitForPendingRecordsIfFlushingDisabled() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(

@@ -87,7 +87,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
      * partitions are present.
      */
     @Test
-    public void testCustomPartitioning() {
+    void testCustomPartitioning() {
         try {
             LOG.info("Starting KafkaProducerITCase.testCustomPartitioning()");
 
@@ -204,13 +204,13 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
     /** Tests the exactly-once semantic for the simple writes into Kafka. */
     @Test
-    public void testExactlyOnceRegularSink() throws Exception {
+    void testExactlyOnceRegularSink() throws Exception {
         testExactlyOnce(true, 1);
     }
 
     /** Tests the exactly-once semantic for the simple writes into Kafka. */
     @Test
-    public void testExactlyOnceCustomOperator() throws Exception {
+    void testExactlyOnceCustomOperator() throws Exception {
         testExactlyOnce(false, 1);
     }
 

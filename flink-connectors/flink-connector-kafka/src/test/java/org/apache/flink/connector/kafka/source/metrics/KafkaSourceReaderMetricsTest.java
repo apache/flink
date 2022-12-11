@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link KafkaSourceReaderMetrics}. */
-public class KafkaSourceReaderMetricsTest {
+class KafkaSourceReaderMetricsTest {
 
     private static final TopicPartition FOO_0 = new TopicPartition("foo", 0);
     private static final TopicPartition FOO_1 = new TopicPartition("foo", 1);
@@ -42,7 +42,7 @@ public class KafkaSourceReaderMetricsTest {
     private static final TopicPartition BAR_1 = new TopicPartition("bar", 1);
 
     @Test
-    public void testCurrentOffsetTracking() {
+    void testCurrentOffsetTracking() {
         MetricListener metricListener = new MetricListener();
 
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
@@ -66,7 +66,7 @@ public class KafkaSourceReaderMetricsTest {
     }
 
     @Test
-    public void testCommitOffsetTracking() {
+    void testCommitOffsetTracking() {
         MetricListener metricListener = new MetricListener();
 
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
@@ -101,7 +101,7 @@ public class KafkaSourceReaderMetricsTest {
     }
 
     @Test
-    public void testNonTrackingTopicPartition() {
+    void testNonTrackingTopicPartition() {
         MetricListener metricListener = new MetricListener();
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
                 new KafkaSourceReaderMetrics(
@@ -113,7 +113,7 @@ public class KafkaSourceReaderMetricsTest {
     }
 
     @Test
-    public void testFailedCommit() {
+    void testFailedCommit() {
         MetricListener metricListener = new MetricListener();
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
                 new KafkaSourceReaderMetrics(

@@ -67,7 +67,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
  * Flink release-* branch.
  */
 @RunWith(Parameterized.class)
-public class FlinkKafkaConsumerBaseMigrationTest {
+class FlinkKafkaConsumerBaseMigrationTest {
 
     /**
      * TODO change this to the corresponding savepoint version to be written (e.g. {@link
@@ -102,7 +102,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
     /** Manually run this to write binary snapshot data. */
     @Ignore
     @Test
-    public void writeSnapshot() throws Exception {
+    void writeSnapshot() throws Exception {
         writeSnapshot(
                 "src/test/resources/kafka-consumer-migration-test-flink"
                         + flinkGenerateSavepointVersion
@@ -194,7 +194,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
     /** Test restoring from an legacy empty state, when no partitions could be found for topics. */
     @Test
-    public void testRestoreFromEmptyStateNoPartitions() throws Exception {
+    void testRestoreFromEmptyStateNoPartitions() throws Exception {
         final DummyFlinkKafkaConsumer<String> consumerFunction =
                 new DummyFlinkKafkaConsumer<>(
                         Collections.singletonList("dummy-topic"),
@@ -235,7 +235,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
      * could be found for topics.
      */
     @Test
-    public void testRestoreFromEmptyStateWithPartitions() throws Exception {
+    void testRestoreFromEmptyStateWithPartitions() throws Exception {
         final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
 
         final DummyFlinkKafkaConsumer<String> consumerFunction =
@@ -295,7 +295,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
      * partitions could be found for topics.
      */
     @Test
-    public void testRestore() throws Exception {
+    void testRestore() throws Exception {
         final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
 
         final DummyFlinkKafkaConsumer<String> consumerFunction =

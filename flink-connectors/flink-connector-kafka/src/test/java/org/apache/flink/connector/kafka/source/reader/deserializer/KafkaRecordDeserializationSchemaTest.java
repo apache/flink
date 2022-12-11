@@ -45,7 +45,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for KafkaRecordDeserializationSchema. */
-public class KafkaRecordDeserializationSchemaTest {
+class KafkaRecordDeserializationSchemaTest {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
@@ -54,14 +54,14 @@ public class KafkaRecordDeserializationSchemaTest {
     private static boolean isKeyDeserializer;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         configurableConfiguration = new HashMap<>(1);
         configuration = new HashMap<>(1);
         isKeyDeserializer = false;
     }
 
     @Test
-    public void testKafkaDeserializationSchemaWrapper() throws Exception {
+    void testKafkaDeserializationSchemaWrapper() throws Exception {
         final ConsumerRecord<byte[], byte[]> consumerRecord = getConsumerRecord();
         KafkaRecordDeserializationSchema<ObjectNode> schema =
                 KafkaRecordDeserializationSchema.of(new JSONKeyValueDeserializationSchema(true));
@@ -80,7 +80,7 @@ public class KafkaRecordDeserializationSchemaTest {
     }
 
     @Test
-    public void testKafkaValueDeserializationSchemaWrapper() throws Exception {
+    void testKafkaValueDeserializationSchemaWrapper() throws Exception {
         final ConsumerRecord<byte[], byte[]> consumerRecord = getConsumerRecord();
         KafkaRecordDeserializationSchema<ObjectNode> schema =
                 KafkaRecordDeserializationSchema.valueOnly(
@@ -98,7 +98,7 @@ public class KafkaRecordDeserializationSchemaTest {
     }
 
     @Test
-    public void testKafkaValueDeserializerWrapper() throws Exception {
+    void testKafkaValueDeserializerWrapper() throws Exception {
         final String topic = "Topic";
         byte[] value = new StringSerializer().serialize(topic, "world");
         final ConsumerRecord<byte[], byte[]> consumerRecord =
@@ -115,7 +115,7 @@ public class KafkaRecordDeserializationSchemaTest {
     }
 
     @Test
-    public void testKafkaValueDeserializerWrapperWithoutConfigurable() throws Exception {
+    void testKafkaValueDeserializerWrapperWithoutConfigurable() throws Exception {
         final Map<String, String> config = ImmutableMap.of("simpleKey", "simpleValue");
         KafkaRecordDeserializationSchema<String> schema =
                 KafkaRecordDeserializationSchema.valueOnly(SimpleStringSerializer.class, config);
@@ -126,7 +126,7 @@ public class KafkaRecordDeserializationSchemaTest {
     }
 
     @Test
-    public void testKafkaValueDeserializerWrapperWithConfigurable() throws Exception {
+    void testKafkaValueDeserializerWrapperWithConfigurable() throws Exception {
         final Map<String, String> config = ImmutableMap.of("configKey", "configValue");
         KafkaRecordDeserializationSchema<String> schema =
                 KafkaRecordDeserializationSchema.valueOnly(

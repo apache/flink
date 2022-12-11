@@ -27,10 +27,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KafkaPartitionSplitSerializer}. */
-public class KafkaPartitionSplitSerializerTest {
+class KafkaPartitionSplitSerializerTest {
 
     @Test
-    public void testSerializer() throws IOException {
+    void testSerializer() throws IOException {
         String topic = "topic";
         Long offsetZero = 0L;
         Long normalOffset = 1L;

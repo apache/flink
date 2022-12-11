@@ -146,8 +146,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * same mini cluster. Otherwise, missing slots may happen.
      */
     @BeforeEach
-    public void setClientAndEnsureNoJobIsLingering(
-            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
+    void setClientAndEnsureNoJobIsLingering(@InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         this.client = clusterClient;
         waitUntilNoJobIsRunning(client);
     }

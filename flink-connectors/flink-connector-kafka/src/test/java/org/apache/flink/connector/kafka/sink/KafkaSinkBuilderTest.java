@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +29,7 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KafkaSinkBuilder}. */
-public class KafkaSinkBuilderTest {
+class KafkaSinkBuilderTest {
 
     private static final String[] DEFAULT_KEYS =
             new String[] {
@@ -39,7 +40,7 @@ public class KafkaSinkBuilderTest {
             };
 
     @Test
-    public void testPropertyHandling() {
+    void testPropertyHandling() {
         validateProducerConfig(
                 getBasicBuilder(),
                 p -> {
@@ -76,7 +77,7 @@ public class KafkaSinkBuilderTest {
     }
 
     @Test
-    public void testBootstrapServerSetting() {
+    void testBootstrapServerSetting() {
         Properties testConf1 = new Properties();
         testConf1.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "testServer");
 

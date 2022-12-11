@@ -52,11 +52,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the watermarking behaviour of {@link AbstractFetcher}. */
 @SuppressWarnings("serial")
-public class AbstractFetcherWatermarksTest {
+class AbstractFetcherWatermarksTest {
 
     /** Tests with watermark generators that have a periodic nature. */
     @Nested
-    public class PeriodicWatermarksSuite {
+    class PeriodicWatermarksSuite {
 
         public Collection<WatermarkStrategy<Long>> getParams() {
             return Arrays.asList(
@@ -67,7 +67,7 @@ public class AbstractFetcherWatermarksTest {
         }
 
         @Test
-        public void testPeriodicWatermarks() throws Exception {
+        void testPeriodicWatermarks() throws Exception {
             final String testTopic = "test topic name";
             Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
             originalPartitions.put(
@@ -158,7 +158,7 @@ public class AbstractFetcherWatermarksTest {
         }
 
         @Test
-        public void testSkipCorruptedRecordWithPeriodicWatermarks() throws Exception {
+        void testSkipCorruptedRecordWithPeriodicWatermarks() throws Exception {
             final String testTopic = "test topic name";
             Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
             originalPartitions.put(
@@ -210,7 +210,7 @@ public class AbstractFetcherWatermarksTest {
         }
 
         @Test
-        public void testPeriodicWatermarksWithNoSubscribedPartitionsShouldYieldNoWatermarks()
+        void testPeriodicWatermarksWithNoSubscribedPartitionsShouldYieldNoWatermarks()
                 throws Exception {
             final String testTopic = "test topic name";
             Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
@@ -245,10 +245,10 @@ public class AbstractFetcherWatermarksTest {
 
     /** Tests with watermark generators that have a punctuated nature. */
     @Nested
-    public class PunctuatedWatermarksSuite {
+    class PunctuatedWatermarksSuite {
 
         @Test
-        public void testSkipCorruptedRecordWithPunctuatedWatermarks() throws Exception {
+        void testSkipCorruptedRecordWithPunctuatedWatermarks() throws Exception {
             final String testTopic = "test topic name";
             Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
             originalPartitions.put(
@@ -296,7 +296,7 @@ public class AbstractFetcherWatermarksTest {
         }
 
         @Test
-        public void testPunctuatedWatermarks() throws Exception {
+        void testPunctuatedWatermarks() throws Exception {
             final String testTopic = "test topic name";
             Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
             originalPartitions.put(

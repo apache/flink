@@ -39,14 +39,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link KafkaSubscriber}. */
-public class KafkaSubscriberTest {
+class KafkaSubscriberTest {
     private static final String TOPIC1 = "topic1";
     private static final String TOPIC2 = "pattern-topic";
     private static final TopicPartition NON_EXISTING_TOPIC = new TopicPartition("removed", 0);
     private static AdminClient adminClient;
 
     @BeforeAll
-    public static void setup() throws Throwable {
+    static void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
         KafkaSourceTestEnv.createTestTopic(TOPIC1);
         KafkaSourceTestEnv.createTestTopic(TOPIC2);
@@ -54,7 +54,7 @@ public class KafkaSubscriberTest {
     }
 
     @AfterAll
-    public static void tearDown() throws Exception {
+    static void tearDown() throws Exception {
         if (adminClient != null) {
             adminClient.close();
         }
@@ -62,7 +62,7 @@ public class KafkaSubscriberTest {
     }
 
     @Test
-    public void testTopicListSubscriber() {
+    void testTopicListSubscriber() {
         List<String> topics = Arrays.asList(TOPIC1, TOPIC2);
         KafkaSubscriber subscriber =
                 KafkaSubscriber.getTopicListSubscriber(Arrays.asList(TOPIC1, TOPIC2));
@@ -76,7 +76,7 @@ public class KafkaSubscriberTest {
     }
 
     @Test
-    public void testNonExistingTopic() {
+    void testNonExistingTopic() {
         final KafkaSubscriber subscriber =
                 KafkaSubscriber.getTopicListSubscriber(
                         Collections.singletonList(NON_EXISTING_TOPIC.topic()));
@@ -87,7 +87,7 @@ public class KafkaSubscriberTest {
     }
 
     @Test
-    public void testTopicPatternSubscriber() {
+    void testTopicPatternSubscriber() {
         KafkaSubscriber subscriber =
                 KafkaSubscriber.getTopicPatternSubscriber(Pattern.compile("pattern.*"));
         final Set<TopicPartition> subscribedPartitions =
@@ -101,7 +101,7 @@ public class KafkaSubscriberTest {
     }
 
     @Test
-    public void testPartitionSetSubscriber() {
+    void testPartitionSetSubscriber() {
         List<String> topics = Arrays.asList(TOPIC1, TOPIC2);
         Set<TopicPartition> partitions =
                 new HashSet<>(KafkaSourceTestEnv.getPartitionsForTopics(topics));
@@ -116,7 +116,7 @@ public class KafkaSubscriberTest {
     }
 
     @Test
-    public void testNonExistingPartition() {
+    void testNonExistingPartition() {
         TopicPartition nonExistingPartition = new TopicPartition(TOPIC1, Integer.MAX_VALUE);
         final KafkaSubscriber subscriber =
                 KafkaSubscriber.getPartitionSetSubscriber(

@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -26,12 +27,12 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TransactionsToAbortChecker}. */
-public class TransactionToAbortCheckerTest {
+class TransactionToAbortCheckerTest {
 
     public static final String ABORT = "abort";
 
     @Test
-    public void testMustAbortTransactionsWithSameSubtaskIdAndHigherCheckpointOffset() {
+    void testMustAbortTransactionsWithSameSubtaskIdAndHigherCheckpointOffset() {
         final TransactionsToAbortChecker checker =
                 new TransactionsToAbortChecker(2, ImmutableMap.of(0, 1L, 2, 3L), 0);
 
@@ -48,7 +49,7 @@ public class TransactionToAbortCheckerTest {
     }
 
     @Test
-    public void testMustAbortTransactionsIfLowestCheckpointOffsetIsMinimumOffset() {
+    void testMustAbortTransactionsIfLowestCheckpointOffsetIsMinimumOffset() {
         final TransactionsToAbortChecker checker =
                 new TransactionsToAbortChecker(2, ImmutableMap.of(0, 1L), 0);
 

@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
  * An IT case class that runs all the IT cases of the legacy {@link
  * org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer} with the new {@link KafkaSource}.
  */
-public class KafkaSourceLegacyITCase extends KafkaConsumerTestBase {
+class KafkaSourceLegacyITCase extends KafkaConsumerTestBase {
 
     public KafkaSourceLegacyITCase() throws Exception {
         super(true);
@@ -45,46 +45,46 @@ public class KafkaSourceLegacyITCase extends KafkaConsumerTestBase {
     }
 
     @Test
-    public void testFailOnNoBroker() throws Exception {
+    void testFailOnNoBroker() throws Exception {
         runFailOnNoBrokerTest();
     }
 
     @Test
-    public void testConcurrentProducerConsumerTopology() throws Exception {
+    void testConcurrentProducerConsumerTopology() throws Exception {
         runSimpleConcurrentProducerConsumerTopology();
     }
 
     @Test
-    public void testKeyValueSupport() throws Exception {
+    void testKeyValueSupport() throws Exception {
         runKeyValueTest();
     }
 
     // --- canceling / failures ---
 
     @Test
-    public void testCancelingEmptyTopic() throws Exception {
+    void testCancelingEmptyTopic() throws Exception {
         runCancelingOnEmptyInputTest();
     }
 
     @Test
-    public void testCancelingFullTopic() throws Exception {
+    void testCancelingFullTopic() throws Exception {
         runCancelingOnFullInputTest();
     }
 
     // --- source to partition mappings and exactly once ---
 
     @Test
-    public void testOneToOneSources() throws Exception {
+    void testOneToOneSources() throws Exception {
         runOneToOneExactlyOnceTest();
     }
 
     @Test
-    public void testOneSourceMultiplePartitions() throws Exception {
+    void testOneSourceMultiplePartitions() throws Exception {
         runOneSourceMultiplePartitionsExactlyOnceTest();
     }
 
     @Test
-    public void testMultipleSourcesOnePartition() throws Exception {
+    void testMultipleSourcesOnePartition() throws Exception {
         runMultipleSourcesOnePartitionExactlyOnceTest();
     }
 
@@ -92,73 +92,73 @@ public class KafkaSourceLegacyITCase extends KafkaConsumerTestBase {
 
     @Test
     @Disabled("FLINK-28267")
-    public void testBrokerFailure() throws Exception {
+    void testBrokerFailure() throws Exception {
         runBrokerFailureTest();
     }
 
     // --- special executions ---
 
     @Test
-    public void testBigRecordJob() throws Exception {
+    void testBigRecordJob() throws Exception {
         runBigRecordTestTopology();
     }
 
     @Test
-    public void testMultipleTopicsWithLegacySerializer() throws Exception {
+    void testMultipleTopicsWithLegacySerializer() throws Exception {
         runProduceConsumeMultipleTopics(true);
     }
 
     @Test
-    public void testMultipleTopicsWithKafkaSerializer() throws Exception {
+    void testMultipleTopicsWithKafkaSerializer() throws Exception {
         runProduceConsumeMultipleTopics(false);
     }
 
     @Test
-    public void testAllDeletes() throws Exception {
+    void testAllDeletes() throws Exception {
         runAllDeletesTest();
     }
 
     // --- startup mode ---
 
     @Test
-    public void testStartFromEarliestOffsets() throws Exception {
+    void testStartFromEarliestOffsets() throws Exception {
         runStartFromEarliestOffsets();
     }
 
     @Test
-    public void testStartFromLatestOffsets() throws Exception {
+    void testStartFromLatestOffsets() throws Exception {
         runStartFromLatestOffsets();
     }
 
     @Test
-    public void testStartFromGroupOffsets() throws Exception {
+    void testStartFromGroupOffsets() throws Exception {
         runStartFromGroupOffsets();
     }
 
     @Test
-    public void testStartFromSpecificOffsets() throws Exception {
+    void testStartFromSpecificOffsets() throws Exception {
         runStartFromSpecificOffsets();
     }
 
     @Test
-    public void testStartFromTimestamp() throws Exception {
+    void testStartFromTimestamp() throws Exception {
         runStartFromTimestamp();
     }
 
     // --- offset committing ---
 
     @Test
-    public void testCommitOffsetsToKafka() throws Exception {
+    void testCommitOffsetsToKafka() throws Exception {
         runCommitOffsetsToKafka();
     }
 
     @Test
-    public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
+    void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
         runAutoOffsetRetrievalAndCommitToKafka();
     }
 
     @Test
-    public void testCollectingSchema() throws Exception {
+    void testCollectingSchema() throws Exception {
         runCollectingSchemaTest();
     }
 }

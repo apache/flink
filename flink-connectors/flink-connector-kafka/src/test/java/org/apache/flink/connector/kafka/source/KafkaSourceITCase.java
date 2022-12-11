@@ -83,7 +83,7 @@ import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalCont
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unite test class for {@link KafkaSource}. */
-public class KafkaSourceITCase {
+class KafkaSourceITCase {
     private static final String TOPIC1 = "topic1";
     private static final String TOPIC2 = "topic2";
 

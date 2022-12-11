@@ -36,7 +36,6 @@ import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroSerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
@@ -69,6 +68,9 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -76,6 +78,7 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -99,7 +102,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Abstract test base for {@link KafkaDynamicTableFactory}. */
-public class KafkaDynamicTableFactoryTest {
+class KafkaDynamicTableFactoryTest {
 
     private static final String TOPIC = "myTopic";
     private static final String TOPICS = "myTopic-1;myTopic-2;myTopic-3";
@@ -177,7 +180,7 @@ public class KafkaDynamicTableFactoryTest {
     private static final DataType SCHEMA_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
 
     @Test
-    public void testTableSource() {
+    void testTableSource() {
         final DynamicTableSource actualSource = createTableSource(SCHEMA, getBasicSourceOptions());
         final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
 
@@ -211,7 +214,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSourceWithPattern() {
+    void testTableSourceWithPattern() {
         final Map<String, String> modifiedOptions =
                 getModifiedOptions(
                         getBasicSourceOptions(),
@@ -255,7 +258,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSourceWithKeyValue() {
+    void testTableSourceWithKeyValue() {
         final DynamicTableSource actualSource = createTableSource(SCHEMA, getKeyValueOptions());
         final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
         // initialize stateful testing formats
@@ -291,7 +294,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSourceWithKeyValueAndMetadata() {
+    void testTableSourceWithKeyValueAndMetadata() {
         final Map<String, String> options = getKeyValueOptions();
         options.put("value.test-format.readable-metadata", "metadata_1:INT, metadata_2:STRING");
 
@@ -344,7 +347,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSourceCommitOnCheckpointDisabled() {
+    void testTableSourceCommitOnCheckpointDisabled() {
         final Map<String, String> modifiedOptions =
                 getModifiedOptions(
                         getBasicSourceOptions(), options -> options.remove("properties.group.id"));
@@ -377,7 +380,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSourceSetOffsetResetWithException() {
+    void testTableSourceSetOffsetResetWithException() {
         String errorStrategy = "errorStrategy";
         assertThatThrownBy(() -> testTableSourceSetOffsetReset(errorStrategy))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -420,7 +423,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSink() {
+    void testTableSink() {
         final Map<String, String> modifiedOptions =
                 getModifiedOptions(
                         getBasicSinkOptions(),
@@ -460,7 +463,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSinkSemanticTranslation() {
+    void testTableSinkSemanticTranslation() {
         final List<String> semantics = ImmutableList.of("exactly-once", "at-least-once", "none");
         final EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
                 new EncodingFormatMock(",");
@@ -492,7 +495,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSinkWithKeyValue() {
+    void testTableSinkWithKeyValue() {
         final Map<String, String> modifiedOptions =
                 getModifiedOptions(
                         getKeyValueOptions(),
@@ -535,7 +538,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSinkWithParallelism() {
+    void testTableSinkWithParallelism() {
         final Map<String, String> modifiedOptions =
                 getModifiedOptions(
                         getBasicSinkOptions(), options -> options.put("sink.parallelism", "100"));
@@ -569,7 +572,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testTableSinkAutoCompleteSchemaRegistrySubject() {
+    void testTableSinkAutoCompleteSchemaRegistrySubject() {
         // only format
         verifyEncoderSubject(
                 options -> {
@@ -717,7 +720,7 @@ public class KafkaDynamicTableFactoryTest {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testSourceTableWithTopicAndTopicPattern() {
+    void testSourceTableWithTopicAndTopicPattern() {
         assertThatThrownBy(
                         () -> {
                             final Map<String, String> modifiedOptions =
@@ -738,7 +741,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testMissingStartupTimestamp() {
+    void testMissingStartupTimestamp() {
         assertThatThrownBy(
                         () -> {
                             final Map<String, String> modifiedOptions =
@@ -758,7 +761,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testMissingSpecificOffsets() {
+    void testMissingSpecificOffsets() {
         assertThatThrownBy(
                         () -> {
                             final Map<String, String> modifiedOptions =
@@ -779,7 +782,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testInvalidSinkPartitioner() {
+    void testInvalidSinkPartitioner() {
         assertThatThrownBy(
                         () -> {
                             final Map<String, String> modifiedOptions =
@@ -797,7 +800,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testInvalidRoundRobinPartitionerWithKeyFields() {
+    void testInvalidRoundRobinPartitionerWithKeyFields() {
         assertThatThrownBy(
                         () -> {
                             final Map<String, String> modifiedOptions =
@@ -817,7 +820,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testExactlyOnceGuaranteeWithoutTransactionalIdPrefix() {
+    void testExactlyOnceGuaranteeWithoutTransactionalIdPrefix() {
         assertThatThrownBy(
                         () -> {
                             final Map<String, String> modifiedOptions =
@@ -843,7 +846,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testSinkWithTopicListOrTopicPattern() {
+    void testSinkWithTopicListOrTopicPattern() {
         Map<String, String> modifiedOptions =
                 getModifiedOptions(
                         getBasicSinkOptions(),
@@ -880,7 +883,7 @@ public class KafkaDynamicTableFactoryTest {
     }
 
     @Test
-    public void testPrimaryKeyValidation() {
+    void testPrimaryKeyValidation() {
         final ResolvedSchema pkSchema =
                 new ResolvedSchema(
                         SCHEMA.getColumns(),

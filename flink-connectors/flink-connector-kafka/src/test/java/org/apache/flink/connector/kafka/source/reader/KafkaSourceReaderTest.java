@@ -81,7 +81,7 @@ import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link KafkaSourceReader}. */
-public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
+class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
     private static final String TOPIC = "KafkaSourceReaderTest";
 
     @BeforeAll
@@ -434,7 +434,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     }
 
     @Test
-    public void testSupportsPausingOrResumingSplits() throws Exception {
+    void testSupportsPausingOrResumingSplits() throws Exception {
         final Set<String> finishedSplits = new HashSet<>();
 
         try (final KafkaSourceReader<Integer> reader =

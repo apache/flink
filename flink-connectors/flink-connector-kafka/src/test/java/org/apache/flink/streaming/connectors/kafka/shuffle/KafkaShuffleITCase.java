@@ -60,8 +60,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Simple End to End Test for Kafka. */
-@Timeout(value = 600000L, unit = TimeUnit.MILLISECONDS)
-public class KafkaShuffleITCase extends KafkaShuffleTestBase {
+@Timeout(value = 60000L, unit = TimeUnit.MILLISECONDS)
+class KafkaShuffleITCase extends KafkaShuffleTestBase {
 
     /**
      * To test no data is lost or duplicated end-2-end with the default time characteristic:
@@ -70,7 +70,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
      */
     @Test
-    public void testSimpleProcessingTime() throws Exception {
+    void testSimpleProcessingTime() throws Exception {
         testKafkaShuffle(200000, ProcessingTime);
     }
 
@@ -80,7 +80,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
      */
     @Test
-    public void testSimpleIngestionTime() throws Exception {
+    void testSimpleIngestionTime() throws Exception {
         testKafkaShuffle(200000, IngestionTime);
     }
 
@@ -90,7 +90,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
      */
     @Test
-    public void testSimpleEventTime() throws Exception {
+    void testSimpleEventTime() throws Exception {
         testKafkaShuffle(100000, EventTime);
     }
 
@@ -100,7 +100,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
      */
     @Test
-    public void testAssignedToPartitionProcessingTime() throws Exception {
+    void testAssignedToPartitionProcessingTime() throws Exception {
         testAssignedToPartition(300000, ProcessingTime);
     }
 
@@ -110,7 +110,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
      */
     @Test
-    public void testAssignedToPartitionIngestionTime() throws Exception {
+    void testAssignedToPartitionIngestionTime() throws Exception {
         testAssignedToPartition(300000, IngestionTime);
     }
 
@@ -120,7 +120,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
      */
     @Test
-    public void testAssignedToPartitionEventTime() throws Exception {
+    void testAssignedToPartitionEventTime() throws Exception {
         testAssignedToPartition(100000, EventTime);
     }
 
@@ -130,7 +130,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
      */
     @Test
-    public void testWatermarkIncremental() throws Exception {
+    void testWatermarkIncremental() throws Exception {
         testWatermarkIncremental(100000);
     }
 
@@ -140,7 +140,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
      */
     @Test
-    public void testSerDeProcessingTime() throws Exception {
+    void testSerDeProcessingTime() throws Exception {
         testRecordSerDe(ProcessingTime);
     }
 
@@ -151,7 +151,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
      */
     @Test
-    public void testSerDeIngestionTime() throws Exception {
+    void testSerDeIngestionTime() throws Exception {
         testRecordSerDe(IngestionTime);
     }
 
@@ -162,7 +162,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
      */
     @Test
-    public void testSerDeEventTime() throws Exception {
+    void testSerDeEventTime() throws Exception {
         testRecordSerDe(EventTime);
     }
 
@@ -173,7 +173,7 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
      * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
      */
     @Test
-    public void testWatermarkBroadcasting() throws Exception {
+    void testWatermarkBroadcasting() throws Exception {
         final int numberOfPartitions = 3;
         final int producerParallelism = 2;
         final int numElementsPerProducer = 1000;

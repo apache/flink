@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.fail;
  * Tests that the partition assignment in the partition discoverer is deterministic and stable, with
  * both fixed and growing partitions.
  */
-public class AbstractPartitionDiscovererTest {
+class AbstractPartitionDiscovererTest {
 
     private static final String TEST_TOPIC = "test-topic";
     private static final String TEST_TOPIC_PATTERN = "^" + TEST_TOPIC + "[0-9]*$";
@@ -56,7 +56,7 @@ public class AbstractPartitionDiscovererTest {
 
     @ParameterizedTest(name = "KafkaTopicsDescriptor = {0}")
     @MethodSource("timeCharacteristic")
-    public void testPartitionsEqualConsumersFixedPartitions(KafkaTopicsDescriptor topicsDescriptor)
+    void testPartitionsEqualConsumersFixedPartitions(KafkaTopicsDescriptor topicsDescriptor)
             throws Exception {
         List<KafkaTopicPartition> mockGetAllPartitionsForTopicsReturn =
                 Arrays.asList(
@@ -110,8 +110,7 @@ public class AbstractPartitionDiscovererTest {
 
     @ParameterizedTest(name = "KafkaTopicsDescriptor = {0}")
     @MethodSource("timeCharacteristic")
-    public void testMultiplePartitionsPerConsumersFixedPartitions(
-            KafkaTopicsDescriptor topicsDescriptor) {
+    void testMultiplePartitionsPerConsumersFixedPartitions(KafkaTopicsDescriptor topicsDescriptor) {
         try {
             final int[] partitionIDs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
@@ -181,8 +180,7 @@ public class AbstractPartitionDiscovererTest {
 
     @ParameterizedTest(name = "KafkaTopicsDescriptor = {0}")
     @MethodSource("timeCharacteristic")
-    public void testPartitionsFewerThanConsumersFixedPartitions(
-            KafkaTopicsDescriptor topicsDescriptor) {
+    void testPartitionsFewerThanConsumersFixedPartitions(KafkaTopicsDescriptor topicsDescriptor) {
         try {
             List<KafkaTopicPartition> mockGetAllPartitionsForTopicsReturn =
                     Arrays.asList(
@@ -245,7 +243,7 @@ public class AbstractPartitionDiscovererTest {
 
     @ParameterizedTest(name = "KafkaTopicsDescriptor = {0}")
     @MethodSource("timeCharacteristic")
-    public void testGrowingPartitions(KafkaTopicsDescriptor topicsDescriptor) {
+    void testGrowingPartitions(KafkaTopicsDescriptor topicsDescriptor) {
         try {
             final int[] newPartitionIDs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
             List<KafkaTopicPartition> allPartitions = new ArrayList<>(11);
@@ -415,7 +413,7 @@ public class AbstractPartitionDiscovererTest {
 
     @ParameterizedTest(name = "KafkaTopicsDescriptor = {0}")
     @MethodSource("timeCharacteristic")
-    public void testDeterministicAssignmentWithDifferentFetchedPartitionOrdering(
+    void testDeterministicAssignmentWithDifferentFetchedPartitionOrdering(
             KafkaTopicsDescriptor topicsDescriptor) throws Exception {
         int numSubtasks = 4;
 
@@ -477,7 +475,7 @@ public class AbstractPartitionDiscovererTest {
 
     @ParameterizedTest(name = "KafkaTopicsDescriptor = {0}")
     @MethodSource("timeCharacteristic")
-    public void testNonContiguousPartitionIdDiscovery(KafkaTopicsDescriptor topicsDescriptor)
+    void testNonContiguousPartitionIdDiscovery(KafkaTopicsDescriptor topicsDescriptor)
             throws Exception {
         List<KafkaTopicPartition> mockGetAllPartitionsForTopicsReturn1 =
                 Arrays.asList(

@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionRecord;
+
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -49,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KafkaTransactionLog} to retrieve abortable Kafka transactions. */
 @Testcontainers
-public class KafkaTransactionLogITCase {
+class KafkaTransactionLogITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkITCase.class);
     private static final String TOPIC_NAME = "kafkaTransactionLogTest";
@@ -62,12 +63,12 @@ public class KafkaTransactionLogITCase {
     private final List<Producer<byte[], Integer>> openProducers = new ArrayList<>();
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         openProducers.forEach(Producer::close);
     }
 
     @Test
-    public void testGetTransactions() {
+    void testGetTransactions() {
         committedTransaction(1);
         abortedTransaction(2);
         lingeringTransaction(3);

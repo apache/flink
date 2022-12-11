@@ -30,14 +30,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link ClosableBlockingQueue}. */
-public class ClosableBlockingQueueTest {
+class ClosableBlockingQueueTest {
 
     // ------------------------------------------------------------------------
     //  single-threaded unit tests
     // ------------------------------------------------------------------------
 
     @Test
-    public void testCreateQueueHashCodeEquals() {
+    void testCreateQueueHashCodeEquals() {
         try {
             ClosableBlockingQueue<String> queue1 = new ClosableBlockingQueue<>();
             ClosableBlockingQueue<String> queue2 = new ClosableBlockingQueue<>(22);
@@ -91,7 +91,7 @@ public class ClosableBlockingQueueTest {
     }
 
     @Test
-    public void testCloseEmptyQueue() {
+    void testCloseEmptyQueue() {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
             assertThat(queue.isOpen()).isTrue();
@@ -114,7 +114,7 @@ public class ClosableBlockingQueueTest {
     }
 
     @Test
-    public void testCloseNonEmptyQueue() {
+    void testCloseNonEmptyQueue() {
         try {
             ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(asList(1, 2, 3));
             assertThat(queue.isOpen()).isTrue();
@@ -148,7 +148,7 @@ public class ClosableBlockingQueueTest {
     }
 
     @Test
-    public void testPeekAndPoll() {
+    void testPeekAndPoll() {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
@@ -208,7 +208,7 @@ public class ClosableBlockingQueueTest {
     }
 
     @Test
-    public void testPollBatch() {
+    void testPollBatch() {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
@@ -240,7 +240,7 @@ public class ClosableBlockingQueueTest {
     }
 
     @Test
-    public void testGetElementBlocking() {
+    void testGetElementBlocking() {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
@@ -297,7 +297,7 @@ public class ClosableBlockingQueueTest {
     }
 
     @Test
-    public void testGetBatchBlocking() {
+    void testGetBatchBlocking() {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
@@ -357,7 +357,7 @@ public class ClosableBlockingQueueTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void notifyOnClose() {
+    void notifyOnClose() {
         try {
             final long oneYear = 365L * 24 * 60 * 60 * 1000;
 
@@ -412,7 +412,7 @@ public class ClosableBlockingQueueTest {
 
     @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
     @Test
-    public void testMultiThreadedAddGet() {
+    void testMultiThreadedAddGet() {
         try {
             final ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>();
             final AtomicReference<Throwable> pushErrorRef = new AtomicReference<>();

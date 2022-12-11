@@ -30,12 +30,12 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the{@link JSONKeyValueDeserializationSchema}. */
-public class JSONKeyValueDeserializationSchemaTest {
+class JSONKeyValueDeserializationSchemaTest {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     @Test
-    public void testDeserializeWithoutMetadata() throws Exception {
+    void testDeserializeWithoutMetadata() throws Exception {
         ObjectNode initialKey = OBJECT_MAPPER.createObjectNode();
         initialKey.put("index", 4);
         byte[] serializedKey = OBJECT_MAPPER.writeValueAsBytes(initialKey);
@@ -55,7 +55,7 @@ public class JSONKeyValueDeserializationSchemaTest {
     }
 
     @Test
-    public void testDeserializeWithoutKey() throws Exception {
+    void testDeserializeWithoutKey() throws Exception {
         byte[] serializedKey = null;
 
         ObjectNode initialValue = OBJECT_MAPPER.createObjectNode();
@@ -88,7 +88,7 @@ public class JSONKeyValueDeserializationSchemaTest {
     }
 
     @Test
-    public void testDeserializeWithoutValue() throws Exception {
+    void testDeserializeWithoutValue() throws Exception {
         ObjectNode initialKey = OBJECT_MAPPER.createObjectNode();
         initialKey.put("index", 4);
         byte[] serializedKey = OBJECT_MAPPER.writeValueAsBytes(initialKey);
@@ -106,7 +106,7 @@ public class JSONKeyValueDeserializationSchemaTest {
     }
 
     @Test
-    public void testDeserializeWithMetadata() throws Exception {
+    void testDeserializeWithMetadata() throws Exception {
         ObjectNode initialKey = OBJECT_MAPPER.createObjectNode();
         initialKey.put("index", 4);
         byte[] serializedKey = OBJECT_MAPPER.writeValueAsBytes(initialKey);

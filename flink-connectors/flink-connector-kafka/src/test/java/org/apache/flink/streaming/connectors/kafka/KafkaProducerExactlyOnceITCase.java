@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 
 /** IT cases for the {@link FlinkKafkaProducer}. */
 @SuppressWarnings("serial")
-public class KafkaProducerExactlyOnceITCase extends KafkaProducerTestBase {
+class KafkaProducerExactlyOnceITCase extends KafkaProducerTestBase {
     @BeforeAll
     public static void prepare() throws Exception {
         KafkaProducerTestBase.prepare();
@@ -32,7 +32,7 @@ public class KafkaProducerExactlyOnceITCase extends KafkaProducerTestBase {
     }
 
     @Test
-    public void testMultipleSinkOperators() throws Exception {
+    void testMultipleSinkOperators() throws Exception {
         testExactlyOnce(false, 2);
     }
 }

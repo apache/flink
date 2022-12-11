@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link FlinkFixedPartitioner}. */
-public class FlinkFixedPartitionerTest {
+class FlinkFixedPartitionerTest {
 
     /**
      * Test for when there are more sinks than partitions.
@@ -39,7 +39,7 @@ public class FlinkFixedPartitionerTest {
      * </pre>
      */
     @Test
-    public void testMoreFlinkThanBrokers() {
+    void testMoreFlinkThanBrokers() {
         FlinkFixedPartitioner<String> part = new FlinkFixedPartitioner<>();
 
         int[] partitions = new int[] {0};
@@ -73,7 +73,7 @@ public class FlinkFixedPartitionerTest {
      * </pre>
      */
     @Test
-    public void testFewerPartitions() {
+    void testFewerPartitions() {
         FlinkFixedPartitioner<String> part = new FlinkFixedPartitioner<>();
 
         int[] partitions = new int[] {0, 1, 2, 3, 4};
@@ -93,7 +93,7 @@ public class FlinkFixedPartitionerTest {
      * 			3	----------/
      */
     @Test
-    public void testMixedCase() {
+    void testMixedCase() {
         FlinkFixedPartitioner<String> part = new FlinkFixedPartitioner<>();
         int[] partitions = new int[] {0, 1};
 

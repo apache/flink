@@ -37,9 +37,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkKafkaProducer}. */
-public class FlinkKafkaProducerTest {
+class FlinkKafkaProducerTest {
     @Test
-    public void testOpenSerializationSchemaProducer() throws Exception {
+    void testOpenSerializationSchemaProducer() throws Exception {
         OpenTestingSerializationSchema schema = new OpenTestingSerializationSchema();
         FlinkKafkaProducer<Integer> kafkaProducer =
                 new FlinkKafkaProducer<>("localhost:9092", "test-topic", schema);
@@ -59,7 +59,7 @@ public class FlinkKafkaProducerTest {
     }
 
     @Test
-    public void testOpenKafkaSerializationSchemaProducer() throws Exception {
+    void testOpenKafkaSerializationSchemaProducer() throws Exception {
         OpenTestingKafkaSerializationSchema schema = new OpenTestingKafkaSerializationSchema();
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "localhost:9092");
@@ -85,7 +85,7 @@ public class FlinkKafkaProducerTest {
     }
 
     @Test
-    public void testOpenKafkaCustomPartitioner() throws Exception {
+    void testOpenKafkaCustomPartitioner() throws Exception {
         CustomPartitioner<Integer> partitioner = new CustomPartitioner<>();
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "localhost:9092");
@@ -111,7 +111,7 @@ public class FlinkKafkaProducerTest {
     }
 
     @Test
-    public void testProvidedNullTransactionalIdPrefix() {
+    void testProvidedNullTransactionalIdPrefix() {
         FlinkKafkaProducer<Integer> kafkaProducer =
                 new FlinkKafkaProducer<>(
                         "localhost:9092", "test-topic", new OpenTestingSerializationSchema());

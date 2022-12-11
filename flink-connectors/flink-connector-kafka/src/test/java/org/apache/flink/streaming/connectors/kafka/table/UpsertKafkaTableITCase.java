@@ -56,7 +56,7 @@ import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Upsert-kafka IT cases. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class UpsertKafkaTableITCase extends KafkaTableTestBase {
+class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
@@ -73,15 +73,14 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
     private static final String WORD_COUNT_TOPIC = "word_count";
 
     @BeforeEach
-    public void before() {
-        // TODO discuss
+    void before() {
         if (format == null) {
             format = parameters().toArray(new String[] {})[0];
         }
     }
 
     @Test
-    public void testAggregate() throws Exception {
+    void testAggregate() throws Exception {
         String topic = WORD_COUNT_TOPIC + "_" + format;
         createTestTopic(topic, 4, 1);
         // -------------   test   ---------------
@@ -92,7 +91,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
     }
 
     @Test
-    public void testTemporalJoin() throws Exception {
+    void testTemporalJoin() throws Exception {
         String topic = USERS_TOPIC + "_" + format;
         createTestTopic(topic, 2, 1);
         // -------------   test   ---------------
@@ -115,7 +114,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
     }
 
     @Test
-    public void testBufferedUpsertSink() throws Exception {
+    void testBufferedUpsertSink() throws Exception {
         final String topic = "buffered_upsert_topic_" + format;
         createTestTopic(topic, 1, 1);
         String bootstraps = getBootstrapServers();
@@ -204,7 +203,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
     }
 
     @Test
-    public void testSourceSinkWithKeyAndPartialValue() throws Exception {
+    void testSourceSinkWithKeyAndPartialValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "key_partial_value_topic_" + format;
@@ -302,7 +301,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
     }
 
     @Test
-    public void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
+    void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "key_full_value_topic_" + format;

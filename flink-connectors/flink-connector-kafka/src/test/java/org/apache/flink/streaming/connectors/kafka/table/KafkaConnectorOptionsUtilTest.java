@@ -38,10 +38,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link KafkaConnectorOptionsUtil}. */
-public class KafkaConnectorOptionsUtilTest {
+class KafkaConnectorOptionsUtilTest {
 
     @Test
-    public void testFormatProjection() {
+    void testFormatProjection() {
         final DataType dataType =
                 DataTypes.ROW(
                         FIELD("id", INT()),
@@ -60,7 +60,7 @@ public class KafkaConnectorOptionsUtilTest {
     }
 
     @Test
-    public void testMissingKeyFormatProjection() {
+    void testMissingKeyFormatProjection() {
         final DataType dataType = ROW(FIELD("id", INT()));
         final Map<String, String> options = createTestOptions();
 
@@ -74,7 +74,7 @@ public class KafkaConnectorOptionsUtilTest {
     }
 
     @Test
-    public void testInvalidKeyFormatFieldProjection() {
+    void testInvalidKeyFormatFieldProjection() {
         final DataType dataType = ROW(FIELD("id", INT()), FIELD("name", STRING()));
         final Map<String, String> options = createTestOptions();
         options.put("key.fields", "non_existing");
@@ -92,7 +92,7 @@ public class KafkaConnectorOptionsUtilTest {
     }
 
     @Test
-    public void testInvalidKeyFormatPrefixProjection() {
+    void testInvalidKeyFormatPrefixProjection() {
         final DataType dataType =
                 ROW(FIELD("k_part_1", INT()), FIELD("part_2", STRING()), FIELD("name", STRING()));
         final Map<String, String> options = createTestOptions();
@@ -109,7 +109,7 @@ public class KafkaConnectorOptionsUtilTest {
     }
 
     @Test
-    public void testInvalidValueFormatProjection() {
+    void testInvalidValueFormatProjection() {
         final DataType dataType = ROW(FIELD("k_id", INT()), FIELD("id", STRING()));
         final Map<String, String> options = createTestOptions();
         options.put("key.fields", "k_id");

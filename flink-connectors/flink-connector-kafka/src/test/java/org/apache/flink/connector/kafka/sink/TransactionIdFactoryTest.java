@@ -22,10 +22,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TransactionalIdFactory}. */
-public class TransactionIdFactoryTest {
+class TransactionIdFactoryTest {
 
     @Test
-    public void testBuildTransactionalId() {
+    void testBuildTransactionalId() {
         final String expected = "prefix-0-2";
         assertThat(TransactionalIdFactory.buildTransactionalId("prefix", 0, 2L))
                 .isEqualTo(expected);

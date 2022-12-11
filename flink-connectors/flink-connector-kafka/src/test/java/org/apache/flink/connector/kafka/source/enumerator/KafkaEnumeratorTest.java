@@ -86,7 +86,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testStartWithDiscoverPartitionsOnce() throws Exception {
+    void testStartWithDiscoverPartitionsOnce() throws Exception {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator =
@@ -103,7 +103,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testStartWithPeriodicPartitionDiscovery() throws Exception {
+    void testStartWithPeriodicPartitionDiscovery() throws Exception {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator =
@@ -120,7 +120,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testDiscoverPartitionsTriggersAssignments() throws Throwable {
+    void testDiscoverPartitionsTriggersAssignments() throws Throwable {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator =
@@ -145,7 +145,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testReaderRegistrationTriggersAssignments() throws Throwable {
+    void testReaderRegistrationTriggersAssignments() throws Throwable {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator =
@@ -168,7 +168,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    @Timeout(30000L)
+    @Timeout(30L)
     public void testDiscoverPartitionsPeriodically() throws Throwable {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
@@ -222,7 +222,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testAddSplitsBack() throws Throwable {
+    void testAddSplitsBack() throws Throwable {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator =
@@ -247,7 +247,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testWorkWithPreexistingAssignments() throws Throwable {
+    void testWorkWithPreexistingAssignments() throws Throwable {
         Set<TopicPartition> preexistingAssignments;
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context1 =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
@@ -280,7 +280,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testKafkaClientProperties() throws Exception {
+    void testKafkaClientProperties() throws Exception {
         Properties properties = new Properties();
         String clientIdPrefix = "test-prefix";
         Integer defaultTimeoutMs = 99999;
@@ -311,7 +311,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testSnapshotState() throws Throwable {
+    void testSnapshotState() throws Throwable {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator = createEnumerator(context, false)) {
@@ -335,7 +335,7 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testPartitionChangeChecking() throws Throwable {
+    void testPartitionChangeChecking() throws Throwable {
         try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                         new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
                 KafkaSourceEnumerator enumerator =

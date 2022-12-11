@@ -43,10 +43,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AbstractFetcher}. */
 @SuppressWarnings("serial")
-public class AbstractFetcherTest {
+class AbstractFetcherTest {
 
     @Test
-    public void testIgnorePartitionStateSentinelInSnapshot() throws Exception {
+    void testIgnorePartitionStateSentinelInSnapshot() throws Exception {
         final String testTopic = "test topic name";
         Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
         originalPartitions.put(
@@ -93,7 +93,7 @@ public class AbstractFetcherTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testSkipCorruptedRecord() throws Exception {
+    void testSkipCorruptedRecord() throws Exception {
         final String testTopic = "test topic name";
         Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
         originalPartitions.put(
@@ -127,7 +127,7 @@ public class AbstractFetcherTest {
     }
 
     @Test
-    public void testConcurrentPartitionsDiscoveryAndLoopFetching() throws Exception {
+    void testConcurrentPartitionsDiscoveryAndLoopFetching() throws Exception {
         // test data
         final KafkaTopicPartition testPartition = new KafkaTopicPartition("test", 42);
 

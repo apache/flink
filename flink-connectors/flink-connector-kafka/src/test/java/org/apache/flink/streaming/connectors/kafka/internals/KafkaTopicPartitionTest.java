@@ -27,10 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link KafkaTopicPartition}. */
-public class KafkaTopicPartitionTest {
+class KafkaTopicPartitionTest {
 
     @Test
-    public void validateUid() {
+    void validateUid() {
         Field uidField;
         try {
             uidField = KafkaTopicPartition.class.getDeclaredField("serialVersionUID");

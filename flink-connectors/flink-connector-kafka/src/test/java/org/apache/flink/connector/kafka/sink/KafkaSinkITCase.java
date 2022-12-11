@@ -45,7 +45,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -60,6 +59,9 @@ import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.DockerImageVersions;
+
+import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
+
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -83,6 +85,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -109,7 +112,7 @@ import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for using KafkaSink writing to a Kafka cluster. */
 @Testcontainers
-public class KafkaSinkITCase {
+class KafkaSinkITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkITCase.class);
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
@@ -137,7 +140,7 @@ public class KafkaSinkITCase {
     @TempDir public Path temp;
 
     @BeforeAll
-    public static void setupAdmin() {
+    static void setupAdmin() {
         Map<String, Object> properties = new HashMap<>();
         properties.put(
                 CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
@@ -146,13 +149,13 @@ public class KafkaSinkITCase {
     }
 
     @AfterAll
-    public static void teardownAdmin() {
+    static void teardownAdmin() {
         admin.close();
         KAFKA_CONTAINER.close();
     }
 
     @BeforeEach
-    public void setUp() throws ExecutionException, InterruptedException, TimeoutException {
+    void setUp() throws ExecutionException, InterruptedException, TimeoutException {
         emittedRecordsCount = sharedObjects.add(new AtomicLong());
         emittedRecordsWithCheckpoint = sharedObjects.add(new AtomicLong());
         failed = sharedObjects.add(new AtomicBoolean(false));
@@ -162,7 +165,7 @@ public class KafkaSinkITCase {
     }
 
     @AfterEach
-    public void tearDown() throws ExecutionException, InterruptedException, TimeoutException {
+    void tearDown() throws ExecutionException, InterruptedException, TimeoutException {
         deleteTestTopic(topic);
     }
 
@@ -197,22 +200,22 @@ public class KafkaSinkITCase {
     }
 
     @Test
-    public void testWriteRecordsToKafkaWithAtLeastOnceGuarantee() throws Exception {
+    void testWriteRecordsToKafkaWithAtLeastOnceGuarantee() throws Exception {
         writeRecordsToKafka(DeliveryGuarantee.AT_LEAST_ONCE, emittedRecordsCount);
     }
 
     @Test
-    public void testWriteRecordsToKafkaWithNoneGuarantee() throws Exception {
+    void testWriteRecordsToKafkaWithNoneGuarantee() throws Exception {
         writeRecordsToKafka(DeliveryGuarantee.NONE, emittedRecordsCount);
     }
 
     @Test
-    public void testWriteRecordsToKafkaWithExactlyOnceGuarantee() throws Exception {
+    void testWriteRecordsToKafkaWithExactlyOnceGuarantee() throws Exception {
         writeRecordsToKafka(DeliveryGuarantee.EXACTLY_ONCE, emittedRecordsWithCheckpoint);
     }
 
     @Test
-    public void testRecoveryWithAtLeastOnceGuarantee() throws Exception {
+    void testRecoveryWithAtLeastOnceGuarantee() throws Exception {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.AT_LEAST_ONCE,
                 1,
@@ -220,7 +223,7 @@ public class KafkaSinkITCase {
     }
 
     @Test
-    public void testRecoveryWithExactlyOnceGuarantee() throws Exception {
+    void testRecoveryWithExactlyOnceGuarantee() throws Exception {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.EXACTLY_ONCE,
                 1,
@@ -233,7 +236,7 @@ public class KafkaSinkITCase {
     }
 
     @Test
-    public void testRecoveryWithExactlyOnceGuaranteeAndConcurrentCheckpoints() throws Exception {
+    void testRecoveryWithExactlyOnceGuaranteeAndConcurrentCheckpoints() throws Exception {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.EXACTLY_ONCE,
                 2,
@@ -246,7 +249,7 @@ public class KafkaSinkITCase {
     }
 
     @Test
-    public void testAbortTransactionsOfPendingCheckpointsAfterFailure() throws Exception {
+    void testAbortTransactionsOfPendingCheckpointsAfterFailure() throws Exception {
         // Run a first job failing during the async phase of a checkpoint to leave some
         // lingering transactions
         final Configuration config = new Configuration();
@@ -283,7 +286,7 @@ public class KafkaSinkITCase {
     }
 
     @Test
-    public void testAbortTransactionsAfterScaleInBeforeFirstCheckpoint() throws Exception {
+    void testAbortTransactionsAfterScaleInBeforeFirstCheckpoint() throws Exception {
         // Run a first job opening 5 transactions one per subtask and fail in async checkpoint phase
         final Configuration config = new Configuration();
         config.set(CoreOptions.DEFAULT_PARALLELISM, 5);

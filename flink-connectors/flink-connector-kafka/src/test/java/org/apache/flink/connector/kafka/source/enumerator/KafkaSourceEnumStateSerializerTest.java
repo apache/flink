@@ -35,7 +35,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link KafkaSourceEnumStateSerializer}. */
-public class KafkaSourceEnumStateSerializerTest {
+class KafkaSourceEnumStateSerializerTest {
 
     private static final int NUM_READERS = 10;
     private static final String TOPIC_PREFIX = "topic-";
@@ -43,7 +43,7 @@ public class KafkaSourceEnumStateSerializerTest {
     private static final long STARTING_OFFSET = KafkaPartitionSplit.EARLIEST_OFFSET;
 
     @Test
-    public void testEnumStateSerde() throws IOException {
+    void testEnumStateSerde() throws IOException {
         final KafkaSourceEnumState state = new KafkaSourceEnumState(constructTopicPartitions());
         final KafkaSourceEnumStateSerializer serializer = new KafkaSourceEnumStateSerializer();
 
@@ -56,7 +56,7 @@ public class KafkaSourceEnumStateSerializerTest {
     }
 
     @Test
-    public void testBackwardCompatibility() throws IOException {
+    void testBackwardCompatibility() throws IOException {
 
         final Set<TopicPartition> topicPartitions = constructTopicPartitions();
         final Map<Integer, Set<KafkaPartitionSplit>> splitAssignments =
