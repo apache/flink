@@ -67,6 +67,11 @@ under the License.
 					<groupId>org.apache.avro</groupId>
 					<artifactId>avro</artifactId>
 				</exclusion>
+				<!--maven-default-http-blocker : Blocked mirror repository.jboss.org-->
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
