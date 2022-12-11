@@ -82,17 +82,22 @@ public class AlterSchemaConverter {
 
     public Schema applySchemaChange(SqlAlterTableSchema alterTableSchema, Schema originalSchema) {
         AlterSchemaStrategy strategy = computeAlterSchemaStrategy(alterTableSchema);
-        if (strategy == AlterSchemaStrategy.MODIFY) {
-            throw new UnsupportedOperationException("Not implemented yet");
-        }
         SchemaConverter converter =
-                new AddSchemaConverter(
-                        originalSchema,
-                        (FlinkTypeFactory) sqlValidator.getTypeFactory(),
-                        sqlValidator,
-                        constraintValidator,
-                        escapeExpression,
-                        schemaResolver);
+                strategy == AlterSchemaStrategy.ADD
+                        ? new AddSchemaConverter(
+                                originalSchema,
+                                (FlinkTypeFactory) sqlValidator.getTypeFactory(),
+                                sqlValidator,
+                                constraintValidator,
+                                escapeExpression,
+                                schemaResolver)
+                        : new ModifySchemaConverter(
+                                originalSchema,
+                                (FlinkTypeFactory) sqlValidator.getTypeFactory(),
+                                sqlValidator,
+                                constraintValidator,
+                                escapeExpression,
+                                schemaResolver);
         converter.updateColumn(alterTableSchema.getColumnPositions().getList());
         alterTableSchema.getWatermark().ifPresent(converter::updateWatermark);
         alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
@@ -184,9 +189,6 @@ public class AlterSchemaConverter {
             checkPrimaryKeyExists();
             constraintValidator.accept(alterPrimaryKey);
             List<String> primaryKeyColumns = Arrays.asList(alterPrimaryKey.getColumnNames());
-            if (alterColNames.isEmpty()) {
-                primaryKeyColumns.forEach(this::updatePrimaryKeyNullability);
-            }
             primaryKey =
                     new Schema.UnresolvedPrimaryKey(
                             alterPrimaryKey
@@ -231,7 +233,7 @@ public class AlterSchemaConverter {
                                             alterWatermarkSpec.getWatermarkStrategy())));
         }
 
-        private Schema.UnresolvedPhysicalColumn convertPhysicalColumn(
+        Schema.UnresolvedPhysicalColumn convertPhysicalColumn(
                 SqlTableColumn.SqlRegularColumn physicalColumn) {
             DataType dataType = getDataType(physicalColumn.getType());
             return new Schema.UnresolvedPhysicalColumn(
@@ -326,20 +328,24 @@ public class AlterSchemaConverter {
         }
 
         private Schema convert() {
-            List<Schema.UnresolvedColumn> newColumns = new ArrayList<>();
-            for (String column : sortedColumnNames) {
-                newColumns.add(columns.get(column));
-            }
-            Schema.Builder resultBuilder = Schema.newBuilder().fromColumns(newColumns);
+            Schema.Builder resultBuilder = Schema.newBuilder();
             if (primaryKey != null) {
                 String constraintName = primaryKey.getConstraintName();
                 List<String> pkColumns = primaryKey.getColumnNames();
+                pkColumns.forEach(this::updatePrimaryKeyNullability);
                 if (constraintName != null) {
                     resultBuilder.primaryKeyNamed(constraintName, pkColumns);
                 } else {
                     resultBuilder.primaryKey(pkColumns);
                 }
             }
+
+            List<Schema.UnresolvedColumn> newColumns = new ArrayList<>();
+            for (String column : sortedColumnNames) {
+                newColumns.add(columns.get(column));
+            }
+            resultBuilder.fromColumns(newColumns);
+
             if (watermarkSpec != null) {
                 resultBuilder.watermark(
                         watermarkSpec.getColumnName(), watermarkSpec.getWatermarkExpression());
@@ -414,6 +420,76 @@ public class AlterSchemaConverter {
                                 "%sTry to add a column `%s` which already exists in the table.",
                                 EX_MSG_PREFIX, columnName));
             }
+        }
+    }
+
+    private static class ModifySchemaConverter extends SchemaConverter {
+
+        ModifySchemaConverter(
+                Schema originalSchema,
+                FlinkTypeFactory typeFactory,
+                SqlValidator sqlValidator,
+                Consumer<SqlTableConstraint> constraintValidator,
+                Function<SqlNode, String> escapeExpressions,
+                SchemaResolver schemaResolver) {
+            super(
+                    originalSchema,
+                    typeFactory,
+                    sqlValidator,
+                    constraintValidator,
+                    escapeExpressions,
+                    schemaResolver);
+        }
+
+        @Override
+        void checkColumnExists(String columnName) {
+            if (!sortedColumnNames.contains(columnName)) {
+                throw new ValidationException(
+                        String.format(
+                                "%sTry to modify a column `%s` which does not exist in the table.",
+                                EX_MSG_PREFIX, columnName));
+            }
+        }
+
+        @Override
+        void checkPrimaryKeyExists() {
+            if (primaryKey == null) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe base table does not define any primary key constraint. You might "
+                                        + "want to add a new one.",
+                                EX_MSG_PREFIX));
+            }
+        }
+
+        @Override
+        void checkWatermarkExists() {
+            if (watermarkSpec == null) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe base table does not define any watermark. You might "
+                                        + "want to add a new one.",
+                                EX_MSG_PREFIX));
+            }
+        }
+
+        @Override
+        Optional<Integer> getColumnPosition(SqlTableColumnPosition columnPosition) {
+            if (columnPosition.isFirstColumn() || columnPosition.isAfterReferencedColumn()) {
+                sortedColumnNames.remove(columnPosition.getColumn().getName().getSimple());
+                return super.getColumnPosition(columnPosition);
+            }
+            return Optional.empty();
+        }
+
+        @Nullable
+        @Override
+        String getComment(SqlTableColumn column) {
+            String comment = super.getComment(column);
+            // update comment iff the alter table statement contains the field comment
+            return comment == null
+                    ? columns.get(column.getName().getSimple()).getComment().orElse(null)
+                    : comment;
         }
     }
 

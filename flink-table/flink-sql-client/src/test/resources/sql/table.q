@@ -461,41 +461,96 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
 !ok
 
 # ==========================================================================
+# test alter table modify schema
+# ==========================================================================
+# test alter table schema modify primary key
+alter table orders2 modify constraint order_constraint primary key (trade_order_id) not enforced;
+[INFO] Execute statement succeed.
+!info
+
+# verify table schema using SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `trade_order_id` BIGINT NOT NULL,
+  `user` BIGINT NOT NULL,
+  `user_email` VARCHAR(2147483647) NOT NULL,
+  `product_id` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `cleaned_product` AS COALESCE(`product`, 'missing_sku'),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `order_constraint` PRIMARY KEY (`trade_order_id`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
+# test alter table schema modify watermark offset, change column position
+alter table orders2 modify (watermark for ts as ts - interval '1' minute, ts timestamp(3) not null after trade_order_id, `user` string);
+[INFO] Execute statement succeed.
+!info
+
+# verify table schema using SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `trade_order_id` BIGINT NOT NULL,
+  `ts` TIMESTAMP(3) NOT NULL,
+  `user` VARCHAR(2147483647),
+  `user_email` VARCHAR(2147483647) NOT NULL,
+  `product_id` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `cleaned_product` AS COALESCE(`product`, 'missing_sku'),
+  `amount` INT,
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' MINUTE,
+  CONSTRAINT `order_constraint` PRIMARY KEY (`trade_order_id`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
+
+
+# ==========================================================================
 # test describe table
 # ==========================================================================
 
 describe orders2;
-+-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
-|            name |                        type |  null |       key |                                extras |                  watermark |
-+-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
-|  trade_order_id |                      BIGINT | FALSE |           |                                       |                            |
-|            user |                      BIGINT | FALSE | PRI(user) |                                       |                            |
-|      user_email |                      STRING | FALSE |           |                                       |                            |
-|      product_id |                      BIGINT | FALSE |           |                                       |                            |
-|         product |                 VARCHAR(32) |  TRUE |           |                                       |                            |
-| cleaned_product |                 VARCHAR(32) | FALSE |           | AS COALESCE(`product`, 'missing_sku') |                            |
-|          amount |                         INT |  TRUE |           |                                       |                            |
-|              ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |                                       | `ts` - INTERVAL '1' SECOND |
-|           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           |                         AS PROCTIME() |                            |
-+-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
++-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
+|            name |                        type |  null |                 key |                                extras |                  watermark |
++-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
+|  trade_order_id |                      BIGINT | FALSE | PRI(trade_order_id) |                                       |                            |
+|              ts |      TIMESTAMP(3) *ROWTIME* | FALSE |                     |                                       | `ts` - INTERVAL '1' MINUTE |
+|            user |                      STRING |  TRUE |                     |                                       |                            |
+|      user_email |                      STRING | FALSE |                     |                                       |                            |
+|      product_id |                      BIGINT | FALSE |                     |                                       |                            |
+|         product |                 VARCHAR(32) |  TRUE |                     |                                       |                            |
+| cleaned_product |                 VARCHAR(32) | FALSE |                     | AS COALESCE(`product`, 'missing_sku') |                            |
+|          amount |                         INT |  TRUE |                     |                                       |                            |
+|           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |                     |                         AS PROCTIME() |                            |
++-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
 9 rows in set
 !ok
 
 # test desc table
 desc orders2;
-+-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
-|            name |                        type |  null |       key |                                extras |                  watermark |
-+-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
-|  trade_order_id |                      BIGINT | FALSE |           |                                       |                            |
-|            user |                      BIGINT | FALSE | PRI(user) |                                       |                            |
-|      user_email |                      STRING | FALSE |           |                                       |                            |
-|      product_id |                      BIGINT | FALSE |           |                                       |                            |
-|         product |                 VARCHAR(32) |  TRUE |           |                                       |                            |
-| cleaned_product |                 VARCHAR(32) | FALSE |           | AS COALESCE(`product`, 'missing_sku') |                            |
-|          amount |                         INT |  TRUE |           |                                       |                            |
-|              ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |                                       | `ts` - INTERVAL '1' SECOND |
-|           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           |                         AS PROCTIME() |                            |
-+-----------------+-----------------------------+-------+-----------+---------------------------------------+----------------------------+
++-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
+|            name |                        type |  null |                 key |                                extras |                  watermark |
++-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
+|  trade_order_id |                      BIGINT | FALSE | PRI(trade_order_id) |                                       |                            |
+|              ts |      TIMESTAMP(3) *ROWTIME* | FALSE |                     |                                       | `ts` - INTERVAL '1' MINUTE |
+|            user |                      STRING |  TRUE |                     |                                       |                            |
+|      user_email |                      STRING | FALSE |                     |                                       |                            |
+|      product_id |                      BIGINT | FALSE |                     |                                       |                            |
+|         product |                 VARCHAR(32) |  TRUE |                     |                                       |                            |
+| cleaned_product |                 VARCHAR(32) | FALSE |                     | AS COALESCE(`product`, 'missing_sku') |                            |
+|          amount |                         INT |  TRUE |                     |                                       |                            |
+|           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |                     |                         AS PROCTIME() |                            |
++-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
 9 rows in set
 !ok
 

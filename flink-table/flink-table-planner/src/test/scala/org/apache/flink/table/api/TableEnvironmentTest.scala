@@ -608,6 +608,195 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterTableModifyColumn(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  c STRING METADATA VIRTUAL,
+        |  d STRING,
+        |  e AS a * 2 + b,
+        |  ts1 TIMESTAMP(3),
+        |  ts2 TIMESTAMP(3),
+        |  PRIMARY KEY(d, b) NOT ENFORCED,
+        |  WATERMARK FOR ts2 AS ts2 - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  x STRING FIRST
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Try to modify a column `x` which does not exist in the table.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  b INT FIRST,
+                                                   |  a BIGINT AFTER x
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Referenced column `x` by 'AFTER' does not exist in the table.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  b BOOLEAN first
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining("""Failed to execute ALTER TABLE statement.
+                              |Invalid expression for computed column 'e'.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  b BOOLEAN first,
+                          |  e AS a * 2
+                          |)
+                          |""".stripMargin)
+    val expectedResult1 = util.Arrays.asList(
+      Row.of("b", "BOOLEAN", Boolean.box(false), "PRI(d, b)", null, null),
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null),
+      Row.of("d", "STRING", Boolean.box(false), "PRI(d, b)", null, null),
+      Row.of("e", "BIGINT", Boolean.box(true), null, "AS `a` * 2", null),
+      Row.of("ts1", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of(
+        "ts2",
+        "TIMESTAMP(3) *ROWTIME*",
+        Boolean.box(true),
+        null,
+        null,
+        "`ts2` - INTERVAL '1' SECOND")
+    )
+    val tableResult1 = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult1.iterator(), tableResult1.collect())
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  e AS UPPER(c) FIRST,
+                          |  WATERMARK FOR ts1 AS ts1,
+                          |  a DOUBLE NOT NULL AFTER ts2,
+                          |  PRIMARY KEY(d) NOT ENFORCED
+                          |)
+                          |""".stripMargin)
+
+    val expectedResult2 = util.Arrays.asList(
+      Row.of("e", "STRING", Boolean.box(true), null, "AS UPPER(`c`)", null),
+      Row.of("b", "BOOLEAN", Boolean.box(false), null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null),
+      Row.of("d", "STRING", Boolean.box(false), "PRI(d)", null, null),
+      Row.of("ts1", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, null, "`ts1`"),
+      Row.of("ts2", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of("a", "DOUBLE", Boolean.box(false), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableModifyConstraint(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  c STRING METADATA VIRTUAL
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  PRIMARY KEY (x) NOT ENFORCED
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |The base table does not define any primary key constraint. You might want to add a new one.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable ADD (
+                          |  PRIMARY KEY(a) NOT ENFORCED
+                          |)
+                          |""".stripMargin)
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  PRIMARY KEY(b) NOT ENFORCED
+                          |)
+                          |""".stripMargin)
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(false), null, null, null),
+      Row.of("b", "INT", Boolean.box(false), "PRI(b)", null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableModifyWatermark(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  WATERMARK FOR d AS d - INTERVAL '1' MINUTE
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  WATERMARK FOR e.e1 AS e.e1
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Watermark strategy on nested column is not supported yet.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  WATERMARK FOR d AS d
+                          |)
+                          |""".stripMargin)
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of("d", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, null, "`d`"),
+      Row.of("e", "ROW<`e0` STRING, `e1` TIMESTAMP(3)>", Boolean.box(true), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
   def testAlterTableCompactOnNonManagedTable(): Unit = {
     val statement =
       """
