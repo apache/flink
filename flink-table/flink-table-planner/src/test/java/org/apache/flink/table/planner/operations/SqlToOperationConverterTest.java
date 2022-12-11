@@ -1425,7 +1425,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  `h` DOUBLE NOT NULL COMMENT 'h is double not null'\n"
                                 + ")");
         assertAlterTableSchema(
@@ -1459,7 +1459,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  CONSTRAINT `PK_k` PRIMARY KEY (`k`) NOT ENFORCED\n"
                                 + ")");
         assertAlterTableSchema(
@@ -1486,6 +1486,7 @@ public class SqlToOperationConverterTest {
                         .columnByExpression("f", "e.f1 + e.f2.f0")
                         .columnByMetadata("g", DataTypes.STRING(), null, true)
                         .column("ts", DataTypes.TIMESTAMP(3))
+                        .withComment("just a comment")
                         .primaryKey("k")
                         .build());
 
@@ -1508,7 +1509,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  `na` AS [`r`.`r3`],\n"
                                 + "  `tss` AS [`to_timestamp`(`r`.`r2`)] COMMENT 'rowtime',\n"
                                 + "  `r` ROW<`r1` BIGINT, `r2` STRING, `r3` ARRAY<DOUBLE> NOT NULL> NOT NULL COMMENT 'add composite type',\n"
@@ -1643,7 +1644,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  CONSTRAINT `my_pk` PRIMARY KEY (`a`, `b`) NOT ENFORCED\n"
                                 + ")");
         assertAlterTableSchema(
@@ -1665,7 +1666,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  `x` BIGINT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_x` PRIMARY KEY (`x`) NOT ENFORCED\n"
                                 + ")");
@@ -1690,7 +1691,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  `x` BIGINT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_x` PRIMARY KEY (`x`) NOT ENFORCED\n"
                                 + ")");
@@ -1714,7 +1715,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) NOT NULL,\n"
+                                + "  `ts` TIMESTAMP(3) NOT NULL COMMENT 'just a comment',\n"
                                 + "  CONSTRAINT `ct` PRIMARY KEY (`ts`) NOT ENFORCED\n"
                                 + ")");
         List<Schema.UnresolvedColumn> subColumns =
@@ -1725,6 +1726,7 @@ public class SqlToOperationConverterTest {
                 Schema.newBuilder()
                         .fromColumns(subColumns)
                         .column("ts", DataTypes.TIMESTAMP(3).notNull())
+                        .withComment("just a comment")
                         .primaryKeyNamed("ct", "ts")
                         .build());
     }
@@ -1792,7 +1794,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  WATERMARK FOR `ts` AS [`ts`]\n"
                                 + ")");
         assertAlterTableSchema(
@@ -1813,7 +1815,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  `tss` TIMESTAMP(3) NOT NULL,\n"
                                 + "  WATERMARK FOR `tss` AS [`tss`]\n"
                                 + ")");
@@ -1842,7 +1844,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  `log_ts` STRING NOT NULL,\n"
                                 + "  `tss` AS [`to_timestamp`(`log_ts`)],\n"
                                 + "  WATERMARK FOR `tss` AS [`tss` - INTERVAL '3' SECOND]\n"
@@ -1872,7 +1874,7 @@ public class SqlToOperationConverterTest {
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
                                 + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
                                 + "  `x` ROW<`f0` STRING, `f1` TIMESTAMP(3) NOT NULL> NOT NULL,\n"
                                 + "  `y` AS [`x`.`f1`],\n"
                                 + "  WATERMARK FOR `y` AS [`y` - INTERVAL '1' DAY]\n"
@@ -1888,6 +1890,367 @@ public class SqlToOperationConverterTest {
                                         .notNull())
                         .columnByExpression("y", "`x`.`f1`")
                         .watermark("y", "`y` - INTERVAL '1' DAY")
+                        .build());
+    }
+
+    @Test
+    public void testFailedToAlterTableModifyColumn() throws Exception {
+        prepareNonManagedTable("tb1", true);
+
+        // modify duplicated column same
+        assertThatThrownBy(() -> parse("alter table tb1 modify (b int, b array<int not null>)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nEncounter duplicate column `b`.");
+
+        // modify nonexistent column name
+        assertThatThrownBy(() -> parse("alter table tb1 modify x bigint"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nTry to modify a column `x` which does not exist in the table.");
+
+        // refer to nonexistent column name
+        assertThatThrownBy(() -> parse("alter table tb1 modify a bigint after x"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nReferenced column `x` by 'AFTER' does not exist in the table.");
+
+        // modify physical columns which generates computed column
+        assertThatThrownBy(() -> parse("alter table tb1 modify e array<int>"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'f'.");
+
+        assertThatThrownBy(() -> parse("alter table tb1 modify a string"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'd'.");
+
+        assertThatThrownBy(() -> parse("alter table tb1 modify b as a + 2"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'd'.");
+
+        assertThatThrownBy(() -> parse("alter table tb1 modify (a timestamp(3), b multiset<int>)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'd'.");
+
+        // modify the rowtime field which defines watermark
+        assertThatThrownBy(() -> parse("alter table tb1 modify ts int"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid data type of time field for watermark definition. "
+                                + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), "
+                                + "the supported precision 'p' is from 0 to 3, but the time field type is INT");
+
+        // modify pk fields
+        prepareNonManagedTable("tb2", 1);
+
+        assertThatThrownBy(() -> parse("alter table tb2 modify (d int, a as b + 2)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid primary key 'ct1'. Column 'a' is not a physical column.");
+
+        assertThatThrownBy(() -> parse("alter table tb2 modify (d string, a int metadata virtual)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid primary key 'ct1'. Column 'a' is not a physical column.");
+
+        // modify an inner field to a nested row
+        assertThatThrownBy(() -> parse("alter table tb2 modify (e.f0 string)"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\n"
+                                + "Alter nested row type is not supported yet.");
+
+        // refer to a nested inner field
+        assertThatThrownBy(() -> parse("alter table tb2 modify (g string after e.f2)"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\n"
+                                + "Alter nested row type is not supported yet.");
+
+        assertThatThrownBy(() -> parse("alter table tb2 modify (e.f0 string after e.f1)"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\n"
+                                + "Alter nested row type is not supported yet.");
+    }
+
+    @Test
+    public void testAlterTableModifyColumn() throws Exception {
+        prepareNonManagedTable("tb1", 2);
+
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+
+        // modify a single column (change pos and add comment)
+        Operation operation =
+                parse(
+                        "alter table tb1 modify b bigint not null comment 'move b to first and add comment' first");
+        assertAlterTableSchema(
+                operation,
+                tableIdentifier,
+                Schema.newBuilder()
+                        .column("b", DataTypes.BIGINT().notNull())
+                        .withComment("move b to first and add comment")
+                        .column("a", DataTypes.INT().notNull())
+                        .column("c", DataTypes.STRING())
+                        .columnByExpression("d", "a*(b+2 + a*b)")
+                        .column(
+                                "e",
+                                DataTypes.ROW(
+                                        DataTypes.STRING(),
+                                        DataTypes.INT(),
+                                        DataTypes.ROW(
+                                                DataTypes.DOUBLE(),
+                                                DataTypes.ARRAY(DataTypes.FLOAT()))))
+                        .columnByExpression("f", "e.f1 + e.f2.f0")
+                        .columnByMetadata("g", DataTypes.STRING(), null, true)
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .withComment("just a comment")
+                        .primaryKeyNamed("ct1", "a", "b")
+                        .build());
+
+        // change nullability and pos
+        operation = parse("alter table tb1 modify ts timestamp(3) not null after e");
+        assertAlterTableSchema(
+                operation,
+                tableIdentifier,
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT().notNull())
+                        .column("b", DataTypes.BIGINT().notNull())
+                        .column("c", DataTypes.STRING())
+                        .columnByExpression("d", "a*(b+2 + a*b)")
+                        .column(
+                                "e",
+                                DataTypes.ROW(
+                                        DataTypes.STRING(),
+                                        DataTypes.INT(),
+                                        DataTypes.ROW(
+                                                DataTypes.DOUBLE(),
+                                                DataTypes.ARRAY(DataTypes.FLOAT()))))
+                        .column("ts", DataTypes.TIMESTAMP(3).notNull())
+                        .withComment("just a comment")
+                        .columnByExpression("f", "e.f1 + e.f2.f0")
+                        .columnByMetadata("g", DataTypes.STRING(), null, true)
+                        .primaryKeyNamed("ct1", "a", "b")
+                        .build());
+
+        // modify multiple columns (change pos, nullability, add comment) and pk constraint
+        operation =
+                parse(
+                        "alter table tb1 modify (\n"
+                                + "d as a + 2 comment 'change d' after b,\n"
+                                + "c bigint first,\n"
+                                + "e string comment 'change e',\n"
+                                + "f as upper(e) comment 'change f' after ts,\n"
+                                + "g int not null comment 'change g',\n"
+                                + "constraint ct2 primary key(e) not enforced)");
+
+        assertAlterTableSchema(
+                operation,
+                tableIdentifier,
+                Schema.newBuilder()
+                        .column("c", DataTypes.BIGINT())
+                        .column("a", DataTypes.INT().notNull())
+                        .column("b", DataTypes.BIGINT().notNull())
+                        .columnByExpression("d", "`a` + 2")
+                        .withComment("change d")
+                        .column("e", DataTypes.STRING().notNull())
+                        .withComment("change e")
+                        .column("g", DataTypes.INT().notNull())
+                        .withComment("change g")
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .withComment("just a comment")
+                        .columnByExpression("f", "UPPER(`e`)")
+                        .withComment("change f")
+                        .primaryKeyNamed("ct2", "e")
+                        .build());
+
+        // modify multiple columns and watermark spec
+        prepareNonManagedTable("tb2", true);
+        tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb2");
+        operation =
+                parse(
+                        "alter table tb2 modify (ts int comment 'change ts',\n"
+                                + "f timestamp(3) not null,\n"
+                                + "e int metadata virtual,\n"
+                                + "watermark for f as f,\n"
+                                + "g multiset<int> not null comment 'change g' first)");
+
+        assertAlterTableSchema(
+                operation,
+                tableIdentifier,
+                Schema.newBuilder()
+                        .column("g", DataTypes.MULTISET(DataTypes.INT()).notNull())
+                        .withComment("change g")
+                        .column("a", DataTypes.INT().notNull())
+                        .column("b", DataTypes.BIGINT().notNull())
+                        .column("c", DataTypes.STRING())
+                        .columnByExpression("d", "a*(b+2 + a*b)")
+                        .columnByMetadata("e", DataTypes.INT(), null, true)
+                        .column("f", DataTypes.TIMESTAMP(3).notNull())
+                        .column("ts", DataTypes.INT())
+                        .withComment("change ts")
+                        .watermark("f", "`f`")
+                        .build());
+    }
+
+    @Test
+    public void testFailedToAlterTableModifyPk() throws Exception {
+        prepareNonManagedTable("tb1", 0);
+
+        // modify pk on a table without pk specified
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb1 modify constraint ct primary key (b) not enforced"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\n"
+                                + "The base table does not define any primary key constraint. You might want to add a new one.");
+
+        prepareNonManagedTable("tb2", 1);
+
+        // specify a nonexistent column as pk
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb2 modify constraint ct primary key (x) not enforced"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\n"
+                                + "Invalid primary key 'ct'. Column 'x' does not exist.");
+
+        // specify computed column as pk
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb2 modify constraint ct primary key (d) not enforced"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\n"
+                                + "Invalid primary key 'ct'. Column 'd' is not a physical column.");
+
+        // specify metadata column as pk
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb2 modify constraint ct primary key (g) not enforced"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\n"
+                                + "Invalid primary key 'ct'. Column 'g' is not a physical column.");
+    }
+
+    @Test
+    public void testAlterTableModifyPk() throws Exception {
+        prepareNonManagedTable("tb1", 1);
+
+        // test modify constraint name
+        Operation operation =
+                parse("alter table tb1 modify constraint ct2 primary key (a, b) not enforced");
+
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        Schema originalSchema =
+                catalogManager.getTable(tableIdentifier).get().getTable().getUnresolvedSchema();
+
+        assertAlterTableSchema(
+                operation,
+                ObjectIdentifier.of("cat1", "db1", "tb1"),
+                Schema.newBuilder()
+                        .fromColumns(originalSchema.getColumns())
+                        .primaryKeyNamed("ct2", "a", "b")
+                        .build());
+
+        // test modify pk will change column c's nullability
+        operation = parse("alter table tb1 modify primary key (c, a) not enforced");
+        assertAlterTableSchema(
+                operation,
+                ObjectIdentifier.of("cat1", "db1", "tb1"),
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT().notNull())
+                        .column("b", DataTypes.BIGINT().notNull())
+                        .column("c", DataTypes.STRING().notNull())
+                        .columnByExpression("d", "a*(b+2 + a*b)")
+                        .column(
+                                "e",
+                                DataTypes.ROW(
+                                        DataTypes.STRING(),
+                                        DataTypes.INT(),
+                                        DataTypes.ROW(
+                                                DataTypes.DOUBLE(),
+                                                DataTypes.ARRAY(DataTypes.FLOAT()))))
+                        .columnByExpression("f", "e.f1 + e.f2.f0")
+                        .columnByMetadata("g", DataTypes.STRING(), null, true)
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .withComment("just a comment")
+                        .primaryKeyNamed("PK_c_a", "c", "a")
+                        .build());
+    }
+
+    @Test
+    public void testFailedToAlterTableModifyWatermark() throws Exception {
+        prepareNonManagedTable("tb1", false);
+
+        // modify watermark on a table without watermark
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb1 modify watermark for a as to_timestamp(a) - interval '1' minute"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nThe base table does not define any watermark. You might want to add a new one.");
+
+        prepareNonManagedTable("tb2", true);
+
+        // specify invalid watermark spec
+        assertThatThrownBy(() -> parse("alter table tb2 modify watermark for a as a"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid data type of time field for watermark definition. "
+                                + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), the supported precision 'p' is from 0 to 3, "
+                                + "but the time field type is INT NOT NULL");
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb2 modify watermark for c as to_timestamp(c) - interval '1' day"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nInvalid data type of time field for watermark definition. "
+                                + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), the supported precision 'p' is from 0 to 3, "
+                                + "but the time field type is STRING");
+    }
+
+    @Test
+    public void testAlterTableModifyWatermark() throws Exception {
+        prepareNonManagedTable("tb1", true);
+
+        // modify watermark offset
+        Operation operation = parse("alter table tb1 modify watermark for ts as ts");
+
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        Schema originalSchema =
+                catalogManager.getTable(tableIdentifier).get().getTable().getUnresolvedSchema();
+        List<Schema.UnresolvedColumn> columns = originalSchema.getColumns();
+        assertAlterTableSchema(
+                operation,
+                tableIdentifier,
+                Schema.newBuilder().fromColumns(columns).watermark("ts", "`ts`").build());
+
+        // modify watermark rowtime field
+        operation = parse("alter table tb1 modify (g timestamp(3) not null, watermark for g as g)");
+        assertAlterTableSchema(
+                operation,
+                tableIdentifier,
+                Schema.newBuilder()
+                        .fromColumns(columns.subList(0, columns.size() - 2))
+                        .column("g", DataTypes.TIMESTAMP(3).notNull())
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .withComment("just a comment")
+                        .watermark("g", "`g`")
                         .build());
     }
 
@@ -2305,7 +2668,8 @@ public class SqlToOperationConverterTest {
                                                 DataTypes.ARRAY(DataTypes.FLOAT()))))
                         .columnByExpression("f", "e.f1 + e.f2.f0")
                         .columnByMetadata("g", DataTypes.STRING(), null, true)
-                        .column("ts", DataTypes.TIMESTAMP(3));
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .withComment("just a comment");
         Map<String, String> options = new HashMap<>();
         options.put("k", "v");
         if (!managedTable) {
