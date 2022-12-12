@@ -453,12 +453,4 @@ public class TableFactoryService {
                 .map(s -> s.substring(0, s.length() - 1))
                 .collect(Collectors.toList());
     }
-
-    /**
-     * Performs filtering for special cases (i.e. table format factories with schema derivation).
-     */
-    private static List<String> filterSupportedPropertiesFactorySpecific(
-            TableFactory factory, List<String> keys) {
-        return keys;
-    }
 }
