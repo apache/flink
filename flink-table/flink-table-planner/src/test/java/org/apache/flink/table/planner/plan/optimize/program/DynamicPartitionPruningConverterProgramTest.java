@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.rules.physical.batch;
+package org.apache.flink.table.planner.plan.optimize.program;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
@@ -40,10 +40,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Test for rules that extend {@link DynamicPartitionPruningRule} to create {@link
+ * Tests for rules that extend {@link FlinkDynamicPartitionPruningConverterProgram} to create {@link
  * org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan}.
  */
-public class DynamicPartitionPruningRuleTest extends TableTestBase {
+public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
     private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
     private final TestValuesCatalog catalog =
             new TestValuesCatalog("testCatalog", "test_database", true);
@@ -381,7 +381,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testComplexDimSideWithJoinInDimSide() {
-        // Dim side contains join will not succeed in this version, it will improve later.
+        // Dpp will success
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE sales (\n"
@@ -434,7 +434,100 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
         util.verifyRelPlan(query);
     }
 
-    // --------------------------dpp factor test ---------------------------------------------
+    @Test
+    public void testDppWithoutJoinReorder() {
+        // Dpp will success
+        String ddl =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        TableConfig tableConfig = util.tableEnv().getConfig();
+        // Join reorder don't open.
+        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, false);
+
+        String query =
+                "Select * from fact_part, item, dim"
+                        + " where fact_part.fact_date_sk = dim.dim_date_sk"
+                        + " and fact_part.id = item.id"
+                        + " and dim.id = item.id "
+                        + " and dim.price < 500 and dim.price > 300";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDppWithSubQuery() {
+        // Dpp will success
+        String ddl =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        TableConfig tableConfig = util.tableEnv().getConfig();
+        // Join reorder don't open.
+        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, false);
+
+        String query =
+                "Select * from fact_part, item, dim"
+                        + " where fact_part.id = item.id"
+                        + " and dim.price in (select price from dim where amount = (select amount from dim where amount = 2000))"
+                        + " and fact_part.fact_date_sk = dim.dim_date_sk";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDppWithUnionInFactSide() {
+        // Dpp will success
+        String ddl =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        String query =
+                "Select * from (select id, fact_date_sk, amount + 1 as amount1 from fact_part where price = 1 union all "
+                        + "select id, fact_date_sk, amount + 1 from fact_part where price = 2) fact_part2, item, dim"
+                        + " where fact_part2.fact_date_sk = dim.dim_date_sk"
+                        + " and fact_part2.id = item.id"
+                        + " and dim.price < 500 and dim.price > 300";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDppWithAggInFactSide() {
+        // Dpp will success
+        String ddl =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        String query =
+                "Select * from (Select fact_date_sk, item.amount, sum(fact_part.price) from fact_part "
+                        + "join item on fact_part.id = item.id group by fact_date_sk, item.amount) t1 "
+                        + "join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ";
+        util.verifyRelPlan(query);
+    }
 
     @Test
     public void testDPPFactorToReorderTableWithoutStats() {

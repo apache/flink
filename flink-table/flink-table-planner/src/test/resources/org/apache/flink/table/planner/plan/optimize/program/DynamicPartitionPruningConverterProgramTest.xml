@@ -91,7 +91,13 @@ LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], d
       <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk, dim_date_sk, EXPR$1], build=[right])
 :- Exchange(distribution=[hash[fact_date_sk]])
-:  +- TableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+:  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+:     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:        +- HashAggregate(isMerge=[true], groupBy=[dim_date_sk], select=[dim_date_sk, Final_SUM(sum$0) AS EXPR$1])
+:           +- Exchange(distribution=[hash[dim_date_sk]])
+:              +- LocalHashAggregate(groupBy=[dim_date_sk], select=[dim_date_sk, Partial_SUM(price) AS sum$0])
+:                 +- Calc(select=[price, dim_date_sk], where=[<(price, 500)])
+:                    +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])
 +- HashAggregate(isMerge=[true], groupBy=[dim_date_sk], select=[dim_date_sk, Final_SUM(sum$0) AS EXPR$1])
    +- Exchange(distribution=[hash[dim_date_sk]])
       +- LocalHashAggregate(groupBy=[dim_date_sk], select=[dim_date_sk, Partial_SUM(price) AS sum$0])
@@ -122,7 +128,18 @@ LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], i
       <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk, id0, male, amount0, price0, dim_date_sk, id00, amount00, price00, id1, amount1, price1], build=[right])
 :- Exchange(distribution=[hash[fact_date_sk]])
-:  +- TableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+:  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+:     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:        +- HashJoin(joinType=[InnerJoin], where=[=(id0, id1)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0, id1, amount1, price1], build=[left])
+:           :- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0], build=[right])
+:           :  :- Exchange(distribution=[hash[id]])
+:           :  :  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
+:           :  :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+:           :  +- Exchange(distribution=[hash[id]])
+:           :     +- Calc(select=[id, amount, price], where=[>(price, 300)])
+:           :        +- TableSourceScan(table=[[testCatalog, test_database, sales, filter=[]]], fields=[id, amount, price])
+:           +- Exchange(distribution=[hash[id]])
+:              +- TableSourceScan(table=[[testCatalog, test_database, item]], fields=[id, amount, price])
 +- Exchange(distribution=[hash[dim_date_sk]])
    +- HashJoin(joinType=[InnerJoin], where=[=(id0, id1)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0, id1, amount1, price1], build=[left])
       :- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0], build=[right])
@@ -399,6 +416,169 @@ HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, name, amount, pri
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDynamicFilteringFactInRightWithExchangeAndCalcRule">
+    <Resource name="sql">
+      <![CDATA[Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and fact_part.price > 200 and dim.price < 500]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], male=[$1], amount=[$2], price=[$3], dim_date_sk=[$4], id0=[$5], name=[$6], amount0=[$7], price0=[$8], fact_date_sk=[$9])
++- LogicalFilter(condition=[AND(=($9, $4), >($8, 200), <($3, 500))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, male, amount, price, dim_date_sk, id0, name, amount0, price0, fact_date_sk], build=[left])
+:- Exchange(distribution=[hash[dim_date_sk]])
+:  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
+:     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
++- Exchange(distribution=[hash[fact_date_sk]])
+   +- Calc(select=[id, name, amount, price, fact_date_sk], where=[>(price, 200)])
+      +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[]]], fields=[id, name, amount, price, fact_date_sk])
+         +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+            +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
+               +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDppWithAggInFactSide">
+    <Resource name="sql">
+      <![CDATA[Select * from (Select fact_date_sk, item.amount, sum(fact_part.price) from fact_part join item on fact_part.id = item.id group by fact_date_sk, item.amount) t1 join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(fact_date_sk=[$0], amount=[$1], EXPR$2=[$2], id=[$3], male=[$4], amount0=[$5], price=[$6], dim_date_sk=[$7])
++- LogicalFilter(condition=[AND(<($6, 500), >($6, 300))])
+   +- LogicalJoin(condition=[=($0, $7)], joinType=[inner])
+      :- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
+      :  +- LogicalProject(fact_date_sk=[$4], amount=[$6], price=[$3])
+      :     +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
+      :        :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+      :        +- LogicalTableScan(table=[[testCatalog, test_database, item]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[fact_date_sk, amount, EXPR$2, id, male, amount0, price, dim_date_sk], build=[left])
+:- Exchange(distribution=[hash[fact_date_sk]])
+:  +- HashAggregate(isMerge=[true], groupBy=[fact_date_sk, amount], select=[fact_date_sk, amount, Final_SUM(sum$0) AS EXPR$2])
+:     +- Exchange(distribution=[hash[fact_date_sk, amount]])
+:        +- LocalHashAggregate(groupBy=[fact_date_sk, amount], select=[fact_date_sk, amount, Partial_SUM(price) AS sum$0])
+:           +- Calc(select=[fact_date_sk, amount, price])
+:              +- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, price, fact_date_sk, id0, amount], build=[right])
+:                 :- Exchange(distribution=[hash[id]])
+:                 :  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[id, price, fact_date_sk], metadata=[]]], fields=[id, price, fact_date_sk])
+:                 :     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:                 :        +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+:                 :           +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+:                 +- Exchange(distribution=[hash[id]])
+:                    +- TableSourceScan(table=[[testCatalog, test_database, item, project=[id, amount], metadata=[]]], fields=[id, amount])
++- Exchange(distribution=[hash[dim_date_sk]])
+   +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+      +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDppWithoutJoinReorder">
+    <Resource name="sql">
+      <![CDATA[Select * from fact_part, item, dim where fact_part.fact_date_sk = dim.dim_date_sk and fact_part.id = item.id and dim.id = item.id  and dim.price < 500 and dim.price > 300]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], id0=[$5], amount0=[$6], price0=[$7], id1=[$8], male=[$9], amount1=[$10], price1=[$11], dim_date_sk=[$12])
++- LogicalFilter(condition=[AND(=($4, $12), =($0, $5), =($8, $5), <($11, 500), >($11, 300))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+      :  +- LogicalTableScan(table=[[testCatalog, test_database, item]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[AND(=(fact_date_sk, dim_date_sk), =(id1, id0))], select=[id, name, amount, price, fact_date_sk, id0, amount0, price0, id1, male, amount1, price1, dim_date_sk], build=[right])
+:- Exchange(distribution=[hash[fact_date_sk, id0]])
+:  +- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, name, amount, price, fact_date_sk, id0, amount0, price0], build=[right])
+:     :- Exchange(distribution=[hash[id]])
+:     :  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+:     :     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:     :        +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+:     :           +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+:     +- Exchange(distribution=[hash[id]])
+:        +- TableSourceScan(table=[[testCatalog, test_database, item]], fields=[id, amount, price])
++- Exchange(distribution=[hash[dim_date_sk, id]])
+   +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+      +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDppWithSubQuery">
+    <Resource name="sql">
+      <![CDATA[Select * from fact_part, item, dim where fact_part.id = item.id and dim.price in (select price from dim where amount = (select amount from dim where amount = 2000)) and fact_part.fact_date_sk = dim.dim_date_sk]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], id0=[$5], amount0=[$6], price0=[$7], id1=[$8], male=[$9], amount1=[$10], price1=[$11], dim_date_sk=[$12])
++- LogicalFilter(condition=[AND(=($0, $5), IN($11, {
+LogicalProject(price=[$3])
+  LogicalFilter(condition=[=($2, $SCALAR_QUERY({
+LogicalProject(amount=[$2])
+  LogicalFilter(condition=[=($2, 2000)])
+    LogicalTableScan(table=[[testCatalog, test_database, dim]])
+}))])
+    LogicalTableScan(table=[[testCatalog, test_database, dim]])
+}), =($4, $12))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+      :  +- LogicalTableScan(table=[[testCatalog, test_database, item]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk, id0, amount0, price0, id1, male, amount1, price1, dim_date_sk], build=[right])
+:- Exchange(distribution=[hash[fact_date_sk]])
+:  +- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, name, amount, price, fact_date_sk, id0, amount0, price0], build=[right])
+:     :- Exchange(distribution=[hash[id]])
+:     :  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+:     :     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:     :        +- HashJoin(joinType=[LeftSemiJoin], where=[=(price, price0)], select=[id, male, amount, price, dim_date_sk], build=[right])
+:     :           :- Exchange(distribution=[hash[price]])
+:     :           :  +- TableSourceScan(table=[[testCatalog, test_database, dim]], fields=[id, male, amount, price, dim_date_sk])
+:     :           +- Exchange(distribution=[hash[price]])
+:     :              +- Calc(select=[price])
+:     :                 +- NestedLoopJoin(joinType=[InnerJoin], where=[=(amount, $f0)], select=[amount, price, $f0], build=[right], singleRowJoin=[true])
+:     :                    :- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price], metadata=[]]], fields=[amount, price])
+:     :                    +- Exchange(distribution=[broadcast])
+:     :                       +- HashAggregate(isMerge=[true], select=[Final_SINGLE_VALUE(value$0, count$1) AS $f0])
+:     :                          +- Exchange(distribution=[single])
+:     :                             +- LocalHashAggregate(select=[Partial_SINGLE_VALUE(amount) AS (value$0, count$1)])
+:     :                                +- Calc(select=[CAST(2000 AS BIGINT) AS amount], where=[=(amount, 2000)])
+:     :                                   +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[amount], metadata=[]]], fields=[amount])
+:     +- Exchange(distribution=[hash[id]])
+:        +- TableSourceScan(table=[[testCatalog, test_database, item]], fields=[id, amount, price])
++- Exchange(distribution=[hash[dim_date_sk]])
+   +- HashJoin(joinType=[LeftSemiJoin], where=[=(price, price0)], select=[id, male, amount, price, dim_date_sk], build=[right])
+      :- Exchange(distribution=[hash[price]])
+      :  +- TableSourceScan(table=[[testCatalog, test_database, dim]], fields=[id, male, amount, price, dim_date_sk])
+      +- Exchange(distribution=[hash[price]])
+         +- Calc(select=[price])
+            +- NestedLoopJoin(joinType=[InnerJoin], where=[=(amount, $f0)], select=[amount, price, $f0], build=[right], singleRowJoin=[true])
+               :- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price], metadata=[]]], fields=[amount, price])
+               +- Exchange(distribution=[broadcast])
+                  +- HashAggregate(isMerge=[true], select=[Final_SINGLE_VALUE(value$0, count$1) AS $f0])
+                     +- Exchange(distribution=[single])
+                        +- LocalHashAggregate(select=[Partial_SINGLE_VALUE(amount) AS (value$0, count$1)])
+                           +- Calc(select=[CAST(2000 AS BIGINT) AS amount], where=[=(amount, 2000)])
+                              +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[amount], metadata=[]]], fields=[amount])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDynamicFilteringFactInLeftRule">
     <Resource name="sql">
       <![CDATA[Select * from fact_part, dim where fact_part.fact_date_sk = dim.dim_date_sk and dim.price < 500]]>
@@ -560,17 +740,17 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], selec
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDynamicFilteringFactInRightWithExchangeAndCalcRule">
+  <TestCase name="testFactTableIsLegacySource">
     <Resource name="sql">
-      <![CDATA[Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and fact_part.price > 200 and dim.price < 500]]>
+      <![CDATA[Select * from dim, legacy_source where legacy_source.fact_date_sk = dim.dim_date_sk and dim.price < 500]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], male=[$1], amount=[$2], price=[$3], dim_date_sk=[$4], id0=[$5], name=[$6], amount0=[$7], price0=[$8], fact_date_sk=[$9])
-+- LogicalFilter(condition=[AND(=($9, $4), >($8, 200), <($3, 500))])
++- LogicalFilter(condition=[AND(=($9, $4), <($3, 500))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[testCatalog, test_database, dim]])
-      +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, legacy_source]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -580,11 +760,53 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
 :  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
 :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 +- Exchange(distribution=[hash[fact_date_sk]])
-   +- Calc(select=[id, name, amount, price, fact_date_sk], where=[>(price, 200)])
-      +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[]]], fields=[id, name, amount, price, fact_date_sk])
-         +- DynamicFilteringDataCollector(fields=[dim_date_sk])
-            +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
-               +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+   +- TableSourceScan(table=[[testCatalog, test_database, legacy_source]], fields=[id, name, amount, price, fact_date_sk])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDppWithUnionInFactSide">
+    <Resource name="sql">
+      <![CDATA[Select * from (select id, fact_date_sk, amount + 1 as amount1 from fact_part where price = 1 union all select id, fact_date_sk, amount + 1 from fact_part where price = 2) fact_part2, item, dim where fact_part2.fact_date_sk = dim.dim_date_sk and fact_part2.id = item.id and dim.price < 500 and dim.price > 300]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], fact_date_sk=[$1], amount1=[$2], id0=[$3], amount=[$4], price=[$5], id1=[$6], male=[$7], amount0=[$8], price0=[$9], dim_date_sk=[$10])
++- LogicalFilter(condition=[AND(=($1, $10), =($0, $3), <($9, 500), >($9, 300))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalUnion(all=[true])
+      :  :  :- LogicalProject(id=[$0], fact_date_sk=[$4], amount1=[+($2, 1)])
+      :  :  :  +- LogicalFilter(condition=[=($3, 1)])
+      :  :  :     +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+      :  :  +- LogicalProject(id=[$0], fact_date_sk=[$4], EXPR$2=[+($2, 1)])
+      :  :     +- LogicalFilter(condition=[=($3, 2)])
+      :  :        +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+      :  +- LogicalTableScan(table=[[testCatalog, test_database, item]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, fact_date_sk, amount1, id0, amount, price, id1, male, amount0, price0, dim_date_sk], build=[left])
+:- Exchange(distribution=[hash[fact_date_sk]])
+:  +- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, fact_date_sk, amount1, id0, amount, price], build=[left])
+:     :- Exchange(distribution=[hash[id]])
+:     :  +- Union(all=[true], union=[id, fact_date_sk, amount1])
+:     :     :- Calc(select=[id, fact_date_sk, +(amount, 1) AS amount1], where=[=(price, 1)])
+:     :     :  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[id, amount, price, fact_date_sk], metadata=[]]], fields=[id, amount, price, fact_date_sk])
+:     :     :     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:     :     :        +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+:     :     :           +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+:     :     +- Calc(select=[id, fact_date_sk, +(amount, 1) AS EXPR$2], where=[=(price, 2)])
+:     :        +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, filter=[], project=[id, amount, price, fact_date_sk], metadata=[]]], fields=[id, amount, price, fact_date_sk])
+:     :           +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+:     :              +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+:     :                 +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+:     +- Exchange(distribution=[hash[id]])
+:        +- TableSourceScan(table=[[testCatalog, test_database, item]], fields=[id, amount, price])
++- Exchange(distribution=[hash[dim_date_sk]])
+   +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+      +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 ]]>
     </Resource>
   </TestCase>
@@ -640,30 +862,6 @@ NestedLoopJoin(joinType=[InnerJoin], where=[AND(=(fact_date_sk, dim_date_sk), =(
       +- DynamicFilteringDataCollector(fields=[dim_date_sk])
          +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
             +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testFactTableIsLegacySource">
-    <Resource name="sql">
-      <![CDATA[Select * from dim, legacy_source where legacy_source.fact_date_sk = dim.dim_date_sk and dim.price < 500]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], male=[$1], amount=[$2], price=[$3], dim_date_sk=[$4], id0=[$5], name=[$6], amount0=[$7], price0=[$8], fact_date_sk=[$9])
-+- LogicalFilter(condition=[AND(=($9, $4), <($3, 500))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[testCatalog, test_database, dim]])
-      +- LogicalTableScan(table=[[testCatalog, test_database, legacy_source]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, male, amount, price, dim_date_sk, id0, name, amount0, price0, fact_date_sk], build=[left])
-:- Exchange(distribution=[hash[dim_date_sk]])
-:  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
-:     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
-+- Exchange(distribution=[hash[fact_date_sk]])
-   +- TableSourceScan(table=[[testCatalog, test_database, legacy_source]], fields=[id, name, amount, price, fact_date_sk])
 ]]>
     </Resource>
   </TestCase>

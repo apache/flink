@@ -59,6 +59,10 @@ class FlinkChainedProgram[OC <: FlinkOptimizeContext]
         val result = program.optimize(input, context)
         val end = System.currentTimeMillis()
 
+        println(
+          s"optimize $name cost ${end - start} ms.\n" +
+            s"optimize result: \n${FlinkRelOptUtil.toString(result)}")
+
         if (LOG.isDebugEnabled) {
           LOG.debug(
             s"optimize $name cost ${end - start} ms.\n" +

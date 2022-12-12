@@ -19,18 +19,22 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringDataCollector;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 
@@ -45,6 +49,8 @@ import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.core.Union;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -52,6 +58,8 @@ import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.util.ImmutableIntList;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -60,153 +68,15 @@ import java.util.stream.Collectors;
 public class DynamicPartitionPruningUtils {
 
     /**
-     * For the input join node, judge whether the join left side and join right side meet the
-     * requirements of dynamic partition pruning. Fact side in left or right join is not clear.
-     */
-    public static boolean supportDynamicPartitionPruning(Join join) {
-        return supportDynamicPartitionPruning(join, true)
-                || supportDynamicPartitionPruning(join, false);
-    }
-
-    /**
-     * For the input join node, judge whether the join left side and join right side meet the
-     * requirements of dynamic partition pruning. Fact side in left or right is clear. If meets the
-     * requirements, return true.
-     */
-    public static boolean supportDynamicPartitionPruning(Join join, boolean factInLeft) {
-        if (!ShortcutUtils.unwrapContext(join)
-                .getTableConfig()
-                .get(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
-            return false;
-        }
-        // Now dynamic partition pruning supports left/right join, inner and semi join. but now semi
-        // join can not join reorder.
-        if (join.getJoinType() == JoinRelType.LEFT) {
-            if (factInLeft) {
-                return false;
-            }
-        } else if (join.getJoinType() == JoinRelType.RIGHT) {
-            if (!factInLeft) {
-                return false;
-            }
-        } else if (join.getJoinType() != JoinRelType.INNER
-                && join.getJoinType() != JoinRelType.SEMI) {
-            return false;
-        }
-
-        JoinInfo joinInfo = join.analyzeCondition();
-        if (joinInfo.leftKeys.isEmpty()) {
-            return false;
-        }
-        RelNode left = join.getLeft();
-        RelNode right = join.getRight();
-
-        // TODO Now fact side and dim side don't support many complex patterns, like join inside
-        // fact/dim side, agg inside fact/dim side etc. which will support next.
-        return factInLeft
-                ? isDynamicPartitionPruningPattern(left, right, joinInfo.leftKeys)
-                : isDynamicPartitionPruningPattern(right, left, joinInfo.rightKeys);
-    }
-
-    private static boolean isDynamicPartitionPruningPattern(
-            RelNode factSide, RelNode dimSide, ImmutableIntList factSideJoinKey) {
-        return isDimSide(dimSide) && isFactSide(factSide, factSideJoinKey);
-    }
-
-    /** make a dpp fact side factor to recurrence in fact side. */
-    private static boolean isFactSide(RelNode rel, ImmutableIntList joinKeys) {
-        DppFactSideFactors factSideFactors = new DppFactSideFactors();
-        visitFactSide(rel, factSideFactors, joinKeys);
-        return factSideFactors.isFactSide();
-    }
-
-    /**
      * Judge whether input RelNode meets the conditions of dimSide. If joinKeys is null means we
      * need not consider the join keys in dim side, which already deal by dynamic partition pruning
      * rule. If joinKeys not null means we need to judge whether joinKeys changed in dim side, if
      * changed, this RelNode is not dim side.
      */
-    private static boolean isDimSide(RelNode rel) {
+    public static boolean isDimSide(RelNode rel) {
         DppDimSideFactors dimSideFactors = new DppDimSideFactors();
         visitDimSide(rel, dimSideFactors);
         return dimSideFactors.isDimSide();
-    }
-
-    /**
-     * Visit fact side to judge whether fact side has partition table, partition table source meets
-     * the condition of dpp table source and dynamic filtering keys changed in fact side.
-     */
-    private static void visitFactSide(
-            RelNode rel, DppFactSideFactors factSideFactors, ImmutableIntList joinKeys) {
-        if (rel instanceof TableScan) {
-            TableScan scan = (TableScan) rel;
-            if (scan instanceof BatchPhysicalDynamicFilteringTableSourceScan) {
-                // rule applied
-                factSideFactors.isSuitableFactScanSource = false;
-                return;
-            }
-            TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-            if (tableSourceTable == null) {
-                factSideFactors.isSuitableFactScanSource = false;
-                return;
-            }
-            CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getResolvedTable();
-            List<String> partitionKeys = catalogTable.getPartitionKeys();
-            if (partitionKeys.isEmpty()) {
-                factSideFactors.isSuitableFactScanSource = false;
-                return;
-            }
-            DynamicTableSource tableSource = tableSourceTable.tableSource();
-            if (!(tableSource instanceof SupportsDynamicFiltering)
-                    || !(tableSource instanceof ScanTableSource)) {
-                factSideFactors.isSuitableFactScanSource = false;
-                return;
-            }
-            if (!isNewSource((ScanTableSource) tableSource)) {
-                factSideFactors.isSuitableFactScanSource = false;
-                return;
-            }
-
-            List<String> candidateFields =
-                    joinKeys.stream()
-                            .map(i -> scan.getRowType().getFieldNames().get(i))
-                            .collect(Collectors.toList());
-            if (candidateFields.isEmpty()) {
-                factSideFactors.isSuitableFactScanSource = false;
-                return;
-            }
-
-            factSideFactors.isSuitableFactScanSource =
-                    !getSuitableDynamicFilteringFieldsInFactSide(tableSource, candidateFields)
-                            .isEmpty();
-        } else if (rel instanceof HepRelVertex) {
-            visitFactSide(((HepRelVertex) rel).getCurrentRel(), factSideFactors, joinKeys);
-        } else if (rel instanceof Exchange || rel instanceof Filter) {
-            visitFactSide(rel.getInput(0), factSideFactors, joinKeys);
-        } else if (rel instanceof Project) {
-            List<RexNode> projects = ((Project) rel).getProjects();
-            ImmutableIntList inputJoinKeys = getInputIndices(projects, joinKeys);
-            if (inputJoinKeys.isEmpty()) {
-                factSideFactors.isSuitableJoinKey = false;
-                return;
-            }
-
-            visitFactSide(rel.getInput(0), factSideFactors, inputJoinKeys);
-        } else if (rel instanceof Calc) {
-            Calc calc = (Calc) rel;
-            RexProgram program = calc.getProgram();
-            List<RexNode> projects =
-                    program.getProjectList().stream()
-                            .map(program::expandLocalRef)
-                            .collect(Collectors.toList());
-            ImmutableIntList inputJoinKeys = getInputIndices(projects, joinKeys);
-            if (inputJoinKeys.isEmpty()) {
-                factSideFactors.isSuitableJoinKey = false;
-                return;
-            }
-
-            visitFactSide(rel.getInput(0), factSideFactors, inputJoinKeys);
-        }
     }
 
     public static List<String> getSuitableDynamicFilteringFieldsInFactSide(
@@ -228,6 +98,254 @@ public class DynamicPartitionPruningUtils {
         }
 
         return suitableFields;
+    }
+
+    public static Tuple2<Boolean, RelNode> canConvertAndConvertDppFactSide(
+            RelNode rel,
+            ImmutableIntList joinKeys,
+            RelNode dimSide,
+            ImmutableIntList dimSideJoinKey,
+            Join join) {
+        DppFactSideFactors factSideFactors = new DppFactSideFactors();
+        RelNode newRel =
+                convertDppFactSide(rel, joinKeys, dimSide, dimSideJoinKey, factSideFactors, join);
+        return Tuple2.of(factSideFactors.isChanged, newRel);
+    }
+
+    public static RelNode convertDppFactSide(
+            RelNode rel,
+            ImmutableIntList joinKeys,
+            RelNode dimSide,
+            ImmutableIntList dimSideJoinKey,
+            DppFactSideFactors factSideFactors,
+            Join join) {
+        if (rel instanceof TableScan) {
+            TableScan scan = (TableScan) rel;
+            if (scan instanceof BatchPhysicalDynamicFilteringTableSourceScan) {
+                // rule applied
+                return rel;
+            }
+            TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
+            if (tableSourceTable == null) {
+                return rel;
+            }
+            CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getResolvedTable();
+            List<String> partitionKeys = catalogTable.getPartitionKeys();
+            if (partitionKeys.isEmpty()) {
+                return rel;
+            }
+            DynamicTableSource tableSource = tableSourceTable.tableSource();
+            if (!(tableSource instanceof SupportsDynamicFiltering)
+                    || !(tableSource instanceof ScanTableSource)) {
+                return rel;
+            }
+            if (!isNewSource((ScanTableSource) tableSource)) {
+                return rel;
+            }
+
+            List<String> candidateFields =
+                    joinKeys.stream()
+                            .map(i -> scan.getRowType().getFieldNames().get(i))
+                            .collect(Collectors.toList());
+            if (candidateFields.isEmpty()) {
+                return rel;
+            }
+
+            List<String> acceptedFilterFields =
+                    getSuitableDynamicFilteringFieldsInFactSide(tableSource, candidateFields);
+
+            if (acceptedFilterFields.size() == 0) {
+                return rel;
+            }
+
+            // Apply suitable accepted filter fields to source.
+            ((SupportsDynamicFiltering) tableSource).applyDynamicFiltering(acceptedFilterFields);
+
+            List<Integer> acceptedFieldIndices =
+                    acceptedFilterFields.stream()
+                            .map(f -> scan.getRowType().getFieldNames().indexOf(f))
+                            .collect(Collectors.toList());
+            List<Integer> dynamicFilteringFieldIndices = new ArrayList<>();
+            for (int i = 0; i < joinKeys.size(); ++i) {
+                if (acceptedFieldIndices.contains(joinKeys.get(i))) {
+                    dynamicFilteringFieldIndices.add(dimSideJoinKey.get(i));
+                }
+            }
+
+            BatchPhysicalDynamicFilteringDataCollector dynamicFilteringDataCollector =
+                    createDynamicFilteringConnector(dimSide, dynamicFilteringFieldIndices);
+
+            factSideFactors.isChanged = true;
+
+            if (!isSuitableJoin(join)) {
+                return rel;
+            }
+
+            return new BatchPhysicalDynamicFilteringTableSourceScan(
+                    scan.getCluster(),
+                    scan.getTraitSet(),
+                    scan.getHints(),
+                    tableSourceTable,
+                    dynamicFilteringDataCollector);
+        } else if (rel instanceof Exchange || rel instanceof Filter) {
+            return rel.copy(
+                    rel.getTraitSet(),
+                    Collections.singletonList(
+                            convertDppFactSide(
+                                    rel.getInput(0),
+                                    joinKeys,
+                                    dimSide,
+                                    dimSideJoinKey,
+                                    factSideFactors,
+                                    join)));
+        } else if (rel instanceof Project) {
+            List<RexNode> projects = ((Project) rel).getProjects();
+            ImmutableIntList inputJoinKeys = getInputIndices(projects, joinKeys);
+            if (inputJoinKeys.isEmpty()) {
+                return rel;
+            }
+
+            return rel.copy(
+                    rel.getTraitSet(),
+                    Collections.singletonList(
+                            convertDppFactSide(
+                                    rel.getInput(0),
+                                    inputJoinKeys,
+                                    dimSide,
+                                    dimSideJoinKey,
+                                    factSideFactors,
+                                    join)));
+        } else if (rel instanceof Calc) {
+            Calc calc = (Calc) rel;
+            RexProgram program = calc.getProgram();
+            List<RexNode> projects =
+                    program.getProjectList().stream()
+                            .map(program::expandLocalRef)
+                            .collect(Collectors.toList());
+            ImmutableIntList inputJoinKeys = getInputIndices(projects, joinKeys);
+            if (inputJoinKeys.isEmpty()) {
+                return rel;
+            }
+
+            return rel.copy(
+                    rel.getTraitSet(),
+                    Collections.singletonList(
+                            convertDppFactSide(
+                                    rel.getInput(0),
+                                    inputJoinKeys,
+                                    dimSide,
+                                    dimSideJoinKey,
+                                    factSideFactors,
+                                    join)));
+        } else if (rel instanceof Join) {
+            Join currentJoin = (Join) rel;
+            return currentJoin.copy(
+                    currentJoin.getTraitSet(),
+                    Arrays.asList(
+                            convertDppFactSide(
+                                    currentJoin.getLeft(),
+                                    getInputIndices(currentJoin, joinKeys, true),
+                                    dimSide,
+                                    dimSideJoinKey,
+                                    factSideFactors,
+                                    join),
+                            convertDppFactSide(
+                                    currentJoin.getRight(),
+                                    getInputIndices(currentJoin, joinKeys, false),
+                                    dimSide,
+                                    dimSideJoinKey,
+                                    factSideFactors,
+                                    join)));
+        } else if (rel instanceof Union) {
+            Union union = (Union) rel;
+            List<RelNode> newInputs = new ArrayList<>();
+            for (RelNode input : union.getInputs()) {
+                newInputs.add(
+                        convertDppFactSide(
+                                input, joinKeys, dimSide, dimSideJoinKey, factSideFactors, join));
+            }
+            return union.copy(union.getTraitSet(), newInputs, union.all);
+        } else if (rel instanceof BatchPhysicalGroupAggregateBase) {
+            BatchPhysicalGroupAggregateBase agg = (BatchPhysicalGroupAggregateBase) rel;
+            List<RelNode> newInputs = new ArrayList<>();
+            for (RelNode input : agg.getInputs()) {
+                newInputs.add(
+                        convertDppFactSide(
+                                input,
+                                getInputIndices(agg, input, joinKeys),
+                                dimSide,
+                                dimSideJoinKey,
+                                factSideFactors,
+                                join));
+            }
+
+            return agg.copy(agg.getTraitSet(), newInputs);
+        }
+
+        return rel;
+    }
+
+    private static boolean isSuitableJoin(Join join) {
+        // Now dynamic partition pruning supports left/right join, inner and semi
+        // join. but now semi
+        // join can not join reorder.
+        if (join.getJoinType() != JoinRelType.INNER
+                && join.getJoinType() != JoinRelType.SEMI
+                && join.getJoinType() != JoinRelType.LEFT
+                && join.getJoinType() != JoinRelType.RIGHT) {
+            return false;
+        }
+
+        JoinInfo joinInfo = join.analyzeCondition();
+        return !joinInfo.leftKeys.isEmpty();
+    }
+
+    private static ImmutableIntList getInputIndices(
+            BatchPhysicalGroupAggregateBase agg, RelNode aggInput, ImmutableIntList joinKeys) {
+        int[] indexMap = new int[aggInput.getRowType().getFieldCount()];
+        int[] grouping = agg.grouping();
+        if (grouping.length == 0) {
+            return joinKeys;
+        }
+        int beginIndex = grouping[0] - 1;
+        for (int i = 0; i < indexMap.length; i++) {
+            indexMap[i] = i;
+        }
+
+        System.arraycopy(grouping, 0, indexMap, 0, grouping.length);
+        if (beginIndex >= 0) {
+            for (int i = 0; i <= beginIndex; i++) {
+                indexMap[grouping.length + i] = i;
+            }
+        }
+        List<Integer> indices = new ArrayList<>();
+        for (int k : joinKeys) {
+            indices.add(indexMap[k]);
+        }
+        return ImmutableIntList.copyOf(indices);
+    }
+
+    private static BatchPhysicalDynamicFilteringDataCollector createDynamicFilteringConnector(
+            RelNode dimSide, List<Integer> dynamicFilteringFieldIndices) {
+        final RelDataType outputType =
+                ((FlinkTypeFactory) dimSide.getCluster().getTypeFactory())
+                        .projectStructType(
+                                dimSide.getRowType(),
+                                dynamicFilteringFieldIndices.stream().mapToInt(i -> i).toArray());
+        return new BatchPhysicalDynamicFilteringDataCollector(
+                dimSide.getCluster(),
+                dimSide.getTraitSet(),
+                ignoreExchange(dimSide),
+                outputType,
+                dynamicFilteringFieldIndices.stream().mapToInt(i -> i).toArray());
+    }
+
+    private static RelNode ignoreExchange(RelNode dimSide) {
+        if (dimSide instanceof Exchange) {
+            return dimSide.getInput(0);
+        } else {
+            return dimSide;
+        }
     }
 
     /**
@@ -258,7 +376,14 @@ public class DynamicPartitionPruningUtils {
                 }
             }
             CatalogTable catalogTable = table.contextResolvedTable().getResolvedTable();
-            dimSideFactors.hasNonPartitionedScan = !catalogTable.isPartitioned();
+            if (catalogTable.isPartitioned()) {
+                dimSideFactors.hasPartitionedScan = true;
+                return;
+            }
+
+            if (!dimSideFactors.setTables(table.contextResolvedTable())) {
+                return;
+            }
         } else if (rel instanceof HepRelVertex) {
             visitDimSide(((HepRelVertex) rel).getCurrentRel(), dimSideFactors);
         } else if (rel instanceof Exchange || rel instanceof Project) {
@@ -275,6 +400,19 @@ public class DynamicPartitionPruningUtils {
                 dimSideFactors.hasFilter = true;
             }
             visitDimSide(rel.getInput(0), dimSideFactors);
+        } else if (rel instanceof Join) {
+            Join join = (Join) rel;
+            visitDimSide(join.getLeft(), dimSideFactors);
+            visitDimSide(join.getRight(), dimSideFactors);
+        } else if (rel instanceof BatchPhysicalGroupAggregateBase) {
+            for (RelNode input : rel.getInputs()) {
+                visitDimSide(input, dimSideFactors);
+            }
+        } else if (rel instanceof Union) {
+            Union union = (Union) rel;
+            for (RelNode input : union.getInputs()) {
+                visitDimSide(input, dimSideFactors);
+            }
         }
     }
 
@@ -354,24 +492,51 @@ public class DynamicPartitionPruningUtils {
         return ImmutableIntList.copyOf(indices);
     }
 
-    /** This class is used to remember dim side messages while recurring in dim side. */
+    private static ImmutableIntList getInputIndices(
+            Join join, ImmutableIntList joinKeys, boolean isLeft) {
+        List<Integer> indices = new ArrayList<>();
+        RelNode left = join.getLeft();
+        int leftSize = left.getRowType().getFieldCount();
+        for (int k : joinKeys) {
+            if (isLeft) {
+                if (k < leftSize) {
+                    indices.add(k);
+                }
+            } else {
+                if (k >= leftSize) {
+                    indices.add(k - leftSize);
+                }
+            }
+        }
+        return ImmutableIntList.copyOf(indices);
+    }
+
     private static class DppDimSideFactors {
         private boolean hasFilter;
-        private boolean hasNonPartitionedScan;
+        private boolean hasPartitionedScan;
+        private final List<ContextResolvedTable> tables = new ArrayList<>();
+
+        public boolean setTables(ContextResolvedTable catalogTable) {
+            if (tables.size() == 0) {
+                tables.add(catalogTable);
+            } else {
+                for (ContextResolvedTable thisTable : tables) {
+                    if (!thisTable.getIdentifier().equals(catalogTable.getIdentifier())) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
 
         public boolean isDimSide() {
-            return hasFilter && hasNonPartitionedScan;
+            return hasFilter && !hasPartitionedScan && tables.size() == 1;
         }
     }
 
     /** This class is used to remember fact side messages while recurring in fact side. */
     private static class DppFactSideFactors {
-        private boolean isSuitableFactScanSource;
         // If join key is not changed in fact side, this value is always true.
-        private boolean isSuitableJoinKey = true;
-
-        public boolean isFactSide() {
-            return isSuitableFactScanSource && isSuitableJoinKey;
-        }
+        private boolean isChanged;
     }
 }
