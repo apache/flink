@@ -980,9 +980,8 @@ class ProcessDataStreamTests(DataStreamTests):
 
             def process_element(self, value, ctx):
                 current_timestamp = ctx.timestamp()
-                current_watermark = ctx.timer_service().current_watermark()
-                yield "current timestamp: {}, current watermark: {}, current_value: {}"\
-                    .format(str(current_timestamp), str(current_watermark), str(value))
+                yield "current timestamp: {}, current_value: {}"\
+                    .format(str(current_timestamp), str(value))
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
@@ -990,14 +989,14 @@ class ProcessDataStreamTests(DataStreamTests):
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test process function')
         results = self.test_sink.get_results()
-        expected = ["current timestamp: 1603708211000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                    "current timestamp: 1603708224000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                    "current timestamp: 1603708226000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                    "current timestamp: 1603708289000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
+        expected = ["current timestamp: 1603708211000, "
+                    "current_value: Row(f0=1, f1='1603708211000')",
+                    "current timestamp: 1603708224000, "
+                    "current_value: Row(f0=2, f1='1603708224000')",
+                    "current timestamp: 1603708226000, "
+                    "current_value: Row(f0=3, f1='1603708226000')",
+                    "current timestamp: 1603708289000, "
+                    "current_value: Row(f0=4, f1='1603708289000')"]
         self.assert_equals_sorted(expected, results)
 
     def test_process_side_output(self):
