@@ -24,13 +24,17 @@ if [[ "$HERE" != "docs" ]]; then
 fi
 
 function integrate_connector_docs {
+  local connector ref additional_folders
   connector=$1
   ref=$2
+
   git clone --single-branch --branch ${ref} https://github.com/apache/flink-connector-${connector}
   theme_dir="../themes/connectors"
   mkdir -p "${theme_dir}"
-  rsync -a flink-connector-${connector}/docs/content* "${theme_dir}/"
+
+  rsync -a flink-connector-${connector}/docs/* "${theme_dir}/"
 }
+
 
 # Integrate the connector documentation
 
