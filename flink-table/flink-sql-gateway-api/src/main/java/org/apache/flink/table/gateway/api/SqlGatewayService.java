@@ -39,6 +39,7 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -307,4 +308,15 @@ public interface SqlGatewayService {
      * @return Returns gateway info.
      */
     GatewayInfo getGatewayInfo();
+
+    /**
+     * Returns a list of completion hints for the given statement at the given position.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param statement sql statement to be completed.
+     * @param position position of where need completion hints.
+     * @return completion hints.
+     */
+    List<String> completeStatement(SessionHandle sessionHandle, String statement, int position)
+            throws SqlGatewayException;
 }

@@ -24,4 +24,5 @@ public class Constants {
     public static final String JOB_ID = "job id";
     public static final String SET_KEY = "key";
     public static final String SET_VALUE = "value";
+    public static final String COMPLETION_HINTS = "hints";
 }

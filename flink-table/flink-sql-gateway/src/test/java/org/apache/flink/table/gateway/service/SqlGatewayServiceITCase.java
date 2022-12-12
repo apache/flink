@@ -555,6 +555,52 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testCompleteStatement() throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        String createTable1 =
+                "CREATE TABLE Table1 (\n"
+                        + "  IntegerField1 INT,\n"
+                        + "  StringField1 STRING,\n"
+                        + "  TimestampField1 TIMESTAMP(3)\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'datagen'\n"
+                        + ")\n";
+        String createTable2 =
+                "CREATE TABLE Table2 (\n"
+                        + "  BooleanField BOOLEAN,\n"
+                        + "  StringField2 STRING,\n"
+                        + "  TimestampField2 TIMESTAMP\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'blackhole'\n"
+                        + ")\n";
+
+        service.getSession(sessionHandle)
+                .createExecutor()
+                .getTableEnvironment()
+                .executeSql(createTable1);
+        service.getSession(sessionHandle)
+                .createExecutor()
+                .getTableEnvironment()
+                .executeSql(createTable2);
+
+        validateCompletionHints(
+                sessionHandle,
+                "SELECT * FROM Ta",
+                Arrays.asList(
+                        "default_catalog.default_database.Table1",
+                        "default_catalog.default_database.Table2"));
+
+        validateCompletionHints(
+                sessionHandle, "SELECT * FROM Table1 WH", Collections.singletonList("WHERE"));
+
+        validateCompletionHints(
+                sessionHandle,
+                "SELECT * FROM Table1 WHERE Inte",
+                Collections.singletonList("IntegerField1"));
+    }
+
+    @Test
     public void testGetTable() {
         SessionHandle sessionHandle = createInitializedSession();
         ResolvedCatalogTable actualTable =
@@ -1013,5 +1059,13 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 ((TableResultInternal) tableEnv.executeSql(statement))
                                         .collectInternal()))
                 .isEqualTo(expected);
+    }
+
+    private void validateCompletionHints(
+            SessionHandle sessionHandle,
+            String incompleteSql,
+            List<String> expectedCompletionHints) {
+        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
+                .isEqualTo(expectedCompletionHints);
     }
 }
