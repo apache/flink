@@ -1719,6 +1719,8 @@ components:
         processed_data:
           type: integer
           format: int64
+        savepointFormat:
+          type: string
         state_size:
           type: integer
           format: int64
@@ -1915,19 +1917,8 @@ components:
           type: array
           items:
             type: string
-        environment:
-          type: array
-          items:
-            $ref: '#/components/schemas/EnvironmentVariableItem'
         jvm:
           $ref: '#/components/schemas/JVMInfo'
-    EnvironmentVariableItem:
-      type: object
-      properties:
-        key:
-          type: string
-        value:
-          type: string
     ExceptionInfo:
       type: object
       properties:
