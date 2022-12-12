@@ -1198,7 +1198,70 @@ public class SingleInputGateTest extends InputGateTestBase {
         assertThat(inputGate.getBuffersInUseCount()).isEqualTo(3);
     }
 
+    @Test
+    void testCalculateInputGateNetworkBuffers() throws Exception {
+        verifyBuffersInBufferPool(true, 2);
+        verifyBuffersInBufferPool(false, 2);
+        verifyBuffersInBufferPool(true, 500);
+        verifyBuffersInBufferPool(false, 500);
+    }
+
     // ---------------------------------------------------------------------------------------------
+
+    private static void verifyBuffersInBufferPool(boolean isPipeline, int subpartitionRandSize)
+            throws Exception {
+        IntermediateResultPartitionID[] partitionIds =
+                new IntermediateResultPartitionID[] {
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID()
+                };
+
+        IndexRange subpartitionIndexRange = new IndexRange(0, subpartitionRandSize - 1);
+        NettyShuffleEnvironmentBuilder nettyShuffleEnvironmentBuilder =
+                new NettyShuffleEnvironmentBuilder();
+        Optional<Integer> expectMaxRequiredBuffersPerGate =
+                isPipeline
+                        ? Optional.of(
+                                InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
+                        : Optional.of(
+                                InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
+        nettyShuffleEnvironmentBuilder.setMaxRequiredBuffersPerGate(
+                expectMaxRequiredBuffersPerGate);
+        NettyShuffleEnvironment netEnv = nettyShuffleEnvironmentBuilder.build();
+
+        SingleInputGate gate =
+                createSingleInputGate(
+                        partitionIds,
+                        isPipeline ? ResultPartitionType.PIPELINED : ResultPartitionType.BLOCKING,
+                        subpartitionIndexRange,
+                        netEnv,
+                        ResourceID.generate(),
+                        new TestingConnectionManager(),
+                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()));
+        gate.setup();
+
+        for (InputChannel inputChannel : gate.getInputChannels().values()) {
+            if (inputChannel instanceof RemoteInputChannel) {
+                assertThat(((RemoteInputChannel) inputChannel).getInitialCredit()).isEqualTo(0);
+            }
+        }
+
+        int targetTotalBuffersPerGate = 2 * partitionIds.length * subpartitionRandSize + 8;
+        int requiredFloatingBuffersPerGate;
+        int totalFloatingBuffersPerGate;
+        if (targetTotalBuffersPerGate >= expectMaxRequiredBuffersPerGate.get()) {
+            requiredFloatingBuffersPerGate = expectMaxRequiredBuffersPerGate.get();
+            totalFloatingBuffersPerGate = targetTotalBuffersPerGate;
+        } else {
+            requiredFloatingBuffersPerGate = 1;
+            totalFloatingBuffersPerGate = 8;
+        }
+        assertThat(gate.getBufferPool().getNumberOfRequiredMemorySegments())
+                .isEqualTo(requiredFloatingBuffersPerGate);
+        assertThat(gate.getBufferPool().getMaxNumberOfMemorySegments())
+                .isEqualTo(totalFloatingBuffersPerGate);
+    }
 
     private static SubpartitionInfo createSubpartitionInfo(
             IntermediateResultPartitionID partitionId) {

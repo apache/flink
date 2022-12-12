@@ -28,8 +28,10 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionC
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.PartitionConnectionInfo;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default {@link ShuffleMaster} for netty and local file based shuffle implementation. */
@@ -37,7 +39,9 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
     private final int buffersPerInputChannel;
 
-    private final int buffersPerInputGate;
+    private final int floatingBuffersPerGate;
+
+    private final Optional<Integer> maxRequiredBuffersPerGate;
 
     private final int sortShuffleMinParallelism;
 
@@ -49,14 +53,29 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         checkNotNull(conf);
         buffersPerInputChannel =
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
-        buffersPerInputGate =
+        floatingBuffersPerGate =
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+        maxRequiredBuffersPerGate =
+                conf.getOptional(
+                        NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE);
         sortShuffleMinParallelism =
                 conf.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
         sortShuffleMinBuffers =
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
+
+        checkArgument(
+                !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
+                String.format(
+                        "At least one buffer is required for each gate, please increase the value of %s.",
+                        NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE
+                                .key()));
+        checkArgument(
+                floatingBuffersPerGate >= 1,
+                String.format(
+                        "The configured floating buffer should be at least 1, please increase the value of %s.",
+                        NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.key()));
     }
 
     @Override
@@ -104,19 +123,17 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     public MemorySize computeShuffleMemorySizeForTask(TaskInputsOutputsDescriptor desc) {
         checkNotNull(desc);
 
-        int numTotalInputChannels =
-                desc.getInputChannelNums().values().stream().mapToInt(Integer::intValue).sum();
-        int numTotalInputGates = desc.getInputGateNums();
-
         int numRequiredNetworkBuffers =
                 NettyShuffleUtils.computeNetworkBuffersForAnnouncing(
                         buffersPerInputChannel,
-                        buffersPerInputGate,
+                        floatingBuffersPerGate,
+                        maxRequiredBuffersPerGate,
                         sortShuffleMinParallelism,
                         sortShuffleMinBuffers,
-                        numTotalInputChannels,
-                        numTotalInputGates,
+                        desc.getInputChannelNums(),
+                        desc.getPartitionReuseCount(),
                         desc.getSubpartitionNums(),
+                        desc.getInputPartitionTypes(),
                         desc.getPartitionTypes());
 
         return new MemorySize((long) networkBufferSize * numRequiredNetworkBuffers);
