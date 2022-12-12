@@ -73,7 +73,7 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   def testLeftOuterJoinLeftOuterJoin(): Unit = {
     // Can translate join to multi join.
     val sqlQuery =
-      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c LEFT OUTER JOIN T3 ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
@@ -81,44 +81,67 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   def testLeftOuterJoinRightOuterJoin(): Unit = {
     // Cannot translate join to multi join.
     val sqlQuery =
-      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c RIGHT OUTER JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c RIGHT OUTER JOIN T3 ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testLeftOuterJoinInnerJoin(): Unit = {
     val sqlQuery =
-      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c JOIN T3 ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testRightOuterJoinRightOuterJoin(): Unit = {
     val sqlQuery =
-      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c RIGHT OUTER JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c RIGHT OUTER JOIN T3 ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
-  def testSubRightOuterJoinQuery(): Unit = {
-    // This case will be set into one multi join set.
+  def testSubRightOuterJoinQueryWithKeyInLeft(): Unit = {
+    // This case will not be set into one multi join set because T1.a is a
+    // null generate column after T1 right outer join T2.
     val sqlQuery =
       "SELECT * FROM T3 RIGHT OUTER JOIN (SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c) t ON t.a = T3.e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
-  def testRightOuterJoinLeftOuterJoin(): Unit = {
-    // Cannot not translate join to multi join because right outer join in join left.
+  def testSubRightOuterJoinQueryWithKeyInRight(): Unit = {
+    // This case can be set into one multi join set because T2.c is not a
+    // null generate column after T1 right outer join T2.
     val sqlQuery =
-      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T3 RIGHT OUTER JOIN (SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c) t ON t.c = T3.e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
-  def testRightOuterJoinInnerJoin(): Unit = {
+  def testRightOuterJoinLeftOuterJoinWithKeyInLeft(): Unit = {
     val sqlQuery =
-      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c LEFT OUTER JOIN T3 ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinLeftOuterJoinWithKeyInRight(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c LEFT OUTER JOIN T3 ON c = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinInnerJoinWithKeyInLeft(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c JOIN T3 ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinInnerJoinWithKeyInRight(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c JOIN T3 ON c = e"
     util.verifyRelPlan(sqlQuery)
   }
 
@@ -132,21 +155,21 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   @Test
   def testFullOuterJoinInnerJoin(): Unit = {
     val sqlQuery =
-      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c JOIN T3 ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testFullOuterJoinLeftOuterJoin(): Unit = {
     val sqlQuery =
-      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c LEFT OUTER JOIN T3 ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testFullOuterJoinRightOuterJoin(): Unit = {
     val sqlQuery =
-      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c RIGHT OUTER JOIN (SELECT * FROM T3) ON a = e"
+      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c RIGHT OUTER JOIN T3 ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
@@ -216,9 +239,9 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
     val sqlQuery =
       """
         |SELECT * FROM T1 JOIN T2 ON a = c LEFT OUTER JOIN 
-        |(SELECT * FROM T3) ON a = e JOIN
-        |(SELECT * FROM T4) ON a = g LEFT OUTER JOIN
-        |(SELECT * FROM T5) ON a = i
+        | T3 ON a = e JOIN
+        | T4 ON a = g LEFT OUTER JOIN
+        | T5 ON a = i
         """.stripMargin
     util.verifyRelPlan(sqlQuery)
 
@@ -232,9 +255,9 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
     val sqlQuery =
       """
         |SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c JOIN 
-        |(SELECT * FROM T3) ON a = e LEFT OUTER JOIN
-        |(SELECT * FROM T4) ON a = g JOIN
-        |(SELECT * FROM T5) ON a = i
+        | T3 ON a = e LEFT OUTER JOIN
+        | T4 ON a = g JOIN
+        | T5 ON a = i
         """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }
@@ -247,9 +270,9 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
     val sqlQuery =
       """
         |SELECT * FROM T1 JOIN T2 ON a = c RIGHT OUTER JOIN 
-        |(SELECT * FROM T3) ON a = e JOIN
-        |(SELECT * FROM T4) ON a = g RIGHT OUTER JOIN
-        |(SELECT * FROM T5) ON a = i
+        | T3 ON a = e JOIN
+        | T4 ON a = g RIGHT OUTER JOIN
+        | T5 ON a = i
         """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }
@@ -262,9 +285,25 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
     val sqlQuery =
       """
         |SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c JOIN
-        |(SELECT * FROM T3) ON a = e RIGHT OUTER JOIN
-        |(SELECT * FROM T4) ON a = g JOIN
-        |(SELECT * FROM T5) ON a = i
+        | T3 ON a = e RIGHT OUTER JOIN
+        | T4 ON a = g JOIN
+        | T5 ON a = i
+        """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultiLeftOuterJoinWithAllKeyInLeft: Unit = {
+    util.addTableSource[(Int, Long)]("T4", 'g, 'h)
+    util.addTableSource[(Int, Long)]("T5", 'i, 'j)
+
+    val sqlQuery =
+      """
+        |SELECT * FROM T1 LEFT OUTER JOIN 
+        |T2 ON a = c LEFT OUTER JOIN 
+        |T3 ON a = e LEFT OUTER JOIN
+        |T4 ON a = g LEFT OUTER JOIN
+        |T5 ON a = i
         """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }
