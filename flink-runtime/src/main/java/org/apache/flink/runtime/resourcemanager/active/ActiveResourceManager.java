@@ -87,7 +87,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     private final Map<ResourceID, WorkerType> workerNodeMap;
 
     /** Number of requested and not registered workers per worker resource spec. */
-    private final PendingWorkerCounter pendingWorkerCounter;
+    private final WorkerCounter pendingWorkerCounter;
 
     /** Identifiers and worker resource spec of requested not registered workers. */
     private final Map<ResourceID, WorkerResourceSpec> currentAttemptUnregisteredWorkers;
@@ -153,7 +153,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.flinkConfig = flinkConfig;
         this.resourceManagerDriver = resourceManagerDriver;
         this.workerNodeMap = new HashMap<>();
-        this.pendingWorkerCounter = new PendingWorkerCounter();
+        this.pendingWorkerCounter = new WorkerCounter();
         this.currentAttemptUnregisteredWorkers = new HashMap<>();
         this.previousAttemptUnregisteredWorkers = new HashSet<>();
         this.startWorkerFailureRater = checkNotNull(startWorkerFailureRater);

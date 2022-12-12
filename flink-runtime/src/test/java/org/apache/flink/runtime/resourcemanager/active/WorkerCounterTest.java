@@ -26,15 +26,15 @@ import org.junit.Test;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
-/** Tests for {@link PendingWorkerCounter}. */
-public class PendingWorkerCounterTest extends TestLogger {
+/** Tests for {@link WorkerCounter}. */
+public class WorkerCounterTest extends TestLogger {
 
     @Test
-    public void testPendingWorkerCounterIncreaseAndDecrease() {
+    public void testWorkerCounterIncreaseAndDecrease() {
         final WorkerResourceSpec spec1 = new WorkerResourceSpec.Builder().setCpuCores(1.0).build();
         final WorkerResourceSpec spec2 = new WorkerResourceSpec.Builder().setCpuCores(2.0).build();
 
-        final PendingWorkerCounter counter = new PendingWorkerCounter();
+        final WorkerCounter counter = new WorkerCounter();
         assertThat(counter.getTotalNum(), is(0));
         assertThat(counter.getNum(spec1), is(0));
         assertThat(counter.getNum(spec2), is(0));
@@ -66,9 +66,9 @@ public class PendingWorkerCounterTest extends TestLogger {
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testPendingWorkerCounterDecreaseOnZero() {
+    public void testWorkerCounterDecreaseOnZero() {
         final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
-        final PendingWorkerCounter counter = new PendingWorkerCounter();
+        final WorkerCounter counter = new WorkerCounter();
         counter.decreaseAndGet(spec);
     }
 }

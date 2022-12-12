@@ -24,36 +24,36 @@ import org.apache.flink.util.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Utility class for counting pending workers per {@link WorkerResourceSpec}. */
-class PendingWorkerCounter {
-    private final Map<WorkerResourceSpec, Integer> pendingWorkerNums;
+/** Utility class for counting workers per {@link WorkerResourceSpec}. */
+class WorkerCounter {
+    private final Map<WorkerResourceSpec, Integer> workerNums;
 
-    PendingWorkerCounter() {
-        pendingWorkerNums = new HashMap<>();
+    WorkerCounter() {
+        workerNums = new HashMap<>();
     }
 
     int getTotalNum() {
-        return pendingWorkerNums.values().stream().reduce(0, Integer::sum);
+        return workerNums.values().stream().reduce(0, Integer::sum);
     }
 
     int getNum(final WorkerResourceSpec workerResourceSpec) {
-        return pendingWorkerNums.getOrDefault(Preconditions.checkNotNull(workerResourceSpec), 0);
+        return workerNums.getOrDefault(Preconditions.checkNotNull(workerResourceSpec), 0);
     }
 
     int increaseAndGet(final WorkerResourceSpec workerResourceSpec) {
-        return pendingWorkerNums.compute(
+        return workerNums.compute(
                 Preconditions.checkNotNull(workerResourceSpec),
                 (ignored, num) -> num != null ? num + 1 : 1);
     }
 
     int decreaseAndGet(final WorkerResourceSpec workerResourceSpec) {
         final Integer newValue =
-                pendingWorkerNums.compute(
+                workerNums.compute(
                         Preconditions.checkNotNull(workerResourceSpec),
                         (ignored, num) -> {
                             Preconditions.checkState(
                                     num != null && num > 0,
-                                    "Cannot decrease, no pending worker of spec %s.",
+                                    "Cannot decrease, no worker of spec %s.",
                                     workerResourceSpec);
                             return num == 1 ? null : num - 1;
                         });
