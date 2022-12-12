@@ -24,7 +24,7 @@ import { mergeMap, takeUntil, tap } from 'rxjs/operators';
 
 import { FlameGraphComponent } from '@flink-runtime-web/components/flame-graph/flame-graph.component';
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
-import { JobFlameGraph, NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { FlameGraphType, JobFlameGraph, NodesItemCorrect } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
 import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -50,12 +50,13 @@ import { JobLocalService } from '../../job-local.service';
   standalone: true
 })
 export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
+  readonly FlameGraphType = FlameGraphType;
   public isLoading = true;
   public now = Date.now();
   public selectedVertex: NodesItemCorrect | null;
   public flameGraph = {} as JobFlameGraph;
 
-  public graphType = 'on_cpu';
+  public graphType = FlameGraphType.ON_CPU;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -66,7 +67,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
   ) {}
 
   public ngOnInit(): void {
-    this.requestFlameGraph();
+    this.requestFlameGraph(this.graphType);
   }
 
   public ngOnDestroy(): void {
@@ -74,12 +75,12 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private requestFlameGraph(): void {
+  private requestFlameGraph(graphType: FlameGraphType): void {
     this.jobLocalService
       .jobWithVertexChanges()
       .pipe(
         tap(data => (this.selectedVertex = data.vertex)),
-        mergeMap(data => this.jobService.loadOperatorFlameGraph(data.job.jid, data.vertex!.id, this.graphType)),
+        mergeMap(data => this.jobService.loadOperatorFlameGraph(data.job.jid, data.vertex!.id, graphType)),
         takeUntil(this.destroy$)
       )
       .subscribe(
@@ -88,7 +89,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
           if (this.flameGraph.endTimestamp !== data['endTimestamp']) {
             this.isLoading = false;
             this.flameGraph = data;
-            this.flameGraph.graphType = this.graphType;
+            this.flameGraph.graphType = graphType;
           }
           this.cdr.markForCheck();
         },
@@ -99,9 +100,9 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
       );
   }
 
-  public selectFrameGraphType(): void {
+  public selectFrameGraphType(graphType: FlameGraphType): void {
     this.destroy$.next();
     this.flameGraph = {} as JobFlameGraph;
-    this.requestFlameGraph();
+    this.requestFlameGraph(graphType);
   }
 }

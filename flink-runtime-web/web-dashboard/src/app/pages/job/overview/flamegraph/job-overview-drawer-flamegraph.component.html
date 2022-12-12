@@ -24,24 +24,24 @@ Type:
 <nz-radio-group [(ngModel)]="graphType" nzButtonStyle="solid">
   <label
     nz-radio-button
-    nzValue="on_cpu"
-    (click)="selectFrameGraphType()"
+    [nzValue]="FlameGraphType.ON_CPU"
+    (click)="selectFrameGraphType(FlameGraphType.ON_CPU)"
     title="Includes Thread.State.[RUNNABLE, NEW]"
   >
     On-CPU
   </label>
   <label
     nz-radio-button
-    nzValue="off_cpu"
-    (click)="selectFrameGraphType()"
+    [nzValue]="FlameGraphType.OFF_CPU"
+    (click)="selectFrameGraphType(FlameGraphType.OFF_CPU)"
     title="Includes Thread.State.[WAITING, TIMED_WAITING, BLOCKED]"
   >
     Off-CPU
   </label>
   <label
     nz-radio-button
-    nzValue="full"
-    (click)="selectFrameGraphType()"
+    [nzValue]="FlameGraphType.FULL"
+    (click)="selectFrameGraphType(FlameGraphType.FULL)"
     title="Includes stack traces of threads in all states"
   >
     Mixed
