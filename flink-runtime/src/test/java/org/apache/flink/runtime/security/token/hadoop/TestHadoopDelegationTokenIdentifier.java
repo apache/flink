@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier;
@@ -29,16 +29,16 @@ import java.io.IOException;
  * Example test implementation of {@link AbstractDelegationTokenIdentifier} which is used in
  * integration tests.
  */
-public class TestDelegationTokenIdentifier extends AbstractDelegationTokenIdentifier {
+public class TestHadoopDelegationTokenIdentifier extends AbstractDelegationTokenIdentifier {
 
     private static final Text tokenKind = new Text("TEST_TOKEN_KIND");
 
     private long issueDate;
 
     // This is needed for service loader
-    public TestDelegationTokenIdentifier() {}
+    public TestHadoopDelegationTokenIdentifier() {}
 
-    public TestDelegationTokenIdentifier(long issueDate) {
+    public TestHadoopDelegationTokenIdentifier(long issueDate) {
         this.issueDate = issueDate;
     }
 

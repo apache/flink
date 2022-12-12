@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.flink.annotation.Internal;
 
@@ -29,18 +29,18 @@ import java.io.IOException;
 
 /** Delegation token updater functionality. */
 @Internal
-public final class DelegationTokenUpdater {
+public final class HadoopDelegationTokenUpdater {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DelegationTokenUpdater.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HadoopDelegationTokenUpdater.class);
 
-    private DelegationTokenUpdater() {}
+    private HadoopDelegationTokenUpdater() {}
 
     /** Updates delegation tokens for the current user. */
     public static void addCurrentUserCredentials(byte[] credentialsBytes) throws IOException {
         if (credentialsBytes == null || credentialsBytes.length == 0) {
             throw new IllegalArgumentException("Illegal credentials tried to be set");
         }
-        Credentials credentials = DelegationTokenConverter.deserialize(credentialsBytes);
+        Credentials credentials = HadoopDelegationTokenConverter.deserialize(credentialsBytes);
         LOG.info("Updating delegation tokens for current user");
         dumpAllTokens(credentials);
         UserGroupInformation.getCurrentUser().addCredentials(credentials);
