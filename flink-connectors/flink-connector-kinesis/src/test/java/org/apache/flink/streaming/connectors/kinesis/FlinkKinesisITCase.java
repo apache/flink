@@ -185,9 +185,9 @@ public class FlinkKinesisITCase extends TestLogger {
     }
 
     /**
-     * Tests stop with savepoint while {@link
-     * FlinkKinesisConsumer#run(SourceFunction.SourceContext)}} with a slow run method is still
-     * hasn't finished run method and hasn't set a {@link KinesisDataFetcher} yet.
+     * This test ensures that a slow initialization of {@link KinesisDataFetcher}
+     * in {@link FlinkKinesisConsumer#run } method doesn't cause an exception during
+     * a job's cancellation event (stop-with-savepoint) close after the job was switched to RUNNING.
      */
     @Test
     public void testStopWithSavepointWithSlowConsumer() throws Exception {
