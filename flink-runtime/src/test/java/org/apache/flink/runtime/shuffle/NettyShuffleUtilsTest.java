@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
@@ -64,8 +65,12 @@ public class NettyShuffleUtilsTest extends TestLogger {
     public void testComputeRequiredNetworkBuffers() throws Exception {
         int numBuffersPerChannel = 5;
         int numBuffersPerGate = 8;
+        Optional<Integer> maxRequiredBuffersPerGate = Optional.of(Integer.MAX_VALUE);
         int sortShuffleMinParallelism = 8;
         int numSortShuffleMinBuffers = 12;
+
+        IntermediateDataSetID ids1 = new IntermediateDataSetID();
+        IntermediateDataSetID ids2 = new IntermediateDataSetID();
 
         int numChannels1 = 3;
         int numChannels2 = 4;
@@ -81,16 +86,23 @@ public class NettyShuffleUtilsTest extends TestLogger {
                 ImmutableMap.of(ds1, numSubs1, ds2, numSubs2, ds3, numSubs3);
         Map<IntermediateDataSetID, ResultPartitionType> partitionTypes =
                 ImmutableMap.of(ds1, PIPELINED_BOUNDED, ds2, BLOCKING, ds3, BLOCKING);
+        Map<IntermediateDataSetID, Integer> numInputChannels =
+                ImmutableMap.of(ids1, numChannels1, ids2, numChannels2);
+        Map<IntermediateDataSetID, Integer> partitionReuseCount = ImmutableMap.of(ids1, 1, ids2, 1);
+        Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes =
+                ImmutableMap.of(ids1, PIPELINED_BOUNDED, ids2, BLOCKING);
 
         int numTotalBuffers =
                 NettyShuffleUtils.computeNetworkBuffersForAnnouncing(
                         numBuffersPerChannel,
                         numBuffersPerGate,
+                        maxRequiredBuffersPerGate,
                         sortShuffleMinParallelism,
                         numSortShuffleMinBuffers,
-                        numChannels1 + numChannels2,
-                        2,
+                        numInputChannels,
+                        partitionReuseCount,
                         subpartitionNums,
+                        inputPartitionTypes,
                         partitionTypes);
 
         NettyShuffleEnvironment sEnv =

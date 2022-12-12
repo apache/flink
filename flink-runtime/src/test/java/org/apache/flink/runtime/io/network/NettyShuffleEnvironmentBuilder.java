@@ -31,6 +31,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.concurrent.Executors;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 /** Builder for the {@link NettyShuffleEnvironment}. */
@@ -56,6 +57,8 @@ public class NettyShuffleEnvironmentBuilder {
     private int networkBuffersPerChannel = 2;
 
     private int floatingNetworkBuffersPerGate = 8;
+
+    private Optional<Integer> maxRequiredBuffersPerGate = Optional.of(Integer.MAX_VALUE);
 
     private int sortShuffleMinBuffers = 100;
 
@@ -128,6 +131,12 @@ public class NettyShuffleEnvironmentBuilder {
     public NettyShuffleEnvironmentBuilder setFloatingNetworkBuffersPerGate(
             int floatingNetworkBuffersPerGate) {
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setMaxRequiredBuffersPerGate(
+            Optional<Integer> maxRequiredBuffersPerGate) {
+        this.maxRequiredBuffersPerGate = maxRequiredBuffersPerGate;
         return this;
     }
 
@@ -230,6 +239,7 @@ public class NettyShuffleEnvironmentBuilder {
                         partitionRequestMaxBackoff,
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
+                        maxRequiredBuffersPerGate,
                         DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
                         false,
                         nettyConfig,
