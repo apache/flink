@@ -93,28 +93,27 @@ public class SsgNetworkMemoryCalculationUtils {
     private static TaskInputsOutputsDescriptor buildTaskInputsOutputsDescriptor(
             ExecutionJobVertex ejv, Function<JobVertexID, ExecutionJobVertex> ejvs) {
 
-        Map<IntermediateDataSetID, Integer> maxInputChannelNums;
-        Map<IntermediateDataSetID, Integer> maxSubpartitionNums;
+        Map<IntermediateDataSetID, Integer> maxInputChannelNums = new HashMap<>();
+        Map<IntermediateDataSetID, Integer> maxSubpartitionNums = new HashMap<>();
+        Map<IntermediateDataSetID, ResultPartitionType> partitionTypes = new HashMap<>();
 
         if (ejv.getGraph().isDynamic()) {
-            maxInputChannelNums = getMaxInputChannelNumsForDynamicGraph(ejv);
-            maxSubpartitionNums = getMaxSubpartitionNumsForDynamicGraph(ejv);
+            getMaxInputChannelInfoForDynamicGraph(ejv, maxInputChannelNums);
+            getMaxSubpartitionInfoForDynamicGraph(ejv, maxSubpartitionNums, partitionTypes);
         } else {
-            maxInputChannelNums = getMaxInputChannelNums(ejv);
-            maxSubpartitionNums = getMaxSubpartitionNums(ejv, ejvs);
+            getMaxInputChannelInfo(ejv, maxInputChannelNums);
+            getMaxSubpartitionInfo(ejv, maxSubpartitionNums, partitionTypes, ejvs);
         }
 
         JobVertex jv = ejv.getJobVertex();
-        Map<IntermediateDataSetID, ResultPartitionType> partitionTypes = getPartitionTypes(jv);
 
         return TaskInputsOutputsDescriptor.from(
                 jv.getNumberOfInputs(), maxInputChannelNums, maxSubpartitionNums, partitionTypes);
     }
 
-    private static Map<IntermediateDataSetID, Integer> getMaxInputChannelNums(
-            ExecutionJobVertex ejv) {
+    private static void getMaxInputChannelInfo(
+            ExecutionJobVertex ejv, Map<IntermediateDataSetID, Integer> maxInputChannelNums) {
 
-        Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
         List<JobEdge> inputEdges = ejv.getJobVertex().getInputs();
 
         for (int i = 0; i < inputEdges.size(); i++) {
@@ -129,16 +128,15 @@ public class SsgNetworkMemoryCalculationUtils {
                             ejv.getParallelism(),
                             consumedResult.getNumberOfAssignedPartitions(),
                             inputEdge.getDistributionPattern());
-            ret.merge(consumedResult.getId(), maxNum, Integer::sum);
+            maxInputChannelNums.merge(consumedResult.getId(), maxNum, Integer::sum);
         }
-
-        return ret;
     }
 
-    private static Map<IntermediateDataSetID, Integer> getMaxSubpartitionNums(
-            ExecutionJobVertex ejv, Function<JobVertexID, ExecutionJobVertex> ejvs) {
-
-        Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
+    private static void getMaxSubpartitionInfo(
+            ExecutionJobVertex ejv,
+            Map<IntermediateDataSetID, Integer> maxSubpartitionNums,
+            Map<IntermediateDataSetID, ResultPartitionType> partitionTypes,
+            Function<JobVertexID, ExecutionJobVertex> ejvs) {
         List<IntermediateDataSet> producedDataSets = ejv.getJobVertex().getProducedDataSets();
 
         checkState(!ejv.getGraph().isDynamic(), "Only support non-dynamic graph.");
@@ -157,23 +155,14 @@ public class SsgNetworkMemoryCalculationUtils {
                                 consumerJobVertex.getParallelism(),
                                 outputEdge.getDistributionPattern());
             }
-            ret.put(producedDataSet.getId(), maxNum);
+            maxSubpartitionNums.put(producedDataSet.getId(), maxNum);
+            partitionTypes.putIfAbsent(producedDataSet.getId(), producedDataSet.getResultType());
         }
-
-        return ret;
-    }
-
-    private static Map<IntermediateDataSetID, ResultPartitionType> getPartitionTypes(JobVertex jv) {
-        Map<IntermediateDataSetID, ResultPartitionType> ret = new HashMap<>();
-        jv.getProducedDataSets().forEach(ds -> ret.putIfAbsent(ds.getId(), ds.getResultType()));
-        return ret;
     }
 
     @VisibleForTesting
-    static Map<IntermediateDataSetID, Integer> getMaxInputChannelNumsForDynamicGraph(
-            ExecutionJobVertex ejv) {
-
-        Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
+    static void getMaxInputChannelInfoForDynamicGraph(
+            ExecutionJobVertex ejv, Map<IntermediateDataSetID, Integer> maxInputChannelNums) {
 
         for (ExecutionVertex vertex : ejv.getTaskVertices()) {
             Map<IntermediateDataSetID, Integer> tmp = new HashMap<>();
@@ -194,27 +183,25 @@ public class SsgNetworkMemoryCalculationUtils {
             }
 
             for (Map.Entry<IntermediateDataSetID, Integer> entry : tmp.entrySet()) {
-                ret.merge(entry.getKey(), entry.getValue(), Integer::max);
+                maxInputChannelNums.merge(entry.getKey(), entry.getValue(), Integer::max);
             }
         }
-
-        return ret;
     }
 
-    private static Map<IntermediateDataSetID, Integer> getMaxSubpartitionNumsForDynamicGraph(
-            ExecutionJobVertex ejv) {
-
-        Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
+    private static void getMaxSubpartitionInfoForDynamicGraph(
+            ExecutionJobVertex ejv,
+            Map<IntermediateDataSetID, Integer> maxSubpartitionNums,
+            Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
 
         for (IntermediateResult intermediateResult : ejv.getProducedDataSets()) {
             final int maxNum =
                     Arrays.stream(intermediateResult.getPartitions())
                             .map(IntermediateResultPartition::getNumberOfSubpartitions)
                             .reduce(0, Integer::max);
-            ret.put(intermediateResult.getId(), maxNum);
+            maxSubpartitionNums.put(intermediateResult.getId(), maxNum);
+            partitionTypes.putIfAbsent(
+                    intermediateResult.getId(), intermediateResult.getResultType());
         }
-
-        return ret;
     }
 
     /** Private default constructor to avoid being instantiated. */

@@ -48,6 +48,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -231,8 +232,9 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         consumer.setParallelism(decidedConsumerParallelism);
         eg.initializeJobVertex(consumer, 0L);
 
-        Map<IntermediateDataSetID, Integer> maxInputChannelNums =
-                SsgNetworkMemoryCalculationUtils.getMaxInputChannelNumsForDynamicGraph(consumer);
+        Map<IntermediateDataSetID, Integer> maxInputChannelNums = new HashMap<>();
+        SsgNetworkMemoryCalculationUtils.getMaxInputChannelInfoForDynamicGraph(
+                consumer, maxInputChannelNums);
 
         assertThat(maxInputChannelNums.size(), is(1));
         assertThat(maxInputChannelNums.get(result.getId()), is(expectedNumChannels));
