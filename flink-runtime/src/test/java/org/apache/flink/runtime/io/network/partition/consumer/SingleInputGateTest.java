@@ -98,6 +98,8 @@ import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtil
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.newUnregisteredInputChannelMetrics;
 import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
+import static org.apache.flink.runtime.shuffle.NettyShuffleUtils.DEFAULT_MAX_BUFFERS_PER_GATE_FOR_BLOCKING;
+import static org.apache.flink.runtime.shuffle.NettyShuffleUtils.DEFAULT_MAX_BUFFERS_PER_GATE_FOR_STREAM;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -1198,7 +1200,65 @@ public class SingleInputGateTest extends InputGateTestBase {
         assertThat(inputGate.getBuffersInUseCount()).isEqualTo(3);
     }
 
+    @Test
+    void testCalculateInputGateNetworkBuffers() throws Exception {
+        verifyInputGateNetworkBuffers(true, 2);
+        verifyInputGateNetworkBuffers(false, 2);
+        verifyInputGateNetworkBuffers(true, 500);
+        verifyInputGateNetworkBuffers(false, 500);
+    }
+
     // ---------------------------------------------------------------------------------------------
+
+    private static void verifyInputGateNetworkBuffers(boolean isBlocking, int subpartitionRandSize)
+            throws Exception {
+        IntermediateResultPartitionID[] partitionIds =
+                new IntermediateResultPartitionID[] {
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID()
+                };
+
+        SubpartitionIndexRange subpartitionIndexRange =
+                new SubpartitionIndexRange(0, subpartitionRandSize - 1);
+        NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder().build();
+
+        SingleInputGate gate =
+                createSingleInputGate(
+                        partitionIds,
+                        isBlocking ? ResultPartitionType.BLOCKING : ResultPartitionType.PIPELINED,
+                        subpartitionIndexRange,
+                        netEnv,
+                        ResourceID.generate(),
+                        new TestingConnectionManager(),
+                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()));
+        gate.setup();
+
+        for (InputChannel inputChannel : gate.getInputChannels().values()) {
+            if (inputChannel instanceof RemoteInputChannel) {
+                assertThat(((RemoteInputChannel) inputChannel).getInitialCredit()).isEqualTo(0);
+            }
+        }
+
+        int numTotalBuffers = 2 * partitionIds.length * subpartitionRandSize + 8;
+        int defaultMaxBuffersPerGate =
+                isBlocking
+                        ? DEFAULT_MAX_BUFFERS_PER_GATE_FOR_BLOCKING
+                        : DEFAULT_MAX_BUFFERS_PER_GATE_FOR_STREAM;
+        int expectMinBuffersPerGate;
+        int expectMaxBuffersPerGate;
+        if (numTotalBuffers >= defaultMaxBuffersPerGate) {
+            expectMinBuffersPerGate = defaultMaxBuffersPerGate;
+            expectMaxBuffersPerGate = numTotalBuffers;
+        } else {
+            expectMinBuffersPerGate = 1;
+            expectMaxBuffersPerGate = 8;
+        }
+        assertThat(gate.getBufferPool().getNumberOfRequiredMemorySegments())
+                .isEqualTo(expectMinBuffersPerGate);
+        assertThat(gate.getBufferPool().getMaxNumberOfMemorySegments())
+                .isEqualTo(expectMaxBuffersPerGate);
+    }
 
     private static SubpartitionInfo createSubpartitionInfo(
             IntermediateResultPartitionID partitionId) {

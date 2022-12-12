@@ -38,6 +38,9 @@ public class TaskInputsOutputsDescriptor {
     // Number of subpartitions per dataSet.
     private final Map<IntermediateDataSetID, Integer> subpartitionNums;
 
+    // Result partition types of input channels.
+    private final Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes;
+
     // ResultPartitionType per dataSet.
     private final Map<IntermediateDataSetID, ResultPartitionType> partitionTypes;
 
@@ -45,15 +48,18 @@ public class TaskInputsOutputsDescriptor {
             int inputGateNums,
             Map<IntermediateDataSetID, Integer> inputChannelNums,
             Map<IntermediateDataSetID, Integer> subpartitionNums,
+            Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes,
             Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
 
         checkNotNull(inputChannelNums);
         checkNotNull(subpartitionNums);
+        checkNotNull(inputPartitionTypes);
         checkNotNull(partitionTypes);
 
         this.inputGateNums = inputGateNums;
         this.inputChannelNums = inputChannelNums;
         this.subpartitionNums = subpartitionNums;
+        this.inputPartitionTypes = inputPartitionTypes;
         this.partitionTypes = partitionTypes;
     }
 
@@ -69,6 +75,10 @@ public class TaskInputsOutputsDescriptor {
         return Collections.unmodifiableMap(subpartitionNums);
     }
 
+    public Map<IntermediateDataSetID, ResultPartitionType> getInputPartitionTypes() {
+        return Collections.unmodifiableMap(inputPartitionTypes);
+    }
+
     public Map<IntermediateDataSetID, ResultPartitionType> getPartitionTypes() {
         return Collections.unmodifiableMap(partitionTypes);
     }
@@ -77,9 +87,14 @@ public class TaskInputsOutputsDescriptor {
             int inputGateNums,
             Map<IntermediateDataSetID, Integer> inputChannelNums,
             Map<IntermediateDataSetID, Integer> subpartitionNums,
+            Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes,
             Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
 
         return new TaskInputsOutputsDescriptor(
-                inputGateNums, inputChannelNums, subpartitionNums, partitionTypes);
+                inputGateNums,
+                inputChannelNums,
+                subpartitionNums,
+                inputPartitionTypes,
+                partitionTypes);
     }
 }

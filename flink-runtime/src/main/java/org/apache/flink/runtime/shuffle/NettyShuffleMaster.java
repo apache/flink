@@ -39,6 +39,10 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
     private final int buffersPerInputGate;
 
+    private final boolean isGateRequiredMaxBuffersConfigured;
+
+    private final int requiredMaxBuffersPerGate;
+
     private final int sortShuffleMinParallelism;
 
     private final int sortShuffleMinBuffers;
@@ -51,6 +55,14 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
         buffersPerInputGate =
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+        isGateRequiredMaxBuffersConfigured =
+                conf.contains(NettyShuffleEnvironmentOptions.NETWORK_REQUIRED_MAX_BUFFERS_PER_GATE);
+        requiredMaxBuffersPerGate =
+                isGateRequiredMaxBuffersConfigured
+                        ? conf.getInteger(
+                                NettyShuffleEnvironmentOptions
+                                        .NETWORK_REQUIRED_MAX_BUFFERS_PER_GATE)
+                        : -1;
         sortShuffleMinParallelism =
                 conf.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
@@ -112,11 +124,14 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                 NettyShuffleUtils.computeNetworkBuffersForAnnouncing(
                         buffersPerInputChannel,
                         buffersPerInputGate,
+                        isGateRequiredMaxBuffersConfigured,
+                        requiredMaxBuffersPerGate,
                         sortShuffleMinParallelism,
                         sortShuffleMinBuffers,
-                        numTotalInputChannels,
                         numTotalInputGates,
+                        desc.getInputChannelNums(),
                         desc.getSubpartitionNums(),
+                        desc.getInputPartitionTypes(),
                         desc.getPartitionTypes());
 
         return new MemorySize((long) networkBufferSize * numRequiredNetworkBuffers);

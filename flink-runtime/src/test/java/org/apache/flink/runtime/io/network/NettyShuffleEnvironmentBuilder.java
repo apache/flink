@@ -57,6 +57,10 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int floatingNetworkBuffersPerGate = 8;
 
+    private boolean isRequiredMaxBuffersConfigured = false;
+
+    private int requiredMaxBuffersPerGate = Integer.MAX_VALUE;
+
     private int sortShuffleMinBuffers = 100;
 
     private int sortShuffleMinParallelism = Integer.MAX_VALUE;
@@ -124,6 +128,18 @@ public class NettyShuffleEnvironmentBuilder {
     public NettyShuffleEnvironmentBuilder setFloatingNetworkBuffersPerGate(
             int floatingNetworkBuffersPerGate) {
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setRequiredMaxBuffersPerGate(
+            int requiredMaxBuffersPerGate) {
+        this.requiredMaxBuffersPerGate = requiredMaxBuffersPerGate;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setIsRequiredMaxBuffersConfigured(
+            boolean isRequiredMaxBuffersConfigured) {
+        this.isRequiredMaxBuffersConfigured = isRequiredMaxBuffersConfigured;
         return this;
     }
 
@@ -213,6 +229,8 @@ public class NettyShuffleEnvironmentBuilder {
                         partitionRequestMaxBackoff,
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
+                        isRequiredMaxBuffersConfigured,
+                        requiredMaxBuffersPerGate,
                         DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
                         false,
                         nettyConfig,

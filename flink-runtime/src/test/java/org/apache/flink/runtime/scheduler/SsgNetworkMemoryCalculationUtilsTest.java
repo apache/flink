@@ -233,11 +233,14 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         eg.initializeJobVertex(consumer, 0L);
 
         Map<IntermediateDataSetID, Integer> maxInputChannelNums = new HashMap<>();
+        Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes = new HashMap<>();
         SsgNetworkMemoryCalculationUtils.getMaxInputChannelInfoForDynamicGraph(
-                consumer, maxInputChannelNums);
+                consumer, maxInputChannelNums, inputPartitionTypes);
 
         assertThat(maxInputChannelNums.size(), is(1));
         assertThat(maxInputChannelNums.get(result.getId()), is(expectedNumChannels));
+        assertThat(inputPartitionTypes.size(), is(1));
+        assertThat(inputPartitionTypes.get(result.getId()), is(result.getResultType()));
     }
 
     private DefaultExecutionGraph createDynamicExecutionGraph(

@@ -26,7 +26,8 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utils to calculate network memory requirement of a vertex from network configuration and details
@@ -34,6 +35,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * shuffle environment and also guide network memory announcing in fine-grained resource management.
  */
 public class NettyShuffleUtils {
+
+    public static final int DEFAULT_MAX_BUFFERS_PER_GATE_FOR_BLOCKING = 1000;
+
+    public static final int DEFAULT_MAX_BUFFERS_PER_GATE_FOR_STREAM = Integer.MAX_VALUE;
 
     /**
      * Calculates and returns the number of required exclusive network buffers per input channel.
@@ -86,25 +91,43 @@ public class NettyShuffleUtils {
     public static int computeNetworkBuffersForAnnouncing(
             final int numBuffersPerChannel,
             final int numFloatingBuffersPerGate,
+            final boolean isGateRequiredMaxBuffersConfigured,
+            final int requiredMaxBuffersPerGate,
             final int sortShuffleMinParallelism,
             final int sortShuffleMinBuffers,
-            final int numTotalInputChannels,
             final int numTotalInputGates,
+            final Map<IntermediateDataSetID, Integer> inputChannelNums,
             final Map<IntermediateDataSetID, Integer> subpartitionNums,
+            final Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes,
             final Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
 
-        // Each input channel will retain N exclusive network buffers, N = numBuffersPerChannel.
-        // Each input gate is guaranteed to have a number of floating buffers.
-        int requirementForInputs =
-                getNetworkBuffersPerInputChannel(numBuffersPerChannel) * numTotalInputChannels
-                        + getMinMaxFloatingBuffersPerInputGate(numFloatingBuffersPerGate).getRight()
-                                * numTotalInputGates;
+        int requirementForInputs = 0;
+        int maxSingleGateBuffers = 0;
+        for (IntermediateDataSetID dataSetId : inputChannelNums.keySet()) {
+            int numChannels = inputChannelNums.get(dataSetId);
+            ResultPartitionType inputPartitionType = inputPartitionTypes.get(dataSetId);
+            checkNotNull(inputPartitionType);
+
+            int numSingleGateBuffers =
+                    getNumBuffersToAnnounceForInputGates(
+                            inputPartitionType,
+                            numBuffersPerChannel,
+                            numFloatingBuffersPerGate,
+                            isGateRequiredMaxBuffersConfigured,
+                            requiredMaxBuffersPerGate,
+                            numChannels);
+            requirementForInputs += numSingleGateBuffers;
+            maxSingleGateBuffers = Math.max(maxSingleGateBuffers, numSingleGateBuffers);
+        }
+        requirementForInputs +=
+                getReusePartitionInputBuffers(
+                        numTotalInputGates, inputChannelNums, maxSingleGateBuffers);
 
         int requirementForOutputs = 0;
         for (IntermediateDataSetID dataSetId : subpartitionNums.keySet()) {
             int numSubs = subpartitionNums.get(dataSetId);
-            checkArgument(partitionTypes.containsKey(dataSetId));
             ResultPartitionType partitionType = partitionTypes.get(dataSetId);
+            checkNotNull(partitionType);
 
             requirementForOutputs +=
                     getNumBuffersToAnnounceForResultPartition(
@@ -117,6 +140,91 @@ public class NettyShuffleUtils {
         }
 
         return requirementForInputs + requirementForOutputs;
+    }
+
+    public static int maxRequiredBuffersPerGate(
+            ResultPartitionType partitionType,
+            boolean isGateRequiredMaxBuffersConfigured,
+            int requiredMaxBuffersPerGate) {
+        int requiredMaxBuffers;
+        if (isGateRequiredMaxBuffersConfigured) {
+            requiredMaxBuffers = requiredMaxBuffersPerGate;
+        } else {
+            requiredMaxBuffers =
+                    partitionType.isBlockingOrBlockingPersistentResultPartition()
+                            ? DEFAULT_MAX_BUFFERS_PER_GATE_FOR_BLOCKING
+                            : DEFAULT_MAX_BUFFERS_PER_GATE_FOR_STREAM;
+        }
+        checkState(requiredMaxBuffers >= 0, "Max required buffers per gate must be non-negative.");
+        return requiredMaxBuffers;
+    }
+
+    public static int getMaxFloatingBuffersInGate(
+            int numInputChannels, int networkBuffersPerChannel, int floatingNetworkBuffersPerGate) {
+        return getExclusiveBuffersInGate(numInputChannels, networkBuffersPerChannel)
+                + floatingNetworkBuffersPerGate;
+    }
+
+    private static int getNumBuffersToAnnounceForInputGates(
+            ResultPartitionType type,
+            int numBuffersPerChannel,
+            int numFloatingBuffersPerGate,
+            boolean isGateRequiredMaxBuffersConfigured,
+            int requiredMaxBuffersPerGate,
+            int numInputChannels) {
+        int maxGateBuffersThreshold =
+                maxRequiredBuffersPerGate(
+                        type, isGateRequiredMaxBuffersConfigured, requiredMaxBuffersPerGate);
+
+        int adjustedBuffersPerChannel =
+                adjustExclusiveBuffersPerChannel(
+                        numBuffersPerChannel, numInputChannels, maxGateBuffersThreshold);
+        boolean useFloatingBuffer = adjustedBuffersPerChannel < 0;
+
+        int maxFloatingBuffers =
+                useFloatingBuffer
+                        ? getMaxFloatingBuffersInGate(
+                                numInputChannels, numBuffersPerChannel, numFloatingBuffersPerGate)
+                        : numFloatingBuffersPerGate;
+        int exclusiveBuffersPerChannel = useFloatingBuffer ? 0 : adjustedBuffersPerChannel;
+
+        return exclusiveBuffersPerChannel * numInputChannels + maxFloatingBuffers;
+    }
+
+    /**
+     * Adjusting the exclusive network buffers based on whether the total exclusive buffers in one
+     * gate has exceeded the gate buffer threshold.
+     *
+     * @return Adjusted buffers or -1. Return -1 if and only if the total exclusive buffers will
+     *     exceed the gate buffer threshold though the exclusive network buffers per channel is 1.
+     *     Returning -1 indicates the read total buffers in gate should use floating buffers.
+     */
+    public static int adjustExclusiveBuffersPerChannel(
+            int numBuffersPerChannel, int numInputChannels, int maxGateBuffersThreshold) {
+        int adjustedBuffersPerChannel = -1;
+        for (int i = numBuffersPerChannel; i > 0; i--) {
+            if (getExclusiveBuffersInGate(numInputChannels, i) <= maxGateBuffersThreshold) {
+                adjustedBuffersPerChannel = i;
+                break;
+            }
+        }
+        return adjustedBuffersPerChannel;
+    }
+
+    private static int getExclusiveBuffersInGate(
+            int numInputChannels, int networkBuffersPerChannel) {
+        return networkBuffersPerChannel * numInputChannels;
+    }
+
+    private static int getReusePartitionInputBuffers(
+            int numTotalInputGates,
+            Map<IntermediateDataSetID, Integer> inputChannelNums,
+            int maxSingleGateBuffers) {
+        checkState(numTotalInputGates >= inputChannelNums.size());
+        if (numTotalInputGates == inputChannelNums.size()) {
+            return 0;
+        }
+        return (numTotalInputGates - inputChannelNums.size()) * maxSingleGateBuffers;
     }
 
     private static int getNumBuffersToAnnounceForResultPartition(

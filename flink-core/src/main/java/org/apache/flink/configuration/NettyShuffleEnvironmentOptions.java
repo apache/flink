@@ -226,6 +226,27 @@ public class NettyShuffleEnvironmentOptions {
                                     + " increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
     /**
+     * Maximum number of network buffers to use for each outgoing/incoming gate (result
+     * partition/input gate), which contains all exclusive network buffers for all subpartitions and
+     * all floating buffers for the gate. The exclusive network buffers for one channel is
+     * configured by {@link #NETWORK_BUFFERS_PER_CHANNEL} and the floating buffers for one gate is
+     * configured by {@link #NETWORK_EXTRA_BUFFERS_PER_GATE}.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_REQUIRED_MAX_BUFFERS_PER_GATE =
+            key("taskmanager.memory.network.required-buffer-per-gate.max")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum number of network buffers to use for each outgoing/incoming gate (result partition/input gate). "
+                                    + " This config option is introduced to improve the usability of Flink and reduce the probability"
+                                    + " of insufficient network memory exceptions. When the total number of buffers used by one gate"
+                                    + " exceeds this threshold, all buffers in the gate will use Floating Buffers. If this option is"
+                                    + " not configured, the default threshold for Batch jobs is 1000, and the default threshold for Stream"
+                                    + " jobs is Integer.MAX_VALUE. If this option is configured, all jobs will take effect. If you want to"
+                                    + " disable the feature, set the value to Integer.MAX_VALUE.");
+
+    /**
      * Minimum number of network buffers required per blocking result partition for sort-shuffle.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)

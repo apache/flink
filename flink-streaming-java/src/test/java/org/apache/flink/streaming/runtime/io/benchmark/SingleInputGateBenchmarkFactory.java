@@ -63,6 +63,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
     protected InputChannel createKnownInputChannel(
             SingleInputGate inputGate,
             int index,
+            int buffersPerChannel,
             NettyShuffleDescriptor inputChannelDescriptor,
             int consumedSubpartitionIndex,
             SingleInputGateFactory.ChannelStatistics channelStatistics,

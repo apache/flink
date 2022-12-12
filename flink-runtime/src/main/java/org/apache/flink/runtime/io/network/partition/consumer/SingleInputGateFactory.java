@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
@@ -55,6 +57,9 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 
+import static org.apache.flink.runtime.shuffle.NettyShuffleUtils.adjustExclusiveBuffersPerChannel;
+import static org.apache.flink.runtime.shuffle.NettyShuffleUtils.getMaxFloatingBuffersInGate;
+import static org.apache.flink.runtime.shuffle.NettyShuffleUtils.maxRequiredBuffersPerGate;
 import static org.apache.flink.runtime.shuffle.ShuffleUtils.applyWithShuffleTypeCheck;
 
 /** Factory for {@link SingleInputGate} to use in {@link NettyShuffleEnvironment}. */
@@ -74,6 +79,10 @@ public class SingleInputGateFactory {
     @Nonnull protected final TaskEventPublisher taskEventPublisher;
 
     @Nonnull protected final NetworkBufferPool networkBufferPool;
+
+    private final boolean isGateRequiredMaxBuffersConfigured;
+
+    private final int requiredMaxBuffersPerGate;
 
     protected final int networkBuffersPerChannel;
 
@@ -97,6 +106,8 @@ public class SingleInputGateFactory {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
         this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
+        this.isGateRequiredMaxBuffersConfigured = networkConfig.isRequiredMaxBuffersConfigured();
+        this.requiredMaxBuffersPerGate = networkConfig.requiredMaxBuffersPerGate();
         this.networkBuffersPerChannel =
                 NettyShuffleUtils.getNetworkBuffersPerInputChannel(
                         networkConfig.networkBuffersPerChannel());
@@ -118,8 +129,17 @@ public class SingleInputGateFactory {
             @Nonnull InputGateDeploymentDescriptor igdd,
             @Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
             @Nonnull InputChannelMetrics metrics) {
+        GateBuffersNumCalculator floatingBuffersDecider =
+                new GateBuffersNumCalculator(
+                        igdd.getConsumedPartitionType(),
+                        calculateNumChannels(
+                                igdd.getShuffleDescriptors().length,
+                                igdd.getConsumedSubpartitionIndexRange()));
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
-                createBufferPoolFactory(networkBufferPool, floatingNetworkBuffersPerGate);
+                createBufferPoolFactory(
+                        networkBufferPool,
+                        floatingBuffersDecider.getMinFloatingBuffers(),
+                        floatingBuffersDecider.getMaxFloatingBuffers());
 
         BufferDecompressor bufferDecompressor = null;
         if (igdd.getConsumedPartitionType().supportCompression()
@@ -149,7 +169,13 @@ public class SingleInputGateFactory {
                         maybeCreateBufferDebloater(
                                 owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)));
 
-        createInputChannels(owningTaskName, igdd, inputGate, subpartitionIndexRange, metrics);
+        createInputChannels(
+                owningTaskName,
+                igdd,
+                inputGate,
+                subpartitionIndexRange,
+                floatingBuffersDecider,
+                metrics);
         return inputGate;
     }
 
@@ -180,6 +206,7 @@ public class SingleInputGateFactory {
             InputGateDeploymentDescriptor inputGateDeploymentDescriptor,
             SingleInputGate inputGate,
             IndexRange subpartitionIndexRange,
+            GateBuffersNumCalculator floatingBuffersDecider,
             InputChannelMetrics metrics) {
         ShuffleDescriptor[] shuffleDescriptors =
                 inputGateDeploymentDescriptor.getShuffleDescriptors();
@@ -200,6 +227,7 @@ public class SingleInputGateFactory {
                         createInputChannel(
                                 inputGate,
                                 channelIdx,
+                                floatingBuffersDecider.getExclusiveBuffersPerChannel(),
                                 shuffleDescriptors[i],
                                 subpartitionIndex,
                                 channelStatistics,
@@ -220,6 +248,7 @@ public class SingleInputGateFactory {
     private InputChannel createInputChannel(
             SingleInputGate inputGate,
             int index,
+            int buffersPerChannel,
             ShuffleDescriptor shuffleDescriptor,
             int consumedSubpartitionIndex,
             ChannelStatistics channelStatistics,
@@ -239,13 +268,14 @@ public class SingleInputGateFactory {
                             connectionManager,
                             partitionRequestInitialBackoff,
                             partitionRequestMaxBackoff,
-                            networkBuffersPerChannel,
+                            buffersPerChannel,
                             metrics);
                 },
                 nettyShuffleDescriptor ->
                         createKnownInputChannel(
                                 inputGate,
                                 index,
+                                buffersPerChannel,
                                 nettyShuffleDescriptor,
                                 consumedSubpartitionIndex,
                                 channelStatistics,
@@ -262,6 +292,7 @@ public class SingleInputGateFactory {
     protected InputChannel createKnownInputChannel(
             SingleInputGate inputGate,
             int index,
+            int buffersPerChannel,
             NettyShuffleDescriptor inputChannelDescriptor,
             int consumedSubpartitionIndex,
             ChannelStatistics channelStatistics,
@@ -279,7 +310,7 @@ public class SingleInputGateFactory {
                     taskEventPublisher,
                     partitionRequestInitialBackoff,
                     partitionRequestMaxBackoff,
-                    networkBuffersPerChannel,
+                    buffersPerChannel,
                     metrics);
         } else {
             // Different instances => remote
@@ -293,18 +324,72 @@ public class SingleInputGateFactory {
                     connectionManager,
                     partitionRequestInitialBackoff,
                     partitionRequestMaxBackoff,
-                    networkBuffersPerChannel,
+                    buffersPerChannel,
                     metrics);
         }
     }
 
     @VisibleForTesting
     static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
-            BufferPoolFactory bufferPoolFactory, int floatingNetworkBuffersPerGate) {
-        Pair<Integer, Integer> pair =
-                NettyShuffleUtils.getMinMaxFloatingBuffersPerInputGate(
-                        floatingNetworkBuffersPerGate);
+            BufferPoolFactory bufferPoolFactory,
+            int minFloatingBuffersPerGate,
+            int maxFloatingBuffersPerGate) {
+        Pair<Integer, Integer> pair = Pair.of(minFloatingBuffersPerGate, maxFloatingBuffersPerGate);
         return () -> bufferPoolFactory.createBufferPool(pair.getLeft(), pair.getRight());
+    }
+
+    /**
+     * Based on whether the used exclusive buffers exceed the threshold, decide whether all buffers
+     * in the gate use Floating Buffers.
+     *
+     * <p>The threshold is configured by {@link
+     * NettyShuffleEnvironmentOptions#NETWORK_REQUIRED_MAX_BUFFERS_PER_GATE}. If the option is not
+     * configured, the threshold for Blocking jobs is {@link
+     * NettyShuffleUtils#DEFAULT_MAX_BUFFERS_PER_GATE_FOR_BLOCKING} and the threshold for Streaming
+     * jobs is {#link NettyShuffleUtils#DEFAULT_MAX_BUFFERS_PER_GATE_FOR_STREAMING}.
+     */
+    protected class GateBuffersNumCalculator {
+
+        private final int minFloatingBuffers;
+
+        private final int maxFloatingBuffers;
+
+        private final int exclusiveBuffersPerChannel;
+
+        GateBuffersNumCalculator(ResultPartitionType partitionType, int numInputChannels) {
+            int maxGateBuffersThreshold =
+                    maxRequiredBuffersPerGate(
+                            partitionType,
+                            isGateRequiredMaxBuffersConfigured,
+                            requiredMaxBuffersPerGate);
+
+            int adjustedBuffersPerChannel =
+                    adjustExclusiveBuffersPerChannel(
+                            networkBuffersPerChannel, numInputChannels, maxGateBuffersThreshold);
+            boolean useFloatingBuffer = adjustedBuffersPerChannel < 0;
+
+            this.minFloatingBuffers = useFloatingBuffer ? maxGateBuffersThreshold : 1;
+            this.maxFloatingBuffers =
+                    useFloatingBuffer
+                            ? getMaxFloatingBuffersInGate(
+                                    numInputChannels,
+                                    networkBuffersPerChannel,
+                                    floatingNetworkBuffersPerGate)
+                            : floatingNetworkBuffersPerGate;
+            this.exclusiveBuffersPerChannel = useFloatingBuffer ? 0 : adjustedBuffersPerChannel;
+        }
+
+        int getMinFloatingBuffers() {
+            return minFloatingBuffers;
+        }
+
+        int getMaxFloatingBuffers() {
+            return maxFloatingBuffers;
+        }
+
+        int getExclusiveBuffersPerChannel() {
+            return exclusiveBuffersPerChannel;
+        }
     }
 
     /** Statistics of input channels. */

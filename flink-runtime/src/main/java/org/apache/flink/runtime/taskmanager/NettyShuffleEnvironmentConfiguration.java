@@ -42,6 +42,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /** Configuration object for the network stack. */
 public class NettyShuffleEnvironmentConfiguration {
     private static final Logger LOG =
@@ -66,6 +68,10 @@ public class NettyShuffleEnvironmentConfiguration {
      * partition/input gate).
      */
     private final int floatingNetworkBuffersPerGate;
+
+    private final boolean isRequiredMaxBuffersConfigured;
+
+    private final int requiredMaxBuffersPerGate;
 
     private final int sortShuffleMinBuffers;
 
@@ -106,6 +112,8 @@ public class NettyShuffleEnvironmentConfiguration {
             int partitionRequestMaxBackoff,
             int networkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
+            boolean isRequiredMaxBuffersConfigured,
+            int requiredMaxBuffersPerGate,
             Duration requestSegmentsTimeout,
             boolean isNetworkDetailedMetrics,
             @Nullable NettyConfig nettyConfig,
@@ -128,6 +136,8 @@ public class NettyShuffleEnvironmentConfiguration {
         this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
         this.networkBuffersPerChannel = networkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+        this.isRequiredMaxBuffersConfigured = isRequiredMaxBuffersConfigured;
+        this.requiredMaxBuffersPerGate = requiredMaxBuffersPerGate;
         this.requestSegmentsTimeout = Preconditions.checkNotNull(requestSegmentsTimeout);
         this.isNetworkDetailedMetrics = isNetworkDetailedMetrics;
         this.nettyConfig = nettyConfig;
@@ -169,6 +179,14 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int floatingNetworkBuffersPerGate() {
         return floatingNetworkBuffersPerGate;
+    }
+
+    public boolean isRequiredMaxBuffersConfigured() {
+        return isRequiredMaxBuffersConfigured;
+    }
+
+    public int requiredMaxBuffersPerGate() {
+        return requiredMaxBuffersPerGate;
     }
 
     public long batchShuffleReadMemoryBytes() {
@@ -282,6 +300,17 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
+        boolean isRequiredMaxBuffersConfigured =
+                configuration.contains(
+                        NettyShuffleEnvironmentOptions.NETWORK_REQUIRED_MAX_BUFFERS_PER_GATE);
+
+        int requiredMaxBuffersPerGate =
+                isRequiredMaxBuffersConfigured
+                        ? configuration.getInteger(
+                                NettyShuffleEnvironmentOptions
+                                        .NETWORK_REQUIRED_MAX_BUFFERS_PER_GATE)
+                        : -1;
+
         int maxBuffersPerChannel =
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
@@ -333,6 +362,11 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.get(
                         NettyShuffleEnvironmentOptions.TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED);
 
+        checkArgument(
+                !isRequiredMaxBuffersConfigured || requiredMaxBuffersPerGate > 0,
+                NettyShuffleEnvironmentOptions.NETWORK_REQUIRED_MAX_BUFFERS_PER_GATE.key()
+                        + " be a positive value, or the config option can be removed.");
+
         return new NettyShuffleEnvironmentConfiguration(
                 numberOfNetworkBuffers,
                 pageSize,
@@ -340,6 +374,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 maxRequestBackoff,
                 buffersPerChannel,
                 extraBuffersPerGate,
+                isRequiredMaxBuffersConfigured,
+                requiredMaxBuffersPerGate,
                 requestSegmentsTimeout,
                 isNetworkDetailedMetrics,
                 nettyConfig,
