@@ -138,7 +138,7 @@ public class ApiAnnotationRules {
                                             "the target is annotated @"
                                                     + VisibleForTesting.class.getSimpleName()) {
                                         @Override
-                                        public boolean apply(JavaMethodCall call) {
+                                        public boolean test(JavaMethodCall call) {
                                             final JavaClass targetOwner = call.getTargetOwner();
                                             final JavaClass originOwner = call.getOriginOwner();
 
