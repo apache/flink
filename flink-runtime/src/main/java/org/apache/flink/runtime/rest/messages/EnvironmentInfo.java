@@ -70,44 +70,6 @@ public class EnvironmentInfo implements ResponseBody {
                 JVMInfo.create(), Arrays.asList(System.getProperty("java.class.path").split(":")));
     }
 
-    /** A single key-value pair entry in the {@link EnvironmentInfo} response. */
-    private static class EnvironmentVariableItem {
-        private static final String FIELD_NAME_KEY = "key";
-
-        private static final String FIELD_NAME_VALUE = "value";
-
-        @JsonProperty(FIELD_NAME_KEY)
-        private final String key;
-
-        @JsonProperty(FIELD_NAME_VALUE)
-        private final String value;
-
-        @JsonCreator
-        public EnvironmentVariableItem(
-                @JsonProperty(FIELD_NAME_KEY) String key,
-                @JsonProperty(FIELD_NAME_VALUE) String value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            EnvironmentVariableItem that = (EnvironmentVariableItem) o;
-            return key.equals(that.key) && value.equals(that.value);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(key, value);
-        }
-    }
-
     /** JVM information. */
     private static class JVMInfo {
         private static final String FIELD_NAME_VERSION = "version";
