@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
-import java.security.PrivilegedExceptionAction;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
@@ -91,23 +90,11 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
             Configuration configuration,
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable ExecutorService ioExecutor) {
-        this(
-                configuration,
-                scheduledExecutor,
-                ioExecutor,
-                new KerberosLoginProvider(configuration));
-    }
-
-    public KerberosDelegationTokenManager(
-            Configuration configuration,
-            @Nullable ScheduledExecutor scheduledExecutor,
-            @Nullable ExecutorService ioExecutor,
-            KerberosLoginProvider kerberosLoginProvider) {
         this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
         this.tokensRenewalTimeRatio = configuration.get(KERBEROS_TOKENS_RENEWAL_TIME_RATIO);
         this.renewalRetryBackoffPeriod =
                 configuration.get(KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF).toMillis();
-        this.kerberosLoginProvider = kerberosLoginProvider;
+        this.kerberosLoginProvider = new KerberosLoginProvider(configuration);
         this.delegationTokenProviders = loadProviders();
         this.scheduledExecutor = scheduledExecutor;
         this.ioExecutor = ioExecutor;
@@ -166,21 +153,8 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
     @Override
     public void obtainDelegationTokens(Credentials credentials) throws Exception {
         LOG.info("Obtaining delegation tokens");
-
-        // Delegation tokens can only be obtained if the real user has Kerberos credentials, so
-        // skip creation when those are not available.
-        if (kerberosLoginProvider.isLoginPossible()) {
-            UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
-            freshUGI.doAs(
-                    (PrivilegedExceptionAction<Void>)
-                            () -> {
-                                obtainDelegationTokensAndGetNextRenewal(credentials);
-                                return null;
-                            });
-            LOG.info("Delegation tokens obtained successfully");
-        } else {
-            LOG.info("Real user has no kerberos credentials so no tokens obtained");
-        }
+        obtainDelegationTokensAndGetNextRenewal(credentials);
+        LOG.info("Delegation tokens obtained successfully");
     }
 
     protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(Credentials credentials) {
@@ -292,11 +266,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
         try {
             LOG.info("Starting tokens update task");
             Credentials credentials = new Credentials();
-            UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
-            Optional<Long> nextRenewal =
-                    freshUGI.doAs(
-                            (PrivilegedExceptionAction<Optional<Long>>)
-                                    () -> obtainDelegationTokensAndGetNextRenewal(credentials));
+            Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(credentials);
 
             if (credentials.numberOfTokens() > 0) {
                 byte[] credentialsBytes = DelegationTokenConverter.serialize(credentials);

@@ -20,7 +20,9 @@ package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.token.Token;
 
 import java.util.Optional;
 
@@ -31,8 +33,15 @@ import java.util.Optional;
 public class ExceptionThrowingHadoopDelegationTokenProvider
         implements HadoopDelegationTokenProvider {
 
-    public static volatile boolean enabled = false;
+    public static volatile boolean throwInInit = false;
+    public static volatile boolean throwInUsage = false;
     public static volatile boolean constructed = false;
+
+    public static void reset() {
+        throwInInit = false;
+        throwInUsage = false;
+        constructed = false;
+    }
 
     public ExceptionThrowingHadoopDelegationTokenProvider() {
         constructed = true;
@@ -45,24 +54,28 @@ public class ExceptionThrowingHadoopDelegationTokenProvider
 
     @Override
     public void init(Configuration configuration) {
-        if (enabled) {
+        if (throwInInit) {
             throw new IllegalArgumentException();
         }
     }
 
     @Override
     public boolean delegationTokensRequired() {
-        if (enabled) {
+        if (throwInUsage) {
             throw new IllegalArgumentException();
         }
-        return false;
+        return true;
     }
 
     @Override
     public Optional<Long> obtainDelegationTokens(Credentials credentials) {
-        if (enabled) {
+        if (throwInUsage) {
             throw new IllegalArgumentException();
         }
+        final Text tokenKind = new Text("TEST_TOKEN_KIND");
+        final Text tokenService = new Text("TEST_TOKEN_SERVICE");
+        credentials.addToken(
+                tokenService, new Token<>(new byte[4], new byte[4], tokenKind, tokenService));
         return Optional.empty();
     }
 }

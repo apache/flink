@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -47,6 +48,8 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
 
     org.apache.hadoop.conf.Configuration hbaseConf;
 
+    private KerberosLoginProvider kerberosLoginProvider;
+
     @Override
     public String serviceName() {
         return "hbase";
@@ -55,6 +58,7 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
     @Override
     public void init(Configuration configuration) throws Exception {
         hbaseConf = getHBaseConfiguration(configuration);
+        kerberosLoginProvider = new KerberosLoginProvider(configuration);
     }
 
     private org.apache.hadoop.conf.Configuration getHBaseConfiguration(Configuration conf) {
@@ -100,68 +104,91 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
 
     @Override
     public Optional<Long> obtainDelegationTokens(Credentials credentials) throws Exception {
-        Token<?> token;
-        try {
-            Preconditions.checkNotNull(hbaseConf);
-            try {
-                LOG.info("Obtaining Kerberos security token for HBase");
-                // ----
-                // Intended call: Token<AuthenticationTokenIdentifier> token =
-                // TokenUtil.obtainToken(conf);
-                token =
-                        (Token<?>)
-                                Class.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
-                                        .getMethod(
-                                                "obtainToken",
-                                                org.apache.hadoop.conf.Configuration.class)
-                                        .invoke(null, hbaseConf);
-            } catch (NoSuchMethodException e) {
-                // for HBase 2
+        if (kerberosLoginProvider.isLoginPossible()) {
+            UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
+            return freshUGI.doAs(
+                    (PrivilegedExceptionAction<Optional<Long>>)
+                            () -> {
+                                Token<?> token;
+                                try {
+                                    Preconditions.checkNotNull(hbaseConf);
+                                    try {
+                                        LOG.info("Obtaining Kerberos security token for HBase");
+                                        // ----
+                                        // Intended call: Token<AuthenticationTokenIdentifier> token
+                                        // =
+                                        // TokenUtil.obtainToken(conf);
+                                        token =
+                                                (Token<?>)
+                                                        Class.forName(
+                                                                        "org.apache.hadoop.hbase.security.token.TokenUtil")
+                                                                .getMethod(
+                                                                        "obtainToken",
+                                                                        org.apache.hadoop.conf
+                                                                                .Configuration
+                                                                                .class)
+                                                                .invoke(null, hbaseConf);
+                                    } catch (NoSuchMethodException e) {
+                                        // for HBase 2
 
-                // ----
-                // Intended call: ConnectionFactory connectionFactory =
-                // ConnectionFactory.createConnection(conf);
-                Closeable connectionFactory =
-                        (Closeable)
-                                Class.forName("org.apache.hadoop.hbase.client.ConnectionFactory")
-                                        .getMethod(
-                                                "createConnection",
-                                                org.apache.hadoop.conf.Configuration.class)
-                                        .invoke(null, hbaseConf);
-                // ----
-                Class<?> connectionClass =
-                        Class.forName("org.apache.hadoop.hbase.client.Connection");
-                // ----
-                // Intended call: Token<AuthenticationTokenIdentifier> token =
-                // TokenUtil.obtainToken(connectionFactory);
-                token =
-                        (Token<?>)
-                                Class.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
-                                        .getMethod("obtainToken", connectionClass)
-                                        .invoke(null, connectionFactory);
-                if (null != connectionFactory) {
-                    connectionFactory.close();
-                }
-            }
-            if (token == null) {
-                LOG.error("No Kerberos security token for HBase available");
-            } else {
-                credentials.addToken(token.getService(), token);
-                LOG.info("Added HBase Kerberos security token to credentials.");
-            }
-        } catch (ClassNotFoundException
-                | NoSuchMethodException
-                | IllegalAccessException
-                | InvocationTargetException
-                | IOException e) {
-            LOG.info(
-                    "HBase is not available (failed to obtain delegation tokens): {} : \"{}\".",
-                    e.getClass().getSimpleName(),
-                    e.getMessage());
+                                        // ----
+                                        // Intended call: ConnectionFactory connectionFactory =
+                                        // ConnectionFactory.createConnection(conf);
+                                        Closeable connectionFactory =
+                                                (Closeable)
+                                                        Class.forName(
+                                                                        "org.apache.hadoop.hbase.client.ConnectionFactory")
+                                                                .getMethod(
+                                                                        "createConnection",
+                                                                        org.apache.hadoop.conf
+                                                                                .Configuration
+                                                                                .class)
+                                                                .invoke(null, hbaseConf);
+                                        // ----
+                                        Class<?> connectionClass =
+                                                Class.forName(
+                                                        "org.apache.hadoop.hbase.client.Connection");
+                                        // ----
+                                        // Intended call: Token<AuthenticationTokenIdentifier> token
+                                        // =
+                                        // TokenUtil.obtainToken(connectionFactory);
+                                        token =
+                                                (Token<?>)
+                                                        Class.forName(
+                                                                        "org.apache.hadoop.hbase.security.token.TokenUtil")
+                                                                .getMethod(
+                                                                        "obtainToken",
+                                                                        connectionClass)
+                                                                .invoke(null, connectionFactory);
+                                        if (null != connectionFactory) {
+                                            connectionFactory.close();
+                                        }
+                                    }
+                                    if (token == null) {
+                                        LOG.error("No Kerberos security token for HBase available");
+                                    } else {
+                                        credentials.addToken(token.getService(), token);
+                                        LOG.info(
+                                                "Added HBase Kerberos security token to credentials.");
+                                    }
+                                } catch (ClassNotFoundException
+                                        | NoSuchMethodException
+                                        | IllegalAccessException
+                                        | InvocationTargetException
+                                        | IOException e) {
+                                    LOG.info(
+                                            "HBase is not available (failed to obtain delegation tokens): {} : \"{}\".",
+                                            e.getClass().getSimpleName(),
+                                            e.getMessage());
+                                }
+
+                                // HBase does not support to renew the delegation token currently
+                                // https://cwiki.apache.org/confluence/display/HADOOP2/Hbase+HBaseTokenAuthentication
+                                return Optional.empty();
+                            });
+        } else {
+            LOG.info("Real user has no kerberos credentials so no tokens obtained");
+            return Optional.empty();
         }
-
-        // HBase does not support to renew the delegation token currently
-        // https://cwiki.apache.org/confluence/display/HADOOP2/Hbase+HBaseTokenAuthentication
-        return Optional.empty();
     }
 }
