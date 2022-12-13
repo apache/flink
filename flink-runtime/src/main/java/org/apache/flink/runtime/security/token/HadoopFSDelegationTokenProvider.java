@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.Optional;
@@ -55,6 +56,8 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
 
     private org.apache.hadoop.conf.Configuration hadoopConfiguration;
 
+    private KerberosLoginProvider kerberosLoginProvider;
+
     private Optional<Long> tokenRenewalInterval;
 
     @Override
@@ -66,6 +69,7 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
     public void init(Configuration configuration) throws Exception {
         flinkConfiguration = configuration;
         hadoopConfiguration = HadoopUtils.getHadoopConfiguration(configuration);
+        kerberosLoginProvider = new KerberosLoginProvider(configuration);
     }
 
     @Override
@@ -75,17 +79,32 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
 
     @Override
     public Optional<Long> obtainDelegationTokens(Credentials credentials) throws Exception {
-        Clock clock = Clock.systemDefaultZone();
-        Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess();
+        if (kerberosLoginProvider.isLoginPossible()) {
+            UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
+            return freshUGI.doAs(
+                    (PrivilegedExceptionAction<Optional<Long>>)
+                            () -> {
+                                Clock clock = Clock.systemDefaultZone();
+                                Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess();
 
-        obtainDelegationTokens(getRenewer(), fileSystemsToAccess, credentials);
+                                obtainDelegationTokens(
+                                        getRenewer(), fileSystemsToAccess, credentials);
 
-        // Get the token renewal interval if it is not set. It will be called only once.
-        if (tokenRenewalInterval == null) {
-            tokenRenewalInterval = getTokenRenewalInterval(clock, fileSystemsToAccess);
+                                // Get the token renewal interval if it is not set. It will be
+                                // called
+                                // only once.
+                                if (tokenRenewalInterval == null) {
+                                    tokenRenewalInterval =
+                                            getTokenRenewalInterval(clock, fileSystemsToAccess);
+                                }
+                                return tokenRenewalInterval.flatMap(
+                                        interval ->
+                                                getTokenRenewalDate(clock, credentials, interval));
+                            });
+        } else {
+            LOG.info("Real user has no kerberos credentials so no tokens obtained");
+            return Optional.empty();
         }
-        return tokenRenewalInterval.flatMap(
-                interval -> getTokenRenewalDate(clock, credentials, interval));
     }
 
     @VisibleForTesting

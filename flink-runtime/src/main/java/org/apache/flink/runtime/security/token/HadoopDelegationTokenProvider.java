@@ -32,9 +32,6 @@ import java.util.Optional;
  *
  * <h2>Important Notes</h2>
  *
- * <p>"obtainDelegationTokens" function is running in "UserGroupInformation.doAs" context so
- * authentication is handled inside {@link DelegationTokenManager}
- *
  * <p>Tokens are stored in {@link UserGroupInformation}
  */
 @Experimental
