@@ -38,8 +38,6 @@ public class DockerImageVersions {
 
     public static final String LOCALSTACK = "localstack/localstack:0.13.3";
 
-    public static final String PULSAR = "apachepulsar/pulsar:2.10.2";
-
     public static final String MINIO = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
 
     public static final String ZOOKEEPER = "zookeeper:3.4.14";

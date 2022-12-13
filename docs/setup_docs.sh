@@ -54,6 +54,7 @@ cd tmp
 integrate_connector_docs elasticsearch v3.0.0
 integrate_connector_docs aws v3.0.0
 integrate_connector_docs cassandra v3.0.0
+integrate_connector_docs pulsar main
 
 cd ..
 rm -rf tmp
