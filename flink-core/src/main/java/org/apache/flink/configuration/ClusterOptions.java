@@ -132,7 +132,7 @@ public class ClusterOptions {
     public static final ConfigOption<Integer> THREAD_DUMP_STACKTRACE_MAX_DEPTH =
             key("cluster.thread-dump.stacktrace-max-depth")
                     .intType()
-                    .defaultValue(8)
+                    .defaultValue(50)
                     .withDescription(
                             "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
 
