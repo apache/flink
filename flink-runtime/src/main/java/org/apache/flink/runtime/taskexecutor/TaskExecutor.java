@@ -2376,11 +2376,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final ClusterInformation clusterInformation = success.getClusterInformation();
             final ResourceManagerGateway resourceManagerGateway = connection.getTargetGateway();
 
-            if (success.getInitialTokens() != null) {
+            byte[] tokens = success.getInitialTokens();
+            if (tokens != null) {
                 try {
                     log.info("Receive initial delegation tokens from resource manager");
-                    HadoopDelegationTokenUpdater.addCurrentUserCredentials(
-                            success.getInitialTokens());
+                    HadoopDelegationTokenUpdater.addCurrentUserCredentials(tokens);
                 } catch (Throwable t) {
                     log.error("Could not update delegation tokens.", t);
                     ExceptionUtils.rethrowIfFatalError(t);

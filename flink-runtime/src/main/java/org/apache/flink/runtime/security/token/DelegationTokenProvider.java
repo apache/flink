@@ -16,27 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token.hadoop;
+package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.security.token.DelegationTokenManager;
-
-import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.UserGroupInformation;
 
 import java.util.Optional;
 
 /**
- * Delegation token provider API for Hadoop components. Instances of token providers are loaded by
- * {@link DelegationTokenManager} through service loader.
- *
- * <h2>Important Notes</h2>
- *
- * <p>Tokens are stored in {@link UserGroupInformation}
+ * Delegation token provider API. Instances of {@link DelegationTokenProvider}s are loaded by {@link
+ * DelegationTokenManager} through service loader.
  */
 @Experimental
-public interface HadoopDelegationTokenProvider {
+public interface DelegationTokenProvider {
+    /** Container for obtained delegation tokens. */
+    class ObtainedDelegationTokens {
+        /** Serialized form of delegation tokens. */
+        private byte[] tokens;
+
+        /**
+         * Time until the tokens are valid, if valid forever then `Optional.empty()` should be
+         * returned.
+         */
+        private Optional<Long> validUntil;
+
+        public ObtainedDelegationTokens(byte[] tokens, Optional<Long> validUntil) {
+            this.tokens = tokens;
+            this.validUntil = validUntil;
+        }
+
+        public byte[] getTokens() {
+            return tokens;
+        }
+
+        public Optional<Long> getValidUntil() {
+            return validUntil;
+        }
+    }
+
     /** Name of the service to provide delegation tokens. This name should be unique. */
     String serviceName();
 
@@ -57,9 +74,7 @@ public interface HadoopDelegationTokenProvider {
     /**
      * Obtain delegation tokens for this service.
      *
-     * @param credentials Credentials to add tokens and security keys to.
-     * @return If the returned tokens are renewable and can be renewed, return the time of the next
-     *     renewal, otherwise `Optional.empty()` should be returned.
+     * @return the obtained delegation tokens.
      */
-    Optional<Long> obtainDelegationTokens(Credentials credentials) throws Exception;
+    ObtainedDelegationTokens obtainDelegationTokens() throws Exception;
 }

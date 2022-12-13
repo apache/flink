@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.security.token.DelegationTokenProvider;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -47,7 +48,7 @@ import java.util.Set;
 
 /** Delegation token provider for Hadoop filesystems. */
 @Experimental
-public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenProvider {
+public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(HadoopFSDelegationTokenProvider.class);
@@ -74,37 +75,38 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
 
     @Override
     public boolean delegationTokensRequired() throws Exception {
-        return HadoopUtils.isKerberosSecurityEnabled(UserGroupInformation.getCurrentUser());
+        return HadoopUtils.isKerberosSecurityEnabled(UserGroupInformation.getCurrentUser())
+                && kerberosLoginProvider.isLoginPossible();
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(Credentials credentials) throws Exception {
-        if (kerberosLoginProvider.isLoginPossible()) {
-            UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
-            return freshUGI.doAs(
-                    (PrivilegedExceptionAction<Optional<Long>>)
-                            () -> {
-                                Clock clock = Clock.systemDefaultZone();
-                                Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess();
+    public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
+        UserGroupInformation freshUGI = kerberosLoginProvider.doLoginAndReturnUGI();
+        return freshUGI.doAs(
+                (PrivilegedExceptionAction<ObtainedDelegationTokens>)
+                        () -> {
+                            Credentials credentials = new Credentials();
+                            Clock clock = Clock.systemDefaultZone();
+                            Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess();
 
-                                obtainDelegationTokens(
-                                        getRenewer(), fileSystemsToAccess, credentials);
+                            obtainDelegationTokens(getRenewer(), fileSystemsToAccess, credentials);
 
-                                // Get the token renewal interval if it is not set. It will be
-                                // called
-                                // only once.
-                                if (tokenRenewalInterval == null) {
-                                    tokenRenewalInterval =
-                                            getTokenRenewalInterval(clock, fileSystemsToAccess);
-                                }
-                                return tokenRenewalInterval.flatMap(
-                                        interval ->
-                                                getTokenRenewalDate(clock, credentials, interval));
-                            });
-        } else {
-            LOG.info("Real user has no kerberos credentials so no tokens obtained");
-            return Optional.empty();
-        }
+                            // Get the token renewal interval if it is not set. It will be
+                            // called
+                            // only once.
+                            if (tokenRenewalInterval == null) {
+                                tokenRenewalInterval =
+                                        getTokenRenewalInterval(clock, fileSystemsToAccess);
+                            }
+                            Optional<Long> validUntil =
+                                    tokenRenewalInterval.flatMap(
+                                            interval ->
+                                                    getTokenRenewalDate(
+                                                            clock, credentials, interval));
+                            return new ObtainedDelegationTokens(
+                                    HadoopDelegationTokenConverter.serialize(credentials),
+                                    validUntil);
+                        });
     }
 
     @VisibleForTesting

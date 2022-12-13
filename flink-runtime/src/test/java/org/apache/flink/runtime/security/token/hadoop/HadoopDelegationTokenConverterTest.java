@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class HadoopDelegationTokenConverterTest {
 
     @Test
-    public void testRoundTrip() throws IOException {
+    public void testRoundTrip() throws IOException, ClassNotFoundException {
         final Text tokenKind = new Text("TEST_TOKEN_KIND");
         final Text tokenService = new Text("TEST_TOKEN_SERVICE");
         Credentials credentials = new Credentials();
