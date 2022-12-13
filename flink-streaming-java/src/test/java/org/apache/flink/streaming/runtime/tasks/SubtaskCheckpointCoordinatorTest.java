@@ -452,7 +452,7 @@ public class SubtaskCheckpointCoordinatorTest {
                 (SubtaskCheckpointCoordinatorImpl)
                         new MockSubtaskCheckpointCoordinatorBuilder()
                                 .setEnvironment(mockEnvironment)
-                                .setExecutor(Executors.newSingleThreadExecutor())
+                                .setExecutor(Executors.newFixedThreadPool(2))
                                 .setUnalignedCheckpointEnabled(true)
                                 .build()) {
             final BlockingRunnableFuture rawKeyedStateHandleFuture = new BlockingRunnableFuture();
@@ -485,6 +485,9 @@ public class SubtaskCheckpointCoordinatorTest {
 
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
                     checkpointId, operatorChain, () -> true);
+            while (!rawKeyedStateHandleFuture.isDone()) {
+                Thread.sleep(10L);
+            }
             assertTrue(rawKeyedStateHandleFuture.isCancelled());
             assertEquals(0, subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize());
         }
