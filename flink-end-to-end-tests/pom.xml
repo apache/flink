@@ -76,7 +76,6 @@ under the License.
 		<module>flink-netty-shuffle-memory-control-test</module>
 		<module>flink-python-test</module>
 		<module>flink-end-to-end-tests-hbase</module>
-		<module>flink-end-to-end-tests-pulsar</module>
 		<module>flink-glue-schema-registry-avro-test</module>
 		<module>flink-glue-schema-registry-json-test</module>
 		<module>flink-end-to-end-tests-scala</module>

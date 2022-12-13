@@ -51,7 +51,6 @@ under the License.
 		<module>flink-connector-base</module>
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
-		<module>flink-connector-pulsar</module>
 		<module>flink-connector-datagen</module>
 	</modules>
 
@@ -97,7 +96,6 @@ under the License.
 				<module>flink-sql-connector-aws-kinesis-streams</module>
 				<module>flink-sql-connector-aws-kinesis-firehose</module>
 				<module>flink-sql-connector-kinesis</module>
-				<module>flink-sql-connector-pulsar</module>
 				<module>flink-sql-connector-rabbitmq</module>
 			</modules>
 		</profile>

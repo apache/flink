@@ -218,13 +218,6 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-connector-pulsar</artifactId>
-				<version>${project.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-connector-rabbitmq</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>

@@ -60,10 +60,6 @@ under the License.
 		<suppress 
 			files="FanOutRecordPublisherTest.java|FanOutShardSubscriber.java|FanOutShardSubscriberTest.java" 
 			checks="IllegalImport"/>
-		<!-- Pulsar broker required to handle Netty EventLoopGroup -->
-		<suppress
-			files="MockBookKeeperClientFactory.java"
-			checks="IllegalImport"/>
 		<!-- Classes copied from AWS -->
 		<suppress
 			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"
