@@ -16,35 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token.hadoop;
+package org.apache.flink.runtime.security.token;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.annotation.Experimental;
 
-import org.apache.hadoop.security.Credentials;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.Optional;
+/** Container for delegation tokens. */
+@Experimental
+public class DelegationTokenContainer implements Serializable {
+    private Map<String, byte[]> tokens = new HashMap<>();
 
-/**
- * An example implementation of {@link
- * org.apache.flink.runtime.security.token.hadoop.HadoopDelegationTokenProvider} which does nothing.
- */
-public class TestHadoopDelegationTokenProvider implements HadoopDelegationTokenProvider {
-
-    @Override
-    public String serviceName() {
-        return "test";
+    public Map<String, byte[]> getTokens() {
+        return tokens;
     }
 
-    @Override
-    public void init(Configuration configuration) {}
-
-    @Override
-    public boolean delegationTokensRequired() {
-        return false;
+    public void addToken(String key, byte[] value) {
+        tokens.put(key, value);
     }
 
-    @Override
-    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
-        return Optional.empty();
+    public boolean hasTokens() {
+        return !tokens.isEmpty();
     }
 }

@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.security.token.hadoop;
 
+import org.apache.flink.runtime.security.token.DelegationTokenContainer;
+import org.apache.flink.util.InstantiationUtil;
+
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
@@ -26,8 +29,6 @@ import org.apache.hadoop.security.token.Token;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
-
-import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -60,25 +61,27 @@ public class HadoopDelegationTokenUpdaterITCase {
                             () ->
                                     HadoopDelegationTokenUpdater.addCurrentUserCredentials(
                                             credentialsBytes));
-            assertTrue(e.getMessage().contains("Illegal credentials"));
+            assertTrue(e.getMessage().contains("Illegal container"));
         }
     }
 
     @Test
-    public void addCurrentUserCredentialsShouldOverwriteCredentials() throws IOException {
+    public void addCurrentUserCredentialsShouldOverwriteCredentials() throws Exception {
         final Text tokenKind = new Text("TEST_TOKEN_KIND");
         final Text tokenService = new Text("TEST_TOKEN_SERVICE");
         Credentials credentials = new Credentials();
         credentials.addToken(
                 tokenService, new Token<>(new byte[4], new byte[4], tokenKind, tokenService));
-
         byte[] credentialsBytes = HadoopDelegationTokenConverter.serialize(credentials);
+        DelegationTokenContainer container = new DelegationTokenContainer();
+        container.addToken("TEST_TOKEN_KEY", credentialsBytes);
+        byte[] containerBytes = InstantiationUtil.serializeObject(container);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            HadoopDelegationTokenUpdater.addCurrentUserCredentials(credentialsBytes);
+            HadoopDelegationTokenUpdater.addCurrentUserCredentials(containerBytes);
             ArgumentCaptor<Credentials> argumentCaptor = ArgumentCaptor.forClass(Credentials.class);
             verify(userGroupInformation, times(1)).addCredentials(argumentCaptor.capture());
             assertTrue(

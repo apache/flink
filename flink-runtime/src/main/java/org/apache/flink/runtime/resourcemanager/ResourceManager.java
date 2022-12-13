@@ -67,7 +67,6 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
-import org.apache.flink.runtime.security.token.DelegationTokenListener;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -117,7 +116,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         extends FencedRpcEndpoint<ResourceManagerId>
-        implements DelegationTokenListener, ResourceManagerGateway {
+        implements DelegationTokenManager.Listener, ResourceManagerGateway {
 
     public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 

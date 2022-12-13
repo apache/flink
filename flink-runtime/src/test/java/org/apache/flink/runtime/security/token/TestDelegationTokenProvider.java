@@ -18,17 +18,26 @@
 
 package org.apache.flink.runtime.security.token;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 
-/**
- * Listener for delegation tokens state changes in the {@link DelegationTokenManager}.
- *
- * <p>By registering it in the manager one can receive callbacks when events are happening related
- * to delegation tokens.
- */
-@Internal
-public interface DelegationTokenListener {
+/** An example implementation of {@link DelegationTokenProvider} which does nothing. */
+public class TestDelegationTokenProvider implements DelegationTokenProvider {
 
-    /** Callback function when new delegation tokens obtained. */
-    void onNewTokensObtained(byte[] tokens) throws Exception;
+    @Override
+    public String serviceName() {
+        return "test";
+    }
+
+    @Override
+    public void init(Configuration configuration) {}
+
+    @Override
+    public boolean delegationTokensRequired() {
+        return false;
+    }
+
+    @Override
+    public ObtainedDelegationTokens obtainDelegationTokens() {
+        return null;
+    }
 }

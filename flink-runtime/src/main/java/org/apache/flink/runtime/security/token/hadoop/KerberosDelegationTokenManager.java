@@ -21,12 +21,13 @@ package org.apache.flink.runtime.security.token.hadoop;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.security.token.DelegationTokenListener;
+import org.apache.flink.runtime.security.token.DelegationTokenContainer;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.DelegationTokenProvider;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.hadoop.security.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,9 +68,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
 
     private final long renewalRetryBackoffPeriod;
 
-    private final KerberosLoginProvider kerberosLoginProvider;
-
-    @VisibleForTesting final Map<String, HadoopDelegationTokenProvider> delegationTokenProviders;
+    @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
 
     @Nullable private final ScheduledExecutor scheduledExecutor;
 
@@ -81,7 +80,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
     @Nullable
     private ScheduledFuture<?> tokensUpdateFuture;
 
-    @Nullable private DelegationTokenListener delegationTokenListener;
+    @Nullable private Listener listener;
 
     public KerberosDelegationTokenManager(
             Configuration configuration,
@@ -91,25 +90,28 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
         this.tokensRenewalTimeRatio = configuration.get(KERBEROS_TOKENS_RENEWAL_TIME_RATIO);
         this.renewalRetryBackoffPeriod =
                 configuration.get(KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF).toMillis();
-        this.kerberosLoginProvider = new KerberosLoginProvider(configuration);
         this.delegationTokenProviders = loadProviders();
         this.scheduledExecutor = scheduledExecutor;
         this.ioExecutor = ioExecutor;
     }
 
-    private Map<String, HadoopDelegationTokenProvider> loadProviders() {
+    private Map<String, DelegationTokenProvider> loadProviders() {
         LOG.info("Loading delegation token providers");
 
-        ServiceLoader<HadoopDelegationTokenProvider> serviceLoader =
-                ServiceLoader.load(HadoopDelegationTokenProvider.class);
+        ServiceLoader<DelegationTokenProvider> serviceLoader =
+                ServiceLoader.load(DelegationTokenProvider.class);
 
-        Map<String, HadoopDelegationTokenProvider> providers = new HashMap<>();
-        for (HadoopDelegationTokenProvider provider : serviceLoader) {
+        Map<String, DelegationTokenProvider> providers = new HashMap<>();
+        for (DelegationTokenProvider provider : serviceLoader) {
             try {
                 if (isProviderEnabled(provider.serviceName())) {
                     provider.init(configuration);
                     LOG.info(
                             "Delegation token provider {} loaded and initialized",
+                            provider.serviceName());
+                    checkState(
+                            !providers.containsKey(provider.serviceName()),
+                            "Delegation token provider with service name {} has multiple implementations",
                             provider.serviceName());
                     providers.put(provider.serviceName(), provider);
                 } else {
@@ -148,47 +150,47 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
      * Obtains new tokens in a one-time fashion and leaves it up to the caller to distribute them.
      */
     @Override
-    public void obtainDelegationTokens(Credentials credentials) throws Exception {
+    public void obtainDelegationTokens(DelegationTokenContainer container) throws Exception {
         LOG.info("Obtaining delegation tokens");
-        obtainDelegationTokensAndGetNextRenewal(credentials);
+        obtainDelegationTokensAndGetNextRenewal(container);
         LOG.info("Delegation tokens obtained successfully");
     }
 
-    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(Credentials credentials) {
-        Optional<Long> nextRenewal =
-                delegationTokenProviders.values().stream()
-                        .map(
-                                provider -> {
-                                    try {
-                                        Optional<Long> nr = Optional.empty();
-                                        if (provider.delegationTokensRequired()) {
-                                            LOG.debug(
-                                                    "Obtaining delegation token for service {}",
-                                                    provider.serviceName());
-                                            nr = provider.obtainDelegationTokens(credentials);
-                                            LOG.debug(
-                                                    "Obtained delegation token for service {} successfully",
-                                                    provider.serviceName());
-                                        } else {
-                                            LOG.debug(
-                                                    "Service {} does not need to obtain delegation token",
-                                                    provider.serviceName());
-                                        }
-                                        return nr;
-                                    } catch (Exception e) {
-                                        LOG.error(
-                                                "Failed to obtain delegation token for provider {}",
-                                                provider.serviceName(),
-                                                e);
-                                        throw new FlinkRuntimeException(e);
-                                    }
-                                })
-                        .flatMap(nr -> nr.map(Stream::of).orElseGet(Stream::empty))
-                        .min(Long::compare);
-
-        HadoopDelegationTokenUpdater.dumpAllTokens(credentials);
-
-        return nextRenewal;
+    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+            DelegationTokenContainer container) {
+        return delegationTokenProviders.values().stream()
+                .map(
+                        p -> {
+                            Optional<Long> nr = Optional.empty();
+                            try {
+                                if (p.delegationTokensRequired()) {
+                                    LOG.debug(
+                                            "Obtaining delegation token for service {}",
+                                            p.serviceName());
+                                    DelegationTokenProvider.ObtainedDelegationTokens t =
+                                            p.obtainDelegationTokens();
+                                    checkNotNull(t, "Obtained delegation tokens must not be null");
+                                    container.addToken(p.serviceName(), t.getTokens());
+                                    nr = t.getValidUntil();
+                                    LOG.debug(
+                                            "Obtained delegation token for service {} successfully",
+                                            p.serviceName());
+                                } else {
+                                    LOG.debug(
+                                            "Service {} does not need to obtain delegation token",
+                                            p.serviceName());
+                                }
+                            } catch (Exception e) {
+                                LOG.error(
+                                        "Failed to obtain delegation token for provider {}",
+                                        p.serviceName(),
+                                        e);
+                                throw new FlinkRuntimeException(e);
+                            }
+                            return nr;
+                        })
+                .flatMap(nr -> nr.map(Stream::of).orElseGet(Stream::empty))
+                .min(Long::compare);
     }
 
     /**
@@ -196,18 +198,12 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
      * task managers.
      */
     @Override
-    public void start(DelegationTokenListener delegationTokenListener) throws Exception {
+    public void start(Listener listener) throws Exception {
         checkNotNull(scheduledExecutor, "Scheduled executor must not be null");
         checkNotNull(ioExecutor, "IO executor must not be null");
-        this.delegationTokenListener =
-                checkNotNull(delegationTokenListener, "Delegation token listener must not be null");
+        this.listener = checkNotNull(listener, "Listener must not be null");
         synchronized (tokensUpdateFutureLock) {
             checkState(tokensUpdateFuture == null, "Manager is already started");
-        }
-
-        if (!kerberosLoginProvider.isLoginPossible()) {
-            LOG.info("Renewal is NOT possible, skipping to start renewal task");
-            return;
         }
 
         startTokensUpdate();
@@ -217,17 +213,16 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
     void startTokensUpdate() {
         try {
             LOG.info("Starting tokens update task");
-            Credentials credentials = new Credentials();
-            Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(credentials);
+            DelegationTokenContainer container = new DelegationTokenContainer();
+            Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
 
-            if (credentials.numberOfTokens() > 0) {
-                byte[] credentialsBytes = HadoopDelegationTokenConverter.serialize(credentials);
-
-                HadoopDelegationTokenUpdater.addCurrentUserCredentials(credentialsBytes);
+            if (container.hasTokens()) {
+                byte[] containerBytes = InstantiationUtil.serializeObject(container);
+                HadoopDelegationTokenUpdater.addCurrentUserCredentials(containerBytes);
 
                 LOG.info("Notifying listener about new tokens");
-                checkNotNull(delegationTokenListener, "Listener must not be null");
-                delegationTokenListener.onNewTokensObtained(credentialsBytes);
+                checkNotNull(listener, "Listener must not be null");
+                listener.onNewTokensObtained(containerBytes);
                 LOG.info("Listener notified successfully");
             } else {
                 LOG.warn("No tokens obtained so skipping listener notification");

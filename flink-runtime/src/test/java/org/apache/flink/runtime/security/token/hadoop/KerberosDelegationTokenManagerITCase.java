@@ -21,6 +21,7 @@ package org.apache.flink.runtime.security.token.hadoop;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.ExceptionThrowingDelegationTokenProvider;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.apache.hadoop.security.UserGroupInformation;
@@ -50,7 +51,7 @@ public class KerberosDelegationTokenManagerITCase {
 
     @Test
     public void isProviderEnabledMustGiveBackTrueByDefault() {
-        ExceptionThrowingHadoopDelegationTokenProvider.reset();
+        ExceptionThrowingDelegationTokenProvider.reset();
         Configuration configuration = new Configuration();
         KerberosDelegationTokenManager delegationTokenManager =
                 new KerberosDelegationTokenManager(configuration, null, null);
@@ -60,7 +61,7 @@ public class KerberosDelegationTokenManagerITCase {
 
     @Test
     public void isProviderEnabledMustGiveBackFalseWhenDisabled() {
-        ExceptionThrowingHadoopDelegationTokenProvider.reset();
+        ExceptionThrowingDelegationTokenProvider.reset();
         Configuration configuration = new Configuration();
         configuration.setBoolean("security.kerberos.token.provider.test.enabled", false);
         KerberosDelegationTokenManager delegationTokenManager =
@@ -80,18 +81,18 @@ public class KerberosDelegationTokenManagerITCase {
                 Exception.class,
                 () -> {
                     try {
-                        ExceptionThrowingHadoopDelegationTokenProvider.reset();
-                        ExceptionThrowingHadoopDelegationTokenProvider.throwInInit = true;
+                        ExceptionThrowingDelegationTokenProvider.reset();
+                        ExceptionThrowingDelegationTokenProvider.throwInInit = true;
                         new KerberosDelegationTokenManager(new Configuration(), null, null);
                     } finally {
-                        ExceptionThrowingHadoopDelegationTokenProvider.reset();
+                        ExceptionThrowingDelegationTokenProvider.reset();
                     }
                 });
     }
 
     @Test
     public void testAllProvidersLoaded() {
-        ExceptionThrowingHadoopDelegationTokenProvider.reset();
+        ExceptionThrowingDelegationTokenProvider.reset();
         Configuration configuration = new Configuration();
         configuration.setBoolean("security.kerberos.token.provider.throw.enabled", false);
         KerberosDelegationTokenManager delegationTokenManager =
@@ -101,7 +102,7 @@ public class KerberosDelegationTokenManagerITCase {
         assertTrue(delegationTokenManager.isProviderLoaded("hadoopfs"));
         assertTrue(delegationTokenManager.isProviderLoaded("hbase"));
         assertTrue(delegationTokenManager.isProviderLoaded("test"));
-        assertTrue(ExceptionThrowingHadoopDelegationTokenProvider.constructed);
+        assertTrue(ExceptionThrowingDelegationTokenProvider.constructed);
         assertFalse(delegationTokenManager.isProviderLoaded("throw"));
     }
 
@@ -116,11 +117,11 @@ public class KerberosDelegationTokenManagerITCase {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            ExceptionThrowingHadoopDelegationTokenProvider.reset();
+            ExceptionThrowingDelegationTokenProvider.reset();
+            ExceptionThrowingDelegationTokenProvider.addToken = true;
             Configuration configuration = new Configuration();
             configuration.setBoolean("security.kerberos.token.provider.throw.enabled", true);
             AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
-            KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
             KerberosDelegationTokenManager delegationTokenManager =
                     new KerberosDelegationTokenManager(
                             configuration, scheduledExecutor, scheduler) {
@@ -132,10 +133,10 @@ public class KerberosDelegationTokenManagerITCase {
                     };
 
             delegationTokenManager.startTokensUpdate();
-            ExceptionThrowingHadoopDelegationTokenProvider.throwInUsage = true;
+            ExceptionThrowingDelegationTokenProvider.throwInUsage = true;
             scheduledExecutor.triggerScheduledTasks();
             scheduler.triggerAll();
-            ExceptionThrowingHadoopDelegationTokenProvider.throwInUsage = false;
+            ExceptionThrowingDelegationTokenProvider.throwInUsage = false;
             scheduledExecutor.triggerScheduledTasks();
             scheduler.triggerAll();
             delegationTokenManager.stopTokensUpdate();
@@ -146,7 +147,7 @@ public class KerberosDelegationTokenManagerITCase {
 
     @Test
     public void calculateRenewalDelayShouldConsiderRenewalRatio() {
-        ExceptionThrowingHadoopDelegationTokenProvider.reset();
+        ExceptionThrowingDelegationTokenProvider.reset();
         Configuration configuration = new Configuration();
         configuration.setBoolean("security.kerberos.token.provider.throw.enabled", false);
         configuration.set(KERBEROS_TOKENS_RENEWAL_TIME_RATIO, 0.5);

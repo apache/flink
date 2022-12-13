@@ -16,34 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token.hadoop;
+package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
-
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.token.Token;
 
 import java.util.Optional;
 
 /**
- * An example implementation of {@link HadoopDelegationTokenProvider} which throws exception when
- * enabled.
+ * An example implementation of {@link DelegationTokenProvider} which throws exception when enabled.
  */
-public class ExceptionThrowingHadoopDelegationTokenProvider
-        implements HadoopDelegationTokenProvider {
+public class ExceptionThrowingDelegationTokenProvider implements DelegationTokenProvider {
 
     public static volatile boolean throwInInit = false;
     public static volatile boolean throwInUsage = false;
+    public static volatile boolean addToken = false;
     public static volatile boolean constructed = false;
 
     public static void reset() {
         throwInInit = false;
         throwInUsage = false;
+        addToken = false;
         constructed = false;
     }
 
-    public ExceptionThrowingHadoopDelegationTokenProvider() {
+    public ExceptionThrowingDelegationTokenProvider() {
         constructed = true;
     }
 
@@ -64,18 +60,18 @@ public class ExceptionThrowingHadoopDelegationTokenProvider
         if (throwInUsage) {
             throw new IllegalArgumentException();
         }
-        return true;
+        return addToken;
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
+    public ObtainedDelegationTokens obtainDelegationTokens() {
         if (throwInUsage) {
             throw new IllegalArgumentException();
         }
-        final Text tokenKind = new Text("TEST_TOKEN_KIND");
-        final Text tokenService = new Text("TEST_TOKEN_SERVICE");
-        credentials.addToken(
-                tokenService, new Token<>(new byte[4], new byte[4], tokenKind, tokenService));
-        return Optional.empty();
+        if (addToken) {
+            return new ObtainedDelegationTokens("TEST_TOKEN_VALUE".getBytes(), Optional.empty());
+        } else {
+            return null;
+        }
     }
 }
