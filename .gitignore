@@ -23,6 +23,7 @@ tmp
 *.pyc
 .DS_Store
 build-target
+**/dependency-reduced-pom.xml
 flink-runtime-web/web-dashboard/node/
 flink-runtime-web/web-dashboard/node_modules/
 flink-runtime-web/web-dashboard/web/
