@@ -922,6 +922,7 @@ object CodeGenUtils {
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
+      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
       s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
     }
   }
