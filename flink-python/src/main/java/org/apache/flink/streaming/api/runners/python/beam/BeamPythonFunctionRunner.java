@@ -248,14 +248,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
-        if (memoryManager != null && config.get(USE_MANAGED_MEMORY)) {
-            Preconditions.checkArgument(
-                    managedMemoryFraction > 0 && managedMemoryFraction <= 1.0,
-                    String.format(
-                            "The configured managed memory fraction for Python worker process must be within (0, 1], was: %s. "
-                                    + "It may be because the consumer type \"Python\" was missing or set to 0 for the config option \"taskmanager.memory.managed.consumer-weights\".",
-                            managedMemoryFraction));
-
+        if (memoryManager != null
+                && config.get(USE_MANAGED_MEMORY)
+                && managedMemoryFraction > 0
+                && managedMemoryFraction <= 1.0) {
             final LongFunctionWithException<PythonSharedResources, Exception> initializer =
                     (size) ->
                             new PythonSharedResources(
@@ -274,6 +270,15 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                     sharedResources.getResourceHandle().getEnvironment();
             stageBundleFactory = createStageBundleFactory(jobBundleFactory, environment);
         } else {
+            if (memoryManager != null
+                    && config.get(USE_MANAGED_MEMORY)
+                    && (managedMemoryFraction <= 0 || managedMemoryFraction > 1.0)) {
+                LOG.warn(
+                        String.format(
+                                "The configured managed memory fraction for Python worker process must be within (0, 1], was: %s, use off-heap memory instead."
+                                        + "Please see config option \"taskmanager.memory.managed.consumer-weights\" for more details.",
+                                managedMemoryFraction));
+            }
             // there is no way to access the MemoryManager for the batch job of old planner,
             // fallback to the way that spawning a Python process for each Python operator
             jobBundleFactory = createJobBundleFactory(pipelineOptions);
