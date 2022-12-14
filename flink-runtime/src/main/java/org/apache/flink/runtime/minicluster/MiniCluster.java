@@ -89,8 +89,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.security.token.DefaultDelegationTokenManagerFactory;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.security.token.hadoop.KerberosDelegationTokenManagerFactory;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
@@ -428,11 +428,8 @@ public class MiniCluster implements AutoCloseableAsync {
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
                 delegationTokenManager =
-                        KerberosDelegationTokenManagerFactory.create(
-                                getClass().getClassLoader(),
-                                configuration,
-                                commonRpcService.getScheduledExecutor(),
-                                ioExecutor);
+                        DefaultDelegationTokenManagerFactory.create(
+                                configuration, commonRpcService.getScheduledExecutor(), ioExecutor);
 
                 blobCacheService =
                         BlobUtils.createBlobCacheService(

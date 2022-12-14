@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token.hadoop;
+package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.security.token.DelegationTokenContainer;
-import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.security.token.DelegationTokenProvider;
+import org.apache.flink.runtime.security.token.hadoop.HadoopDelegationTokenUpdater;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -44,8 +42,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import static org.apache.flink.configuration.SecurityOptions.KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF;
-import static org.apache.flink.configuration.SecurityOptions.KERBEROS_TOKENS_RENEWAL_TIME_RATIO;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -53,14 +51,14 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Manager for delegation tokens in a Flink cluster.
  *
  * <p>When delegation token renewal is enabled, this manager will make sure long-running apps can
- * run without interruption while accessing secured services. It periodically logs in to the KDC
- * with user-provided credentials, and contacts all the configured secure services to obtain
- * delegation tokens to be distributed to the rest of the application.
+ * run without interruption while accessing secured services. It periodically contacts all the
+ * configured secure services to obtain delegation tokens to be distributed to the rest of the
+ * application.
  */
 @Internal
-public class KerberosDelegationTokenManager implements DelegationTokenManager {
+public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KerberosDelegationTokenManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultDelegationTokenManager.class);
 
     private final Configuration configuration;
 
@@ -82,14 +80,14 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
 
     @Nullable private Listener listener;
 
-    public KerberosDelegationTokenManager(
+    public DefaultDelegationTokenManager(
             Configuration configuration,
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable ExecutorService ioExecutor) {
         this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
-        this.tokensRenewalTimeRatio = configuration.get(KERBEROS_TOKENS_RENEWAL_TIME_RATIO);
+        this.tokensRenewalTimeRatio = configuration.get(DELEGATION_TOKENS_RENEWAL_TIME_RATIO);
         this.renewalRetryBackoffPeriod =
-                configuration.get(KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF).toMillis();
+                configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF).toMillis();
         this.delegationTokenProviders = loadProviders();
         this.scheduledExecutor = scheduledExecutor;
         this.ioExecutor = ioExecutor;
@@ -120,13 +118,10 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
                             provider.serviceName());
                 }
             } catch (Exception | NoClassDefFoundError e) {
-                LOG.error(
+                LOG.warn(
                         "Failed to initialize delegation token provider {}",
                         provider.serviceName(),
                         e);
-                if (!(e instanceof NoClassDefFoundError)) {
-                    throw new FlinkRuntimeException(e);
-                }
             }
         }
 
@@ -138,7 +133,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
     @VisibleForTesting
     boolean isProviderEnabled(String serviceName) {
         return configuration.getBoolean(
-                String.format("security.kerberos.token.provider.%s.enabled", serviceName), true);
+                String.format("security.delegation.token.provider.%s.enabled", serviceName), true);
     }
 
     @VisibleForTesting
