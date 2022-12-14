@@ -181,7 +181,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
                 channel.addReturnListener(returnListener);
             }
         } catch (IOException e) {
-            throw new RuntimeException("Error while creating the channel", e);
+            throw new RuntimeException("Error while creating the RabbitMQ channel", e);
         }
     }
 
