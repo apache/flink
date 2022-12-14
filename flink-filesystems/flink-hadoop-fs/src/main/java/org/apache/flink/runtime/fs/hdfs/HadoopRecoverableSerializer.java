@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 @Internal
 class HadoopRecoverableSerializer implements SimpleVersionedSerializer<HadoopFsRecoverable> {
 
-    static final HadoopRecoverableSerializer INSTANCE = new HadoopRecoverableSerializer();
+    public static final HadoopRecoverableSerializer INSTANCE = new HadoopRecoverableSerializer();
 
     private static final Charset CHARSET = StandardCharsets.UTF_8;
 
