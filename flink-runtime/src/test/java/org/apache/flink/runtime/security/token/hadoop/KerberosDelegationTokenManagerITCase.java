@@ -27,7 +27,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,9 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Test for {@link DelegationTokenManager}.
@@ -110,33 +106,7 @@ public class KerberosDelegationTokenManagerITCase {
     }
 
     @Test
-    public void startTGTRenewalShouldScheduleRenewal() throws IOException {
-        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
-                new ManuallyTriggeredScheduledExecutor();
-        final ManuallyTriggeredScheduledExecutorService scheduler =
-                new ManuallyTriggeredScheduledExecutorService();
-        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
-            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
-            when(userGroupInformation.isFromKeytab()).thenReturn(true);
-            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
-
-            ExceptionThrowingHadoopDelegationTokenProvider.reset();
-            Configuration configuration = new Configuration();
-            configuration.setBoolean("security.kerberos.token.provider.throw.enabled", false);
-            KerberosDelegationTokenManager delegationTokenManager =
-                    new KerberosDelegationTokenManager(configuration, scheduledExecutor, scheduler);
-
-            delegationTokenManager.startTGTRenewal();
-            scheduledExecutor.triggerPeriodicScheduledTasks();
-            scheduler.triggerAll();
-            delegationTokenManager.stopTGTRenewal();
-
-            verify(userGroupInformation, times(1)).checkTGTAndReloginFromKeytab();
-        }
-    }
-
-    @Test
-    public void startTokensUpdateShouldScheduleRenewal() throws IOException {
+    public void startTokensUpdateShouldScheduleRenewal() {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.hadoop.HadoopUserUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.token.hadoop.KerberosLoginProvider;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
@@ -29,7 +30,12 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,6 +47,8 @@ public class HadoopModule implements SecurityModule {
     private final SecurityConfiguration securityConfig;
 
     private final Configuration hadoopConfiguration;
+
+    @Nullable private ScheduledExecutorService tgtRenewalExecutorService;
 
     public HadoopModule(
             SecurityConfiguration securityConfiguration, Configuration hadoopConfiguration) {
@@ -75,6 +83,10 @@ public class HadoopModule implements SecurityModule {
                                         new File(fileLocation), hadoopConfiguration);
                         loginUser.addCredentials(credentials);
                     }
+                    tgtRenewalExecutorService =
+                            Executors.newSingleThreadScheduledExecutor(
+                                    new ExecutorThreadFactory("TGTRenewalExecutorService"));
+                    startTGTRenewal(tgtRenewalExecutorService, loginUser);
                 }
             } else {
                 loginUser = UserGroupInformation.getLoginUser();
@@ -95,8 +107,48 @@ public class HadoopModule implements SecurityModule {
         }
     }
 
+    @VisibleForTesting
+    void startTGTRenewal(
+            ScheduledExecutorService tgtRenewalExecutorService, UserGroupInformation loginUser) {
+        LOG.info("Starting TGT renewal task");
+
+        long tgtRenewalPeriod = securityConfig.getTgtRenewalPeriod().toMillis();
+        tgtRenewalExecutorService.scheduleAtFixedRate(
+                () -> {
+                    // In Hadoop 2.x, renewal of the keytab-based login seems to be automatic, but
+                    // in Hadoop
+                    // 3.x, it is configurable (see
+                    // hadoop.kerberos.keytab.login.autorenewal.enabled, added
+                    // in HADOOP-9567). This task will make sure that the user stays logged in
+                    // regardless of
+                    // that configuration's value. Note that checkTGTAndReloginFromKeytab() is a
+                    // no-op if
+                    // the TGT does not need to be renewed yet.
+                    try {
+                        LOG.debug("Renewing TGT");
+                        loginUser.checkTGTAndReloginFromKeytab();
+                        LOG.debug("TGT renewed successfully");
+                    } catch (Exception e) {
+                        LOG.warn("Error while renewing TGT", e);
+                    }
+                },
+                tgtRenewalPeriod,
+                tgtRenewalPeriod,
+                TimeUnit.MILLISECONDS);
+
+        LOG.info("TGT renewal task started and reoccur in {} ms", tgtRenewalPeriod);
+    }
+
+    @VisibleForTesting
+    void stopTGTRenewal() {
+        if (tgtRenewalExecutorService != null) {
+            tgtRenewalExecutorService.shutdown();
+            tgtRenewalExecutorService = null;
+        }
+    }
+
     @Override
     public void uninstall() {
-        throw new UnsupportedOperationException();
+        stopTGTRenewal();
     }
 }
