@@ -42,6 +42,10 @@ function integrate_connector_docs {
   theme_dir="../themes/connectors"
   mkdir -p "${theme_dir}"
   rsync -a flink-connector-${connector}/docs/content* "${theme_dir}/"
+  DIR=flink-connector-${connector}/docs/layouts;
+  if [ -e $DIR ];
+    then rsync -a flink-connector-${connector}/docs/layouts* "${theme_dir}/"
+  fi
 }
 
 # Integrate the connector documentation
