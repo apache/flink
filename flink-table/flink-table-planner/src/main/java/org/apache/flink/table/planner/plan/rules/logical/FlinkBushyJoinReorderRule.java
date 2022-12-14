@@ -41,6 +41,7 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.immutables.value.Value;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -78,6 +79,7 @@ import static java.util.Objects.requireNonNull;
  * <p>Third step, we will add all cross join factors whose join condition is true to the top in the
  * final step.
  */
+@Value.Enclosing
 public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule.Config>
         implements TransformationRule {
 
@@ -629,9 +631,12 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
     }
 
     /** Rule configuration. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
         Config DEFAULT =
-                EMPTY.withOperandSupplier(b -> b.operand(MultiJoin.class).anyInputs())
+                ImmutableFlinkBushyJoinReorderRule.Config.builder()
+                        .build()
+                        .withOperandSupplier(b -> b.operand(MultiJoin.class).anyInputs())
                         .as(Config.class);
 
         @Override

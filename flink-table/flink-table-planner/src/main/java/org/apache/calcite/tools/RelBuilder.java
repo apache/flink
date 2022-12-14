@@ -154,7 +154,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fix of FLINK-29804: Lines 2935 ~ 2938
+ *   <li>Should be removed after fix of FLINK-29804: Lines 2927 ~ 2930
  * </ol>
  */
 @Value.Enclosing
@@ -351,6 +351,11 @@ public class RelBuilder {
             push(node);
         }
         return this;
+    }
+
+    /** Returns the size of the stack. */
+    public int size() {
+        return stack.size();
     }
 
     /**
@@ -1331,19 +1336,6 @@ public class RelBuilder {
     public GroupKey groupKey(
             ImmutableBitSet groupSet, Iterable<? extends ImmutableBitSet> groupSets) {
         return groupKey_(groupSet, ImmutableList.copyOf(groupSets));
-    }
-
-    // CHECKSTYLE: IGNORE 1
-    /**
-     * @deprecated Use {@link #groupKey(ImmutableBitSet)} or {@link #groupKey(ImmutableBitSet,
-     *     Iterable)}.
-     */
-    @Deprecated // to be removed before 2.0
-    public GroupKey groupKey(
-            ImmutableBitSet groupSet, @Nullable ImmutableList<ImmutableBitSet> groupSets) {
-        return groupKey_(
-                groupSet,
-                groupSets == null ? ImmutableList.of(groupSet) : ImmutableList.copyOf(groupSets));
     }
 
     // CHECKSTYLE: IGNORE 1

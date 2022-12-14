@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.linq4j.Ord;
-import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptSamplingParameters;
@@ -220,10 +219,10 @@ import static org.apache.calcite.sql.SqlUtil.stripAs;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682: Lines 634 ~ 644
- *   <li>Added in FLINK-28682: Lines 2087 ~ 2104
- *   <li>Added in FLINK-28682: Lines 2141 ~ 2169
- *   <li>Added in FLINK-20873: Lines 5166 ~ 5175
+ *   <li>Added in FLINK-29081, FLINK-28682: Lines 633 ~ 643
+ *   <li>Added in FLINK-28682: Lines 2095 ~ 2112
+ *   <li>Added in FLINK-28682: Lines 2149 ~ 2177
+ *   <li>Added in FLINK-20873: Lines 5198 ~ 5207
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -1114,9 +1113,14 @@ public class SqlToRelConverter {
                 convertCursor(bb, subQuery);
                 return;
 
-            case MULTISET_QUERY_CONSTRUCTOR:
-            case MULTISET_VALUE_CONSTRUCTOR:
             case ARRAY_QUERY_CONSTRUCTOR:
+            case MAP_QUERY_CONSTRUCTOR:
+            case MULTISET_QUERY_CONSTRUCTOR:
+                if (!config.isExpand()) {
+                    return;
+                }
+                // fall through
+            case MULTISET_VALUE_CONSTRUCTOR:
                 rel = convertMultisets(ImmutableList.of(subQuery.node), bb);
                 subQuery.expr = bb.register(rel, JoinRelType.INNER);
                 return;
@@ -1146,8 +1150,10 @@ public class SqlToRelConverter {
 
                 if (query instanceof SqlNodeList) {
                     SqlNodeList valueList = (SqlNodeList) query;
-                    if (valueList.size() < config.getInSubQueryThreshold()) {
-                        // We're under the threshold, so convert to OR.
+                    // When the list size under the threshold or the list references columns, we
+                    // convert to OR.
+                    if (valueList.size() < config.getInSubQueryThreshold()
+                            || valueList.accept(new SqlIdentifierFinder())) {
                         subQuery.expr =
                                 convertInToOr(
                                         bb,
@@ -1690,13 +1696,14 @@ public class SqlToRelConverter {
         // LogicalOneRow.
 
         final ImmutableList.Builder<ImmutableList<RexLiteral>> tupleList = ImmutableList.builder();
+        final RelDataType listType = validator().getValidatedNodeType(rowList);
         final RelDataType rowType;
         if (targetRowType != null) {
-            rowType = targetRowType;
-        } else {
             rowType =
-                    SqlTypeUtil.promoteToRowType(
-                            typeFactory, validator().getValidatedNodeType(rowList), null);
+                    typeFactory.createTypeWithNullability(
+                            targetRowType, SqlTypeUtil.containsNullable(listType));
+        } else {
+            rowType = SqlTypeUtil.promoteToRowType(typeFactory, listType, null);
         }
 
         final List<RelNode> unionInputs = new ArrayList<>();
@@ -1836,6 +1843,7 @@ public class SqlToRelConverter {
             case MULTISET_QUERY_CONSTRUCTOR:
             case MULTISET_VALUE_CONSTRUCTOR:
             case ARRAY_QUERY_CONSTRUCTOR:
+            case MAP_QUERY_CONSTRUCTOR:
             case CURSOR:
             case SCALAR_QUERY:
                 if (!registerOnlyScalarSubQueries || (kind == SqlKind.SCALAR_QUERY)) {
@@ -3393,8 +3401,7 @@ public class SqlToRelConverter {
             ImmutableList<ImmutableBitSet> groupSets,
             List<AggregateCall> aggCalls) {
         relBuilder.push(bb.root());
-        final RelBuilder.GroupKey groupKey =
-                relBuilder.groupKey(groupSet, (Iterable<ImmutableBitSet>) groupSets);
+        final RelBuilder.GroupKey groupKey = relBuilder.groupKey(groupSet, groupSets);
         return relBuilder.aggregate(groupKey, aggCalls).build();
     }
 
@@ -4285,6 +4292,7 @@ public class SqlToRelConverter {
                     break;
                 case MULTISET_QUERY_CONSTRUCTOR:
                 case ARRAY_QUERY_CONSTRUCTOR:
+                case MAP_QUERY_CONSTRUCTOR:
                     final RelRoot root = convertQuery(call.operand(0), false, true);
                     input = root.rel;
                     break;
@@ -4297,13 +4305,16 @@ public class SqlToRelConverter {
                 joinList.add(lastList);
             }
             lastList = new ArrayList<>();
-            Collect collect =
-                    new Collect(
-                            cluster,
-                            cluster.traitSetOf(Convention.NONE),
+            final SqlTypeName typeName =
+                    requireNonNull(validator, "validator")
+                            .getValidatedNodeType(call)
+                            .getSqlTypeName();
+            relBuilder.push(
+                    Collect.create(
                             requireNonNull(input, "input"),
-                            castNonNull(validator().deriveAlias(call, i)));
-            joinList.add(collect);
+                            typeName,
+                            castNonNull(validator().deriveAlias(call, i))));
+            joinList.add(relBuilder.build());
         }
 
         if (joinList.size() == 0) {
@@ -5015,6 +5026,24 @@ public class SqlToRelConverter {
                         root = convertQueryRecursive(query, false, null);
                         return RexSubQuery.scalar(root.rel);
 
+                    case ARRAY_QUERY_CONSTRUCTOR:
+                        call = (SqlCall) expr;
+                        query = Iterables.getOnlyElement(call.getOperandList());
+                        root = convertQueryRecursive(query, false, null);
+                        return RexSubQuery.array(root.rel);
+
+                    case MAP_QUERY_CONSTRUCTOR:
+                        call = (SqlCall) expr;
+                        query = Iterables.getOnlyElement(call.getOperandList());
+                        root = convertQueryRecursive(query, false, null);
+                        return RexSubQuery.map(root.rel);
+
+                    case MULTISET_QUERY_CONSTRUCTOR:
+                        call = (SqlCall) expr;
+                        query = Iterables.getOnlyElement(call.getOperandList());
+                        root = convertQueryRecursive(query, false, null);
+                        return RexSubQuery.multiset(root.rel);
+
                     default:
                         break;
                 }
@@ -5039,6 +5068,9 @@ public class SqlToRelConverter {
                 case SELECT:
                 case EXISTS:
                 case SCALAR_QUERY:
+                case ARRAY_QUERY_CONSTRUCTOR:
+                case MAP_QUERY_CONSTRUCTOR:
+                case MULTISET_QUERY_CONSTRUCTOR:
                     subQuery = getSubQuery(expr);
                     assert subQuery != null;
                     rex = subQuery.expr;
@@ -6148,6 +6180,48 @@ public class SqlToRelConverter {
         private SubQuery(SqlNode node, RelOptUtil.Logic logic) {
             this.node = node;
             this.logic = logic;
+        }
+    }
+
+    /**
+     * Visitor that looks for an SqlIdentifier inside a tree of {@link SqlNode} objects and return
+     * {@link Boolean#TRUE} when it finds one.
+     */
+    public static class SqlIdentifierFinder implements SqlVisitor<Boolean> {
+
+        @Override
+        public Boolean visit(SqlCall sqlCall) {
+            return sqlCall.getOperandList().stream().anyMatch(sqlNode -> sqlNode.accept(this));
+        }
+
+        @Override
+        public Boolean visit(SqlNodeList nodeList) {
+            return nodeList.stream().anyMatch(sqlNode -> sqlNode.accept(this));
+        }
+
+        @Override
+        public Boolean visit(SqlIdentifier identifier) {
+            return true;
+        }
+
+        @Override
+        public Boolean visit(SqlLiteral literal) {
+            return false;
+        }
+
+        @Override
+        public Boolean visit(SqlDataTypeSpec type) {
+            return false;
+        }
+
+        @Override
+        public Boolean visit(SqlDynamicParam param) {
+            return false;
+        }
+
+        @Override
+        public Boolean visit(SqlIntervalQualifier intervalQualifier) {
+            return false;
         }
     }
 
