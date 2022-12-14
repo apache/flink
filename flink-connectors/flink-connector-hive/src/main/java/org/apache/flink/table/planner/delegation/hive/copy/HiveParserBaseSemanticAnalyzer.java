@@ -2099,7 +2099,7 @@ public class HiveParserBaseSemanticAnalyzer {
                                         String.format(
                                                 "Table %s doesn't exist.",
                                                 tableIdentifier.asSummaryString())))
-                .getTable();
+                .getResolvedTable();
     }
 
     /** Counterpart of hive's BaseSemanticAnalyzer.TableSpec. */
