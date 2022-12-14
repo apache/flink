@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token.hadoop;
+package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.hadoop.HadoopDependency;
-import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -34,37 +31,21 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 
-/** A factory for {@link KerberosDelegationTokenManager}. */
+/** A factory for {@link DefaultDelegationTokenManager}. */
 @Internal
-public class KerberosDelegationTokenManagerFactory {
+public class DefaultDelegationTokenManagerFactory {
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(KerberosDelegationTokenManagerFactory.class);
+            LoggerFactory.getLogger(DefaultDelegationTokenManagerFactory.class);
 
     public static DelegationTokenManager create(
-            ClassLoader classLoader,
             Configuration configuration,
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable ExecutorService ioExecutor)
             throws IOException {
 
-        if (configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN)) {
-            if (HadoopDependency.isHadoopCommonOnClasspath(classLoader)) {
-                KerberosLoginProvider kerberosLoginProvider =
-                        new KerberosLoginProvider(configuration);
-                if (kerberosLoginProvider.isLoginPossible()) {
-                    return new KerberosDelegationTokenManager(
-                            configuration, scheduledExecutor, ioExecutor);
-                } else {
-                    LOG.info(
-                            "Cannot use kerberos delegation token manager no valid kerberos credentials provided.");
-                    return new NoOpDelegationTokenManager();
-                }
-            } else {
-                LOG.info(
-                        "Cannot use kerberos delegation token manager because Hadoop cannot be found in the Classpath.");
-                return new NoOpDelegationTokenManager();
-            }
+        if (configuration.getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
+            return new DefaultDelegationTokenManager(configuration, scheduledExecutor, ioExecutor);
         } else {
             return new NoOpDelegationTokenManager();
         }
