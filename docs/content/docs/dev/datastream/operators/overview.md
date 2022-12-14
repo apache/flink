@@ -586,12 +586,12 @@ lost, it will be recomputed using the original transformations.
 {{< tabs cache >}}
 {{< tab "Java" >}}
 ```java
-DataStream<Integer> dataStream = //...
+SingleOutputStreamOperator<Integer> dataStream = //...
 CachedDataStream<Integer> cachedDataStream = dataStream.cache();
 cachedDataStream.print(); // Do anything with the cachedDataStream
 ...
 env.execute(); // Execute and create cache.
-        
+
 cachedDataStream.print(); // Consume cached result.
 env.execute();
 ```
