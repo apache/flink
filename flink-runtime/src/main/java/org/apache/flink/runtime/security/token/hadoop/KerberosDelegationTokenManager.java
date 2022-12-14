@@ -27,14 +27,12 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +43,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import static org.apache.flink.configuration.SecurityOptions.KERBEROS_RELOGIN_PERIOD;
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_TOKENS_RENEWAL_TIME_RATIO;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -77,8 +74,6 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
     @Nullable private final ScheduledExecutor scheduledExecutor;
 
     @Nullable private final ExecutorService ioExecutor;
-
-    @Nullable private ScheduledFuture<?> tgtRenewalFuture;
 
     private final Object tokensUpdateFutureLock = new Object();
 
@@ -207,9 +202,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
         this.delegationTokenListener =
                 checkNotNull(delegationTokenListener, "Delegation token listener must not be null");
         synchronized (tokensUpdateFutureLock) {
-            checkState(
-                    tgtRenewalFuture == null && tokensUpdateFuture == null,
-                    "Manager is already started");
+            checkState(tokensUpdateFuture == null, "Manager is already started");
         }
 
         if (!kerberosLoginProvider.isLoginPossible()) {
@@ -217,50 +210,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
             return;
         }
 
-        startTGTRenewal();
         startTokensUpdate();
-    }
-
-    @VisibleForTesting
-    void startTGTRenewal() throws IOException {
-        LOG.info("Starting TGT renewal task");
-
-        UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-        if (currentUser.isFromKeytab()) {
-            // In Hadoop 2.x, renewal of the keytab-based login seems to be automatic, but in Hadoop
-            // 3.x, it is configurable (see hadoop.kerberos.keytab.login.autorenewal.enabled, added
-            // in HADOOP-9567). This task will make sure that the user stays logged in regardless of
-            // that configuration's value. Note that checkTGTAndReloginFromKeytab() is a no-op if
-            // the TGT does not need to be renewed yet.
-            long tgtRenewalPeriod = configuration.get(KERBEROS_RELOGIN_PERIOD).toMillis();
-            tgtRenewalFuture =
-                    scheduledExecutor.scheduleAtFixedRate(
-                            () ->
-                                    ioExecutor.execute(
-                                            () -> {
-                                                try {
-                                                    LOG.debug("Renewing TGT");
-                                                    currentUser.checkTGTAndReloginFromKeytab();
-                                                    LOG.debug("TGT renewed successfully");
-                                                } catch (Exception e) {
-                                                    LOG.warn("Error while renewing TGT", e);
-                                                }
-                                            }),
-                            0,
-                            tgtRenewalPeriod,
-                            TimeUnit.MILLISECONDS);
-            LOG.info("TGT renewal task started and reoccur in {} ms", tgtRenewalPeriod);
-        } else {
-            LOG.info("TGT renewal task not started");
-        }
-    }
-
-    @VisibleForTesting
-    void stopTGTRenewal() {
-        if (tgtRenewalFuture != null) {
-            tgtRenewalFuture.cancel(true);
-            tgtRenewalFuture = null;
-        }
     }
 
     @VisibleForTesting
@@ -345,7 +295,6 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
         LOG.info("Stopping credential renewal");
 
         stopTokensUpdate();
-        stopTGTRenewal();
 
         LOG.info("Stopped credential renewal");
     }
