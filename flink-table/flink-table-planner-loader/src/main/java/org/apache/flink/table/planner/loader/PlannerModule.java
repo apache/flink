@@ -112,6 +112,7 @@ class PlannerModule {
             }
 
             IOUtils.copyBytes(resourceStream, Files.newOutputStream(tempFile));
+            tempFile.toFile().deleteOnExit();
 
             this.submoduleClassLoader =
                     new ComponentClassLoader(
