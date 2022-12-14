@@ -29,6 +29,7 @@ import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.rules.TransformationRule;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
+import org.immutables.value.Value;
 
 /**
  * Flink join reorder rule, which can change the join order of input relNode tree.
@@ -40,6 +41,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
  * depends on the parameter {@link
  * OptimizerConfigOptions#TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD}.
  */
+@Value.Enclosing
 public class FlinkJoinReorderRule extends RelRule<FlinkJoinReorderRule.Config>
         implements TransformationRule {
 
@@ -89,9 +91,12 @@ public class FlinkJoinReorderRule extends RelRule<FlinkJoinReorderRule.Config>
     }
 
     /** Rule configuration. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
         Config DEFAULT =
-                EMPTY.withOperandSupplier(b -> b.operand(MultiJoin.class).anyInputs())
+                ImmutableFlinkJoinReorderRule.Config.builder()
+                        .build()
+                        .withOperandSupplier(b -> b.operand(MultiJoin.class).anyInputs())
                         .as(FlinkJoinReorderRule.Config.class);
 
         @Override

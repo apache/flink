@@ -43,6 +43,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
+import org.immutables.value.Value;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -97,6 +98,7 @@ import java.util.Map;
  * @see ProjectMultiJoinMergeRule
  * @see CoreRules#JOIN_TO_MULTI_JOIN
  */
+@Value.Enclosing
 public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.Config>
         implements TransformationRule {
 
@@ -700,8 +702,13 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
     }
 
     /** Rule configuration. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
-        Config DEFAULT = EMPTY.as(Config.class).withOperandFor(LogicalJoin.class);
+        Config DEFAULT =
+                ImmutableFlinkJoinToMultiJoinRule.Config.builder()
+                        .build()
+                        .as(Config.class)
+                        .withOperandFor(LogicalJoin.class);
 
         @Override
         default FlinkJoinToMultiJoinRule toRule() {

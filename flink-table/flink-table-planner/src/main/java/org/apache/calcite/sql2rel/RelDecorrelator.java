@@ -95,7 +95,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Holder;
-import org.apache.calcite.util.ImmutableBeans;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.Pair;
@@ -1973,10 +1972,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
             call.transformTo(relBuilder.build());
         }
 
-        /** Deprecated, use {@link RemoveSingleAggregateRuleConfig} instead. * */
-        @Deprecated
-        public interface Config extends RemoveSingleAggregateRuleConfig {}
-
         /** Rule configuration. */
         @Value.Immutable(singleton = false)
         public interface RemoveSingleAggregateRuleConfig extends RelRule.Config {
@@ -2198,10 +2193,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
             d.removeCorVarFromTree(correlate);
         }
-
-        /** Deprecated, use {@link RemoveCorrelationForScalarProjectRuleConfig} instead. * */
-        @Deprecated
-        public interface Config extends RemoveCorrelationForScalarProjectRuleConfig {}
 
         /**
          * Rule configuration.
@@ -2602,10 +2593,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
             d.removeCorVarFromTree(correlate);
         }
 
-        /** Deprecated, use {@link RemoveCorrelationForScalarAggregateRuleConfig} instead. * */
-        @Deprecated
-        public interface Config extends RemoveCorrelationForScalarAggregateRuleConfig {}
-
         /**
          * Rule configuration.
          *
@@ -2790,10 +2777,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
             call.transformTo(newOutput);
         }
 
-        /** Deprecated, use {@link AdjustProjectForCountAggregateRuleConfig} instead. * */
-        @Deprecated
-        public interface Config extends AdjustProjectForCountAggregateRuleConfig {}
-
         /** Rule configuration. */
         @Value.Immutable(singleton = false)
         public interface AdjustProjectForCountAggregateRuleConfig extends RelDecorrelator.Config {
@@ -2803,8 +2786,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
             }
 
             /** Returns the flavor of the rule (true for 4 operands, false for 3 operands). */
-            @SuppressWarnings("deprecation")
-            @ImmutableBeans.Property
             boolean flavor();
 
             /** Sets {@link #flavor}. */
@@ -3125,8 +3106,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
     /** Base configuration for rules that are non-static in a RelDecorrelator. */
     public interface Config extends RelRule.Config {
         /** Returns the RelDecorrelator that will be context for the created rule instance. */
-        @SuppressWarnings("deprecation")
-        @ImmutableBeans.Property
         RelDecorrelator decorrelator();
 
         /** Sets {@link #decorrelator}. */

@@ -51,6 +51,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
+import org.immutables.value.Value;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,13 +82,15 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFacto
  * metadata) of the source were used together.
  */
 @Internal
+@Value.Enclosing
 public class PushProjectIntoTableSourceScanRule
         extends RelRule<PushProjectIntoTableSourceScanRule.Config> {
 
-    public static final RelOptRule INSTANCE =
-            Config.EMPTY.as(Config.class).onProjectedScan().toRule();
+    public static final PushProjectIntoTableSourceScanRule INSTANCE =
+            new PushProjectIntoTableSourceScanRule(
+                    PushProjectIntoTableSourceScanRule.Config.DEFAULT);
 
-    public PushProjectIntoTableSourceScanRule(Config config) {
+    public PushProjectIntoTableSourceScanRule(PushProjectIntoTableSourceScanRule.Config config) {
         super(config);
     }
 
@@ -410,7 +413,13 @@ public class PushProjectIntoTableSourceScanRule
     // ---------------------------------------------------------------------------------------------
 
     /** Configuration for {@link PushProjectIntoTableSourceScanRule}. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
+        Config DEFAULT =
+                ImmutablePushProjectIntoTableSourceScanRule.Config.builder()
+                        .build()
+                        .onProjectedScan()
+                        .as(Config.class);
 
         @Override
         default RelOptRule toRule() {
