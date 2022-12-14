@@ -44,7 +44,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
     private static final Logger LOG = LoggerFactory.getLogger(HadoopRecoverableWriter.class);
 
     /** The Hadoop file system on which the writer operates. */
-    private final org.apache.hadoop.fs.FileSystem fs;
+    protected final org.apache.hadoop.fs.FileSystem fs;
 
     /**
      * Creates a new Recoverable writer.
@@ -54,13 +54,16 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
     public HadoopRecoverableWriter(org.apache.hadoop.fs.FileSystem fs) {
         this.fs = checkNotNull(fs);
 
+        checkSupportedFSSchemes(fs);
+    }
+
+    protected void checkSupportedFSSchemes(org.apache.hadoop.fs.FileSystem fs) {
         // This writer is only supported on a subset of file systems
         if (!("hdfs".equalsIgnoreCase(fs.getScheme())
                 || "viewfs".equalsIgnoreCase(fs.getScheme()))) {
             throw new UnsupportedOperationException(
                     "Recoverable writers on Hadoop are only supported for HDFS");
         }
-
         // Part of functionality depends on specific versions. We check these schemes and versions
         // eagerly for
         // better error messages.
@@ -77,6 +80,12 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
     public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
         final org.apache.hadoop.fs.Path targetFile = HadoopFileSystem.toHadoopPath(filePath);
         final org.apache.hadoop.fs.Path tempFile = generateStagingTempFilePath(fs, targetFile);
+        return getRecoverableFsDataOutputStream(targetFile, tempFile);
+    }
+
+    protected RecoverableFsDataOutputStream getRecoverableFsDataOutputStream(
+            org.apache.hadoop.fs.Path targetFile, org.apache.hadoop.fs.Path tempFile)
+            throws IOException {
         return new HadoopRecoverableFsDataOutputStream(fs, targetFile, tempFile);
     }
 
