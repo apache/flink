@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.hadoop.HadoopDependency;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;

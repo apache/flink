@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.flink.configuration.Configuration;
 
@@ -24,7 +24,10 @@ import org.apache.hadoop.security.Credentials;
 
 import java.util.Optional;
 
-/** An example implementation of {@link HadoopDelegationTokenProvider} which does nothing. */
+/**
+ * An example implementation of {@link
+ * org.apache.flink.runtime.security.token.hadoop.HadoopDelegationTokenProvider} which does nothing.
+ */
 public class TestHadoopDelegationTokenProvider implements HadoopDelegationTokenProvider {
 
     @Override

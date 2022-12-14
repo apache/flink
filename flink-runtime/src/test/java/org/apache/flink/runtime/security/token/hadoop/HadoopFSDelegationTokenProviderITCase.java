@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -47,17 +47,20 @@ class HadoopFSDelegationTokenProviderITCase {
     final Text tokenService1 = new Text("TEST_TOKEN_SERVICE1");
     final Text tokenService2 = new Text("TEST_TOKEN_SERVICE2");
 
-    private class TestDelegationToken extends Token<TestDelegationTokenIdentifier> {
+    private class TestDelegationToken extends Token<TestHadoopDelegationTokenIdentifier> {
 
         private long newExpiration;
 
         public TestDelegationToken(
-                Text tokenService, TestDelegationTokenIdentifier identifier, long newExpiration) {
+                Text tokenService,
+                TestHadoopDelegationTokenIdentifier identifier,
+                long newExpiration) {
             super(identifier.getBytes(), new byte[4], identifier.getKind(), tokenService);
             this.newExpiration = newExpiration;
         }
 
-        public TestDelegationToken(Text tokenService, TestDelegationTokenIdentifier identifier) {
+        public TestDelegationToken(
+                Text tokenService, TestHadoopDelegationTokenIdentifier identifier) {
             this(tokenService, identifier, 0L);
         }
 
@@ -112,14 +115,14 @@ class HadoopFSDelegationTokenProviderITCase {
                             String renewer,
                             Set<FileSystem> fileSystemsToAccess,
                             Credentials credentials) {
-                        TestDelegationTokenIdentifier tokenIdentifier1 =
-                                new TestDelegationTokenIdentifier(NOW);
+                        TestHadoopDelegationTokenIdentifier tokenIdentifier1 =
+                                new TestHadoopDelegationTokenIdentifier(NOW);
                         credentials.addToken(
                                 tokenService1,
                                 new TestDelegationToken(tokenService1, tokenIdentifier1, NOW + 1));
 
-                        TestDelegationTokenIdentifier tokenIdentifier2 =
-                                new TestDelegationTokenIdentifier(NOW);
+                        TestHadoopDelegationTokenIdentifier tokenIdentifier2 =
+                                new TestHadoopDelegationTokenIdentifier(NOW);
                         credentials.addToken(
                                 tokenService2,
                                 new TestDelegationToken(tokenService2, tokenIdentifier2, NOW + 2));
@@ -155,10 +158,12 @@ class HadoopFSDelegationTokenProviderITCase {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
         Credentials credentials = new Credentials();
-        TestDelegationTokenIdentifier tokenIdentifier1 = new TestDelegationTokenIdentifier(NOW);
+        TestHadoopDelegationTokenIdentifier tokenIdentifier1 =
+                new TestHadoopDelegationTokenIdentifier(NOW);
         credentials.addToken(
                 tokenService1, new TestDelegationToken(tokenService1, tokenIdentifier1));
-        TestDelegationTokenIdentifier tokenIdentifier2 = new TestDelegationTokenIdentifier(NOW + 1);
+        TestHadoopDelegationTokenIdentifier tokenIdentifier2 =
+                new TestHadoopDelegationTokenIdentifier(NOW + 1);
         credentials.addToken(
                 tokenService2, new TestDelegationToken(tokenService2, tokenIdentifier2));
 
@@ -173,7 +178,7 @@ class HadoopFSDelegationTokenProviderITCase {
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
         long issueDate = NOW + 1;
         AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestDelegationTokenIdentifier(issueDate);
+                new TestHadoopDelegationTokenIdentifier(issueDate);
 
         assertEquals(
                 issueDate,
@@ -188,7 +193,7 @@ class HadoopFSDelegationTokenProviderITCase {
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
         long issueDate = NOW - 1;
         AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestDelegationTokenIdentifier(issueDate);
+                new TestHadoopDelegationTokenIdentifier(issueDate);
 
         assertEquals(
                 issueDate,
@@ -203,7 +208,7 @@ class HadoopFSDelegationTokenProviderITCase {
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
         long issueDate = -1;
         AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestDelegationTokenIdentifier(issueDate);
+                new TestHadoopDelegationTokenIdentifier(issueDate);
 
         assertEquals(
                 NOW,

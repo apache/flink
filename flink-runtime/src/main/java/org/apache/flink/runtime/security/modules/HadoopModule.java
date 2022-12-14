@@ -21,7 +21,7 @@ package org.apache.flink.runtime.security.modules;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.hadoop.HadoopUserUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.token.KerberosLoginProvider;
+import org.apache.flink.runtime.security.token.hadoop.KerberosLoginProvider;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;

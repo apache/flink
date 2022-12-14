@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.runtime.security.token.HadoopFSDelegationTokenProvider
-org.apache.flink.runtime.security.token.HBaseDelegationTokenProvider
+org.apache.flink.runtime.security.token.hadoop.TestHadoopDelegationTokenProvider
+org.apache.flink.runtime.security.token.hadoop.ExceptionThrowingHadoopDelegationTokenProvider

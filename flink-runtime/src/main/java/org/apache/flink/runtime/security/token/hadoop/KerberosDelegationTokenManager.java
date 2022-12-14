@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.security.token.DelegationTokenListener;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -189,7 +191,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
                         .flatMap(nr -> nr.map(Stream::of).orElseGet(Stream::empty))
                         .min(Long::compare);
 
-        DelegationTokenUpdater.dumpAllTokens(credentials);
+        HadoopDelegationTokenUpdater.dumpAllTokens(credentials);
 
         return nextRenewal;
     }
@@ -269,11 +271,12 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
             Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(credentials);
 
             if (credentials.numberOfTokens() > 0) {
-                byte[] credentialsBytes = DelegationTokenConverter.serialize(credentials);
+                byte[] credentialsBytes = HadoopDelegationTokenConverter.serialize(credentials);
 
-                DelegationTokenUpdater.addCurrentUserCredentials(credentialsBytes);
+                HadoopDelegationTokenUpdater.addCurrentUserCredentials(credentialsBytes);
 
                 LOG.info("Notifying listener about new tokens");
+                checkNotNull(delegationTokenListener, "Listener must not be null");
                 delegationTokenListener.onNewTokensObtained(credentialsBytes);
                 LOG.info("Listener notified successfully");
             } else {

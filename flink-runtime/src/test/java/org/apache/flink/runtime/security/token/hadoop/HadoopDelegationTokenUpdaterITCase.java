@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.io.Text;
@@ -36,8 +36,8 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/** Test for {@link DelegationTokenConverter}. */
-public class DelegationTokenUpdaterITCase {
+/** Test for {@link HadoopDelegationTokenConverter}. */
+public class HadoopDelegationTokenUpdaterITCase {
 
     @Test
     public void addCurrentUserCredentialsShouldThrowExceptionWhenNullCredentials() {
@@ -58,7 +58,7 @@ public class DelegationTokenUpdaterITCase {
                     assertThrows(
                             IllegalArgumentException.class,
                             () ->
-                                    DelegationTokenUpdater.addCurrentUserCredentials(
+                                    HadoopDelegationTokenUpdater.addCurrentUserCredentials(
                                             credentialsBytes));
             assertTrue(e.getMessage().contains("Illegal credentials"));
         }
@@ -72,13 +72,13 @@ public class DelegationTokenUpdaterITCase {
         credentials.addToken(
                 tokenService, new Token<>(new byte[4], new byte[4], tokenKind, tokenService));
 
-        byte[] credentialsBytes = DelegationTokenConverter.serialize(credentials);
+        byte[] credentialsBytes = HadoopDelegationTokenConverter.serialize(credentials);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            DelegationTokenUpdater.addCurrentUserCredentials(credentialsBytes);
+            HadoopDelegationTokenUpdater.addCurrentUserCredentials(credentialsBytes);
             ArgumentCaptor<Credentials> argumentCaptor = ArgumentCaptor.forClass(Credentials.class);
             verify(userGroupInformation, times(1)).addCredentials(argumentCaptor.capture());
             assertTrue(

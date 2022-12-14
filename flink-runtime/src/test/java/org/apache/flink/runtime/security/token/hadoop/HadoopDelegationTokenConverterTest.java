@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
@@ -28,8 +28,8 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/** Test for {@link DelegationTokenConverter}. */
-public class DelegationTokenConverterTest {
+/** Test for {@link HadoopDelegationTokenConverter}. */
+public class HadoopDelegationTokenConverterTest {
 
     @Test
     public void testRoundTrip() throws IOException {
@@ -39,9 +39,9 @@ public class DelegationTokenConverterTest {
         credentials.addToken(
                 tokenService, new Token<>(new byte[4], new byte[4], tokenKind, tokenService));
 
-        byte[] credentialsBytes = DelegationTokenConverter.serialize(credentials);
+        byte[] credentialsBytes = HadoopDelegationTokenConverter.serialize(credentials);
         Credentials deserializedCredentials =
-                DelegationTokenConverter.deserialize(credentialsBytes);
+                HadoopDelegationTokenConverter.deserialize(credentialsBytes);
 
         assertEquals(1, credentials.getAllTokens().size());
         assertEquals(1, deserializedCredentials.getAllTokens().size());

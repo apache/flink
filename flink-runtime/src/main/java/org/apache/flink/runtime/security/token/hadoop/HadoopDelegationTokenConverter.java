@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.flink.annotation.Internal;
 
@@ -29,7 +29,7 @@ import java.io.IOException;
 
 /** Delegation token serializer and deserializer functionality. */
 @Internal
-public class DelegationTokenConverter {
+public class HadoopDelegationTokenConverter {
     /** Serializes delegation tokens. */
     public static byte[] serialize(Credentials credentials) throws IOException {
         try (DataOutputBuffer dob = new DataOutputBuffer()) {
