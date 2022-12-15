@@ -1858,7 +1858,7 @@ public class StreamTaskTest extends TestLogger {
             recordWriterDelegate =
                     harness.streamTask.createRecordWriterDelegate(
                             harness.streamTask.configuration, harness.streamMockEnvironment);
-            // We should now have a RescalePartitioner to distribute the load
+            // We should now have a RebalancePartitioner to distribute the load
             // for the non-matching downstream parallelism
             assertTrue(
                     ((ChannelSelectorRecordWriter)
