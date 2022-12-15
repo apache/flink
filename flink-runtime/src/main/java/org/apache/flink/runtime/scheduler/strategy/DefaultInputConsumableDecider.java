@@ -80,7 +80,7 @@ class DefaultInputConsumableDecider implements InputConsumableDecider {
         } else {
             for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 if (resultPartitionRetriever.apply(partitionId).getState()
-                        != ResultPartitionState.CONSUMABLE) {
+                        != ResultPartitionState.ALL_DATA_PRODUCED) {
                     return false;
                 }
             }

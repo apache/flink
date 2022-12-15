@@ -325,7 +325,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
         } else {
             for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 if (schedulingTopology.getResultPartition(partitionId).getState()
-                        != ResultPartitionState.CONSUMABLE) {
+                        != ResultPartitionState.ALL_DATA_PRODUCED) {
                     return false;
                 }
             }
@@ -351,7 +351,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
             for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 if (isExternalConsumedPartition(partitionId, pipelinedRegion)
                         && schedulingTopology.getResultPartition(partitionId).getState()
-                                != ResultPartitionState.CONSUMABLE) {
+                                != ResultPartitionState.ALL_DATA_PRODUCED) {
                     return false;
                 }
             }

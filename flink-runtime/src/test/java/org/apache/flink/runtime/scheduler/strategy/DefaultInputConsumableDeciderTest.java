@@ -71,7 +71,7 @@ class DefaultInputConsumableDeciderTest {
                 topology.addExecutionVertices().withParallelism(2).finish();
 
         topology.connectAllToAll(producers, consumer)
-                .withResultPartitionState(ResultPartitionState.CONSUMABLE)
+                .withResultPartitionState(ResultPartitionState.ALL_DATA_PRODUCED)
                 .withResultPartitionType(ResultPartitionType.BLOCKING)
                 .finish();
 

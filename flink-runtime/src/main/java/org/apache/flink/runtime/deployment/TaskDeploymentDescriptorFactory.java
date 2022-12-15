@@ -353,7 +353,7 @@ public class TaskDeploymentDescriptorFactory {
         return getConsumedPartitionShuffleDescriptor(
                 consumedPartitionId,
                 consumedPartition.getResultType(),
-                consumedPartition.isConsumable(),
+                consumedPartition.hasDataAllProduced(),
                 producerState,
                 partitionDeploymentConstraint,
                 consumedPartitionDescriptor.orElse(null));
@@ -363,12 +363,12 @@ public class TaskDeploymentDescriptorFactory {
     static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(
             ResultPartitionID consumedPartitionId,
             ResultPartitionType resultPartitionType,
-            boolean isConsumable,
+            boolean hasAllDataProduced,
             ExecutionState producerState,
             PartitionLocationConstraint partitionDeploymentConstraint,
             @Nullable ResultPartitionDeploymentDescriptor consumedPartitionDescriptor) {
         // The producing task needs to be RUNNING or already FINISHED
-        if ((resultPartitionType.canBePipelinedConsumed() || isConsumable)
+        if ((resultPartitionType.canBePipelinedConsumed() || hasAllDataProduced)
                 && consumedPartitionDescriptor != null
                 && isProducerAvailable(producerState)) {
             // partition is already registered
@@ -385,14 +385,14 @@ public class TaskDeploymentDescriptorFactory {
         } else {
             // throw respective exceptions
             throw handleConsumedPartitionShuffleDescriptorErrors(
-                    consumedPartitionId, resultPartitionType, isConsumable, producerState);
+                    consumedPartitionId, resultPartitionType, hasAllDataProduced, producerState);
         }
     }
 
     private static RuntimeException handleConsumedPartitionShuffleDescriptorErrors(
             ResultPartitionID consumedPartitionId,
             ResultPartitionType resultPartitionType,
-            boolean isConsumable,
+            boolean hasAllDataProduced,
             ExecutionState producerState) {
         String msg;
         if (isProducerFailedOrCanceled(producerState)) {
@@ -405,8 +405,11 @@ public class TaskDeploymentDescriptorFactory {
             msg =
                     String.format(
                             "Trying to consume an input partition whose producer "
-                                    + "is not ready (result type: %s, partition consumable: %s, producer state: %s, partition id: %s).",
-                            resultPartitionType, isConsumable, producerState, consumedPartitionId);
+                                    + "is not ready (result type: %s, hasAllDataProduced: %s, producer state: %s, partition id: %s).",
+                            resultPartitionType,
+                            hasAllDataProduced,
+                            producerState,
+                            consumedPartitionId);
         }
         return new IllegalStateException(msg);
     }

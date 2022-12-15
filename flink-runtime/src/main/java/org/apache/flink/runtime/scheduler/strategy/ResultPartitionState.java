@@ -24,10 +24,6 @@ public enum ResultPartitionState {
     /** Partition is just created or is just reset. */
     CREATED,
 
-    /**
-     * Partition is ready for consuming. For pipelined partition, this indicates it has data
-     * produced. For blocking partition, this indicates all result partitions in its parent result
-     * have finished.
-     */
-    CONSUMABLE
+    /** Partition has produced all data. */
+    ALL_DATA_PRODUCED
 }

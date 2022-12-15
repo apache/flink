@@ -301,8 +301,9 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                                                 irp.getIntermediateResult().getId(),
                                                 irp.getResultType(),
                                                 () ->
-                                                        irp.isConsumable()
-                                                                ? ResultPartitionState.CONSUMABLE
+                                                        irp.hasDataAllProduced()
+                                                                ? ResultPartitionState
+                                                                        .ALL_DATA_PRODUCED
                                                                 : ResultPartitionState.CREATED,
                                                 () ->
                                                         partitionConsumerVertexGroupsRetriever

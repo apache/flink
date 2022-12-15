@@ -232,7 +232,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
         protected ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
 
-        protected ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
+        protected ResultPartitionState resultPartitionState =
+                ResultPartitionState.ALL_DATA_PRODUCED;
 
         protected ProducerConsumerConnectionBuilder(
                 final List<TestingSchedulingExecutionVertex> producers,
@@ -370,7 +371,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
             for (TestingSchedulingResultPartition resultPartition : resultPartitions) {
                 resultPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
-                if (resultPartition.getState() == ResultPartitionState.CONSUMABLE) {
+                if (resultPartition.getState() == ResultPartitionState.ALL_DATA_PRODUCED) {
                     consumedPartitionGroup.partitionFinished();
                 }
             }
