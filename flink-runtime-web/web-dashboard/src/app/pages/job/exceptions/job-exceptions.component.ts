@@ -19,6 +19,7 @@
 import { DatePipe, formatDate, NgForOf, NgIf } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
@@ -103,7 +104,8 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
   constructor(
     private readonly jobService: JobService,
     private readonly jobLocalService: JobLocalService,
-    private readonly cdr: ChangeDetectorRef
+    private readonly cdr: ChangeDetectorRef,
+    private readonly router: Router
   ) {}
 
   public ngOnInit(): void {
@@ -150,5 +152,11 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
           };
         });
       });
+  }
+
+  public navigateTo(taskManagerId: string | null): void {
+    if (taskManagerId !== null) {
+      this.router.navigate(['task-manager', taskManagerId, 'metrics']).then();
+    }
   }
 }
