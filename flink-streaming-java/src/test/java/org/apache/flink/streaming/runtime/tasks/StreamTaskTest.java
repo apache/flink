@@ -131,6 +131,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -1864,7 +1865,7 @@ public class StreamTaskTest extends TestLogger {
                                             ((SingleRecordWriter) recordWriterDelegate)
                                                     .getRecordWriter(0))
                                     .getChannelSelector()
-                            instanceof RescalePartitioner);
+                            instanceof RebalancePartitioner);
         }
     }
 

@@ -92,7 +92,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
@@ -1622,7 +1622,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         if (streamOutput.getPartitioner() instanceof ForwardPartitioner
                 && streamOutput.getConsumerParallelism()
                         != environment.getTaskInfo().getNumberOfParallelSubtasks()) {
-            streamOutput.setPartitioner(new RescalePartitioner<>());
+            streamOutput.setPartitioner(new RebalancePartitioner<>());
         }
     }
 
