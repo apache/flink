@@ -18,3 +18,4 @@ org.apache.flink.connector.jdbc.dialect.mysql.MySqlDialectFactory
 org.apache.flink.connector.jdbc.dialect.psql.PostgresDialectFactory
 org.apache.flink.connector.jdbc.dialect.oracle.OracleDialectFactory
 org.apache.flink.connector.jdbc.dialect.sqlserver.SqlServerDialectFactory
+org.apache.flink.connector.jdbc.dialect.db2.Db2DialectFactory
