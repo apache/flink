@@ -120,7 +120,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
     void registerConsumedPartitionGroup(ConsumedPartitionGroup consumedPartitionGroup) {
         consumedPartitionGroups.add(consumedPartitionGroup);
 
-        if (getState() == ResultPartitionState.CONSUMABLE) {
+        if (getState() == ResultPartitionState.ALL_DATA_PRODUCED) {
             consumedPartitionGroup.partitionFinished();
         }
     }
@@ -133,7 +133,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             consumedPartitionGroup.partitionFinished();
         }
-        setState(ResultPartitionState.CONSUMABLE);
+        setState(ResultPartitionState.ALL_DATA_PRODUCED);
     }
 
     void setState(ResultPartitionState state) {
@@ -145,7 +145,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         private IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
         private int partitionNum = 0;
         private ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
-        private ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
+        private ResultPartitionState resultPartitionState = ResultPartitionState.ALL_DATA_PRODUCED;
 
         Builder withIntermediateDataSetID(IntermediateDataSetID intermediateDataSetId) {
             this.intermediateDataSetId = intermediateDataSetId;

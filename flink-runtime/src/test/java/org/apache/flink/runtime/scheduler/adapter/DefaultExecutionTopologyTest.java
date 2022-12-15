@@ -105,20 +105,24 @@ class DefaultExecutionTopologyTest {
     }
 
     @Test
-    void testResultPartitionStateSupplier() {
-        final IntermediateResultPartition intermediateResultPartition =
-                IterableUtils.toStream(executionGraph.getAllExecutionVertices())
-                        .flatMap(v -> v.getProducedPartitions().values().stream())
-                        .findAny()
-                        .get();
+    void testResultPartitionStateSupplier() throws Exception {
+        final JobVertex[] jobVertices = createJobVertices(BLOCKING);
+        executionGraph = createExecutionGraph(EXECUTOR_RESOURCE.getExecutor(), jobVertices);
+        adapter = DefaultExecutionTopology.fromExecutionGraph(executionGraph);
+
+        final ExecutionJobVertex ejv = executionGraph.getJobVertex(jobVertices[0].getID());
+        ExecutionVertex ev = ejv.getTaskVertices()[0];
+        IntermediateResultPartition intermediateResultPartition =
+                ev.getProducedPartitions().values().stream().findAny().get();
 
         final DefaultResultPartition schedulingResultPartition =
                 adapter.getResultPartition(intermediateResultPartition.getPartitionId());
 
         assertThat(schedulingResultPartition.getState()).isEqualTo(ResultPartitionState.CREATED);
 
-        intermediateResultPartition.markDataProduced();
-        assertThat(schedulingResultPartition.getState()).isEqualTo(ResultPartitionState.CONSUMABLE);
+        ev.finishAllBlockingPartitions();
+        assertThat(schedulingResultPartition.getState())
+                .isEqualTo(ResultPartitionState.ALL_DATA_PRODUCED);
     }
 
     @Test

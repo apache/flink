@@ -46,8 +46,8 @@ public class IntermediateResultPartition {
     /** Number of subpartitions. Initialized lazily and will not change once set. */
     private int numberOfSubpartitions = UNKNOWN;
 
-    /** Whether this partition has produced some data. */
-    private boolean hasDataProduced = false;
+    /** Whether this partition has produced all data. */
+    private boolean dataAllProduced = false;
 
     /**
      * Releasable {@link ConsumedPartitionGroup}s for this result partition. This result partition
@@ -166,16 +166,12 @@ public class IntermediateResultPartition {
         }
     }
 
-    public void markDataProduced() {
-        hasDataProduced = true;
-    }
-
-    public boolean isConsumable() {
-        return hasDataProduced;
+    public boolean hasDataAllProduced() {
+        return dataAllProduced;
     }
 
     void resetForNewExecution() {
-        if (!getResultType().canBePipelinedConsumed() && hasDataProduced) {
+        if (!getResultType().canBePipelinedConsumed() && dataAllProduced) {
             // A BLOCKING result partition with data produced means it is finished
             // Need to add the running producer count of the result on resetting it
             for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
@@ -183,7 +179,7 @@ public class IntermediateResultPartition {
             }
         }
         releasablePartitionGroups.clear();
-        hasDataProduced = false;
+        dataAllProduced = false;
         for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
             totalResult.clearCachedInformationForPartitionGroup(consumedPartitionGroup);
         }
@@ -205,12 +201,12 @@ public class IntermediateResultPartition {
         }
 
         // Sanity check to make sure a result partition cannot be marked as finished twice.
-        if (hasDataProduced) {
+        if (dataAllProduced) {
             throw new IllegalStateException(
                     "Tried to mark a finished result partition as finished.");
         }
 
-        hasDataProduced = true;
+        dataAllProduced = true;
 
         for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
             consumedPartitionGroup.partitionFinished();
