@@ -140,13 +140,13 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.28.0:
+				"mvn dependency:tree" as of Calcite 1.29.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.28.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.28.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.29.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.29.0:compile
 				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.13.4:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.19.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.20.0:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.13.4:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.13.4.2:compile
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
