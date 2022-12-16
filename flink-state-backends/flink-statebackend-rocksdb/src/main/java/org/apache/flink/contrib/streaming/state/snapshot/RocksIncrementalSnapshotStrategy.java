@@ -408,6 +408,15 @@ public class RocksIncrementalSnapshotStrategy<K>
                 checkpointedSize += getUploadedStateSize(sstFiles.values());
                 checkpointedSize += getUploadedStateSize(miscFiles.values());
 
+                // We make the 'sstFiles' as the 'sharedState' in IncrementalRemoteKeyedStateHandle,
+                // whether they belong to the sharded CheckpointedStateScope or exclusive
+                // CheckpointedStateScope.
+                // In this way, the first checkpoint after job recovery can be an incremental
+                // checkpoint in CLAIM mode, either restoring from checkpoint or restoring from
+                // native savepoint.
+                // And this has no effect on the registration of shareState currently, because the
+                // snapshot result of native savepoint would not be registered into
+                // 'SharedStateRegistry'.
                 final IncrementalRemoteKeyedStateHandle jmIncrementalKeyedStateHandle =
                         new IncrementalRemoteKeyedStateHandle(
                                 backendUID,
