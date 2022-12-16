@@ -309,7 +309,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 "Failed to wait operation finish.");
 
         List<RowData> expectedData = getDefaultResultSet().getData();
-        List<RowData> actualData = fetchAllResultRows(sessionHandle, operationHandle);
+        List<RowData> actualData = fetchAllResults(sessionHandle, operationHandle);
         assertThat(actualData).isEqualTo(expectedData);
 
         service.closeOperation(sessionHandle, operationHandle);
@@ -389,7 +389,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         -1,
                         Configuration.fromMap(Collections.singletonMap(key, value)));
 
-        List<RowData> settings = fetchAllResultRows(sessionHandle, operationHandle);
+        List<RowData> settings = fetchAllResults(sessionHandle, operationHandle);
 
         assertThat(settings)
                 .contains(
@@ -420,7 +420,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         OperationHandle insertOperationHandle =
                 service.executeStatement(sessionHandle, insertSql, -1, configuration);
 
-        List<RowData> results = fetchAllResultRows(sessionHandle, insertOperationHandle);
+        List<RowData> results = fetchAllResults(sessionHandle, insertOperationHandle);
         assertThat(results.size()).isEqualTo(1);
         String jobId = results.get(0).getString(0).toString();
 
@@ -431,7 +431,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         OperationHandle stopOperationHandle =
                 service.executeStatement(sessionHandle, stopSql, -1, configuration);
 
-        List<RowData> stopResults = fetchAllResultRows(sessionHandle, stopOperationHandle);
+        List<RowData> stopResults = fetchAllResults(sessionHandle, stopOperationHandle);
         assertThat(stopResults.size()).isEqualTo(1);
         if (hasSavepoint) {
             String savepoint = stopResults.get(0).getString(0).toString();
@@ -1117,7 +1117,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 .isEqualTo(expectedCompletionHints);
     }
 
-    private List<RowData> fetchAllResultRows(
+    private List<RowData> fetchAllResults(
             SessionHandle sessionHandle, OperationHandle operationHandle) {
         Long token = 0L;
         List<RowData> results = new ArrayList<>();
