@@ -336,10 +336,10 @@ class MyKeyedBroadcastProcessFunction(KeyedBroadcastProcessFunction):
     def open(self, ctx: RuntimeContext):
         self._map_state = ctx.get_map_state(self._map_state_desc)
     
-    def process_broadcast_element(value: Rule, ctx: KeyedBroadcastProcessFunction.Context):
+    def process_broadcast_element(self, value: Rule, ctx: KeyedBroadcastProcessFunction.Context):
         ctx.get_broadcast_state(self._rule_state_desc).put(value.name, value)
     
-    def process_element(value: Item, ctx: KeyedBroadcastProcessFunction.ReadOnlyContext):
+    def process_element(self, value: Item, ctx: KeyedBroadcastProcessFunction.ReadOnlyContext):
         shape = value.get_shape()
 
         for rule_name, rule in ctx.get_broadcast_state(self._rule_state_desc).items():
