@@ -201,7 +201,7 @@ public class TestUtils {
             Thread.sleep(50);
             runningJobs =
                     statusMessages.stream()
-                            .filter(status -> !status.getJobState().equals(JobStatus.RUNNING))
+                            .filter(status -> status.getJobState().equals(JobStatus.RUNNING))
                             .map(JobStatusMessage::getJobId)
                             .collect(Collectors.toList());
         }
