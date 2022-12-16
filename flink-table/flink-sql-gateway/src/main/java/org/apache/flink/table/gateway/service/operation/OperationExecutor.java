@@ -89,6 +89,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_HINTS;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
+import static org.apache.flink.table.gateway.service.utils.Constants.SAVEPOINT_PATH;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_VALUE;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -474,11 +475,19 @@ public class OperationExecutor {
             throw new SqlExecutionException(
                     "Could not stop job " + jobId + " for operation " + operationHandle + ".", e);
         }
-        return new ResultFetcher(
-                operationHandle,
-                ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
-                Collections.singletonList(
-                        GenericRowData.of(StringData.fromString(savepoint.orElse("")))));
+        if (isWithSavepoint) {
+            return new ResultFetcher(
+                    operationHandle,
+                    ResolvedSchema.of(Column.physical(SAVEPOINT_PATH, DataTypes.STRING())),
+                    Collections.singletonList(
+                            GenericRowData.of(StringData.fromString(savepoint.orElse("")))));
+        } else {
+            return new ResultFetcher(
+                    operationHandle,
+                    TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                    CollectionUtil.iteratorToList(
+                            TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+        }
     }
 
     /**
