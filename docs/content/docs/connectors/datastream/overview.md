@@ -44,6 +44,7 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [Amazon Kinesis Data Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
  * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
+ * [Opensearch]({{< ref "docs/connectors/datastream/opensearch" >}}) (sink)
  * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (source/sink)
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
  * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
