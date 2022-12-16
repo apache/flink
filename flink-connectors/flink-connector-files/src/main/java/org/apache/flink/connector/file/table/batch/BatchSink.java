@@ -27,7 +27,7 @@ import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connector.file.table.batch.compact.BatchCompactCoordinator;
 import org.apache.flink.connector.file.table.batch.compact.BatchCompactOperator;
-import org.apache.flink.connector.file.table.batch.compact.BatchPartitionCommitter;
+import org.apache.flink.connector.file.table.batch.compact.BatchPartitionCommitterSink;
 import org.apache.flink.connector.file.table.stream.compact.CompactBucketWriter;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
@@ -37,7 +37,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -110,10 +109,8 @@ public class BatchSink {
                         TypeInformation.of(CompactMessages.CompactOutput.class),
                         new BatchCompactOperator<>(fsSupplier, readFactory, writerFactory))
                 .setParallelism(compactParallelism)
-                .transform(
-                        "committer",
-                        TypeInformation.of(Void.class),
-                        new BatchPartitionCommitter(
+                .addSink(
+                        new BatchPartitionCommitterSink(
                                 fsFactory,
                                 metaStoreFactory,
                                 overwrite,
@@ -123,8 +120,6 @@ public class BatchSink {
                                 staticPartitionSpec,
                                 identifier,
                                 partitionCommitPolicyFactory))
-                .setParallelism(1)
-                .setMaxParallelism(1)
-                .addSink(new DiscardingSink<>());
+                .setParallelism(1);
     }
 }
