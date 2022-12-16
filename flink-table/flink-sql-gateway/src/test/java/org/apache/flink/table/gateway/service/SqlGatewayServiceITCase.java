@@ -444,7 +444,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             Path savepointPath = Paths.get(savepoint);
             assertThat(savepointPath.getFileName().toString()).startsWith("savepoint-");
         } else {
-            assertThat(stopResults.get(0).getString(0).toString()).isEmpty();
+            assertThat(stopResults.get(0).getString(0).toString()).isEqualTo("OK");
         }
     }
 
