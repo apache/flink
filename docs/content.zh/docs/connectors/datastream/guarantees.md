@@ -96,6 +96,11 @@ under the License.
         <td></td>
     </tr>
     <tr>
+        <td>Opensearch</td>
+        <td>至少一次</td>
+        <td></td>
+    </tr>
+    <tr>
         <td>Kafka producer</td>
         <td>至少一次 / 精确一次</td>
         <td>当使用事务生产者时，保证精确一次 (v 0.11+)</td>
