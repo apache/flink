@@ -25,6 +25,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -41,9 +42,13 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
@@ -179,6 +184,26 @@ public class TestUtils {
             throws ExecutionException, InterruptedException {
         while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
             Thread.sleep(50);
+        }
+    }
+
+    /**
+     * Wait util at least one job turns into RUNNING status in the cluster. Applicable for single
+     * job scenarios.
+     *
+     * @param client ClusterClient which could be {@link
+     *     org.apache.flink.test.junit5.InjectClusterClient}.
+     */
+    public static void waitUntilJobIsRunning(ClusterClient<?> client) throws Exception {
+        Collection<JobStatusMessage> statusMessages = client.listJobs().get();
+        List<JobID> runningJobs = new ArrayList<>();
+        while (runningJobs.isEmpty()) {
+            Thread.sleep(50);
+            runningJobs =
+                    statusMessages.stream()
+                            .filter(status -> !status.getJobState().equals(JobStatus.RUNNING))
+                            .map(JobStatusMessage::getJobId)
+                            .collect(Collectors.toList());
         }
     }
 }

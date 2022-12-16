@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.service;
 
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -58,8 +59,10 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.TableFunc0;
+import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -400,7 +403,11 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     @ParameterizedTest
     @CsvSource({"WITH SAVEPOINT,true", "WITH SAVEPOINT WITH DRAIN,true", "'',false"})
     public void testStopJobStatementWithSavepoint(
-            String option, boolean hasSavepoint, @TempDir File tmpDir) throws InterruptedException {
+            String option,
+            boolean hasSavepoint,
+            @InjectClusterClient RestClusterClient<?> restClusterClient,
+            @TempDir File tmpDir)
+            throws Exception {
         Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
         configuration.setBoolean(TableConfigOptions.TABLE_DML_SYNC, false);
         File savepointDir = new File(tmpDir, "savepoints");
@@ -424,8 +431,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         assertThat(results.size()).isEqualTo(1);
         String jobId = results.get(0).getString(0).toString();
 
-        // wait till the job turns into running status
-        Thread.sleep(2_000L);
+        TestUtils.waitUntilJobIsRunning(restClusterClient);
 
         String stopSql = String.format(stopSqlTemplate, jobId, option);
         OperationHandle stopOperationHandle =
