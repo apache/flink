@@ -881,15 +881,15 @@ Empty set
 !ok
 
 # ==========================================================================
-# test describe table with comment
+# test describe/showColumns/showCreateTable with comment
 # ==========================================================================
 
 CREATE TABLE `default_catalog`.`default_database`.`orders3` (
-  `user` BIGINT NOT NULL comment 'this is the first column',
+  `user` BIGINT NOT NULL comment 'this is the primary key, named ''user''.',
   `product` VARCHAR(32),
   `amount` INT,
-  `ts` TIMESTAMP(3) comment 'notice: watermark',
-  `ptime` AS PROCTIME() comment 'notice: computed column',
+  `ts` TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
+  `ptime` AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
 ) WITH (
@@ -899,31 +899,78 @@ CREATE TABLE `default_catalog`.`default_database`.`orders3` (
 [INFO] Execute statement succeed.
 !info
 
+# test describe
 describe orders3;
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
-|    name |                        type |  null |       key |        extras |                  watermark |                  comment |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
-|    user |                      BIGINT | FALSE | PRI(user) |               |                            | this is the first column |
-| product |                 VARCHAR(32) |  TRUE |           |               |                            |                          |
-|  amount |                         INT |  TRUE |           |               |                            |                          |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |        notice: watermark |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |  notice: computed column |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                                 comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |  this is the primary key, named 'user'. |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                                         |
+|  amount |                         INT |  TRUE |           |               |                            |                                         |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |          notice: watermark, named 'ts'. |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | notice: computed column, named 'ptime'. |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
 5 rows in set
 !ok
 
-# test desc table
+# test desc
 desc orders3;
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
-|    name |                        type |  null |       key |        extras |                  watermark |                  comment |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
-|    user |                      BIGINT | FALSE | PRI(user) |               |                            | this is the first column |
-| product |                 VARCHAR(32) |  TRUE |           |               |                            |                          |
-|  amount |                         INT |  TRUE |           |               |                            |                          |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |        notice: watermark |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |  notice: computed column |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                                 comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |  this is the primary key, named 'user'. |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                                         |
+|  amount |                         INT |  TRUE |           |               |                            |                                         |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |          notice: watermark, named 'ts'. |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | notice: computed column, named 'ptime'. |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
 5 rows in set
+!ok
+
+# test show columns
+show columns from orders3;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                                 comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |  this is the primary key, named 'user'. |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                                         |
+|  amount |                         INT |  TRUE |           |               |                            |                                         |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |          notice: watermark, named 'ts'. |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | notice: computed column, named 'ptime'. |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+-----------------------------------------+
+5 rows in set
+!ok
+
+show columns in orders3 like 'p%';
++---------+-----------------------------+-------+-----+---------------+-----------+-----------------------------------------+
+|    name |                        type |  null | key |        extras | watermark |                                 comment |
++---------+-----------------------------+-------+-----+---------------+-----------+-----------------------------------------+
+| product |                 VARCHAR(32) |  TRUE |     |               |           |                                         |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |     | AS PROCTIME() |           | notice: computed column, named 'ptime'. |
++---------+-----------------------------+-------+-----+---------------+-----------+-----------------------------------------+
+2 rows in set
+!ok
+
+# test show create table
+show create table orders3;
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          result |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| CREATE TABLE `default_catalog`.`default_database`.`orders3` (
+  `user` BIGINT NOT NULL COMMENT 'this is the primary key, named ''user''.',
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
+  `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'kafka',
+  'scan.startup.mode' = 'earliest-offset'
+)
+ |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+1 row in set
 !ok
 
 # ==========================================================================

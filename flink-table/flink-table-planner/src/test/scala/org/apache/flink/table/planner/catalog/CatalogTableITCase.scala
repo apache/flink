@@ -1061,6 +1061,61 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
+  def testCreateTableWithCommentAndShowCreateTable(): Unit = {
+    val executedDDL =
+      """
+        |create temporary table TBL1 (
+        |  pk1 bigint not null comment 'this is column pk1 which part of primary key',
+        |  h string,
+        |  a bigint,
+        |  g as 2*(a+1) comment 'notice: computed column, expression ''2*(`a`+1)''.',
+        |  pk2 string not null comment 'this is column pk2 which part of primary key',
+        |  c bigint metadata virtual comment 'notice: metadata column, named ''c''.',
+        |  e row<name string, age int, flag boolean>,
+        |  f as myfunc(a),
+        |  ts1 timestamp(3) comment 'notice: watermark, named ''ts1''.',
+        |  ts2 timestamp_ltz(3) metadata from 'timestamp' comment 'notice: metadata column, named ''ts2''.',
+        |  `__source__` varchar(255),
+        |  proc as proctime(),
+        |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
+        |  constraint test_constraint primary key (pk1, pk2) not enforced
+        |) comment 'test show create table statement'
+        |partitioned by (h)
+        |with (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+
+    val expectedDDL =
+      """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
+        |  `pk1` BIGINT NOT NULL COMMENT 'this is column pk1 which part of primary key',
+        |  `h` VARCHAR(2147483647),
+        |  `a` BIGINT,
+        |  `g` AS 2 * (`a` + 1) COMMENT 'notice: computed column, expression ''2*(`a`+1)''.',
+        |  `pk2` VARCHAR(2147483647) NOT NULL COMMENT 'this is column pk2 which part of primary key',
+        |  `c` BIGINT METADATA VIRTUAL COMMENT 'notice: metadata column, named ''c''.',
+        |  `e` ROW<`name` VARCHAR(2147483647), `age` INT, `flag` BOOLEAN>,
+        |  `f` AS `default_catalog`.`default_database`.`myfunc`(`a`),
+        |  `ts1` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts1''.',
+        |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp' COMMENT 'notice: metadata column, named ''ts2''.',
+        |  `__source__` VARCHAR(255),
+        |  `proc` AS PROCTIME(),
+        |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
+        |  CONSTRAINT `test_constraint` PRIMARY KEY (`pk1`, `pk2`) NOT ENFORCED
+        |) COMMENT 'test show create table statement'
+        |PARTITIONED BY (`h`)
+        |WITH (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+    tableEnv.executeSql(executedDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
+    assertEquals(expectedDDL, row.getField(0).toString)
+  }
+
+  @Test
   def testCreateViewAndShowCreateTable(): Unit = {
     val createTableDDL =
       """ |create table `source` (

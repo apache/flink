@@ -66,11 +66,11 @@ TableEnvironment tableEnv = TableEnvironment.create(...);
 // register a table named "Orders"
 tableEnv.executeSql(
         "CREATE TABLE Orders (" +
-        " `user` BIGINT NOT NULl," +
+        " `user` BIGINT NOT NULl comment 'this is primary key'," +
         " product VARCHAR(32)," +
         " amount INT," +
-        " ts TIMESTAMP(3)," +
-        " ptime AS PROCTIME()," +
+        " ts TIMESTAMP(3) comment 'notice: watermark'," +
+        " ptime AS PROCTIME() comment 'this is a computed column'," +
         " PRIMARY KEY(`user`) NOT ENFORCED," +
         " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
         ") with (...)");
@@ -89,11 +89,11 @@ val tableEnv = TableEnvironment.create(...)
 // register a table named "Orders"
  tableEnv.executeSql(
         "CREATE TABLE Orders (" +
-        " `user` BIGINT NOT NULl," +
+        " `user` BIGINT NOT NULl comment 'this is primary key'," +
         " product VARCHAR(32)," +
         " amount INT," +
-        " ts TIMESTAMP(3)," +
-        " ptime AS PROCTIME()," +
+        " ts TIMESTAMP(3) comment 'notice: watermark'," +
+        " ptime AS PROCTIME() comment 'this is a computed column'," +
         " PRIMARY KEY(`user`) NOT ENFORCED," +
         " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
         ") with (...)")
@@ -112,11 +112,11 @@ table_env = TableEnvironment.create(...)
 # register a table named "Orders"
 table_env.execute_sql( \
         "CREATE TABLE Orders (" 
-        " `user` BIGINT NOT NULl," 
+        " `user` BIGINT NOT NULl comment 'this is primary key'," 
         " product VARCHAR(32),"
         " amount INT,"
-        " ts TIMESTAMP(3),"
-        " ptime AS PROCTIME(),"
+        " ts TIMESTAMP(3) comment 'notice: watermark',"
+        " ptime AS PROCTIME() comment 'this is a computed column',"
         " PRIMARY KEY(`user`) NOT ENFORCED,"
         " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS"
         ") with (...)");
