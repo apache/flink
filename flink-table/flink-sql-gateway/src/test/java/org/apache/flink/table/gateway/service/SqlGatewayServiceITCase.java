@@ -125,8 +125,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
-    @TempDir File tmpDir;
-
     private static SessionManager sessionManager;
     private static SqlGatewayServiceImpl service;
 
@@ -401,8 +399,8 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
     @ParameterizedTest
     @CsvSource({"WITH SAVEPOINT,true", "WITH SAVEPOINT WITH DRAIN,true", "'',false"})
-    public void testStopJobStatementWithSavepoint(String option, boolean hasSavepoint)
-            throws InterruptedException {
+    public void testStopJobStatementWithSavepoint(
+            String option, boolean hasSavepoint, @TempDir File tmpDir) throws InterruptedException {
         Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
         configuration.setBoolean(TableConfigOptions.TABLE_DML_SYNC, false);
         File savepointDir = new File(tmpDir, "savepoints");
