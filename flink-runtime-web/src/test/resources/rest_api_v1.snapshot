@@ -1953,6 +1953,9 @@
               },
               "timestamp" : {
                 "type" : "integer"
+              },
+              "taskManagerId" : {
+                "type" : "string"
               }
             }
           }
@@ -1985,6 +1988,9 @@
                   "location" : {
                     "type" : "string"
                   },
+                  "taskManagerId" : {
+                    "type" : "string"
+                  },
                   "concurrentExceptions" : {
                     "type" : "array",
                     "items" : {
@@ -2004,6 +2010,9 @@
                           "type" : "string"
                         },
                         "location" : {
+                          "type" : "string"
+                        },
+                        "taskManagerId" : {
                           "type" : "string"
                         }
                       }
