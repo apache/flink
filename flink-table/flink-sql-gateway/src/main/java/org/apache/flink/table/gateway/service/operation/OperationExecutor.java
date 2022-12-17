@@ -460,7 +460,7 @@ public class OperationExecutor {
                                     } catch (Exception e) {
                                         throw new FlinkException(
                                                 "Could not stop job "
-                                                        + stopJobOperation
+                                                        + stopJobOperation.getJobId()
                                                         + " in session "
                                                         + operationHandle.getIdentifier()
                                                         + ".",
