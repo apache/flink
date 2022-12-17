@@ -22,14 +22,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
-import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.ExceptionUtils;
@@ -42,13 +47,10 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
@@ -188,22 +190,38 @@ public class TestUtils {
     }
 
     /**
-     * Wait util at least one job turns into RUNNING status in the cluster. Applicable for single
-     * job scenarios.
+     * Wait util all task of a job turns into RUNNING state.
      *
-     * @param client ClusterClient which could be {@link
+     * @param restClusterClient RestClusterClient which could be {@link
      *     org.apache.flink.test.junit5.InjectClusterClient}.
      */
-    public static void waitUntilJobIsRunning(ClusterClient<?> client) throws Exception {
-        List<JobID> runningJobs = new ArrayList<>();
-        while (runningJobs.isEmpty()) {
-            Thread.sleep(50);
-            Collection<JobStatusMessage> statusMessages = client.listJobs().get();
-            runningJobs =
-                    statusMessages.stream()
-                            .filter(status -> status.getJobState().equals(JobStatus.RUNNING))
-                            .map(JobStatusMessage::getJobId)
-                            .collect(Collectors.toList());
-        }
+    public static void waitUntilAllTasksAreRunning(
+            RestClusterClient<?> restClusterClient, JobID jobId) throws Exception {
+        // access the REST endpoint of the cluster to determine the state of each ExecutionVertex
+        final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+        final JobMessageParameters params = detailsHeaders.getUnresolvedMessageParameters();
+        params.jobPathParameter.resolve(jobId);
+
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        restClusterClient
+                                .sendRequest(detailsHeaders, params, EmptyRequestBody.getInstance())
+                                .thenApply(
+                                        detailsInfo ->
+                                                allVerticesRunning(
+                                                        detailsInfo.getJobVerticesPerState()))
+                                .get());
+    }
+
+    private static boolean allVerticesRunning(Map<ExecutionState, Integer> states) {
+        return states.entrySet().stream()
+                .allMatch(
+                        entry -> {
+                            if (entry.getKey() == ExecutionState.RUNNING) {
+                                return entry.getValue() > 0;
+                            } else {
+                                return entry.getValue() == 0; // no vertices in non-running state.
+                            }
+                        });
     }
 }

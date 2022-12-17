@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.service;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -431,7 +432,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         assertThat(results.size()).isEqualTo(1);
         String jobId = results.get(0).getString(0).toString();
 
-        TestUtils.waitUntilJobIsRunning(restClusterClient);
+        TestUtils.waitUntilAllTasksAreRunning(restClusterClient, JobID.fromHexString(jobId));
 
         String stopSql = String.format(stopSqlTemplate, jobId, option);
         OperationHandle stopOperationHandle =
