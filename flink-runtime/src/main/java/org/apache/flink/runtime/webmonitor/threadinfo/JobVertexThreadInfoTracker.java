@@ -77,7 +77,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     @GuardedBy("lock")
     private final ThreadInfoRequestCoordinator coordinator;
 
-    private final Function<JobVertexThreadInfoStats, T> createStatsFn;
+    private final Function<VertexThreadInfoStats, T> createStatsFn;
 
     private final ExecutorService executor;
 
@@ -108,7 +108,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     JobVertexThreadInfoTracker(
             ThreadInfoRequestCoordinator coordinator,
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<JobVertexThreadInfoStats, T> createStatsFn,
+            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Duration cleanUpInterval,
             int numSamples,
@@ -193,7 +193,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
             final CompletableFuture<ResourceManagerGateway> gatewayFuture =
                     resourceManagerGatewayRetriever.getFuture();
 
-            CompletableFuture<JobVertexThreadInfoStats> sample =
+            CompletableFuture<VertexThreadInfoStats> sample =
                     gatewayFuture.thenCompose(
                             (ResourceManagerGateway resourceManagerGateway) ->
                                     coordinator.triggerThreadInfoRequest(
@@ -334,7 +334,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
 
     /** Callback on completed thread info sample. */
     private class ThreadInfoSampleCompletionCallback
-            implements BiConsumer<JobVertexThreadInfoStats, Throwable> {
+            implements BiConsumer<VertexThreadInfoStats, Throwable> {
 
         private final Key key;
         private final AccessExecutionJobVertex vertex;
@@ -345,7 +345,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         }
 
         @Override
-        public void accept(JobVertexThreadInfoStats threadInfoStats, Throwable throwable) {
+        public void accept(VertexThreadInfoStats threadInfoStats, Throwable throwable) {
             synchronized (lock) {
                 try {
                     if (shutDown) {

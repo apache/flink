@@ -104,14 +104,14 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
                         createMockSubtaskWithGateways(
                                 CompletionType.SUCCESSFULLY, CompletionType.SUCCESSFULLY);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture =
+        CompletableFuture<VertexThreadInfoStats> requestFuture =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
                         DEFAULT_DELAY_BETWEEN_SAMPLES,
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
-        JobVertexThreadInfoStats threadInfoStats = requestFuture.get();
+        VertexThreadInfoStats threadInfoStats = requestFuture.get();
 
         // verify the request result
         assertThat(threadInfoStats.getRequestId()).isEqualTo(0);
@@ -133,7 +133,7 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
                         createMockSubtaskWithGateways(
                                 CompletionType.SUCCESSFULLY, CompletionType.EXCEPTIONALLY);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture =
+        CompletableFuture<VertexThreadInfoStats> requestFuture =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
@@ -156,7 +156,7 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
                         createMockSubtaskWithGateways(
                                 CompletionType.SUCCESSFULLY, CompletionType.TIMEOUT);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture =
+        CompletableFuture<VertexThreadInfoStats> requestFuture =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
@@ -184,16 +184,16 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
                         createMockSubtaskWithGateways(
                                 CompletionType.SUCCESSFULLY, CompletionType.TIMEOUT);
 
-        List<CompletableFuture<JobVertexThreadInfoStats>> requestFutures = new ArrayList<>();
+        List<CompletableFuture<VertexThreadInfoStats>> requestFutures = new ArrayList<>();
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture1 =
+        CompletableFuture<VertexThreadInfoStats> requestFuture1 =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
                         DEFAULT_DELAY_BETWEEN_SAMPLES,
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture2 =
+        CompletableFuture<VertexThreadInfoStats> requestFuture2 =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
@@ -204,7 +204,7 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
         requestFutures.add(requestFuture1);
         requestFutures.add(requestFuture2);
 
-        for (CompletableFuture<JobVertexThreadInfoStats> future : requestFutures) {
+        for (CompletableFuture<VertexThreadInfoStats> future : requestFutures) {
             assertThat(future).isNotDone();
         }
 
@@ -212,12 +212,12 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
         coordinator.shutDown();
 
         // verify all completed
-        for (CompletableFuture<JobVertexThreadInfoStats> future : requestFutures) {
+        for (CompletableFuture<VertexThreadInfoStats> future : requestFutures) {
             assertThat(future).isCompletedExceptionally();
         }
 
         // verify new trigger returns failed future
-        CompletableFuture<JobVertexThreadInfoStats> future =
+        CompletableFuture<VertexThreadInfoStats> future =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,

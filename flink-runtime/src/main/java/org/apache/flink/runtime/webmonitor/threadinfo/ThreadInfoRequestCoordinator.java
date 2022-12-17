@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** A coordinator for triggering and collecting thread info stats of running job vertex subtasks. */
 public class ThreadInfoRequestCoordinator
         extends TaskStatsRequestCoordinator<
-                Map<ExecutionAttemptID, Collection<ThreadInfoSample>>, JobVertexThreadInfoStats> {
+                Map<ExecutionAttemptID, Collection<ThreadInfoSample>>, VertexThreadInfoStats> {
 
     /**
      * Creates a new coordinator for the job.
@@ -68,7 +68,7 @@ public class ThreadInfoRequestCoordinator
      *     samples.
      * @return A future of the completed thread info stats.
      */
-    public CompletableFuture<JobVertexThreadInfoStats> triggerThreadInfoRequest(
+    public CompletableFuture<VertexThreadInfoStats> triggerThreadInfoRequest(
             Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                     executionsWithGateways,
             int numSamples,
@@ -161,8 +161,7 @@ public class ThreadInfoRequestCoordinator
 
     private static class PendingThreadInfoRequest
             extends PendingStatsRequest<
-                    Map<ExecutionAttemptID, Collection<ThreadInfoSample>>,
-                    JobVertexThreadInfoStats> {
+                    Map<ExecutionAttemptID, Collection<ThreadInfoSample>>, VertexThreadInfoStats> {
 
         PendingThreadInfoRequest(
                 int requestId, Collection<? extends Set<ExecutionAttemptID>> tasksToCollect) {
@@ -170,13 +169,13 @@ public class ThreadInfoRequestCoordinator
         }
 
         @Override
-        protected JobVertexThreadInfoStats assembleCompleteStats(long endTime) {
+        protected VertexThreadInfoStats assembleCompleteStats(long endTime) {
             HashMap<ExecutionAttemptID, Collection<ThreadInfoSample>> samples = new HashMap<>();
             for (Map<ExecutionAttemptID, Collection<ThreadInfoSample>> map :
                     statsResultByTaskGroup.values()) {
                 samples.putAll(map);
             }
-            return new JobVertexThreadInfoStats(requestId, startTime, endTime, samples);
+            return new VertexThreadInfoStats(requestId, startTime, endTime, samples);
         }
     }
 }
