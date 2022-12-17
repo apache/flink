@@ -28,11 +28,8 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Thread info statistics of multiple tasks. Each subtask can deliver multiple samples for
- * statistical purposes.
- */
-public class JobVertexThreadInfoStats implements Statistics {
+/** Thread info statistics of single JobVertex or ExecutionVertex. */
+public class VertexThreadInfoStats implements Statistics {
 
     /** ID of the corresponding request. */
     private final int requestId;
@@ -54,7 +51,7 @@ public class JobVertexThreadInfoStats implements Statistics {
      * @param endTime Timestamp, when all thread info samples were collected.
      * @param samplesBySubtask Map of thread info samples by subtask (execution ID).
      */
-    public JobVertexThreadInfoStats(
+    public VertexThreadInfoStats(
             int requestId,
             long startTime,
             long endTime,

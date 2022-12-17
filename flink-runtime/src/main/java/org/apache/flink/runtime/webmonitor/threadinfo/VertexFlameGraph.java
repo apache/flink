@@ -28,12 +28,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.List;
 
 /**
- * Flame Graph representation for a job vertex.
+ * Flame Graph representation for a job vertex or an execution vertex.
  *
  * <p>Statistics are gathered by sampling stack traces of running tasks.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class JobVertexFlameGraph implements ResponseBody {
+public class VertexFlameGraph implements ResponseBody {
 
     private static final String FIELD_NAME_END_TIMESTAMP = "endTimestamp";
     private static final String FIELD_NAME_DATA = "data";
@@ -46,7 +46,7 @@ public class JobVertexFlameGraph implements ResponseBody {
     private final Node root;
 
     @JsonCreator
-    public JobVertexFlameGraph(
+    public VertexFlameGraph(
             @JsonProperty(FIELD_NAME_END_TIMESTAMP) long endTimestamp,
             @JsonProperty(FIELD_NAME_DATA) Node root) {
         this.endTimestamp = endTimestamp;
@@ -69,18 +69,18 @@ public class JobVertexFlameGraph implements ResponseBody {
     }
 
     // Indicates that the task execution has been terminated
-    public static JobVertexFlameGraph terminated() {
-        return new JobVertexFlameGraph(-1, null);
+    public static VertexFlameGraph terminated() {
+        return new VertexFlameGraph(-1, null);
     }
 
     // Indicates that the flame graph feature has been disabled
-    public static JobVertexFlameGraph disabled() {
-        return new JobVertexFlameGraph(-2, null);
+    public static VertexFlameGraph disabled() {
+        return new VertexFlameGraph(-2, null);
     }
 
     // Indicates that it is waiting for the first samples to creating the flame graph
-    public static JobVertexFlameGraph waiting() {
-        return new JobVertexFlameGraph(-3, null);
+    public static VertexFlameGraph waiting() {
+        return new VertexFlameGraph(-3, null);
     }
 
     /** Graph node. */

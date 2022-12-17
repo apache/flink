@@ -30,21 +30,21 @@ import java.util.Map;
 import java.util.Set;
 
 /** Factory class for creating Flame Graph representations. */
-public class JobVertexFlameGraphFactory {
+public class VertexFlameGraphFactory {
 
     /**
-     * Converts {@link JobVertexThreadInfoStats} into a FlameGraph.
+     * Converts {@link VertexThreadInfoStats} into a FlameGraph.
      *
      * @param sample Thread details sample containing stack traces.
      * @return FlameGraph data structure
      */
-    public static JobVertexFlameGraph createFullFlameGraphFrom(JobVertexThreadInfoStats sample) {
+    public static VertexFlameGraph createFullFlameGraphFrom(VertexThreadInfoStats sample) {
         EnumSet<Thread.State> included = EnumSet.allOf(Thread.State.class);
         return createFlameGraphFromSample(sample, included);
     }
 
     /**
-     * Converts {@link JobVertexThreadInfoStats} into a FlameGraph representing blocked (Off-CPU)
+     * Converts {@link VertexThreadInfoStats} into a FlameGraph representing blocked (Off-CPU)
      * threads.
      *
      * <p>Includes threads in states Thread.State.[TIMED_WAITING, BLOCKED, WAITING].
@@ -52,14 +52,14 @@ public class JobVertexFlameGraphFactory {
      * @param sample Thread details sample containing stack traces.
      * @return FlameGraph data structure.
      */
-    public static JobVertexFlameGraph createOffCpuFlameGraph(JobVertexThreadInfoStats sample) {
+    public static VertexFlameGraph createOffCpuFlameGraph(VertexThreadInfoStats sample) {
         EnumSet<Thread.State> included =
                 EnumSet.of(Thread.State.TIMED_WAITING, Thread.State.BLOCKED, Thread.State.WAITING);
         return createFlameGraphFromSample(sample, included);
     }
 
     /**
-     * Converts {@link JobVertexThreadInfoStats} into a FlameGraph representing actively running
+     * Converts {@link VertexThreadInfoStats} into a FlameGraph representing actively running
      * (On-CPU) threads.
      *
      * <p>Includes threads in states Thread.State.[RUNNABLE, NEW].
@@ -67,13 +67,13 @@ public class JobVertexFlameGraphFactory {
      * @param sample Thread details sample containing stack traces.
      * @return FlameGraph data structure
      */
-    public static JobVertexFlameGraph createOnCpuFlameGraph(JobVertexThreadInfoStats sample) {
+    public static VertexFlameGraph createOnCpuFlameGraph(VertexThreadInfoStats sample) {
         EnumSet<Thread.State> included = EnumSet.of(Thread.State.RUNNABLE, Thread.State.NEW);
         return createFlameGraphFromSample(sample, included);
     }
 
-    private static JobVertexFlameGraph createFlameGraphFromSample(
-            JobVertexThreadInfoStats sample, Set<Thread.State> threadStates) {
+    private static VertexFlameGraph createFlameGraphFromSample(
+            VertexThreadInfoStats sample, Set<Thread.State> threadStates) {
         final NodeBuilder root = new NodeBuilder("root");
         for (Collection<ThreadInfoSample> threadInfoSubSamples :
                 sample.getSamplesBySubtask().values()) {
@@ -94,7 +94,7 @@ public class JobVertexFlameGraphFactory {
                 }
             }
         }
-        return new JobVertexFlameGraph(sample.getEndTime(), root.toNode());
+        return new VertexFlameGraph(sample.getEndTime(), root.toNode());
     }
 
     private static class NodeBuilder {
@@ -119,12 +119,12 @@ public class JobVertexFlameGraphFactory {
             hitCount++;
         }
 
-        private JobVertexFlameGraph.Node toNode() {
-            final List<JobVertexFlameGraph.Node> childrenNodes = new ArrayList<>(children.size());
+        private VertexFlameGraph.Node toNode() {
+            final List<VertexFlameGraph.Node> childrenNodes = new ArrayList<>(children.size());
             for (NodeBuilder builderChild : children.values()) {
                 childrenNodes.add(builderChild.toNode());
             }
-            return new JobVertexFlameGraph.Node(
+            return new VertexFlameGraph.Node(
                     stackTraceLocation, hitCount, Collections.unmodifiableList(childrenNodes));
         }
     }

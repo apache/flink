@@ -18,20 +18,32 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import java.util.Arrays;
-import java.util.Collection;
+/** Query parameter specifying the index of a subtask. */
+public class SubtaskIndexQueryParameter extends MessageQueryParameter<Integer> {
 
-/** Message parameters for job vertex Flame Graph REST handler. */
-public class JobVertexFlameGraphParameters extends JobVertexMessageParameters {
+    public static final String KEY = "subtaskindex";
 
-    public final FlameGraphTypeQueryParameter flameGraphTypeQueryParameter =
-            new FlameGraphTypeQueryParameter();
-
-    public final SubtaskIndexQueryParameter subtaskIndexQueryParameter =
-            new SubtaskIndexQueryParameter();
+    public SubtaskIndexQueryParameter() {
+        super(KEY, MessageParameterRequisiteness.OPTIONAL);
+    }
 
     @Override
-    public Collection<MessageQueryParameter<?>> getQueryParameters() {
-        return Arrays.asList(flameGraphTypeQueryParameter, subtaskIndexQueryParameter);
+    public Integer convertStringToValue(String value) throws ConversionException {
+        final int subtaskIndex = Integer.parseInt(value);
+        if (subtaskIndex >= 0) {
+            return subtaskIndex;
+        } else {
+            throw new ConversionException("subtaskindex must be positive, was: " + subtaskIndex);
+        }
+    }
+
+    @Override
+    public String convertValueToString(Integer value) {
+        return value.toString();
+    }
+
+    @Override
+    public String getDescription() {
+        return "Positive integer value that identifies a subtask.";
     }
 }
