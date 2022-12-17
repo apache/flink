@@ -195,10 +195,10 @@ public class TestUtils {
      *     org.apache.flink.test.junit5.InjectClusterClient}.
      */
     public static void waitUntilJobIsRunning(ClusterClient<?> client) throws Exception {
-        Collection<JobStatusMessage> statusMessages = client.listJobs().get();
         List<JobID> runningJobs = new ArrayList<>();
         while (runningJobs.isEmpty()) {
             Thread.sleep(50);
+            Collection<JobStatusMessage> statusMessages = client.listJobs().get();
             runningJobs =
                     statusMessages.stream()
                             .filter(status -> status.getJobState().equals(JobStatus.RUNNING))
