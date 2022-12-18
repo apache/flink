@@ -25,16 +25,20 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
 import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.session.ConfigureSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;
+import org.apache.flink.table.gateway.rest.message.session.ConfigureSessionRequestBody;
 import org.apache.flink.table.gateway.rest.message.session.GetSessionConfigResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.OpenSessionRequestBody;
 import org.apache.flink.table.gateway.rest.message.session.OpenSessionResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.SessionMessageParameters;
 import org.apache.flink.table.gateway.service.session.Session;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -77,6 +81,32 @@ class SessionCaseITTest extends RestAPIITTestBase {
             CloseSessionHeaders.getInstance();
     private static final EmptyRequestBody emptyRequestBody = EmptyRequestBody.getInstance();
 
+    private SessionHandle sessionHandle;
+
+    private SessionMessageParameters sessionMessageParameters;
+
+    @BeforeEach
+    public void setUp() throws Exception {
+        CompletableFuture<OpenSessionResponseBody> response =
+                sendRequest(openSessionHeaders, emptyParameters, openSessionRequestBody);
+        String sessionHandleId = response.get().getSessionHandle();
+        assertNotNull(sessionHandleId);
+
+        sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
+        assertNotNull(SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle));
+
+        sessionMessageParameters = new SessionMessageParameters(sessionHandle);
+    }
+
+    @AfterEach
+    public void cleanUp() throws Exception {
+        CompletableFuture<CloseSessionResponseBody> response =
+                sendRequest(closeSessionHeaders, sessionMessageParameters, emptyRequestBody);
+
+        String status = response.get().getStatus();
+        assertThat(status).isEqualTo(CLOSE_MESSAGE);
+    }
+
     @Test
     void testCreateAndCloseSessions() throws Exception {
         List<SessionHandle> sessionHandles = new ArrayList<>();
@@ -85,11 +115,11 @@ class SessionCaseITTest extends RestAPIITTestBase {
             CompletableFuture<OpenSessionResponseBody> response =
                     sendRequest(openSessionHeaders, emptyParameters, openSessionRequestBody);
             String sessionHandleId = response.get().getSessionHandle();
-            assertThat(sessionHandleId).isNotNull();
+            assertNotNull(sessionHandleId);
             sessionHandleIds.add(sessionHandleId);
             SessionHandle sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
-            assertThat(SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle))
-                    .isNotNull();
+            assertNotNull(
+                    SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle));
             sessionHandles.add(sessionHandle);
         }
         assertThat(sessionHandleIds).hasSize(SESSION_NUMBER);
@@ -117,16 +147,6 @@ class SessionCaseITTest extends RestAPIITTestBase {
 
     @Test
     void testGetSessionConfiguration() throws Exception {
-        CompletableFuture<OpenSessionResponseBody> response =
-                sendRequest(openSessionHeaders, emptyParameters, openSessionRequestBody);
-        String sessionHandleId = response.get().getSessionHandle();
-        assertThat(sessionHandleId).isNotNull();
-        SessionHandle sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
-        assertThat(SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle))
-                .isNotNull();
-
-        SessionMessageParameters sessionMessageParameters =
-                new SessionMessageParameters(sessionHandle);
         CompletableFuture<GetSessionConfigResponseBody> future =
                 sendRequest(
                         GetSessionConfigHeaders.getInstance(),
@@ -140,19 +160,12 @@ class SessionCaseITTest extends RestAPIITTestBase {
 
     @Test
     void testTouchSession() throws Exception {
-        CompletableFuture<OpenSessionResponseBody> response =
-                sendRequest(openSessionHeaders, emptyParameters, openSessionRequestBody);
-        String sessionHandleId = response.get().getSessionHandle();
-        assertNotNull(sessionHandleId);
-        SessionHandle sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
         Session session =
                 SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle);
-        assertThat(session).isNotNull();
+        assertNotNull(session);
 
         long lastAccessTime = session.getLastAccessTime();
 
-        SessionMessageParameters sessionMessageParameters =
-                new SessionMessageParameters(sessionHandle);
         CompletableFuture<EmptyResponseBody> future =
                 sendRequest(
                         TriggerSessionHeartbeatHeaders.getInstance(),
@@ -160,5 +173,25 @@ class SessionCaseITTest extends RestAPIITTestBase {
                         emptyRequestBody);
         future.get();
         assertThat(session.getLastAccessTime() > lastAccessTime).isTrue();
+    }
+
+    @Test
+    void testConfigureSession() throws Exception {
+        ConfigureSessionRequestBody configureSessionRequestBody =
+                new ConfigureSessionRequestBody("set 'test' = 'configure';", -1L);
+
+        CompletableFuture<EmptyResponseBody> response =
+                sendRequest(
+                        ConfigureSessionHeaders.getINSTANCE(),
+                        sessionMessageParameters,
+                        configureSessionRequestBody);
+        response.get();
+
+        assertThat(
+                        SQL_GATEWAY_SERVICE_EXTENSION
+                                .getSessionManager()
+                                .getSession(sessionHandle)
+                                .getSessionConfig())
+                .containsEntry("test", "configure");
     }
 }
