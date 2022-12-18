@@ -27,7 +27,7 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementRes
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/** Message headers for execute a statement. */
+/** Message headers for executing a statement. */
 public class ExecuteStatementHeaders
         implements SqlGatewayMessageHeaders<
                 ExecuteStatementRequestBody,

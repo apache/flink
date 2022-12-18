@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
-/** {@link RequestBody} for execute a statement. */
+/** {@link RequestBody} for executing a statement. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExecuteStatementRequestBody implements RequestBody {
 

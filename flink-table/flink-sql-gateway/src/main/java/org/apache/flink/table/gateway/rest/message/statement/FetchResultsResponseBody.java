@@ -30,7 +30,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 
 import javax.annotation.Nullable;
 
-/** {@link ResponseBody} for execute a statement. */
+/** {@link ResponseBody} for executing a statement. */
 public class FetchResultsResponseBody implements ResponseBody {
 
     private static final String FIELD_RESULT_TYPE = "resultType";

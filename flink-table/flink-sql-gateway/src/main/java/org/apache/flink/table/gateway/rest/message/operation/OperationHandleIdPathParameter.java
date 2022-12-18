@@ -23,7 +23,7 @@ import org.apache.flink.table.gateway.api.operation.OperationHandle;
 
 import java.util.UUID;
 
-/** {@link MessagePathParameter} that parse the {@link OperationHandle}. */
+/** {@link MessagePathParameter} that parses the {@link OperationHandle}. */
 public class OperationHandleIdPathParameter extends MessagePathParameter<OperationHandle> {
 
     public static final String KEY = "operation_handle";
