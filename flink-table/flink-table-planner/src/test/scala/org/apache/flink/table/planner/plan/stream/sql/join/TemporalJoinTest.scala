@@ -627,8 +627,9 @@ class TemporalJoinTest extends TableTestBase {
 
     expectExceptionThrown(
       sqlQuery,
-      "Can't generate a valid execution plan for the given query",
-      classOf[TableException])
+      "Filter is not allowed for right changelog input of event time temporal join, it will corrupt the versioning of data.",
+      classOf[TableException]
+    )
   }
 
   private def expectExceptionThrown(

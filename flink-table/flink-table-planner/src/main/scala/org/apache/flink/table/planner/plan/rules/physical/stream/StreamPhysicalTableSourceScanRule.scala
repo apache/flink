@@ -69,7 +69,7 @@ class StreamPhysicalTableSourceScanRule
     val resolvedSchema = table.contextResolvedTable.getResolvedSchema
 
     if (
-      !scan.eventTimeSnapshot && (isUpsertSource(resolvedSchema, table.tableSource) ||
+      !scan.eventTimeSnapshotRequired && (isUpsertSource(resolvedSchema, table.tableSource) ||
         isSourceChangeEventsDuplicate(resolvedSchema, table.tableSource, tableConfig))
     ) {
       // generate changelog normalize node

@@ -47,7 +47,7 @@ class FlinkLogicalTableSourceScan(
     traitSet: RelTraitSet,
     hints: util.List[RelHint],
     val relOptTable: TableSourceTable,
-    val eventTimeSnapshot: Boolean = false)
+    val eventTimeSnapshotRequired: Boolean = false)
   extends TableScan(cluster, traitSet, hints, relOptTable)
   with FlinkLogicalRel {
 
@@ -56,13 +56,13 @@ class FlinkLogicalTableSourceScan(
   def copy(
       traitSet: RelTraitSet,
       tableSourceTable: TableSourceTable,
-      eventTimeSnapshot: Boolean): FlinkLogicalTableSourceScan = {
+      eventTimeSnapshotRequired: Boolean): FlinkLogicalTableSourceScan = {
     new FlinkLogicalTableSourceScan(
       cluster,
       traitSet,
       getHints,
       tableSourceTable,
-      eventTimeSnapshot)
+      eventTimeSnapshotRequired)
   }
 
   def copy(
@@ -73,11 +73,16 @@ class FlinkLogicalTableSourceScan(
       traitSet,
       getHints,
       tableSourceTable,
-      eventTimeSnapshot)
+      eventTimeSnapshotRequired)
   }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, getHints, relOptTable, eventTimeSnapshot)
+    new FlinkLogicalTableSourceScan(
+      cluster,
+      traitSet,
+      getHints,
+      relOptTable,
+      eventTimeSnapshotRequired)
   }
 
   override def deriveRowType(): RelDataType = {
@@ -97,6 +102,7 @@ class FlinkLogicalTableSourceScan(
       .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
+      .itemIf("eventTimeSnapshotRequired", "true", eventTimeSnapshotRequired)
   }
 
 }
