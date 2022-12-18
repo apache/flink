@@ -18,11 +18,16 @@
 
 package org.apache.flink.table.gateway.service;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -55,7 +60,10 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.TableFunc0;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -64,11 +72,16 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -97,7 +110,6 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
@@ -105,8 +117,17 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 public class SqlGatewayServiceITCase extends AbstractTestBase {
 
     @RegisterExtension
+    @Order(1)
+    public static final MiniClusterExtension MINI_CLUSTER =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .build());
+
+    @RegisterExtension
+    @Order(2)
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension();
+            new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
     private static SessionManager sessionManager;
     private static SqlGatewayServiceImpl service;
@@ -291,15 +312,8 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 Duration.ofSeconds(10),
                 "Failed to wait operation finish.");
 
-        Long token = 0L;
         List<RowData> expectedData = getDefaultResultSet().getData();
-        List<RowData> actualData = new ArrayList<>();
-        while (token != null) {
-            ResultSet currentResult =
-                    service.fetchResults(sessionHandle, operationHandle, token, 1);
-            actualData.addAll(checkNotNull(currentResult.getData()));
-            token = currentResult.getNextToken();
-        }
+        List<RowData> actualData = fetchAllResults(sessionHandle, operationHandle);
         assertThat(actualData).isEqualTo(expectedData);
 
         service.closeOperation(sessionHandle, operationHandle);
@@ -379,19 +393,60 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         -1,
                         Configuration.fromMap(Collections.singletonMap(key, value)));
 
-        Long token = 0L;
-        List<RowData> settings = new ArrayList<>();
-        while (token != null) {
-            ResultSet result =
-                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
-            settings.addAll(result.getData());
-            token = result.getNextToken();
-        }
+        List<RowData> settings = fetchAllResults(sessionHandle, operationHandle);
 
         assertThat(settings)
                 .contains(
                         GenericRowData.of(
                                 StringData.fromString(key), StringData.fromString(value)));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"WITH SAVEPOINT,true", "WITH SAVEPOINT WITH DRAIN,true", "'',false"})
+    public void testStopJobStatementWithSavepoint(
+            String option,
+            boolean hasSavepoint,
+            @InjectClusterClient RestClusterClient<?> restClusterClient,
+            @TempDir File tmpDir)
+            throws Exception {
+        Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
+        configuration.setBoolean(TableConfigOptions.TABLE_DML_SYNC, false);
+        File savepointDir = new File(tmpDir, "savepoints");
+        configuration.set(
+                CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+        String insertSql = "INSERT INTO sink SELECT * FROM source;";
+        String stopSqlTemplate = "STOP JOB '%s' %s;";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, configuration);
+        service.executeStatement(sessionHandle, sinkDdl, -1, configuration);
+
+        OperationHandle insertOperationHandle =
+                service.executeStatement(sessionHandle, insertSql, -1, configuration);
+
+        List<RowData> results = fetchAllResults(sessionHandle, insertOperationHandle);
+        assertThat(results.size()).isEqualTo(1);
+        String jobId = results.get(0).getString(0).toString();
+
+        TestUtils.waitUntilAllTasksAreRunning(restClusterClient, JobID.fromHexString(jobId));
+
+        String stopSql = String.format(stopSqlTemplate, jobId, option);
+        OperationHandle stopOperationHandle =
+                service.executeStatement(sessionHandle, stopSql, -1, configuration);
+
+        List<RowData> stopResults = fetchAllResults(sessionHandle, stopOperationHandle);
+        assertThat(stopResults.size()).isEqualTo(1);
+        if (hasSavepoint) {
+            String savepoint = stopResults.get(0).getString(0).toString();
+            Path savepointPath = Paths.get(savepoint);
+            assertThat(savepointPath.getFileName().toString()).startsWith("savepoint-");
+        } else {
+            assertThat(stopResults.get(0).getString(0).toString()).isEqualTo("OK");
+        }
     }
 
     @Test
@@ -1067,5 +1122,18 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             List<String> expectedCompletionHints) {
         assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
                 .isEqualTo(expectedCompletionHints);
+    }
+
+    private List<RowData> fetchAllResults(
+            SessionHandle sessionHandle, OperationHandle operationHandle) {
+        Long token = 0L;
+        List<RowData> results = new ArrayList<>();
+        while (token != null) {
+            ResultSet result =
+                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
+            results.addAll(result.getData());
+            token = result.getNextToken();
+        }
+        return results;
     }
 }
