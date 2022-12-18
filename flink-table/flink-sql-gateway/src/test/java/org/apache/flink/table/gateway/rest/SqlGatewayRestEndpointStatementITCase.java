@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -40,6 +41,8 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementReq
 import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
+import org.apache.flink.table.gateway.rest.serde.ResultInfo;
+import org.apache.flink.table.gateway.rest.serde.RowDataInfo;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
@@ -139,20 +142,23 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
         FetchResultsResponseBody fetchResultsResponseBody =
                 fetchResults(sessionHandle, operationHandle, 0L);
 
-        ResultSet resultSet = fetchResultsResponseBody.getResults();
+        ResultInfo resultInfo = fetchResultsResponseBody.getResults();
+        assertThat(resultInfo).isNotNull();
+
         String resultType = fetchResultsResponseBody.getResultType();
-        assertThat(resultSet).isNotNull();
         assertThat(
                         Arrays.asList(
                                 ResultSet.ResultType.PAYLOAD.name(),
                                 ResultSet.ResultType.EOS.name()))
                 .contains(resultType);
 
+        ResolvedSchema resultSchema = resultInfo.buildResultSchema();
+
         return toString(
                 StatementType.match(statement),
-                resultSet.getResultSchema(),
+                resultSchema,
                 new RowDataToStringConverterImpl(
-                        resultSet.getResultSchema().toPhysicalRowDataType(),
+                        resultSchema.toPhysicalRowDataType(),
                         DateTimeUtils.UTC_ZONE.toZoneId(),
                         SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
                         false),
@@ -234,10 +240,14 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
         private void fetch() throws Exception {
             FetchResultsResponseBody fetchResultsResponseBody =
                     fetchResults(sessionHandle, operationHandle, token);
+
             String nextResultUri = fetchResultsResponseBody.getNextResultUri();
-            ResultSet resultSet = fetchResultsResponseBody.getResults();
             token = parseTokenFromUri(nextResultUri);
-            fetchedRows = resultSet.getData().iterator();
+
+            fetchedRows =
+                    fetchResultsResponseBody.getResults().getRowDataInfos().stream()
+                            .map(RowDataInfo::toRowData)
+                            .iterator();
         }
     }
 

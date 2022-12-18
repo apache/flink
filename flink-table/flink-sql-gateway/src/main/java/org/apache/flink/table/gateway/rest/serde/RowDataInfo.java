@@ -19,41 +19,73 @@
 package org.apache.flink.table.gateway.rest.serde;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /** A RowDataInfo info represents a {@link RowData}. */
 @Internal
 public class RowDataInfo {
 
-    private static final String FIELD_NAME_KIND = "kind";
-    private static final String FIELD_NAME_FIELDS = "fields";
+    public static final String FIELD_NAME_KIND = "kind";
+    public static final String FIELD_NAME_FIELDS = "fields";
 
-    @JsonProperty(FIELD_NAME_KIND)
     private final String kind;
 
-    @JsonProperty(FIELD_NAME_FIELDS)
-    private final List<JsonNode> fields;
+    private final List<Object> fields;
 
-    @JsonCreator
-    public RowDataInfo(
-            @JsonProperty(FIELD_NAME_KIND) String kind,
-            @JsonProperty(FIELD_NAME_FIELDS) List<JsonNode> fields) {
+    public RowDataInfo(String kind, List<Object> fields) {
         this.kind = Preconditions.checkNotNull(kind, "kind must not be null");
         this.fields = Preconditions.checkNotNull(fields, "fields must not be null");
+    }
+
+    public static RowDataInfo toRowDataInfo(
+            RowData rowData, List<RowData.FieldGetter> fieldGetters) {
+        return new RowDataInfo(
+                rowData.getRowKind().name(),
+                fieldGetters.stream()
+                        .map(fieldGetter -> fieldGetter.getFieldOrNull(rowData))
+                        .collect(Collectors.toList()));
+    }
+
+    public RowData toRowData() {
+        return GenericRowData.ofKind(RowKind.valueOf(kind), fields.toArray());
     }
 
     public String getKind() {
         return kind;
     }
 
-    public List<JsonNode> getFields() {
+    public List<Object> getFields() {
         return fields;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(kind, fields);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof RowDataInfo)) {
+            return false;
+        }
+        RowDataInfo that = (RowDataInfo) o;
+        return Objects.equals(kind, that.kind) && Objects.equals(fields, that.fields);
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "DataInfo{\n  rowKind=%s,\n  fields=[%s]\n}",
+                kind, fields.stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 }

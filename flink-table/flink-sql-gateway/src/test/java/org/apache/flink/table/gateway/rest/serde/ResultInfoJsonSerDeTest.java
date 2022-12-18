@@ -31,6 +31,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -72,95 +73,102 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZON
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link JsonResultSetSerializer} and {@link JsonResultSetDeserializer}. */
-class JsonResultSetSerDeTest {
+/** Tests for {@link ResultInfoJsonSerializer} and {@link ResultInfoJsonDeserializer}. */
+public class ResultInfoJsonSerDeTest {
 
-    private static final byte tinyint = 'c';
-    private static final short smallint = 128;
-    private static final int intValue = 45536;
-    private static final float floatValue = 33.333F;
-    private static final long bigint = 1238123899121L;
-    private static final String name = "asdlkjasjkdla998y1122";
-    private static final byte[] bytes = new byte[1024];
-    private static final Double[] doubles = new Double[] {1.1, 2.2, 3.3};
-    private static final BigDecimal decimal = new BigDecimal("123.456789");
-    private static final LocalDate date = LocalDate.parse("1990-10-14");
-    private static final LocalTime time = LocalTime.parse("12:12:43");
-    private static final Timestamp timestamp3 = Timestamp.valueOf("1990-10-14 12:12:43.123");
-    private static final Timestamp timestamp9 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
-    private static final Instant timestampWithLocalZone =
+    private final byte tinyint = 'c';
+    private final short smallint = 128;
+    private final int intValue = 45536;
+    private final float floatValue = 33.333F;
+    private final long bigint = 1238123899121L;
+    private final String name = "asdlkjasjkdla998y1122";
+    private static final byte[] BYTES = new byte[1024];
+    private final Double[] doubles = new Double[] {1.1, 2.2, 3.3};
+    private final BigDecimal decimal = new BigDecimal("123.456789");
+    private final LocalDate date = LocalDate.parse("1990-10-14");
+    private final LocalTime time = LocalTime.parse("12:12:43");
+    private final Timestamp timestamp3 = Timestamp.valueOf("1990-10-14 12:12:43.123");
+    private final Timestamp timestamp9 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
+    private final Instant timestampWithLocalZone =
             LocalDateTime.of(1990, 10, 14, 12, 12, 43, 123456789)
                     .atOffset(ZoneOffset.of("Z"))
                     .toInstant();
-    private static final int ROW_NUMBER = 10;
 
-    private static final Map<String, Long> map = new HashMap<>();
-    private static final Map<String, Integer> multiSet = new HashMap<>();
-    private static final Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
-    private static final Map<String, Integer> innerMap = new HashMap<>();
+    private static final Map<String, Long> MAP = new HashMap<>();
+    private static final Map<String, Integer> MULTI_SET = new HashMap<>();
+    private static final Map<String, Map<String, Integer>> NESTED_MAP = new HashMap<>();
 
-    static {
-        map.put("element", 123L);
-        multiSet.put("element", 2);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private final int rowNumber = 10;
+
+    @BeforeAll
+    public static void setUp() {
+        MAP.put("element", 123L);
+        MULTI_SET.put("element", 2);
+        Map<String, Integer> innerMap = new HashMap<>();
         innerMap.put("key", 234);
-        nestedMap.put("inner_map", innerMap);
-        ThreadLocalRandom.current().nextBytes(bytes);
+        NESTED_MAP.put("inner_map", innerMap);
+        ThreadLocalRandom.current().nextBytes(BYTES);
+
+        SimpleModule simpleModule = new SimpleModule();
+        simpleModule.addSerializer(ResultInfo.class, new ResultInfoJsonSerializer());
+        simpleModule.addDeserializer(ResultInfo.class, new ResultInfoJsonDeserializer());
+        OBJECT_MAPPER.registerModule(simpleModule);
     }
 
     @Test
-    void testSerDeResultSetWithSingleRowData() throws Exception {
+    void testResultInfoSerDeWithSingleRowData() throws Exception {
         Row row = getTestRowData();
-        seDeResultSet(Collections.singletonList(row), getFields());
+        serDeTest(Collections.singletonList(row), getFields());
     }
 
     @Test
-    void testSerDeResultSetWithMultiRowData() throws Exception {
-        ArrayList<Row> rowList = new ArrayList<>();
-        for (int i = 0; i < ROW_NUMBER; ++i) {
+    void testResultInfoSerDeWithMultiRowData() throws Exception {
+        List<Row> rowList = new ArrayList<>();
+        for (int i = 0; i < rowNumber; i++) {
             rowList.add(getTestRowData());
         }
-        seDeResultSet(rowList, getFields());
+        serDeTest(rowList, getFields());
     }
 
     @Test
-    void testSerDeResultSetWithRowDataNullValues() throws Exception {
+    void testResultInfoSerDeWithNullValues() throws Exception {
         List<Row> rowList = new ArrayList<>();
         List<Integer> positions = new ArrayList<>();
-        for (int i = 0; i < 18; ++i) {
+        for (int i = 0; i < 18; i++) {
             positions.add(new Random().nextInt(18));
         }
-        for (int i = 0; i < ROW_NUMBER; ++i) {
+        for (int i = 0; i < rowNumber; i++) {
             rowList.add(getTestRowDataWithNullValues(positions));
         }
-        seDeResultSet(rowList, getFields());
+        serDeTest(rowList, getFields());
     }
 
-    void seDeResultSet(List<Row> rowList, List<DataTypes.Field> fields) throws IOException {
+    private void serDeTest(List<Row> rowList, List<DataTypes.Field> fields) throws IOException {
         List<RowData> rowDataList =
-                rowList.stream()
-                        .map(JsonResultSetSerDeTest::convertToInternal)
-                        .collect(Collectors.toList());
+                rowList.stream().map(this::convertToInternal).collect(Collectors.toList());
         ResolvedSchema testResolvedSchema = getTestResolvedSchema(fields);
-        ResultSet testResultSet =
-                new ResultSet(ResultSet.ResultType.PAYLOAD, 0L, testResolvedSchema, rowDataList);
-        // Test serialization & deserialization
-        ObjectMapper objectMapper = new ObjectMapper();
-        SimpleModule resultSetModule = new SimpleModule();
-        resultSetModule.addSerializer(ResultSet.class, new JsonResultSetSerializer());
-        resultSetModule.addDeserializer(ResultSet.class, new JsonResultSetDeserializer());
-        objectMapper.registerModule(resultSetModule);
-        String result = objectMapper.writeValueAsString(testResultSet);
-        ResultSet resultSet = objectMapper.readValue(result, ResultSet.class);
-        List<RowData> deRowDataList = resultSet.getData();
-        for (int i = 0; i < deRowDataList.size(); ++i) {
-            assertThat(convertToExternal(deRowDataList.get(i), ROW(getFields())))
-                    .isEqualTo(rowList.get(i));
+        ResultInfo testResultInfo =
+                ResultInfo.toResultInfo(
+                        new ResultSet(
+                                ResultSet.ResultType.PAYLOAD, 0L, testResolvedSchema, rowDataList));
+
+        // test serialization & deserialization
+        String result = OBJECT_MAPPER.writeValueAsString(testResultInfo);
+        ResultInfo resultInfo = OBJECT_MAPPER.readValue(result, ResultInfo.class);
+
+        assertThat(resultInfo.buildResultSchema().toString())
+                .isEqualTo(testResultInfo.buildResultSchema().toString());
+
+        List<RowDataInfo> rowDataInfos = resultInfo.getRowDataInfos();
+        for (int i = 0; i < rowDataInfos.size(); i++) {
+            RowData rowData = rowDataInfos.get(i).toRowData();
+            assertThat(convertToExternal(rowData, ROW(getFields()))).isEqualTo(rowList.get(i));
         }
-        assertThat(resultSet.getResultSchema().toString())
-                .isEqualTo(testResultSet.getResultSchema().toString());
     }
 
-    private static ResolvedSchema getTestResolvedSchema(List<DataTypes.Field> fields) {
+    private ResolvedSchema getTestResolvedSchema(List<DataTypes.Field> fields) {
         List<String> columnNames =
                 fields.stream().map(DataTypes.AbstractField::getName).collect(Collectors.toList());
         List<DataType> columnDataTypes =
@@ -168,7 +176,7 @@ class JsonResultSetSerDeTest {
         return ResolvedSchema.physical(columnNames, columnDataTypes);
     }
 
-    private static List<DataTypes.Field> getFields() {
+    private List<DataTypes.Field> getFields() {
         return Arrays.asList(
                 FIELD("bool", BOOLEAN()),
                 FIELD("tinyint", TINYINT()),
@@ -190,7 +198,7 @@ class JsonResultSetSerDeTest {
                 FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
     }
 
-    private static Row getTestRowData() {
+    private Row getTestRowData() {
         Row testRow = new Row(18);
         setRandomKind(testRow);
         testRow.setField(0, true);
@@ -200,7 +208,7 @@ class JsonResultSetSerDeTest {
         testRow.setField(4, bigint);
         testRow.setField(5, floatValue);
         testRow.setField(6, name);
-        testRow.setField(7, bytes);
+        testRow.setField(7, BYTES);
         testRow.setField(8, decimal);
         testRow.setField(9, doubles);
         testRow.setField(10, date);
@@ -208,13 +216,13 @@ class JsonResultSetSerDeTest {
         testRow.setField(12, timestamp3.toLocalDateTime());
         testRow.setField(13, timestamp9.toLocalDateTime());
         testRow.setField(14, timestampWithLocalZone);
-        testRow.setField(15, map);
-        testRow.setField(16, multiSet);
-        testRow.setField(17, nestedMap);
+        testRow.setField(15, MAP);
+        testRow.setField(16, MULTI_SET);
+        testRow.setField(17, NESTED_MAP);
         return testRow;
     }
 
-    private static Row getTestRowDataWithNullValues(List<Integer> positions) {
+    private Row getTestRowDataWithNullValues(List<Integer> positions) {
         Row testRow = new Row(18);
         setRandomKind(testRow);
         testRow.setField(0, true);
@@ -224,7 +232,7 @@ class JsonResultSetSerDeTest {
         testRow.setField(4, bigint);
         testRow.setField(5, floatValue);
         testRow.setField(6, name);
-        testRow.setField(7, bytes);
+        testRow.setField(7, BYTES);
         testRow.setField(8, decimal);
         testRow.setField(9, doubles);
         testRow.setField(10, date);
@@ -232,16 +240,16 @@ class JsonResultSetSerDeTest {
         testRow.setField(12, timestamp3.toLocalDateTime());
         testRow.setField(13, timestamp9.toLocalDateTime());
         testRow.setField(14, timestampWithLocalZone);
-        testRow.setField(15, map);
-        testRow.setField(16, multiSet);
-        testRow.setField(17, nestedMap);
+        testRow.setField(15, MAP);
+        testRow.setField(16, MULTI_SET);
+        testRow.setField(17, NESTED_MAP);
         for (int position : positions) {
             testRow.setField(position, null);
         }
         return testRow;
     }
 
-    private static void setRandomKind(Row testRow) {
+    private void setRandomKind(Row testRow) {
         int i = new Random().nextInt() % 4;
         switch (i) {
             case 0:
@@ -260,12 +268,12 @@ class JsonResultSetSerDeTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Row convertToExternal(RowData rowData, DataType dataType) {
+    private Row convertToExternal(RowData rowData, DataType dataType) {
         return (Row) DataFormatConverters.getConverterForDataType(dataType).toExternal(rowData);
     }
 
     @SuppressWarnings("unchecked")
-    private static GenericRowData convertToInternal(Row row) {
+    private GenericRowData convertToInternal(Row row) {
         DataFormatConverters.DataFormatConverter<GenericRowData, Row> converter =
                 DataFormatConverters.getConverterForDataType(ROW(getFields()));
         return converter.toInternal(row);
