@@ -60,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in session
  * related cases.
  */
-class SessionCaseITTest extends RestAPIITTestBase {
+class SessionRelatedITCase extends RestAPIITCaseBase {
 
     private static final String SESSION_NAME = "test";
     private static final Map<String, String> properties = new HashMap<>();

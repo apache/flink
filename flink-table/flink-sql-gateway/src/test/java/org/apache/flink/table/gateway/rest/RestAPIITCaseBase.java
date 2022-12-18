@@ -49,7 +49,7 @@ import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkC
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The base class for Rest API IT test. */
-abstract class RestAPIITTestBase {
+abstract class RestAPIITCaseBase {
 
     @RegisterExtension
     @Order(1)

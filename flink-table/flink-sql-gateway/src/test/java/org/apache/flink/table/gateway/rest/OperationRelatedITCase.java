@@ -52,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in operation
  * related cases.
  */
-class OperationCaseITTest extends RestAPIITTestBase {
+class OperationRelatedITCase extends RestAPIITCaseBase {
 
     private static final String sessionName = "test";
     private static final Map<String, String> properties = new HashMap<>();
