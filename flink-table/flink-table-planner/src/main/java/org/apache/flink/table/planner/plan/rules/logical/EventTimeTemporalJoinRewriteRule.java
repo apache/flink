@@ -118,9 +118,8 @@ public class EventTimeTemporalJoinRewriteRule
             // filter is not allowed because it will corrupt the version table
             if (null != calc.getProgram().getCondition()) {
                 throw new TableException(
-                        String.format(
-                                "Filter is not allowed for right changelog input of event time temporal join, it will corrupt the versioning of data. Please consider removing the filter '%s'd before joining.",
-                                calc.getProgram().getCondition()));
+                        "Filter is not allowed for right changelog input of event time temporal join,"
+                                + " it will corrupt the versioning of data. Please consider removing the filter before joining.");
             }
 
             final RelNode child = calc.getInput();

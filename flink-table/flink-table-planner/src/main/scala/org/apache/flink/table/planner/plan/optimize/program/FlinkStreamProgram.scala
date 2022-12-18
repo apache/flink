@@ -36,7 +36,6 @@ object FlinkStreamProgram {
   val PROJECT_REWRITE = "project_rewrite"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
-  val SNAPSHOT_REQUIREMENT = "snapshot_requirement"
   val TIME_INDICATOR = "time_indicator"
   val PHYSICAL = "physical"
   val PHYSICAL_REWRITE = "physical_rewrite"
