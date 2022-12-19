@@ -132,12 +132,12 @@ public class TestingSlotManager implements SlotManager {
     }
 
     @Override
-    public boolean registerTaskManager(
+    public RegistrationResult registerTaskManager(
             TaskExecutorConnection taskExecutorConnection,
             SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
             ResourceProfile defaultSlotResourceProfile) {
-        return true;
+        return RegistrationResult.SUCCESS;
     }
 
     @Override

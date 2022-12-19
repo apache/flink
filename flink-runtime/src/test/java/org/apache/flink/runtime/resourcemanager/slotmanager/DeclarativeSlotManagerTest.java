@@ -193,17 +193,18 @@ class DeclarativeSlotManagerTest {
 
         final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
 
-        CompletableFuture<WorkerResourceSpec> allocateResourceFuture = new CompletableFuture<>();
+        CompletableFuture<Collection<ResourceDeclaration>> declareResourceFuture =
+                new CompletableFuture<>();
         ResourceAllocator resourceAllocator =
                 new TestingResourceAllocatorBuilder()
-                        .setAllocateResourceConsumer(allocateResourceFuture::complete)
+                        .setDeclareResourceNeededConsumer(declareResourceFuture::complete)
                         .build();
 
         try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceAllocator)) {
 
             slotManager.processResourceRequirements(resourceRequirements);
 
-            allocateResourceFuture.get();
+            declareResourceFuture.get();
         }
     }
 
@@ -216,10 +217,11 @@ class DeclarativeSlotManagerTest {
         final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
         final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
 
-        CompletableFuture<WorkerResourceSpec> allocateResourceFuture = new CompletableFuture<>();
+        CompletableFuture<Collection<ResourceDeclaration>> declareResourceFuture =
+                new CompletableFuture<>();
         ResourceAllocator resourceAllocator =
                 new TestingResourceAllocatorBuilder()
-                        .setAllocateResourceConsumer(allocateResourceFuture::complete)
+                        .setDeclareResourceNeededConsumer(declareResourceFuture::complete)
                         .build();
 
         final ResourceID blockedTaskManager = ResourceID.generate();
@@ -247,7 +249,7 @@ class DeclarativeSlotManagerTest {
 
             slotManager.processResourceRequirements(resourceRequirements);
 
-            allocateResourceFuture.get();
+            declareResourceFuture.get();
         }
     }
 
@@ -430,7 +432,7 @@ class DeclarativeSlotManagerTest {
         final AtomicInteger allocateResourceCalls = new AtomicInteger(0);
         final ResourceAllocator resourceAllocator =
                 new TestingResourceAllocatorBuilder()
-                        .setAllocateResourceConsumer(
+                        .setDeclareResourceNeededConsumer(
                                 ignored -> allocateResourceCalls.incrementAndGet())
                         .build();
         ResourceRequirements requirements = createResourceRequirementsForSingleSlot();
@@ -1069,10 +1071,16 @@ class DeclarativeSlotManagerTest {
     @Test
     void testRequestNewResources() throws Exception {
         final int numberSlots = 2;
-        final AtomicInteger resourceRequests = new AtomicInteger(0);
+        final List<Integer> resourceRequestNumber = new ArrayList<>();
         final TestingResourceAllocator testingResourceAllocator =
                 new TestingResourceAllocatorBuilder()
-                        .setAllocateResourceConsumer(ignored -> resourceRequests.incrementAndGet())
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> {
+                                    assertThat(resourceDeclarations.size()).isEqualTo(1);
+                                    ResourceDeclaration resourceDeclaration =
+                                            resourceDeclarations.iterator().next();
+                                    resourceRequestNumber.add(resourceDeclaration.getNumNeeded());
+                                })
                         .build();
 
         try (final DeclarativeSlotManager slotManager =
@@ -1084,13 +1092,16 @@ class DeclarativeSlotManagerTest {
             // the first 2 requirements should be fulfillable with the pending slots of the first
             // allocation (2 slots per worker)
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
-            assertThat(resourceRequests.get()).isEqualTo(1);
+            assertThat(resourceRequestNumber.size()).isEqualTo(1);
+            assertThat(resourceRequestNumber.get(0)).isEqualTo(1);
 
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 2));
-            assertThat(resourceRequests.get()).isEqualTo(1);
+            assertThat(resourceRequestNumber.size()).isEqualTo(1);
+            assertThat(resourceRequestNumber.get(0)).isEqualTo(1);
 
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 3));
-            assertThat(resourceRequests.get()).isEqualTo(2);
+            assertThat(resourceRequestNumber.size()).isEqualTo(2);
+            assertThat(resourceRequestNumber.get(1)).isEqualTo(2);
         }
     }
 
@@ -1459,11 +1470,12 @@ class DeclarativeSlotManagerTest {
                 createDeclarativeSlotManagerBuilder(scheduledExecutor)
                         .setResourceTracker(resourceTracker)
                         .setRequirementCheckDelay(delay)
+                        .setDeclareNeededResourceDelay(delay)
                         .buildAndStartWithDirectExec(
                                 ResourceManagerId.generate(),
                                 new TestingResourceAllocatorBuilder()
-                                        .setAllocateResourceConsumer(
-                                                workerResourceSpec ->
+                                        .setDeclareResourceNeededConsumer(
+                                                (ignored) ->
                                                         allocatedResourceCounter.getAndIncrement())
                                         .build())) {
 
@@ -1480,7 +1492,14 @@ class DeclarativeSlotManagerTest {
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
             assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(1);
 
+            // trigger checkResourceRequirements
             scheduledExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(1);
+            assertThat(allocatedResourceCounter.get()).isEqualTo(0);
+
+            // trigger declareResourceNeeded
+            scheduledExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(0);
             assertThat(allocatedResourceCounter.get()).isEqualTo(1);
         }
     }

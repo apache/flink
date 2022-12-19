@@ -40,7 +40,7 @@ import java.util.concurrent.Executor;
  * their allocation and all pending slot requests. Whenever a new slot is registered or an allocated
  * slot is freed, then it tries to fulfill another pending slot request. Whenever there are not
  * enough slots available the slot manager will notify the resource manager about it via {@link
- * ResourceAllocator#allocateResource(WorkerResourceSpec)}.
+ * ResourceAllocator#declareResourceNeeded}.
  *
  * <p>In order to free resources and avoid resource leaks, idling task managers (task managers whose
  * slots are currently not used) and pending slot requests time out triggering their release and
@@ -116,10 +116,9 @@ public interface SlotManager extends AutoCloseable {
      * @param initialSlotReport for the new task manager
      * @param totalResourceProfile for the new task manager
      * @param defaultSlotResourceProfile for the new task manager
-     * @return True if the task manager has not been registered before and is registered
-     *     successfully; otherwise false
+     * @return The result of task manager registration
      */
-    boolean registerTaskManager(
+    RegistrationResult registerTaskManager(
             TaskExecutorConnection taskExecutorConnection,
             SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
@@ -160,4 +159,11 @@ public interface SlotManager extends AutoCloseable {
      * changed.
      */
     void triggerResourceRequirementsCheck();
+
+    /** The result of task manager registration. */
+    enum RegistrationResult {
+        SUCCESS, // task manager has not been registered before and is registered successfully
+        IGNORED, // task manager has been registered before and is ignored
+        REJECTED, // task manager is rejected and should be disconnected
+    }
 }

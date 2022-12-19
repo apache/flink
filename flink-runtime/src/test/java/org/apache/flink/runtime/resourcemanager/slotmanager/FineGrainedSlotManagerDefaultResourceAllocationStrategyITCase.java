@@ -48,12 +48,12 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
      */
     @Test
     void testWorkerOnlyAllocatedIfRequestedSlotCouldBeFulfilled() throws Exception {
-        final AtomicInteger resourceRequests = new AtomicInteger(0);
+        final AtomicInteger declareResourceCount = new AtomicInteger(0);
 
         new Context() {
             {
-                resourceAllocatorBuilder.setAllocateResourceConsumer(
-                        ignored -> resourceRequests.incrementAndGet());
+                resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
+                        (ignored) -> declareResourceCount.incrementAndGet());
                 runTest(
                         () -> {
                             runInMainThread(
@@ -64,7 +64,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                                                                     new JobID(),
                                                                     1,
                                                                     OTHER_SLOT_RESOURCE_PROFILE)));
-                            assertThat(resourceRequests.get()).isEqualTo(0);
+                            assertThat(declareResourceCount.get()).isEqualTo(0);
                         });
             }
         };
