@@ -152,7 +152,7 @@ public class HsResultPartition extends ResultPartition {
 
     @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-        numBytesProduced.inc(record.remaining());
+        resultPartitionBytes.inc(targetSubpartition, record.remaining());
         emit(record, targetSubpartition, Buffer.DataType.DATA_BUFFER);
     }
 
@@ -173,7 +173,7 @@ public class HsResultPartition extends ResultPartition {
     }
 
     private void broadcast(ByteBuffer record, Buffer.DataType dataType) throws IOException {
-        numBytesProduced.inc(record.remaining());
+        resultPartitionBytes.incAll(record.remaining());
         if (isBroadcastOnly) {
             emit(record, BROADCAST_CHANNEL, dataType);
         } else {

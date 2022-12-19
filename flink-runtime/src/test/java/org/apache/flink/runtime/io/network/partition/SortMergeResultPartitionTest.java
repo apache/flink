@@ -415,17 +415,17 @@ public class SortMergeResultPartitionTest {
 
     @TestTemplate
     void testNumBytesProducedCounterForUnicast() throws IOException {
-        testNumBytesProducedCounter(false);
+        testResultPartitionBytesCounter(false);
     }
 
     @TestTemplate
     void testNumBytesProducedCounterForBroadcast() throws IOException {
-        testNumBytesProducedCounter(true);
+        testResultPartitionBytesCounter(true);
     }
 
-    private void testNumBytesProducedCounter(boolean isBroadcast) throws IOException {
+    private void testResultPartitionBytesCounter(boolean isBroadcast) throws IOException {
         int numBuffers = useHashDataBuffer ? 100 : 15;
-        int numSubpartitions = 10;
+        int numSubpartitions = 2;
 
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition =
@@ -435,16 +435,25 @@ public class SortMergeResultPartitionTest {
             partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
             partition.finish();
 
-            assertThat(partition.numBytesProduced.getCount()).isEqualTo(bufferSize + 4);
+            long[] subpartitionBytes =
+                    partition.resultPartitionBytes.createSnapshot().getSubpartitionBytes();
+            assertThat(subpartitionBytes)
+                    .containsExactly((long) bufferSize + 4, (long) bufferSize + 4);
+
             assertThat(partition.numBytesOut.getCount())
                     .isEqualTo(numSubpartitions * (bufferSize + 4));
         } else {
             partition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            partition.emitRecord(ByteBuffer.allocate(2 * bufferSize), 1);
             partition.finish();
 
-            assertThat(partition.numBytesProduced.getCount()).isEqualTo(bufferSize + 4);
+            long[] subpartitionBytes =
+                    partition.resultPartitionBytes.createSnapshot().getSubpartitionBytes();
+            assertThat(subpartitionBytes)
+                    .containsExactly((long) bufferSize + 4, (long) 2 * bufferSize + 4);
+
             assertThat(partition.numBytesOut.getCount())
-                    .isEqualTo(bufferSize + numSubpartitions * 4);
+                    .isEqualTo(3 * bufferSize + numSubpartitions * 4);
         }
     }
 

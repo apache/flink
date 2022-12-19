@@ -33,7 +33,6 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -75,8 +74,11 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
-import static org.apache.flink.runtime.scheduler.DefaultSchedulerTest.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerTest.singleNonParallelJobVertexJobGraph;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createCanceledTaskExecutionState;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerTest.createResultPartitionBytesForExecution;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SpeculativeScheduler}. */
@@ -212,9 +214,8 @@ class SpeculativeSchedulerTest {
         notifySlowTask(scheduler, attempt1);
         final Execution attempt2 = getExecution(ev, 1);
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(
+                createFailedTaskExecutionState(
                         attempt1.getAttemptId(),
-                        ExecutionState.FAILED,
                         new PartitionNotFoundException(new ResultPartitionID())));
 
         assertThat(attempt2.getState()).isEqualTo(ExecutionState.CANCELING);
@@ -234,7 +235,7 @@ class SpeculativeSchedulerTest {
         notifySlowTask(scheduler, attempt1);
         final Execution attempt2 = getExecution(ev, 1);
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attempt1.getAttemptId(), ExecutionState.FINISHED));
+                createFinishedTaskExecutionState(attempt1.getAttemptId()));
 
         assertThat(attempt2.getState()).isEqualTo(ExecutionState.CANCELING);
     }
@@ -251,7 +252,7 @@ class SpeculativeSchedulerTest {
         notifySlowTask(scheduler, attempt1);
         final Execution attempt2 = getExecution(ev, 1);
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attempt1.getAttemptId(), ExecutionState.FINISHED));
+                createFinishedTaskExecutionState(attempt1.getAttemptId()));
 
         assertThat(attempt2.getState()).isEqualTo(ExecutionState.CANCELED);
     }
@@ -266,9 +267,8 @@ class SpeculativeSchedulerTest {
 
         // A partition exception can result in a restart of the whole execution vertex.
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(
+                createFailedTaskExecutionState(
                         attempt1.getAttemptId(),
-                        ExecutionState.FAILED,
                         new PartitionNotFoundException(new ResultPartitionID())));
 
         completeCancellingForAllVertices(scheduler.getExecutionGraph());
@@ -316,9 +316,8 @@ class SpeculativeSchedulerTest {
         notifySlowTask(scheduler, attempt1);
 
         final TaskExecutionState failedState =
-                new TaskExecutionState(
+                createFailedTaskExecutionState(
                         attempt1.getAttemptId(),
-                        ExecutionState.FAILED,
                         new SuppressRestartsException(
                                 new Exception("Forced failure for testing.")));
         scheduler.updateTaskExecutionState(failedState);
@@ -376,12 +375,9 @@ class SpeculativeSchedulerTest {
         // Finishing any source execution attempt will finish the source execution vertex, and then
         // finish the job vertex.
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(
+                createFinishedTaskExecutionState(
                         sourceAttempt1.getAttemptId(),
-                        ExecutionState.FINISHED,
-                        null,
-                        null,
-                        new IOMetrics(0, 0, 0, 0, 0, 0, 0)));
+                        createResultPartitionBytesForExecution(sourceAttempt1)));
         assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(3);
 
         // trigger sink vertex speculation
@@ -421,12 +417,12 @@ class SpeculativeSchedulerTest {
         // finishes first
         final Execution attempt2 = getExecution(ev, 1);
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attempt2.getAttemptId(), ExecutionState.FINISHED));
+                createFinishedTaskExecutionState(attempt2.getAttemptId()));
         assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isEqualTo(1);
 
         // complete cancellation
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attempt1.getAttemptId(), ExecutionState.CANCELED));
+                createCanceledTaskExecutionState(attempt1.getAttemptId()));
 
         // trigger a global failure to reset the vertex.
         // after that, no speculative execution finishes before its original execution and the
@@ -441,7 +437,7 @@ class SpeculativeSchedulerTest {
         // numEffectiveSpeculativeExecutions will not increase if an original execution attempt
         // finishes first
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attempt3.getAttemptId(), ExecutionState.FINISHED));
+                createFinishedTaskExecutionState(attempt3.getAttemptId()));
         assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isZero();
     }
 

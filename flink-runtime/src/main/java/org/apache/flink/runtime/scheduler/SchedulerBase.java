@@ -53,6 +53,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.JobStatusProvider;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
@@ -733,7 +734,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         // can be refined in FLINK-14233 after the actions are factored out from ExecutionGraph.
         switch (taskExecutionState.getExecutionState()) {
             case FINISHED:
-                onTaskFinished(execution);
+                onTaskFinished(execution, taskExecutionState.getIOMetrics());
                 break;
             case FAILED:
                 onTaskFailed(execution);
@@ -741,7 +742,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         }
     }
 
-    protected abstract void onTaskFinished(final Execution execution);
+    protected abstract void onTaskFinished(final Execution execution, final IOMetrics ioMetrics);
 
     protected abstract void onTaskFailed(final Execution execution);
 

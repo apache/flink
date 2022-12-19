@@ -21,6 +21,8 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -78,11 +80,8 @@ class DefaultVertexParallelismDeciderTest {
 
     @Test
     void testNormalizeParallelismDownToPowerOf2() {
-        BlockingResultInfo resultInfo1 =
-                BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
-        BlockingResultInfo resultInfo2 =
-                BlockingResultInfo.createFromNonBroadcastResult(
-                        Arrays.asList(BYTE_256_MB, BYTE_8_GB));
+        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
+        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_256_MB + BYTE_8_GB);
 
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
@@ -92,11 +91,8 @@ class DefaultVertexParallelismDeciderTest {
 
     @Test
     void testNormalizeParallelismUpToPowerOf2() {
-        BlockingResultInfo resultInfo1 =
-                BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
-        BlockingResultInfo resultInfo2 =
-                BlockingResultInfo.createFromNonBroadcastResult(
-                        Arrays.asList(BYTE_1_GB, BYTE_8_GB));
+        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
+        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_1_GB + BYTE_8_GB);
 
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
@@ -106,11 +102,8 @@ class DefaultVertexParallelismDeciderTest {
 
     @Test
     void testInitiallyNormalizedParallelismIsLargerThanMaxParallelism() {
-        BlockingResultInfo resultInfo1 =
-                BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
-        BlockingResultInfo resultInfo2 =
-                BlockingResultInfo.createFromNonBroadcastResult(
-                        Arrays.asList(BYTE_8_GB, BYTE_1_TB));
+        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
+        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_8_GB + BYTE_1_TB);
 
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
@@ -120,10 +113,8 @@ class DefaultVertexParallelismDeciderTest {
 
     @Test
     void testInitiallyNormalizedParallelismIsSmallerThanMinParallelism() {
-        BlockingResultInfo resultInfo1 =
-                BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
-        BlockingResultInfo resultInfo2 =
-                BlockingResultInfo.createFromNonBroadcastResult(Arrays.asList(BYTE_512_MB));
+        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
+        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_512_MB);
 
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
@@ -133,10 +124,8 @@ class DefaultVertexParallelismDeciderTest {
 
     @Test
     void testBroadcastRatioExceedsCapRatio() {
-        BlockingResultInfo resultInfo1 =
-                BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_1_GB));
-        BlockingResultInfo resultInfo2 =
-                BlockingResultInfo.createFromNonBroadcastResult(Arrays.asList(BYTE_8_GB));
+        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_1_GB);
+        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_8_GB);
 
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
@@ -146,15 +135,58 @@ class DefaultVertexParallelismDeciderTest {
 
     @Test
     void testNonBroadcastBytesCanNotDividedEvenly() {
-        BlockingResultInfo resultInfo1 =
-                BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_512_MB));
-        BlockingResultInfo resultInfo2 =
-                BlockingResultInfo.createFromNonBroadcastResult(
-                        Arrays.asList(BYTE_256_MB, BYTE_8_GB));
+        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_512_MB);
+        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_256_MB + BYTE_8_GB);
 
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelism).isEqualTo(16);
+    }
+
+    private static class TestingBlockingResultInfo implements BlockingResultInfo {
+
+        private final boolean isBroadcast;
+
+        private final long producedBytes;
+
+        private TestingBlockingResultInfo(boolean isBroadcast, long producedBytes) {
+            this.isBroadcast = isBroadcast;
+            this.producedBytes = producedBytes;
+        }
+
+        @Override
+        public IntermediateDataSetID getResultId() {
+            return new IntermediateDataSetID();
+        }
+
+        @Override
+        public boolean isBroadcast() {
+            return isBroadcast;
+        }
+
+        @Override
+        public boolean isPointwise() {
+            return false;
+        }
+
+        @Override
+        public long getNumBytesProduced() {
+            return producedBytes;
+        }
+
+        @Override
+        public void recordPartitionInfo(int partitionIndex, ResultPartitionBytes partitionBytes) {}
+
+        @Override
+        public void resetPartitionInfo(int partitionIndex) {}
+    }
+
+    private static BlockingResultInfo createFromBroadcastResult(long producedBytes) {
+        return new TestingBlockingResultInfo(true, producedBytes);
+    }
+
+    private static BlockingResultInfo createFromNonBroadcastResult(long producedBytes) {
+        return new TestingBlockingResultInfo(false, producedBytes);
     }
 }

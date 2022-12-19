@@ -21,6 +21,8 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
+import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import org.junit.jupiter.api.Test;
@@ -96,26 +98,30 @@ class TaskIOMetricGroupTest {
     }
 
     @Test
-    void testNumBytesProducedOfPartitionsMetrics() {
+    void testResultPartitionBytesMetrics() {
         TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         TaskIOMetricGroup taskIO = task.getIOMetricGroup();
 
-        Counter c1 = new SimpleCounter();
-        c1.inc(32L);
-        Counter c2 = new SimpleCounter();
-        c2.inc(64L);
+        ResultPartitionBytesCounter c1 = new ResultPartitionBytesCounter(2);
+        ResultPartitionBytesCounter c2 = new ResultPartitionBytesCounter(2);
+
+        c1.inc(0, 32L);
+        c1.inc(1, 64L);
+        c2.incAll(128L);
 
         IntermediateResultPartitionID resultPartitionID1 = new IntermediateResultPartitionID();
         IntermediateResultPartitionID resultPartitionID2 = new IntermediateResultPartitionID();
 
-        taskIO.registerNumBytesProducedCounterForPartition(resultPartitionID1, c1);
-        taskIO.registerNumBytesProducedCounterForPartition(resultPartitionID2, c2);
+        taskIO.registerResultPartitionBytesCounter(resultPartitionID1, c1);
+        taskIO.registerResultPartitionBytesCounter(resultPartitionID2, c2);
 
-        Map<IntermediateResultPartitionID, Long> numBytesProducedOfPartitions =
-                taskIO.createSnapshot().getNumBytesProducedOfPartitions();
+        Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes =
+                taskIO.createSnapshot().getResultPartitionBytes();
 
-        assertThat(numBytesProducedOfPartitions.size()).isEqualTo(2);
-        assertThat(numBytesProducedOfPartitions.get(resultPartitionID1).longValue()).isEqualTo(32L);
-        assertThat(numBytesProducedOfPartitions.get(resultPartitionID2).longValue()).isEqualTo(64L);
+        assertThat(resultPartitionBytes.size()).isEqualTo(2);
+        assertThat(resultPartitionBytes.get(resultPartitionID1).getSubpartitionBytes())
+                .containsExactly(32L, 64L);
+        assertThat(resultPartitionBytes.get(resultPartitionID2).getSubpartitionBytes())
+                .containsExactly(128L, 128L);
     }
 }

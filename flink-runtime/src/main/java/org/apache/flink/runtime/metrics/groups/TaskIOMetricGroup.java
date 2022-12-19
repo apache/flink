@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -71,8 +72,8 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     private long taskStartTime;
 
-    private final Map<IntermediateResultPartitionID, Counter> numBytesProducedOfPartitions =
-            new HashMap<>();
+    private final Map<IntermediateResultPartitionID, ResultPartitionBytesCounter>
+            resultPartitionBytes = new HashMap<>();
 
     public TaskIOMetricGroup(TaskMetricGroup parent) {
         super(parent);
@@ -135,10 +136,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 numRecordsOutRate,
                 numBytesInRate,
                 numBytesOutRate,
-                numBytesProducedOfPartitions,
                 accumulatedBackPressuredTime,
                 accumulatedIdleTime,
-                accumulatedBusyTime);
+                accumulatedBusyTime,
+                resultPartitionBytes);
     }
 
     // ============================================================================================
@@ -238,9 +239,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numRecordsOut.addCounter(numRecordsOutCounter);
     }
 
-    public void registerNumBytesProducedCounterForPartition(
-            IntermediateResultPartitionID resultPartitionId, Counter numBytesProducedCounter) {
-        this.numBytesProducedOfPartitions.put(resultPartitionId, numBytesProducedCounter);
+    public void registerResultPartitionBytesCounter(
+            IntermediateResultPartitionID resultPartitionId,
+            ResultPartitionBytesCounter resultPartitionBytesCounter) {
+        this.resultPartitionBytes.put(resultPartitionId, resultPartitionBytesCounter);
     }
 
     public void registerMailboxSizeSupplier(SizeGauge.SizeSupplier<Integer> supplier) {
