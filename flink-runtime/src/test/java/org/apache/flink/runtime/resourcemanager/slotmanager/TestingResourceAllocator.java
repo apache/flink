@@ -24,6 +24,7 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -34,11 +35,15 @@ public class TestingResourceAllocator implements ResourceAllocator {
 
     @Nonnull private final Consumer<WorkerResourceSpec> allocateResourceConsumer;
 
+    @Nonnull private final Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer;
+
     public TestingResourceAllocator(
             @Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
-            @Nonnull Consumer<WorkerResourceSpec> allocateResourceConsumer) {
+            @Nonnull Consumer<WorkerResourceSpec> allocateResourceConsumer,
+            @Nonnull Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer) {
         this.releaseResourceConsumer = releaseResourceConsumer;
         this.allocateResourceConsumer = allocateResourceConsumer;
+        this.declareResourceNeededConsumer = declareResourceNeededConsumer;
     }
 
     @Override
@@ -59,5 +64,10 @@ public class TestingResourceAllocator implements ResourceAllocator {
     @Override
     public void allocateResource(WorkerResourceSpec workerResourceSpec) {
         allocateResourceConsumer.accept(workerResourceSpec);
+    }
+
+    @Override
+    public void declareResourceNeeded(Collection<ResourceDeclaration> resourceDeclarations) {
+        declareResourceNeededConsumer.accept(resourceDeclarations);
     }
 }

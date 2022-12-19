@@ -26,19 +26,24 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceDeclaration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
@@ -54,6 +59,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -131,6 +137,259 @@ public class ActiveResourceManagerTest extends TestLogger {
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
+                        });
+            }
+        };
+    }
+
+    /** Tests unwanted worker released. */
+    @Test
+    public void testReleaseUnWantedResources() throws Exception {
+        new Context() {
+            {
+                final ResourceID tmResourceId = ResourceID.generate();
+                final CompletableFuture<ResourceID> releaseResourceFuture =
+                        new CompletableFuture<>();
+
+                driverBuilder
+                        .setRequestResourceFunction(
+                                taskExecutorProcessSpec ->
+                                        CompletableFuture.completedFuture(tmResourceId))
+                        .setReleaseResourceConsumer(releaseResourceFuture::complete);
+
+                runTest(
+                        () -> {
+                            // request new worker
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .requestNewWorker(WORKER_RESOURCE_SPEC));
+
+                            CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
+                                    registerTaskExecutor(tmResourceId);
+                            assertThat(
+                                    registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    instanceOf(RegistrationResponse.Success.class));
+
+                            InstanceID instanceID =
+                                    getResourceManager()
+                                            .getInstanceIdByResourceId(tmResourceId)
+                                            .get();
+
+                            runInMainThread(
+                                            () ->
+                                                    getResourceManager()
+                                                            .sendSlotReport(
+                                                                    tmResourceId,
+                                                                    instanceID,
+                                                                    new SlotReport(
+                                                                            new SlotStatus(
+                                                                                    new SlotID(
+                                                                                            tmResourceId,
+                                                                                            0),
+                                                                                    ResourceProfile
+                                                                                            .ANY)),
+                                                                    TIMEOUT_TIME))
+                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS);
+
+                            // release unknown unwanted registered worker.
+                            CompletableFuture<Void> releaseFuture =
+                                    runInMainThread(
+                                            () ->
+                                                    getResourceManager()
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    0,
+                                                                                    Collections
+                                                                                            .singleton(
+                                                                                                    new InstanceID())))));
+
+                            // resource not in less wanted will not be released.
+                            releaseFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+
+                            // release unwanted registered worker.
+                            releaseFuture =
+                                    runInMainThread(
+                                            () ->
+                                                    getResourceManager()
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    0,
+                                                                                    Collections
+                                                                                            .singleton(
+                                                                                                    instanceID)))));
+                            // resource in less wanted will be released.
+                            releaseFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+
+                            // verify worker is released.
+                            assertThat(
+                                    releaseResourceFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    is(tmResourceId));
+                        });
+            }
+        };
+    }
+
+    /** Tests request new workers when resources less than declared. */
+    @Test
+    public void testLessThanDeclareResource() throws Exception {
+        new Context() {
+            {
+                final AtomicInteger requestCount = new AtomicInteger(0);
+                final List<CompletableFuture<ResourceID>> resourceIdFutures = new ArrayList<>();
+                resourceIdFutures.add(CompletableFuture.completedFuture(ResourceID.generate()));
+                resourceIdFutures.add(new CompletableFuture<>());
+                resourceIdFutures.add(new CompletableFuture<>());
+
+                driverBuilder.setRequestResourceFunction(
+                        taskExecutorProcessSpec ->
+                                resourceIdFutures.get(requestCount.getAndIncrement()));
+
+                runTest(
+                        () -> {
+                            // request two new worker
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .requestNewWorker(WORKER_RESOURCE_SPEC));
+
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .requestNewWorker(WORKER_RESOURCE_SPEC));
+
+                            // release registered worker.
+                            CompletableFuture<Void> declareResourceFuture =
+                                    runInMainThread(
+                                            () ->
+                                                    getResourceManager()
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    3,
+                                                                                    Collections
+                                                                                            .emptySet()))));
+
+                            declareResourceFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+
+                            // request new worker.
+                            assertThat(requestCount.get(), is(3));
+                        });
+            }
+        };
+    }
+
+    /** Test release workers if more than resources declared. */
+    @Test
+    public void testMoreThanDeclaredResource() throws Exception {
+        new Context() {
+            {
+                final AtomicInteger requestCount = new AtomicInteger(0);
+                final List<CompletableFuture<ResourceID>> resourceIdFutures =
+                        Arrays.asList(
+                                CompletableFuture.completedFuture(ResourceID.generate()),
+                                CompletableFuture.completedFuture(ResourceID.generate()));
+
+                final AtomicInteger releaseCount = new AtomicInteger(0);
+                final List<CompletableFuture<ResourceID>> releaseResourceFutures =
+                        Collections.singletonList(new CompletableFuture<>());
+
+                driverBuilder
+                        .setRequestResourceFunction(
+                                taskExecutorProcessSpec ->
+                                        resourceIdFutures.get(requestCount.getAndIncrement()))
+                        .setReleaseResourceConsumer(
+                                resourceID ->
+                                        releaseResourceFutures
+                                                .get(releaseCount.getAndIncrement())
+                                                .complete(resourceID));
+
+                runTest(
+                        () -> {
+                            // request two new workers.
+                            runInMainThread(
+                                    () -> {
+                                        for (int i = 0; i < 2; i++) {
+                                            getResourceManager()
+                                                    .requestNewWorker(WORKER_RESOURCE_SPEC);
+                                        }
+                                    });
+                            ResourceID resourceID1 = resourceIdFutures.get(0).get();
+                            CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
+                                    registerTaskExecutor(resourceID1);
+                            assertThat(
+                                    registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    instanceOf(RegistrationResponse.Success.class));
+                            InstanceID instanceID1 =
+                                    getResourceManager()
+                                            .getInstanceIdByResourceId(resourceID1)
+                                            .get();
+                            runInMainThread(
+                                            () ->
+                                                    getResourceManager()
+                                                            .sendSlotReport(
+                                                                    resourceID1,
+                                                                    instanceID1,
+                                                                    new SlotReport(
+                                                                            new SlotStatus(
+                                                                                    new SlotID(
+                                                                                            resourceID1,
+                                                                                            0),
+                                                                                    ResourceProfile
+                                                                                            .ANY)),
+                                                                    TIMEOUT_TIME))
+                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS);
+
+                            ResourceID resourceID2 = resourceIdFutures.get(1).get();
+                            registerTaskExecutorFuture = registerTaskExecutor(resourceID2);
+                            assertThat(
+                                    registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    instanceOf(RegistrationResponse.Success.class));
+                            InstanceID instanceID2 =
+                                    getResourceManager()
+                                            .getInstanceIdByResourceId(resourceID2)
+                                            .get();
+                            runInMainThread(
+                                            () ->
+                                                    getResourceManager()
+                                                            .sendSlotReport(
+                                                                    resourceID2,
+                                                                    instanceID2,
+                                                                    new SlotReport(
+                                                                            new SlotStatus(
+                                                                                    new SlotID(
+                                                                                            resourceID2,
+                                                                                            0),
+                                                                                    ResourceProfile
+                                                                                            .ANY)),
+                                                                    TIMEOUT_TIME))
+                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS);
+
+                            // declare resource needed, will release unwanted worker.
+                            CompletableFuture<Void> declareResourceFuture =
+                                    runInMainThread(
+                                            () ->
+                                                    getResourceManager()
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    1,
+                                                                                    Collections
+                                                                                            .singleton(
+                                                                                                    instanceID1)))));
+
+                            declareResourceFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+
+                            // release 1 worker.
+                            assertThat(releaseCount.get(), is(1));
+                            // release less wanted worker.
+                            assertThat(releaseResourceFutures.get(0).get(), is(resourceID1));
                         });
             }
         };
@@ -857,9 +1116,17 @@ public class ActiveResourceManagerTest extends TestLogger {
                                                                     tmResourceId1, tmResourceId2)));
 
                             runInMainThread(
-                                    () -> getResourceManager().onWorkerRegistered(tmResourceId1));
+                                    () ->
+                                            getResourceManager()
+                                                    .onWorkerRegistered(
+                                                            tmResourceId1,
+                                                            WorkerResourceSpec.ZERO));
                             runInMainThread(
-                                    () -> getResourceManager().onWorkerRegistered(tmResourceId2));
+                                    () ->
+                                            getResourceManager()
+                                                    .onWorkerRegistered(
+                                                            tmResourceId2,
+                                                            WorkerResourceSpec.ZERO));
                             runInMainThread(
                                             () ->
                                                     assertTrue(
@@ -895,7 +1162,11 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     });
 
                             runInMainThread(
-                                    () -> getResourceManager().onWorkerRegistered(tmResourceId1));
+                                    () ->
+                                            getResourceManager()
+                                                    .onWorkerRegistered(
+                                                            tmResourceId1,
+                                                            WorkerResourceSpec.ZERO));
                             getResourceManager()
                                     .getReadyToServeFuture()
                                     .get(TIMEOUT_SEC, TimeUnit.SECONDS);

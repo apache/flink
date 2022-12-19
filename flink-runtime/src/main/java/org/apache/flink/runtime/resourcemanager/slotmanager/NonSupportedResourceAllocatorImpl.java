@@ -22,6 +22,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
+import java.util.Collection;
+
 /** ResourceAllocator that not support to allocate/release resources. */
 public class NonSupportedResourceAllocatorImpl implements ResourceAllocator {
     public static final NonSupportedResourceAllocatorImpl INSTANCE =
@@ -45,6 +47,11 @@ public class NonSupportedResourceAllocatorImpl implements ResourceAllocator {
     }
 
     public void allocateResource(WorkerResourceSpec workerResourceSpec) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void declareResourceNeeded(Collection<ResourceDeclaration> resourceDeclarations) {
         throw new UnsupportedOperationException();
     }
 }
