@@ -168,6 +168,8 @@ public class ClosureCleaner {
 
     private static boolean needsRecursion(Field f, Object fo) {
         return (fo != null
+                && !f.getType().isPrimitive()
+                && !f.getType().equals(String.class)
                 && !Modifier.isStatic(f.getModifiers())
                 && !Modifier.isTransient(f.getModifiers()));
     }

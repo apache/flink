@@ -21,6 +21,7 @@ package org.apache.flink.api.java;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.function.SerializableSupplier;
 
@@ -237,6 +238,16 @@ public class ClosureCleanerTest {
     @Test(expected = InvalidProgramException.class)
     public void testCleanObject() {
         ClosureCleaner.clean(new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    }
+
+    /**
+     * Verifies that {@code testPrintSinkOutputWriter} can be passed to {@code clean()}, as it's the
+     * case when adding the print sink (FLINK-30455).
+     */
+    @Test
+    public void testPrintSinkOutputWriter() {
+        ClosureCleaner.clean(
+                new PrintSinkOutputWriter<>(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
     }
 }
 
