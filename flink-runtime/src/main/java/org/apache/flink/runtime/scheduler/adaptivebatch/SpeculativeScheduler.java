@@ -35,6 +35,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
@@ -194,7 +195,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
     }
 
     @Override
-    protected void onTaskFinished(final Execution execution) {
+    protected void onTaskFinished(final Execution execution, final IOMetrics ioMetrics) {
         if (!isOriginalAttempt(execution)) {
             numEffectiveSpeculativeExecutionsCounter.inc();
         }
@@ -202,7 +203,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
         // cancel all un-terminated executions because the execution vertex has finished
         FutureUtils.assertNoException(cancelPendingExecutions(execution.getVertex().getID()));
 
-        super.onTaskFinished(execution);
+        super.onTaskFinished(execution, ioMetrics);
     }
 
     private static boolean isOriginalAttempt(final Execution execution) {

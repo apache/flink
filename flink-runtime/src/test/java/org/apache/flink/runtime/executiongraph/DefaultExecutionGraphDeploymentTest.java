@@ -336,7 +336,7 @@ class DefaultExecutionGraphDeploymentTest {
 
         scheduler.updateTaskExecutionState(state);
 
-        assertThat(execution1.getIOMetrics()).isEqualTo(ioMetrics);
+        assertIOMetricsEqual(execution1.getIOMetrics(), ioMetrics);
         assertThat(execution1.getUserAccumulators()).isNotNull();
         assertThat(execution1.getUserAccumulators().get("acc").getLocalValue()).isEqualTo(4);
 
@@ -359,7 +359,7 @@ class DefaultExecutionGraphDeploymentTest {
 
         scheduler.updateTaskExecutionState(state2);
 
-        assertThat(execution2.getIOMetrics()).isEqualTo(ioMetrics2);
+        assertIOMetricsEqual(execution2.getIOMetrics(), ioMetrics2);
         assertThat(execution2.getUserAccumulators()).isNotNull();
         assertThat(execution2.getUserAccumulators().get("acc").getLocalValue()).isEqualTo(8);
     }
@@ -388,13 +388,13 @@ class DefaultExecutionGraphDeploymentTest {
         execution1.cancel();
         execution1.completeCancelling(accumulators, ioMetrics, false);
 
-        assertThat(execution1.getIOMetrics()).isEqualTo(ioMetrics);
+        assertIOMetricsEqual(execution1.getIOMetrics(), ioMetrics);
         assertThat(execution1.getUserAccumulators()).isEqualTo(accumulators);
 
         Execution execution2 = executions.values().iterator().next();
         execution2.markFailed(new Throwable(), false, accumulators, ioMetrics, false, true);
 
-        assertThat(execution2.getIOMetrics()).isEqualTo(ioMetrics);
+        assertIOMetricsEqual(execution2.getIOMetrics(), ioMetrics);
         assertThat(execution2.getUserAccumulators()).isEqualTo(accumulators);
     }
 
@@ -667,7 +667,7 @@ class DefaultExecutionGraphDeploymentTest {
                 .build(EXECUTOR_EXTENSION.getExecutor());
     }
 
-    private boolean isDeployedInTopologicalOrder(
+    private static boolean isDeployedInTopologicalOrder(
             List<ExecutionAttemptID> submissionOrder,
             List<Collection<ExecutionAttemptID>> executionStages) {
         final Iterator<ExecutionAttemptID> submissionIterator = submissionOrder.iterator();
@@ -687,5 +687,17 @@ class DefaultExecutionGraphDeploymentTest {
         }
 
         return !submissionIterator.hasNext();
+    }
+
+    private void assertIOMetricsEqual(IOMetrics ioMetrics1, IOMetrics ioMetrics2) {
+        assertThat(ioMetrics1.numBytesIn).isEqualTo(ioMetrics2.numBytesIn);
+        assertThat(ioMetrics1.numBytesOut).isEqualTo(ioMetrics2.numBytesOut);
+        assertThat(ioMetrics1.numRecordsIn).isEqualTo(ioMetrics2.numRecordsIn);
+        assertThat(ioMetrics1.numRecordsOut).isEqualTo(ioMetrics2.numRecordsOut);
+        assertThat(ioMetrics1.accumulateIdleTime).isEqualTo(ioMetrics2.accumulateIdleTime);
+        assertThat(ioMetrics1.accumulateBusyTime).isEqualTo(ioMetrics2.accumulateBusyTime);
+        assertThat(ioMetrics1.accumulateBackPressuredTime)
+                .isEqualTo(ioMetrics2.accumulateBackPressuredTime);
+        assertThat(ioMetrics1.resultPartitionBytes).isEqualTo(ioMetrics2.resultPartitionBytes);
     }
 }

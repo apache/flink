@@ -35,11 +35,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -64,6 +67,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -433,5 +437,35 @@ public class SchedulerTestingUtils {
             vertex.tryAssignResource(slot);
             vertex.deploy();
         }
+    }
+
+    public static TaskExecutionState createFinishedTaskExecutionState(
+            ExecutionAttemptID attemptId,
+            Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes) {
+        return new TaskExecutionState(
+                attemptId,
+                ExecutionState.FINISHED,
+                null,
+                null,
+                new IOMetrics(0, 0, 0, 0, 0, 0, 0, resultPartitionBytes));
+    }
+
+    public static TaskExecutionState createFinishedTaskExecutionState(
+            ExecutionAttemptID attemptId) {
+        return createFinishedTaskExecutionState(attemptId, Collections.emptyMap());
+    }
+
+    public static TaskExecutionState createFailedTaskExecutionState(
+            ExecutionAttemptID attemptId, Throwable failureCause) {
+        return new TaskExecutionState(attemptId, ExecutionState.FAILED, failureCause);
+    }
+
+    public static TaskExecutionState createFailedTaskExecutionState(ExecutionAttemptID attemptId) {
+        return createFailedTaskExecutionState(attemptId, new Exception("Expected failure cause"));
+    }
+
+    public static TaskExecutionState createCanceledTaskExecutionState(
+            ExecutionAttemptID attemptId) {
+        return new TaskExecutionState(attemptId, ExecutionState.CANCELED);
     }
 }

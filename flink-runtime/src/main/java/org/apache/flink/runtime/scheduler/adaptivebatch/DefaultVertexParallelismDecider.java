@@ -92,19 +92,13 @@ public class DefaultVertexParallelismDecider implements VertexParallelismDecider
         long broadcastBytes =
                 consumedResults.stream()
                         .filter(BlockingResultInfo::isBroadcast)
-                        .mapToLong(
-                                consumedResult ->
-                                        consumedResult.getBlockingPartitionSizes().stream()
-                                                .reduce(0L, Long::sum))
+                        .mapToLong(BlockingResultInfo::getNumBytesProduced)
                         .sum();
 
         long nonBroadcastBytes =
                 consumedResults.stream()
                         .filter(consumedResult -> !consumedResult.isBroadcast())
-                        .mapToLong(
-                                consumedResult ->
-                                        consumedResult.getBlockingPartitionSizes().stream()
-                                                .reduce(0L, Long::sum))
+                        .mapToLong(BlockingResultInfo::getNumBytesProduced)
                         .sum();
 
         long expectedMaxBroadcastBytes =

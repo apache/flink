@@ -136,6 +136,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.getCheckpointCoordinator;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
@@ -1780,12 +1781,6 @@ public class DefaultSchedulerTest extends TestLogger {
         checkpointServicesShutdownBlocked.countDown();
         cleanerClosed.await();
         schedulerClosed.get();
-    }
-
-    public static TaskExecutionState createFailedTaskExecutionState(
-            ExecutionAttemptID executionAttemptID) {
-        return new TaskExecutionState(
-                executionAttemptID, ExecutionState.FAILED, new Exception("Expected failure cause"));
     }
 
     private static long initiateFailure(

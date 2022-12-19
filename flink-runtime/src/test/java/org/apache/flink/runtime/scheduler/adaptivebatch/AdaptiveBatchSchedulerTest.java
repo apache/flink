@@ -30,9 +30,14 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
@@ -41,16 +46,27 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
@@ -58,13 +74,20 @@ class AdaptiveBatchSchedulerTest {
 
     private static final int SOURCE_PARALLELISM_1 = 6;
     private static final int SOURCE_PARALLELISM_2 = 4;
+    private static final long SUBPARTITION_BYTES = 100L;
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
-    private static final ComponentMainThreadExecutor mainThreadExecutor =
-            ComponentMainThreadExecutorServiceAdapter.forMainThread();
+    private ComponentMainThreadExecutor mainThreadExecutor;
+    private ManuallyTriggeredScheduledExecutor taskRestartExecutor;
+
+    @BeforeEach
+    void setUp() {
+        mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
+        taskRestartExecutor = new ManuallyTriggeredScheduledExecutor();
+    }
 
     @Test
     void testAdaptiveBatchScheduler() throws Exception {
@@ -122,18 +145,136 @@ class AdaptiveBatchSchedulerTest {
         assertThat(sink.getParallelism()).isEqualTo(SOURCE_PARALLELISM_1);
     }
 
+    @Test
+    void testUpdateBlockingResultInfoWhileScheduling() throws Exception {
+        JobGraph jobGraph = createJobGraph(false);
+        Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
+        JobVertex source1 = jobVertexIterator.next();
+        JobVertex source2 = jobVertexIterator.next();
+        JobVertex sink = jobVertexIterator.next();
+
+        Configuration configuration = new Configuration();
+        configuration.set(
+                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
+
+        final TestingJobMasterPartitionTracker partitionTracker =
+                new TestingJobMasterPartitionTracker();
+        partitionTracker.setIsPartitionTrackedFunction(ignore -> true);
+        int maxParallelism = 6;
+
+        AdaptiveBatchScheduler scheduler =
+                new DefaultSchedulerBuilder(
+                                jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                        .setDelayExecutor(taskRestartExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setPartitionTracker(partitionTracker)
+                        .setRestartBackoffTimeStrategy(
+                                new FixedDelayRestartBackoffTimeStrategy
+                                                .FixedDelayRestartBackoffTimeStrategyFactory(10, 0)
+                                        .create())
+                        .setVertexParallelismDecider((ignored) -> maxParallelism)
+                        .setDefaultMaxParallelism(maxParallelism)
+                        .buildAdaptiveBatchJobScheduler();
+
+        final DefaultExecutionGraph graph = (DefaultExecutionGraph) scheduler.getExecutionGraph();
+        final ExecutionJobVertex source1ExecutionJobVertex = graph.getJobVertex(source1.getID());
+        final ExecutionJobVertex sinkExecutionJobVertex = graph.getJobVertex(sink.getID());
+
+        PointwiseBlockingResultInfo blockingResultInfo;
+
+        scheduler.startScheduling();
+        // trigger source1 finished.
+        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source1);
+        blockingResultInfo =
+                (PointwiseBlockingResultInfo) getBlockingResultInfo(scheduler, source1);
+        assertThat(blockingResultInfo.getNumOfRecordedPartitions()).isEqualTo(SOURCE_PARALLELISM_1);
+
+        // trigger source2 finished.
+        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source2);
+        blockingResultInfo =
+                (PointwiseBlockingResultInfo) getBlockingResultInfo(scheduler, source2);
+        assertThat(blockingResultInfo.getNumOfRecordedPartitions()).isEqualTo(SOURCE_PARALLELISM_2);
+
+        // trigger sink fail with partition not found
+        triggerFailedByPartitionNotFound(
+                scheduler,
+                source1ExecutionJobVertex.getTaskVertices()[0],
+                sinkExecutionJobVertex.getTaskVertices()[0]);
+
+        taskRestartExecutor.triggerScheduledTasks();
+
+        // check the partition info is reset
+        assertThat(
+                        ((PointwiseBlockingResultInfo) getBlockingResultInfo(scheduler, source1))
+                                .getNumOfRecordedPartitions())
+                .isEqualTo(SOURCE_PARALLELISM_1 - 1);
+    }
+
+    private BlockingResultInfo getBlockingResultInfo(
+            AdaptiveBatchScheduler scheduler, JobVertex jobVertex) {
+        return scheduler.getBlockingResultInfo(
+                getOnlyElement(jobVertex.getProducedDataSets()).getId());
+    }
+
+    private void triggerFailedByPartitionNotFound(
+            SchedulerBase scheduler,
+            ExecutionVertex producerVertex,
+            ExecutionVertex consumerVertex) {
+        final Execution execution = consumerVertex.getCurrentExecutionAttempt();
+        final IntermediateResultPartitionID partitionId =
+                getOnlyElement(producerVertex.getProducedPartitions().values()).getPartitionId();
+        // trigger execution vertex failed by partition not found.
+        transitionExecutionsState(
+                scheduler,
+                ExecutionState.FAILED,
+                Collections.singletonList(execution),
+                new PartitionNotFoundException(
+                        new ResultPartitionID(
+                                partitionId,
+                                producerVertex.getCurrentExecutionAttempt().getAttemptId())));
+    }
+
     /** Transit the state of all executions. */
     public static void transitionExecutionsState(
-            final SchedulerBase scheduler, final ExecutionState state, List<Execution> executions) {
+            final SchedulerBase scheduler,
+            final ExecutionState state,
+            List<Execution> executions,
+            @Nullable Throwable throwable) {
         for (Execution execution : executions) {
-            scheduler.updateTaskExecutionState(
-                    new TaskExecutionState(
-                            execution.getAttemptId(),
-                            state,
-                            null,
-                            null,
-                            new IOMetrics(0, 0, 0, 0, 0, 0, 0)));
+            TaskExecutionState taskExecutionState;
+            if (state == ExecutionState.FINISHED) {
+                taskExecutionState =
+                        createFinishedTaskExecutionState(
+                                execution.getAttemptId(),
+                                createResultPartitionBytesForExecution(execution));
+            } else if (state == ExecutionState.FAILED) {
+                taskExecutionState =
+                        createFailedTaskExecutionState(execution.getAttemptId(), throwable);
+            } else {
+                throw new UnsupportedOperationException("Unsupported state " + state);
+            }
+            scheduler.updateTaskExecutionState(taskExecutionState);
         }
+    }
+
+    static Map<IntermediateResultPartitionID, ResultPartitionBytes>
+            createResultPartitionBytesForExecution(Execution execution) {
+        Map<IntermediateResultPartitionID, ResultPartitionBytes> partitionBytes = new HashMap<>();
+        execution
+                .getVertex()
+                .getProducedPartitions()
+                .forEach(
+                        (partitionId, partition) -> {
+                            int numOfSubpartitions = partition.getNumberOfSubpartitions();
+                            partitionBytes.put(
+                                    partitionId,
+                                    new ResultPartitionBytes(
+                                            LongStream.range(0, numOfSubpartitions)
+                                                    .boxed()
+                                                    .mapToLong(ignored -> SUBPARTITION_BYTES)
+                                                    .toArray()));
+                        });
+        return partitionBytes;
     }
 
     /** Transit the state of all executions in the Job Vertex. */
@@ -145,7 +286,7 @@ class AdaptiveBatchSchedulerTest {
                         .stream()
                         .map(ExecutionVertex::getCurrentExecutionAttempt)
                         .collect(Collectors.toList());
-        transitionExecutionsState(scheduler, state, executions);
+        transitionExecutionsState(scheduler, state, executions, null);
     }
 
     public JobVertex createJobVertex(String jobVertexName, int parallelism) {
@@ -178,6 +319,7 @@ class AdaptiveBatchSchedulerTest {
 
         return new DefaultSchedulerBuilder(
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                .setDelayExecutor(taskRestartExecutor)
                 .setJobMasterConfiguration(configuration)
                 .setVertexParallelismDecider((ignored) -> 10)
                 .buildAdaptiveBatchJobScheduler();

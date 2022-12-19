@@ -18,14 +18,20 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.metrics.Counter;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An instance of this class represents a snapshot of the io-related metrics of a single task. */
 public class IOMetrics implements Serializable {
@@ -42,18 +48,19 @@ public class IOMetrics implements Serializable {
     protected double accumulateBusyTime;
     protected long accumulateIdleTime;
 
-    protected final Map<IntermediateResultPartitionID, Long> numBytesProducedOfPartitions =
-            new HashMap<>();
+    @Nullable
+    protected Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes;
 
     public IOMetrics(
             Meter recordsIn,
             Meter recordsOut,
             Meter bytesIn,
             Meter bytesOut,
-            Map<IntermediateResultPartitionID, Counter> numBytesProducedCounters,
             Gauge<Long> accumulatedBackPressuredTime,
             Gauge<Long> accumulatedIdleTime,
-            Gauge<Double> accumulatedBusyTime) {
+            Gauge<Double> accumulatedBusyTime,
+            Map<IntermediateResultPartitionID, ResultPartitionBytesCounter>
+                    resultPartitionBytesCounters) {
         this.numRecordsIn = recordsIn.getCount();
         this.numRecordsOut = recordsOut.getCount();
         this.numBytesIn = bytesIn.getCount();
@@ -61,11 +68,12 @@ public class IOMetrics implements Serializable {
         this.accumulateBackPressuredTime = accumulatedBackPressuredTime.getValue();
         this.accumulateBusyTime = accumulatedBusyTime.getValue();
         this.accumulateIdleTime = accumulatedIdleTime.getValue();
-
-        for (Map.Entry<IntermediateResultPartitionID, Counter> counter :
-                numBytesProducedCounters.entrySet()) {
-            numBytesProducedOfPartitions.put(counter.getKey(), counter.getValue().getCount());
-        }
+        this.resultPartitionBytes =
+                resultPartitionBytesCounters.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        entry -> entry.getValue().createSnapshot()));
     }
 
     public IOMetrics(
@@ -74,8 +82,30 @@ public class IOMetrics implements Serializable {
             long numRecordsIn,
             long numRecordsOut,
             long accumulateIdleTime,
-            long accumulateBusyTime,
+            double accumulateBusyTime,
             long accumulateBackPressuredTime) {
+        this(
+                numBytesIn,
+                numBytesOut,
+                numRecordsIn,
+                numRecordsOut,
+                accumulateIdleTime,
+                accumulateBusyTime,
+                accumulateBackPressuredTime,
+                null);
+    }
+
+    @VisibleForTesting
+    public IOMetrics(
+            long numBytesIn,
+            long numBytesOut,
+            long numRecordsIn,
+            long numRecordsOut,
+            long accumulateIdleTime,
+            double accumulateBusyTime,
+            long accumulateBackPressuredTime,
+            @Nullable
+                    Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes) {
         this.numBytesIn = numBytesIn;
         this.numBytesOut = numBytesOut;
         this.numRecordsIn = numRecordsIn;
@@ -83,6 +113,7 @@ public class IOMetrics implements Serializable {
         this.accumulateIdleTime = accumulateIdleTime;
         this.accumulateBusyTime = accumulateBusyTime;
         this.accumulateBackPressuredTime = accumulateBackPressuredTime;
+        this.resultPartitionBytes = resultPartitionBytes;
     }
 
     public long getNumRecordsIn() {
@@ -113,7 +144,7 @@ public class IOMetrics implements Serializable {
         return accumulateIdleTime;
     }
 
-    public Map<IntermediateResultPartitionID, Long> getNumBytesProducedOfPartitions() {
-        return numBytesProducedOfPartitions;
+    public Map<IntermediateResultPartitionID, ResultPartitionBytes> getResultPartitionBytes() {
+        return Collections.unmodifiableMap(checkNotNull(resultPartitionBytes));
     }
 }
