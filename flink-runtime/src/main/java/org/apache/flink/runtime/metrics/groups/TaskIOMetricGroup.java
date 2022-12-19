@@ -245,7 +245,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.resultPartitionBytes.put(resultPartitionId, resultPartitionBytesCounter);
     }
 
-    public void registerMailboxSizeSupplier(SizeGauge.SizeSupplier<Integer> supplier) {
+    public void registerMailboxSizeSupplier(SizeSupplier<Integer> supplier) {
         this.mailboxSize.registerSupplier(supplier);
     }
 
@@ -275,11 +275,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private static class SizeGauge implements Gauge<Integer> {
         private SizeSupplier<Integer> supplier;
 
-        @FunctionalInterface
-        public interface SizeSupplier<R> {
-            R get();
-        }
-
         public void registerSupplier(SizeSupplier<Integer> supplier) {
             this.supplier = supplier;
         }
@@ -292,5 +287,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 return 0; // return "assumed" empty queue size
             }
         }
+    }
+
+    /** Supplier for sizes. */
+    @FunctionalInterface
+    public interface SizeSupplier<R> {
+        R get();
     }
 }

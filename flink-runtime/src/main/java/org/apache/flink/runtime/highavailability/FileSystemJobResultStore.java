@@ -207,7 +207,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
     @VisibleForTesting
     static class JsonJobResultEntry extends JobResultEntry {
         private static final String FIELD_NAME_RESULT = "result";
-        private static final String FIELD_NAME_VERSION = "version";
+        static final String FIELD_NAME_VERSION = "version";
 
         private JsonJobResultEntry(JobResultEntry entry) {
             this(entry.getJobResult());
