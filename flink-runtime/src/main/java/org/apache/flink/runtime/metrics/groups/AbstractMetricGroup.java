@@ -461,8 +461,8 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
                 AbstractMetricGroup newGroup = createChildGroup(name, childType);
                 AbstractMetricGroup prior = groups.put(name, newGroup);
-                if (prior == null) {
-                    // no prior group with that name
+                if (prior == null || prior.isClosed()) {
+                    // no prior group or closed group with that name
                     return newGroup;
                 } else {
                     // had a prior group with that name, add the prior group back
