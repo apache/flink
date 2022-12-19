@@ -35,8 +35,8 @@ public enum SqlGatewayRestAPIVersion
     // The bigger the ordinal(its position in enum declaration), the higher the level of the
     // version.
     V0(false, false),
-    V1(false, true),
-    V2(true, true);
+    V1(true, true),
+    V2(false, true);
 
     private final boolean isDefaultVersion;
 
