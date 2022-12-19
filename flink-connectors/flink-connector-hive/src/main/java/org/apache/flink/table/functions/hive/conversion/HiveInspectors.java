@@ -85,6 +85,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantL
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantShortObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantStringObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantTimestampObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableVoidObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
@@ -549,9 +550,18 @@ public class HiveInspectors {
                 className = WritableConstantBinaryObjectInspector.class.getName();
                 return HiveReflectionUtils.createConstantObjectInspector(
                         className, BytesWritable.class, value);
-            case UNKNOWN:
             case VOID:
-                // If type is null, we use the Constant String to replace
+                try {
+                    Constructor<WritableVoidObjectInspector> constructor =
+                            WritableVoidObjectInspector.class.getDeclaredConstructor();
+                    constructor.setAccessible(true);
+                    return constructor.newInstance();
+                } catch (Exception e) {
+                    throw new FlinkHiveUDFException(
+                            "Failed to create writable constant object inspector", e);
+                }
+            case UNKNOWN:
+                // If type is unknown, we use the Constant String to replace
                 className = WritableConstantStringObjectInspector.class.getName();
                 return HiveReflectionUtils.createConstantObjectInspector(
                         className, Text.class, value == null ? null : value.toString());

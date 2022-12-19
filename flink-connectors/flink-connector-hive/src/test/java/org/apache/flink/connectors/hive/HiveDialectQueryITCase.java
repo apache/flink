@@ -43,7 +43,9 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantLongObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.BeforeClass;
@@ -58,6 +60,7 @@ import java.io.FileReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -935,6 +938,42 @@ public class HiveDialectQueryITCase {
             tableEnv.executeSql("drop table m_catalog.db.t2");
             tableEnv.executeSql("drop table t1");
             tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        }
+    }
+
+    @Test
+    public void testNullLiteralAsArgument() throws Exception {
+        tableEnv.executeSql("create table test_ts(ts timestamp)");
+        tableEnv.executeSql("create table t_bigint(ts bigint)");
+        Long testTimestamp = 1671058803926L;
+        // timestamp's behavior is different between hive2 and hive3, so
+        // use HiveShim in this test to hide such difference
+        HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+        LocalDateTime expectDateTime =
+                hiveShim.toFlinkTimestamp(
+                        PrimitiveObjectInspectorUtils.getTimestamp(
+                                testTimestamp, new JavaConstantLongObjectInspector(testTimestamp)));
+        try {
+            tableEnv.executeSql(
+                            String.format(
+                                    "insert into table t_bigint values (%s), (null)",
+                                    testTimestamp))
+                    .await();
+            // the return data type for expression if(ts = 0, null ,ts) should be bigint instead of
+            // string. otherwise, the all values in table t_bigint wll be null since
+            // cast("1671058803926" as timestamp) will return null
+            tableEnv.executeSql(
+                            "insert into table test_ts select if(ts = 0, null ,ts) from t_bigint")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from test_ts").collect());
+            // verify it can cast to timestamp value correctly
+            assertThat(result.toString())
+                    .isEqualTo(String.format("[+I[%s], +I[null]]", expectDateTime));
+        } finally {
+            tableEnv.executeSql("drop table test_ts");
+            tableEnv.executeSql("drop table t_bigint");
         }
     }
 
