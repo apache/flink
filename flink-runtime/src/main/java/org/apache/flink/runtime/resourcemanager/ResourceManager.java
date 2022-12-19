@@ -55,6 +55,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocator;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceEventListener;
@@ -507,7 +508,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     slotReport,
                     workerTypeWorkerRegistration.getTotalResourceProfile(),
                     workerTypeWorkerRegistration.getDefaultSlotResourceProfile())) {
-                onWorkerRegistered(workerTypeWorkerRegistration.getWorker());
+                WorkerResourceSpec workerResourceSpec =
+                        WorkerResourceSpec.fromTotalResourceProfile(
+                                workerTypeWorkerRegistration.getTotalResourceProfile(),
+                                slotReport.getNumSlotStatus());
+                onWorkerRegistered(workerTypeWorkerRegistration.getWorker(), workerResourceSpec);
             }
             return CompletableFuture.completedFuture(Acknowledge.get());
         } else {
@@ -519,7 +524,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    protected void onWorkerRegistered(WorkerType worker) {
+    protected void onWorkerRegistered(WorkerType worker, WorkerResourceSpec workerResourceSpec) {
         // noop
     }
 
@@ -1163,6 +1168,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     oldJobMasterId,
                     jobId);
         }
+    }
+
+    @VisibleForTesting
+    public Optional<InstanceID> getInstanceIdByResourceId(ResourceID resourceID) {
+        return Optional.ofNullable(taskExecutors.get(resourceID))
+                .map(TaskExecutorConnection::getInstanceID);
     }
 
     protected WorkerType getWorkerByInstanceId(InstanceID instanceId) {

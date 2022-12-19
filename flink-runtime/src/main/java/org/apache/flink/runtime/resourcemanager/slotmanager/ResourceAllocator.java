@@ -22,6 +22,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
+import java.util.Collection;
+
 /** Resource related actions which the {@link SlotManager} can perform. */
 public interface ResourceAllocator {
 
@@ -49,4 +51,7 @@ public interface ResourceAllocator {
      * @param workerResourceSpec for the to be allocated worker
      */
     void allocateResource(WorkerResourceSpec workerResourceSpec);
+
+    /** declare resource need by slot manager. */
+    void declareResourceNeeded(Collection<ResourceDeclaration> resourceDeclarations);
 }

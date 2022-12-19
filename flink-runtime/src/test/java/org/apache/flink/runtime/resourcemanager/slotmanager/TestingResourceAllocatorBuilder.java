@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
+import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -28,6 +29,8 @@ import java.util.function.Consumer;
 public class TestingResourceAllocatorBuilder {
     private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
     private Consumer<WorkerResourceSpec> allocateResourceConsumer = (ignored) -> {};
+    private Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer =
+            (ignored) -> {};
 
     public TestingResourceAllocatorBuilder setReleaseResourceConsumer(
             BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
@@ -41,7 +44,14 @@ public class TestingResourceAllocatorBuilder {
         return this;
     }
 
+    public TestingResourceAllocatorBuilder setDeclareResourceNeededConsumer(
+            Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer) {
+        this.declareResourceNeededConsumer = declareResourceNeededConsumer;
+        return this;
+    }
+
     public TestingResourceAllocator build() {
-        return new TestingResourceAllocator(releaseResourceConsumer, allocateResourceConsumer);
+        return new TestingResourceAllocator(
+                releaseResourceConsumer, allocateResourceConsumer, declareResourceNeededConsumer);
     }
 }
