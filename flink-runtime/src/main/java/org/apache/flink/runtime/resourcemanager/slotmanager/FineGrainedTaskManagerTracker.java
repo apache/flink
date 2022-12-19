@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
@@ -47,6 +48,9 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     /** All currently registered task managers. */
     private final Map<InstanceID, FineGrainedTaskManagerRegistration> taskManagerRegistrations;
 
+    /** All unwanted task managers. */
+    private final Map<InstanceID, WorkerResourceSpec> unWantedTaskManagers;
+
     private final Map<PendingTaskManagerId, PendingTaskManager> pendingTaskManagers;
 
     private final Map<PendingTaskManagerId, Map<JobID, ResourceCounter>>
@@ -65,6 +69,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     public FineGrainedTaskManagerTracker() {
         slots = new HashMap<>();
         taskManagerRegistrations = new HashMap<>();
+        unWantedTaskManagers = new HashMap<>();
         pendingTaskManagers = new HashMap<>();
         pendingSlotAllocationRecords = new HashMap<>();
         totalAndDefaultSlotProfilesToPendingTaskManagers = new HashMap<>();
@@ -109,6 +114,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     @Override
     public void removeTaskManager(InstanceID instanceId) {
         Preconditions.checkNotNull(instanceId);
+        unWantedTaskManagers.remove(instanceId);
         final FineGrainedTaskManagerRegistration taskManager =
                 Preconditions.checkNotNull(taskManagerRegistrations.remove(instanceId));
         totalRegisteredResource = totalRegisteredResource.subtract(taskManager.getTotalResource());
@@ -116,6 +122,28 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         for (AllocationID allocationId : taskManager.getAllocatedSlots().keySet()) {
             slots.remove(allocationId);
         }
+    }
+
+    @Override
+    public void addUnWantedTaskManager(InstanceID instanceId) {
+        final FineGrainedTaskManagerRegistration taskManager =
+                taskManagerRegistrations.get(instanceId);
+        if (taskManager != null) {
+            unWantedTaskManagers.put(
+                    instanceId,
+                    WorkerResourceSpec.fromTotalResourceProfile(
+                            taskManager.getTotalResource(),
+                            SlotManagerUtils.calculateDefaultNumSlots(
+                                    taskManager.getTotalResource(),
+                                    taskManager.getDefaultSlotResourceProfile())));
+        } else {
+            LOG.debug("Unwanted task manager {} does not exists.", instanceId);
+        }
+    }
+
+    @Override
+    public Map<InstanceID, WorkerResourceSpec> getUnWantedTaskManager() {
+        return unWantedTaskManagers;
     }
 
     @Override
@@ -354,5 +382,6 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         pendingTaskManagers.clear();
         totalPendingResource = ResourceProfile.ZERO;
         pendingSlotAllocationRecords.clear();
+        unWantedTaskManagers.clear();
     }
 }

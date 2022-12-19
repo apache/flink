@@ -620,22 +620,9 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
-        public void releaseResource(InstanceID instanceId, Exception cause) {
-            validateRunsInMainThread();
-
-            ActiveResourceManager.this.releaseResource(instanceId, cause);
-        }
-
-        @Override
         public void cleaningUpDisconnectedResource(ResourceID resourceID) {
             validateRunsInMainThread();
             internalStopWorker(resourceID);
-        }
-
-        @Override
-        public void allocateResource(WorkerResourceSpec workerResourceSpec) {
-            validateRunsInMainThread();
-            requestNewWorker(workerResourceSpec);
         }
 
         @Override

@@ -139,6 +139,7 @@ public class DeclarativeSlotManager implements SlotManager {
                                 slotManagerConfiguration.isWaitResultConsumedBeforeRelease(),
                                 slotManagerConfiguration.getRedundantTaskManagerNum(),
                                 slotManagerConfiguration.getTaskManagerTimeout(),
+                                slotManagerConfiguration.getDeclareNeededResourceDelay(),
                                 scheduledExecutor,
                                 executor,
                                 resourceAllocator);
@@ -319,19 +320,8 @@ public class DeclarativeSlotManager implements SlotManager {
         }
     }
 
-    /**
-     * Registers a new task manager at the slot manager. This will make the task managers slots
-     * known and, thus, available for allocation.
-     *
-     * @param taskExecutorConnection for the new task manager
-     * @param initialSlotReport for the new task manager
-     * @param totalResourceProfile for the new task manager
-     * @param defaultSlotResourceProfile for the new task manager
-     * @return True if the task manager has not been registered before and is registered
-     *     successfully; otherwise false
-     */
     @Override
-    public boolean registerTaskManager(
+    public RegistrationResult registerTaskManager(
             final TaskExecutorConnection taskExecutorConnection,
             SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
@@ -348,7 +338,7 @@ public class DeclarativeSlotManager implements SlotManager {
                     "Task executor {} was already registered.",
                     taskExecutorConnection.getResourceID());
             reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
-            return false;
+            return RegistrationResult.IGNORED;
         } else {
             if (!taskExecutorManager.registerTaskManager(
                     taskExecutorConnection,
@@ -358,7 +348,7 @@ public class DeclarativeSlotManager implements SlotManager {
                 LOG.debug(
                         "Task executor {} could not be registered.",
                         taskExecutorConnection.getResourceID());
-                return false;
+                return RegistrationResult.REJECTED;
             }
 
             // register the new slots
@@ -371,7 +361,7 @@ public class DeclarativeSlotManager implements SlotManager {
             }
 
             checkResourceRequirementsWithDelay();
-            return true;
+            return RegistrationResult.SUCCESS;
         }
     }
 

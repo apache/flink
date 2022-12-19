@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 import java.util.Collection;
 
@@ -37,16 +35,7 @@ public class NonSupportedResourceAllocatorImpl implements ResourceAllocator {
     }
 
     @Override
-    public void releaseResource(InstanceID instanceId, Exception cause) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void cleaningUpDisconnectedResource(ResourceID resourceID) {
-        throw new UnsupportedOperationException();
-    }
-
-    public void allocateResource(WorkerResourceSpec workerResourceSpec) {
         throw new UnsupportedOperationException();
     }
 

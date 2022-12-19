@@ -37,6 +37,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -133,8 +134,8 @@ public class TaskExecutorManagerTest extends TestLogger {
 
     /**
      * Tests that a task manager timeout does not remove the slots from the SlotManager. A timeout
-     * should only trigger the {@link ResourceAllocator#releaseResource(InstanceID, Exception)}
-     * callback. The receiver of the callback can then decide what to do with the TaskManager.
+     * should only trigger the {@link ResourceAllocator#declareResourceNeeded} callback. The
+     * receiver of the callback can then decide what to do with the TaskManager.
      *
      * <p>See FLINK-7793
      */
@@ -145,8 +146,20 @@ public class TaskExecutorManagerTest extends TestLogger {
         final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
         final ResourceAllocator resourceAllocator =
                 createResourceAllocatorBuilder()
-                        .setReleaseResourceConsumer(
-                                (instanceId, ignored) -> releaseResourceFuture.complete(instanceId))
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> {
+                                    assertThat(resourceDeclarations.size(), is(1));
+                                    ResourceDeclaration resourceDeclaration =
+                                            resourceDeclarations.iterator().next();
+                                    assertThat(resourceDeclaration.getNumNeeded(), is(0));
+                                    assertThat(
+                                            resourceDeclaration.getUnwantedWorkers().size(), is(1));
+                                    releaseResourceFuture.complete(
+                                            resourceDeclaration
+                                                    .getUnwantedWorkers()
+                                                    .iterator()
+                                                    .next());
+                                })
                         .build();
 
         final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
@@ -194,11 +207,32 @@ public class TaskExecutorManagerTest extends TestLogger {
         final ResourceProfile resourceProfile = ResourceProfile.newBuilder().setCpuCores(1).build();
         final Time taskManagerTimeout = Time.milliseconds(50L);
 
+        final AtomicInteger declareResourceCount = new AtomicInteger(0);
         final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
         final ResourceAllocator resourceAllocator =
                 new TestingResourceAllocatorBuilder()
-                        .setReleaseResourceConsumer(
-                                (instanceID, e) -> releaseResourceFuture.complete(instanceID))
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> {
+                                    assertThat(resourceDeclarations.size(), is(1));
+                                    ResourceDeclaration resourceDeclaration =
+                                            resourceDeclarations.iterator().next();
+                                    if (declareResourceCount.getAndIncrement() == 0) {
+                                        assertThat(resourceDeclaration.getNumNeeded(), is(1));
+                                        assertThat(
+                                                resourceDeclaration.getUnwantedWorkers().size(),
+                                                is(0));
+                                    } else {
+                                        assertThat(resourceDeclaration.getNumNeeded(), is(0));
+                                        assertThat(
+                                                resourceDeclaration.getUnwantedWorkers().size(),
+                                                is(1));
+                                        releaseResourceFuture.complete(
+                                                resourceDeclaration
+                                                        .getUnwantedWorkers()
+                                                        .iterator()
+                                                        .next());
+                                    }
+                                })
                         .build();
 
         final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
@@ -247,10 +281,11 @@ public class TaskExecutorManagerTest extends TestLogger {
         final ResourceProfile requestedProfile =
                 ResourceProfile.newBuilder().setCpuCores(numCoresPerWorker + 1).build();
 
-        final AtomicInteger resourceRequests = new AtomicInteger(0);
+        final AtomicInteger declareResourceCount = new AtomicInteger(0);
         ResourceAllocator resourceAllocator =
                 createResourceAllocatorBuilder()
-                        .setAllocateResourceConsumer(ignored -> resourceRequests.incrementAndGet())
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> declareResourceCount.incrementAndGet())
                         .build();
 
         try (final TaskExecutorManager taskExecutorManager =
@@ -263,7 +298,7 @@ public class TaskExecutorManagerTest extends TestLogger {
 
             assertThat(
                     taskExecutorManager.allocateWorker(requestedProfile).orElse(null), nullValue());
-            assertThat(resourceRequests.get(), is(0));
+            assertThat(declareResourceCount.get(), is(0));
         }
     }
 
@@ -276,10 +311,16 @@ public class TaskExecutorManagerTest extends TestLogger {
         final int numberSlots = 1;
         final int maxSlotNum = 1;
 
-        final AtomicInteger resourceRequests = new AtomicInteger(0);
+        final List<Integer> resourceRequestNumber = new ArrayList<>();
         ResourceAllocator resourceAllocator =
                 createResourceAllocatorBuilder()
-                        .setAllocateResourceConsumer(ignored -> resourceRequests.incrementAndGet())
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> {
+                                    assertThat(resourceDeclarations.size(), is(1));
+                                    ResourceDeclaration resourceDeclaration =
+                                            resourceDeclarations.iterator().next();
+                                    resourceRequestNumber.add(resourceDeclaration.getNumNeeded());
+                                })
                         .build();
 
         try (final TaskExecutorManager taskExecutorManager =
@@ -289,13 +330,15 @@ public class TaskExecutorManagerTest extends TestLogger {
                         .setResourceAllocator(resourceAllocator)
                         .createTaskExecutorManager()) {
 
-            assertThat(resourceRequests.get(), is(0));
+            assertThat(resourceRequestNumber.size(), is(0));
 
             taskExecutorManager.allocateWorker(ResourceProfile.UNKNOWN);
-            assertThat(resourceRequests.get(), is(1));
+            assertThat(resourceRequestNumber.size(), is(1));
+            assertThat(resourceRequestNumber.get(0), is(1));
 
             taskExecutorManager.allocateWorker(ResourceProfile.UNKNOWN);
-            assertThat(resourceRequests.get(), is(1));
+            assertThat(resourceRequestNumber.size(), is(1));
+            assertThat(resourceRequestNumber.get(0), is(1));
         }
     }
 
@@ -308,25 +351,16 @@ public class TaskExecutorManagerTest extends TestLogger {
         final int numberSlots = 1;
         final int maxSlotNum = 1;
 
-        final CompletableFuture<InstanceID> releasedResourceFuture = new CompletableFuture<>();
-        ResourceAllocator resourceAllocator =
-                createResourceAllocatorBuilder()
-                        .setReleaseResourceConsumer(
-                                (instanceID, e) -> releasedResourceFuture.complete(instanceID))
-                        .build();
-
         try (final TaskExecutorManager taskExecutorManager =
                 createTaskExecutorManagerBuilder()
                         .setNumSlotsPerWorker(numberSlots)
                         .setMaxNumSlots(maxSlotNum)
-                        .setResourceAllocator(resourceAllocator)
                         .createTaskExecutorManager()) {
 
             createAndRegisterTaskExecutor(taskExecutorManager, 1, ResourceProfile.ANY);
-            InstanceID rejectedTaskExecutorId =
-                    createAndRegisterTaskExecutor(taskExecutorManager, 1, ResourceProfile.ANY);
+            createAndRegisterTaskExecutor(taskExecutorManager, 1, ResourceProfile.ANY);
 
-            assertThat(releasedResourceFuture.get(), is(rejectedTaskExecutorId));
+            assertThat(taskExecutorManager.getNumberRegisteredSlots(), is(1));
         }
     }
 
@@ -372,9 +406,7 @@ public class TaskExecutorManagerTest extends TestLogger {
     }
 
     private static TestingResourceAllocatorBuilder createResourceAllocatorBuilder() {
-        return new TestingResourceAllocatorBuilder()
-                // ensures we do something when excess resource are requested
-                .setAllocateResourceConsumer(ignored -> {});
+        return new TestingResourceAllocatorBuilder();
     }
 
     private static InstanceID createAndRegisterTaskExecutor(

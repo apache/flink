@@ -82,6 +82,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkExpectedException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
@@ -503,16 +504,26 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 taskExecutors.get(taskManagerResourceId);
 
         if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) {
-            if (slotManager.registerTaskManager(
-                    workerTypeWorkerRegistration,
-                    slotReport,
-                    workerTypeWorkerRegistration.getTotalResourceProfile(),
-                    workerTypeWorkerRegistration.getDefaultSlotResourceProfile())) {
+            SlotManager.RegistrationResult registrationResult =
+                    slotManager.registerTaskManager(
+                            workerTypeWorkerRegistration,
+                            slotReport,
+                            workerTypeWorkerRegistration.getTotalResourceProfile(),
+                            workerTypeWorkerRegistration.getDefaultSlotResourceProfile());
+            if (registrationResult == SlotManager.RegistrationResult.SUCCESS) {
                 WorkerResourceSpec workerResourceSpec =
                         WorkerResourceSpec.fromTotalResourceProfile(
                                 workerTypeWorkerRegistration.getTotalResourceProfile(),
                                 slotReport.getNumSlotStatus());
                 onWorkerRegistered(workerTypeWorkerRegistration.getWorker(), workerResourceSpec);
+            } else if (registrationResult == SlotManager.RegistrationResult.REJECTED) {
+                closeTaskManagerConnection(
+                                taskManagerResourceId,
+                                new FlinkExpectedException(
+                                        "Task manager could not be registered to SlotManager."))
+                        .ifPresent(ResourceManager.this::stopWorkerIfSupported);
+            } else {
+                log.debug("TaskManager {} is ignored by SlotManager.", taskManagerResourceId);
             }
             return CompletableFuture.completedFuture(Acknowledge.get());
         } else {
