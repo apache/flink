@@ -223,6 +223,26 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         assertThat(operatorCoordinatorContext.isJobFailed()).isFalse();
     }
 
+    @Test
+    void testSupportsIntermediateNoMoreSplits() throws Exception {
+        sourceReady();
+        registerReaders();
+
+        SplitsAssignment<MockSourceSplit> splitsAssignment = getSplitsAssignment(2, 0);
+        context.assignSplits(splitsAssignment);
+        context.signalIntermediateNoMoreSplits(0);
+        context.signalIntermediateNoMoreSplits(1);
+        assertThat(context.hasNoMoreSplits(0)).isFalse();
+        assertThat(context.hasNoMoreSplits(1)).isFalse();
+        assertThat(context.hasNoMoreSplits(2)).isFalse();
+
+        context.signalNoMoreSplits(0);
+        context.signalNoMoreSplits(1);
+        assertThat(context.hasNoMoreSplits(0)).isTrue();
+        assertThat(context.hasNoMoreSplits(1)).isTrue();
+        assertThat(context.hasNoMoreSplits(2)).isFalse();
+    }
+
     // ------------------------
 
     private List<ReaderInfo> registerReaders() {
