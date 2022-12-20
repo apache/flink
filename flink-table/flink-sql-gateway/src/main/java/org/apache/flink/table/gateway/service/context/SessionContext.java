@@ -109,8 +109,8 @@ public class SessionContext {
         this.userClassloader = classLoader;
         this.sessionState = sessionState;
         this.operationManager = operationManager;
-        isStatementSetState = false;
-        statementSetOperations = new ArrayList<>();
+        this.isStatementSetState = false;
+        this.statementSetOperations = new ArrayList<>();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -135,26 +135,6 @@ public class SessionContext {
 
     public SessionState getSessionState() {
         return sessionState;
-    }
-
-    public boolean isStatementSetState() {
-        return isStatementSetState;
-    }
-
-    public void setStatementSetState(boolean isStatementSetState) {
-        this.isStatementSetState = isStatementSetState;
-    }
-
-    public List<ModifyOperation> getStatementSetOperations() {
-        return Collections.unmodifiableList(new ArrayList<>(statementSetOperations));
-    }
-
-    public void addStatementSetOperation(ModifyOperation operation) {
-        statementSetOperations.add(operation);
-    }
-
-    public void clearStatementSetOperations() {
-        statementSetOperations.clear();
     }
 
     public void set(String key, String value) {
@@ -195,6 +175,33 @@ public class SessionContext {
     public OperationExecutor createOperationExecutor(Configuration executionConfig) {
         return new OperationExecutor(this, executionConfig);
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Begin statement set
+    // --------------------------------------------------------------------------------------------
+
+    public boolean isStatementSetState() {
+        return isStatementSetState;
+    }
+
+    public void enableStatementSet() {
+        isStatementSetState = true;
+    }
+
+    public void disableStatementSet() {
+        isStatementSetState = false;
+        statementSetOperations.clear();
+    }
+
+    public List<ModifyOperation> getStatementSetOperations() {
+        return Collections.unmodifiableList(new ArrayList<>(statementSetOperations));
+    }
+
+    public void addStatementSetOperation(ModifyOperation operation) {
+        statementSetOperations.add(operation);
+    }
+
+    // --------------------------------------------------------------------------------------------
 
     /** Close resources, e.g. catalogs. */
     public void close() {

@@ -1,4 +1,4 @@
-# statement-set.q - BEGIN STATEMENT SET, END
+# begin-statement-set.q - BEGIN STATEMENT SET, END
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -96,8 +96,7 @@ BEGIN STATEMENT SET;
 
 BEGIN STATEMENT SET;
 !output
-org.apache.flink.table.gateway.service.utils.SqlExecutionException: Wrong statement after 'BEGIN STATEMENT SET'.
-Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to terminate Statement Set.
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 create table src (
@@ -107,14 +106,12 @@ create table src (
   'connector' = 'values'
 );
 !output
-org.apache.flink.table.gateway.service.utils.SqlExecutionException: Wrong statement after 'BEGIN STATEMENT SET'.
-Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to terminate Statement Set.
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 SELECT id, str FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
 !output
-org.apache.flink.table.gateway.service.utils.SqlExecutionException: Wrong statement after 'BEGIN STATEMENT SET'.
-Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to terminate Statement Set.
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));

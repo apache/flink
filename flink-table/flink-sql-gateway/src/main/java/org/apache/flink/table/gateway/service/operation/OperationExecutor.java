@@ -53,13 +53,11 @@ import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
-import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
@@ -165,40 +163,9 @@ public class OperationExecutor {
                             + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
         }
         Operation op = parsedOperations.get(0);
-        validate(op);
-
-        if (op instanceof SetOperation) {
-            return callSetOperation(tableEnv, handle, (SetOperation) op);
-        } else if (op instanceof ResetOperation) {
-            return callResetOperation(handle, (ResetOperation) op);
-        } else if (op instanceof BeginStatementSetOperation) {
-            return callBeginStatementSetOperation(handle);
-        } else if (op instanceof EndStatementSetOperation) {
-            return callEndStatementSetOperation(tableEnv, handle);
-        } else if (op instanceof ModifyOperation) {
-            if (sessionContext.isStatementSetState()) {
-                // collect ModifyOperation to Statement Set
-                sessionContext.addStatementSetOperation((ModifyOperation) op);
-                return new ResultFetcher(
-                        handle,
-                        TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                        CollectionUtil.iteratorToList(
-                                TableResultInternal.TABLE_RESULT_OK.collectInternal()));
-            } else {
-                return callModifyOperations(
-                        tableEnv, handle, Collections.singletonList((ModifyOperation) op));
-            }
-        } else if (op instanceof StatementSetOperation) {
-            return callModifyOperations(
-                    tableEnv, handle, ((StatementSetOperation) op).getOperations());
-        } else if (op instanceof QueryOperation) {
-            TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
-        } else if (op instanceof StopJobOperation) {
-            return callStopJobOperation(handle, (StopJobOperation) op);
-        } else {
-            return callOperation(tableEnv, handle, op);
-        }
+        return sessionContext.isStatementSetState()
+                ? executeOperationInStatementSetState(tableEnv, handle, op)
+                : executeOperation(tableEnv, handle, op);
     }
 
     public String getCurrentCatalog() {
@@ -246,8 +213,11 @@ public class OperationExecutor {
     }
 
     public Set<FunctionInfo> listUserDefinedFunctions(String catalogName, String databaseName) {
-        return sessionContext.getSessionState().functionCatalog
-                .getUserDefinedFunctions(catalogName, databaseName).stream()
+        return sessionContext
+                .getSessionState()
+                .functionCatalog
+                .getUserDefinedFunctions(catalogName, databaseName)
+                .stream()
                 // Load the CatalogFunction from the remote catalog is time wasted. Set the
                 // FunctionKind null.
                 .map(FunctionInfo::new)
@@ -314,6 +284,52 @@ public class OperationExecutor {
         return tableEnv;
     }
 
+    private ResultFetcher executeOperationInStatementSetState(
+            TableEnvironmentInternal tableEnv,
+            OperationHandle operationHandle,
+            Operation operation) {
+        if (operation instanceof EndStatementSetOperation) {
+            return callEndStatementSetOperation(tableEnv, operationHandle);
+        } else if (operation instanceof ModifyOperation) {
+            sessionContext.addStatementSetOperation((ModifyOperation) operation);
+            return new ResultFetcher(
+                    operationHandle,
+                    TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                    CollectionUtil.iteratorToList(
+                            TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+        } else {
+            throw new SqlExecutionException(
+                    "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.");
+        }
+    }
+
+    private ResultFetcher executeOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
+        if (op instanceof SetOperation) {
+            return callSetOperation(tableEnv, handle, (SetOperation) op);
+        } else if (op instanceof ResetOperation) {
+            return callResetOperation(handle, (ResetOperation) op);
+        } else if (op instanceof BeginStatementSetOperation) {
+            return callBeginStatementSetOperation(handle);
+        } else if (op instanceof EndStatementSetOperation) {
+            throw new SqlExecutionException(
+                    "No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.");
+        } else if (op instanceof ModifyOperation) {
+            return callModifyOperations(
+                    tableEnv, handle, Collections.singletonList((ModifyOperation) op));
+        } else if (op instanceof StatementSetOperation) {
+            return callModifyOperations(
+                    tableEnv, handle, ((StatementSetOperation) op).getOperations());
+        } else if (op instanceof QueryOperation) {
+            TableResultInternal result = tableEnv.executeInternal(op);
+            return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
+        } else if (op instanceof StopJobOperation) {
+            return callStopJobOperation(handle, (StopJobOperation) op);
+        } else {
+            return callOperation(tableEnv, handle, op);
+        }
+    }
+
     private ResultFetcher callSetOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle, SetOperation setOp) {
         if (setOp.getKey().isPresent() && setOp.getValue().isPresent()) {
@@ -364,7 +380,7 @@ public class OperationExecutor {
     }
 
     private ResultFetcher callBeginStatementSetOperation(OperationHandle handle) {
-        sessionContext.setStatementSetState(true);
+        sessionContext.enableStatementSet();
         return new ResultFetcher(
                 handle,
                 TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
@@ -375,9 +391,8 @@ public class OperationExecutor {
     private ResultFetcher callEndStatementSetOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle) {
         // reset the state regardless of whether error occurs while executing the set
-        sessionContext.setStatementSetState(false);
         List<ModifyOperation> statementSetOperations = sessionContext.getStatementSetOperations();
-        sessionContext.clearStatementSetOperations();
+        sessionContext.disableStatementSet();
 
         if (statementSetOperations.isEmpty()) {
             // there's no statement in the statement set, skip submitting
@@ -456,7 +471,10 @@ public class OperationExecutor {
 
     private Set<TableInfo> listViews(String catalogName, String databaseName) {
         return Collections.unmodifiableSet(
-                sessionContext.getSessionState().catalogManager.listViews(catalogName, databaseName)
+                sessionContext
+                        .getSessionState()
+                        .catalogManager
+                        .listViews(catalogName, databaseName)
                         .stream()
                         .map(
                                 name ->
@@ -465,24 +483,6 @@ public class OperationExecutor {
                                                         catalogName, databaseName, name),
                                                 TableKind.VIEW))
                         .collect(Collectors.toSet()));
-    }
-
-    private void validate(Operation operation) {
-        if (sessionContext.isStatementSetState()) {
-            if (!(operation instanceof SinkModifyOperation
-                    || operation instanceof EndStatementSetOperation
-                    || operation instanceof CreateTableASOperation)) {
-                throw new SqlExecutionException(
-                        "Wrong statement after 'BEGIN STATEMENT SET'.\n"
-                                + "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to terminate Statement Set.");
-            }
-        }
-
-        if (!sessionContext.isStatementSetState()
-                && operation instanceof EndStatementSetOperation) {
-            throw new SqlExecutionException(
-                    "No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.");
-        }
     }
 
     public ResultFetcher callStopJobOperation(
