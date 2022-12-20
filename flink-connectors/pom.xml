@@ -40,7 +40,6 @@ under the License.
 		<module>flink-connector-hbase-1.4</module>
 		<module>flink-connector-hbase-2.2</module>
 		<module>flink-connector-hive</module>
-		<module>flink-connector-jdbc</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>

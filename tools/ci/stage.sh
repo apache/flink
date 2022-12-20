@@ -125,7 +125,6 @@ flink-connectors/flink-sql-connector-hbase-2.2,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
 flink-connectors/flink-connector-files,\
-flink-connectors/flink-connector-jdbc,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\
