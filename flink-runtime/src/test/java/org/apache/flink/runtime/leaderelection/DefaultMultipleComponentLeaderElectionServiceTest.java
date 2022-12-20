@@ -167,6 +167,51 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
+    public void testLeaderSessionIdMatchesBetweenComponents() throws Exception {
+        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
+                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+        final DefaultMultipleComponentLeaderElectionService leaderElectionService =
+                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+
+        try {
+            final Component preLeadershipGrantedComponent =
+                    new Component(
+                            "test-component-0",
+                            new SimpleTestingLeaderElectionEventListener(),
+                            LeaderInformation.empty());
+            final Component postLeadershipGrantedComponent =
+                    new Component(
+                            "test-component-1",
+                            new SimpleTestingLeaderElectionEventListener(),
+                            LeaderInformation.empty());
+
+            leaderElectionService.registerLeaderElectionEventHandler(
+                    preLeadershipGrantedComponent.getComponentId(),
+                    preLeadershipGrantedComponent.getLeaderElectionEventListener());
+
+            leaderElectionDriver.grantLeadership();
+
+            leaderElectionService.registerLeaderElectionEventHandler(
+                    postLeadershipGrantedComponent.getComponentId(),
+                    postLeadershipGrantedComponent.getLeaderElectionEventListener());
+
+            final UUID preGrantLeaderInformation =
+                    preLeadershipGrantedComponent
+                            .getLeaderElectionEventListener()
+                            .getLeaderSessionID();
+
+            final UUID postGrantLeaderInformation =
+                    postLeadershipGrantedComponent
+                            .getLeaderElectionEventListener()
+                            .getLeaderSessionID();
+
+            assertThat(preGrantLeaderInformation).isEqualTo(postGrantLeaderInformation);
+        } finally {
+            leaderElectionService.close();
+        }
+    }
+
+    @Test
     public void allKnownLeaderInformationCallsEventHandlers() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
@@ -321,27 +366,32 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     private static final class SimpleTestingLeaderElectionEventListener
             implements LeaderElectionEventHandler {
 
-        private boolean hasLeadership;
+        /**
+         * {@code currentLeaderSessionId} is set if the current LeaderElection client is select as
+         * the leader by the HA backend.
+         */
+        @Nullable private UUID currentLeaderSessionId;
 
+        /** {@code leaderInformation} is set if the leader information in the HA backend changes. */
         @Nullable private LeaderInformation leaderInformation;
 
         SimpleTestingLeaderElectionEventListener() {
-            hasLeadership = false;
+            currentLeaderSessionId = null;
             leaderInformation = null;
         }
 
         public boolean hasLeadership() {
-            return hasLeadership;
+            return currentLeaderSessionId != null;
         }
 
         @Override
         public void onGrantLeadership(UUID newLeaderSessionId) {
-            hasLeadership = true;
+            currentLeaderSessionId = newLeaderSessionId;
         }
 
         @Override
         public void onRevokeLeadership() {
-            hasLeadership = false;
+            currentLeaderSessionId = null;
             leaderInformation = null;
         }
 
@@ -353,6 +403,11 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
         @Nullable
         LeaderInformation getLeaderInformation() {
             return leaderInformation;
+        }
+
+        @Nullable
+        UUID getLeaderSessionID() {
+            return currentLeaderSessionId;
         }
     }
 }
