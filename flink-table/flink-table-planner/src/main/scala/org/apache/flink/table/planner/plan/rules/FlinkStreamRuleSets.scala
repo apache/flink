@@ -385,18 +385,6 @@ object FlinkStreamRuleSets {
     PythonMapMergeRule.INSTANCE
   )
 
-  /** RuleSet to do rewrite event time temporal join for stream */
-  val EVENT_TIME_TEMPORAL_JOIN_REWRITE: RuleSet = RuleSets.ofList(
-    EventTimeTemporalJoinRewriteRule.JOIN_CALC_SNAPSHOT_CALC_WMA_CALC_TS,
-    EventTimeTemporalJoinRewriteRule.JOIN_CALC_SNAPSHOT_CALC_WMA_TS,
-    EventTimeTemporalJoinRewriteRule.JOIN_CALC_SNAPSHOT_WMA_CALC_TS,
-    EventTimeTemporalJoinRewriteRule.JOIN_CALC_SNAPSHOT_WMA_TS,
-    EventTimeTemporalJoinRewriteRule.JOIN_SNAPSHOT_CALC_WMA_CALC_TS,
-    EventTimeTemporalJoinRewriteRule.JOIN_SNAPSHOT_WMA_CALC_TS,
-    EventTimeTemporalJoinRewriteRule.JOIN_SNAPSHOT_CALC_WMA_TS,
-    EventTimeTemporalJoinRewriteRule.JOIN_SNAPSHOT_WMA_TS
-  )
-
   /** RuleSet to do physical optimize for stream */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     FlinkCalcMergeRule.STREAM_PHYSICAL_INSTANCE,

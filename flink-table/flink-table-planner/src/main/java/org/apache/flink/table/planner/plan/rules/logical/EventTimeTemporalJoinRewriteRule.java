@@ -37,13 +37,15 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.tools.RuleSet;
+import org.apache.calcite.tools.RuleSets;
 
 /**
  * Traverses an event time temporal table join {@link RelNode} tree and update the right child to
  * set {@link FlinkLogicalTableSourceScan}'s eventTimeSnapshot property to true which will prevent
  * it generating a new StreamPhysicalChangelogNormalize later.
  *
- * <p>above is the match patterns(8 variants, the three `Calc` nodes are all optional):
+ * <p>the match patterns are as following(8 variants, the three `Calc` nodes are all optional):
  *
  * <pre>{@code
  *    Join (event time temporal)
@@ -67,28 +69,16 @@ import org.apache.calcite.rex.RexNode;
 public class EventTimeTemporalJoinRewriteRule
         extends RelRule<EventTimeTemporalJoinRewriteRule.Config> {
 
-    public static final RelOptRule JOIN_CALC_SNAPSHOT_CALC_WMA_CALC_TS =
-            Config.JOIN_CALC_SNAPSHOT_CALC_WMA_CALC_TS.toRule();
-
-    public static final RelOptRule JOIN_CALC_SNAPSHOT_CALC_WMA_TS =
-            Config.JOIN_CALC_SNAPSHOT_CALC_WMA_TS.toRule();
-
-    public static final RelOptRule JOIN_CALC_SNAPSHOT_WMA_CALC_TS =
-            Config.JOIN_CALC_SNAPSHOT_WMA_CALC_TS.toRule();
-
-    public static final RelOptRule JOIN_CALC_SNAPSHOT_WMA_TS =
-            Config.JOIN_CALC_SNAPSHOT_WMA_TS.toRule();
-
-    public static final RelOptRule JOIN_SNAPSHOT_CALC_WMA_CALC_TS =
-            Config.JOIN_SNAPSHOT_CALC_WMA_CALC_TS.toRule();
-
-    public static final RelOptRule JOIN_SNAPSHOT_CALC_WMA_TS =
-            Config.JOIN_SNAPSHOT_CALC_WMA_TS.toRule();
-
-    public static final RelOptRule JOIN_SNAPSHOT_WMA_CALC_TS =
-            Config.JOIN_SNAPSHOT_WMA_CALC_TS.toRule();
-
-    public static final RelOptRule JOIN_SNAPSHOT_WMA_TS = Config.JOIN_SNAPSHOT_WMA_TS.toRule();
+    public static final RuleSet EVENT_TIME_TEMPORAL_JOIN_REWRITE_RULES =
+            RuleSets.ofList(
+                    Config.JOIN_CALC_SNAPSHOT_CALC_WMA_CALC_TS.toRule(),
+                    Config.JOIN_CALC_SNAPSHOT_CALC_WMA_TS.toRule(),
+                    Config.JOIN_CALC_SNAPSHOT_WMA_CALC_TS.toRule(),
+                    Config.JOIN_CALC_SNAPSHOT_WMA_TS.toRule(),
+                    Config.JOIN_SNAPSHOT_CALC_WMA_CALC_TS.toRule(),
+                    Config.JOIN_SNAPSHOT_CALC_WMA_TS.toRule(),
+                    Config.JOIN_SNAPSHOT_WMA_CALC_TS.toRule(),
+                    Config.JOIN_SNAPSHOT_WMA_TS.toRule());
 
     public EventTimeTemporalJoinRewriteRule(Config config) {
         super(config);
@@ -154,7 +144,7 @@ public class EventTimeTemporalJoinRewriteRule
         }
         if (node instanceof FlinkLogicalTableSourceScan) {
             final FlinkLogicalTableSourceScan ts = (FlinkLogicalTableSourceScan) node;
-            // update eventTimeSnapshot to true
+            // update eventTimeSnapshotRequired to true
             return ts.copy(ts.getTraitSet(), ts.relOptTable(), true);
         }
         return node;
@@ -200,10 +190,14 @@ public class EventTimeTemporalJoinRewriteRule
      *   <li>JOIN_SNAPSHOT_WMA_CALC_TS
      *   <li>JOIN_SNAPSHOT_WMA_TS
      * </ul>
+     *
+     * <p>Note: the binary form of the numeric suffix is consistent with the arrangement of the
+     * three optional calc nodes, e.g., '5' corresponds to '101' in binary, representing the
+     * existence of the 1st and 3rd calc nodes.
      */
     public interface Config extends RelRule.Config {
         RelRule.Config JOIN_CALC_SNAPSHOT_CALC_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule7")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -244,7 +238,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                                                                 .class)
                                                                                                                                                                                                 .noInputs())))))));
         RelRule.Config JOIN_CALC_SNAPSHOT_CALC_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule6")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -279,8 +273,45 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                                 FlinkLogicalTableSourceScan
                                                                                                                                                                                         .class)
                                                                                                                                                                         .noInputs()))))));
+
+        RelRule.Config JOIN_CALC_SNAPSHOT_WMA_CALC_TS =
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule5")
+                        .as(Config.class)
+                        .withOperandSupplier(
+                                joinTransform ->
+                                        joinTransform
+                                                .operand(FlinkLogicalJoin.class)
+                                                .inputs(
+                                                        left ->
+                                                                left.operand(FlinkLogicalRel.class)
+                                                                        .anyInputs(),
+                                                        right ->
+                                                                right.operand(
+                                                                                FlinkLogicalCalc
+                                                                                        .class)
+                                                                        .oneInput(
+                                                                                r1 ->
+                                                                                        r1.operand(
+                                                                                                        FlinkLogicalSnapshot
+                                                                                                                .class)
+                                                                                                .oneInput(
+                                                                                                        r2 ->
+                                                                                                                r2.operand(
+                                                                                                                                FlinkLogicalWatermarkAssigner
+                                                                                                                                        .class)
+                                                                                                                        .oneInput(
+                                                                                                                                r3 ->
+                                                                                                                                        r3.operand(
+                                                                                                                                                        FlinkLogicalCalc
+                                                                                                                                                                .class)
+                                                                                                                                                .oneInput(
+                                                                                                                                                        r4 ->
+                                                                                                                                                                r4.operand(
+                                                                                                                                                                                FlinkLogicalTableSourceScan
+                                                                                                                                                                                        .class)
+                                                                                                                                                                        .noInputs()))))));
         RelRule.Config JOIN_CALC_SNAPSHOT_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule4")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -311,8 +342,8 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                 .class)
                                                                                                                                                 .noInputs())))));
 
-        RelRule.Config JOIN_SNAPSHOT_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
+        RelRule.Config JOIN_SNAPSHOT_CALC_WMA_CALC_TS =
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule3")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -329,17 +360,26 @@ public class EventTimeTemporalJoinRewriteRule
                                                                         .oneInput(
                                                                                 r1 ->
                                                                                         r1.operand(
-                                                                                                        FlinkLogicalWatermarkAssigner
+                                                                                                        FlinkLogicalCalc
                                                                                                                 .class)
                                                                                                 .oneInput(
                                                                                                         r2 ->
                                                                                                                 r2.operand(
-                                                                                                                                FlinkLogicalTableSourceScan
+                                                                                                                                FlinkLogicalWatermarkAssigner
                                                                                                                                         .class)
-                                                                                                                        .noInputs()))));
-
+                                                                                                                        .oneInput(
+                                                                                                                                r3 ->
+                                                                                                                                        r3.operand(
+                                                                                                                                                        FlinkLogicalCalc
+                                                                                                                                                                .class)
+                                                                                                                                                .oneInput(
+                                                                                                                                                        r4 ->
+                                                                                                                                                                r4.operand(
+                                                                                                                                                                                FlinkLogicalTableSourceScan
+                                                                                                                                                                                        .class)
+                                                                                                                                                                        .noInputs()))))));
         RelRule.Config JOIN_SNAPSHOT_CALC_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule2")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -371,7 +411,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                 .noInputs())))));
 
         RelRule.Config JOIN_SNAPSHOT_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule1")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -402,8 +442,8 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                 .class)
                                                                                                                                                 .noInputs())))));
 
-        RelRule.Config JOIN_SNAPSHOT_CALC_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
+        RelRule.Config JOIN_SNAPSHOT_WMA_TS =
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule0")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -420,61 +460,14 @@ public class EventTimeTemporalJoinRewriteRule
                                                                         .oneInput(
                                                                                 r1 ->
                                                                                         r1.operand(
-                                                                                                        FlinkLogicalCalc
+                                                                                                        FlinkLogicalWatermarkAssigner
                                                                                                                 .class)
                                                                                                 .oneInput(
                                                                                                         r2 ->
                                                                                                                 r2.operand(
-                                                                                                                                FlinkLogicalWatermarkAssigner
+                                                                                                                                FlinkLogicalTableSourceScan
                                                                                                                                         .class)
-                                                                                                                        .oneInput(
-                                                                                                                                r3 ->
-                                                                                                                                        r3.operand(
-                                                                                                                                                        FlinkLogicalCalc
-                                                                                                                                                                .class)
-                                                                                                                                                .oneInput(
-                                                                                                                                                        r4 ->
-                                                                                                                                                                r4.operand(
-                                                                                                                                                                                FlinkLogicalTableSourceScan
-                                                                                                                                                                                        .class)
-                                                                                                                                                                        .noInputs()))))));
-
-        RelRule.Config JOIN_CALC_SNAPSHOT_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule")
-                        .as(Config.class)
-                        .withOperandSupplier(
-                                joinTransform ->
-                                        joinTransform
-                                                .operand(FlinkLogicalJoin.class)
-                                                .inputs(
-                                                        left ->
-                                                                left.operand(FlinkLogicalRel.class)
-                                                                        .anyInputs(),
-                                                        right ->
-                                                                right.operand(
-                                                                                FlinkLogicalCalc
-                                                                                        .class)
-                                                                        .oneInput(
-                                                                                r1 ->
-                                                                                        r1.operand(
-                                                                                                        FlinkLogicalSnapshot
-                                                                                                                .class)
-                                                                                                .oneInput(
-                                                                                                        r2 ->
-                                                                                                                r2.operand(
-                                                                                                                                FlinkLogicalWatermarkAssigner
-                                                                                                                                        .class)
-                                                                                                                        .oneInput(
-                                                                                                                                r3 ->
-                                                                                                                                        r3.operand(
-                                                                                                                                                        FlinkLogicalCalc
-                                                                                                                                                                .class)
-                                                                                                                                                .oneInput(
-                                                                                                                                                        r4 ->
-                                                                                                                                                                r4.operand(
-                                                                                                                                                                                FlinkLogicalTableSourceScan
-                                                                                                                                                                                        .class)
-                                                                                                                                                                        .noInputs()))))));
+                                                                                                                        .noInputs()))));
 
         @Override
         default RelOptRule toRule() {

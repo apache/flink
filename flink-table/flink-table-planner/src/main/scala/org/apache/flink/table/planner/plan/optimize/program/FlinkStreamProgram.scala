@@ -21,6 +21,7 @@ import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
+import org.apache.flink.table.planner.plan.rules.logical.EventTimeTemporalJoinRewriteRule
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 
@@ -263,7 +264,7 @@ object FlinkStreamProgram {
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.EVENT_TIME_TEMPORAL_JOIN_REWRITE)
+            .add(EventTimeTemporalJoinRewriteRule.EVENT_TIME_TEMPORAL_JOIN_REWRITE_RULES)
             .build())
         .build()
     )
