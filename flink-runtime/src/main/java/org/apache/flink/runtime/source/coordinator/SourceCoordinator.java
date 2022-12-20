@@ -211,11 +211,6 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             try (TemporaryClassLoaderContext ignored =
                     TemporaryClassLoaderContext.of(userCodeClassLoader)) {
                 enumerator = source.createEnumerator(context);
-            } catch (Throwable t) {
-                ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-                LOG.error("Failed to create Source Enumerator for source {}", operatorName, t);
-                context.failJob(t);
-                return;
             }
         }
 

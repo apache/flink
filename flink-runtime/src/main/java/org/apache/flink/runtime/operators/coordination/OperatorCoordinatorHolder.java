@@ -195,7 +195,13 @@ public class OperatorCoordinatorHolder
     public void start() throws Exception {
         mainThreadExecutor.assertRunningInMainThread();
         checkState(context.isInitialized(), "Coordinator Context is not yet initialized");
-        coordinator.start();
+        try {
+            coordinator.start();
+        } catch (Throwable t) {
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+            LOG.error("Failed to start Operator Coordinator", t);
+            context.failJob(t);
+        }
     }
 
     @Override
