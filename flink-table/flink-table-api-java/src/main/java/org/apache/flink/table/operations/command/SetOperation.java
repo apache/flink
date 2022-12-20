@@ -27,8 +27,11 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Operation to represent SET command. If {@link #getKey()} and {@link #getValue()} are empty, it
- * means show all the configurations. Otherwise, set value to the configuration key.
+ * Operation to represent SET command.
+ *
+ * <p>If {@link #getKey()} and {@link #getValue()} are both empty, it shows all the configurations.
+ * If only {@link #getValue()} is empty, it shows the configuration of the given key. Otherwise, it
+ * sets value to the configuration key.
  */
 public class SetOperation implements Operation {
 
@@ -42,7 +45,7 @@ public class SetOperation implements Operation {
 
     public SetOperation(String key, String value) {
         this.key = checkNotNull(key);
-        this.value = checkNotNull(value);
+        this.value = value;
     }
 
     public Optional<String> getKey() {
@@ -57,6 +60,8 @@ public class SetOperation implements Operation {
     public String asSummaryString() {
         if (key == null && value == null) {
             return "SET";
+        } else if (value == null) {
+            return String.format("SET %s", key);
         } else {
             return String.format("SET %s=%s", key, value);
         }

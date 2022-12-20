@@ -98,7 +98,8 @@ public final class CliStrings {
                     .commandDescription("CLEAR", "Clears the current terminal.")
                     .commandDescription(
                             "SET",
-                            "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties.")
+                            "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". "
+                                    + "Use \"SET '<key>';\" for showing a property. Use \"SET;\" for listing all properties.")
                     .commandDescription(
                             "RESET",
                             "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties.")

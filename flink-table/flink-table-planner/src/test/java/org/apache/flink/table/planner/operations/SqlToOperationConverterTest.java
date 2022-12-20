@@ -1720,6 +1720,12 @@ public class SqlToOperationConverterTest {
         SetOperation setOperation2 = (SetOperation) operation2;
         assertThat(setOperation2.getKey()).hasValue("test-key");
         assertThat(setOperation2.getValue()).hasValue("test-value");
+
+        Operation operation3 = parse("SET 'test-key'", SqlDialect.DEFAULT);
+        assertThat(operation3).isInstanceOf(SetOperation.class);
+        SetOperation setOperation3 = (SetOperation) operation3;
+        assertThat(setOperation3.getKey()).hasValue("test-key");
+        assertThat(setOperation3.getValue()).isNotPresent();
     }
 
     @Test

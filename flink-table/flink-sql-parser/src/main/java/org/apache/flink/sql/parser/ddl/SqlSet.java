@@ -37,7 +37,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 
-/** SQL call for "SET" and "SET 'key' = 'value'". */
+/** SQL call for "SET", "SET 'key'" and "SET 'key' = 'value'". */
 @Internal
 public class SqlSet extends SqlCall {
 
@@ -49,7 +49,7 @@ public class SqlSet extends SqlCall {
     public SqlSet(SqlParserPos pos, SqlNode key, SqlNode value) {
         super(pos);
         this.key = Objects.requireNonNull(key, "key cannot be null");
-        this.value = Objects.requireNonNull(value, "value cannot be null");
+        this.value = value;
     }
 
     public SqlSet(SqlParserPos pos) {
@@ -98,8 +98,10 @@ public class SqlSet extends SqlCall {
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("SET");
 
-        if (key != null && value != null) {
+        if (key != null) {
             key.unparse(writer, leftPrec, rightPrec);
+        }
+        if (value != null) {
             writer.keyword("=");
             value.unparse(writer, leftPrec, rightPrec);
         }

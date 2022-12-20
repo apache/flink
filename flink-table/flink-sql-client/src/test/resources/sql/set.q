@@ -15,6 +15,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set 'k0'='v0';
+[INFO] Session property has been set.
+!info
+
+set 'k0';
+'k0' = 'v0'
+!ok
+
+set;
+'execution.attached' = 'true'
+'execution.savepoint-restore-mode' = 'NO_CLAIM'
+'execution.savepoint.ignore-unclaimed-state' = 'false'
+'execution.shutdown-on-attached-exit' = 'false'
+'execution.target' = 'remote'
+'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
+'k0' = 'v0'
+'pipeline.classpaths' = ''
+'pipeline.jars' = ''
+'rest.port' = '$VAR_REST_PORT'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
+!ok
+
+reset 'k0';
+[INFO] Session property has been reset.
+!info
+
 # test set a configuration
 SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Session property has been set.

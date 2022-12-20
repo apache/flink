@@ -260,7 +260,12 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 You can configure the SQL client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
 
 ```sql
+--- Set configuration 'key' with 'value'
 SET 'key' = 'value';
+-- Show configuration 'key'
+SET 'key';
+-- Show all configurations
+SET;
 ```
 
 {{< generated/sql_client_configuration >}}

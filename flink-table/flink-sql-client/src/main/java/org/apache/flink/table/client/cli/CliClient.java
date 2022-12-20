@@ -512,6 +512,23 @@ public class CliClient implements AutoCloseable {
             executor.setSessionProperty(sessionId, key, value);
             printInfo(MESSAGE_SET_KEY);
         }
+        // show a property
+        else if (setOperation.getKey().isPresent()) {
+            String key = setOperation.getKey().get().trim();
+            final Map<String, String> properties = executor.getSessionConfigMap(sessionId);
+            if (properties.containsKey(key)) {
+                String prettyEntry =
+                        String.format(
+                                "'%s' = '%s'",
+                                EncodingUtils.escapeSingleQuotes(key),
+                                EncodingUtils.escapeSingleQuotes(properties.get(key)));
+                terminal.writer().println(prettyEntry);
+            } else {
+                terminal.writer()
+                        .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+            }
+            terminal.flush();
+        }
         // show all properties
         else {
             final Map<String, String> properties = executor.getSessionConfigMap(sessionId);

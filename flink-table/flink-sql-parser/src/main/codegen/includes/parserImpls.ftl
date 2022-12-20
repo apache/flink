@@ -2162,7 +2162,7 @@ SqlShowJars SqlShowJars() :
 
 /*
 * Parses a SET statement:
-* SET ['key' = 'value'];
+* SET ['key'[ = 'value']];
 */
 SqlNode SqlSet() :
 {
@@ -2174,8 +2174,10 @@ SqlNode SqlSet() :
     <SET> { s = span(); }
     [
         key = StringLiteral()
-        <EQ>
-        value = StringLiteral()
+        [
+          LOOKAHEAD(1)
+          <EQ> value = StringLiteral()
+        ]
     ]
     {
         if (key == null && value == null) {
