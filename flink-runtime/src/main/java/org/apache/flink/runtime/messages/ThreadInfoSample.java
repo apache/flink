@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.lang.management.ThreadInfo;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -63,13 +64,15 @@ public class ThreadInfoSample implements Serializable {
      * @param threadInfos the collection of {@link ThreadInfo}.
      * @return the collection of the corresponding {@link ThreadInfoSample}s.
      */
-    public static Collection<ThreadInfoSample> from(Collection<ThreadInfo> threadInfos) {
+    public static Map<Long, ThreadInfoSample> from(Collection<ThreadInfo> threadInfos) {
         return threadInfos.stream()
-                .map(
-                        threadInfo ->
-                                new ThreadInfoSample(
-                                        threadInfo.getThreadState(), threadInfo.getStackTrace()))
-                .collect(Collectors.toList());
+                .collect(
+                        Collectors.toMap(
+                                ThreadInfo::getThreadId,
+                                threadInfo ->
+                                        new ThreadInfoSample(
+                                                threadInfo.getThreadState(),
+                                                threadInfo.getStackTrace())));
     }
 
     public Thread.State getThreadState() {

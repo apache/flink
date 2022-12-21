@@ -31,10 +31,12 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.taskexecutor.IdleTestTask.executeWithTerminationGuarantee;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,17 +77,27 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
                     tasks.add(new IdleTestTask());
                     tasks.add(new IdleTestTask());
                     Thread.sleep(2000);
-                    final Collection<ThreadInfoSample> threadInfoSamples =
+
+                    Map<Long, ExecutionAttemptID> threads =
+                            tasks.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    task -> task.getExecutingThread().getId(),
+                                                    IdleTestTask::getExecutionId));
+                    final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSamples =
                             threadInfoSampleService
-                                    .requestThreadInfoSamples(tasks, requestParams)
+                                    .requestThreadInfoSamples(threads, requestParams)
                                     .get();
 
-                    assertThat(threadInfoSamples).hasSize(NUMBER_OF_SAMPLES * 2);
-
-                    for (ThreadInfoSample sample : threadInfoSamples) {
-                        StackTraceElement[] traces = sample.getStackTrace();
-                        assertThat(traces).hasSizeLessThanOrEqualTo(MAX_STACK_TRACK_DEPTH);
+                    int count = 0;
+                    for (Collection<ThreadInfoSample> samples : threadInfoSamples.values()) {
+                        for (ThreadInfoSample sample : samples) {
+                            count++;
+                            StackTraceElement[] traces = sample.getStackTrace();
+                            assertThat(traces).hasSizeLessThanOrEqualTo(MAX_STACK_TRACK_DEPTH);
+                        }
                     }
+                    assertThat(count).isEqualTo(NUMBER_OF_SAMPLES * 2);
                 },
                 tasks);
     }
@@ -97,15 +109,21 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
         executeWithTerminationGuarantee(
                 () -> {
                     tasks.add(new IdleTestTask());
-                    final Collection<ThreadInfoSample> threadInfoSamples1 =
+                    Map<Long, ExecutionAttemptID> threads =
+                            tasks.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    task -> task.getExecutingThread().getId(),
+                                                    IdleTestTask::getExecutionId));
+                    final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSamples1 =
                             threadInfoSampleService
-                                    .requestThreadInfoSamples(tasks, requestParams)
+                                    .requestThreadInfoSamples(threads, requestParams)
                                     .get();
 
-                    final Collection<ThreadInfoSample> threadInfoSamples2 =
+                    final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSamples2 =
                             threadInfoSampleService
                                     .requestThreadInfoSamples(
-                                            tasks,
+                                            threads,
                                             new ThreadInfoSamplesRequest(
                                                     1,
                                                     NUMBER_OF_SAMPLES,
@@ -113,13 +131,17 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
                                                     MAX_STACK_TRACK_DEPTH - 6))
                                     .get();
 
-                    for (ThreadInfoSample sample : threadInfoSamples1) {
-                        assertThat(sample.getStackTrace())
-                                .hasSizeLessThanOrEqualTo(MAX_STACK_TRACK_DEPTH);
+                    for (Collection<ThreadInfoSample> samples : threadInfoSamples1.values()) {
+                        for (ThreadInfoSample sample : samples) {
+                            assertThat(sample.getStackTrace())
+                                    .hasSizeLessThanOrEqualTo(MAX_STACK_TRACK_DEPTH);
+                        }
                     }
 
-                    for (ThreadInfoSample sample : threadInfoSamples2) {
-                        assertThat(sample.getStackTrace()).hasSize(MAX_STACK_TRACK_DEPTH - 6);
+                    for (Collection<ThreadInfoSample> samples : threadInfoSamples2.values()) {
+                        for (ThreadInfoSample sample : samples) {
+                            assertThat(sample.getStackTrace()).hasSize(MAX_STACK_TRACK_DEPTH - 6);
+                        }
                     }
                 },
                 tasks);
@@ -134,8 +156,18 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
                                 executeWithTerminationGuarantee(
                                         () -> {
                                             tasks.add(new IdleTestTask());
+
+                                            Map<Long, ExecutionAttemptID> threads =
+                                                    tasks.stream()
+                                                            .collect(
+                                                                    Collectors.toMap(
+                                                                            task ->
+                                                                                    task.getExecutingThread()
+                                                                                            .getId(),
+                                                                            IdleTestTask
+                                                                                    ::getExecutionId));
                                             threadInfoSampleService.requestThreadInfoSamples(
-                                                    tasks,
+                                                    threads,
                                                     new ThreadInfoSamplesRequest(
                                                             1,
                                                             -1,
@@ -153,8 +185,16 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
             throws ExecutionException, InterruptedException {
         Set<SampleableTask> tasks = new HashSet<>();
         tasks.add(new NotRunningTask());
-        final CompletableFuture<Collection<ThreadInfoSample>> sampleFuture =
-                threadInfoSampleService.requestThreadInfoSamples(tasks, requestParams);
+
+        Map<Long, ExecutionAttemptID> threads =
+                tasks.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        task -> task.getExecutingThread().getId(),
+                                        SampleableTask::getExecutionId));
+        final CompletableFuture<Map<ExecutionAttemptID, Collection<ThreadInfoSample>>>
+                sampleFuture =
+                        threadInfoSampleService.requestThreadInfoSamples(threads, requestParams);
 
         assertThat(sampleFuture).failsWithin(Duration.ofSeconds(10));
         assertThat(sampleFuture.handle((ignored, e) -> e).get())
@@ -163,12 +203,14 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
 
     private static class NotRunningTask implements SampleableTask {
 
+        private final ExecutionAttemptID executionId = ExecutionAttemptID.randomId();
+
         public Thread getExecutingThread() {
             return new Thread();
         }
 
         public ExecutionAttemptID getExecutionId() {
-            return null;
+            return executionId;
         }
     }
 }

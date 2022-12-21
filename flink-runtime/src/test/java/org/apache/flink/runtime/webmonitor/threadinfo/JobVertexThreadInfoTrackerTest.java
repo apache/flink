@@ -58,8 +58,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -74,6 +72,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createScheduler;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link JobVertexThreadInfoTracker}. */
@@ -90,7 +89,6 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                     .collect(Collectors.toSet());
     private static final JobID JOB_ID = new JobID();
 
-    private static ThreadInfoSample threadInfoSample;
     private static JobVertexThreadInfoStats threadInfoStatsDefaultSample;
 
     private static final Duration CLEAN_UP_INTERVAL = Duration.ofSeconds(60);
@@ -110,13 +108,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         // Time gap determines endTime of stats, which controls if the "refresh" is triggered:
         // now >= stats.getEndTime() + statsRefreshInterval
         // Using a small gap to be able to test cache updates without much delay.
-        threadInfoSample =
-                JvmUtils.createThreadInfoSample(
-                                Thread.currentThread().getId(), MAX_STACK_TRACE_DEPTH)
-                        .get();
-        threadInfoStatsDefaultSample =
-                createThreadInfoStats(
-                        REQUEST_ID, SMALL_TIME_GAP, Collections.singletonList(threadInfoSample));
+        threadInfoStatsDefaultSample = createThreadInfoStats(REQUEST_ID, SMALL_TIME_GAP);
         executor = Executors.newScheduledThreadPool(1);
     }
 
@@ -136,8 +128,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     /** Tests that cached result is reused within refresh interval. */
     @Test
     public void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
-        final JobVertexThreadInfoStats unusedThreadInfoStats =
-                createThreadInfoStats(1, TIME_GAP, null);
+        final JobVertexThreadInfoStats unusedThreadInfoStats = createThreadInfoStats(1, TIME_GAP);
 
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
@@ -162,10 +153,9 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                 createThreadInfoStats(
                         Instant.now().minus(10, ChronoUnit.SECONDS),
                         REQUEST_ID,
-                        Duration.ofMillis(5),
-                        Collections.singletonList(threadInfoSample));
+                        Duration.ofMillis(5));
         final JobVertexThreadInfoStats threadInfoStatsAfterRefresh =
-                createThreadInfoStats(1, TIME_GAP, Collections.singletonList(threadInfoSample));
+                createThreadInfoStats(1, TIME_GAP);
 
         // register a CountDownLatch with the cache so we can await refresh of the entry
         CountDownLatch cacheRefreshed = new CountDownLatch(1);
@@ -321,32 +311,28 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                 .build();
     }
 
-    private static JobVertexThreadInfoStats createThreadInfoStats(
-            int requestId, Duration timeGap, List<ThreadInfoSample> threadInfoSamples) {
-        return createThreadInfoStats(Instant.now(), requestId, timeGap, threadInfoSamples);
+    private static JobVertexThreadInfoStats createThreadInfoStats(int requestId, Duration timeGap) {
+        return createThreadInfoStats(Instant.now(), requestId, timeGap);
     }
 
     private static JobVertexThreadInfoStats createThreadInfoStats(
-            Instant startTime,
-            int requestId,
-            Duration timeGap,
-            List<ThreadInfoSample> threadInfoSamples) {
+            Instant startTime, int requestId, Duration timeGap) {
         Instant endTime = startTime.plus(timeGap);
 
-        final Map<ImmutableSet<ExecutionAttemptID>, Collection<ThreadInfoSample>>
-                threadInfoRatiosByTask = new HashMap<>();
+        final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samples = new HashMap<>();
 
         for (ExecutionVertex vertex : TASK_VERTICES) {
-            Set<ExecutionAttemptID> attemptIds = new HashSet<>();
-            attemptIds.add(vertex.getCurrentExecutionAttempt().getAttemptId());
-            threadInfoRatiosByTask.put(ImmutableSet.copyOf(attemptIds), threadInfoSamples);
+            Optional<ThreadInfoSample> threadInfoSample =
+                    JvmUtils.createThreadInfoSample(
+                            Thread.currentThread().getId(), MAX_STACK_TRACE_DEPTH);
+            checkState(threadInfoSample.isPresent(), "The threadInfoSample should be empty.");
+            samples.put(
+                    vertex.getCurrentExecutionAttempt().getAttemptId(),
+                    Collections.singletonList(threadInfoSample.get()));
         }
 
         return new JobVertexThreadInfoStats(
-                requestId,
-                startTime.toEpochMilli(),
-                endTime.toEpochMilli(),
-                threadInfoRatiosByTask);
+                requestId, startTime.toEpochMilli(), endTime.toEpochMilli(), samples);
     }
 
     private static ExecutionJobVertex createExecutionJobVertex() {

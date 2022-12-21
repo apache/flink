@@ -18,24 +18,26 @@
 
 package org.apache.flink.runtime.messages;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Map;
 
 /** Response to the request to collect thread details samples. */
 public class TaskThreadInfoResponse implements Serializable {
 
     private static final long serialVersionUID = -4786454630050578031L;
 
-    private final Collection<ThreadInfoSample> samples;
+    private final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samples;
 
     /**
      * Creates a response to the request to collect thread details samples.
      *
      * @param samples Thread info samples.
      */
-    public TaskThreadInfoResponse(Collection<ThreadInfoSample> samples) {
+    public TaskThreadInfoResponse(Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samples) {
         this.samples = Preconditions.checkNotNull(samples);
     }
 
@@ -44,7 +46,7 @@ public class TaskThreadInfoResponse implements Serializable {
      *
      * @return A collection of thread info samples for a particular execution attempt (Task)
      */
-    public Collection<ThreadInfoSample> getSamples() {
+    public Map<ExecutionAttemptID, Collection<ThreadInfoSample>> getSamples() {
         return samples;
     }
 }
