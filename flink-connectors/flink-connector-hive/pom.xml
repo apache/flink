@@ -39,9 +39,9 @@ under the License.
 		<reflections.version>0.9.8</reflections.version>
 		<derby.version>10.10.2.0</derby.version>
 		<hive.avro.version>1.8.2</hive.avro.version>
-		<!-- 
-		Hive requires Hadoop 2 to avoid 
-		java.lang.NoClassDefFoundError: org/apache/hadoop/metrics/Updater errors 
+		<!--
+		Hive requires Hadoop 2 to avoid
+		java.lang.NoClassDefFoundError: org/apache/hadoop/metrics/Updater errors
 		Using this dedicated property avoids CI failures with the Hadoop 3 profile
 		-->
 		<hive.hadoop.version>2.10.2</hive.hadoop.version>
@@ -621,6 +621,10 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -984,10 +988,6 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.pentaho</groupId>
-					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>ch.qos.reload4j</groupId>
