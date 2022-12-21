@@ -21,9 +21,10 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.IllegalConfigurationException;
 
+import inet.ipaddr.HostName;
+import inet.ipaddr.IPAddress.IPVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.net.util.IPAddressUtil;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -189,36 +190,31 @@ public class NetUtils {
      * @return host which will be normalized if it is an IPv6 address
      */
     public static String unresolvedHostToNormalizedString(String host) {
+
         // Return loopback interface address if host is null
         // This represents the behavior of {@code InetAddress.getByName } and RFC 3330
         if (host == null) {
             host = InetAddress.getLoopbackAddress().getHostAddress();
         } else {
-            host = host.trim().toLowerCase();
-            if (host.startsWith("[") && host.endsWith("]")) {
-                String address = host.substring(1, host.length() - 1);
-                if (IPAddressUtil.isIPv6LiteralAddress(address)) {
-                    host = address;
-                }
+            host = host.trim();
+        }
+        HostName hostName = new HostName(host);
+
+        if (hostName.isAddress()) {
+            // normalize and valid address
+            if (hostName.isAddress(IPVersion.IPV6)) {
+                byte[] ipV6Address;
+                ipV6Address = hostName.asAddress().getBytes();
+                return getIPv6UrlRepresentation(ipV6Address);
+            }
+        } else {
+            // We don't allow these in hostnames
+            if (host.startsWith(".") || host.endsWith(".") || host.contains(":")) {
+                throw new IllegalConfigurationException("The configured hostname is not valid");
             }
         }
 
-        // normalize and valid address
-        if (IPAddressUtil.isIPv6LiteralAddress(host)) {
-            byte[] ipV6Address = IPAddressUtil.textToNumericFormatV6(host);
-            host = getIPv6UrlRepresentation(ipV6Address);
-        } else if (!IPAddressUtil.isIPv4LiteralAddress(host)) {
-            try {
-                // We don't allow these in hostnames
-                Preconditions.checkArgument(!host.startsWith("."));
-                Preconditions.checkArgument(!host.endsWith("."));
-                Preconditions.checkArgument(!host.contains(":"));
-            } catch (Exception e) {
-                throw new IllegalConfigurationException("The configured hostname is not valid", e);
-            }
-        }
-
-        return host;
+        return hostName.toNormalizedString();
     }
 
     /**

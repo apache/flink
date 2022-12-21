@@ -104,6 +104,12 @@ under the License.
 			<artifactId>flink-shaded-guava</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>com.github.seancfoley</groupId>
+			<artifactId>ipaddress</artifactId>
+			<version>5.4.0</version>
+		</dependency>
+
 		<!-- ================== test dependencies ================== -->
 
 		<dependency>
