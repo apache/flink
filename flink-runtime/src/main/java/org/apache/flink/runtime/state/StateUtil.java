@@ -63,6 +63,17 @@ public class StateUtil {
                 handlesToDiscard, StateObject::discardState);
     }
 
+    public static void discardStateObjectQuietly(StateObject stateObject) {
+        if (stateObject == null) {
+            return;
+        }
+        try {
+            stateObject.discardState();
+        } catch (Exception exception) {
+            LOG.warn("Discard {} exception.", stateObject, exception);
+        }
+    }
+
     /**
      * Discards the given state future by first trying to cancel it. If this is not possible, then
      * the state object contained in the future is calculated and afterwards discarded.
