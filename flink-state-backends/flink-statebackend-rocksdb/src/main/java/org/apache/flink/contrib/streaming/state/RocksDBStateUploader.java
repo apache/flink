@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -62,13 +63,19 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
             @Nonnull Map<StateHandleID, Path> files,
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
-            CloseableRegistry closeableRegistry)
+            CloseableRegistry closeableRegistry,
+            CloseableRegistry tmpResourcesRegistry)
             throws Exception {
 
         Map<StateHandleID, StreamStateHandle> handles = new HashMap<>();
 
         Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
-                createUploadFutures(files, checkpointStreamFactory, stateScope, closeableRegistry);
+                createUploadFutures(
+                        files,
+                        checkpointStreamFactory,
+                        stateScope,
+                        closeableRegistry,
+                        tmpResourcesRegistry);
 
         try {
             FutureUtils.waitForAll(futures.values()).get();
@@ -94,7 +101,8 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
             Map<StateHandleID, Path> files,
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
-            CloseableRegistry closeableRegistry) {
+            CloseableRegistry closeableRegistry,
+            CloseableRegistry tmpResourcesRegistry) {
         Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
                 new HashMap<>(files.size());
 
@@ -106,7 +114,8 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
                                             entry.getValue(),
                                             checkpointStreamFactory,
                                             stateScope,
-                                            closeableRegistry));
+                                            closeableRegistry,
+                                            tmpResourcesRegistry));
             futures.put(entry.getKey(), CompletableFuture.supplyAsync(supplier, executorService));
         }
 
@@ -117,7 +126,8 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
             Path filePath,
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
-            CloseableRegistry closeableRegistry)
+            CloseableRegistry closeableRegistry,
+            CloseableRegistry tmpResourcesRegistry)
             throws IOException {
 
         InputStream inputStream = null;
@@ -142,11 +152,15 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
                 outputStream.write(buffer, 0, numBytes);
             }
 
-            StreamStateHandle result = null;
+            final StreamStateHandle result;
             if (closeableRegistry.unregisterCloseable(outputStream)) {
                 result = outputStream.closeAndGetHandle();
                 outputStream = null;
+            } else {
+                result = null;
             }
+            tmpResourcesRegistry.registerCloseable(
+                    () -> StateUtil.discardStateObjectQuietly(result));
             return result;
 
         } finally {

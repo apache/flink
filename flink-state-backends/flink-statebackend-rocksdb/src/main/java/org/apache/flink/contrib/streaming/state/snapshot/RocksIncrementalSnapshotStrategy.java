@@ -359,6 +359,8 @@ public class RocksIncrementalSnapshotStrategy<K>
         /** Local directory for the RocksDB native backup. */
         @Nonnull private final SnapshotDirectory localBackupDirectory;
 
+        @Nonnull private final CloseableRegistry tmpResourcesRegistry;
+
         /** All sst files that were part of the last previously completed checkpoint. */
         @Nonnull private final PreviousSnapshot previousSnapshot;
 
@@ -376,6 +378,7 @@ public class RocksIncrementalSnapshotStrategy<K>
             this.previousSnapshot = previousSnapshot;
             this.checkpointId = checkpointId;
             this.localBackupDirectory = localBackupDirectory;
+            this.tmpResourcesRegistry = new CloseableRegistry();
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.sharingFilesStrategy = sharingFilesStrategy;
         }
@@ -403,7 +406,8 @@ public class RocksIncrementalSnapshotStrategy<K>
                         metaStateHandle.getJobManagerOwnedSnapshot(),
                         "Metadata for job manager was not properly created.");
 
-                uploadSstFiles(sstFiles, miscFiles, snapshotCloseableRegistry);
+                uploadSstFiles(
+                        sstFiles, miscFiles, snapshotCloseableRegistry, tmpResourcesRegistry);
                 long checkpointedSize = metaStateHandle.getStateSize();
                 checkpointedSize += getUploadedStateSize(sstFiles.values());
                 checkpointedSize += getUploadedStateSize(miscFiles.values());
@@ -454,12 +458,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 return snapshotResult;
             } finally {
                 if (!completed) {
-                    final List<StateObject> statesToDiscard =
-                            new ArrayList<>(1 + miscFiles.size() + sstFiles.size());
-                    statesToDiscard.add(metaStateHandle);
-                    statesToDiscard.addAll(miscFiles.values());
-                    statesToDiscard.addAll(sstFiles.values());
-                    cleanupIncompleteSnapshot(statesToDiscard);
+                    cleanupIncompleteSnapshot();
                 }
             }
         }
@@ -471,12 +470,12 @@ public class RocksIncrementalSnapshotStrategy<K>
                     .sum();
         }
 
-        private void cleanupIncompleteSnapshot(@Nonnull List<StateObject> statesToDiscard) {
+        private void cleanupIncompleteSnapshot() {
 
             try {
-                StateUtil.bestEffortDiscardAllStateObjects(statesToDiscard);
+                tmpResourcesRegistry.close();
             } catch (Exception e) {
-                LOG.warn("Could not properly discard states.", e);
+                LOG.warn("Could not properly clean tmp resources.", e);
             }
 
             if (localBackupDirectory.isSnapshotCompleted()) {
@@ -495,7 +494,8 @@ public class RocksIncrementalSnapshotStrategy<K>
         private void uploadSstFiles(
                 @Nonnull Map<StateHandleID, StreamStateHandle> sstFiles,
                 @Nonnull Map<StateHandleID, StreamStateHandle> miscFiles,
-                @Nonnull CloseableRegistry snapshotCloseableRegistry)
+                @Nonnull CloseableRegistry snapshotCloseableRegistry,
+                @Nonnull CloseableRegistry tmpResourcesRegistry)
                 throws Exception {
 
             // write state data
@@ -517,13 +517,15 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 sstFilePaths,
                                 checkpointStreamFactory,
                                 stateScope,
-                                snapshotCloseableRegistry));
+                                snapshotCloseableRegistry,
+                                tmpResourcesRegistry));
                 miscFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
                                 miscFilePaths,
                                 checkpointStreamFactory,
                                 stateScope,
-                                snapshotCloseableRegistry));
+                                snapshotCloseableRegistry,
+                                tmpResourcesRegistry));
 
                 synchronized (uploadedStateIDs) {
                     switch (sharingFilesStrategy) {
@@ -607,6 +609,8 @@ public class RocksIncrementalSnapshotStrategy<K>
                     SnapshotResult<StreamStateHandle> result =
                             streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
                     streamWithResultProvider = null;
+                    tmpResourcesRegistry.registerCloseable(
+                            () -> StateUtil.discardStateObjectQuietly(result));
                     return result;
                 } else {
                     throw new IOException("Stream already closed and cannot return a handle.");
