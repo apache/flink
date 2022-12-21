@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.streaming.api.functions.async.ResultFuture
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.types.Row

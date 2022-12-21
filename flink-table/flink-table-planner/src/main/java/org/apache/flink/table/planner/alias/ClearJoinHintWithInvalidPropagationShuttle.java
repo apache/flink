@@ -21,9 +21,12 @@ package org.apache.flink.table.planner.alias;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
+import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalJoin;
 
 import java.util.ArrayDeque;
@@ -49,14 +52,23 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
 
     @Override
     public RelNode visit(LogicalJoin join) {
-        List<RelHint> hints = join.getHints();
+        return visitBiRel(join);
+    }
+
+    @Override
+    public RelNode visit(LogicalCorrelate correlate) {
+        return visitBiRel(correlate);
+    }
+
+    private RelNode visitBiRel(BiRel biRel) {
+        List<RelHint> hints = ((Hintable) biRel).getHints();
 
         Set<String> allHintNames =
                 hints.stream().map(hint -> hint.hintName).collect(Collectors.toSet());
 
-        // there are no join hints on this Join node
+        // there are no join hints on this Join/Correlate node
         if (allHintNames.stream().noneMatch(JoinStrategy::isJoinStrategy)) {
-            return super.visit(join);
+            return super.visit(biRel);
         }
 
         Optional<RelHint> firstAliasHint =
@@ -64,9 +76,9 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
                         .filter(hint -> FlinkHints.HINT_ALIAS.equals(hint.hintName))
                         .findFirst();
 
-        // there are no alias hints on this Join node
+        // there are no alias hints on this Join/Correlate node
         if (!firstAliasHint.isPresent()) {
-            return super.visit(join);
+            return super.visit(biRel);
         }
 
         List<RelHint> joinHintsFromOuterQueryBlock =
@@ -82,10 +94,10 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
                         .collect(Collectors.toList());
 
         if (joinHintsFromOuterQueryBlock.isEmpty()) {
-            return super.visit(join);
+            return super.visit(biRel);
         }
 
-        RelNode newJoin = join;
+        RelNode newJoin = biRel;
         ClearOuterJoinHintShuttle clearOuterJoinHintShuttle;
 
         for (RelHint outerJoinHint : joinHintsFromOuterQueryBlock) {
@@ -122,17 +134,27 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
         }
 
         @Override
+        public RelNode visit(LogicalCorrelate correlate) {
+            return visitBiRel(correlate);
+        }
+
+        @Override
         public RelNode visit(LogicalJoin join) {
-            List<RelHint> hints = new ArrayList<>(join.getHints());
+            return visitBiRel(join);
+        }
+
+        private RelNode visitBiRel(BiRel biRel) {
+            Hintable hBiRel = (Hintable) biRel;
+            List<RelHint> hints = new ArrayList<>(hBiRel.getHints());
             Optional<RelHint> invalidJoinHint = getInvalidJoinHint(hints);
 
             // if this join node contains the join hint that needs to be removed
             if (invalidJoinHint.isPresent()) {
                 hints.remove(invalidJoinHint.get());
-                return super.visit(join.withHints(hints));
+                return super.visit(hBiRel.withHints(hints));
             }
 
-            return super.visit(join);
+            return super.visit(biRel);
         }
 
         /**
