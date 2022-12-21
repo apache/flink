@@ -373,7 +373,7 @@ class DefaultExecutionGraphConstructionTest {
         assertThat(consumedPartitionGroup1.getNumberOfUnfinishedPartitions()).isZero();
         partition3.markFinished();
         partition4.markFinished();
-        assertThat(consumedPartitionGroup1.getNumberOfUnfinishedPartitions()).isZero();
+        assertThat(consumedPartitionGroup2.getNumberOfUnfinishedPartitions()).isZero();
     }
 
     @Test

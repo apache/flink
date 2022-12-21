@@ -218,7 +218,7 @@ public class EdgeManagerBuildUtil {
             ConsumedPartitionGroup consumedPartitionGroup) {
         for (IntermediateResultPartitionID consumedPartitionId : consumedPartitionIds) {
             // this is for dynamic graph as consumedPartitionGroup has not been created when the
-            // partition is finish.
+            // partition becomes finished.
             if (intermediateResult.getPartitionById(consumedPartitionId).hasDataAllProduced()) {
                 consumedPartitionGroup.partitionFinished();
             }
