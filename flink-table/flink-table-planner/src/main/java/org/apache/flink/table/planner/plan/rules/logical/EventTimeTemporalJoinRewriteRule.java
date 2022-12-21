@@ -190,14 +190,11 @@ public class EventTimeTemporalJoinRewriteRule
      *   <li>JOIN_SNAPSHOT_WMA_CALC_TS
      *   <li>JOIN_SNAPSHOT_WMA_TS
      * </ul>
-     *
-     * <p>Note: the binary form of the numeric suffix is consistent with the arrangement of the
-     * three optional calc nodes, e.g., '5' corresponds to '101' in binary, representing the
-     * existence of the 1st and 3rd calc nodes.
      */
     public interface Config extends RelRule.Config {
         RelRule.Config JOIN_CALC_SNAPSHOT_CALC_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule7")
+                EMPTY.withDescription(
+                                "EventTimeTemporalJoinRewriteRule_CALC_SNAPSHOT_CALC_WMA_CALC")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -238,7 +235,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                                                                 .class)
                                                                                                                                                                                                 .noInputs())))))));
         RelRule.Config JOIN_CALC_SNAPSHOT_CALC_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule6")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule_CALC_SNAPSHOT_CALC_WMA")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -275,7 +272,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                         .noInputs()))))));
 
         RelRule.Config JOIN_CALC_SNAPSHOT_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule5")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule_CALC_SNAPSHOT_WMA_CALC")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -311,7 +308,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                                         .class)
                                                                                                                                                                         .noInputs()))))));
         RelRule.Config JOIN_CALC_SNAPSHOT_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule4")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule_CALC_SNAPSHOT_WMA")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -343,7 +340,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                 .noInputs())))));
 
         RelRule.Config JOIN_SNAPSHOT_CALC_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule3")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule_SNAPSHOT_CALC_WMA_CALC")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -379,7 +376,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                                                         .class)
                                                                                                                                                                         .noInputs()))))));
         RelRule.Config JOIN_SNAPSHOT_CALC_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule2")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule_SNAPSHOT_CALC_WMA")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -411,7 +408,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                 .noInputs())))));
 
         RelRule.Config JOIN_SNAPSHOT_WMA_CALC_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule1")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule_SNAPSHOT_WMA_CALC")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
@@ -443,7 +440,7 @@ public class EventTimeTemporalJoinRewriteRule
                                                                                                                                                 .noInputs())))));
 
         RelRule.Config JOIN_SNAPSHOT_WMA_TS =
-                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule0")
+                EMPTY.withDescription("EventTimeTemporalJoinRewriteRule_SNAPSHOT_WMA")
                         .as(Config.class)
                         .withOperandSupplier(
                                 joinTransform ->
