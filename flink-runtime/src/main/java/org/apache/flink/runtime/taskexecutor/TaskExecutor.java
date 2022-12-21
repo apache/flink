@@ -571,11 +571,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
         }
 
-        Collection<SampleableTask> sampleableTasks =
-                tasks.stream().map(SampleableTaskAdapter::fromTask).collect(Collectors.toList());
+        Map<Long, ExecutionAttemptID> sampleableTasks =
+                tasks.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        task -> task.getExecutingThread().getId(),
+                                        Task::getExecutionId));
 
-        final CompletableFuture<Collection<ThreadInfoSample>> stackTracesFuture =
-                threadInfoSampleService.requestThreadInfoSamples(sampleableTasks, requestParams);
+        final CompletableFuture<Map<ExecutionAttemptID, Collection<ThreadInfoSample>>>
+                stackTracesFuture =
+                        threadInfoSampleService.requestThreadInfoSamples(
+                                sampleableTasks, requestParams);
 
         return stackTracesFuture.thenApply(TaskThreadInfoResponse::new);
     }

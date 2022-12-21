@@ -22,8 +22,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.webmonitor.stats.Statistics;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -46,8 +44,7 @@ public class JobVertexThreadInfoStats implements Statistics {
     private final long endTime;
 
     /** Map of thread info samples by execution ID. */
-    private final Map<ImmutableSet<ExecutionAttemptID>, Collection<ThreadInfoSample>>
-            samplesBySubtask;
+    private final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samplesBySubtask;
 
     /**
      * Creates a thread details sample.
@@ -61,7 +58,7 @@ public class JobVertexThreadInfoStats implements Statistics {
             int requestId,
             long startTime,
             long endTime,
-            Map<ImmutableSet<ExecutionAttemptID>, Collection<ThreadInfoSample>> samplesBySubtask) {
+            Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samplesBySubtask) {
 
         checkArgument(requestId >= 0, "Negative request ID");
         checkArgument(startTime >= 0, "Negative start time");
@@ -106,8 +103,7 @@ public class JobVertexThreadInfoStats implements Statistics {
      *
      * @return Map of thread info samples by task (execution ID)
      */
-    public Map<ImmutableSet<ExecutionAttemptID>, Collection<ThreadInfoSample>>
-            getSamplesBySubtask() {
+    public Map<ExecutionAttemptID, Collection<ThreadInfoSample>> getSamplesBySubtask() {
         return samplesBySubtask;
     }
 
