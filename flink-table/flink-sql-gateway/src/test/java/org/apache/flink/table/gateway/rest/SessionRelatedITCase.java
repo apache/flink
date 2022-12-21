@@ -54,7 +54,6 @@ import java.util.concurrent.ExecutionException;
 import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler.CLOSE_MESSAGE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in session
@@ -90,10 +89,11 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
         CompletableFuture<OpenSessionResponseBody> response =
                 sendRequest(openSessionHeaders, emptyParameters, openSessionRequestBody);
         String sessionHandleId = response.get().getSessionHandle();
-        assertNotNull(sessionHandleId);
+        assertThat(sessionHandleId).isNotNull();
 
         sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
-        assertNotNull(SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle));
+        assertThat(SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle))
+                .isNotNull();
 
         sessionMessageParameters = new SessionMessageParameters(sessionHandle);
     }
@@ -115,11 +115,11 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
             CompletableFuture<OpenSessionResponseBody> response =
                     sendRequest(openSessionHeaders, emptyParameters, openSessionRequestBody);
             String sessionHandleId = response.get().getSessionHandle();
-            assertNotNull(sessionHandleId);
+            assertThat(sessionHandleId).isNotNull();
             sessionHandleIds.add(sessionHandleId);
             SessionHandle sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
-            assertNotNull(
-                    SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle));
+            assertThat(SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle))
+                    .isNotNull();
             sessionHandles.add(sessionHandle);
         }
         assertThat(sessionHandleIds).hasSize(SESSION_NUMBER);
@@ -162,7 +162,7 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
     void testTouchSession() throws Exception {
         Session session =
                 SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle);
-        assertNotNull(session);
+        assertThat(session).isNotNull();
 
         long lastAccessTime = session.getLastAccessTime();
 

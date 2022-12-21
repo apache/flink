@@ -144,7 +144,7 @@
       }
     }
   }, {
-    "url" : "/sessions/:session_handle/configure_session",
+    "url" : "/sessions/:session_handle/configure-session",
     "method" : "POST",
     "status-code" : "200 OK",
     "file-upload" : false,

@@ -35,7 +35,7 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/** Handler to execute a statement. */
+/** Handler to configure a session with statement. */
 public class ConfigureSessionHandler
         extends AbstractSqlGatewayRestHandler<
                 ConfigureSessionRequestBody, EmptyResponseBody, SessionMessageParameters> {

@@ -40,7 +40,7 @@ public class ConfigureSessionHeaders
     private static final ConfigureSessionHeaders INSTANCE = new ConfigureSessionHeaders();
 
     private static final String URL =
-            "/sessions/:" + SessionHandleIdPathParameter.KEY + "/configure_session";
+            "/sessions/:" + SessionHandleIdPathParameter.KEY + "/configure-session";
 
     @Override
     public Class<EmptyResponseBody> getResponseClass() {

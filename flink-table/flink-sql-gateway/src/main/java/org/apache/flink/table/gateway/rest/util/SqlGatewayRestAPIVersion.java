@@ -39,8 +39,14 @@ public enum SqlGatewayRestAPIVersion
         implements RestAPIVersion<SqlGatewayRestAPIVersion>, EndpointVersion {
     // The bigger the ordinal(its position in enum declaration), the higher the level of the
     // version.
+
+    // V0 is just for test
     V0(false, false),
+
     V1(false, true),
+
+    // V2 adds support for configuring Session and allows to serialize the RowData with PLAIN_TEXT
+    // or JSON format.
     V2(true, true);
 
     private final boolean isDefaultVersion;
