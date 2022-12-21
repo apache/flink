@@ -431,6 +431,10 @@ under the License.
 					<groupId>commons-lang</groupId>
 					<artifactId>commons-lang</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
