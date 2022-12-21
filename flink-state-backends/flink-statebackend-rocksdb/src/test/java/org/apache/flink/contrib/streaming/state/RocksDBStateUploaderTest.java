@@ -28,12 +28,12 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
@@ -48,16 +48,17 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test class for {@link RocksDBStateUploader}. */
 public class RocksDBStateUploaderTest extends TestLogger {
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @TempDir private Path temporaryFolder;
+
     /** Test that the exception arose in the thread pool will rethrow to the main thread. */
     @Test
-    public void testMultiThreadUploadThreadPoolExceptionRethrow() throws IOException {
+    void testMultiThreadUploadThreadPoolExceptionRethrow() throws IOException {
         SpecifiedException expectedException =
                 new SpecifiedException("throw exception while multi thread upload states.");
 
@@ -67,50 +68,48 @@ public class RocksDBStateUploaderTest extends TestLogger {
                 new CheckpointStreamFactory() {
                     @Override
                     public CheckpointStateOutputStream createCheckpointStateOutputStream(
-                            CheckpointedStateScope scope) throws IOException {
+                            CheckpointedStateScope scope) {
                         return outputStream;
                     }
 
                     @Override
                     public boolean canFastDuplicate(
-                            StreamStateHandle stateHandle, CheckpointedStateScope scope)
-                            throws IOException {
+                            StreamStateHandle stateHandle, CheckpointedStateScope scope) {
                         return false;
                     }
 
                     @Override
                     public List<StreamStateHandle> duplicate(
-                            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope)
-                            throws IOException {
+                            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope) {
                         return null;
                     }
                 };
 
-        File file = temporaryFolder.newFile(String.valueOf(UUID.randomUUID()));
+        File file = TempDirUtils.newFile(temporaryFolder, String.valueOf(UUID.randomUUID()));
         generateRandomFileContent(file.getPath(), 20);
 
         Map<StateHandleID, Path> filePaths = new HashMap<>(1);
         filePaths.put(new StateHandleID("mockHandleID"), file.toPath());
         try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
-            rocksDBStateUploader.uploadFilesToCheckpointFs(
-                    filePaths,
-                    checkpointStreamFactory,
-                    CheckpointedStateScope.SHARED,
-                    new CloseableRegistry());
-            fail();
-        } catch (Exception e) {
-            assertEquals(expectedException, e);
+            assertThatThrownBy(
+                            () ->
+                                    rocksDBStateUploader.uploadFilesToCheckpointFs(
+                                            filePaths,
+                                            checkpointStreamFactory,
+                                            CheckpointedStateScope.SHARED,
+                                            new CloseableRegistry()))
+                    .isEqualTo(expectedException);
         }
     }
 
     /** Test that upload files with multi-thread correctly. */
     @Test
-    public void testMultiThreadUploadCorrectly() throws Exception {
-        File checkpointPrivateFolder = temporaryFolder.newFolder("private");
+    void testMultiThreadUploadCorrectly() throws Exception {
+        File checkpointPrivateFolder = TempDirUtils.newFolder(temporaryFolder, "private");
         org.apache.flink.core.fs.Path checkpointPrivateDirectory =
                 org.apache.flink.core.fs.Path.fromLocalFile(checkpointPrivateFolder);
 
-        File checkpointSharedFolder = temporaryFolder.newFolder("shared");
+        File checkpointSharedFolder = TempDirUtils.newFolder(temporaryFolder, "shared");
         org.apache.flink.core.fs.Path checkpointSharedDirectory =
                 org.apache.flink.core.fs.Path.fromLocalFile(checkpointSharedFolder);
 
@@ -126,7 +125,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
                         writeBufferSize);
 
         String localFolder = "local";
-        temporaryFolder.newFolder(localFolder);
+        TempDirUtils.newFolder(temporaryFolder, localFolder);
 
         int sstFileCount = 6;
         Map<StateHandleID, Path> sstFilePaths =
@@ -183,7 +182,9 @@ public class RocksDBStateUploaderTest extends TestLogger {
 
         Map<StateHandleID, Path> sstFilePaths = new HashMap<>(sstFileCount);
         for (int i = 0; i < sstFileCount; ++i) {
-            File file = temporaryFolder.newFile(String.format("%s/%d.sst", localFolder, i));
+            File file =
+                    TempDirUtils.newFile(
+                            temporaryFolder, String.format("%s/%d.sst", localFolder, i));
             generateRandomFileContent(
                     file.getPath(), random.nextInt(1_000_000) + fileStateSizeThreshold);
             sstFilePaths.put(new StateHandleID(String.valueOf(i)), file.toPath());
@@ -204,8 +205,8 @@ public class RocksDBStateUploaderTest extends TestLogger {
         byte[] excepted = Files.readAllBytes(stateFilePath);
         byte[] actual = new byte[excepted.length];
         IOUtils.readFully(inputStream, actual, 0, actual.length);
-        assertEquals(-1, inputStream.read());
-        assertArrayEquals(excepted, actual);
+        assertThat(inputStream.read()).isEqualTo(-1);
+        assertThat(actual).isEqualTo(excepted);
     }
 
     private static class SpecifiedException extends IOException {
