@@ -28,9 +28,11 @@ import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -81,6 +83,44 @@ class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
     @Test
     void testBatchSizeIsRecordMultiple() throws IOException {
         simpleReadTest(20);
+    }
+
+    @Test
+    void testTrackingStreamBatchSizeAccounting() throws IOException {
+        FSDataInputStream fsStream = fixedReadSizeFSDataInputStream();
+        int batchSize = 10;
+        StreamFormatAdapter.TrackingFsDataInputStream dataStream =
+                new StreamFormatAdapter.TrackingFsDataInputStream(fsStream, 10, batchSize);
+        dataStream.newBatch();
+        ByteBuffer buffer = ByteBuffer.allocate(batchSize);
+        int consumedBytes = dataStream.read(buffer.array(), 0, batchSize);
+        assertThat(consumedBytes).isLessThan(batchSize);
+        assertThat(dataStream.hasRemainingInBatch()).isTrue()
+                .describedAs("read() may return less than requested");
+    }
+
+    private FSDataInputStream fixedReadSizeFSDataInputStream() {
+        return new FSDataInputStream() {
+            @Override
+            public long getPos() {
+                return 0;
+            }
+
+            @Override
+            public void seek(long ignored) {
+                //ignored
+            }
+
+            @Override
+            public int read() {
+                return 0;
+            }
+
+            @Override
+            public int read(@NotNull byte[] b, int off, int len) throws IOException {
+                return 2;
+            }
+        };
     }
 
     private void simpleReadTest(int batchSize) throws IOException {

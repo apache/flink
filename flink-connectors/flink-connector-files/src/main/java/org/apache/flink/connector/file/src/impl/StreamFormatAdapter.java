@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.src.impl;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputStreamFSInputWrapper;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -253,7 +254,8 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSpl
      * dependent on the consumed data volume, which is more robust than making it dependent on a
      * record count.
      */
-    private static final class TrackingFsDataInputStream extends FSDataInputStream {
+     @VisibleForTesting
+     static final class TrackingFsDataInputStream extends FSDataInputStream {
 
         private final FSDataInputStream stream;
         private final long fileLength;
@@ -287,8 +289,11 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSpl
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
-            remainingInBatch -= len;
-            return stream.read(b, off, len);
+            int bytesRead = stream.read(b, off, len);
+            if (bytesRead > 0) {
+                remainingInBatch -= bytesRead;
+            }
+            return bytesRead;
         }
 
         @Override
