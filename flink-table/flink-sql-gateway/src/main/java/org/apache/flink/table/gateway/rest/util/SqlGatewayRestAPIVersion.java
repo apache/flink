@@ -20,6 +20,11 @@ package org.apache.flink.table.gateway.rest.util;
 
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
+import org.apache.flink.util.Preconditions;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * An enum for all versions of the Sql Gateway REST API.
@@ -35,8 +40,8 @@ public enum SqlGatewayRestAPIVersion
     // The bigger the ordinal(its position in enum declaration), the higher the level of the
     // version.
     V0(false, false),
-    V1(true, true),
-    V2(false, true);
+    V1(false, true),
+    V2(true, true);
 
     private final boolean isDefaultVersion;
 
@@ -91,7 +96,21 @@ public enum SqlGatewayRestAPIVersion
         try {
             return valueOf(uri.substring(1, slashIndex).toUpperCase());
         } catch (Exception e) {
-            return V1;
+            return getDefaultVersion();
         }
+    }
+
+    public static SqlGatewayRestAPIVersion getDefaultVersion() {
+        List<SqlGatewayRestAPIVersion> versions =
+                Arrays.stream(SqlGatewayRestAPIVersion.values())
+                        .filter(SqlGatewayRestAPIVersion::isDefaultVersion)
+                        .collect(Collectors.toList());
+        Preconditions.checkState(
+                versions.size() == 1,
+                String.format(
+                        "Only one default version of Sql Gateway Rest API, but found %s.",
+                        versions.size()));
+
+        return versions.get(0);
     }
 }

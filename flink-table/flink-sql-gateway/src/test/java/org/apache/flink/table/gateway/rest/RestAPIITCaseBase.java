@@ -20,15 +20,13 @@ package org.apache.flink.table.gateway.rest;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestClientAndEndpointUtils.TestRestClient;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
@@ -40,12 +38,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
 import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestClientAndEndpointUtils.TestRestClient.getTestRestClient;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The base class for Rest API IT test. */
@@ -60,9 +56,8 @@ abstract class RestAPIITCaseBase {
     protected static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
-    @Nullable private static RestClient restClient = null;
+    @Nullable private static TestRestClient restClient = null;
     @Nullable private static String targetAddress = null;
-    @Nullable private static ExecutorService executorService = null;
     @Nullable private static SqlGatewayRestEndpoint sqlGatewayRestEndpoint = null;
 
     private static int port = 0;
@@ -75,10 +70,7 @@ abstract class RestAPIITCaseBase {
                 new SqlGatewayRestEndpoint(config, SQL_GATEWAY_SERVICE_EXTENSION.getService());
         sqlGatewayRestEndpoint.start();
         InetSocketAddress serverAddress = checkNotNull(sqlGatewayRestEndpoint.getServerAddress());
-        executorService =
-                Executors.newFixedThreadPool(
-                        1, new ExecutorThreadFactory("rest-client-thread-pool"));
-        restClient = new RestClient(new Configuration(), executorService);
+        restClient = getTestRestClient();
         targetAddress = serverAddress.getHostName();
         port = serverAddress.getPort();
     }
@@ -89,8 +81,6 @@ abstract class RestAPIITCaseBase {
         sqlGatewayRestEndpoint.close();
         checkNotNull(restClient);
         restClient.shutdown(Time.seconds(3));
-        checkNotNull(executorService);
-        ExecutorUtils.gracefulShutdown(3, TimeUnit.SECONDS, executorService);
     }
 
     public <
