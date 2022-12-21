@@ -528,7 +528,7 @@ public class OperationExecutor {
      * Retrieves the {@link ClusterClient} from the session and runs the given {@link ClusterAction}
      * against it.
      *
-     * @param handle the specified session handle
+     * @param handle the specified operation handle
      * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
      * @param <ClusterID> type of the cluster id
      * @param <Result>> type of the result
