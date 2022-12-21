@@ -576,7 +576,9 @@ public class SingleInputGate extends IndexedInputGate {
                     boolean isLocal = shuffleDescriptor.isLocalTo(localLocation);
                     InputChannel newChannel;
                     if (isLocal) {
-                        newChannel = unknownChannel.toLocalInputChannel();
+                        newChannel =
+                                unknownChannel.toLocalInputChannel(
+                                        shuffleDescriptor.getResultPartitionID());
                     } else {
                         RemoteInputChannel remoteInputChannel =
                                 unknownChannel.toRemoteInputChannel(

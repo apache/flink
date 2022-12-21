@@ -67,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.CompressedSerializedValue;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
@@ -518,6 +519,49 @@ public class SingleInputGateTest extends InputGateTestBase {
                 createRemoteWithIdAndLocation(resultPartitionID.getPartitionId(), location));
 
         assertThat(partitionManager.counter).isEqualTo(0);
+    }
+
+    /**
+     * Test unknown input channel can set resultPartitionId correctly when update to local input
+     * channel, this occurs in the case of speculative execution that unknown input channel only
+     * carries original resultPartitionId.
+     */
+    @Test
+    void testUpdateLocalInputChannelWithNewPartitionId() throws Exception {
+        SingleInputGate inputGate = createInputGate(1);
+
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(new NoOpResultSubpartitionView());
+
+        ResultPartitionID oldPartitionId = new ResultPartitionID();
+
+        InputChannel unknown =
+                InputChannelBuilder.newBuilder()
+                        .setPartitionManager(partitionManager)
+                        .setPartitionId(oldPartitionId)
+                        .buildUnknownChannel(inputGate);
+        inputGate.setInputChannels(unknown);
+
+        // Update to a local channel and verify that no request is triggered
+        ResultPartitionID resultPartitionID = unknown.getPartitionId();
+        assertThat(resultPartitionID).isEqualTo(oldPartitionId);
+
+        ResultPartitionID newPartitionId =
+                new ResultPartitionID(
+                        // speculative execution have the same IntermediateResultPartitionID with
+                        // original, only executionAttemptID is different.
+                        oldPartitionId.getPartitionId(), ExecutionAttemptID.randomId());
+        ResourceID location = ResourceID.generate();
+        NettyShuffleDescriptor nettyShuffleDescriptor =
+                NettyShuffleDescriptorBuilder.newBuilder()
+                        .setId(newPartitionId)
+                        .setProducerLocation(location)
+                        .buildLocal();
+        inputGate.updateInputChannel(location, nettyShuffleDescriptor);
+
+        InputChannel newChannel = inputGate.getChannel(0);
+        assertThat(newChannel).isInstanceOf(LocalInputChannel.class);
+        assertThat(newChannel.partitionId).isEqualTo(newPartitionId);
     }
 
     /**
