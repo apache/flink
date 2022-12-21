@@ -54,6 +54,7 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -71,6 +72,7 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.RocksObject;
 import org.rocksdb.Snapshot;
+import org.rocksdb.WriteOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -88,6 +90,7 @@ import java.util.concurrent.RunnableFuture;
 import static junit.framework.TestCase.assertNotNull;
 import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder.DB_INSTANCE_DIR_STRING;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -632,9 +635,56 @@ public class EmbeddedRocksDBStateBackendTest
                             throw new RocksDBException("Artificial failure");
                         })
                 .when(keyedStateBackend.db)
-                .newIterator(any(ColumnFamilyHandle.class), any(ReadOptions.class));
+                .deleteRange(
+                        any(ColumnFamilyHandle.class),
+                        any(WriteOptions.class),
+                        any(byte[].class),
+                        any(byte[].class));
 
         state.clear();
+    }
+
+    /** Verify that an empty {@code MapState} yields {@code null}. */
+    @Test
+    public void testOneKeyClear() throws Exception {
+        MapStateDescriptor<String, String> kvId =
+                new MapStateDescriptor<>("id", String.class, String.class);
+
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try {
+            MapState<String, String> state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+            backend.setCurrentKey(2);
+            assertFalse(state.entries().iterator().hasNext());
+            state.put("Ciao", "Hello");
+            state.put("Bello", "Nice");
+            assertTrue(state.entries().iterator().hasNext());
+
+            backend.setCurrentKey(1);
+            assertFalse(state.entries().iterator().hasNext());
+            state.put("Ciao", "Hello");
+            state.put("Bello", "Nice");
+            assertTrue(state.entries().iterator().hasNext());
+
+            // delete key 1, it is stored before 2
+            backend.setCurrentKey(1);
+            state.clear();
+            // 1 should be empty
+            assertFalse(state.entries().iterator().hasNext());
+
+            // two is still filled
+            backend.setCurrentKey(2);
+            Assert.assertNotNull(state.entries());
+            assertEquals(state.get("Ciao"), "Hello");
+            assertEquals(state.get("Bello"), "Nice");
+
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
     }
 
     private void runStateUpdates() throws Exception {

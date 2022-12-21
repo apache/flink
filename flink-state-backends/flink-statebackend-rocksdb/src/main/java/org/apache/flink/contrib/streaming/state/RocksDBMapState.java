@@ -276,29 +276,24 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         }
     }
 
+    private void incrementByteArrayContent(byte[] array) {
+        for (int i = array.length - 1; i >= 0; i--) {
+            byte currentByte = ++array[i];
+            if (currentByte != Byte.MIN_VALUE) {
+                break;
+            }
+        }
+    }
+
     @Override
     public void clear() {
-        try (RocksIteratorWrapper iterator =
-                        RocksDBOperationUtils.getRocksIterator(
-                                backend.db, columnFamily, backend.getReadOptions());
-                RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
-                        new RocksDBWriteBatchWrapper(
-                                backend.db,
-                                backend.getWriteOptions(),
-                                backend.getWriteBatchSize())) {
-
-            final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-            iterator.seek(keyPrefixBytes);
-
-            while (iterator.isValid()) {
-                byte[] keyBytes = iterator.key();
-                if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
-                    rocksDBWriteBatchWrapper.remove(columnFamily, keyBytes);
-                } else {
-                    break;
-                }
-                iterator.next();
-            }
+        try {
+            final byte[] leastKeyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+            byte[] mostKeyPrefixBytes =
+                    Arrays.copyOf(leastKeyPrefixBytes, leastKeyPrefixBytes.length);
+            incrementByteArrayContent(mostKeyPrefixBytes);
+            backend.db.deleteRange(
+                    columnFamily, writeOptions, leastKeyPrefixBytes, mostKeyPrefixBytes);
         } catch (RocksDBException e) {
             throw new FlinkRuntimeException("Error while cleaning the state in RocksDB.", e);
         }
