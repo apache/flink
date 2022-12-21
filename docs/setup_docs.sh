@@ -23,18 +23,6 @@ if [[ "$HERE" != "docs" ]]; then
     exit 1;
 fi
 
-# Create a default go.mod file
-cat <<EOF >go.mod
-module github.com/apache/flink
-
-go 1.18
-EOF
-
-echo "Created temporary file" $goModFileLocation/go.mod
-
-# Make Hugo retrieve modules which are used for externally hosted documentation
-currentBranch=$(git rev-parse --abbrev-ref HEAD)
-
 function integrate_connector_docs {
   local connector ref additional_folders
   connector=$1
