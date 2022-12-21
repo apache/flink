@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.time.Deadline;
@@ -78,9 +79,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -90,7 +93,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1267,9 +1269,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
      */
     @Test
     public void testProcessingTimeWithTimeoutFunctionUnorderedWithRetry() throws Exception {
-        testProcessingTimeAlwaysTimeoutFunctionWithRetry(
-                AsyncDataStream.OutputMode.UNORDERED,
-                new AlwaysTimeoutWithDefaultValueAsyncFunction());
+        testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.UNORDERED);
     }
 
     /**
@@ -1278,13 +1278,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
      */
     @Test
     public void testProcessingTimeWithTimeoutFunctionOrderedWithRetry() throws Exception {
-        testProcessingTimeAlwaysTimeoutFunctionWithRetry(
-                AsyncDataStream.OutputMode.ORDERED,
-                new AlwaysTimeoutWithDefaultValueAsyncFunction());
+        testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.ORDERED);
     }
 
-    private void testProcessingTimeAlwaysTimeoutFunctionWithRetry(
-            AsyncDataStream.OutputMode mode, RichAsyncFunction asyncFunction) throws Exception {
+    private void testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode mode)
+            throws Exception {
 
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
@@ -1295,6 +1293,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
                 new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(5, 100L)
                         .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
                         .build();
+        AlwaysTimeoutWithDefaultValueAsyncFunction asyncFunction =
+                new AlwaysTimeoutWithDefaultValueAsyncFunction();
 
         try (StreamTaskMailboxTestHarness<Integer> testHarness =
                 builder.setupOutputForSingletonOperatorChain(
@@ -1329,6 +1329,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
                         testHarness.getOutput(),
                         new StreamRecordComparator());
             }
+
+            // verify the elements' try count
+            assertTrue(asyncFunction.getTryCount(1) == 2);
+            assertTrue(asyncFunction.getTryCount(2) == 2);
         }
     }
 
@@ -1405,14 +1409,27 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         private static final long serialVersionUID = 1L;
 
+        private static Map<Integer, Integer> tryCounts = new HashMap<>();
+
+        @VisibleForTesting
+        public int getTryCount(Integer item) {
+            return tryCounts.getOrDefault(item, 0);
+        }
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            tryCounts = new HashMap<>();
+        }
+
         @Override
         public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            tryCounts.merge(input, 1, Integer::sum);
+
             CompletableFuture.runAsync(
                     () -> {
                         try {
-                            // simulates interacting with an unreliable external service
-                            Thread.sleep(
-                                    (long) (400 + ThreadLocalRandom.current().nextFloat() * 100));
+                            Thread.sleep(500L);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
