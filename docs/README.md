@@ -10,7 +10,6 @@ https://flink.apache.org/ is also generated from the files found here.
 
 The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML files.  More specifically, it uses the *extended version* of Hugo with Sass/SCSS support. 
 
-As a pre-requisite, you need to have [Go](https://golang.org/doc/install) installed.
 To build the documentation, you can install Hugo locally or use a Docker image. 
 
 Both methods require you to execute commands in the directory of this module (`docs/`). The built site is served at http://localhost:1313/.
