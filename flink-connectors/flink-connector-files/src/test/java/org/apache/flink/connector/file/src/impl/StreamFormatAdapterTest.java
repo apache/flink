@@ -95,7 +95,8 @@ class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
         ByteBuffer buffer = ByteBuffer.allocate(batchSize);
         int consumedBytes = dataStream.read(buffer.array(), 0, batchSize);
         assertThat(consumedBytes).isLessThan(batchSize);
-        assertThat(dataStream.hasRemainingInBatch()).isTrue()
+        assertThat(dataStream.hasRemainingInBatch())
+                .isTrue()
                 .describedAs("read() may return less than requested");
     }
 
@@ -108,7 +109,7 @@ class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
 
             @Override
             public void seek(long ignored) {
-                //ignored
+                // ignored
             }
 
             @Override

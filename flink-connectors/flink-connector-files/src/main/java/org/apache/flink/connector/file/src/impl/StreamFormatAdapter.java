@@ -254,8 +254,8 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSpl
      * dependent on the consumed data volume, which is more robust than making it dependent on a
      * record count.
      */
-     @VisibleForTesting
-     static final class TrackingFsDataInputStream extends FSDataInputStream {
+    @VisibleForTesting
+    static final class TrackingFsDataInputStream extends FSDataInputStream {
 
         private final FSDataInputStream stream;
         private final long fileLength;
