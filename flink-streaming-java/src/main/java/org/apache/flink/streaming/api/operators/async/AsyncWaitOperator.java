@@ -359,6 +359,9 @@ public class AsyncWaitOperator<IN, OUT>
             if (inFlightDelayRetryHandlers.size() > 0) {
                 for (RetryableResultHandlerDelegator delegator : inFlightDelayRetryHandlers) {
                     assert delegator.delayedRetryTimer != null;
+                    // cancel delayedRetryTimer timer first
+                    delegator.delayedRetryTimer.cancel(true);
+
                     // fire an attempt intermediately not rely on successfully canceling the retry
                     // timer for two reasons: 1. cancel retry timer can not be 100% safe 2. there's
                     // protection for repeated retries
@@ -409,7 +412,6 @@ public class AsyncWaitOperator<IN, OUT>
     private void tryOnce(RetryableResultHandlerDelegator resultHandlerDelegator) throws Exception {
         // increment current attempt number
         resultHandlerDelegator.currentAttempts++;
-
         // fire a new attempt
         userFunction.asyncInvoke(
                 resultHandlerDelegator.resultHandler.inputRecord.getValue(),
@@ -443,7 +445,34 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         public void registerTimeout(long timeout) {
-            resultHandler.registerTimeout(processingTimeService, timeout);
+            // must overwrite the registerTimeout here to control the callback logic
+            registerTimeout(processingTimeService, timeout, resultHandler);
+        }
+
+        private void registerTimeout(
+                ProcessingTimeService processingTimeService,
+                long timeout,
+                ResultHandler resultHandler) {
+            final long timeoutTimestamp =
+                    timeout + processingTimeService.getCurrentProcessingTime();
+
+            resultHandler.timeoutTimer =
+                    processingTimeService.registerTimer(
+                            timeoutTimestamp, timestamp -> timerTriggered());
+        }
+
+        /** Rewrite the timeout process to deal with retry state. */
+        private void timerTriggered() throws Exception {
+            if (!resultHandler.completed.get()) {
+                // cancel delayed retry timer first
+                if (delayedRetryTimer != null) {
+                    delayedRetryTimer.cancel(true);
+                }
+                // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
+                retryAwaiting.set(false);
+
+                userFunction.timeout(resultHandler.inputRecord.getValue(), this);
+            }
         }
 
         @Override
@@ -451,13 +480,11 @@ public class AsyncWaitOperator<IN, OUT>
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
             if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
-                // ignore repeated call(s)
-                if (!retryAwaiting.compareAndSet(false, true)) {
-                    return;
-                }
-
                 processRetryInMailBox(results, null);
             } else {
+                if (delayedRetryTimer != null) {
+                    delayedRetryTimer.cancel(true);
+                }
                 resultHandler.complete(results);
             }
         }
@@ -465,11 +492,6 @@ public class AsyncWaitOperator<IN, OUT>
         @Override
         public void completeExceptionally(Throwable error) {
             if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
-                // ignore repeated call(s)
-                if (!retryAwaiting.compareAndSet(false, true)) {
-                    return;
-                }
-
                 processRetryInMailBox(null, error);
             } else {
                 resultHandler.completeExceptionally(error);
@@ -481,6 +503,11 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void processRetry(Collection<OUT> results, Throwable error) {
+            // ignore repeated call(s) and only called in main thread can be safe
+            if (!retryAwaiting.compareAndSet(false, true)) {
+                return;
+            }
+
             boolean satisfy =
                     (null != results && retryResultPredicate.test(results))
                             || (null != error && retryExceptionPredicate.test(error));
@@ -519,11 +546,10 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void doRetry() throws Exception {
-            // fire the retry
-            tryOnce(this);
-
-            // reset for next possible retry
-            retryAwaiting.set(false);
+            // fire a retry only when it is in awaiting state, otherwise timeout may already happen
+            if (retryAwaiting.compareAndSet(true, false)) {
+                tryOnce(this);
+            }
         }
     }
 

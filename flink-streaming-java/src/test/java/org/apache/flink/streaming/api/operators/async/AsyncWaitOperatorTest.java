@@ -90,6 +90,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1260,6 +1261,77 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
     }
 
+    /**
+     * Test the AsyncWaitOperator with an always-timeout async function under unordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeWithTimeoutFunctionUnorderedWithRetry() throws Exception {
+        testProcessingTimeAlwaysTimeoutFunctionWithRetry(
+                AsyncDataStream.OutputMode.UNORDERED,
+                new AlwaysTimeoutWithDefaultValueAsyncFunction());
+    }
+
+    /**
+     * Test the AsyncWaitOperator with an always-timeout async function under ordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeWithTimeoutFunctionOrderedWithRetry() throws Exception {
+        testProcessingTimeAlwaysTimeoutFunctionWithRetry(
+                AsyncDataStream.OutputMode.ORDERED,
+                new AlwaysTimeoutWithDefaultValueAsyncFunction());
+    }
+
+    private void testProcessingTimeAlwaysTimeoutFunctionWithRetry(
+            AsyncDataStream.OutputMode mode, RichAsyncFunction asyncFunction) throws Exception {
+
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+
+        AsyncRetryStrategy exceptionRetryStrategy =
+                new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(5, 100L)
+                        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+                        .build();
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        asyncFunction, TIMEOUT, 10, mode, exceptionRetryStrategy))
+                        .build()) {
+
+            final long initialTime = 0L;
+            final Queue<Object> expectedOutput = new ArrayDeque<>();
+
+            testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+
+            expectedOutput.add(new StreamRecord<>(-1, initialTime + 1));
+            expectedOutput.add(new StreamRecord<>(-1, initialTime + 2));
+
+            Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+            while (testHarness.getOutput().size() < expectedOutput.size()
+                    && deadline.hasTimeLeft()) {
+                testHarness.processAll();
+                //noinspection BusyWait
+                Thread.sleep(100);
+            }
+
+            if (mode == AsyncDataStream.OutputMode.ORDERED) {
+                TestHarnessUtil.assertOutputEquals(
+                        "ORDERED Output was not correct.", expectedOutput, testHarness.getOutput());
+            } else {
+                TestHarnessUtil.assertOutputEqualsSorted(
+                        "UNORDERED Output was not correct.",
+                        expectedOutput,
+                        testHarness.getOutput(),
+                        new StreamRecordComparator());
+            }
+        }
+    }
+
     private static class CollectableFuturesAsyncFunction<IN> implements AsyncFunction<IN, IN> {
 
         private static final long serialVersionUID = -4214078239227288637L;
@@ -1326,5 +1398,32 @@ public class AsyncWaitOperatorTest extends TestLogger {
                 new AsyncWaitOperatorFactory<>(
                         function, timeout, capacity, outputMode, asyncRetryStrategy),
                 IntSerializer.INSTANCE);
+    }
+
+    private static class AlwaysTimeoutWithDefaultValueAsyncFunction
+            extends RichAsyncFunction<Integer, Integer> {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            // simulates interacting with an unreliable external service
+                            Thread.sleep(
+                                    (long) (400 + ThreadLocalRandom.current().nextFloat() * 100));
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        resultFuture.completeExceptionally(new Exception("Dummy error"));
+                    });
+        }
+
+        @Override
+        public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            // collect a default value -1 when timeout
+            resultFuture.complete(Collections.singletonList(-1));
+        }
     }
 }
