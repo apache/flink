@@ -138,7 +138,7 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
     verifyPlan(sqlQuery)
   }
 
-  private def verifyPlan(sql: String): Unit = {
+  def verifyPlan(sql: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sql)
     } else {

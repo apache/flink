@@ -62,8 +62,10 @@ public abstract class FlinkHintStrategies {
                 // internal join hint used for alias
                 .hintStrategy(
                         FlinkHints.HINT_ALIAS,
-                        // currently, only join hints care about query block alias
-                        HintStrategy.builder(HintPredicates.JOIN)
+                        // currently, only correlate&join hints care about query block alias
+                        HintStrategy.builder(
+                                        HintPredicates.or(
+                                                HintPredicates.CORRELATE, HintPredicates.JOIN))
                                 .optionChecker(fixedSizeListOptionChecker(1))
                                 .build())
                 // TODO semi/anti join with CORRELATE is not supported

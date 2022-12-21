@@ -34,14 +34,7 @@ public class LookupJoinHintTestUtil {
     public static RelHint lookupHintWithTableOnly = getLookupJoinHint(false, false);
 
     public static RelHint getLookupJoinHint(String table, boolean withAsync, boolean withRetry) {
-        Map<String, String> kvOptions = new HashMap<>();
-        kvOptions.put(LookupJoinHintOptions.LOOKUP_TABLE.key(), table);
-        if (withAsync) {
-            addAsyncOptions(kvOptions);
-        }
-        if (withRetry) {
-            addRetryOptions(kvOptions);
-        }
+        Map<String, String> kvOptions = getLookupJoinHintOptions(table, withAsync, withRetry);
         return RelHint.builder(JoinStrategy.LOOKUP.getJoinHintName())
                 .hintOptions(kvOptions)
                 .build();
@@ -51,14 +44,27 @@ public class LookupJoinHintTestUtil {
         return getLookupJoinHint("TestTable", withAsync, withRetry);
     }
 
-    private static void addAsyncOptions(Map<String, String> kvOptions) {
+    public static Map<String, String> getLookupJoinHintOptions(
+            String table, boolean withAsync, boolean withRetry) {
+        Map<String, String> kvOptions = new HashMap<>();
+        kvOptions.put(LookupJoinHintOptions.LOOKUP_TABLE.key(), table);
+        if (withAsync) {
+            addAsyncOptions(kvOptions);
+        }
+        if (withRetry) {
+            addRetryOptions(kvOptions);
+        }
+        return kvOptions;
+    }
+
+    public static void addAsyncOptions(Map<String, String> kvOptions) {
         kvOptions.put(LookupJoinHintOptions.ASYNC_LOOKUP.key(), "true");
         kvOptions.put(LookupJoinHintOptions.ASYNC_CAPACITY.key(), "1000");
         kvOptions.put(LookupJoinHintOptions.ASYNC_OUTPUT_MODE.key(), "allow_unordered");
         kvOptions.put(LookupJoinHintOptions.ASYNC_TIMEOUT.key(), "300 s");
     }
 
-    private static void addRetryOptions(Map<String, String> kvOptions) {
+    public static void addRetryOptions(Map<String, String> kvOptions) {
         kvOptions.put(LookupJoinHintOptions.RETRY_PREDICATE.key(), "lookup_miss");
         kvOptions.put(LookupJoinHintOptions.RETRY_STRATEGY.key(), "fixed_delay");
         kvOptions.put(LookupJoinHintOptions.FIXED_DELAY.key(), "155 ms");

@@ -951,6 +951,39 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
+  @Test
+  def testJoinWithMixedCaseJoinHint(): Unit = {
+    util.verifyExecPlan(
+      """
+        |SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss',
+        |'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+        |'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+        |*/
+        |T.a
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testJoinHintWithNoPropagatingToSubQuery(): Unit = {
+    util.verifyExecPlan(
+      """
+        |SELECT /*+ LOOKUP('table'='D', 'output-mode'='ordered','capacity'='200') */ T1.a
+        |FROM (
+        |   SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered', 'capacity'='1000') */
+        |     T.a a, T.proctime
+        |   FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |     ON T.a = D.id
+        |) T1
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T1.proctime AS D
+        |ON T1.a=D.id
+        |""".stripMargin
+    )
+  }
+
   // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {
