@@ -40,7 +40,6 @@ import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -228,12 +227,12 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     }
 
     protected void cleanupIncompleteSnapshot(
-            @Nonnull List<StateObject> statesToDiscard,
+            @Nonnull CloseableRegistry tmpResourcesRegistry,
             @Nonnull SnapshotDirectory localBackupDirectory) {
         try {
-            StateUtil.bestEffortDiscardAllStateObjects(statesToDiscard);
+            tmpResourcesRegistry.close();
         } catch (Exception e) {
-            LOG.warn("Could not properly discard states.", e);
+            LOG.warn("Could not properly clean tmp resources.", e);
         }
 
         if (localBackupDirectory.isSnapshotCompleted()) {
@@ -252,6 +251,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     @Nonnull
     protected SnapshotResult<StreamStateHandle> materializeMetaData(
             @Nonnull CloseableRegistry snapshotCloseableRegistry,
+            @Nonnull CloseableRegistry tmpResourcesRegistry,
             @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
             long checkpointId,
             @Nonnull CheckpointStreamFactory checkpointStreamFactory)
@@ -287,6 +287,8 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
                 SnapshotResult<StreamStateHandle> result =
                         streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
                 streamWithResultProvider = null;
+                tmpResourcesRegistry.registerCloseable(
+                        () -> StateUtil.discardStateObjectQuietly(result));
                 return result;
             } else {
                 throw new IOException("Stream already closed and cannot return a handle.");
@@ -316,6 +318,8 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
         /** Local directory for the RocksDB native backup. */
         @Nonnull protected final SnapshotDirectory localBackupDirectory;
 
+        @Nonnull protected final CloseableRegistry tmpResourcesRegistry;
+
         protected RocksDBSnapshotOperation(
                 long checkpointId,
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
@@ -325,6 +329,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
             this.checkpointStreamFactory = checkpointStreamFactory;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.localBackupDirectory = localBackupDirectory;
+            this.tmpResourcesRegistry = new CloseableRegistry();
         }
 
         protected Optional<KeyedStateHandle> getLocalSnapshot(
