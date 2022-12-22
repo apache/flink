@@ -36,7 +36,6 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFa
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
@@ -276,8 +275,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             for (IntermediateDataSet dataSet : jobVertex.getProducedDataSets()) {
                 checkState(
                         dataSet.getResultType().isBlockingOrBlockingPersistentResultPartition()
-                                || dataSet.getResultType() == ResultPartitionType.HYBRID_FULL
-                                || dataSet.getResultType() == ResultPartitionType.HYBRID_SELECTIVE,
+                                || dataSet.getResultType().isHybridResultPartition(),
                         String.format(
                                 "At the moment, adaptive batch scheduler requires batch workloads "
                                         + "to be executed with types of all edges being BLOCKING or HYBRID_FULL/HYBRID_SELECTIVE. "

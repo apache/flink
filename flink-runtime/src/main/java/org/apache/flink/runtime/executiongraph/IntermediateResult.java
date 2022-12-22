@@ -262,8 +262,7 @@ public class IntermediateResult {
             ConsumedPartitionGroup consumedPartitionGroup,
             IntermediateResultPartition resultPartition) {
         // only hybrid result partition need this notification.
-        if (resultPartition.getResultType() != ResultPartitionType.HYBRID_FULL
-                && resultPartition.getResultType() != ResultPartitionType.HYBRID_SELECTIVE) {
+        if (!resultPartition.getResultType().isHybridResultPartition()) {
             return;
         }
         // if this consumedPartitionGroup is not cached, ignore partition finished notification.
