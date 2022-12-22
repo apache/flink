@@ -70,6 +70,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
     private final boolean isDynamicGraph;
     private final ExecutionJobVertex.Factory executionJobVertexFactory;
 
+    private final boolean nonFinishedHybridPartitionShouldBeUnknown;
+
     public DefaultExecutionGraphFactory(
             Configuration configuration,
             ClassLoader userCodeClassLoader,
@@ -93,7 +95,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                 shuffleMaster,
                 jobMasterPartitionTracker,
                 false,
-                new ExecutionJobVertex.Factory());
+                new ExecutionJobVertex.Factory(),
+                false);
     }
 
     public DefaultExecutionGraphFactory(
@@ -108,7 +111,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker jobMasterPartitionTracker,
             boolean isDynamicGraph,
-            ExecutionJobVertex.Factory executionJobVertexFactory) {
+            ExecutionJobVertex.Factory executionJobVertexFactory,
+            boolean nonFinishedHybridPartitionShouldBeUnknown) {
         this.configuration = configuration;
         this.userCodeClassLoader = userCodeClassLoader;
         this.executionDeploymentTracker = executionDeploymentTracker;
@@ -128,6 +132,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                                         jobManagerJobMetricGroup));
         this.isDynamicGraph = isDynamicGraph;
         this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
+        this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
     }
 
     @Override
@@ -178,7 +183,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         checkpointStatsTrackerFactory,
                         isDynamicGraph,
                         executionJobVertexFactory,
-                        markPartitionFinishedStrategy);
+                        markPartitionFinishedStrategy,
+                        nonFinishedHybridPartitionShouldBeUnknown);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();

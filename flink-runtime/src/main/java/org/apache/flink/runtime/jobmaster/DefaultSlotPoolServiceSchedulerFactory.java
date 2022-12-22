@@ -51,6 +51,7 @@ import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
@@ -173,6 +174,15 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                     JobManagerOptions.SchedulerType.Default);
             // overwrite
             schedulerType = JobManagerOptions.SchedulerType.Default;
+        }
+
+        if (configuration
+                .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
+                .isPresent()) {
+            Preconditions.checkState(
+                    schedulerType == JobManagerOptions.SchedulerType.AdaptiveBatch,
+                    "Only adaptive batch scheduler supports setting "
+                            + JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT.key());
         }
 
         switch (schedulerType) {

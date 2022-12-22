@@ -95,7 +95,9 @@ public class CachedShuffleDescriptors {
         ShuffleDescriptor consumedPartitionShuffleDescriptor =
                 TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor(
                         resultPartition,
-                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN);
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
+                        // because resultPartition is already finished, false is fair enough.
+                        false);
         toBeSerialized.offer(
                 new ShuffleDescriptorAndIndex(
                         consumedPartitionShuffleDescriptor,
