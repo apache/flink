@@ -423,9 +423,6 @@ public class ActiveResourceManagerTest extends TestLogger {
                             return resourceIdFutures.get(idx);
                         });
 
-                slotManagerBuilder.setGetRequiredResourcesSupplier(
-                        () -> Collections.singletonMap(WORKER_RESOURCE_SPEC, 1));
-
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
@@ -433,8 +430,13 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .requestNewWorker(
-                                                                    WORKER_RESOURCE_SPEC));
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    1,
+                                                                                    Collections
+                                                                                            .emptySet()))));
                             TaskExecutorProcessSpec taskExecutorProcessSpec1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
@@ -501,9 +503,6 @@ public class ActiveResourceManagerTest extends TestLogger {
                             return CompletableFuture.completedFuture(tmResourceIds.get(idx));
                         });
 
-                slotManagerBuilder.setGetRequiredResourcesSupplier(
-                        () -> Collections.singletonMap(WORKER_RESOURCE_SPEC, 1));
-
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
@@ -511,8 +510,13 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .requestNewWorker(
-                                                                    WORKER_RESOURCE_SPEC));
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    1,
+                                                                                    Collections
+                                                                                            .emptySet()))));
                             TaskExecutorProcessSpec taskExecutorProcessSpec1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
@@ -579,9 +583,6 @@ public class ActiveResourceManagerTest extends TestLogger {
                             return CompletableFuture.completedFuture(tmResourceIds.get(idx));
                         });
 
-                slotManagerBuilder.setGetRequiredResourcesSupplier(
-                        () -> Collections.singletonMap(WORKER_RESOURCE_SPEC, 1));
-
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
@@ -589,8 +590,13 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .requestNewWorker(
-                                                                    WORKER_RESOURCE_SPEC));
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    1,
+                                                                                    Collections
+                                                                                            .emptySet()))));
                             TaskExecutorProcessSpec taskExecutorProcessSpec1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
@@ -787,9 +793,6 @@ public class ActiveResourceManagerTest extends TestLogger {
                             return CompletableFuture.completedFuture(tmResourceIds.get(idx));
                         });
 
-                slotManagerBuilder.setGetRequiredResourcesSupplier(
-                        () -> Collections.singletonMap(WORKER_RESOURCE_SPEC, 1));
-
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
@@ -797,8 +800,13 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .requestNewWorker(
-                                                                    WORKER_RESOURCE_SPEC));
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    1,
+                                                                                    Collections
+                                                                                            .emptySet()))));
                             long t1 =
                                     requestWorkerFromDriverFutures
                                             .get(0)
@@ -867,9 +875,6 @@ public class ActiveResourceManagerTest extends TestLogger {
                             return resourceIdFutures.get(idx);
                         });
 
-                slotManagerBuilder.setGetRequiredResourcesSupplier(
-                        () -> Collections.singletonMap(WORKER_RESOURCE_SPEC, 1));
-
                 runTest(
                         () -> {
                             // received worker request, verify requesting from driver
@@ -877,8 +882,13 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     runInMainThread(
                                             () ->
                                                     getResourceManager()
-                                                            .requestNewWorker(
-                                                                    WORKER_RESOURCE_SPEC));
+                                                            .declareResourceNeeded(
+                                                                    Collections.singleton(
+                                                                            new ResourceDeclaration(
+                                                                                    WORKER_RESOURCE_SPEC,
+                                                                                    1,
+                                                                                    Collections
+                                                                                            .emptySet()))));
 
                             startNewWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 

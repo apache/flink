@@ -299,14 +299,6 @@ class TaskExecutorManager implements AutoCloseable {
                 > maxSlotNum;
     }
 
-    public Map<WorkerResourceSpec, Integer> getRequiredWorkers() {
-        final int pendingWorkerNum =
-                MathUtils.divideRoundUp(getNumberPendingTaskManagerSlots(), numSlotsPerWorker);
-        return pendingWorkerNum > 0
-                ? Collections.singletonMap(defaultWorkerResourceSpec, pendingWorkerNum)
-                : Collections.emptyMap();
-    }
-
     private Collection<ResourceDeclaration> getResourceDeclaration() {
         final int pendingWorkerNum =
                 MathUtils.divideRoundUp(getNumberPendingTaskManagerSlots(), numSlotsPerWorker);

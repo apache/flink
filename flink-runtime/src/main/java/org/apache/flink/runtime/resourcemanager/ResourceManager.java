@@ -1520,10 +1520,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     //  Resource Management
     // ------------------------------------------------------------------------
 
-    protected Map<WorkerResourceSpec, Integer> getRequiredResources() {
-        return slotManager.getRequiredResources();
-    }
-
     @Override
     public void onNewTokensObtained(byte[] tokens) throws Exception {
         latestTokens.set(tokens);

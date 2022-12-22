@@ -719,17 +719,6 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     @Override
-    public Map<WorkerResourceSpec, Integer> getRequiredResources() {
-        return taskManagerTracker.getPendingTaskManagers().stream()
-                .map(
-                        pendingTaskManager ->
-                                WorkerResourceSpec.fromTotalResourceProfile(
-                                        pendingTaskManager.getTotalResourceProfile(),
-                                        pendingTaskManager.getNumSlots()))
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.summingInt(e -> 1)));
-    }
-
-    @Override
     public ResourceProfile getRegisteredResource() {
         return taskManagerTracker.getRegisteredResource();
     }
