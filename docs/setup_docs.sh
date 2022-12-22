@@ -36,17 +36,24 @@ echo "Created temporary file" $goModFileLocation/go.mod
 currentBranch=$(git rev-parse --abbrev-ref HEAD)
 
 function integrate_connector_docs {
+  local connector ref additional_folders
   connector=$1
   ref=$2
+  additional_folders=( "${@:3}" )
+
   git clone --single-branch --branch ${ref} https://github.com/apache/flink-connector-${connector}
   theme_dir="../themes/connectors"
   mkdir -p "${theme_dir}"
-  rsync -a flink-connector-${connector}/docs/content* "${theme_dir}/"
-  DIR=flink-connector-${connector}/docs/layouts;
-  if [ -e $DIR ];
-    then rsync -a flink-connector-${connector}/docs/layouts* "${theme_dir}/"
-  fi
+
+  for rsync_folder_subpath in "docs/content" "docs/content.zh" "${additional_folders[@]}"; do
+    local rsync_source_path="flink-connector-${connector}/${rsync_folder_subpath}"
+
+    if [ -e "${rsync_source_path}" ]; then
+      rsync -a "flink-connector-${connector}/${rsync_folder_subpath}" "${theme_dir}/"
+    fi
+  done
 }
+
 
 # Integrate the connector documentation
 
@@ -58,7 +65,7 @@ cd tmp
 integrate_connector_docs elasticsearch v3.0.0
 integrate_connector_docs aws v3.0.0
 integrate_connector_docs cassandra v3.0.0
-integrate_connector_docs pulsar main
+integrate_connector_docs pulsar main "docs/layouts"
 
 cd ..
 rm -rf tmp
