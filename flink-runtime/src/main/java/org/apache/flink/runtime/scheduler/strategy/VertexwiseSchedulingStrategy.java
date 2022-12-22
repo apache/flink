@@ -24,6 +24,9 @@ import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 import org.apache.flink.util.IterableUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -43,6 +46,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class VertexwiseSchedulingStrategy
         implements SchedulingStrategy, SchedulingTopologyListener {
+
+    private static final Logger LOG = LoggerFactory.getLogger(VertexwiseSchedulingStrategy.class);
 
     private final SchedulerOperations schedulerOperations;
 
@@ -64,6 +69,9 @@ public class VertexwiseSchedulingStrategy
         this.inputConsumableDecider =
                 inputConsumableDeciderFactory.createInstance(
                         schedulingTopology, scheduledVertices::contains);
+        LOG.info(
+                "Using InputConsumableDecider {} for VertexwiseSchedulingStrategy.",
+                inputConsumableDecider.getClass().getName());
         schedulingTopology.registerSchedulingTopologyListener(this);
     }
 
