@@ -47,7 +47,6 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.CompressedSerializedValue;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -63,6 +62,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Factory of {@link TaskDeploymentDescriptor} to deploy {@link
@@ -82,6 +82,7 @@ public class TaskDeploymentDescriptorFactory {
             consumedClusterPartitionShuffleDescriptors;
     private final Function<IntermediateDataSetID, ExecutionVertexInputInfo>
             executionVertexInputInfoRetriever;
+    private final boolean nonFinishedHybridPartitionShouldBeUnknown;
 
     private TaskDeploymentDescriptorFactory(
             ExecutionAttemptID executionId,
@@ -93,6 +94,7 @@ public class TaskDeploymentDescriptorFactory {
             Function<IntermediateResultPartitionID, IntermediateResultPartition>
                     resultPartitionRetriever,
             BlobWriter blobWriter,
+            boolean nonFinishedHybridPartitionShouldBeUnknown,
             Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
                     consumedClusterPartitionShuffleDescriptors,
             Function<IntermediateDataSetID, ExecutionVertexInputInfo>
@@ -105,6 +107,7 @@ public class TaskDeploymentDescriptorFactory {
         this.consumedPartitionGroups = consumedPartitionGroups;
         this.resultPartitionRetriever = resultPartitionRetriever;
         this.blobWriter = blobWriter;
+        this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
         this.consumedClusterPartitionShuffleDescriptors =
                 consumedClusterPartitionShuffleDescriptors;
         this.executionVertexInputInfoRetriever = checkNotNull(executionVertexInputInfoRetriever);
@@ -206,7 +209,8 @@ public class TaskDeploymentDescriptorFactory {
                     new ShuffleDescriptorAndIndex(
                             getConsumedPartitionShuffleDescriptor(
                                     resultPartitionRetriever.apply(partitionId),
-                                    partitionDeploymentConstraint),
+                                    partitionDeploymentConstraint,
+                                    nonFinishedHybridPartitionShouldBeUnknown),
                             i);
             i++;
         }
@@ -258,6 +262,7 @@ public class TaskDeploymentDescriptorFactory {
                 executionVertex.getAllConsumedPartitionGroups(),
                 internalExecutionGraphAccessor::getResultPartitionOrThrow,
                 internalExecutionGraphAccessor.getBlobWriter(),
+                internalExecutionGraphAccessor.isNonFinishedHybridPartitionShouldBeUnknown(),
                 clusterPartitionShuffleDescriptors,
                 executionVertex::getExecutionVertexInputInfo);
     }
@@ -279,7 +284,7 @@ public class TaskDeploymentDescriptorFactory {
             // For FLIP-205, the job graph generating side makes sure that the producer and consumer
             // of the cluster partition have the same parallelism and each consumer Task consumes
             // one output partition of the producer.
-            Preconditions.checkState(
+            checkState(
                     executionVertex.getTotalNumberOfParallelSubtasks() == shuffleDescriptors.size(),
                     "The parallelism (%s) of the cache consuming job vertex is "
                             + "different from the number of shuffle descriptors (%s) of the intermediate data set",
@@ -320,7 +325,8 @@ public class TaskDeploymentDescriptorFactory {
 
     public static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(
             IntermediateResultPartition consumedPartition,
-            PartitionLocationConstraint partitionDeploymentConstraint) {
+            PartitionLocationConstraint partitionDeploymentConstraint,
+            boolean nonFinishedHybridPartitionShouldBeUnknown) {
         Execution producer = consumedPartition.getProducer().getPartitionProducer();
 
         ExecutionState producerState = producer.getState();
@@ -336,7 +342,8 @@ public class TaskDeploymentDescriptorFactory {
                 consumedPartition.hasDataAllProduced(),
                 producerState,
                 partitionDeploymentConstraint,
-                consumedPartitionDescriptor.orElse(null));
+                consumedPartitionDescriptor.orElse(null),
+                nonFinishedHybridPartitionShouldBeUnknown);
     }
 
     @VisibleForTesting
@@ -346,11 +353,23 @@ public class TaskDeploymentDescriptorFactory {
             boolean hasAllDataProduced,
             ExecutionState producerState,
             PartitionLocationConstraint partitionDeploymentConstraint,
-            @Nullable ResultPartitionDeploymentDescriptor consumedPartitionDescriptor) {
+            @Nullable ResultPartitionDeploymentDescriptor consumedPartitionDescriptor,
+            boolean nonFinishedHybridPartitionShouldBeUnknown) {
         // The producing task needs to be RUNNING or already FINISHED
         if ((resultPartitionType.canBePipelinedConsumed() || hasAllDataProduced)
                 && consumedPartitionDescriptor != null
                 && isProducerAvailable(producerState)) {
+            if (resultPartitionType.isHybridResultPartition()
+                    && nonFinishedHybridPartitionShouldBeUnknown) {
+                // if producer is not finished, shuffle descriptor should be unknown.
+                if (producerState != ExecutionState.FINISHED) {
+                    checkState(
+                            partitionDeploymentConstraint
+                                    == PartitionLocationConstraint.CAN_BE_UNKNOWN,
+                            "partition location constraint should allow unknown shuffle descriptor when nonFinishedHybridPartitionShouldBeUnknown is true.");
+                    return new UnknownShuffleDescriptor(consumedPartitionId);
+                }
+            }
             // partition is already registered
             return consumedPartitionDescriptor.getShuffleDescriptor();
         } else if (partitionDeploymentConstraint == PartitionLocationConstraint.CAN_BE_UNKNOWN) {

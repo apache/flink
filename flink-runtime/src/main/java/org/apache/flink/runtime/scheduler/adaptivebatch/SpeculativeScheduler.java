@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -123,7 +124,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             final VertexParallelismDecider vertexParallelismDecider,
             final int defaultMaxParallelism,
             final BlocklistOperations blocklistOperations,
-            final boolean hybridOnlyConsumeFinishedPartition)
+            final HybridConsumePartitionMode hybridConsumePartitionMode)
             throws Exception {
 
         super(
@@ -151,7 +152,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 rpcTimeout,
                 vertexParallelismDecider,
                 defaultMaxParallelism,
-                hybridOnlyConsumeFinishedPartition);
+                hybridConsumePartitionMode);
 
         this.maxConcurrentExecutions =
                 jobMasterConfiguration.getInteger(

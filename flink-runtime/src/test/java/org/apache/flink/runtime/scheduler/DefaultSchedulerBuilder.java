@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
@@ -101,7 +102,8 @@ public class DefaultSchedulerBuilder {
     private int defaultMaxParallelism =
             JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue();
     private BlocklistOperations blocklistOperations = ignore -> {};
-    private boolean hybridOnlyConsumeFinishedPartition = false;
+    private HybridConsumePartitionMode hybridConsumePartitionMode =
+            HybridConsumePartitionMode.CAN_CONSUME_UN_FINISHED;
     private InputConsumableDecider.Factory inputConsumableDeciderFactory =
             AllFinishedInputConsumableDecider.Factory.INSTANCE;
 
@@ -259,9 +261,9 @@ public class DefaultSchedulerBuilder {
         return this;
     }
 
-    public DefaultSchedulerBuilder setHybridOnlyConsumeFinishedPartition(
-            boolean hybridOnlyConsumeFinishedPartition) {
-        this.hybridOnlyConsumeFinishedPartition = hybridOnlyConsumeFinishedPartition;
+    public DefaultSchedulerBuilder setHybridConsumePartitionMode(
+            HybridConsumePartitionMode hybridConsumePartitionMode) {
+        this.hybridConsumePartitionMode = hybridConsumePartitionMode;
         return this;
     }
 
@@ -325,7 +327,7 @@ public class DefaultSchedulerBuilder {
                 rpcTimeout,
                 vertexParallelismDecider,
                 defaultMaxParallelism,
-                hybridOnlyConsumeFinishedPartition);
+                hybridConsumePartitionMode);
     }
 
     public SpeculativeScheduler buildSpeculativeScheduler() throws Exception {
@@ -355,7 +357,7 @@ public class DefaultSchedulerBuilder {
                 vertexParallelismDecider,
                 defaultMaxParallelism,
                 blocklistOperations,
-                true);
+                HybridConsumePartitionMode.ONLY_CONSUME_ALL_FINISHED);
     }
 
     private ExecutionGraphFactory createExecutionGraphFactory(boolean isDynamicGraph) {
@@ -376,6 +378,9 @@ public class DefaultSchedulerBuilder {
                 shuffleMaster,
                 partitionTracker,
                 isDynamicGraph,
-                executionJobVertexFactory);
+                executionJobVertexFactory,
+                isDynamicGraph
+                        && hybridConsumePartitionMode
+                                == HybridConsumePartitionMode.CAN_CONSUME_PARTIAL_FINISHED);
     }
 }

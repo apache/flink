@@ -1028,6 +1028,12 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
+        public boolean isNonFinishedHybridPartitionShouldBeUnknown() {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
         public ExecutionGraphID getExecutionGraphID() {
             return new ExecutionGraphID();
         }

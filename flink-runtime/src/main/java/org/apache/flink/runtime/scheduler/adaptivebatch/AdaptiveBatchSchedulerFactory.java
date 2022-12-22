@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.scheduler.SimpleExecutionSlotAllocator;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.DefaultInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
+import org.apache.flink.runtime.scheduler.strategy.PartialFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -74,6 +76,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode.CAN_CONSUME_PARTIAL_FINISHED;
+import static org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode.CAN_CONSUME_UN_FINISHED;
+import static org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode.ONLY_CONSUME_ALL_FINISHED;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Factory for {@link AdaptiveBatchScheduler}. */
@@ -118,8 +123,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         final boolean enableSpeculativeExecution =
                 jobMasterConfiguration.getBoolean(JobManagerOptions.SPECULATIVE_ENABLED);
 
-        final boolean hybridOnlyConsumeFinishedPartition =
-                getHybridOnlyConsumeFinishedPartition(
+        final HybridConsumePartitionMode hybridConsumePartitionMode =
+                getOrDecideHybridConsumePartitionMode(
                         jobMasterConfiguration, enableSpeculativeExecution);
 
         final List<Consumer<ComponentMainThreadExecutor>> startUpActions = new ArrayList<>();
@@ -156,11 +161,12 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         shuffleMaster,
                         partitionTracker,
                         true,
-                        createExecutionJobVertexFactory(enableSpeculativeExecution));
+                        createExecutionJobVertexFactory(enableSpeculativeExecution),
+                        hybridConsumePartitionMode == CAN_CONSUME_PARTIAL_FINISHED);
 
         final SchedulingStrategyFactory schedulingStrategyFactory =
                 new VertexwiseSchedulingStrategy.Factory(
-                        loadInputConsumableDeciderFactory(hybridOnlyConsumeFinishedPartition));
+                        loadInputConsumableDeciderFactory(hybridConsumePartitionMode));
 
         if (enableSpeculativeExecution) {
             return new SpeculativeScheduler(
@@ -191,7 +197,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
                             jobMasterConfiguration),
                     blocklistOperations,
-                    hybridOnlyConsumeFinishedPartition);
+                    hybridConsumePartitionMode);
         } else {
             return new AdaptiveBatchScheduler(
                     log,
@@ -220,34 +226,39 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     DefaultVertexParallelismDecider.from(jobMasterConfiguration),
                     DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
                             jobMasterConfiguration),
-                    hybridOnlyConsumeFinishedPartition);
+                    hybridConsumePartitionMode);
         }
     }
 
     public static InputConsumableDecider.Factory loadInputConsumableDeciderFactory(
-            boolean hybridOnlyConsumeFinishedPartition) {
-        // In the case of hybridOnlyConsumeFinishedPartition is true, the input can actually be
-        // considered as consumable after partial partitions are finished. The reason why the
-        // AllFinishedInputConsumableDecider is currently adopted here is that consume partial
-        // finished upstream task is not supported yet, which will be supported in the subsequent
-        // commits.
-        return hybridOnlyConsumeFinishedPartition
-                ? AllFinishedInputConsumableDecider.Factory.INSTANCE
-                : DefaultInputConsumableDecider.Factory.INSTANCE;
+            HybridConsumePartitionMode hybridConsumePartitionMode) {
+        switch (hybridConsumePartitionMode) {
+            case ONLY_CONSUME_ALL_FINISHED:
+                return AllFinishedInputConsumableDecider.Factory.INSTANCE;
+            case CAN_CONSUME_PARTIAL_FINISHED:
+                return PartialFinishedInputConsumableDecider.Factory.INSTANCE;
+            case CAN_CONSUME_UN_FINISHED:
+                return DefaultInputConsumableDecider.Factory.INSTANCE;
+            default:
+                throw new IllegalStateException(hybridConsumePartitionMode + "is not supported.");
+        }
     }
 
-    private boolean getHybridOnlyConsumeFinishedPartition(
+    public static HybridConsumePartitionMode getOrDecideHybridConsumePartitionMode(
             Configuration configuration, boolean enableSpeculativeExecution) {
-        final boolean hybridOnlyConsumeFinishedPartition =
+        final HybridConsumePartitionMode hybridConsumePartitionMode =
                 configuration
-                        .getOptional(JobManagerOptions.ONLY_CONSUME_FINISHED_PARTITION)
-                        .orElse(enableSpeculativeExecution);
+                        .getOptional(JobManagerOptions.HYBRID_CONSUME_PARTITION_MODE)
+                        .orElse(
+                                enableSpeculativeExecution
+                                        ? ONLY_CONSUME_ALL_FINISHED
+                                        : CAN_CONSUME_UN_FINISHED);
         if (enableSpeculativeExecution) {
             Preconditions.checkState(
-                    hybridOnlyConsumeFinishedPartition,
+                    hybridConsumePartitionMode != CAN_CONSUME_UN_FINISHED,
                     "For speculative execution, only supports consume finished partition now.");
         }
-        return hybridOnlyConsumeFinishedPartition;
+        return hybridConsumePartitionMode;
     }
 
     private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(

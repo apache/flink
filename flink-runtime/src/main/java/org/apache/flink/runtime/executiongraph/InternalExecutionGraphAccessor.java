@@ -132,4 +132,6 @@ public interface InternalExecutionGraphAccessor {
      */
     JobVertexInputInfo getJobVertexInputInfo(
             JobVertexID jobVertexId, IntermediateDataSetID resultId);
+
+    boolean isNonFinishedHybridPartitionShouldBeUnknown();
 }

@@ -650,24 +650,46 @@ public class JobManagerOptions {
                     .withDescription(
                             "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
 
+    /** Type of consume partition mode of hybrid edge. */
+    public enum HybridConsumePartitionMode {
+        ONLY_CONSUME_ALL_FINISHED(true),
+        CAN_CONSUME_PARTIAL_FINISHED(true),
+        CAN_CONSUME_UN_FINISHED(false);
+
+        private final boolean onlyConsumeFinishedPartition;
+
+        HybridConsumePartitionMode(boolean onlyConsumeFinishedPartition) {
+            this.onlyConsumeFinishedPartition = onlyConsumeFinishedPartition;
+        }
+
+        public boolean isOnlyConsumeFinishedPartition() {
+            return onlyConsumeFinishedPartition;
+        }
+    }
+
     @Documentation.Section({
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<Boolean> ONLY_CONSUME_FINISHED_PARTITION =
-            key("jobmanager.partition.hybrid.only-consume-finished-partition")
-                    .booleanType()
+    public static final ConfigOption<HybridConsumePartitionMode> HYBRID_CONSUME_PARTITION_MODE =
+            key("jobmanager.partition.hybrid.consume-partition-mode")
+                    .enumType(HybridConsumePartitionMode.class)
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Controls whether the scheduler only allows downstream task consume finished partition. "
-                                                    + "Note that this option is allowed only when %s has been set to %s, "
-                                                    + "and if you also enable speculative execution(%s has been set to true),"
-                                                    + "this option can only be set to true.",
+                                            "Controls how the downstream task consumes hybrid type producer edge. "
+                                                    + "Note that this option is allowed only when %s has been set to %s. "
+                                                    + "Accepted values are:",
                                             code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()),
-                                            code(SPECULATIVE_ENABLED.key()))
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .list(
+                                            text(
+                                                    "'ONLY_CONSUME_ALL_FINISHED': Downstream tasks can consume data only when all producers are finished."),
+                                            text(
+                                                    "'CAN_CONSUME_PARTIAL_FINISHED': Downstream tasks can consume data when partial producers are finished."),
+                                            text(
+                                                    "'CAN_CONSUME_UN_FINISHED': Downstream tasks can consume data without any producer finish."))
                                     .build());
 
     // ---------------------------------------------------------------------------------------------

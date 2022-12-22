@@ -93,7 +93,8 @@ public class DefaultExecutionGraphBuilder {
             Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory,
             boolean isDynamicGraph,
             ExecutionJobVertex.Factory executionJobVertexFactory,
-            MarkPartitionFinishedStrategy markPartitionFinishedStrategy)
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
+            boolean nonFinishedHybridPartitionShouldBeUnknown)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -141,7 +142,8 @@ public class DefaultExecutionGraphBuilder {
                             isDynamicGraph,
                             executionJobVertexFactory,
                             jobGraph.getJobStatusHooks(),
-                            markPartitionFinishedStrategy);
+                            markPartitionFinishedStrategy,
+                            nonFinishedHybridPartitionShouldBeUnknown);
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }

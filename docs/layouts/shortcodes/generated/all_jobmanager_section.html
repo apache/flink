@@ -99,10 +99,10 @@
             <td>The size of the IO thread pool to run blocking operations for all spawned JobMasters. This includes recovery and completion of checkpoints. Increase this value if you experience slow checkpoint operations when running many jobs. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
         </tr>
         <tr>
-            <td><h5>jobmanager.partition.hybrid.only-consume-finished-partition</h5></td>
+            <td><h5>jobmanager.partition.hybrid.consume-partition-mode</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>Boolean</td>
-            <td>Controls whether the scheduler only allows downstream task consume finished partition. Note that this option is allowed only when <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>, and if you also enable speculative execution(<code class="highlighter-rouge">jobmanager.adaptive-batch-scheduler.speculative.enabled</code> has been set to true),this option can only be set to true.</td>
+            <td><p>Enum</p></td>
+            <td>Controls how the downstream task consumes hybrid type producer edge. Note that this option is allowed only when <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Accepted values are:<ul><li>'ONLY_CONSUME_ALL_FINISHED': Downstream tasks can consume data only when all producers are finished.</li><li>'CAN_CONSUME_PARTIAL_FINISHED': Downstream tasks can consume data when partial producers are finished.</li><li>'CAN_CONSUME_UN_FINISHED': Downstream tasks can consume data without any producer finish.</li></ul><br /><br />Possible values:<ul><li>"ONLY_CONSUME_ALL_FINISHED"</li><li>"CAN_CONSUME_PARTIAL_FINISHED"</li><li>"CAN_CONSUME_UN_FINISHED"</li></ul></td>
         </tr>
         <tr>
             <td><h5>jobmanager.resource-id</h5></td>

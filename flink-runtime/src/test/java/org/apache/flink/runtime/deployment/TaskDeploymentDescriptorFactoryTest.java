@@ -65,6 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode.CAN_CONSUME_PARTIAL_FINISHED;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link TaskDeploymentDescriptorFactory}. */
@@ -210,7 +211,7 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
                                 jobGraph,
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
-                        .setHybridOnlyConsumeFinishedPartition(true)
+                        .setHybridConsumePartitionMode(CAN_CONSUME_PARTIAL_FINISHED)
                         .buildAdaptiveBatchJobScheduler();
         scheduler.startScheduling();
         ExecutionGraph executionGraph = scheduler.getExecutionGraph();

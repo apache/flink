@@ -157,6 +157,42 @@ class ShuffleDescriptorTest {
     }
 
     @Test
+    void testNonFinishedHybridPartitionShouldBeUnknown() throws Exception {
+        ResultPartitionID unknownPartitionId = new ResultPartitionID();
+
+        ResultPartitionID partitionID = new ResultPartitionID();
+        ResourceID remoteResourceID = ResourceID.generate();
+        JobID jobID = new JobID();
+
+        ResultPartitionDeploymentDescriptor producerPartition =
+                createResultPartitionDeploymentDescriptor(jobID, partitionID, remoteResourceID);
+
+        ShuffleDescriptor unknownSdd =
+                getConsumedPartitionShuffleDescriptor(
+                        unknownPartitionId,
+                        ExecutionState.DEPLOYING,
+                        ResultPartitionType.HYBRID_FULL,
+                        producerPartition,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
+                        true);
+        assertThat(unknownSdd).isInstanceOf(UnknownShuffleDescriptor.class);
+        assertThat(unknownSdd.isUnknown()).isTrue();
+        assertThat(unknownSdd.getResultPartitionID()).isEqualTo(unknownPartitionId);
+
+        assertThatThrownBy(
+                        () ->
+                                getConsumedPartitionShuffleDescriptor(
+                                        unknownPartitionId,
+                                        ExecutionState.DEPLOYING,
+                                        ResultPartitionType.HYBRID_FULL,
+                                        producerPartition,
+                                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                                .MUST_BE_KNOWN,
+                                        true))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void testUnknownDescriptorWithOrWithoutLazyDeployment() {
         ResultPartitionID unknownPartitionId = new ResultPartitionID();
 
@@ -192,14 +228,31 @@ class ShuffleDescriptorTest {
             @Nullable ResultPartitionDeploymentDescriptor producedPartition,
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint
                     partitionLocationConstraint) {
+        return getConsumedPartitionShuffleDescriptor(
+                id,
+                state,
+                ResultPartitionType.PIPELINED,
+                producedPartition,
+                partitionLocationConstraint,
+                false);
+    }
+
+    private static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(
+            ResultPartitionID id,
+            ExecutionState state,
+            ResultPartitionType resultPartitionType,
+            @Nullable ResultPartitionDeploymentDescriptor producedPartition,
+            TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
+            boolean nonFinishedHybridPartitionShouldBeUnknown) {
         ShuffleDescriptor shuffleDescriptor =
                 TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor(
                         id,
-                        ResultPartitionType.PIPELINED,
+                        resultPartitionType,
                         true,
                         state,
                         partitionLocationConstraint,
-                        producedPartition);
+                        producedPartition,
+                        nonFinishedHybridPartitionShouldBeUnknown);
         assertThat(shuffleDescriptor).isNotNull();
         assertThat(shuffleDescriptor.getResultPartitionID()).isEqualTo(id);
         return shuffleDescriptor;

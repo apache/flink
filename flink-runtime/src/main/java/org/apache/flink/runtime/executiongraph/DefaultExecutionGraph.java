@@ -298,6 +298,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final MarkPartitionFinishedStrategy markPartitionFinishedStrategy;
 
+    private final boolean nonFinishedHybridPartitionShouldBeUnknown;
+
     // --------------------------------------------------------------------------------------------
     //   Constructors
     // --------------------------------------------------------------------------------------------
@@ -322,7 +324,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             boolean isDynamic,
             ExecutionJobVertex.Factory executionJobVertexFactory,
             List<JobStatusHook> jobStatusHooks,
-            MarkPartitionFinishedStrategy markPartitionFinishedStrategy)
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
+            boolean nonFinishedHybridPartitionShouldBeUnknown)
             throws IOException {
 
         this.executionGraphId = new ExecutionGraphID();
@@ -396,6 +399,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.jobStatusHooks = checkNotNull(jobStatusHooks);
 
         this.markPartitionFinishedStrategy = markPartitionFinishedStrategy;
+
+        this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
 
         LOG.info(
                 "Created execution graph {} for job {}.",
@@ -1695,6 +1700,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Override
     public MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
         return markPartitionFinishedStrategy;
+    }
+
+    @Override
+    public boolean isNonFinishedHybridPartitionShouldBeUnknown() {
+        return nonFinishedHybridPartitionShouldBeUnknown;
     }
 
     @Override
