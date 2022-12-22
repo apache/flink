@@ -307,7 +307,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                     "Worker {} is terminated. Diagnostics: {}",
                     resourceId.getStringWithMetadata(),
                     diagnostics);
-            requestWorkerIfRequired();
+            checkResourceDeclarations();
         }
         closeTaskManagerConnection(resourceId, new Exception(diagnostics));
     }
@@ -435,7 +435,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                                         count,
                                         exception);
                                 recordWorkerFailureAndPauseWorkerCreationIfNeeded();
-                                requestWorkerIfRequired();
+                                checkResourceDeclarations();
                             } else {
                                 final ResourceID resourceId = worker.getResourceID();
                                 workerNodeMap.put(resourceId, worker);
@@ -461,7 +461,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                                 resourceId,
                                 workerRegistrationTimeout);
                         internalStopWorker(resourceId);
-                        requestWorkerIfRequired();
+                        checkResourceDeclarations();
                     }
                 },
                 workerRegistrationTimeout);
@@ -507,17 +507,6 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             }
         }
         return true;
-    }
-
-    private void requestWorkerIfRequired() {
-        for (Map.Entry<WorkerResourceSpec, Integer> entry : getRequiredResources().entrySet()) {
-            final WorkerResourceSpec workerResourceSpec = entry.getKey();
-            final int requiredCount = entry.getValue();
-
-            while (requiredCount > pendingWorkerCounter.getNum(workerResourceSpec)) {
-                requestNewWorker(workerResourceSpec);
-            }
-        }
     }
 
     private void recordWorkerFailureAndPauseWorkerCreationIfNeeded() {

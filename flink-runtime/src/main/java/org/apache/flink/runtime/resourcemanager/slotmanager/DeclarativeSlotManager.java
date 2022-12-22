@@ -30,7 +30,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -785,11 +784,6 @@ public class DeclarativeSlotManager implements SlotManager {
     @Override
     public int getNumberFreeSlotsOf(InstanceID instanceId) {
         return taskExecutorManager.getNumberFreeSlotsOf(instanceId);
-    }
-
-    @Override
-    public Map<WorkerResourceSpec, Integer> getRequiredResources() {
-        return taskExecutorManager.getRequiredWorkers();
     }
 
     @Override
