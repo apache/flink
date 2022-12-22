@@ -33,6 +33,18 @@ The file system connector itself is included in Flink and does not require an ad
 The corresponding jar can be found in the Flink distribution inside the `/lib` directory.
 A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
+NOTE: If you use the filesystem connector for [local execution]({{< ref "docs/dev/dataset/local_execution" >}}),
+for e.g. running Flink job in your IDE, you will need to add dependency.
+
+```xml
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-files</artifactId>
+  <version>{{< version >}}</version>
+  <scope>provided</scope>
+</dependency>
+```
+
 The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem table can be defined as:
 
 ```sql
