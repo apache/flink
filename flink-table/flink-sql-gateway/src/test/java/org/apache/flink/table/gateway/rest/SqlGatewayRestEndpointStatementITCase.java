@@ -42,7 +42,6 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementRes
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
-import org.apache.flink.table.gateway.rest.serde.RowDataInfo;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
@@ -244,10 +243,7 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
             String nextResultUri = fetchResultsResponseBody.getNextResultUri();
             token = parseTokenFromUri(nextResultUri);
 
-            fetchedRows =
-                    fetchResultsResponseBody.getResults().getRowDataInfos().stream()
-                            .map(RowDataInfo::toRowData)
-                            .iterator();
+            fetchedRows = fetchResultsResponseBody.getResults().getData().iterator();
         }
     }
 

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.List;
 import java.util.Objects;
@@ -38,24 +39,27 @@ import java.util.stream.IntStream;
 public class ResultInfo {
 
     public static final String FIELD_NAME_COLUMN_INFOS = "columns";
+    public static final String FIELD_NAME_DATA = "data";
 
-    public static final String FIELD_NAME_ROW_DATA_INFOS = "data";
+    // field name of rows in serialization
+    public static final String FIELD_NAME_KIND = "kind";
+    public static final String FIELD_NAME_FIELDS = "fields";
 
     private final List<ColumnInfo> columnInfos;
 
-    private final List<RowDataInfo> rowDataInfos;
+    private final List<RowData> data;
 
-    public ResultInfo(List<ColumnInfo> columnInfos, List<RowDataInfo> rowDataInfos) {
+    public ResultInfo(List<ColumnInfo> columnInfos, List<RowData> data) {
         this.columnInfos = columnInfos;
-        this.rowDataInfos = rowDataInfos;
+        this.data = data;
     }
 
     public List<ColumnInfo> getColumnInfos() {
         return columnInfos;
     }
 
-    public List<RowDataInfo> getRowDataInfos() {
-        return rowDataInfos;
+    public List<RowData> getData() {
+        return data;
     }
 
     public static ResultInfo toResultInfo(ResultSet resultSet) {
@@ -63,22 +67,18 @@ public class ResultInfo {
                 resultSet.getResultSchema().getColumns().stream()
                         .map(ColumnInfo::toColumnInfo)
                         .collect(Collectors.toList()),
-                resultSet.getData().stream()
-                        .map(
-                                rowData ->
-                                        RowDataInfo.toRowDataInfo(
-                                                rowData,
-                                                buildFieldGetters(resultSet.getResultSchema())))
-                        .collect(Collectors.toList()));
+                resultSet.getData());
     }
 
-    private static List<RowData.FieldGetter> buildFieldGetters(ResolvedSchema resultSchema) {
-        return IntStream.range(0, resultSchema.getColumnCount())
-                .mapToObj(
-                        i ->
-                                RowData.createFieldGetter(
-                                        resultSchema.getColumnDataTypes().get(i).getLogicalType(),
-                                        i))
+    public List<RowData.FieldGetter> getFieldGetters() {
+        return buildFieldGetters(
+                columnInfos.stream().map(ColumnInfo::getLogicalType).collect(Collectors.toList()));
+    }
+
+    public static List<RowData.FieldGetter> buildFieldGetters(
+            List<LogicalType> columnLogicalTypes) {
+        return IntStream.range(0, columnLogicalTypes.size())
+                .mapToObj(i -> RowData.createFieldGetter(columnLogicalTypes.get(i), i))
                 .collect(Collectors.toList());
     }
 
@@ -89,7 +89,7 @@ public class ResultInfo {
 
     @Override
     public int hashCode() {
-        return Objects.hash(columnInfos, rowDataInfos);
+        return Objects.hash(columnInfos, data);
     }
 
     @Override
@@ -101,15 +101,14 @@ public class ResultInfo {
             return false;
         }
         ResultInfo that = (ResultInfo) o;
-        return Objects.equals(columnInfos, that.columnInfos)
-                && Objects.equals(rowDataInfos, that.rowDataInfos);
+        return Objects.equals(columnInfos, that.columnInfos) && Objects.equals(data, that.data);
     }
 
     @Override
     public String toString() {
         return String.format(
-                "ResultInfo{\n  columnInfos=[%s],\n  rowDataInfos=[%s]\n}",
+                "ResultInfo{\n  columnInfos=[%s],\n  rows=[%s]\n}",
                 columnInfos.stream().map(Object::toString).collect(Collectors.joining(",")),
-                rowDataInfos.stream().map(Object::toString).collect(Collectors.joining(",")));
+                data.stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 }

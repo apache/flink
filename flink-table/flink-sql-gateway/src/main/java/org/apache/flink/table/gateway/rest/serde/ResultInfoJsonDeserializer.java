@@ -21,8 +21,9 @@ package org.apache.flink.table.gateway.rest.serde;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonToRowDataConverters;
-import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -39,9 +40,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_COLUMN_INFOS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_ROW_DATA_INFOS;
-import static org.apache.flink.table.gateway.rest.serde.RowDataInfo.FIELD_NAME_FIELDS;
-import static org.apache.flink.table.gateway.rest.serde.RowDataInfo.FIELD_NAME_KIND;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_DATA;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_FIELDS;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KIND;
 
 /**
  * Json deserializer for {@link ResultInfo}.
@@ -73,43 +74,36 @@ public class ResultInfoJsonDeserializer extends StdDeserializer<ResultInfo> {
                                 .treeToValue(
                                         node.get(FIELD_NAME_COLUMN_INFOS), ColumnInfo[].class));
 
-        // deserialize RowDataInfos
-
-        // build schema from column info
-        ResolvedSchema resultSchema =
-                ResolvedSchema.of(
-                        columnInfos.stream()
-                                .map(ColumnInfo::toColumn)
-                                .collect(Collectors.toList()));
         // generate converters for all fields of each row
         List<JsonToRowDataConverters.JsonToRowDataConverter> converters =
-                resultSchema.getColumnDataTypes().stream()
-                        .map(DataType::getLogicalType)
+                columnInfos.stream()
+                        .map(ColumnInfo::getLogicalType)
                         .map(TO_ROW_DATA_CONVERTERS::createConverter)
                         .collect(Collectors.toList());
 
-        // build RowDataInfos
-        List<RowDataInfo> rowDataInfos = new ArrayList<>();
-        ArrayNode rowDataInfoArrayNode = (ArrayNode) node.get(FIELD_NAME_ROW_DATA_INFOS);
+        // deserialize rows
+        List<RowData> data = deserializeData((ArrayNode) node.get(FIELD_NAME_DATA), converters);
 
-        rowDataInfoArrayNode.forEach(
-                dataInfoNode -> {
-                    // kind
-                    String kind = dataInfoNode.get(FIELD_NAME_KIND).asText();
+        return new ResultInfo(columnInfos, data);
+    }
 
-                    // fields
-                    ArrayNode fieldsArrayNode = (ArrayNode) dataInfoNode.get(FIELD_NAME_FIELDS);
+    private List<RowData> deserializeData(
+            ArrayNode dataArrayNode,
+            List<JsonToRowDataConverters.JsonToRowDataConverter> converters) {
+        List<RowData> data = new ArrayList<>();
+        dataArrayNode.forEach(
+                rowDataNode -> data.add(convertJsonNodeToRowData(rowDataNode, converters)));
+        return data;
+    }
 
-                    List<JsonNode> elementNodes =
-                            CollectionUtil.iteratorToList(fieldsArrayNode.iterator());
-                    List<Object> fields =
-                            IntStream.range(0, elementNodes.size())
-                                    .mapToObj(i -> converters.get(i).convert(elementNodes.get(i)))
-                                    .collect(Collectors.toList());
-
-                    rowDataInfos.add(new RowDataInfo(kind, fields));
-                });
-
-        return new ResultInfo(columnInfos, rowDataInfos);
+    private GenericRowData convertJsonNodeToRowData(
+            JsonNode rowDataNode, List<JsonToRowDataConverters.JsonToRowDataConverter> converters) {
+        ArrayNode fieldsArrayNode = (ArrayNode) rowDataNode.get(FIELD_NAME_FIELDS);
+        List<JsonNode> fieldNodes = CollectionUtil.iteratorToList(fieldsArrayNode.iterator());
+        return GenericRowData.ofKind(
+                RowKind.valueOf(rowDataNode.get(FIELD_NAME_KIND).asText()),
+                IntStream.range(0, fieldNodes.size())
+                        .mapToObj(i -> converters.get(i).convert(fieldNodes.get(i)))
+                        .toArray());
     }
 }

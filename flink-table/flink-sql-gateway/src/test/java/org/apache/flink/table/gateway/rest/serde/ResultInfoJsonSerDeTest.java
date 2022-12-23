@@ -161,10 +161,9 @@ public class ResultInfoJsonSerDeTest {
         assertThat(resultInfo.buildResultSchema().toString())
                 .isEqualTo(testResultInfo.buildResultSchema().toString());
 
-        List<RowDataInfo> rowDataInfos = resultInfo.getRowDataInfos();
-        for (int i = 0; i < rowDataInfos.size(); i++) {
-            RowData rowData = rowDataInfos.get(i).toRowData();
-            assertThat(convertToExternal(rowData, ROW(getFields()))).isEqualTo(rowList.get(i));
+        List<RowData> data = resultInfo.getData();
+        for (int i = 0; i < data.size(); i++) {
+            assertThat(convertToExternal(data.get(i), ROW(getFields()))).isEqualTo(rowList.get(i));
         }
     }
 

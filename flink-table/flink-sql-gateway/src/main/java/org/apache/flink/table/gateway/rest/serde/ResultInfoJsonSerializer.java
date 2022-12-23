@@ -22,9 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
@@ -33,13 +34,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_COLUMN_INFOS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_ROW_DATA_INFOS;
-import static org.apache.flink.table.gateway.rest.serde.RowDataInfo.FIELD_NAME_FIELDS;
-import static org.apache.flink.table.gateway.rest.serde.RowDataInfo.FIELD_NAME_KIND;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_DATA;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_FIELDS;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KIND;
 
 /**
  * Json serializer for {@link ResultInfo}.
@@ -72,53 +74,73 @@ public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
         serializerProvider.defaultSerializeField(
                 FIELD_NAME_COLUMN_INFOS, resultInfo.getColumnInfos(), jsonGenerator);
 
-        // serialize RowDataInfos as format:
-        // data: [{"kind": "", "fields": []}],
-        ArrayNode rowDataInfoArrayNode = OBJECT_MAPPER.createArrayNode();
+        // serialize data
+        serializeData(resultInfo.getData(), buildToJsonNodeConverters(resultInfo), jsonGenerator);
 
-        // generate converters for all fields of each row
+        jsonGenerator.writeEndObject();
+    }
+
+    private void serializeData(
+            List<RowData> data,
+            List<Function<RowData, JsonNode>> converters,
+            JsonGenerator jsonGenerator)
+            throws IOException {
+        // format:
+        // data: [{"kind": "", "fields": []}],
+        ArrayNode dataArrayNode = OBJECT_MAPPER.createArrayNode();
+
+        // construct all element nodes for dataArrayNode
+        dataArrayNode.addAll(
+                data.stream()
+                        .map(rowData -> convertRowDataToJsonNode(rowData, converters))
+                        .collect(Collectors.toList()));
+
+        // serialization
+        jsonGenerator.writeFieldName(FIELD_NAME_DATA);
+        jsonGenerator.writeTree(dataArrayNode);
+    }
+
+    private JsonNode convertRowDataToJsonNode(
+            RowData rowData, List<Function<RowData, JsonNode>> converters) {
+        ObjectNode rowDataNode = OBJECT_MAPPER.createObjectNode();
+
+        // kind
+        rowDataNode.put(FIELD_NAME_KIND, rowData.getRowKind().name());
+
+        // fields
+        ArrayNode fieldsArrayNode = rowDataNode.putArray(FIELD_NAME_FIELDS);
+
+        fieldsArrayNode.addAll(
+                converters.stream()
+                        .map(converter -> converter.apply(rowData))
+                        .collect(Collectors.toList()));
+
+        return rowDataNode;
+    }
+
+    /** Composes the FieldGetter and RowDataToJsonConverter. */
+    private List<Function<RowData, JsonNode>> buildToJsonNodeConverters(ResultInfo resultInfo) {
         List<RowDataToJsonConverters.RowDataToJsonConverter> converters =
-                resultInfo.buildResultSchema().getColumnDataTypes().stream()
-                        .map(DataType::getLogicalType)
+                resultInfo.getColumnInfos().stream()
+                        .map(ColumnInfo::getLogicalType)
                         .map(TO_JSON_CONVERTERS::createConverter)
                         .collect(Collectors.toList());
 
-        // construct all element nodes for rowDataInfoArrayNode
-        List<ObjectNode> elementNodes =
-                resultInfo.getRowDataInfos().stream()
-                        .map(
-                                rowDataInfo -> {
-                                    ObjectNode elementNode = OBJECT_MAPPER.createObjectNode();
-                                    // kind
-                                    elementNode.put(FIELD_NAME_KIND, rowDataInfo.getKind());
-                                    // fields
-                                    ArrayNode fieldsArrayNode =
-                                            elementNode.putArray(FIELD_NAME_FIELDS);
+        List<RowData.FieldGetter> fieldGetters = resultInfo.getFieldGetters();
 
-                                    List<Object> fields = rowDataInfo.getFields();
-                                    fieldsArrayNode.addAll(
-                                            IntStream.range(0, fields.size())
-                                                    .mapToObj(
-                                                            i ->
-                                                                    converters
-                                                                            .get(i)
-                                                                            .convert(
-                                                                                    OBJECT_MAPPER,
-                                                                                    null,
-                                                                                    fields.get(i)))
-                                                    .collect(Collectors.toList()));
-
-                                    return elementNode;
-                                })
-                        .collect(Collectors.toList());
-
-        // add all element nodes to the array of root node
-        rowDataInfoArrayNode.addAll(elementNodes);
-
-        // end of RowDataInfos serialization
-        jsonGenerator.writeFieldName(FIELD_NAME_ROW_DATA_INFOS);
-        jsonGenerator.writeTree(rowDataInfoArrayNode);
-
-        jsonGenerator.writeEndObject();
+        return IntStream.range(0, converters.size())
+                .mapToObj(
+                        i ->
+                                (Function<RowData, JsonNode>)
+                                        rowData ->
+                                                converters
+                                                        .get(i)
+                                                        .convert(
+                                                                OBJECT_MAPPER,
+                                                                null,
+                                                                fieldGetters
+                                                                        .get(i)
+                                                                        .getFieldOrNull(rowData)))
+                .collect(Collectors.toList());
     }
 }
