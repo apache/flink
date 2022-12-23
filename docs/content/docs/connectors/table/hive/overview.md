@@ -299,7 +299,7 @@ You're supposed to add dependencies as stated above at runtime.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
+  <artifactId>flink-table-api-java-bridge</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>

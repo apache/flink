@@ -296,7 +296,7 @@ mv $FLINK_HOME/lib/flink-table-planner-loader-{{< version >}}.jar $FLINK_HOME/op
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
+  <artifactId>flink-table-api-java-bridge</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
