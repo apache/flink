@@ -1,0 +1,226 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to you under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{
+  "columns": [
+    {
+      "name": "bool",
+      "logicalType": {
+        "type": "BOOLEAN",
+        "nullable": true
+      }
+    },
+    {
+      "name": "tinyint",
+      "logicalType": {
+        "type": "TINYINT",
+        "nullable": true
+      }
+    },
+    {
+      "name": "smallint",
+      "logicalType": {
+        "type": "SMALLINT",
+        "nullable": true
+      }
+    },
+    {
+      "name": "int",
+      "logicalType": {
+        "type": "INTEGER",
+        "nullable": true
+      }
+    },
+    {
+      "name": "bigint",
+      "logicalType": {
+        "type": "BIGINT",
+        "nullable": true
+      }
+    },
+    {
+      "name": "float",
+      "logicalType": {
+        "type": "FLOAT",
+        "nullable": true
+      }
+    },
+    {
+      "name": "name",
+      "logicalType": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "length": 2147483647
+      }
+    },
+    {
+      "name": "bytes",
+      "logicalType": {
+        "type": "VARBINARY",
+        "nullable": true,
+        "length": 2147483647
+      }
+    },
+    {
+      "name": "decimal",
+      "logicalType": {
+        "type": "DECIMAL",
+        "nullable": true,
+        "precision": 9,
+        "scale": 6
+      }
+    },
+    {
+      "name": "doubles",
+      "logicalType": {
+        "type": "ARRAY",
+        "nullable": true,
+        "elementType": {
+          "type": "DOUBLE",
+          "nullable": true
+        }
+      }
+    },
+    {
+      "name": "date",
+      "logicalType": {
+        "type": "DATE",
+        "nullable": true
+      }
+    },
+    {
+      "name": "time",
+      "logicalType": {
+        "type": "TIME_WITHOUT_TIME_ZONE",
+        "nullable": true,
+        "precision": 0
+      }
+    },
+    {
+      "name": "timestamp3",
+      "logicalType": {
+        "type": "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable": true,
+        "precision": 3
+      }
+    },
+    {
+      "name": "timestamp9",
+      "logicalType": {
+        "type": "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable": true,
+        "precision": 9
+      }
+    },
+    {
+      "name": "timestampWithLocalZone",
+      "logicalType": {
+        "type": "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable": true,
+        "precision": 9
+      }
+    },
+    {
+      "name": "map",
+      "logicalType": {
+        "type": "MAP",
+        "nullable": true,
+        "keyType": {
+          "type": "VARCHAR",
+          "nullable": true,
+          "length": 2147483647
+        },
+        "valueType": {
+          "type": "BIGINT",
+          "nullable": true
+        }
+      }
+    },
+    {
+      "name": "multiSet",
+      "logicalType": {
+        "type": "MULTISET",
+        "nullable": true,
+        "elementType": {
+          "type": "VARCHAR",
+          "nullable": true,
+          "length": 2147483647
+        }
+      }
+    },
+    {
+      "name": "map2map",
+      "logicalType": {
+        "type": "MAP",
+        "nullable": true,
+        "keyType": {
+          "type": "VARCHAR",
+          "nullable": true,
+          "length": 2147483647
+        },
+        "valueType": {
+          "type": "MAP",
+          "nullable": true,
+          "keyType": {
+            "type": "VARCHAR",
+            "nullable": true,
+            "length": 2147483647
+          },
+          "valueType": {
+            "type": "INTEGER",
+            "nullable": true
+          }
+        }
+      }
+    }
+  ],
+  "data": [
+    {
+      "kind": "INSERT",
+      "fields": [
+        true,
+        99,
+        128,
+        45536,
+        1238123899121,
+        33.333,
+        "asdlkjasjkdla998y1122",
+        null,
+        123.456789,
+        [
+          1.1,
+          2.2,
+          3.3
+        ],
+        "1990-10-14",
+        "12:12:43",
+        "1990-10-14T12:12:43.123",
+        "1990-10-14T12:12:43.123456789",
+        "1990-10-14T12:12:43.123456789Z",
+        {
+          "element": 123
+        },
+        {
+          "element": 2
+        },
+        {
+          "inner_map": {
+            "key": 234
+          }
+        }
+      ]
+    }
+  ]
+}

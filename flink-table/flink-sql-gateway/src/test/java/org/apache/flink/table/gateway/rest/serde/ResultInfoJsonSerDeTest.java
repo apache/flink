@@ -27,15 +27,19 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -75,42 +79,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ResultInfoJsonSerializer} and {@link ResultInfoJsonDeserializer}. */
 public class ResultInfoJsonSerDeTest {
-
-    private final byte tinyint = 'c';
-    private final short smallint = 128;
-    private final int intValue = 45536;
-    private final float floatValue = 33.333F;
-    private final long bigint = 1238123899121L;
-    private final String name = "asdlkjasjkdla998y1122";
-    private static final byte[] BYTES = new byte[1024];
-    private final Double[] doubles = new Double[] {1.1, 2.2, 3.3};
-    private final BigDecimal decimal = new BigDecimal("123.456789");
-    private final LocalDate date = LocalDate.parse("1990-10-14");
-    private final LocalTime time = LocalTime.parse("12:12:43");
-    private final Timestamp timestamp3 = Timestamp.valueOf("1990-10-14 12:12:43.123");
-    private final Timestamp timestamp9 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
-    private final Instant timestampWithLocalZone =
-            LocalDateTime.of(1990, 10, 14, 12, 12, 43, 123456789)
-                    .atOffset(ZoneOffset.of("Z"))
-                    .toInstant();
-
-    private static final Map<String, Long> MAP = new HashMap<>();
-    private static final Map<String, Integer> MULTI_SET = new HashMap<>();
-    private static final Map<String, Map<String, Integer>> NESTED_MAP = new HashMap<>();
-
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private static final Row testRow = initRow();
 
     private final int rowNumber = 10;
 
     @BeforeAll
     public static void setUp() {
-        MAP.put("element", 123L);
-        MULTI_SET.put("element", 2);
-        Map<String, Integer> innerMap = new HashMap<>();
-        innerMap.put("key", 234);
-        NESTED_MAP.put("inner_map", innerMap);
-        ThreadLocalRandom.current().nextBytes(BYTES);
-
         SimpleModule simpleModule = new SimpleModule();
         simpleModule.addSerializer(ResultInfo.class, new ResultInfoJsonSerializer());
         simpleModule.addDeserializer(ResultInfo.class, new ResultInfoJsonDeserializer());
@@ -118,37 +94,58 @@ public class ResultInfoJsonSerDeTest {
     }
 
     @Test
-    void testResultInfoSerDeWithSingleRowData() throws Exception {
-        Row row = getTestRowData();
-        serDeTest(Collections.singletonList(row), getFields());
+    public void testResultInfoSerDeWithSingleRow() throws Exception {
+        serDeTest(Collections.singletonList(testRow));
     }
 
     @Test
-    void testResultInfoSerDeWithMultiRowData() throws Exception {
+    public void testResultInfoSerDeWithMultiRowData() throws Exception {
         List<Row> rowList = new ArrayList<>();
         for (int i = 0; i < rowNumber; i++) {
-            rowList.add(getTestRowData());
+            rowList.add(testRow);
         }
-        serDeTest(rowList, getFields());
+        serDeTest(rowList);
     }
 
     @Test
-    void testResultInfoSerDeWithNullValues() throws Exception {
+    public void testResultInfoSerDeWithNullValues() throws Exception {
         List<Row> rowList = new ArrayList<>();
         List<Integer> positions = new ArrayList<>();
         for (int i = 0; i < 18; i++) {
             positions.add(new Random().nextInt(18));
         }
         for (int i = 0; i < rowNumber; i++) {
-            rowList.add(getTestRowDataWithNullValues(positions));
+            rowList.add(getTestRowDataWithNullValues(testRow, positions));
         }
-        serDeTest(rowList, getFields());
+        serDeTest(rowList);
     }
 
-    private void serDeTest(List<Row> rowList, List<DataTypes.Field> fields) throws IOException {
+    @Test
+    public void testDeserializationFromJson() throws Exception {
+        // deserialize actual ResultInfo
+        URL url =
+                ResultInfoJsonSerDeTest.class.getResource("/result_info_deserialization_test_json");
+        String content = IOUtils.toString(Preconditions.checkNotNull(url), StandardCharsets.UTF_8);
+        String testJson = content.split("\n\n")[1];
+        ResultInfo testResultInfo = OBJECT_MAPPER.readValue(testJson, ResultInfo.class);
+
+        // get expected row
+        // here reset the RowKind and set the bytes field to null
+        Row newRow = initRow();
+        newRow.setField(7, null);
+        newRow.setKind(RowKind.INSERT);
+
+        assertThat(getTestResolvedSchema(getFields()).toString())
+                .isEqualTo(testResultInfo.buildResultSchema().toString());
+
+        assertThat(convertToExternal(testResultInfo.getData().get(0), ROW(getFields())))
+                .isEqualTo(newRow);
+    }
+
+    private void serDeTest(List<Row> rowList) throws IOException {
         List<RowData> rowDataList =
                 rowList.stream().map(this::convertToInternal).collect(Collectors.toList());
-        ResolvedSchema testResolvedSchema = getTestResolvedSchema(fields);
+        ResolvedSchema testResolvedSchema = getTestResolvedSchema(getFields());
         ResultInfo testResultInfo =
                 ResultInfo.toResultInfo(
                         new ResultSet(
@@ -167,12 +164,76 @@ public class ResultInfoJsonSerDeTest {
         }
     }
 
-    private ResolvedSchema getTestResolvedSchema(List<DataTypes.Field> fields) {
-        List<String> columnNames =
-                fields.stream().map(DataTypes.AbstractField::getName).collect(Collectors.toList());
-        List<DataType> columnDataTypes =
-                fields.stream().map(DataTypes.Field::getDataType).collect(Collectors.toList());
-        return ResolvedSchema.physical(columnNames, columnDataTypes);
+    private static Row initRow() {
+        final byte tinyint = 'c';
+        final short smallint = 128;
+        final int intValue = 45536;
+        final float floatValue = 33.333F;
+        final long bigint = 1238123899121L;
+        final String name = "asdlkjasjkdla998y1122";
+        final byte[] bytes = new byte[1024];
+        ThreadLocalRandom.current().nextBytes(bytes);
+        final Double[] doubles = new Double[] {1.1, 2.2, 3.3};
+        final BigDecimal decimal = new BigDecimal("123.456789");
+        final LocalDate date = LocalDate.parse("1990-10-14");
+        final LocalTime time = LocalTime.parse("12:12:43");
+        final Timestamp timestamp3 = Timestamp.valueOf("1990-10-14 12:12:43.123");
+        final Timestamp timestamp9 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
+        final Instant timestampWithLocalZone =
+                LocalDateTime.of(1990, 10, 14, 12, 12, 43, 123456789)
+                        .atOffset(ZoneOffset.of("Z"))
+                        .toInstant();
+
+        final Map<String, Long> map = new HashMap<>();
+        map.put("element", 123L);
+
+        final Map<String, Integer> multiSet = new HashMap<>();
+        multiSet.put("element", 2);
+
+        final Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
+        Map<String, Integer> innerMap = new HashMap<>();
+        innerMap.put("key", 234);
+        nestedMap.put("inner_map", innerMap);
+
+        Row testRow = new Row(18);
+        setRandomKind(testRow);
+        testRow.setField(0, true);
+        testRow.setField(1, tinyint);
+        testRow.setField(2, smallint);
+        testRow.setField(3, intValue);
+        testRow.setField(4, bigint);
+        testRow.setField(5, floatValue);
+        testRow.setField(6, name);
+        testRow.setField(7, bytes);
+        testRow.setField(8, decimal);
+        testRow.setField(9, doubles);
+        testRow.setField(10, date);
+        testRow.setField(11, time);
+        testRow.setField(12, timestamp3.toLocalDateTime());
+        testRow.setField(13, timestamp9.toLocalDateTime());
+        testRow.setField(14, timestampWithLocalZone);
+        testRow.setField(15, map);
+        testRow.setField(16, multiSet);
+        testRow.setField(17, nestedMap);
+        return testRow;
+    }
+
+    private static void setRandomKind(Row testRow) {
+        int i = new Random().nextInt() % 4;
+        switch (i) {
+            case 0:
+                testRow.setKind(RowKind.INSERT);
+                break;
+            case 1:
+                testRow.setKind(RowKind.DELETE);
+                break;
+            case 2:
+                testRow.setKind(RowKind.UPDATE_AFTER);
+                break;
+            case 3:
+                testRow.setKind(RowKind.UPDATE_BEFORE);
+                break;
+        }
     }
 
     private List<DataTypes.Field> getFields() {
@@ -197,73 +258,19 @@ public class ResultInfoJsonSerDeTest {
                 FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
     }
 
-    private Row getTestRowData() {
-        Row testRow = new Row(18);
-        setRandomKind(testRow);
-        testRow.setField(0, true);
-        testRow.setField(1, tinyint);
-        testRow.setField(2, smallint);
-        testRow.setField(3, intValue);
-        testRow.setField(4, bigint);
-        testRow.setField(5, floatValue);
-        testRow.setField(6, name);
-        testRow.setField(7, BYTES);
-        testRow.setField(8, decimal);
-        testRow.setField(9, doubles);
-        testRow.setField(10, date);
-        testRow.setField(11, time);
-        testRow.setField(12, timestamp3.toLocalDateTime());
-        testRow.setField(13, timestamp9.toLocalDateTime());
-        testRow.setField(14, timestampWithLocalZone);
-        testRow.setField(15, MAP);
-        testRow.setField(16, MULTI_SET);
-        testRow.setField(17, NESTED_MAP);
-        return testRow;
+    private ResolvedSchema getTestResolvedSchema(List<DataTypes.Field> fields) {
+        List<String> columnNames =
+                fields.stream().map(DataTypes.AbstractField::getName).collect(Collectors.toList());
+        List<DataType> columnDataTypes =
+                fields.stream().map(DataTypes.Field::getDataType).collect(Collectors.toList());
+        return ResolvedSchema.physical(columnNames, columnDataTypes);
     }
 
-    private Row getTestRowDataWithNullValues(List<Integer> positions) {
-        Row testRow = new Row(18);
-        setRandomKind(testRow);
-        testRow.setField(0, true);
-        testRow.setField(1, tinyint);
-        testRow.setField(2, smallint);
-        testRow.setField(3, intValue);
-        testRow.setField(4, bigint);
-        testRow.setField(5, floatValue);
-        testRow.setField(6, name);
-        testRow.setField(7, BYTES);
-        testRow.setField(8, decimal);
-        testRow.setField(9, doubles);
-        testRow.setField(10, date);
-        testRow.setField(11, time);
-        testRow.setField(12, timestamp3.toLocalDateTime());
-        testRow.setField(13, timestamp9.toLocalDateTime());
-        testRow.setField(14, timestampWithLocalZone);
-        testRow.setField(15, MAP);
-        testRow.setField(16, MULTI_SET);
-        testRow.setField(17, NESTED_MAP);
+    private Row getTestRowDataWithNullValues(Row testRow, List<Integer> positions) {
         for (int position : positions) {
             testRow.setField(position, null);
         }
         return testRow;
-    }
-
-    private void setRandomKind(Row testRow) {
-        int i = new Random().nextInt() % 4;
-        switch (i) {
-            case 0:
-                testRow.setKind(RowKind.INSERT);
-                break;
-            case 1:
-                testRow.setKind(RowKind.DELETE);
-                break;
-            case 2:
-                testRow.setKind(RowKind.UPDATE_AFTER);
-                break;
-            case 3:
-                testRow.setKind(RowKind.UPDATE_BEFORE);
-                break;
-        }
     }
 
     @SuppressWarnings("unchecked")

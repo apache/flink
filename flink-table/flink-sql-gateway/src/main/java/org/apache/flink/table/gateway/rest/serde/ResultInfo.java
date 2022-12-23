@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -55,7 +56,7 @@ public class ResultInfo {
     }
 
     public List<ColumnInfo> getColumnInfos() {
-        return columnInfos;
+        return Collections.unmodifiableList(columnInfos);
     }
 
     public List<RowData> getData() {
@@ -75,7 +76,7 @@ public class ResultInfo {
                 columnInfos.stream().map(ColumnInfo::getLogicalType).collect(Collectors.toList()));
     }
 
-    public static List<RowData.FieldGetter> buildFieldGetters(
+    private static List<RowData.FieldGetter> buildFieldGetters(
             List<LogicalType> columnLogicalTypes) {
         return IntStream.range(0, columnLogicalTypes.size())
                 .mapToObj(i -> RowData.createFieldGetter(columnLogicalTypes.get(i), i))
