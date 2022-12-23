@@ -92,6 +92,8 @@ public enum JoinStrategy {
     }
 
     public static boolean isLookupHint(String hintName) {
-        return isJoinStrategy(hintName) && JoinStrategy.valueOf(hintName) == LOOKUP;
+        String formalizedHintName = hintName.toUpperCase(Locale.ROOT);
+        return isJoinStrategy(formalizedHintName)
+                && JoinStrategy.valueOf(formalizedHintName) == LOOKUP;
     }
 }
