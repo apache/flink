@@ -46,6 +46,7 @@ import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -79,8 +80,8 @@ import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
@@ -1243,12 +1244,21 @@ public class SqlToOperationConverterTest {
         expectedOptions.put("k1", "v1");
         expectedOptions.put("K2", "V2");
 
-        assertAlterTableOptions(operation, expectedIdentifier, expectedOptions);
+        assertAlterTableOptions(
+                operation,
+                expectedIdentifier,
+                expectedOptions,
+                Arrays.asList(TableChange.set("k1", "v1"), TableChange.set("K2", "V2")),
+                "ALTER TABLE cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2'");
 
         // test alter table reset
         operation = parse("alter table cat1.db1.tb1 reset ('k')");
         assertAlterTableOptions(
-                operation, expectedIdentifier, Collections.singletonMap("connector", "dummy"));
+                operation,
+                expectedIdentifier,
+                Collections.singletonMap("connector", "dummy"),
+                Collections.singletonList(TableChange.reset("k")),
+                "ALTER TABLE cat1.db1.tb1\n  RESET 'k'");
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ('connector')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER TABLE RESET does not support changing 'connector'");
@@ -2228,13 +2238,17 @@ public class SqlToOperationConverterTest {
     private void assertAlterTableOptions(
             Operation operation,
             ObjectIdentifier expectedIdentifier,
-            Map<String, String> expectedOptions) {
-        assertThat(operation).isInstanceOf(AlterTableOptionsOperation.class);
-        final AlterTableOptionsOperation alterTableOptionsOperation =
-                (AlterTableOptionsOperation) operation;
+            Map<String, String> expectedOptions,
+            List<TableChange> expectedChanges,
+            String expectedSummary) {
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
+        final AlterTableChangeOperation alterTableOptionsOperation =
+                (AlterTableChangeOperation) operation;
         assertThat(alterTableOptionsOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
-        assertThat(alterTableOptionsOperation.getCatalogTable().getOptions())
+        assertThat(alterTableOptionsOperation.getNewTable().getOptions())
                 .isEqualTo(expectedOptions);
+        assertThat(expectedChanges).isEqualTo(alterTableOptionsOperation.getTableChanges());
+        assertThat(alterTableOptionsOperation.asSummaryString()).isEqualTo(expectedSummary);
     }
 
     private void assertAlterTableSchema(
