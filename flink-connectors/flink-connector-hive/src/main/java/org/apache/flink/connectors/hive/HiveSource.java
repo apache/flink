@@ -64,7 +64,7 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
 
     private final String hiveVersion;
     private final List<String> dynamicFilterPartitionKeys;
-    private final List<HiveTablePartition> partitions;
+    private final List<byte[]> partitionBytes;
     private final ContinuousPartitionFetcher<Partition, ?> fetcher;
     private final HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext;
     private final ObjectPath tablePath;
@@ -80,7 +80,7 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
             List<String> partitionKeys,
             String hiveVersion,
             @Nullable List<String> dynamicFilterPartitionKeys,
-            List<HiveTablePartition> partitions,
+            List<byte[]> partitionBytes,
             @Nullable ContinuousPartitionFetcher<Partition, ?> fetcher,
             @Nullable HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
         super(
@@ -94,7 +94,7 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
         this.partitionKeys = partitionKeys;
         this.hiveVersion = hiveVersion;
         this.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
-        this.partitions = partitions;
+        this.partitionBytes = partitionBytes;
         this.fetcher = fetcher;
         this.fetcherContext = fetcherContext;
     }
@@ -181,7 +181,7 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                 new HiveSourceDynamicFileEnumerator.Provider(
                         tablePath.getFullName(),
                         dynamicFilterPartitionKeys,
-                        partitions,
+                        partitionBytes,
                         hiveVersion,
                         jobConfWrapper),
                 getAssignerFactory());
