@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
+import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
@@ -32,6 +33,8 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -222,19 +225,24 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     /** A factory to create {@link HiveSourceFileEnumerator}. */
     public static class Provider implements FileEnumerator.Provider {
 
+        private static final Logger LOG = LoggerFactory.getLogger(Provider.class);
+
         private static final long serialVersionUID = 1L;
 
-        private final List<HiveTablePartition> partitions;
+        private final List<byte[]> partitionBytes;
         private final JobConfWrapper jobConfWrapper;
 
-        public Provider(List<HiveTablePartition> partitions, JobConfWrapper jobConfWrapper) {
-            this.partitions = partitions;
+        public Provider(List<byte[]> partitionBytes, JobConfWrapper jobConfWrapper) {
+            this.partitionBytes = partitionBytes;
             this.jobConfWrapper = jobConfWrapper;
         }
 
         @Override
         public FileEnumerator create() {
-            return new HiveSourceFileEnumerator(partitions, jobConfWrapper.conf());
+            LOG.info("Deserialize hive table partition in HiveSourceFileEnumerator.");
+            return new HiveSourceFileEnumerator(
+                    HivePartitionUtils.deserializeHiveTablePartition(partitionBytes),
+                    jobConfWrapper.conf());
         }
     }
 

@@ -185,33 +185,38 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
     /** A factory to create {@link HiveSourceDynamicFileEnumerator}. */
     public static class Provider implements DynamicFileEnumerator.Provider {
 
+        private final Logger LOG = LoggerFactory.getLogger(Provider.class);
+
         private static final long serialVersionUID = 1L;
 
         private final String table;
         private final List<String> dynamicFilterPartitionKeys;
-        private final List<HiveTablePartition> partitions;
+        private final List<byte[]> partitionBytes;
         private final String hiveVersion;
         private final JobConfWrapper jobConfWrapper;
 
         public Provider(
                 String table,
                 List<String> dynamicFilterPartitionKeys,
-                List<HiveTablePartition> partitions,
+                List<byte[]> partitionBytes,
                 String hiveVersion,
                 JobConfWrapper jobConfWrapper) {
             this.table = checkNotNull(table);
             this.dynamicFilterPartitionKeys = checkNotNull(dynamicFilterPartitionKeys);
-            this.partitions = checkNotNull(partitions);
+            this.partitionBytes = checkNotNull(partitionBytes);
             this.hiveVersion = checkNotNull(hiveVersion);
             this.jobConfWrapper = checkNotNull(jobConfWrapper);
         }
 
         @Override
         public DynamicFileEnumerator create() {
+            LOG.info(
+                    "Deserialize {} hive table partition in HiveSourceDynamicFileEnumerator.",
+                    table);
             return new HiveSourceDynamicFileEnumerator(
                     table,
                     dynamicFilterPartitionKeys,
-                    partitions,
+                    HivePartitionUtils.deserializeHiveTablePartition(partitionBytes),
                     hiveVersion,
                     jobConfWrapper.conf());
         }
