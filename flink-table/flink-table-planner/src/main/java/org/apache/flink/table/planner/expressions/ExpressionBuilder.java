@@ -37,6 +37,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONCAT
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HIVE_AGG_DECIMAL_PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
@@ -113,6 +114,17 @@ public class ExpressionBuilder {
     @Internal
     public static UnresolvedCallExpression aggDecimalPlus(Expression input1, Expression input2) {
         return call(AGG_DECIMAL_PLUS, input1, input2);
+    }
+
+    /**
+     * Used only for implementing native hive SUM/AVG aggregations on a Decimal type to avoid
+     * overriding decimal precision/scale calculation for sum/avg with the rules applied for the
+     * normal plus.
+     */
+    @Internal
+    public static UnresolvedCallExpression hiveAggDecimalPlus(
+            Expression input1, Expression input2) {
+        return call(HIVE_AGG_DECIMAL_PLUS, input1, input2);
     }
 
     public static UnresolvedCallExpression minus(Expression input1, Expression input2) {

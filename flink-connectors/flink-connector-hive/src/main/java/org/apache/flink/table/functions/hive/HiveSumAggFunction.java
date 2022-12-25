@@ -25,23 +25,28 @@ import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalPlus;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNIX_TIMESTAMP;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.call;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.hiveAggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.tryCast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
+import static org.apache.flink.table.types.logical.DecimalType.MAX_PRECISION;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 
 /** built-in hive sum aggregate function. */
 public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     private final UnresolvedReferenceExpression sum = unresolvedRef("sum");
+    private DataType argsType;
     private DataType resultType;
 
     @Override
@@ -71,14 +76,26 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public Expression[] accumulateExpressions() {
+        Expression operand;
+        // TimestampToNumericCastRule can't cast timestamp to numeric directly, so here use
+        // UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead
+        if (argsType.getLogicalType().is(TIMESTAMP_WITHOUT_TIME_ZONE)) {
+            operand = castTimestampToLong(operand(0));
+        } else {
+            operand = operand(0);
+        }
+        Expression tryCastOperand = tryCast(operand, typeLiteral(getResultType()));
         return new Expression[] {
             /* sum = */ ifThenElse(
                     isNull(operand(0)),
                     sum,
                     ifThenElse(
-                            isNull(sum),
-                            tryCast(operand(0), typeLiteral(getResultType())),
-                            adjustedPlus(sum, tryCast(operand(0), typeLiteral(getResultType())))))
+                            isNull(tryCastOperand),
+                            sum,
+                            ifThenElse(
+                                    isNull(sum),
+                                    tryCastOperand,
+                                    adjustedPlus(sum, tryCastOperand))))
         };
     }
 
@@ -106,7 +123,8 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public void setArguments(CallContext callContext) {
         if (resultType == null) {
-            resultType = initResultType(callContext.getArgumentDataTypes().get(0));
+            argsType = callContext.getArgumentDataTypes().get(0);
+            resultType = initResultType(argsType);
         }
     }
 
@@ -124,9 +142,9 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
             case VARCHAR:
                 return DataTypes.DOUBLE();
             case DECIMAL:
-                DecimalType sumType =
-                        (DecimalType) LogicalTypeMerging.findSumAggType(argsType.getLogicalType());
-                return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
+                int precision =
+                        Math.min(MAX_PRECISION, getPrecision(argsType.getLogicalType()) + 10);
+                return DataTypes.DECIMAL(precision, getScale(argsType.getLogicalType()));
             default:
                 throw new TableException(
                         String.format(
@@ -136,10 +154,14 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
     }
 
     private UnresolvedCallExpression adjustedPlus(Expression arg1, Expression arg2) {
-        if (getResultType().getLogicalType() instanceof DecimalType) {
-            return aggDecimalPlus(arg1, cast(arg2, typeLiteral(getResultType())));
+        if (getResultType().getLogicalType().is(DECIMAL)) {
+            return hiveAggDecimalPlus(arg1, arg2);
         } else {
-            return plus(arg1, cast(arg2, typeLiteral(getResultType())));
+            return plus(arg1, arg2);
         }
+    }
+
+    private UnresolvedCallExpression castTimestampToLong(Expression child) {
+        return call(UNIX_TIMESTAMP, tryCast(child, typeLiteral(DataTypes.STRING())));
     }
 }

@@ -40,9 +40,13 @@ public class HiveDialectAggITCase extends HiveDialectITCaseBase {
 
     @Test
     public void testSimpleSumAggFunction() throws Exception {
-        tableEnv.executeSql("create table test(x string, y string, z int, d decimal(10,5))");
         tableEnv.executeSql(
-                        "insert into test values (NULL, '2', 1, 1.11), (NULL, NULL, 2, 2.22), (NULL, '4', 3, 3.33), (NULL, NULL, 4, 4.45)")
+                "create table test(x string, y string, z int, d decimal(10,5), e float, f double, ts timestamp)");
+        tableEnv.executeSql(
+                        "insert into test values (NULL, '2', 1, 1.11, 1.2, 1.3, '2021-08-04 16:26:33.4'), "
+                                + "(NULL, 'b', 2, 2.22, 2.3, 2.4, '2021-08-05 16:26:33.4'), "
+                                + "(NULL, '4', 3, 3.33, 3.5, 3.6, '2021-08-07 16:26:33.4'), "
+                                + "(NULL, NULL, 4, 4.45, 4.7, 4.8, '2021-08-09 16:26:33.4')")
                 .await();
 
         // test sum with all elements are null
@@ -51,13 +55,11 @@ public class HiveDialectAggITCase extends HiveDialectITCaseBase {
                         tableEnv.executeSql("select sum(x) from test").collect());
         assertThat(result.toString()).isEqualTo("[+I[null]]");
 
-        // test sum string type with partial element is null, result type is double
+        // test sum string type with partial element can't convert to double, result type is double
         List<Row> result2 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select sum(y) from test").collect());
         assertThat(result2.toString()).isEqualTo("[+I[6.0]]");
-
-        // TODO test sum string with some string can't convert to bigint after FLINK-30221
 
         // test decimal type
         List<Row> result3 =
@@ -71,11 +73,31 @@ public class HiveDialectAggITCase extends HiveDialectITCaseBase {
                         tableEnv.executeSql("select sum(z) from test").collect());
         assertThat(result4.toString()).isEqualTo("[+I[10]]");
 
-        // test sum string&int type simultaneously
+        // test float type
         List<Row> result5 =
                 CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(e) from test").collect());
+        float actualFloatValue = ((Double) result5.get(0).getField(0)).floatValue();
+        assertThat(actualFloatValue).isEqualTo(11.7f);
+
+        // test double type
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(f) from test").collect());
+        actualFloatValue = ((Double) result6.get(0).getField(0)).floatValue();
+        assertThat(actualFloatValue).isEqualTo(12.1f);
+
+        // test timestamp type
+        List<Row> result7 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(ts) from test").collect());
+        assertThat(result7.toString()).isEqualTo("[+I[6.513039972E9]]");
+
+        // test sum string&int type simultaneously
+        List<Row> result8 =
+                CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select sum(y), sum(z) from test").collect());
-        assertThat(result5.toString()).isEqualTo("[+I[6.0, 10]]");
+        assertThat(result8.toString()).isEqualTo("[+I[6.0, 10]]");
 
         tableEnv.executeSql("drop table test");
     }
