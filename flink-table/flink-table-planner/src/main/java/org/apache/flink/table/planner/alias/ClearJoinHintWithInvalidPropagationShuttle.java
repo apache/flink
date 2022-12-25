@@ -66,7 +66,7 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
         Set<String> allHintNames =
                 hints.stream().map(hint -> hint.hintName).collect(Collectors.toSet());
 
-        // there are no join hints on this Join node
+        // there are no join hints on this Join/Correlate node
         if (allHintNames.stream().noneMatch(JoinStrategy::isJoinStrategy)) {
             return super.visit(biRel);
         }
@@ -76,7 +76,7 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
                         .filter(hint -> FlinkHints.HINT_ALIAS.equals(hint.hintName))
                         .findFirst();
 
-        // there are no alias hints on this Join node
+        // there are no alias hints on this Join/Correlate node
         if (!firstAliasHint.isPresent()) {
             return super.visit(biRel);
         }
