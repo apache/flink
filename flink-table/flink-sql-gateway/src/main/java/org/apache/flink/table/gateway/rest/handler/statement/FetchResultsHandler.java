@@ -88,6 +88,6 @@ public class FetchResultsHandler
 
         return CompletableFuture.completedFuture(
                 new FetchResultsResponseBody(
-                        ResultInfo.toResultInfo(resultSet), resultType, nextResultUri));
+                        ResultInfo.createResultInfo(resultSet), resultType, nextResultUri));
     }
 }

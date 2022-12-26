@@ -88,20 +88,20 @@ public class ResultInfoJsonDeserializer extends StdDeserializer<ResultInfo> {
     }
 
     private List<RowData> deserializeData(
-            ArrayNode dataArrayNode,
+            ArrayNode serializedRows,
             List<JsonToRowDataConverters.JsonToRowDataConverter> converters) {
         List<RowData> data = new ArrayList<>();
-        dataArrayNode.forEach(
-                rowDataNode -> data.add(convertJsonNodeToRowData(rowDataNode, converters)));
+        serializedRows.forEach(rowDataNode -> data.add(convertToRowData(rowDataNode, converters)));
         return data;
     }
 
-    private GenericRowData convertJsonNodeToRowData(
-            JsonNode rowDataNode, List<JsonToRowDataConverters.JsonToRowDataConverter> converters) {
-        ArrayNode fieldsArrayNode = (ArrayNode) rowDataNode.get(FIELD_NAME_FIELDS);
+    private GenericRowData convertToRowData(
+            JsonNode serializedRow,
+            List<JsonToRowDataConverters.JsonToRowDataConverter> converters) {
+        ArrayNode fieldsArrayNode = (ArrayNode) serializedRow.get(FIELD_NAME_FIELDS);
         List<JsonNode> fieldNodes = CollectionUtil.iteratorToList(fieldsArrayNode.iterator());
         return GenericRowData.ofKind(
-                RowKind.valueOf(rowDataNode.get(FIELD_NAME_KIND).asText()),
+                RowKind.valueOf(serializedRow.get(FIELD_NAME_KIND).asText()),
                 IntStream.range(0, fieldNodes.size())
                         .mapToObj(i -> converters.get(i).convert(fieldNodes.get(i)))
                         .toArray());

@@ -39,20 +39,28 @@ import java.util.stream.IntStream;
 @Internal
 public class ResultInfo {
 
+    // Columns
     public static final String FIELD_NAME_COLUMN_INFOS = "columns";
-    public static final String FIELD_NAME_DATA = "data";
 
-    // field name of rows in serialization
+    // RowData
+    public static final String FIELD_NAME_DATA = "data";
     public static final String FIELD_NAME_KIND = "kind";
     public static final String FIELD_NAME_FIELDS = "fields";
 
     private final List<ColumnInfo> columnInfos;
-
     private final List<RowData> data;
 
     public ResultInfo(List<ColumnInfo> columnInfos, List<RowData> data) {
         this.columnInfos = columnInfos;
         this.data = data;
+    }
+
+    public static ResultInfo createResultInfo(ResultSet resultSet) {
+        return new ResultInfo(
+                resultSet.getResultSchema().getColumns().stream()
+                        .map(ColumnInfo::toColumnInfo)
+                        .collect(Collectors.toList()),
+                resultSet.getData());
     }
 
     public List<ColumnInfo> getColumnInfos() {
@@ -63,27 +71,15 @@ public class ResultInfo {
         return data;
     }
 
-    public static ResultInfo toResultInfo(ResultSet resultSet) {
-        return new ResultInfo(
-                resultSet.getResultSchema().getColumns().stream()
-                        .map(ColumnInfo::toColumnInfo)
-                        .collect(Collectors.toList()),
-                resultSet.getData());
-    }
-
     public List<RowData.FieldGetter> getFieldGetters() {
-        return buildFieldGetters(
-                columnInfos.stream().map(ColumnInfo::getLogicalType).collect(Collectors.toList()));
-    }
-
-    private static List<RowData.FieldGetter> buildFieldGetters(
-            List<LogicalType> columnLogicalTypes) {
-        return IntStream.range(0, columnLogicalTypes.size())
-                .mapToObj(i -> RowData.createFieldGetter(columnLogicalTypes.get(i), i))
+        List<LogicalType> columnTypes =
+                columnInfos.stream().map(ColumnInfo::getLogicalType).collect(Collectors.toList());
+        return IntStream.range(0, columnTypes.size())
+                .mapToObj(i -> RowData.createFieldGetter(columnTypes.get(i), i))
                 .collect(Collectors.toList());
     }
 
-    public ResolvedSchema buildResultSchema() {
+    public ResolvedSchema getResultSchema() {
         return ResolvedSchema.of(
                 columnInfos.stream().map(ColumnInfo::toColumn).collect(Collectors.toList()));
     }

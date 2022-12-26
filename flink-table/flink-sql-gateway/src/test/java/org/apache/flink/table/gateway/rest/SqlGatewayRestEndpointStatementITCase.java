@@ -151,7 +151,7 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
                                 ResultSet.ResultType.EOS.name()))
                 .contains(resultType);
 
-        ResolvedSchema resultSchema = resultInfo.buildResultSchema();
+        ResolvedSchema resultSchema = resultInfo.getResultSchema();
 
         return toString(
                 StatementType.match(statement),

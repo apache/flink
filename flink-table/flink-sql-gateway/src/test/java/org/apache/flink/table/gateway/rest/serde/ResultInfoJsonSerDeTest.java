@@ -80,10 +80,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link ResultInfoJsonSerializer} and {@link ResultInfoJsonDeserializer}. */
 public class ResultInfoJsonSerDeTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private static final Row testRow = initRow();
-
-    private final int rowNumber = 10;
 
     @BeforeAll
     public static void setUp() {
@@ -100,54 +97,40 @@ public class ResultInfoJsonSerDeTest {
 
     @Test
     public void testResultInfoSerDeWithMultiRowData() throws Exception {
-        List<Row> rowList = new ArrayList<>();
-        for (int i = 0; i < rowNumber; i++) {
-            rowList.add(testRow);
+        List<Row> rows = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            rows.add(testRow);
         }
-        serDeTest(rowList);
+        serDeTest(rows);
     }
 
     @Test
     public void testResultInfoSerDeWithNullValues() throws Exception {
-        List<Row> rowList = new ArrayList<>();
+        List<Row> rows = new ArrayList<>();
         List<Integer> positions = new ArrayList<>();
         for (int i = 0; i < 18; i++) {
             positions.add(new Random().nextInt(18));
         }
-        for (int i = 0; i < rowNumber; i++) {
-            rowList.add(getTestRowDataWithNullValues(testRow, positions));
+        for (int i = 0; i < 10; i++) {
+            rows.add(getTestRowDataWithNullValues(initRow(), positions));
         }
-        serDeTest(rowList);
+        serDeTest(rows);
     }
 
     @Test
     public void testDeserializationFromJson() throws Exception {
-        // deserialize actual ResultInfo
-        URL url =
-                ResultInfoJsonSerDeTest.class.getResource("/result_info_deserialization_test_json");
-        String content = IOUtils.toString(Preconditions.checkNotNull(url), StandardCharsets.UTF_8);
-        String testJson = content.split("\n\n")[1];
-        ResultInfo testResultInfo = OBJECT_MAPPER.readValue(testJson, ResultInfo.class);
-
-        // get expected row
-        // here reset the RowKind and set the bytes field to null
-        Row newRow = initRow();
-        newRow.setField(7, null);
-        newRow.setKind(RowKind.INSERT);
-
-        assertThat(getTestResolvedSchema(getFields()).toString())
-                .isEqualTo(testResultInfo.buildResultSchema().toString());
-
-        assertThat(convertToExternal(testResultInfo.getData().get(0), ROW(getFields())))
-                .isEqualTo(newRow);
+        URL url = ResultInfoJsonSerDeTest.class.getClassLoader().getResource("resultInfo.txt");
+        String input = IOUtils.toString(Preconditions.checkNotNull(url), StandardCharsets.UTF_8);
+        ResultInfo deserializedResult = OBJECT_MAPPER.readValue(input, ResultInfo.class);
+        assertThat(OBJECT_MAPPER.writeValueAsString(deserializedResult)).isEqualTo(input);
     }
 
-    private void serDeTest(List<Row> rowList) throws IOException {
+    private void serDeTest(List<Row> rows) throws IOException {
         List<RowData> rowDataList =
-                rowList.stream().map(this::convertToInternal).collect(Collectors.toList());
+                rows.stream().map(this::convertToInternal).collect(Collectors.toList());
         ResolvedSchema testResolvedSchema = getTestResolvedSchema(getFields());
         ResultInfo testResultInfo =
-                ResultInfo.toResultInfo(
+                ResultInfo.createResultInfo(
                         new ResultSet(
                                 ResultSet.ResultType.PAYLOAD, 0L, testResolvedSchema, rowDataList));
 
@@ -155,12 +138,12 @@ public class ResultInfoJsonSerDeTest {
         String result = OBJECT_MAPPER.writeValueAsString(testResultInfo);
         ResultInfo resultInfo = OBJECT_MAPPER.readValue(result, ResultInfo.class);
 
-        assertThat(resultInfo.buildResultSchema().toString())
-                .isEqualTo(testResultInfo.buildResultSchema().toString());
+        assertThat(resultInfo.getResultSchema().toString())
+                .isEqualTo(testResultInfo.getResultSchema().toString());
 
         List<RowData> data = resultInfo.getData();
         for (int i = 0; i < data.size(); i++) {
-            assertThat(convertToExternal(data.get(i), ROW(getFields()))).isEqualTo(rowList.get(i));
+            assertThat(convertToExternal(data.get(i), ROW(getFields()))).isEqualTo(rows.get(i));
         }
     }
 
