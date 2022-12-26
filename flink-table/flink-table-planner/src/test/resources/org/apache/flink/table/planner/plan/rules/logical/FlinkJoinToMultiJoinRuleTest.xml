@@ -555,10 +555,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
   <TestCase name="testMultiLeftOuterJoinWithAllKeyInLeft">
     <Resource name="sql">
       <![CDATA[
-SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c LEFT OUTER JOIN 
-(SELECT * FROM T3) ON a = e LEFT OUTER JOIN
-(SELECT * FROM T4) ON a = g LEFT OUTER JOIN
-(SELECT * FROM T5) ON a = i
+SELECT * FROM T1 LEFT OUTER JOIN 
+T2 ON a = c LEFT OUTER JOIN 
+T3 ON a = e LEFT OUTER JOIN
+T4 ON a = g LEFT OUTER JOIN
+T5 ON a = i
         ]]>
     </Resource>
     <Resource name="ast">
@@ -570,12 +571,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], g=[$6], h=[$7], i
    :  :  :- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b)]]])
    :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(c, d)]]])
-   :  :  +- LogicalProject(e=[$0], f=[$1])
-   :  :     +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(e, f)]]])
-   :  +- LogicalProject(g=[$0], h=[$1])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(g, h)]]])
-   +- LogicalProject(i=[$0], j=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(i, j)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(e, f)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(g, h)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(i, j)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -583,12 +581,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], g=[$6], h=[$7], i
 MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[INNER, LEFT, LEFT, LEFT, LEFT]], outerJoinConditions=[[NULL, =($0, $2), =($0, $4), =($0, $6), =($0, $8)]], projFields=[[{0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}]])
 :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b)]]])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(c, d)]]])
-:- LogicalProject(e=[$0], f=[$1])
-:  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(e, f)]]])
-:- LogicalProject(g=[$0], h=[$1])
-:  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(g, h)]]])
-+- LogicalProject(i=[$0], j=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(i, j)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(e, f)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(g, h)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(i, j)]]])
 ]]>
     </Resource>
   </TestCase>

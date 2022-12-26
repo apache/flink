@@ -21,12 +21,10 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
-import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
@@ -199,20 +197,26 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
             buildNullGenFieldList(left, isNullGenFieldList);
             buildNullGenFieldList(right, isNullGenFieldList);
         } else if (joinType == JoinRelType.LEFT) {
-            // left judge.
+            // If origin joinType is left means join fields from right side must be null generated
+            // fields, so we need only judge these join fields in left side and set null generate
+            // field is true for all right fields.
             buildNullGenFieldList(left, isNullGenFieldList);
 
             for (int i = 0; i < right.getRowType().getFieldCount(); i++) {
                 isNullGenFieldList.add(true);
             }
         } else if (joinType == JoinRelType.RIGHT) {
+            // If origin joinType is right means join fields from left side must be null generated
+            // fields, so we need only judge these join fields in right side and set null generate
+            // field is true for all left fields.
             for (int i = 0; i < left.getRowType().getFieldCount(); i++) {
                 isNullGenFieldList.add(true);
             }
 
-            // right judge.
             buildNullGenFieldList(right, isNullGenFieldList);
         } else if (joinType == JoinRelType.FULL) {
+            // For full outer join, both the left side and the right side must be null generated
+            // fields, so all join fields will be set as null generated field.
             for (int i = 0; i < left.getRowType().getFieldCount(); i++) {
                 isNullGenFieldList.add(true);
             }
@@ -225,7 +229,7 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
     private void buildNullGenFieldList(RelNode rel, List<Boolean> isNullGenFieldList) {
         MultiJoin multiJoin = rel instanceof MultiJoin ? (MultiJoin) rel : null;
         if (multiJoin == null) {
-            // other operator.
+            // other operators.
             for (int i = 0; i < rel.getRowType().getFieldCount(); i++) {
                 isNullGenFieldList.add(false);
             }
@@ -233,10 +237,15 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
             List<RelNode> inputs = multiJoin.getInputs();
             List<JoinRelType> joinTypes = multiJoin.getJoinTypes();
             for (int i = 0; i < inputs.size() - 1; i++) {
+                // In list joinTypes, right join node will be added as [RIGHT, INNER], so we need to
+                // get the joinType from joinTypes in index i.
                 if (joinTypes.get(i) == JoinRelType.RIGHT) {
                     buildInputNullGenFieldList(
                             inputs.get(i), inputs.get(i + 1), joinTypes.get(i), isNullGenFieldList);
                 } else {
+                    // In list joinTypes, left join node and inner join node will be added as
+                    // [INNER, LEFT] and [INNER, INNER] respectively. so we need to get the joinType
+                    // from joinTypes in index i + 1.
                     buildInputNullGenFieldList(
                             inputs.get(i),
                             inputs.get(i + 1),
@@ -477,13 +486,7 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
                 true,
                 inputNullGenFieldList,
                 0)) {
-            final MultiJoin multiJoin =
-                    left instanceof Project
-                            ? (MultiJoin) ((HepRelVertex) (left.getInput(0))).getCurrentRel()
-                            : (MultiJoin) left;
-            // because of project, need to re Index
-
-            filters.add(multiJoin.getJoinFilter());
+            filters.add(((MultiJoin) left).getJoinFilter());
         }
         // Need to adjust the RexInputs of the right child, since those need to shift over to the
         // right.
@@ -495,10 +498,7 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
                 false,
                 inputNullGenFieldList,
                 left.getRowType().getFieldCount())) {
-            final MultiJoin multiJoin =
-                    right instanceof Project
-                            ? (MultiJoin) ((HepRelVertex) (right.getInput(0))).getCurrentRel()
-                            : (MultiJoin) right;
+            MultiJoin multiJoin = (MultiJoin) right;
             filters.add(shiftRightFilter(join, left, multiJoin, multiJoin.getJoinFilter()));
         }
 
@@ -521,10 +521,6 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
             boolean isLeft,
             List<Boolean> inputNullGenFieldList,
             int beginIndex) {
-        if (inputNullGenFieldList == null) {
-            // semi and anti join
-            return false;
-        }
         if (input instanceof MultiJoin) {
             MultiJoin join = (MultiJoin) input;
             if (join.isFullOuterJoin() || nullGenerating) {

@@ -299,10 +299,11 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
 
     val sqlQuery =
       """
-        |SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c LEFT OUTER JOIN 
-        |(SELECT * FROM T3) ON a = e LEFT OUTER JOIN
-        |(SELECT * FROM T4) ON a = g LEFT OUTER JOIN
-        |(SELECT * FROM T5) ON a = i
+        |SELECT * FROM T1 LEFT OUTER JOIN 
+        |T2 ON a = c LEFT OUTER JOIN 
+        |T3 ON a = e LEFT OUTER JOIN
+        |T4 ON a = g LEFT OUTER JOIN
+        |T5 ON a = i
         """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }
