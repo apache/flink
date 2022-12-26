@@ -527,7 +527,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
-        public void releaseResource(ResourceID resourceID) {
+        public void cleaningUpDisconnectedResource(ResourceID resourceID) {
             validateRunsInMainThread();
             internalStopWorker(resourceID);
         }

@@ -1273,7 +1273,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
      */
     public void stopWorkerIfSupported(WorkerType worker) {
         if (resourceAllocator.isSupported()) {
-            resourceAllocator.releaseResource(worker.getResourceID());
+            resourceAllocator.cleaningUpDisconnectedResource(worker.getResourceID());
         }
     }
 

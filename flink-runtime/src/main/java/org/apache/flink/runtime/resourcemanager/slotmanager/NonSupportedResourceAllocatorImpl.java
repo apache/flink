@@ -40,7 +40,7 @@ public class NonSupportedResourceAllocatorImpl implements ResourceAllocator {
     }
 
     @Override
-    public void releaseResource(ResourceID resourceID) {
+    public void cleaningUpDisconnectedResource(ResourceID resourceID) {
         throw new UnsupportedOperationException();
     }
 
