@@ -349,7 +349,8 @@ public class AlterSchemaConverter {
                 schemaResolver.resolve(updatedSchema);
                 return updatedSchema;
             } catch (Exception e) {
-                throw new ValidationException(String.format("%s%s", EX_MSG_PREFIX, e.getMessage()));
+                throw new ValidationException(
+                        String.format("%s%s", EX_MSG_PREFIX, e.getMessage()), e);
             }
         }
 
