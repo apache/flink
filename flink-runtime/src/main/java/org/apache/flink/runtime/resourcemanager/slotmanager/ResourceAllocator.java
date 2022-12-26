@@ -37,11 +37,11 @@ public interface ResourceAllocator {
     void releaseResource(InstanceID instanceId, Exception cause);
 
     /**
-     * Releases the resource with the given resource id.
+     * Clean up the disconnected resource with the given resource id.
      *
-     * @param resourceID identifying which resource to release
+     * @param resourceID identifying which resource to clean up
      */
-    void releaseResource(ResourceID resourceID);
+    void cleaningUpDisconnectedResource(ResourceID resourceID);
 
     /**
      * Requests to allocate a resource with the given {@link WorkerResourceSpec}.
