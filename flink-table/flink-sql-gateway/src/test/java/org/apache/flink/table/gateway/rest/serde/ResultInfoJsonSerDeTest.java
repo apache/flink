@@ -120,7 +120,8 @@ public class ResultInfoJsonSerDeTest {
     @Test
     public void testDeserializationFromJson() throws Exception {
         URL url = ResultInfoJsonSerDeTest.class.getClassLoader().getResource("resultInfo.txt");
-        String input = IOUtils.toString(Preconditions.checkNotNull(url), StandardCharsets.UTF_8);
+        String input =
+                IOUtils.toString(Preconditions.checkNotNull(url), StandardCharsets.UTF_8).trim();
         ResultInfo deserializedResult = OBJECT_MAPPER.readValue(input, ResultInfo.class);
         assertThat(OBJECT_MAPPER.writeValueAsString(deserializedResult)).isEqualTo(input);
     }
