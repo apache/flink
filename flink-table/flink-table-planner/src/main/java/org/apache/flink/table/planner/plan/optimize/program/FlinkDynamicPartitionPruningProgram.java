@@ -65,7 +65,7 @@ import java.util.List;
  *       +- TableSourceScan(table=[[dim, filter=[]]], fields=[xxx, dim_key])
  * }</pre>
  */
-public class FlinkDynamicPartitionPruningConverterProgram
+public class FlinkDynamicPartitionPruningProgram
         implements FlinkOptimizeProgram<BatchOptimizeContext> {
 
     @Override
@@ -74,7 +74,15 @@ public class FlinkDynamicPartitionPruningConverterProgram
                 new DefaultRelShuttle() {
                     @Override
                     public RelNode visit(RelNode rel) {
-                        if (!(rel instanceof Join)) {
+                        if (!ShortcutUtils.unwrapContext(rel)
+                                .getTableConfig()
+                                .get(
+                                        OptimizerConfigOptions
+                                                .TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
+                            return rel;
+                        }
+                        if (!(rel instanceof Join)
+                                || !DynamicPartitionPruningUtils.isSuitableJoin((Join) rel)) {
                             List<RelNode> newInputs = new ArrayList<>();
                             for (RelNode input : rel.getInputs()) {
                                 RelNode newInput = input.accept(this);
@@ -83,14 +91,6 @@ public class FlinkDynamicPartitionPruningConverterProgram
                             return rel.copy(rel.getTraitSet(), newInputs);
                         }
                         Join join = (Join) rel;
-                        if (!ShortcutUtils.unwrapContext(join)
-                                .getTableConfig()
-                                .get(
-                                        OptimizerConfigOptions
-                                                .TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
-                            return join;
-                        }
-
                         JoinInfo joinInfo = join.analyzeCondition();
                         RelNode leftSide = join.getLeft();
                         RelNode rightSide = join.getRight();
@@ -104,16 +104,14 @@ public class FlinkDynamicPartitionPruningConverterProgram
                                                         rightSide,
                                                         joinInfo.rightKeys,
                                                         leftSide,
-                                                        joinInfo.leftKeys,
-                                                        join);
+                                                        joinInfo.leftKeys);
                                 changed = relTuple.f0;
                                 newJoin =
                                         join.copy(
                                                 join.getTraitSet(),
                                                 Arrays.asList(leftSide, relTuple.f1.accept(this)));
                             }
-                        }
-                        if (DynamicPartitionPruningUtils.isDimSide(rightSide)) {
+                        } else if (DynamicPartitionPruningUtils.isDimSide(rightSide)) {
                             if (join.getJoinType() != JoinRelType.LEFT) {
                                 Tuple2<Boolean, RelNode> relTuple =
                                         DynamicPartitionPruningUtils
@@ -121,8 +119,7 @@ public class FlinkDynamicPartitionPruningConverterProgram
                                                         leftSide,
                                                         joinInfo.leftKeys,
                                                         rightSide,
-                                                        joinInfo.rightKeys,
-                                                        join);
+                                                        joinInfo.rightKeys);
                                 changed = relTuple.f0;
                                 newJoin =
                                         join.copy(

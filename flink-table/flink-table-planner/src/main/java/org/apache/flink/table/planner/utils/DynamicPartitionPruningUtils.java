@@ -79,7 +79,18 @@ public class DynamicPartitionPruningUtils {
         return dimSideFactors.isDimSide();
     }
 
-    public static List<String> getSuitableDynamicFilteringFieldsInFactSide(
+    public static Tuple2<Boolean, RelNode> canConvertAndConvertDppFactSide(
+            RelNode rel,
+            ImmutableIntList joinKeys,
+            RelNode dimSide,
+            ImmutableIntList dimSideJoinKey) {
+        DppFactSideFactors factSideFactors = new DppFactSideFactors();
+        RelNode newRel =
+                convertDppFactSide(rel, joinKeys, dimSide, dimSideJoinKey, factSideFactors);
+        return Tuple2.of(factSideFactors.isChanged, newRel);
+    }
+
+    private static List<String> getSuitableDynamicFilteringFieldsInFactSide(
             DynamicTableSource tableSource, List<String> candidateFields) {
         List<String> acceptedFilterFields =
                 ((SupportsDynamicFiltering) tableSource).listAcceptedFilterFields();
@@ -100,25 +111,12 @@ public class DynamicPartitionPruningUtils {
         return suitableFields;
     }
 
-    public static Tuple2<Boolean, RelNode> canConvertAndConvertDppFactSide(
+    private static RelNode convertDppFactSide(
             RelNode rel,
             ImmutableIntList joinKeys,
             RelNode dimSide,
             ImmutableIntList dimSideJoinKey,
-            Join join) {
-        DppFactSideFactors factSideFactors = new DppFactSideFactors();
-        RelNode newRel =
-                convertDppFactSide(rel, joinKeys, dimSide, dimSideJoinKey, factSideFactors, join);
-        return Tuple2.of(factSideFactors.isChanged, newRel);
-    }
-
-    public static RelNode convertDppFactSide(
-            RelNode rel,
-            ImmutableIntList joinKeys,
-            RelNode dimSide,
-            ImmutableIntList dimSideJoinKey,
-            DppFactSideFactors factSideFactors,
-            Join join) {
+            DppFactSideFactors factSideFactors) {
         if (rel instanceof TableScan) {
             TableScan scan = (TableScan) rel;
             if (scan instanceof BatchPhysicalDynamicFilteringTableSourceScan) {
@@ -176,11 +174,6 @@ public class DynamicPartitionPruningUtils {
                     createDynamicFilteringConnector(dimSide, dynamicFilteringFieldIndices);
 
             factSideFactors.isChanged = true;
-
-            if (!isSuitableJoin(join)) {
-                return rel;
-            }
-
             return new BatchPhysicalDynamicFilteringTableSourceScan(
                     scan.getCluster(),
                     scan.getTraitSet(),
@@ -196,8 +189,7 @@ public class DynamicPartitionPruningUtils {
                                     joinKeys,
                                     dimSide,
                                     dimSideJoinKey,
-                                    factSideFactors,
-                                    join)));
+                                    factSideFactors)));
         } else if (rel instanceof Project) {
             List<RexNode> projects = ((Project) rel).getProjects();
             ImmutableIntList inputJoinKeys = getInputIndices(projects, joinKeys);
@@ -213,8 +205,7 @@ public class DynamicPartitionPruningUtils {
                                     inputJoinKeys,
                                     dimSide,
                                     dimSideJoinKey,
-                                    factSideFactors,
-                                    join)));
+                                    factSideFactors)));
         } else if (rel instanceof Calc) {
             Calc calc = (Calc) rel;
             RexProgram program = calc.getProgram();
@@ -235,8 +226,7 @@ public class DynamicPartitionPruningUtils {
                                     inputJoinKeys,
                                     dimSide,
                                     dimSideJoinKey,
-                                    factSideFactors,
-                                    join)));
+                                    factSideFactors)));
         } else if (rel instanceof Join) {
             Join currentJoin = (Join) rel;
             return currentJoin.copy(
@@ -247,48 +237,41 @@ public class DynamicPartitionPruningUtils {
                                     getInputIndices(currentJoin, joinKeys, true),
                                     dimSide,
                                     dimSideJoinKey,
-                                    factSideFactors,
-                                    join),
+                                    factSideFactors),
                             convertDppFactSide(
                                     currentJoin.getRight(),
                                     getInputIndices(currentJoin, joinKeys, false),
                                     dimSide,
                                     dimSideJoinKey,
-                                    factSideFactors,
-                                    join)));
+                                    factSideFactors)));
         } else if (rel instanceof Union) {
             Union union = (Union) rel;
             List<RelNode> newInputs = new ArrayList<>();
             for (RelNode input : union.getInputs()) {
                 newInputs.add(
                         convertDppFactSide(
-                                input, joinKeys, dimSide, dimSideJoinKey, factSideFactors, join));
+                                input, joinKeys, dimSide, dimSideJoinKey, factSideFactors));
             }
             return union.copy(union.getTraitSet(), newInputs, union.all);
         } else if (rel instanceof BatchPhysicalGroupAggregateBase) {
             BatchPhysicalGroupAggregateBase agg = (BatchPhysicalGroupAggregateBase) rel;
-            List<RelNode> newInputs = new ArrayList<>();
-            for (RelNode input : agg.getInputs()) {
-                newInputs.add(
-                        convertDppFactSide(
-                                input,
-                                getInputIndices(agg, input, joinKeys),
-                                dimSide,
-                                dimSideJoinKey,
-                                factSideFactors,
-                                join));
-            }
-
-            return agg.copy(agg.getTraitSet(), newInputs);
+            RelNode input = agg.getInput();
+            RelNode convertedRel =
+                    convertDppFactSide(
+                            input,
+                            getInputIndices(agg, input, joinKeys),
+                            dimSide,
+                            dimSideJoinKey,
+                            factSideFactors);
+            return agg.copy(agg.getTraitSet(), Collections.singletonList(convertedRel));
         }
 
         return rel;
     }
 
-    private static boolean isSuitableJoin(Join join) {
+    public static boolean isSuitableJoin(Join join) {
         // Now dynamic partition pruning supports left/right join, inner and semi
-        // join. but now semi
-        // join can not join reorder.
+        // join. but now semi join can not join reorder.
         if (join.getJoinType() != JoinRelType.INNER
                 && join.getJoinType() != JoinRelType.SEMI
                 && join.getJoinType() != JoinRelType.LEFT
@@ -381,9 +364,8 @@ public class DynamicPartitionPruningUtils {
                 return;
             }
 
-            if (!dimSideFactors.setTables(table.contextResolvedTable())) {
-                return;
-            }
+            // To ensure there is only one source on the dim side.
+            dimSideFactors.setTables(table.contextResolvedTable());
         } else if (rel instanceof HepRelVertex) {
             visitDimSide(((HepRelVertex) rel).getCurrentRel(), dimSideFactors);
         } else if (rel instanceof Exchange || rel instanceof Project) {
@@ -405,9 +387,7 @@ public class DynamicPartitionPruningUtils {
             visitDimSide(join.getLeft(), dimSideFactors);
             visitDimSide(join.getRight(), dimSideFactors);
         } else if (rel instanceof BatchPhysicalGroupAggregateBase) {
-            for (RelNode input : rel.getInputs()) {
-                visitDimSide(input, dimSideFactors);
-            }
+            visitDimSide(((BatchPhysicalGroupAggregateBase) rel).getInput(), dimSideFactors);
         } else if (rel instanceof Union) {
             Union union = (Union) rel;
             for (RelNode input : union.getInputs()) {
@@ -516,17 +496,16 @@ public class DynamicPartitionPruningUtils {
         private boolean hasPartitionedScan;
         private final List<ContextResolvedTable> tables = new ArrayList<>();
 
-        public boolean setTables(ContextResolvedTable catalogTable) {
+        public void setTables(ContextResolvedTable catalogTable) {
             if (tables.size() == 0) {
                 tables.add(catalogTable);
             } else {
-                for (ContextResolvedTable thisTable : tables) {
+                for (ContextResolvedTable thisTable : new ArrayList<>(tables)) {
                     if (!thisTable.getIdentifier().equals(catalogTable.getIdentifier())) {
-                        return false;
+                        tables.add(catalogTable);
                     }
                 }
             }
-            return true;
         }
 
         public boolean isDimSide() {

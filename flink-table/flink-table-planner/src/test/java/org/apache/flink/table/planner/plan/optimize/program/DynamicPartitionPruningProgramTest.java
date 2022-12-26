@@ -40,10 +40,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tests for rules that extend {@link FlinkDynamicPartitionPruningConverterProgram} to create {@link
+ * Tests for rules that extend {@link FlinkDynamicPartitionPruningProgram} to create {@link
  * org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan}.
  */
-public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
+public class DynamicPartitionPruningProgramTest extends TableTestBase {
     private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
     private final TestValuesCatalog catalog =
             new TestValuesCatalog("testCatalog", "test_database", true);
@@ -381,7 +381,7 @@ public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
 
     @Test
     public void testComplexDimSideWithJoinInDimSide() {
-        // Dpp will success
+        // TODO, Dpp will not success with complex dim side.
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE sales (\n"
@@ -487,7 +487,7 @@ public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
 
     @Test
     public void testDppWithUnionInFactSide() {
-        // Dpp will success
+        // Dpp will success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
                         + "  id BIGINT,\n"
@@ -530,10 +530,8 @@ public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPFactorToReorderTableWithoutStats() {
-        // While there are several joins, and fact table not adjacent to dim table directly. dynamic
-        // partition pruning factor will try best to reorder join relations to make fact table
-        // adjacent to dim table.
+    public void testDPPWithJoinReorderTableWithoutStats() {
+        // Dpp will success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
                         + "  id BIGINT,\n"
@@ -558,7 +556,7 @@ public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPFactorToReorderTableWithStats() throws TableNotExistException {
+    public void testDPPWithJoinReorderTableWithStats() throws TableNotExistException {
         String ddl =
                 "CREATE TABLE test_database.item (\n"
                         + "  id BIGINT,\n"
@@ -611,8 +609,8 @@ public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPFactorWithFactSideJoinKeyChanged() {
-        // If partition keys changed in fact side. DPP factor will not work.
+    public void testDPPWithFactSideJoinKeyChanged() {
+        // If partition keys changed in fact side. DPP factor will not success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
                         + "  id BIGINT,\n"
@@ -636,8 +634,8 @@ public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPFactorWithDimSideJoinKeyChanged() {
-        // Although partition keys changed in dim side. DPP factor will work.
+    public void testDPPWithDimSideJoinKeyChanged() {
+        // Although partition keys changed in dim side. DPP will success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
                         + "  id BIGINT,\n"
@@ -661,9 +659,9 @@ public class DynamicPartitionPruningConverterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPFactorWithJoinKeysNotIncludePartitionKeys() {
-        // If join keys of partition table join with dim table not include partition keys, dpp
-        // factor will not be adjusted and dpp will not succeed.
+    public void testDPPWithJoinKeysNotIncludePartitionKeys() {
+        // If join keys of partition table join with dim table not include partition keys, dpp will
+        // not success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
                         + "  id BIGINT,\n"

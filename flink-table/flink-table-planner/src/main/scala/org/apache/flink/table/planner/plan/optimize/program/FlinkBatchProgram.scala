@@ -40,7 +40,7 @@ object FlinkBatchProgram {
   val TIME_INDICATOR = "time_indicator"
   val PHYSICAL = "physical"
   val PHYSICAL_REWRITE = "physical_rewrite"
-  val DYNAMIC_PARTITION_PRUNING_CONVERTER = "dynamic_partition_pruning_converter"
+  val DYNAMIC_PARTITION_PRUNING = "dynamic_partition_pruning"
 
   def buildProgram(tableConfig: ReadableConfig): FlinkChainedProgram[BatchOptimizeContext] = {
     val chainedProgram = new FlinkChainedProgram[BatchOptimizeContext]()
@@ -290,9 +290,7 @@ object FlinkBatchProgram {
     )
 
     // convert dynamic partition pruning scan source
-    chainedProgram.addLast(
-      DYNAMIC_PARTITION_PRUNING_CONVERTER,
-      new FlinkDynamicPartitionPruningConverterProgram)
+    chainedProgram.addLast(DYNAMIC_PARTITION_PRUNING, new FlinkDynamicPartitionPruningProgram)
 
     chainedProgram
   }
