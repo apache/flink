@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.TableException;
+
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
@@ -223,6 +225,12 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
             for (int i = 0; i < right.getRowType().getFieldCount(); i++) {
                 isNullGenFieldList.add(true);
             }
+        } else {
+            // Now, join to multi join rule only support Full outer join, Inner join and Left/Right
+            // join.
+            throw new TableException(
+                    "This is a bug. Now, join to multi join rule only support Full outer "
+                            + "join, Inner join and Left/Right join.");
         }
     }
 
