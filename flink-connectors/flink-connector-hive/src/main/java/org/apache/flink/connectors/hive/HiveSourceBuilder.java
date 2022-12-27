@@ -87,8 +87,7 @@ public class HiveSourceBuilder {
     private final String hiveVersion;
 
     private final DataType physicalDataType;
-    @Nullable private int[] projectedFields;
-
+    @Nullable private int[][] projectedFields;
     private Long limit;
     private List<HiveTablePartition> partitions;
     private List<String> dynamicFilterPartitionKeys;
@@ -283,7 +282,7 @@ public class HiveSourceBuilder {
      *
      * @param projectedFields indices of the fields, starting from 0
      */
-    public HiveSourceBuilder setProjectedFields(int[] projectedFields) {
+    public HiveSourceBuilder setProjectedFields(int[][] projectedFields) {
         this.projectedFields = projectedFields;
         return this;
     }
@@ -358,6 +357,7 @@ public class HiveSourceBuilder {
                         DataType.getFieldDataTypes(physicalDataType).toArray(new DataType[0]),
                         hiveVersion,
                         getProducedRowType(),
+                        projectedFields,
                         fallbackMappedReader),
                 limit);
     }

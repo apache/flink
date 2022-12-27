@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.utils.NestedColumn;
 import org.apache.flink.table.planner.plan.utils.NestedProjectionUtil;
 import org.apache.flink.table.planner.plan.utils.NestedSchema;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -52,6 +53,8 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,6 +70,7 @@ import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.creat
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataColumns;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
+import static org.apache.flink.table.types.utils.DataTypeUtils.isVectorizationUnsupported;
 
 /**
  * Pushes a {@link LogicalProject} into a {@link LogicalTableScan}.
@@ -85,6 +89,8 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFacto
 @Value.Enclosing
 public class PushProjectIntoTableSourceScanRule
         extends RelRule<PushProjectIntoTableSourceScanRule.Config> {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PushProjectIntoTableSourceScanRule.class);
 
     public static final PushProjectIntoTableSourceScanRule INSTANCE =
             new PushProjectIntoTableSourceScanRule(
@@ -131,7 +137,7 @@ public class PushProjectIntoTableSourceScanRule
         final TableSourceTable sourceTable = scan.getTable().unwrap(TableSourceTable.class);
 
         final boolean supportsNestedProjection =
-                supportsNestedProjection(sourceTable.tableSource());
+                supportsNestedProjection(sourceTable.tableSource(), project);
 
         final int[] refFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
         if (!supportsNestedProjection && refFields.length == scan.getRowType().getFieldCount()) {
@@ -204,9 +210,28 @@ public class PushProjectIntoTableSourceScanRule
         return tableSource instanceof SupportsReadingMetadata;
     }
 
-    private boolean supportsNestedProjection(DynamicTableSource tableSource) {
+    private boolean supportsNestedProjection(
+            DynamicTableSource tableSource, LogicalProject project) {
+        List<RexNode> projects = project.getProjects();
         return supportsProjectionPushDown(tableSource)
+                && isVectorizedReaderSupportedTypes(projects)
                 && ((SupportsProjectionPushDown) tableSource).supportsNestedProjection();
+    }
+
+    private boolean isVectorizedReaderSupportedTypes(List<RexNode> projects) {
+        List<LogicalType> logicalTypes = new ArrayList<>();
+        for (RexNode rexNode : projects) {
+            LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
+            if (isVectorizationUnsupported(logicalType)) {
+                LOG.debug(
+                        "Unsupported nested type for vectorized reader:{}, will not push down nested projections and falling back to MR reader",
+                        logicalType);
+                return false;
+            }
+            logicalTypes.add(logicalType);
+        }
+        LOG.debug("Pushdown nested type for vectorized reader, Row fields={}", logicalTypes);
+        return true;
     }
 
     private List<RexNode> getProjections(LogicalProject project, LogicalTableScan scan) {

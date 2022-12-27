@@ -88,6 +88,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.catalog.hive.HiveTestUtils.createTableEnvWithHiveCatalog;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -444,6 +445,46 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         } finally {
             batchTableEnv.executeSql("drop table src");
         }
+    }
+
+    @Test
+    public void testReadParquetNestedPushdown() throws Exception {
+        batchTableEnv.executeSql(
+                "create table parquet_complex_nested_type_test("
+                        + "a array<struct<a1:int>>, "
+                        + "m map<int,string>, "
+                        + "s struct<f1:int,`f2.q1`:bigint,f3:DECIMAL(5,4), f4:struct<f5:string, f6: string>>"
+                        + ") partitioned by (p1 int) "
+                        + "stored as parquet");
+        String[] modules = batchTableEnv.listModules();
+        // load hive module so that we can use array,map, named_struct function
+        // for convenient writing complex data
+        batchTableEnv.loadModule("hive", new HiveModule());
+        batchTableEnv.useModules("hive", CoreModuleFactory.IDENTIFIER);
+
+        batchTableEnv
+                .executeSql(
+                        "insert into parquet_complex_nested_type_test"
+                                + " select array(named_struct('a1',1), named_struct('a1',2)), map(1, 'val1', 2, 'val2'),"
+                                + " named_struct('f1', 1,  '`f2.q1`', 2, 'f3', 1.1, 'f4', named_struct('f5','1', 'f6','1')), 1"
+                                + " union all"
+                                + " select array(named_struct('a1',3), named_struct('a1',4)), map(3, 'val1', 4, 'val2'),"
+                                + " named_struct('f1', 3,  '`f2.q1`', 4, 'f3', 1.2, 'f4', named_struct('f5','2', 'f6','2')), 2"
+                                + " union all"
+                                + " select array(named_struct('a1',5), named_struct('a1',6)), map(5, 'val1', 6, 'val2'),"
+                                + " named_struct('f1', 4,  '`f2.q1`', 5, 'f3', 1.3, 'f4', named_struct('f5','3', 'f6','3')), 3"
+                                + " ")
+                .await();
+        Table table =
+                batchTableEnv.sqlQuery(
+                        "select s.`f2.q1`, s.f4.f5, p1 from parquet_complex_nested_type_test where isnull(s.f4.f5) is not true and s.`f2.q1` >= 4 and s.f3 >= 1.2");
+        String actualPlan = table.explain();
+        assertThat(actualPlan)
+                .isEqualTo(readFromResource("/explain/testParquetNestedProjectionPushdown.out"));
+        List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
+        Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
+        assertThat(new String[] {"+I[4, 2, 2]", "+I[5, 3, 3]"}).isEqualTo(rowStrings);
+        batchTableEnv.unloadModule("hive");
     }
 
     @Test

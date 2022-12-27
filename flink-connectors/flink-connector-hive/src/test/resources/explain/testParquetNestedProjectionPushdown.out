@@ -1,0 +1,12 @@
+== Abstract Syntax Tree ==
+LogicalProject(f2.q1=[$2.f2.q1], f5=[$2.f4.f5], p1=[$3])
++- LogicalFilter(condition=[AND(IS NOT TRUE(isnull($2.f4.f5)), >=($2.f2.q1, 4), >=($2.f3, 1.2:DECIMAL(2, 1)))])
+   +- LogicalTableScan(table=[[hive, default, parquet_complex_nested_type_test]])
+
+== Optimized Physical Plan ==
+Calc(select=[s_f2.q1 AS f2.q1, s_f4_f5 AS f5, p1], where=[AND(IS NOT TRUE(isnull(s_f4_f5)), >=(s_f2.q1, 4), >=(s_f3, 1.2))])
++- TableSourceScan(table=[[hive, default, parquet_complex_nested_type_test, project=[p1, s_f4_f5, s_f2.q1, s_f3]]], fields=[p1, s_f4_f5, s_f2.q1, s_f3])
+
+== Optimized Execution Plan ==
+Calc(select=[s_f2.q1 AS f2.q1, s_f4_f5 AS f5, p1], where=[(isnull(s_f4_f5) IS NOT TRUE AND (s_f2.q1 >= 4) AND (s_f3 >= 1.2))])
++- TableSourceScan(table=[[hive, default, parquet_complex_nested_type_test, project=[p1, s_f4_f5, s_f2.q1, s_f3]]], fields=[p1, s_f4_f5, s_f2.q1, s_f3])

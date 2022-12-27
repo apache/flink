@@ -76,6 +76,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SOURCE_NESTED_PROJECTION_PUSHDOWN_ENABLED;
 import static org.apache.flink.util.CollectionUtil.entry;
 
 /** File system table source. */
@@ -340,7 +341,15 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
     @Override
     public boolean supportsNestedProjection() {
-        return false;
+        return tableOptions.get(SOURCE_NESTED_PROJECTION_PUSHDOWN_ENABLED) && isNestedProjectable();
+    }
+
+    private boolean isNestedProjectable() {
+        return bulkReaderFormat != null
+                && bulkReaderFormat instanceof ProjectableDecodingFormat
+                && ((ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>>)
+                                bulkReaderFormat)
+                        .supportsNestedProjection();
     }
 
     @Override

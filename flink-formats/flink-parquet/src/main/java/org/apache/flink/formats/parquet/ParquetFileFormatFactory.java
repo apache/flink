@@ -138,10 +138,12 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                 DataType producedDataType,
                 int[][] projections) {
 
+            DataType projectedType = Projection.of(projections).project(producedDataType);
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     getParquetConfiguration(formatOptions),
-                    (RowType) Projection.of(projections).project(producedDataType).getLogicalType(),
-                    sourceContext.createTypeInformation(producedDataType),
+                    (RowType) producedDataType.getLogicalType(),
+                    sourceContext.createTypeInformation(projectedType),
+                    projections,
                     Collections.emptyList(),
                     null,
                     VectorizedColumnBatch.DEFAULT_SIZE,
@@ -161,6 +163,11 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                     producedDataType,
                     getParquetConfiguration(formatOptions),
                     formatOptions.get(UTC_TIMEZONE));
+        }
+
+        @Override
+        public boolean supportsNestedProjection() {
+            return true;
         }
     }
 }

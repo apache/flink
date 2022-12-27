@@ -212,16 +212,22 @@ class ParquetColumnarRowSplitReaderTest {
 
     private ParquetColumnarRowSplitReader createReader(
             Path testPath, long splitStart, long splitLength) throws IOException {
+        RowType rowType =
+                RowType.of(
+                        ROW_TYPE.getChildren().toArray(new LogicalType[] {}),
+                        new String[] {
+                            "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
+                            "f11", "f12", "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20",
+                            "f21", "f22", "f23", "f24", "f25", "f26", "f27", "f28", "f29", "f30",
+                            "f31", "f32"
+                        });
         return new ParquetColumnarRowSplitReader(
                 false,
                 true,
                 new Configuration(),
-                ROW_TYPE.getChildren().toArray(new LogicalType[] {}),
-                new String[] {
-                    "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
-                    "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
-                    "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", "f32", "f33"
-                },
+                rowType,
+                rowType,
+                null,
                 VectorizedColumnBatch::new,
                 500,
                 new org.apache.hadoop.fs.Path(testPath.getPath()),
@@ -529,15 +535,19 @@ class ParquetColumnarRowSplitReaderTest {
             records.add(newRow(v));
         }
         Path testPath = createTempParquetFile(tmpDir, records, rowGroupSize);
-        RowType rowType = RowType.of(new DoubleType(), new TinyIntType(), new IntType());
+        RowType rowType =
+                RowType.of(
+                        new LogicalType[] {new DoubleType(), new TinyIntType(), new IntType()},
+                        new String[] {"f7", "f2", "f4"});
         // test reader
         ParquetColumnarRowSplitReader reader =
                 new ParquetColumnarRowSplitReader(
                         false,
                         true,
                         new Configuration(),
-                        rowType.getChildren().toArray(new LogicalType[] {}),
-                        new String[] {"f7", "f2", "f4"},
+                        rowType,
+                        rowType,
+                        null,
                         VectorizedColumnBatch::new,
                         500,
                         new org.apache.hadoop.fs.Path(testPath.getPath()),

@@ -34,12 +34,14 @@ import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.ql.io.IOConstants;
@@ -55,7 +57,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.file.src.util.CheckpointedPosition.NO_OFFSET;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SOURCE_NESTED_PROJECTION_PUSHDOWN_ENABLED;
 import static org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch.DEFAULT_SIZE;
+import static org.apache.flink.table.types.utils.DataTypeUtils.isVectorizationUnsupported;
 
 /**
  * A BulkFormat implementation for HiveSource. This implementation delegates reading to other
@@ -80,8 +84,10 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
     private final String hiveVersion;
     private final HiveShim hiveShim;
     private final RowType producedRowType;
+    private final int[][] projectedFields;
     private final boolean useMapRedReader;
     private final PartitionFieldExtractor<HiveSourceSplit> partitionFieldExtractor;
+    private final boolean isNested;
 
     public HiveInputFormat(
             JobConfWrapper jobConfWrapper,
@@ -90,6 +96,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
             DataType[] fieldTypes,
             String hiveVersion,
             RowType producedRowType,
+            int[][] projectedFields,
             boolean useMapRedReader) {
         this.jobConfWrapper = jobConfWrapper;
         this.partitionKeys = partitionKeys;
@@ -102,6 +109,8 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
         this.partitionFieldExtractor =
                 new PartitionFieldExtractorImpl(
                         hiveShim, JobConfUtils.getDefaultPartitionName(jobConfWrapper));
+        this.projectedFields = checkAndGetProjectedFields(projectedFields);
+        this.isNested = Projection.of(this.projectedFields).isNested();
     }
 
     @Override
@@ -126,6 +135,20 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
         return InternalTypeInfo.of(producedRowType);
     }
 
+    private int[][] checkAndGetProjectedFields(int[][] projectedFields) {
+        if (projectedFields != null) {
+            return projectedFields;
+        }
+        Preconditions.checkNotNull(producedRowType);
+        Preconditions.checkNotNull(fieldNames);
+        int[] selectFields = computeSelectedFields();
+        projectedFields = new int[selectFields.length][1];
+        for (int i = 0; i < selectFields.length; i++) {
+            projectedFields[i][0] = selectFields[i];
+        }
+        return projectedFields;
+    }
+
     private RowType tableRowType() {
         LogicalType[] types =
                 Arrays.stream(fieldTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new);
@@ -138,17 +161,27 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
             LOG.debug(String.format("Use native parquet reader for %s.", split));
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     jobConfWrapper.conf(),
-                    producedRowType,
+                    tableRowType(),
                     InternalTypeInfo.of(producedRowType),
+                    projectedFields,
                     partitionKeys,
                     partitionFieldExtractor,
                     DEFAULT_SIZE,
                     hiveVersion.startsWith("3"),
                     false);
-        } else if (!useMapRedReader && useOrcVectorizedRead(split.getHiveTablePartition())) {
+        } else if (!useMapRedReader
+                && useOrcVectorizedRead(split.getHiveTablePartition())
+                && !isNested) {
             LOG.debug(String.format("Use native orc reader for %s.", split));
             return createOrcFormat();
         } else {
+            if (isNested) {
+                throw new FlinkRuntimeException(
+                        String.format(
+                                "Can not find a reader for nested type: %s. Maybe you should set %s to false",
+                                producedRowType.toString(),
+                                SOURCE_NESTED_PROJECTION_PUSHDOWN_ENABLED.key()));
+            }
             if (useMapRedReader) {
                 LOG.debug(
                         String.format(
@@ -234,42 +267,6 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
 
         LOG.info("Use flink parquet ColumnarRowData reader.");
         return true;
-    }
-
-    private static boolean isVectorizationUnsupported(LogicalType t) {
-        switch (t.getTypeRoot()) {
-            case CHAR:
-            case VARCHAR:
-            case BOOLEAN:
-            case BINARY:
-            case VARBINARY:
-            case DECIMAL:
-            case TINYINT:
-            case SMALLINT:
-            case INTEGER:
-            case BIGINT:
-            case FLOAT:
-            case DOUBLE:
-            case DATE:
-            case TIME_WITHOUT_TIME_ZONE:
-            case TIMESTAMP_WITHOUT_TIME_ZONE:
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-            case ARRAY:
-            case MAP:
-            case ROW:
-                return false;
-            case TIMESTAMP_WITH_TIME_ZONE:
-            case INTERVAL_YEAR_MONTH:
-            case INTERVAL_DAY_TIME:
-            case MULTISET:
-            case DISTINCT_TYPE:
-            case STRUCTURED_TYPE:
-            case NULL:
-            case RAW:
-            case SYMBOL:
-            default:
-                return true;
-        }
     }
 
     private class HiveMapRedBulkFormat implements BulkFormat<RowData, HiveSourceSplit> {

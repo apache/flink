@@ -33,6 +33,7 @@ import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
@@ -44,6 +45,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
@@ -63,10 +66,13 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -76,16 +82,19 @@ import javax.annotation.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SOURCE_NESTED_PROJECTION_PUSHDOWN_ENABLED;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SOURCE_NESTED_PROJECTION_PUSHDOWN_SUPPORTED_FORMATS;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER;
 import static org.apache.flink.connectors.hive.util.HivePartitionUtils.getAllPartitions;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 
 /** A TableSource implementation to read data from Hive tables. */
 public class HiveTableSource
@@ -110,9 +119,10 @@ public class HiveTableSource
     // down.
     @Nullable protected List<Map<String, String>> remainingPartitions = null;
     @Nullable protected List<String> dynamicFilterPartitionKeys = null;
-    protected int[] projectedFields;
+    protected int[][] projectedFields;
     protected DataType producedDataType;
     protected Long limit = null;
+    protected String serializationLib = null;
 
     public HiveTableSource(
             JobConf jobConf,
@@ -207,6 +217,25 @@ public class HiveTableSource
                                 STREAMING_SOURCE_ENABLE.defaultValue().toString()));
     }
 
+    protected ResolvedSchema getResolvedSchema() {
+        return catalogTable.getResolvedSchema();
+    }
+
+    protected DataType getProducedDataType() {
+        if (producedDataType == null) {
+            return getResolvedSchema().toPhysicalRowDataType();
+        } else {
+            return producedDataType;
+        }
+    }
+
+    protected RowType getRowType() {
+        DataType producedDataType = getProducedDataType();
+        Preconditions.checkArgument(
+                producedDataType.getLogicalType().is(ROW), "Row data type expected.");
+        return (RowType) producedDataType.getLogicalType();
+    }
+
     @Override
     public void applyLimit(long limit) {
         this.limit = limit;
@@ -262,12 +291,36 @@ public class HiveTableSource
 
     @Override
     public boolean supportsNestedProjection() {
-        return false;
+        if (!flinkConf.get(SOURCE_NESTED_PROJECTION_PUSHDOWN_ENABLED)
+                || flinkConf.get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER)) {
+            return false;
+        }
+        List<String> supportedFormats =
+                flinkConf.get(SOURCE_NESTED_PROJECTION_PUSHDOWN_SUPPORTED_FORMATS);
+        return supportedFormats != null
+                && supportedFormats.stream().anyMatch(getSerializationLib()::contains);
+    }
+
+    private String getSerializationLib() {
+        if (serializationLib != null) {
+            return serializationLib;
+        }
+        try (HiveMetastoreClientWrapper metaStoreClient =
+                new HiveMetastoreClientWrapper(HiveConfUtils.create(jobConf), hiveShim)) {
+            Table table =
+                    metaStoreClient.getTable(
+                            tablePath.getDatabaseName(), tablePath.getObjectName());
+            StorageDescriptor tableSd = table.getSd();
+            serializationLib = tableSd.getSerdeInfo().getSerializationLib().toLowerCase();
+            return serializationLib;
+        } catch (TException e) {
+            throw new FlinkHiveException("Failed to getSerializationLib from hive metaStore", e);
+        }
     }
 
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
-        this.projectedFields = Arrays.stream(projectedFields).mapToInt(value -> value[0]).toArray();
+        this.projectedFields = projectedFields;
         this.producedDataType = producedDataType;
     }
 
@@ -288,6 +341,7 @@ public class HiveTableSource
         source.projectedFields = projectedFields;
         source.producedDataType = producedDataType;
         source.limit = limit;
+        source.serializationLib = serializationLib;
         source.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
         return source;
     }

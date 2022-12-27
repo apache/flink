@@ -51,13 +51,18 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -92,6 +97,251 @@ public final class DataTypeUtils {
     @Deprecated
     public static DataType projectRow(DataType dataType, int[] indexPaths) {
         return Projection.of(indexPaths).project(dataType);
+    }
+
+    /**
+     * Build a List of RowFields that only includes fields of the given index paths of the given
+     * RowType. Build one RowField for each indexPath.
+     *
+     * @param allType the RowType to build from.
+     * @param indexPaths field index paths.
+     */
+    public static List<RowType.RowField> buildRowFields(RowType allType, int[][] indexPaths) {
+        final List<RowType.RowField> updatedFields = new ArrayList<>();
+        for (int[] indexPath : indexPaths) {
+            updatedFields.add(
+                    buildRowFieldInProjectFields(
+                            allType.getFields().get(indexPath[0]), indexPath, 0));
+        }
+        return updatedFields;
+    }
+
+    /**
+     * Build a new RowType that only includes fields of the given index paths of the given RowType.
+     *
+     * @param allType the RowType to build from.
+     * @param indexPaths field index paths.
+     */
+    public static RowType buildRow(RowType allType, int[][] indexPaths) {
+        return new RowType(
+                allType.isNullable(), mergeRowFields(buildRowFields(allType, indexPaths)));
+    }
+
+    /**
+     * Build a new RowType that only includes fields of the given index paths of the given RowType.
+     * The fields may have nested structure.
+     *
+     * @param allType the RowType to build from.
+     * @param updatedFields the unmerged fields to construct a RowType.
+     */
+    public static RowType buildRow(RowType allType, List<RowType.RowField> updatedFields) {
+        return new RowType(allType.isNullable(), mergeRowFields(updatedFields));
+    }
+
+    /**
+     * Recursively build a RowField according to the indexPath.
+     *
+     * @param indexPath the int array representing a field in a RowType
+     * @param index the index of the indexPath
+     * @param rowField the RowField at the index of a RowType
+     */
+    public static RowType.RowField buildRowFieldInProjectFields(
+            RowType.RowField rowField, int[] indexPath, int index) {
+        if (indexPath.length == 1 || index == indexPath.length - 1) {
+            LogicalType rowType = rowField.getType();
+            if (rowType.is(ROW)) {
+                rowType = new RowType(rowType.isNullable(), ((RowType) rowType).getFields());
+            }
+            return new RowField(rowField.getName(), rowType);
+        }
+        Preconditions.checkArgument(rowField.getType().is(ROW), "Row data type expected.");
+        final List<RowType.RowField> updatedFields = new ArrayList<>();
+        RowType rowtype = ((RowType) rowField.getType());
+        updatedFields.add(
+                buildRowFieldInProjectFields(
+                        rowtype.getFields().get(indexPath[index + 1]), indexPath, index + 1));
+        return new RowType.RowField(
+                rowField.getName(), new RowType(rowtype.isNullable(), updatedFields));
+    }
+
+    /**
+     * Merge RowFields with the same fieldName. For example, r ROW < d DOUBLE> and r ROW< b BOOLEAN>
+     * will be merged into r ROW< d DOUBLE, b BOOLEAN>.
+     */
+    public static List<RowType.RowField> mergeRowFields(List<RowType.RowField> updatedFields) {
+        List<RowField> updatedFieldsCopy =
+                updatedFields.stream().map(RowField::copy).collect(Collectors.toList());
+        final List<String> fieldNames =
+                updatedFieldsCopy.stream().map(RowField::getName).collect(Collectors.toList());
+        if (fieldNames.stream().anyMatch(StringUtils::isNullOrWhitespaceOnly)) {
+            throw new ValidationException(
+                    "Field names must contain at least one non-whitespace character.");
+        }
+        final Set<String> duplicates =
+                fieldNames.stream()
+                        .filter(n -> Collections.frequency(fieldNames, n) > 1)
+                        .collect(Collectors.toSet());
+        if (duplicates.isEmpty()) {
+            return updatedFieldsCopy;
+        }
+        List<RowType.RowField> duplicatesFields =
+                updatedFieldsCopy.stream()
+                        .filter(f -> duplicates.contains(f.getName()))
+                        .collect(Collectors.toList());
+        updatedFieldsCopy.removeAll(duplicatesFields);
+        Map<String, List<RowField>> duplicatesMap = new HashMap<>();
+        duplicatesFields.forEach(
+                f -> {
+                    List<RowField> tmp = duplicatesMap.getOrDefault(f.getName(), new ArrayList<>());
+                    tmp.add(f);
+                    duplicatesMap.put(f.getName(), tmp);
+                });
+        duplicatesMap.forEach(
+                (fieldName, duplicateList) -> {
+                    List<RowField> fieldsToMerge = new ArrayList<>();
+                    for (RowField rowField : duplicateList) {
+                        Preconditions.checkArgument(
+                                rowField.getType().is(ROW), "Row data type expected.");
+                        RowType rowType = (RowType) rowField.getType();
+                        fieldsToMerge.addAll(rowType.getFields());
+                    }
+                    RowField mergedField =
+                            new RowField(
+                                    fieldName,
+                                    new RowType(
+                                            duplicateList.get(0).getType().isNullable(),
+                                            mergeRowFields(fieldsToMerge)));
+                    updatedFieldsCopy.add(mergedField);
+                });
+        return updatedFieldsCopy;
+    }
+
+    public static int[][] computeProjectedFields(int[] selectFields) {
+        int[][] projectedFields = new int[selectFields.length][1];
+        for (int i = 0; i < selectFields.length; i++) {
+            projectedFields[i][0] = selectFields[i];
+        }
+        return projectedFields;
+    }
+
+    public static int[][] computeProjectedFields(
+            String[] selectedFieldNames, String[] fullFieldNames) {
+        int[] selectFields = computeTopLevelFields(selectedFieldNames, fullFieldNames);
+        int[][] projectedFields = new int[selectFields.length][1];
+        for (int i = 0; i < selectFields.length; i++) {
+            projectedFields[i][0] = selectFields[i];
+        }
+        return projectedFields;
+    }
+
+    public static int[] computeTopLevelFields(
+            String[] selectedFieldNames, String[] fullFieldNames) {
+        int[] selectedFields = new int[selectedFieldNames.length];
+        for (int i = 0; i < selectedFields.length; i++) {
+            String name = selectedFieldNames[i];
+            int index = Arrays.asList(fullFieldNames).indexOf(name);
+            Preconditions.checkState(
+                    index >= 0,
+                    "Produced field name %s not found in table schema fields %s",
+                    name,
+                    Arrays.toString(fullFieldNames));
+            selectedFields[i] = index;
+        }
+        return selectedFields;
+    }
+
+    public static Map<String, Integer> getFieldNameToIndex(List<String> fieldNames) {
+        Map<String, Integer> fieldNameToIndex = new HashMap<>();
+        for (int i = 0; i < fieldNames.size(); i++) {
+            fieldNameToIndex.put(fieldNames.get(i), i);
+        }
+        return fieldNameToIndex;
+    }
+
+    public static boolean isVectorizationUnsupported(LogicalType t) {
+        switch (t.getTypeRoot()) {
+            case CHAR:
+            case VARCHAR:
+            case BOOLEAN:
+            case BINARY:
+            case VARBINARY:
+            case DECIMAL:
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+            case FLOAT:
+            case DOUBLE:
+            case DATE:
+            case TIME_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                return false;
+            case ARRAY:
+                ArrayType arrayType = (ArrayType) t;
+                return !isVectorizedReaderSupportedOfChildrenType(
+                        arrayType.getElementType(), arrayType);
+            case MAP:
+                MapType mapType = (MapType) t;
+                return !(isVectorizedReaderSupportedOfChildrenType(mapType.getKeyType(), mapType)
+                        && isVectorizedReaderSupportedOfChildrenType(
+                                mapType.getValueType(), mapType));
+            case ROW:
+                RowType rowType = (RowType) t;
+                for (RowType.RowField rowField : rowType.getFields()) {
+                    if (!isVectorizedReaderSupportedOfChildrenType(rowField.getType(), rowType)) {
+                        return true;
+                    }
+                }
+                return false;
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case INTERVAL_YEAR_MONTH:
+            case INTERVAL_DAY_TIME:
+            case MULTISET:
+            case DISTINCT_TYPE:
+            case STRUCTURED_TYPE:
+            case NULL:
+            case RAW:
+            case SYMBOL:
+            default:
+                return true;
+        }
+    }
+
+    public static boolean isVectorizedReaderSupportedOfChildrenType(
+            LogicalType t, LogicalType parent) {
+        switch (t.getTypeRoot()) {
+            case BOOLEAN:
+            case TINYINT:
+            case DOUBLE:
+            case FLOAT:
+            case INTEGER:
+            case DATE:
+            case TIME_WITHOUT_TIME_ZONE:
+            case BIGINT:
+            case SMALLINT:
+            case CHAR:
+            case VARCHAR:
+            case BINARY:
+            case VARBINARY:
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case DECIMAL:
+                return true;
+            case ROW:
+                RowType rowType = (RowType) t;
+                if (!parent.getTypeRoot().equals(ROW)) {
+                    return false;
+                }
+                for (RowType.RowField rowField : rowType.getFields()) {
+                    if (!isVectorizedReaderSupportedOfChildrenType(rowField.getType(), rowType)) {
+                        return false;
+                    }
+                }
+                return true;
+            default:
+                return false;
+        }
     }
 
     /** Removes a string prefix from the fields of the given row data type. */

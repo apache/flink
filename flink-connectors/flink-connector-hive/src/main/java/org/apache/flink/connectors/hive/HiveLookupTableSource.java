@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -263,7 +264,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                                         catalogTable.getResolvedSchema().toPhysicalRowDataType())
                                 .toArray(new String[0]),
                         catalogTable.getPartitionKeys(),
-                        projectedFields,
+                        Arrays.stream(projectedFields).mapToInt(value -> value[0]).toArray(),
                         flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
 
         return new FileSystemLookupFunction<>(

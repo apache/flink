@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import static org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch.DEFAULT_SIZE;
+import static org.apache.flink.table.types.utils.DataTypeUtils.computeProjectedFields;
 
 /** Orc {@link SplitReader} to read files using {@link ParquetColumnarRowSplitReader}. */
 public class HiveVectorizedParquetSplitReader implements SplitReader {
@@ -46,9 +47,26 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
     public HiveVectorizedParquetSplitReader(
             String hiveVersion,
             JobConf jobConf,
-            String[] fieldNames,
-            DataType[] fieldTypes,
+            String[] fullFieldNames,
+            DataType[] fullFieldTypes,
             int[] selectedFields,
+            HiveTableInputSplit split)
+            throws IOException {
+        this(
+                hiveVersion,
+                jobConf,
+                fullFieldNames,
+                fullFieldTypes,
+                computeProjectedFields(selectedFields),
+                split);
+    }
+
+    public HiveVectorizedParquetSplitReader(
+            String hiveVersion,
+            JobConf jobConf,
+            String[] fullFieldNames,
+            DataType[] fullFieldTypes,
+            int[][] selectedFields,
             HiveTableInputSplit split)
             throws IOException {
         StorageDescriptor sd = split.getHiveTablePartition().getStorageDescriptor();
@@ -67,8 +85,8 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
         Map<String, Object> partitionValues =
                 HivePartitionUtils.parsePartitionValues(
                         split.getHiveTablePartition().getPartitionSpec(),
-                        fieldNames,
-                        fieldTypes,
+                        fullFieldNames,
+                        fullFieldTypes,
                         JobConfUtils.getDefaultPartitionName(jobConf),
                         HiveShimLoader.loadHiveShim(hiveVersion));
         this.reader =
@@ -76,8 +94,8 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
                         hiveVersion.startsWith("3"),
                         false, // hive case insensitive
                         conf,
-                        fieldNames,
-                        fieldTypes,
+                        fullFieldNames,
+                        fullFieldTypes,
                         partitionValues,
                         selectedFields,
                         DEFAULT_SIZE,

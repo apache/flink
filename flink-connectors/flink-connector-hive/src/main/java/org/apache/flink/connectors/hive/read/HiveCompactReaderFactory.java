@@ -98,6 +98,7 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
                         fieldTypes,
                         hiveVersion,
                         producedRowType,
+                        null,
                         useMapRedReader);
         BulkFormat.Reader<RowData> reader = format.createReader(context.getConfig(), split);
         return new CompactBulkReader<>(reader);

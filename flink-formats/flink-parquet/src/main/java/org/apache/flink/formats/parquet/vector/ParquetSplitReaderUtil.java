@@ -34,6 +34,8 @@ import org.apache.flink.formats.parquet.vector.reader.MapColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.RowColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ShortColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
@@ -81,15 +83,44 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.table.types.utils.DataTypeUtils.buildRowFields;
+import static org.apache.flink.table.types.utils.DataTypeUtils.computeProjectedFields;
 import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 import static org.apache.parquet.Preconditions.checkArgument;
 
 /** Util for generating {@link ParquetColumnarRowSplitReader}. */
 public class ParquetSplitReaderUtil {
+
+    public static ParquetColumnarRowSplitReader genPartColumnarRowReader(
+            boolean utcTimestamp,
+            boolean caseSensitive,
+            Configuration conf,
+            String[] fullFieldNames,
+            DataType[] fullFieldTypes,
+            Map<String, Object> partitionSpec,
+            int[] projectedFields,
+            int batchSize,
+            Path path,
+            long splitStart,
+            long splitLength)
+            throws IOException {
+        return genPartColumnarRowReader(
+                utcTimestamp,
+                caseSensitive,
+                conf,
+                fullFieldNames,
+                fullFieldTypes,
+                partitionSpec,
+                computeProjectedFields(projectedFields),
+                batchSize,
+                path,
+                splitStart,
+                splitLength);
+    }
 
     /** Util for generating partitioned {@link ParquetColumnarRowSplitReader}. */
     public static ParquetColumnarRowSplitReader genPartColumnarRowReader(
@@ -99,49 +130,58 @@ public class ParquetSplitReaderUtil {
             String[] fullFieldNames,
             DataType[] fullFieldTypes,
             Map<String, Object> partitionSpec,
-            int[] selectedFields,
+            int[][] projectedFields,
             int batchSize,
             Path path,
             long splitStart,
             long splitLength)
             throws IOException {
-        List<String> nonPartNames =
-                Arrays.stream(fullFieldNames)
-                        .filter(n -> !partitionSpec.containsKey(n))
-                        .collect(Collectors.toList());
-
-        List<String> selNonPartNames =
-                Arrays.stream(selectedFields)
-                        .mapToObj(i -> fullFieldNames[i])
-                        .filter(nonPartNames::contains)
-                        .collect(Collectors.toList());
-
-        int[] selParquetFields = selNonPartNames.stream().mapToInt(nonPartNames::indexOf).toArray();
+        LogicalType[] fullFieldLogicalTypes =
+                Arrays.stream(fullFieldTypes)
+                        .map(DataType::getLogicalType)
+                        .toArray(LogicalType[]::new);
+        RowType fullRowType = RowType.of(fullFieldLogicalTypes, fullFieldNames);
+        List<RowType.RowField> projectedRowFields = buildRowFields(fullRowType, projectedFields);
+        List<int[]> remainFieldsIndex = new ArrayList<>();
+        List<RowType.RowField> newProjectedRowFieldsList = new ArrayList<>();
+        for (int i = 0; i < projectedRowFields.size(); i++) {
+            if (partitionSpec.containsKey(projectedRowFields.get(i).getName())) {
+                continue;
+            }
+            remainFieldsIndex.add(projectedFields[i]);
+            newProjectedRowFieldsList.add(projectedRowFields.get(i));
+        }
+        int[][] newProjectedFields = remainFieldsIndex.toArray(new int[0][0]);
+        Map<RowType.RowField, Integer> fieldIndex = new HashMap<>();
+        for (int i = 0; i < newProjectedRowFieldsList.size(); i++) {
+            fieldIndex.put(newProjectedRowFieldsList.get(i), i);
+        }
 
         ParquetColumnarRowSplitReader.ColumnBatchGenerator gen =
                 readVectors -> {
                     // create and initialize the row batch
-                    ColumnVector[] vectors = new ColumnVector[selectedFields.length];
+                    ColumnVector[] vectors = new ColumnVector[projectedRowFields.size()];
                     for (int i = 0; i < vectors.length; i++) {
-                        String name = fullFieldNames[selectedFields[i]];
-                        LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
+                        RowType.RowField field = projectedRowFields.get(i);
                         vectors[i] =
-                                partitionSpec.containsKey(name)
+                                partitionSpec.containsKey(field.getName())
                                         ? createVectorFromConstant(
-                                                type, partitionSpec.get(name), batchSize)
-                                        : readVectors[selNonPartNames.indexOf(name)];
+                                                field.getType(),
+                                                partitionSpec.get(field.getName()),
+                                                batchSize)
+                                        : readVectors[fieldIndex.get(field)];
                     }
                     return new VectorizedColumnBatch(vectors);
                 };
-
+        DataType projectedType =
+                Projection.of(newProjectedFields).project(DataTypes.of(fullRowType));
         return new ParquetColumnarRowSplitReader(
                 utcTimestamp,
                 caseSensitive,
                 conf,
-                Arrays.stream(selParquetFields)
-                        .mapToObj(i -> fullFieldTypes[i].getLogicalType())
-                        .toArray(LogicalType[]::new),
-                selNonPartNames.toArray(new String[0]),
+                fullRowType,
+                (RowType) projectedType.getLogicalType(),
+                newProjectedFields,
                 gen,
                 batchSize,
                 new org.apache.hadoop.fs.Path(path.toUri()),
@@ -298,6 +338,7 @@ public class ParquetSplitReaderUtil {
             Type type,
             List<ColumnDescriptor> columnDescriptors,
             PageReadStore pages,
+            int fieldLength,
             int depth)
             throws IOException {
         List<ColumnDescriptor> descriptors =
@@ -399,18 +440,30 @@ public class ParquetSplitReaderUtil {
             case ROW:
                 RowType rowType = (RowType) fieldType;
                 GroupType groupType = type.asGroupType();
-                List<ColumnReader> fieldReaders = new ArrayList<>();
-                for (int i = 0; i < rowType.getFieldCount(); i++) {
-                    fieldReaders.add(
-                            createColumnReader(
-                                    isUtcTimestamp,
-                                    rowType.getTypeAt(i),
-                                    groupType.getType(i),
-                                    descriptors,
-                                    pages,
-                                    depth + 1));
+                if (depth >= fieldLength - 1) {
+                    List<ColumnReader> fieldReaders = new ArrayList<>();
+                    for (int i = 0; i < rowType.getFieldCount(); i++) {
+                        fieldReaders.add(
+                                createColumnReader(
+                                        isUtcTimestamp,
+                                        rowType.getTypeAt(i),
+                                        groupType.getType(i),
+                                        descriptors,
+                                        pages,
+                                        fieldLength,
+                                        depth + 1));
+                    }
+                    return new RowColumnReader(fieldReaders);
+                } else {
+                    return createColumnReader(
+                            isUtcTimestamp,
+                            rowType.getTypeAt(0),
+                            groupType.getType(rowType.getFieldNames().get(0)),
+                            descriptors,
+                            pages,
+                            fieldLength,
+                            depth + 1);
                 }
-                return new RowColumnReader(fieldReaders);
             default:
                 throw new UnsupportedOperationException(fieldType + " is not supported now.");
         }
@@ -421,6 +474,7 @@ public class ParquetSplitReaderUtil {
             LogicalType fieldType,
             Type type,
             List<ColumnDescriptor> columnDescriptors,
+            int fieldLength,
             int depth) {
         List<ColumnDescriptor> descriptors =
                 getAllColumnDescriptorByType(depth, type, columnDescriptors);
@@ -523,6 +577,7 @@ public class ParquetSplitReaderUtil {
                                 arrayType.getElementType(),
                                 type,
                                 columnDescriptors,
+                                fieldLength,
                                 depth));
             case MAP:
                 MapType mapType = (MapType) fieldType;
@@ -534,12 +589,14 @@ public class ParquetSplitReaderUtil {
                                 mapType.getKeyType(),
                                 mapRepeatedType.getType(0),
                                 descriptors,
+                                fieldLength,
                                 depth + 2),
                         createWritableColumnVector(
                                 batchSize,
                                 mapType.getValueType(),
                                 mapRepeatedType.getType(1),
                                 descriptors,
+                                fieldLength,
                                 depth + 2));
             case MULTISET:
                 MultisetType multisetType = (MultisetType) fieldType;
@@ -551,28 +608,41 @@ public class ParquetSplitReaderUtil {
                                 multisetType.getElementType(),
                                 multisetRepeatedType.getType(0),
                                 descriptors,
+                                fieldLength,
                                 depth + 2),
                         createWritableColumnVector(
                                 batchSize,
                                 new IntType(false),
                                 multisetRepeatedType.getType(1),
                                 descriptors,
+                                fieldLength,
                                 depth + 2));
             case ROW:
                 RowType rowType = (RowType) fieldType;
                 GroupType groupType = type.asGroupType();
-                WritableColumnVector[] columnVectors =
-                        new WritableColumnVector[rowType.getFieldCount()];
-                for (int i = 0; i < columnVectors.length; i++) {
-                    columnVectors[i] =
-                            createWritableColumnVector(
-                                    batchSize,
-                                    rowType.getTypeAt(i),
-                                    groupType.getType(i),
-                                    descriptors,
-                                    depth + 1);
+                if (depth >= fieldLength - 1) {
+                    WritableColumnVector[] columnVectors =
+                            new WritableColumnVector[rowType.getFieldCount()];
+                    for (int i = 0; i < columnVectors.length; i++) {
+                        columnVectors[i] =
+                                createWritableColumnVector(
+                                        batchSize,
+                                        rowType.getTypeAt(i),
+                                        groupType.getType(i),
+                                        descriptors,
+                                        fieldLength,
+                                        depth + 1);
+                    }
+                    return new HeapRowVector(batchSize, columnVectors);
+                } else {
+                    return createWritableColumnVector(
+                            batchSize,
+                            rowType.getTypeAt(0),
+                            groupType.getType(rowType.getFieldNames().get(0)),
+                            descriptors,
+                            fieldLength,
+                            depth + 1);
                 }
-                return new HeapRowVector(batchSize, columnVectors);
             default:
                 throw new UnsupportedOperationException(fieldType + " is not supported now.");
         }

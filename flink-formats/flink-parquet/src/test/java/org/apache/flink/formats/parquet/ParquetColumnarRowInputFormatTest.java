@@ -229,11 +229,14 @@ class ParquetColumnarRowInputFormatTest {
         // test reader
         LogicalType[] fieldTypes =
                 new LogicalType[] {new DoubleType(), new TinyIntType(), new IntType()};
+        RowType fullType = RowType.of(fieldTypes, new String[] {"f7", "f2", "f4"});
         ParquetColumnarRowInputFormat<FileSourceSplit> format =
                 new ParquetColumnarRowInputFormat(
                         new Configuration(),
-                        RowType.of(fieldTypes, new String[] {"f7", "f2", "f4"}),
+                        fullType,
                         null,
+                        null,
+                        InternalTypeInfo.of(fullType),
                         500,
                         false,
                         true);
@@ -274,6 +277,8 @@ class ParquetColumnarRowInputFormatTest {
                         new Configuration(),
                         // f99 not exist in parquet file.
                         RowType.of(fieldTypes, new String[] {"f7", "f2", "f4", "f99"}),
+                        null,
+                        null,
                         null,
                         500,
                         false,
@@ -400,7 +405,7 @@ class ParquetColumnarRowInputFormatTest {
 
         ParquetColumnarRowInputFormat format =
                 new ParquetColumnarRowInputFormat(
-                        new Configuration(), ROW_TYPE, null, 500, false, true);
+                        new Configuration(), ROW_TYPE, null, null, null, 500, false, true);
 
         // validate java serialization
         try {
@@ -692,8 +697,9 @@ class ParquetColumnarRowInputFormatTest {
         ParquetColumnarRowInputFormat<FileSourceSplit> format =
                 ParquetColumnarRowInputFormat.createPartitionedFormat(
                         new Configuration(),
-                        producedType,
+                        rowType,
                         InternalTypeInfo.of(producedType),
+                        projected,
                         partitionKeys,
                         PartitionFieldExtractor.forFileSystem("my_default_value"),
                         500,

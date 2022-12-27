@@ -207,6 +207,29 @@ object FlinkBatchRuleSets {
     ProjectWindowTableFunctionTransposeRule.INSTANCE
   )
 
+  /** RuleSet about project, but with PROJECT_FILTER_TRANSPOSE_WHOLE_EXPRESSIONS. */
+  val PROJECT_RULES_V2: RuleSet = RuleSets.ofList(
+    // push a projection past a filter
+    CoreRules.PROJECT_FILTER_TRANSPOSE_WHOLE_EXPRESSIONS,
+    // push a projection to the children of a non semi/anti join
+    // push all expressions to handle the time indicator correctly
+    new FlinkProjectJoinTransposeRule(
+      PushProjector.ExprCondition.FALSE,
+      RelFactories.LOGICAL_BUILDER),
+    // push a projection to the children of a semi/anti Join
+    ProjectSemiAntiJoinTransposeRule.INSTANCE,
+    // merge projections
+    CoreRules.PROJECT_MERGE,
+    // remove identity project
+    CoreRules.PROJECT_REMOVE,
+    // removes constant keys from an Agg
+    CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
+    // push project through a Union
+    CoreRules.PROJECT_SET_OP_TRANSPOSE,
+    // push a projection to the child of a WindowTableFunctionScan
+    ProjectWindowTableFunctionTransposeRule.INSTANCE
+  )
+
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList(
     (
       RuleSets.ofList(JoinConditionEqualityTransferRule.INSTANCE).asScala ++

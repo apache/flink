@@ -43,6 +43,7 @@ public class HiveBulkFormatAdapter extends HiveInputFormat {
                 fieldTypes,
                 hiveVersion,
                 producedRowType,
+                null,
                 useMapRedReader);
     }
 }

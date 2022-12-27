@@ -34,9 +34,12 @@ import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -47,6 +50,7 @@ import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Types;
@@ -56,6 +60,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,6 +71,10 @@ import java.util.Set;
 
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createColumnReader;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createWritableColumnVector;
+import static org.apache.flink.table.types.utils.DataTypeUtils.buildRow;
+import static org.apache.flink.table.types.utils.DataTypeUtils.buildRowFields;
+import static org.apache.flink.table.types.utils.DataTypeUtils.computeProjectedFields;
+import static org.apache.flink.table.types.utils.DataTypeUtils.getFieldNameToIndex;
 import static org.apache.parquet.hadoop.ParquetInputFormat.getFilter;
 
 /**
@@ -79,24 +88,47 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     private static final long serialVersionUID = 1L;
 
     protected final SerializableConfiguration hadoopConfig;
-    private final String[] projectedFields;
+    private final List<RowType.RowField> builtprojectedRowFields;
     private final LogicalType[] projectedTypes;
     private final ColumnBatchFactory<SplitT> batchFactory;
     private final int batchSize;
     protected final boolean isUtcTimestamp;
     private final boolean isCaseSensitive;
     private final Set<Integer> unknownFieldsIndices = new HashSet<>();
+    private final RowType builtProjectedRowType;
+    private final int[][] projectedFields;
+    private final Map<String, Integer> fieldNameToIndex;
 
     public ParquetVectorizedInputFormat(
             SerializableConfiguration hadoopConfig,
-            RowType projectedType,
+            RowType fullType,
+            @Nullable RowType projectedType,
+            @Nullable int[][] projectedFields,
             ColumnBatchFactory<SplitT> batchFactory,
             int batchSize,
             boolean isUtcTimestamp,
             boolean isCaseSensitive) {
         this.hadoopConfig = hadoopConfig;
-        this.projectedFields = projectedType.getFieldNames().toArray(new String[0]);
+        // projectedType can be null when produced type is not nested type
+        if (projectedType == null) {
+            projectedType = fullType;
+            String[] fieldNames = fullType.getFieldNames().toArray(new String[0]);
+            projectedFields = computeProjectedFields(fieldNames, fieldNames);
+        }
+        // projectedFields can be null when produced type is not nested type
+        if (projectedFields == null) {
+            this.projectedFields =
+                    DataTypeUtils.computeProjectedFields(
+                            projectedType.getFieldNames().toArray(new String[0]),
+                            fullType.getFieldNames().toArray(new String[0]));
+            this.builtprojectedRowFields = projectedType.getFields();
+        } else {
+            this.projectedFields = projectedFields;
+            this.builtprojectedRowFields = buildRowFields(fullType, projectedFields);
+        }
         this.projectedTypes = projectedType.getChildren().toArray(new LogicalType[0]);
+        this.builtProjectedRowType = buildRow(fullType, builtprojectedRowFields);
+        this.fieldNameToIndex = getFieldNameToIndex(builtProjectedRowType.getFieldNames());
         this.batchFactory = batchFactory;
         this.batchSize = batchSize;
         this.isUtcTimestamp = isUtcTimestamp;
@@ -129,7 +161,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         MessageType fileSchema = parquetFileReader.getFooter().getFileMetaData().getSchema();
         // Pruning unnecessary column, we should set the projection schema before running any
         // filtering (e.g. getting filtered record count) because projection impacts filtering
-        MessageType requestedSchema = clipParquetSchema(fileSchema);
+        MessageType requestedSchema = clipParquetSchema(fileSchema, builtProjectedRowType);
         parquetFileReader.setRequestedSchema(requestedSchema);
 
         checkSchema(fileSchema, requestedSchema);
@@ -165,63 +197,216 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         return true;
     }
 
-    /** Clips `parquetSchema` according to `fieldNames`. */
-    private MessageType clipParquetSchema(GroupType parquetSchema) {
-        Type[] types = new Type[projectedFields.length];
-        if (isCaseSensitive) {
-            for (int i = 0; i < projectedFields.length; ++i) {
-                String fieldName = projectedFields[i];
-                if (!parquetSchema.containsField(fieldName)) {
-                    LOG.warn(
-                            "{} does not exist in {}, will fill the field with null.",
-                            fieldName,
-                            parquetSchema);
-                    types[i] =
-                            ParquetSchemaConverter.convertToParquetType(
-                                    fieldName, projectedTypes[i]);
-                    unknownFieldsIndices.add(i);
-                } else {
-                    types[i] = parquetSchema.getType(fieldName);
+    /** Clips `parquetSchema` according to `projectedRowType`. */
+    private MessageType clipParquetSchema(GroupType parquetSchema, RowType projectedRowType) {
+        List<Type> clipParquetGroupFields =
+                clipParquetGroupFields(parquetSchema, projectedRowType, isCaseSensitive);
+        return Types.buildMessage()
+                .addFields(clipParquetGroupFields.toArray(new Type[0]))
+                .named("flink-parquet");
+    }
+
+    private Type clipParquetType(
+            Type parquetSchema, LogicalType flinkType, boolean isCaseSensitive) {
+        switch (flinkType.getTypeRoot()) {
+            case ARRAY:
+                ArrayType arrayType = (ArrayType) flinkType;
+                if (!isPrimitiveType(arrayType.getElementType())) {
+                    return clipParquetListType(
+                            parquetSchema.asGroupType(),
+                            arrayType.getElementType(),
+                            isCaseSensitive);
                 }
-            }
+                return parquetSchema;
+            case MAP:
+                MapType mapType = (MapType) flinkType;
+                if (!isPrimitiveType(mapType.getKeyType())
+                        || !isPrimitiveType(mapType.getValueType())) {
+                    return clipParquetMapType(
+                            parquetSchema.asGroupType(),
+                            mapType.getKeyType(),
+                            mapType.getValueType(),
+                            isCaseSensitive);
+                }
+                return parquetSchema;
+            case ROW:
+                return clipParquetGroup(
+                        parquetSchema.asGroupType(), (RowType) flinkType, isCaseSensitive);
+            default:
+                return parquetSchema;
+        }
+    }
+
+    private Type clipParquetListType(
+            GroupType parquetList, LogicalType elementType, boolean isCaseSensitive) {
+        assert !isPrimitiveType(elementType);
+        // Unannotated repeated group should be interpreted as required list of required element, so
+        // List element type is just the group itself.  Clip it
+        if (parquetList.getLogicalTypeAnnotation() == null
+                && parquetList.isRepetition(Type.Repetition.REPEATED)) {
+            return clipParquetType(parquetList, elementType, isCaseSensitive);
+        }
+        if (!(parquetList.getLogicalTypeAnnotation()
+                instanceof LogicalTypeAnnotation.ListLogicalTypeAnnotation)) {
+            throw new FlinkRuntimeException(
+                    "Invalid Parquet schema. Logical type annotation of annotated Parquet "
+                            + "lists must be ListLogicalTypeAnnotation: "
+                            + parquetList);
+        }
+        if (parquetList.getFieldCount() != 1
+                || !parquetList.getType(0).isRepetition(Type.Repetition.REPEATED)) {
+            throw new FlinkRuntimeException(
+                    "Invalid Parquet schema. LIST-annotated group should only have exactly one repeated field: "
+                            + parquetList);
+        }
+        Type firstType = parquetList.getType(0);
+        assert !firstType.isPrimitive();
+        GroupType repeatedGroup = firstType.asGroupType();
+        // If the repeated field is a group with multiple fields, or the repeated field is a group
+        // with one field and is named either "array" or uses the LIST-annotated group's name with
+        // "_tuple" appended then the repeated type is the element type and elements are required.
+        // Build a new LIST-annotated group with clipped `repeatedGroup` as element type and the
+        // only field.
+        if (repeatedGroup.getFieldCount() > 1
+                || "array".equals(repeatedGroup.getName())
+                || repeatedGroup.getName().equals(parquetList.getName() + "_tuple")) {
+            return Types.buildGroup(parquetList.getRepetition())
+                    .as(LogicalTypeAnnotation.listType())
+                    .addField(clipParquetType(repeatedGroup, elementType, isCaseSensitive))
+                    .named(parquetList.getName());
         } else {
-            Map<String, Type> caseInsensitiveFieldMap = new HashMap<>();
-            for (Type type : parquetSchema.getFields()) {
-                caseInsensitiveFieldMap.compute(
-                        type.getName().toLowerCase(Locale.ROOT),
-                        (key, previousType) -> {
-                            if (previousType != null) {
-                                throw new FlinkRuntimeException(
-                                        "Parquet with case insensitive mode should have no duplicate key: "
-                                                + key);
-                            }
-                            return type;
-                        });
-            }
-            for (int i = 0; i < projectedFields.length; ++i) {
-                Type type =
-                        caseInsensitiveFieldMap.get(projectedFields[i].toLowerCase(Locale.ROOT));
-                if (type == null) {
-                    LOG.warn(
-                            "{} does not exist in {}, will fill the field with null.",
-                            projectedFields[i],
-                            parquetSchema);
-                    type =
-                            ParquetSchemaConverter.convertToParquetType(
-                                    projectedFields[i].toLowerCase(Locale.ROOT), projectedTypes[i]);
-                    unknownFieldsIndices.add(i);
-                }
-                // TODO clip for array,map,row types.
-                types[i] = type;
+            GroupType newRepeatedGroup =
+                    Types.repeatedGroup()
+                            .addField(
+                                    clipParquetType(
+                                            repeatedGroup.getType(0), elementType, isCaseSensitive))
+                            .named(repeatedGroup.getName());
+            // Otherwise, the repeated field's type is the element type with the repeated field's
+            // repetition.
+            return Types.buildGroup(parquetList.getRepetition())
+                    .as(LogicalTypeAnnotation.listType())
+                    .addField(newRepeatedGroup)
+                    .named(parquetList.getName());
+        }
+    }
+
+    private GroupType clipParquetMapType(
+            GroupType parquetMap,
+            LogicalType keyType,
+            LogicalType valueType,
+            boolean isCaseSensitive) {
+        assert (!isPrimitiveType(keyType) || !isPrimitiveType(valueType));
+        GroupType repeatedGroup = parquetMap.getType(0).asGroupType();
+        Type parquetKeyType = repeatedGroup.getType(0);
+        Type parquetValueType = repeatedGroup.getType(1);
+
+        GroupType newRepeatedGroup =
+                Types.repeatedGroup()
+                        .as(repeatedGroup.getLogicalTypeAnnotation())
+                        .addField(clipParquetType(parquetKeyType, keyType, isCaseSensitive))
+                        .addField(clipParquetType(parquetValueType, valueType, isCaseSensitive))
+                        .named(repeatedGroup.getName());
+        return Types.buildGroup(parquetMap.getRepetition())
+                .as(parquetMap.getLogicalTypeAnnotation())
+                .addField(newRepeatedGroup)
+                .named(parquetMap.getName());
+    }
+
+    private GroupType clipParquetGroup(
+            GroupType parquetRow, RowType rowType, boolean isCaseSensitive) {
+        List<Type> clippedParquetFields =
+                clipParquetGroupFields(parquetRow, rowType, isCaseSensitive);
+        return Types.buildGroup(parquetRow.getRepetition())
+                .as(parquetRow.getLogicalTypeAnnotation())
+                .addFields(clippedParquetFields.toArray(new Type[0]))
+                .named(parquetRow.getName());
+    }
+
+    private List<Type> clipParquetGroupFields(
+            GroupType parquetSchema, RowType projectedRowType, boolean isCaseSensitive) {
+        if (isCaseSensitive) {
+            return clipParquetGroupFieldsCaseSensitive(parquetSchema, projectedRowType);
+        } else {
+            return clipParquetGroupFieldsCaseInSensitive(parquetSchema, projectedRowType);
+        }
+    }
+
+    private List<Type> clipParquetGroupFieldsCaseSensitive(
+            GroupType parquetSchema, RowType projectedRowType) {
+        List<Type> types = new ArrayList<>(projectedRowType.getFieldCount());
+        List<String> fieldNames = projectedRowType.getFieldNames();
+        List<LogicalType> projectedTypes = projectedRowType.getChildren();
+        for (int i = 0; i < projectedRowType.getFieldCount(); ++i) {
+            String fieldName = fieldNames.get(i);
+            if (!parquetSchema.containsField(fieldName)) {
+                LOG.warn(
+                        "{} does not exist in {}, will fill the field with null.",
+                        fieldName,
+                        parquetSchema);
+                types.add(
+                        ParquetSchemaConverter.convertToParquetType(
+                                fieldName, projectedTypes.get(i)));
+                unknownFieldsIndices.add(i);
+            } else {
+                types.add(
+                        clipParquetType(
+                                parquetSchema.getType(fieldName), projectedTypes.get(i), true));
             }
         }
+        return types;
+    }
 
-        return Types.buildMessage().addFields(types).named("flink-parquet");
+    private List<Type> clipParquetGroupFieldsCaseInSensitive(
+            GroupType parquetSchema, RowType projectedRowType) {
+        List<Type> types = new ArrayList<>(projectedRowType.getFieldCount());
+        List<String> fieldNames = projectedRowType.getFieldNames();
+        List<LogicalType> projectedTypes = projectedRowType.getChildren();
+        Map<String, Type> caseInsensitiveFieldMap = new HashMap<>();
+        for (Type type : parquetSchema.getFields()) {
+            caseInsensitiveFieldMap.compute(
+                    type.getName().toLowerCase(Locale.ROOT),
+                    (key, previousType) -> {
+                        if (previousType != null) {
+                            throw new FlinkRuntimeException(
+                                    "Parquet with case insensitive mode should have no duplicate key: "
+                                            + key);
+                        }
+                        return type;
+                    });
+        }
+        for (int i = 0; i < projectedRowType.getFieldCount(); ++i) {
+            Type type = caseInsensitiveFieldMap.get(fieldNames.get(i).toLowerCase(Locale.ROOT));
+            if (type == null) {
+                LOG.warn(
+                        "{} does not exist in {}, will fill the field with null.",
+                        fieldNames.get(i),
+                        parquetSchema);
+                type =
+                        ParquetSchemaConverter.convertToParquetType(
+                                fieldNames.get(i).toLowerCase(Locale.ROOT), projectedTypes.get(i));
+                unknownFieldsIndices.add(i);
+                types.add(type);
+            } else {
+                types.add(clipParquetType(type, projectedTypes.get(i), false));
+            }
+        }
+        return types;
+    }
+
+    private boolean isPrimitiveType(LogicalType logicalType) {
+        switch (logicalType.getTypeRoot()) {
+            case ROW:
+            case MAP:
+            case ARRAY:
+                return false;
+            default:
+                return true;
+        }
     }
 
     private void checkSchema(MessageType fileSchema, MessageType requestedSchema)
             throws IOException, UnsupportedOperationException {
-        if (projectedFields.length != requestedSchema.getFieldCount()) {
+        if (builtProjectedRowType.getFieldCount() != requestedSchema.getFieldCount()) {
             throw new RuntimeException(
                     "The quality of field type is incompatible with the request schema!");
         }
@@ -270,15 +455,17 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     }
 
     private WritableColumnVector[] createWritableVectors(MessageType requestedSchema) {
-        WritableColumnVector[] columns = new WritableColumnVector[projectedTypes.length];
+        WritableColumnVector[] columns = new WritableColumnVector[builtprojectedRowFields.size()];
         List<Type> types = requestedSchema.getFields();
-        for (int i = 0; i < projectedTypes.length; i++) {
+        for (int i = 0; i < builtprojectedRowFields.size(); i++) {
+            int refIndex = fieldNameToIndex.get(builtprojectedRowFields.get(i).getName());
             columns[i] =
                     createWritableColumnVector(
                             batchSize,
-                            projectedTypes[i],
-                            types.get(i),
+                            builtprojectedRowFields.get(i).getType(),
+                            types.get(refIndex),
                             requestedSchema.getColumns(),
+                            projectedFields[i].length,
                             0);
         }
         return columns;
@@ -399,16 +586,18 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
             }
 
             List<Type> types = requestedSchema.getFields();
-            columnReaders = new ColumnReader[types.size()];
-            for (int i = 0; i < types.size(); ++i) {
-                if (!unknownFieldsIndices.contains(i)) {
+            columnReaders = new ColumnReader[builtprojectedRowFields.size()];
+            for (int i = 0; i < builtprojectedRowFields.size(); ++i) {
+                int refIndex = fieldNameToIndex.get(builtprojectedRowFields.get(i).getName());
+                if (!unknownFieldsIndices.contains(refIndex)) {
                     columnReaders[i] =
                             createColumnReader(
                                     isUtcTimestamp,
-                                    projectedTypes[i],
-                                    types.get(i),
+                                    builtprojectedRowFields.get(i).getType(),
+                                    types.get(refIndex),
                                     requestedSchema.getColumns(),
                                     pages,
+                                    projectedFields[i].length,
                                     0);
                 }
             }

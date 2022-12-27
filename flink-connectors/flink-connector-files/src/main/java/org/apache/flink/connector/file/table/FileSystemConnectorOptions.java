@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
@@ -27,6 +28,7 @@ import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -67,6 +69,26 @@ public class FileSystemConnectorOptions {
                             "The file statistics type which the source could provide. "
                                     + "The statistics reporting is a heavy operation in some cases,"
                                     + "this config allows users to choose the statistics type according to different situations.");
+
+    public static final ConfigOption<List<String>>
+            SOURCE_NESTED_PROJECTION_PUSHDOWN_SUPPORTED_FORMATS =
+                    ConfigOptions.key("source.nested-projection-pushdown.supported-formats")
+                            .stringType()
+                            .asList()
+                            .defaultValues("parquet")
+                            .withDescription(
+                                    "A comma-separated list of file format short names for which "
+                                            + "Flink tries to push down projection for nested columns.");
+
+    public static final ConfigOption<Boolean> SOURCE_NESTED_PROJECTION_PUSHDOWN_ENABLED =
+            key("source.nested-projection-pushdown.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Prune nested fields from a logical relation's output which are unnecessary in "
+                                    + "satisfying a query. This optimization allows columnar file format readers to avoid "
+                                    + "reading unnecessary nested column data. Currently, only parquet is the "
+                                    + "format that implement this optimization.");
 
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
