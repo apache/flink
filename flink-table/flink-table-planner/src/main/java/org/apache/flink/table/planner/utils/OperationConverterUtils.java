@@ -151,16 +151,21 @@ public class OperationConverterUtils {
             ObjectIdentifier tableIdentifier,
             String originColumnName,
             String newColumnName,
-            CatalogTable catalogTable,
+            CatalogTable originTable,
             ResolvedSchema originResolveSchema) {
-        Schema originSchema = catalogTable.getUnresolvedSchema();
+        Schema originSchema = originTable.getUnresolvedSchema();
         List<String> tableColumns =
                 originSchema.getColumns().stream()
                         .map(Schema.UnresolvedColumn::getName)
                         .collect(Collectors.toList());
         // validate old column is exists or new column isn't duplicated or old column isn't
         // referenced by computed column
-        validateColumnName(originColumnName, newColumnName, tableColumns, originResolveSchema);
+        validateColumnName(
+                originColumnName,
+                newColumnName,
+                tableColumns,
+                originResolveSchema,
+                originTable.getPartitionKeys());
 
         // validate old column isn't referenced by watermark
         List<org.apache.flink.table.catalog.WatermarkSpec> watermarkSpecs =
@@ -175,9 +180,9 @@ public class OperationConverterUtils {
                             || referencedColumns.contains(originColumnName)) {
                         throw new ValidationException(
                                 String.format(
-                                        "Old column %s is referenced by watermark expression %s, "
+                                        "Old column %s is referred by watermark expression %s, "
                                                 + "currently doesn't allow to rename column which is "
-                                                + "referenced by watermark expression.",
+                                                + "referred by watermark expression.",
                                         originColumnName, watermarkSpec.asSummaryString()));
                     }
                 });
@@ -217,7 +222,7 @@ public class OperationConverterUtils {
 
         // build partition key
         List<String> newPartitionKeys =
-                catalogTable.getPartitionKeys().stream()
+                originTable.getPartitionKeys().stream()
                         .map(name -> name.equals(originColumnName) ? newColumnName : name)
                         .collect(Collectors.toList());
 
@@ -226,16 +231,17 @@ public class OperationConverterUtils {
                 tableIdentifier,
                 CatalogTable.of(
                         builder.build(),
-                        catalogTable.getComment(),
+                        originTable.getComment(),
                         newPartitionKeys,
-                        catalogTable.getOptions()));
+                        originTable.getOptions()));
     }
 
     private static void validateColumnName(
             String originColumnName,
             String newColumnName,
             List<String> tableColumns,
-            ResolvedSchema originResolvedSchema) {
+            ResolvedSchema originResolvedSchema,
+            List<String> partitionKeys) {
         // validate old column
         if (!tableColumns.contains(originColumnName)) {
             throw new ValidationException(
@@ -252,7 +258,7 @@ public class OperationConverterUtils {
                             newColumnName));
         }
 
-        // validate old column name isn't referenced by computed column case
+        // validate old column name isn't referred by computed column case
         originResolvedSchema.getColumns().stream()
                 .filter(column -> column instanceof Column.ComputedColumn)
                 .forEach(
@@ -264,12 +270,19 @@ public class OperationConverterUtils {
                             if (referencedColumn.contains(originColumnName)) {
                                 throw new ValidationException(
                                         String.format(
-                                                "Old column %s is referenced by computed column %s, currently doesn't "
-                                                        + "allow to rename column which is referenced by computed column.",
+                                                "Old column %s is referred by computed column %s, currently doesn't "
+                                                        + "allow to rename column which is referred by computed column.",
                                                 originColumnName,
                                                 computedColumn.asSummaryString()));
                             }
                         });
+        // validate partition keys doesn't contain the old column
+        if (partitionKeys.contains(originColumnName)) {
+            throw new ValidationException(
+                    String.format(
+                            "Can not rename column %s because it is used as the partition keys.",
+                            originColumnName));
+        }
     }
 
     private static void buildNewColumnFromOriginColumn(

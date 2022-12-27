@@ -1326,15 +1326,15 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 rename c to c1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column c is referenced by computed column `h` INT AS c - 1, "
-                                + "currently doesn't allow to rename column which is referenced by computed column.");
+                        "Old column c is referred by computed column `h` INT AS c - 1, "
+                                + "currently doesn't allow to rename column which is referred by computed column.");
 
         // rename column d test computed column case2
         assertThatThrownBy(() -> parse("alter table tb1 rename d to d1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column d is referenced by computed column `i` INT NOT NULL AS cat1.`default`.my_udf1(d) + 1,"
-                                + " currently doesn't allow to rename column which is referenced by computed column.");
+                        "Old column d is referred by computed column `i` INT NOT NULL AS cat1.`default`.my_udf1(d) + 1,"
+                                + " currently doesn't allow to rename column which is referred by computed column.");
 
         // rename column e test computed column expression is ApiExpression which doesn't implement
         // the equals method
@@ -1349,31 +1349,37 @@ public class SqlToOperationConverterTest {
                                 .primaryKey("a", "b")
                                 .build(),
                         "tb2",
-                        Collections.emptyList(),
+                        Collections.singletonList("a"),
                         Collections.emptyMap());
         catalog.createTable(new ObjectPath("db1", "tb2"), catalogTable2, true);
 
         assertThatThrownBy(() -> parse("alter table tb2 rename e to e1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column e is referenced by computed column `j` STRING AS upper(e), currently doesn't "
-                                + "allow to rename column which is referenced by computed column.");
+                        "Old column e is referred by computed column `j` STRING AS upper(e), currently doesn't "
+                                + "allow to rename column which is referred by computed column.");
 
-        // rename column f test watermark case
+        // rename column used in the watermark expression
         assertThatThrownBy(() -> parse("alter table tb1 rename f to f1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column f is referenced by watermark expression WATERMARK FOR `f`: TIMESTAMP(3) AS"
+                        "Old column f is referred by watermark expression WATERMARK FOR `f`: TIMESTAMP(3) AS"
                                 + " g - INTERVAL '5' SECOND, currently doesn't allow to rename column which is "
-                                + "referenced by watermark expression.");
+                                + "referred by watermark expression.");
 
-        // rename column e test watermark case2
+        // rename column used in the watermark expression
         assertThatThrownBy(() -> parse("alter table tb1 rename g to g1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column g is referenced by watermark expression WATERMARK FOR `f`: TIMESTAMP(3) AS "
+                        "Old column g is referred by watermark expression WATERMARK FOR `f`: TIMESTAMP(3) AS "
                                 + "g - INTERVAL '5' SECOND, currently doesn't allow to rename column which is "
-                                + "referenced by watermark expression.");
+                                + "referred by watermark expression.");
+
+        // rename column used as partition key
+        assertThatThrownBy(() -> parse("alter table tb2 rename a to a1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Can not rename column a because it is used as the partition keys");
     }
 
     @Test
