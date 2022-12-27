@@ -576,10 +576,8 @@ public final class CatalogManager {
      */
     public Set<String> listSchemas(String catalogName) {
         return Stream.concat(
-                        Optional.ofNullable(catalogs.get(catalogName))
-                                .map(Catalog::listDatabases)
-                                .orElse(Collections.emptyList())
-                                .stream(),
+                        Optional.ofNullable(catalogs.get(catalogName)).map(Catalog::listDatabases)
+                                .orElse(Collections.emptyList()).stream(),
                         temporaryTables.keySet().stream()
                                 .filter(i -> i.getCatalogName().equals(catalogName))
                                 .map(ObjectIdentifier::getDatabaseName))
