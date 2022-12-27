@@ -1051,10 +1051,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 } else if (alterTableOperation instanceof AlterTableChangeOperation) {
                     AlterTableChangeOperation alterTableChangeOperation =
                             (AlterTableChangeOperation) alterTableOperation;
-                    catalog.alterTable(
-                            alterTableChangeOperation.getTableIdentifier().toObjectPath(),
+                    catalogManager.alterTable(
                             alterTableChangeOperation.getNewTable(),
                             alterTableChangeOperation.getTableChanges(),
+                            alterTableChangeOperation.getTableIdentifier(),
                             false);
                 }
                 return TableResultImpl.TABLE_RESULT_OK;

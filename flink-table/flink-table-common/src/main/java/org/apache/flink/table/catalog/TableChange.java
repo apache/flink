@@ -72,6 +72,7 @@ public interface TableChange {
      *    ALTER TABLE &lt;table_name&gt; SET '&lt;key&gt;' = '&lt;value&gt;';
      * </pre>
      */
+    @PublicEvolving
     class SetOption implements TableChange {
 
         private final String key;
@@ -124,6 +125,7 @@ public interface TableChange {
      *    ALTER TABLE &lt;table_name&gt; RESET '&lt;key&gt;'
      * </pre>
      */
+    @PublicEvolving
     class ResetOption implements TableChange {
 
         private final String key;

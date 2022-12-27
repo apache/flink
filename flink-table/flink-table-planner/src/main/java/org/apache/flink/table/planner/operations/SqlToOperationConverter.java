@@ -596,16 +596,16 @@ public class SqlToOperationConverter {
                     new CatalogPartitionImpl(newProps, catalogPartition.getComment()));
         } else {
             // it's altering a table
-            Map<String, String> newOptions =
+            Map<String, String> changeOptions =
                     OperationConverterUtils.extractProperties(alterTableOptions.getPropertyList());
-            Map<String, String> allOptions = new HashMap<>(oldTable.getOptions());
-            allOptions.putAll(newOptions);
+            Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
+            newOptions.putAll(changeOptions);
             return new AlterTableChangeOperation(
                     tableIdentifier,
-                    newOptions.entrySet().stream()
+                    changeOptions.entrySet().stream()
                             .map(entry -> TableChange.set(entry.getKey(), entry.getValue()))
                             .collect(Collectors.toList()),
-                    oldTable.copy(allOptions));
+                    oldTable.copy(newOptions));
         }
     }
 
