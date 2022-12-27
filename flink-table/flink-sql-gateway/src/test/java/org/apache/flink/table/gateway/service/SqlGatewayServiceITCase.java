@@ -27,6 +27,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -64,7 +65,6 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.TableFunc0;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
@@ -100,6 +100,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
@@ -116,7 +117,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** ITCase for {@link SqlGatewayServiceImpl}. */
-public class SqlGatewayServiceITCase extends AbstractTestBase {
+public class SqlGatewayServiceITCase {
 
     @RegisterExtension
     @Order(1)
@@ -282,7 +283,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         });
 
         startRunningLatch.await();
-        assertThat(service.fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE))
+        assertThat(fetchResults(sessionHandle, operationHandle))
                 .isEqualTo(ResultSetImpl.NOT_READY_RESULTS);
         endRunningLatch.countDown();
     }
@@ -307,12 +308,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 .isEqualTo(new OperationInfo(OperationStatus.RUNNING));
 
         endRunningLatch.countDown();
-        OperationInfo expectedInfo = new OperationInfo(OperationStatus.FINISHED);
-
-        CommonTestUtils.waitUtil(
-                () -> service.getOperationInfo(sessionHandle, operationHandle).equals(expectedInfo),
-                Duration.ofSeconds(10),
-                "Failed to wait operation finish.");
+        awaitOperationTermination(sessionHandle, operationHandle);
 
         List<RowData> expectedData = getDefaultResultSet().getData();
         List<RowData> actualData = fetchAllResults(sessionHandle, operationHandle);
@@ -373,10 +369,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 Duration.ofSeconds(10),
                 "Failed to get expected operation status.");
 
-        assertThatThrownBy(
-                        () ->
-                                service.fetchResults(
-                                        sessionHandle, operationHandle, 0, Integer.MAX_VALUE))
+        assertThatThrownBy(() -> fetchResults(sessionHandle, operationHandle))
                 .satisfies(anyCauseMatches(SqlExecutionException.class, msg));
 
         service.closeOperation(sessionHandle, operationHandle);
@@ -505,6 +498,100 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 .isBetween(timeOpStart, timeOpSucceed);
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Executing statement tests
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    public void testIsQueryResult() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession();
+
+        BiFunction<SessionHandle, OperationHandle, Boolean> isQueryResultGetter =
+                (sessionHandle1, operationHandle) ->
+                        fetchResults(sessionHandle1, operationHandle).isQueryResult();
+
+        // trivial query syntax
+        validateResultSetField(
+                sessionHandle, "SELECT * FROM cat1.db1.tbl1;", isQueryResultGetter, true);
+
+        // query with CTE
+        validateResultSetField(
+                sessionHandle,
+                "WITH hub AS (SELECT * FROM cat1.db1.tbl1)\nSELECT * FROM hub;",
+                isQueryResultGetter,
+                true);
+
+        // non-query
+        validateResultSetField(
+                sessionHandle,
+                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
+                isQueryResultGetter,
+                false);
+    }
+
+    @Test
+    public void testHasJobID() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession();
+
+        BiFunction<SessionHandle, OperationHandle, Boolean> hasJobIDGetter =
+                (sessionHandle1, operationHandle) ->
+                        fetchResults(sessionHandle1, operationHandle).getJobID() != null;
+
+        // query
+        validateResultSetField(sessionHandle, "SELECT * FROM cat1.db1.tbl1;", hasJobIDGetter, true);
+
+        // insert
+        validateResultSetField(
+                sessionHandle,
+                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
+                hasJobIDGetter,
+                true);
+
+        // ddl
+        validateResultSetField(
+                sessionHandle,
+                "CREATE TABLE test (f0 INT) WITH ('connector' = 'values');",
+                hasJobIDGetter,
+                false);
+    }
+
+    @Test
+    public void testResultKind() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession();
+
+        BiFunction<SessionHandle, OperationHandle, ResultKind> resultKindGetter =
+                (sessionHandle1, operationHandle) ->
+                        fetchResults(sessionHandle1, operationHandle).getResultKind();
+
+        // query
+        validateResultSetField(
+                sessionHandle,
+                "SELECT * FROM cat1.db1.tbl1;",
+                resultKindGetter,
+                ResultKind.SUCCESS_WITH_CONTENT);
+
+        // insert
+        validateResultSetField(
+                sessionHandle,
+                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
+                resultKindGetter,
+                ResultKind.SUCCESS_WITH_CONTENT);
+
+        // ddl
+        validateResultSetField(
+                sessionHandle,
+                "CREATE TABLE test (f0 INT) WITH ('connector' = 'values');",
+                resultKindGetter,
+                ResultKind.SUCCESS);
+
+        // set
+        validateResultSetField(
+                sessionHandle, "SET 'key' = 'value';", resultKindGetter, ResultKind.SUCCESS);
+
+        validateResultSetField(
+                sessionHandle, "SET;", resultKindGetter, ResultKind.SUCCESS_WITH_CONTENT);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Catalog API tests
     // --------------------------------------------------------------------------------------------
@@ -550,13 +637,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         OperationHandle operationHandle =
                 service.executeStatement(sessionHandle, "CREATE DATABASE db2", -1, configuration);
 
-        CommonTestUtils.waitUtil(
-                () ->
-                        service.getOperationInfo(sessionHandle, operationHandle)
-                                .getStatus()
-                                .isTerminalStatus(),
-                Duration.ofSeconds(100),
-                "Failed to wait operation finish.");
+        awaitOperationTermination(sessionHandle, operationHandle);
         assertThat(service.listDatabases(sessionHandle, "cat")).contains("db1", "db2");
     }
 
@@ -883,13 +964,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                             }));
         }
         for (OperationHandle handle : handles) {
-            CommonTestUtils.waitUtil(
-                    () ->
-                            service.getOperationInfo(sessionHandle, handle)
-                                    .getStatus()
-                                    .isTerminalStatus(),
-                    Duration.ofSeconds(10),
-                    "Failed to wait operation terminate");
+            awaitOperationTermination(sessionHandle, handle);
         }
 
         assertThat(v.get()).isEqualTo(threadNum);
@@ -925,13 +1000,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 .satisfies(anyCauseMatches(RejectedExecutionException.class));
         latch.countDown();
         // Wait the first operation finishes
-        CommonTestUtils.waitUtil(
-                () ->
-                        service.getOperationInfo(sessions.get(0), operations.get(0))
-                                .getStatus()
-                                .isTerminalStatus(),
-                Duration.ofSeconds(10),
-                "Should come to end soon.");
+        awaitOperationTermination(sessions.get(0), operations.get(0));
         // Service is able to submit operation
         CountDownLatch success = new CountDownLatch(1);
         service.submitOperation(
@@ -973,10 +1042,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         OperationHandle operationHandle = submitDefaultOperation(sessionHandle, latch::await);
         service.cancelOperation(sessionHandle, operationHandle);
-        assertThatThrownBy(
-                        () ->
-                                service.fetchResults(
-                                        sessionHandle, operationHandle, 0, Integer.MAX_VALUE))
+        assertThatThrownBy(() -> fetchResults(sessionHandle, operationHandle))
                 .satisfies(
                         anyCauseMatches(
                                 String.format(
@@ -994,9 +1060,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 Arrays.asList(
                         () -> service.cancelOperation(sessionHandle, operationHandle),
                         () -> service.getOperationInfo(sessionHandle, operationHandle),
-                        () ->
-                                service.fetchResults(
-                                        sessionHandle, operationHandle, 0, Integer.MAX_VALUE));
+                        () -> fetchResults(sessionHandle, operationHandle));
 
         for (RunnableWithException request : requests) {
             assertThatThrownBy(request::run)
@@ -1185,5 +1249,28 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             token = result.getNextToken();
         }
         return results;
+    }
+
+    private void awaitOperationTermination(
+            SessionHandle sessionHandle, OperationHandle operationHandle) throws Exception {
+        service.getSession(sessionHandle)
+                .getOperationManager()
+                .awaitOperationTermination(operationHandle);
+    }
+
+    private ResultSet fetchResults(SessionHandle sessionHandle, OperationHandle operationHandle) {
+        return service.fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE);
+    }
+
+    private <T> void validateResultSetField(
+            SessionHandle sessionHandle,
+            String statement,
+            BiFunction<SessionHandle, OperationHandle, T> resultGetter,
+            T expected)
+            throws Exception {
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, statement, -1, new Configuration());
+        awaitOperationTermination(sessionHandle, operationHandle);
+        assertThat(resultGetter.apply(sessionHandle, operationHandle)).isEqualTo(expected);
     }
 }
