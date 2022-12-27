@@ -22,7 +22,7 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
@@ -129,7 +129,7 @@ class OperationRelatedITCase extends RestAPIITCaseBase {
                                         TimeUnit.SECONDS.sleep(10);
                                     } catch (InterruptedException ignored) {
                                     }
-                                    return ResultSet.NOT_READY_RESULTS;
+                                    return ResultSetImpl.NOT_READY_RESULTS;
                                 });
         assertThat(operationHandle).isNotNull();
         return Arrays.asList(sessionHandleId, operationHandle.getIdentifier().toString());

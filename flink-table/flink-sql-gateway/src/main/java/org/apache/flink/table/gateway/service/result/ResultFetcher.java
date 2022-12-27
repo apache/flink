@@ -19,16 +19,23 @@
 package org.apache.flink.table.gateway.service.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -54,19 +61,19 @@ public class ResultFetcher {
     private final OperationHandle operationHandle;
 
     private final ResolvedSchema resultSchema;
-    private final ResultStore resultStore;
+    private ResultStore resultStore;
     private final LinkedList<RowData> bufferedResults = new LinkedList<>();
     private final LinkedList<RowData> bufferedPrevResults = new LinkedList<>();
+    private final RowDataToStringConverter converter;
+
+    private final boolean isQueryResult;
+
+    @Nullable private final JobID jobID;
+
+    private final ResultKind resultKind;
 
     private long currentToken = 0;
     private boolean noMoreResults = false;
-
-    public ResultFetcher(
-            OperationHandle operationHandle,
-            ResolvedSchema resultSchema,
-            CloseableIterator<RowData> resultRows) {
-        this(operationHandle, resultSchema, resultRows, TABLE_RESULT_MAX_INITIAL_CAPACITY);
-    }
 
     @VisibleForTesting
     ResultFetcher(
@@ -74,17 +81,23 @@ public class ResultFetcher {
             ResolvedSchema resultSchema,
             CloseableIterator<RowData> resultRows,
             int maxBufferSize) {
-        this.operationHandle = operationHandle;
-        this.resultSchema = resultSchema;
+        this(operationHandle, resultSchema, null, false, null, ResultKind.SUCCESS_WITH_CONTENT);
         this.resultStore = new ResultStore(resultRows, maxBufferSize);
     }
 
-    public ResultFetcher(
-            OperationHandle operationHandle, ResolvedSchema resultSchema, List<RowData> rows) {
+    private ResultFetcher(
+            OperationHandle operationHandle,
+            ResolvedSchema resultSchema,
+            RowDataToStringConverter converter,
+            boolean isQueryResult,
+            @Nullable JobID jobID,
+            ResultKind resultKind) {
         this.operationHandle = operationHandle;
         this.resultSchema = resultSchema;
-        this.bufferedResults.addAll(rows);
-        this.resultStore = ResultStore.DUMMY_RESULT_STORE;
+        this.converter = converter;
+        this.isQueryResult = isQueryResult;
+        this.jobID = jobID;
+        this.resultKind = resultKind;
     }
 
     public void close() {
@@ -132,8 +145,7 @@ public class ResultFetcher {
             // equal to the Iterator.next()
             if (noMoreResults) {
                 LOG.debug("There is no more result for operation: {}.", operationHandle);
-                return new ResultSet(
-                        ResultSet.ResultType.EOS, null, resultSchema, Collections.emptyList());
+                return buildEosResultSet();
             }
 
             // a new token arrives, move the current buffer data into the prev buffered results.
@@ -147,8 +159,7 @@ public class ResultFetcher {
                     bufferedResults.addAll(newResults.get());
                 } else {
                     noMoreResults = true;
-                    return new ResultSet(
-                            ResultSet.ResultType.EOS, null, resultSchema, Collections.emptyList());
+                    return buildEosResultSet();
                 }
             }
 
@@ -166,11 +177,7 @@ public class ResultFetcher {
             for (int i = 0; i < resultSize; i++) {
                 bufferedPrevResults.add(bufferedResults.removeFirst());
             }
-            return new ResultSet(
-                    ResultSet.ResultType.PAYLOAD,
-                    currentToken,
-                    resultSchema,
-                    new ArrayList<>(bufferedPrevResults));
+            return buildPayloadResultSet();
         } else if (token == currentToken - 1 && token >= 0) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug(
@@ -190,11 +197,7 @@ public class ResultFetcher {
                 }
                 throw new SqlExecutionException(msg);
             }
-            return new ResultSet(
-                    ResultSet.ResultType.PAYLOAD,
-                    currentToken,
-                    resultSchema,
-                    new ArrayList<>(bufferedPrevResults));
+            return buildPayloadResultSet();
         } else {
             String msg;
             if (currentToken == 0) {
@@ -219,5 +222,112 @@ public class ResultFetcher {
     @VisibleForTesting
     public ResultStore getResultStore() {
         return resultStore;
+    }
+
+    private ResultSet buildEosResultSet() {
+        return ResultSetImpl.newBuilder()
+                .resultType(ResultSet.ResultType.EOS)
+                .nextToken(null)
+                .resolvedSchema(resultSchema)
+                .data(Collections.emptyList())
+                .build();
+    }
+
+    private ResultSet buildPayloadResultSet() {
+        return ResultSetImpl.newBuilder()
+                .resultType(ResultSet.ResultType.PAYLOAD)
+                .nextToken(currentToken)
+                .resolvedSchema(resultSchema)
+                .data(new ArrayList<>(bufferedPrevResults))
+                .converter(converter)
+                .isQueryResult(isQueryResult)
+                .jobID(jobID)
+                .resultKind(resultKind)
+                .build();
+    }
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    /** Builder to build the {@link ResultFetcher}. */
+    public static class Builder {
+        private OperationHandle operationHandle;
+        private ResolvedSchema resultSchema;
+        private List<RowData> rows;
+        private CloseableIterator<RowData> rowsIterator;
+        RowDataToStringConverter converter;
+        private boolean isQueryResult = false;
+        @Nullable private JobID jobID;
+        private ResultKind resultKind;
+
+        public Builder operationHandle(OperationHandle operationHandle) {
+            this.operationHandle = operationHandle;
+            return this;
+        }
+
+        public Builder resolvedSchema(ResolvedSchema resultSchema) {
+            this.resultSchema = resultSchema;
+            return this;
+        }
+
+        public Builder rows(List<RowData> rows) {
+            Preconditions.checkState(
+                    rowsIterator == null,
+                    "Result data has been set already. Can only set either rows or rowsIterator");
+            this.rows = rows;
+            return this;
+        }
+
+        public Builder rowsIterator(CloseableIterator<RowData> rowsIterator) {
+            Preconditions.checkState(
+                    rows == null,
+                    "Result data has been set already. Can only set either rows or rowsIterator");
+            this.rowsIterator = rowsIterator;
+            return this;
+        }
+
+        public Builder converter(RowDataToStringConverter converter) {
+            this.converter = converter;
+            return this;
+        }
+
+        public Builder setIsQueryResult() {
+            this.isQueryResult = true;
+            return this;
+        }
+
+        public Builder jobID(JobID jobID) {
+            this.jobID = jobID;
+            return this;
+        }
+
+        public Builder resultKind(ResultKind resultKind) {
+            this.resultKind = resultKind;
+            return this;
+        }
+
+        public ResultFetcher build() {
+            Preconditions.checkArgument(
+                    rows != null || rowsIterator != null, "Result data has not been set.");
+
+            ResultFetcher resultFetcher =
+                    new ResultFetcher(
+                            operationHandle,
+                            resultSchema,
+                            converter,
+                            isQueryResult,
+                            jobID,
+                            resultKind);
+
+            if (rows != null) {
+                resultFetcher.resultStore = ResultStore.DUMMY_RESULT_STORE;
+                resultFetcher.bufferedResults.addAll(rows);
+            } else {
+                resultFetcher.resultStore =
+                        new ResultStore(rowsIterator, TABLE_RESULT_MAX_INITIAL_CAPACITY);
+            }
+            return resultFetcher;
+        }
     }
 }

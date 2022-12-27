@@ -41,6 +41,7 @@ import org.apache.flink.table.functions.hive.HiveFunction;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -537,7 +538,7 @@ public class OperationExecutorFactory {
     }
 
     private static ResultSet buildResultSet(ResolvedSchema schema, List<RowData> data) {
-        return new ResultSet(EOS, null, schema, data);
+        return ResultSetImpl.newBuilder().resultType(EOS).resolvedSchema(schema).data(data).build();
     }
 
     private static List<Type> getSupportedHiveType() {

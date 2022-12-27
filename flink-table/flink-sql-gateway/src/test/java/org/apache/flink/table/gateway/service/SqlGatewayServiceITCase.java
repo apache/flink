@@ -47,6 +47,7 @@ import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -282,7 +283,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         startRunningLatch.await();
         assertThat(service.fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE))
-                .isEqualTo(ResultSet.NOT_READY_RESULTS);
+                .isEqualTo(ResultSetImpl.NOT_READY_RESULTS);
         endRunningLatch.countDown();
     }
 
@@ -1038,14 +1039,15 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         GenericRowData.ofKind(INSERT, 2L, StringData.fromString("MySql"), null),
                         GenericRowData.ofKind(DELETE, 1, null, null),
                         GenericRowData.ofKind(UPDATE_AFTER, 2, null, 101));
-        return new ResultSet(
-                PAYLOAD,
-                null,
-                ResolvedSchema.of(
-                        Column.physical("id", DataTypes.BIGINT()),
-                        Column.physical("name", DataTypes.STRING()),
-                        Column.physical("age", DataTypes.INT())),
-                data);
+        return ResultSetImpl.newBuilder()
+                .resultType(PAYLOAD)
+                .resolvedSchema(
+                        ResolvedSchema.of(
+                                Column.physical("id", DataTypes.BIGINT()),
+                                Column.physical("name", DataTypes.STRING()),
+                                Column.physical("age", DataTypes.INT())))
+                .data(data)
+                .build();
     }
 
     private void runGetOperationSchemaUntilOperationIsReadyOrError(

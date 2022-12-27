@@ -268,7 +268,12 @@ public class ResultFetcherTest extends TestLogger {
 
     @Test
     public void testFetchResultFromDummyStoreInParallel() throws Exception {
-        checkFetchResultInParallel(new ResultFetcher(OperationHandle.create(), schema, data));
+        checkFetchResultInParallel(
+                ResultFetcher.newBuilder()
+                        .operationHandle(OperationHandle.create())
+                        .resolvedSchema(schema)
+                        .rows(data)
+                        .build());
     }
 
     @Test

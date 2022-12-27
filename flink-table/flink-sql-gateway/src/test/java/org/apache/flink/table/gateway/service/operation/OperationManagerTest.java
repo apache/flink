@@ -26,6 +26,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
@@ -62,11 +63,13 @@ public class OperationManagerTest {
     public static void setUp() {
         operationManager = new OperationManager(EXECUTOR_SERVICE);
         defaultResultSet =
-                new ResultSet(
-                        PAYLOAD,
-                        1L,
-                        ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT())),
-                        Collections.singletonList(GenericRowData.of(1L)));
+                ResultSetImpl.newBuilder()
+                        .resultType(PAYLOAD)
+                        .nextToken(1L)
+                        .resolvedSchema(
+                                ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT())))
+                        .data(Collections.singletonList(GenericRowData.of(1L)))
+                        .build();
     }
 
     @AfterAll

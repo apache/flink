@@ -45,7 +45,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.gateway.api.results.ResultSet.NOT_READY_RESULTS;
+import static org.apache.flink.table.gateway.api.results.ResultSetImpl.NOT_READY_RESULTS;
 
 /** Manager for the {@link Operation}. */
 @Internal
@@ -89,8 +89,11 @@ public class OperationManager {
                         handle,
                         () -> {
                             ResultSet resultSet = executor.call();
-                            return new ResultFetcher(
-                                    handle, resultSet.getResultSchema(), resultSet.getData());
+                            return ResultFetcher.newBuilder()
+                                    .operationHandle(handle)
+                                    .resolvedSchema(resultSet.getResultSchema())
+                                    .rows(resultSet.getData())
+                                    .build();
                         });
 
         submitOperationInternal(handle, operation);
