@@ -249,8 +249,8 @@ object FlinkRelMdUtil {
   }
 
   /**
-   * This method is copied from calcite RelMdUtil. This method should be removed once CALCITE-4351
-   * is fixed. See CALCITE-4351 and FLINK-19780.
+   * This method is copied from calcite RelMdUtil and line 324 ~ 328 are changed. This method should
+   * be removed once CALCITE-4351 is fixed. See CALCITE-4351 and FLINK-19780.
    *
    * Computes the number of distinct rows for a set of keys returned from a join. Also known as NDV
    * (number of distinct values).
@@ -275,10 +275,14 @@ object FlinkRelMdUtil {
       joinType: JoinRelType,
       groupKey: ImmutableBitSet,
       predicate: RexNode,
-      useMaxNdv: Boolean): Double = {
-    if ((predicate == null || predicate.isAlwaysTrue) && groupKey.isEmpty) return 1d
+      useMaxNdv: Boolean): JDouble = {
+    if ((predicate == null || predicate.isAlwaysTrue) && groupKey.isEmpty) {
+      return 1d
+    }
     val join = joinRel.asInstanceOf[Join]
-    if (join.isSemiJoin) return RelMdUtil.getSemiJoinDistinctRowCount(join, mq, groupKey, predicate)
+    if (join.isSemiJoin) {
+      return RelMdUtil.getSemiJoinDistinctRowCount(join, mq, groupKey, predicate)
+    }
     val leftMask = ImmutableBitSet.builder
     val rightMask = ImmutableBitSet.builder
     val left = joinRel.getInputs.get(0)
@@ -316,7 +320,12 @@ object FlinkRelMdUtil {
         multiply(
           mq.getDistinctRowCount(left, leftMask.build, leftPred),
           mq.getDistinctRowCount(right, rightMask.build, rightPred))
-    RelMdUtil.numDistinctVals(distRowCount, mq.getRowCount(joinRel))
+    val rowCount = mq.getRowCount(joinRel)
+    if (distRowCount == null || rowCount == null) {
+      null
+    } else {
+      FlinkRelMdUtil.numDistinctVals(distRowCount, rowCount)
+    }
   }
 
   /**
