@@ -358,6 +358,39 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
+    void testCancelRequestedResource() throws Exception {
+        new Context() {
+            {
+                addContainerRequestFutures.add(new CompletableFuture<>());
+
+                testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer(
+                        (ignored1, ignored2) ->
+                                addContainerRequestFutures
+                                        .get(
+                                                addContainerRequestFuturesNumCompleted
+                                                        .getAndIncrement())
+                                        .complete(null));
+
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () -> {
+                                        CompletableFuture<YarnWorkerNode> requestFuture =
+                                                getDriver()
+                                                        .requestResource(
+                                                                testingTaskExecutorProcessSpec);
+                                        requestFuture.cancel(true);
+                                    });
+
+                            verifyFutureCompleted(addContainerRequestFutures.get(0));
+                            verifyFutureCompleted(removeContainerRequestFuture);
+                            assertThat(startContainerAsyncFuture.isDone()).isFalse();
+                        });
+            }
+        };
+    }
+
+    @Test
     void testUpdateBlocklist() throws Exception {
         new Context() {
             {

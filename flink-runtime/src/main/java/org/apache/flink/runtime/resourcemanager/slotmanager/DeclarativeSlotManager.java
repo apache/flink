@@ -491,6 +491,7 @@ public class DeclarativeSlotManager implements SlotManager {
         final Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
+            taskExecutorManager.clearPendingTaskManagerSlots();
             return;
         }
 
@@ -509,7 +510,7 @@ public class DeclarativeSlotManager implements SlotManager {
             return;
         }
 
-        ResourceCounter pendingSlots =
+        ResourceCounter freePendingSlots =
                 ResourceCounter.withResources(
                         taskExecutorManager.getPendingTaskManagerSlots().stream()
                                 .collect(
@@ -519,11 +520,15 @@ public class DeclarativeSlotManager implements SlotManager {
 
         for (Map.Entry<JobID, ResourceCounter> unfulfilledRequirement :
                 unfulfilledRequirements.entrySet()) {
-            pendingSlots =
+            freePendingSlots =
                     tryFulfillRequirementsWithPendingSlots(
                             unfulfilledRequirement.getKey(),
                             unfulfilledRequirement.getValue().getResourcesWithCount(),
-                            pendingSlots);
+                            freePendingSlots);
+        }
+
+        if (!freePendingSlots.isEmpty()) {
+            taskExecutorManager.removePendingTaskManagerSlots(freePendingSlots);
         }
     }
 

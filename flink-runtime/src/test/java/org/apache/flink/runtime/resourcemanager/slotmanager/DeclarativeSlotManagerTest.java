@@ -1092,16 +1092,13 @@ class DeclarativeSlotManagerTest {
             // the first 2 requirements should be fulfillable with the pending slots of the first
             // allocation (2 slots per worker)
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
-            assertThat(resourceRequestNumber.size()).isEqualTo(1);
-            assertThat(resourceRequestNumber.get(0)).isEqualTo(1);
+            assertThat(resourceRequestNumber.get(resourceRequestNumber.size() - 1)).isEqualTo(1);
 
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 2));
-            assertThat(resourceRequestNumber.size()).isEqualTo(1);
-            assertThat(resourceRequestNumber.get(0)).isEqualTo(1);
+            assertThat(resourceRequestNumber.get(resourceRequestNumber.size() - 1)).isEqualTo(1);
 
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 3));
-            assertThat(resourceRequestNumber.size()).isEqualTo(2);
-            assertThat(resourceRequestNumber.get(1)).isEqualTo(2);
+            assertThat(resourceRequestNumber.get(resourceRequestNumber.size() - 1)).isEqualTo(2);
         }
     }
 

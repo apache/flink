@@ -379,6 +379,9 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         allocateResourceFutures.add(new CompletableFuture<>());
         new Context() {
             {
+                PendingTaskManager pendingTaskManager =
+                        new PendingTaskManager(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
                             assertThat(requestCount.get()).isLessThan(2);
@@ -391,10 +394,11 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
                         ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
                                 ResourceAllocationResult.builder()
-                                        .addPendingTaskManagerAllocate(
-                                                new PendingTaskManager(
-                                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
-                                                        DEFAULT_NUM_SLOTS_PER_WORKER))
+                                        .addPendingTaskManagerAllocate(pendingTaskManager)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
                                         .build()));
                 runTest(
                         () -> {

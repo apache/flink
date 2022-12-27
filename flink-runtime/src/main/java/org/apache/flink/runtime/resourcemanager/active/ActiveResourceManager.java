@@ -58,17 +58,21 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An active implementation of {@link ResourceManager}.
@@ -97,6 +101,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     /** Identifiers and worker resource spec of all allocated workers. */
     private final Map<ResourceID, WorkerResourceSpec> workerResourceSpecs;
+
+    private final Map<CompletableFuture<WorkerType>, WorkerResourceSpec> unallocatedWorkerFutures;
 
     /** Identifiers of requested not registered workers. */
     private final Set<ResourceID> currentAttemptUnregisteredWorkers;
@@ -168,6 +174,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.pendingWorkerCounter = new WorkerCounter();
         this.totalWorkerCounter = new WorkerCounter();
         this.workerResourceSpecs = new HashMap<>();
+        this.unallocatedWorkerFutures = new HashMap<>();
         this.currentAttemptUnregisteredWorkers = new HashSet<>();
         this.previousAttemptUnregisteredWorkers = new HashSet<>();
         this.startWorkerFailureRater = checkNotNull(startWorkerFailureRater);
@@ -322,6 +329,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     // ------------------------------------------------------------------------
 
     private void checkResourceDeclarations() {
+        validateRunsInMainThread();
+
         for (ResourceDeclaration resourceDeclaration : resourceDeclarations) {
             WorkerResourceSpec workerResourceSpec = resourceDeclaration.getSpec();
             int declaredWorkerNumber = resourceDeclaration.getNumNeeded();
@@ -330,7 +339,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                     totalWorkerCounter.getNum(workerResourceSpec) - declaredWorkerNumber;
 
             if (releaseOrRequestWorkerNumber > 0) {
-                log.debug(
+                log.info(
                         "need release {} workers, current worker number {}, declared worker number {}",
                         releaseOrRequestWorkerNumber,
                         totalWorkerCounter.getNum(workerResourceSpec),
@@ -342,21 +351,51 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                                 resourceDeclaration.getUnwantedWorkers(),
                                 releaseOrRequestWorkerNumber);
 
-                // TODO, release pending/starting/running workers to exceed declared worker number.
                 if (remainingReleasingWorkerNumber > 0) {
-                    log.debug(
-                            "need release {} workers after release unwanted workers.",
-                            remainingReleasingWorkerNumber);
+                    // release not allocated workers
+                    remainingReleasingWorkerNumber =
+                            releaseUnallocatedWorkers(
+                                    workerResourceSpec, remainingReleasingWorkerNumber);
                 }
+
+                if (remainingReleasingWorkerNumber > 0) {
+                    // release starting workers
+                    remainingReleasingWorkerNumber =
+                            releaseAllocatedWorkers(
+                                    currentAttemptUnregisteredWorkers,
+                                    workerResourceSpec,
+                                    remainingReleasingWorkerNumber);
+                }
+
+                if (remainingReleasingWorkerNumber > 0) {
+                    // release registered workers
+                    remainingReleasingWorkerNumber =
+                            releaseAllocatedWorkers(
+                                    workerNodeMap.keySet(),
+                                    workerResourceSpec,
+                                    remainingReleasingWorkerNumber);
+                }
+
+                checkState(
+                        remainingReleasingWorkerNumber == 0,
+                        "there are no more workers to release");
             } else if (releaseOrRequestWorkerNumber < 0) {
-                int requestWorkerNumber = -releaseOrRequestWorkerNumber;
-                log.debug(
-                        "need request {} new workers, current worker number {}, declared worker number {}",
-                        requestWorkerNumber,
-                        totalWorkerCounter.getNum(workerResourceSpec),
-                        declaredWorkerNumber);
-                for (int i = 0; i < requestWorkerNumber; i++) {
-                    requestNewWorker(workerResourceSpec);
+                // In case of start worker failures, we should wait for an interval before
+                // trying to start new workers.
+                // Otherwise, ActiveResourceManager will always re-requesting the worker,
+                // which keeps the main thread busy.
+                if (startWorkerCoolDown.isDone()) {
+                    int requestWorkerNumber = -releaseOrRequestWorkerNumber;
+                    log.info(
+                            "need request {} new workers, current worker number {}, declared worker number {}",
+                            requestWorkerNumber,
+                            totalWorkerCounter.getNum(workerResourceSpec),
+                            declaredWorkerNumber);
+                    for (int i = 0; i < requestWorkerNumber; i++) {
+                        requestNewWorker(workerResourceSpec);
+                    }
+                } else {
+                    startWorkerCoolDown.thenRun(this::checkResourceDeclarations);
                 }
             } else {
                 log.debug(
@@ -384,16 +423,66 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         return needReleaseWorkerNumber;
     }
 
+    private int releaseUnallocatedWorkers(
+            WorkerResourceSpec workerResourceSpec, int needReleaseWorkerNumber) {
+        Set<CompletableFuture<WorkerType>> unallocatedWorkerFuturesShouldRelease =
+                unallocatedWorkerFutures.entrySet().stream()
+                        .filter(e -> e.getValue().equals(workerResourceSpec))
+                        .map(Map.Entry::getKey)
+                        .collect(Collectors.toSet());
+        for (CompletableFuture<WorkerType> requestFuture : unallocatedWorkerFuturesShouldRelease) {
+            if (needReleaseWorkerNumber <= 0) {
+                break;
+            }
+            if (requestFuture.cancel(true)) {
+                needReleaseWorkerNumber--;
+            }
+        }
+        return needReleaseWorkerNumber;
+    }
+
+    private int releaseAllocatedWorkers(
+            Collection<ResourceID> candidateWorkers,
+            WorkerResourceSpec workerResourceSpec,
+            int needReleaseWorkerNumber) {
+        List<ResourceID> workerCanRelease =
+                candidateWorkers.stream()
+                        .filter(r -> workerResourceSpec.equals(workerResourceSpecs.get(r)))
+                        .collect(Collectors.toList());
+
+        Exception cause = new FlinkExpectedException("resource is no longer needed");
+        for (ResourceID resourceID : workerCanRelease) {
+            if (needReleaseWorkerNumber <= 0) {
+                break;
+            }
+
+            if (releaseResource(resourceID, cause)) {
+                needReleaseWorkerNumber--;
+            } else {
+                log.warn("Resource {} could not release.", resourceID);
+            }
+        }
+
+        return needReleaseWorkerNumber;
+    }
+
     private boolean releaseResource(InstanceID instanceId, Exception cause) {
         WorkerType worker = getWorkerByInstanceId(instanceId);
         if (worker != null) {
-            internalStopWorker(worker.getResourceID());
-            closeTaskManagerConnection(worker.getResourceID(), cause);
-            return true;
+            return releaseResource(worker.getResourceID(), cause);
         } else {
             log.debug("Instance {} not found in ResourceManager.", instanceId);
             return false;
         }
+    }
+
+    private boolean releaseResource(ResourceID resourceID, Exception cause) {
+        if (workerNodeMap.containsKey(resourceID)) {
+            internalStopWorker(resourceID);
+            closeTaskManagerConnection(resourceID, cause);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -415,27 +504,33 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 workerResourceSpec,
                 pendingCount);
 
-        // In case of start worker failures, we should wait for an interval before
-        // trying to start new workers.
-        // Otherwise, ActiveResourceManager will always re-requesting the worker,
-        // which keeps the main thread busy.
         final CompletableFuture<WorkerType> requestResourceFuture =
-                startWorkerCoolDown.thenCompose(
-                        (ignore) -> resourceManagerDriver.requestResource(taskExecutorProcessSpec));
+                resourceManagerDriver.requestResource(taskExecutorProcessSpec);
+        unallocatedWorkerFutures.put(requestResourceFuture, workerResourceSpec);
+
         FutureUtils.assertNoException(
                 requestResourceFuture.handle(
                         (worker, exception) -> {
+                            unallocatedWorkerFutures.remove(requestResourceFuture);
+
                             if (exception != null) {
                                 final int count =
                                         pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
                                 totalWorkerCounter.decreaseAndGet(workerResourceSpec);
-                                log.warn(
-                                        "Failed requesting worker with resource spec {}, current pending count: {}",
-                                        workerResourceSpec,
-                                        count,
-                                        exception);
-                                recordWorkerFailureAndPauseWorkerCreationIfNeeded();
-                                checkResourceDeclarations();
+                                if (exception instanceof CancellationException) {
+                                    log.info(
+                                            "Requesting worker with resource spec {} canceled, current pending count: {}",
+                                            workerResourceSpec,
+                                            count);
+                                } else {
+                                    log.warn(
+                                            "Failed requesting worker with resource spec {}, current pending count: {}",
+                                            workerResourceSpec,
+                                            count,
+                                            exception);
+                                    recordWorkerFailureAndPauseWorkerCreationIfNeeded();
+                                    checkResourceDeclarations();
+                                }
                             } else {
                                 final ResourceID resourceId = worker.getResourceID();
                                 workerNodeMap.put(resourceId, worker);
