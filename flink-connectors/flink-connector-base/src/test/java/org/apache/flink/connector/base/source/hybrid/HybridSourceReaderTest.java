@@ -292,7 +292,7 @@ public class HybridSourceReaderTest {
                     @Override
                     public SourceReader<Integer, MockSourceSplit> createReader(
                             SourceReaderContext readerContext) {
-                        return org.mockito.Mockito.spy(super.createReader(readerContext));
+                        return Mockito.spy(super.createReader(readerContext));
                     }
                 };
 
@@ -324,7 +324,7 @@ public class HybridSourceReaderTest {
                     @Override
                     public SourceReader<Integer, MockSourceSplit> createReader(
                             SourceReaderContext readerContext) {
-                        return org.mockito.Mockito.spy(super.createReader(readerContext));
+                        return Mockito.spy(super.createReader(readerContext));
                     }
                 };
 
