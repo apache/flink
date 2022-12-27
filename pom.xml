@@ -1530,6 +1530,7 @@ under the License.
 						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/protobuf/**</exclude>
+						<exclude>flink-table/flink-sql-gateway/src/test/resources/*.txt</exclude>
 						<!-- netty test file, still Apache License 2.0 but with a different header -->
 						<exclude>flink-runtime/src/test/java/org/apache/flink/runtime/io/network/buffer/AbstractByteBufTest.java</exclude>
 						<!-- Configuration Files. -->

@@ -19,7 +19,9 @@
 package org.apache.flink.table.gateway.rest.serde;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -60,8 +62,16 @@ public class ColumnInfo {
         this.comment = comment;
     }
 
-    public static ColumnInfo create(String name, LogicalType type, @Nullable String comment) {
-        return new ColumnInfo(name, type, comment);
+    public static ColumnInfo toColumnInfo(Column column) {
+        return new ColumnInfo(
+                column.getName(),
+                column.getDataType().getLogicalType(),
+                column.getComment().orElse(null));
+    }
+
+    public Column toColumn() {
+        return Column.physical(name, DataTypeUtils.toInternalDataType(logicalType))
+                .withComment(comment);
     }
 
     public String getName() {

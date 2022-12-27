@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/** {@link MessagePathParameter} for fetch results. */
+/** {@link MessagePathParameter} for fetching results. */
 public class FetchResultsTokenParameters extends MessageParameters {
 
     private final SessionHandleIdPathParameter sessionHandleIdPathParameter =
