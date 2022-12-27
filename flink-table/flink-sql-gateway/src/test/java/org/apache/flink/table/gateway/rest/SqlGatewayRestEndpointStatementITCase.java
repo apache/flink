@@ -40,8 +40,8 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementRes
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
-import org.apache.flink.table.gateway.rest.util.SqlGatewayRestClientAndEndpointUtils.TestRestClient;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
 
@@ -61,7 +61,7 @@ import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestClientAndEndpointUtils.TestRestClient.getTestRestClient;
+import static org.apache.flink.table.gateway.rest.util.TestingRestClient.getTestingRestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -77,7 +77,7 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
     private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
             new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
-    private static TestRestClient restClient;
+    private static TestingRestClient restClient;
     private static final ExecuteStatementHeaders executeStatementHeaders =
             ExecuteStatementHeaders.getInstance();
     private static SessionMessageParameters sessionMessageParameters;
@@ -97,7 +97,7 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
 
     @BeforeAll
     public static void setup() throws Exception {
-        restClient = getTestRestClient();
+        restClient = getTestingRestClient();
     }
 
     @AfterAll

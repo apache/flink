@@ -24,15 +24,16 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.table.gateway.rest.util.SqlGatewayRestClientAndEndpointUtils.TestRestClient;
+import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
-import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -41,7 +42,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
 import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkConfig;
-import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestClientAndEndpointUtils.TestRestClient.getTestRestClient;
+import static org.apache.flink.table.gateway.rest.util.TestingRestClient.getTestingRestClient;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The base class for Rest API IT test. */
@@ -56,7 +57,7 @@ abstract class RestAPIITCaseBase {
     protected static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
-    @Nullable private static TestRestClient restClient = null;
+    @Nullable private static TestingRestClient restClient = null;
     @Nullable private static String targetAddress = null;
     @Nullable private static SqlGatewayRestEndpoint sqlGatewayRestEndpoint = null;
 
@@ -70,7 +71,7 @@ abstract class RestAPIITCaseBase {
                 new SqlGatewayRestEndpoint(config, SQL_GATEWAY_SERVICE_EXTENSION.getService());
         sqlGatewayRestEndpoint.start();
         InetSocketAddress serverAddress = checkNotNull(sqlGatewayRestEndpoint.getServerAddress());
-        restClient = getTestRestClient();
+        restClient = getTestingRestClient();
         targetAddress = serverAddress.getHostName();
         port = serverAddress.getPort();
     }

@@ -43,6 +43,7 @@ public enum SqlGatewayRestAPIVersion
     // V0 is just for test
     V0(false, false),
 
+    // V1 introduces basic APIs for rest endpoint
     V1(false, true),
 
     // V2 adds support for configuring Session and allows to serialize the RowData with PLAIN_TEXT
