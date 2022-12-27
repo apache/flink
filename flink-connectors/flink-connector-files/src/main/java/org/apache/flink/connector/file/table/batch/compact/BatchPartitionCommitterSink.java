@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemCommitter;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicy;
@@ -25,10 +26,7 @@ import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactOutput;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
@@ -44,8 +42,9 @@ import java.util.Map;
  * Committer operator for partition in batch mode. This is the single (non-parallel) task. It
  * collects all the partition information including partition and written files send from upstream.
  */
-public class BatchPartitionCommitter extends AbstractStreamOperator<Void>
-        implements OneInputStreamOperator<CompactOutput, Void> {
+public class BatchPartitionCommitterSink extends RichSinkFunction<CompactOutput> {
+
+    private static final long serialVersionUID = 1L;
 
     private final FileSystemFactory fsFactory;
     private final TableMetaStoreFactory msFactory;
@@ -59,7 +58,7 @@ public class BatchPartitionCommitter extends AbstractStreamOperator<Void>
 
     private transient Map<String, List<Path>> partitionsFiles;
 
-    public BatchPartitionCommitter(
+    public BatchPartitionCommitterSink(
             FileSystemFactory fsFactory,
             TableMetaStoreFactory msFactory,
             boolean overwrite,
@@ -81,14 +80,12 @@ public class BatchPartitionCommitter extends AbstractStreamOperator<Void>
     }
 
     @Override
-    public void initializeState(StateInitializationContext context) throws Exception {
-        super.initializeState(context);
+    public void open(Configuration parameters) throws Exception {
         partitionsFiles = new HashMap<>();
     }
 
     @Override
-    public void processElement(StreamRecord<CompactOutput> element) throws Exception {
-        CompactOutput compactOutput = element.getValue();
+    public void invoke(CompactOutput compactOutput, Context context) throws Exception {
         for (Map.Entry<String, List<Path>> compactFiles :
                 compactOutput.getCompactedFiles().entrySet()) {
             // collect the written partition and written files
@@ -105,7 +102,7 @@ public class BatchPartitionCommitter extends AbstractStreamOperator<Void>
             if (partitionCommitPolicyFactory != null) {
                 policies =
                         partitionCommitPolicyFactory.createPolicyChain(
-                                getUserCodeClassloader(),
+                                getRuntimeContext().getUserCodeClassLoader(),
                                 () -> {
                                     try {
                                         return fsFactory.create(tmpPath.toUri());

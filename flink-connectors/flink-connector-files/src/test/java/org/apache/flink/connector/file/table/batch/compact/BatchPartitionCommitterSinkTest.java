@@ -18,20 +18,22 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemCommitterTest;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
-import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactOutput;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,9 +46,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 
 /** Test for batch partition committer. */
-public class BatchPartitionCommitterTest {
+public class BatchPartitionCommitterSinkTest {
 
     private final FileSystemFactory fileSystemFactory = FileSystem::get;
 
@@ -64,8 +67,8 @@ public class BatchPartitionCommitterTest {
 
     @Test
     public void testPartitionCommit() throws Exception {
-        BatchPartitionCommitter partitionCommitter =
-                new BatchPartitionCommitter(
+        BatchPartitionCommitterSink committerSink =
+                new BatchPartitionCommitterSink(
                         fileSystemFactory,
                         metaStoreFactory,
                         false,
@@ -75,22 +78,21 @@ public class BatchPartitionCommitterTest {
                         new LinkedHashMap<>(),
                         identifier,
                         new PartitionCommitPolicyFactory(null, null, null));
-        try (OneInputStreamOperatorTestHarness<CompactOutput, Void> testHarness =
-                new OneInputStreamOperatorTestHarness<>(partitionCommitter)) {
-            testHarness.setup();
-            testHarness.open();
+        committerSink.open(new Configuration());
 
-            List<Path> pathList1 = createFiles(path, "task-1/p1=0/p2=0/", "f1", "f2");
-            List<Path> pathList2 = createFiles(path, "task-2/p1=0/p2=0/", "f3");
-            List<Path> pathList3 = createFiles(path, "task-2/p1=0/p2=1/", "f4");
+        List<Path> pathList1 = createFiles(path, "task-1/p1=0/p2=0/", "f1", "f2");
+        List<Path> pathList2 = createFiles(path, "task-2/p1=0/p2=0/", "f3");
+        List<Path> pathList3 = createFiles(path, "task-2/p1=0/p2=1/", "f4");
 
-            Map<String, List<Path>> compactedFiles = new HashMap<>();
-            pathList1.addAll(pathList2);
-            compactedFiles.put("p1=0/p2=0/", pathList1);
-            compactedFiles.put("p1=0/p2=1/", pathList3);
+        Map<String, List<Path>> compactedFiles = new HashMap<>();
+        pathList1.addAll(pathList2);
+        compactedFiles.put("p1=0/p2=0/", pathList1);
+        compactedFiles.put("p1=0/p2=1/", pathList3);
 
-            testHarness.processElement(new StreamRecord<>(new CompactOutput(compactedFiles)));
-        }
+        committerSink.invoke(new CompactMessages.CompactOutput(compactedFiles), TEST_SINK_CONTEXT);
+        committerSink.setRuntimeContext(TEST_RUNTIME_CONTEXT);
+        committerSink.finish();
+        committerSink.close();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f1")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f2")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f3")).exists();
@@ -105,5 +107,32 @@ public class BatchPartitionCommitterTest {
             paths.add(new Path(Files.createFile(dir.resolve(file)).toFile().getPath()));
         }
         return paths;
+    }
+
+    static final RuntimeContext TEST_RUNTIME_CONTEXT = getMockRuntimeContext();
+    static final SinkFunction.Context TEST_SINK_CONTEXT =
+            new SinkFunction.Context() {
+                @Override
+                public long currentProcessingTime() {
+                    return 0;
+                }
+
+                @Override
+                public long currentWatermark() {
+                    return 0;
+                }
+
+                @Override
+                public Long timestamp() {
+                    return null;
+                }
+            };
+
+    static RuntimeContext getMockRuntimeContext() {
+        RuntimeContext context = Mockito.mock(RuntimeContext.class);
+        doReturn(Thread.currentThread().getContextClassLoader())
+                .when(context)
+                .getUserCodeClassLoader();
+        return context;
     }
 }
