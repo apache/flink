@@ -75,6 +75,10 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
      * taskExecutorProcessSpec. The returned future will be completed with a worker node in the
      * deployment specific type, or exceptionally if the allocation has failed.
      *
+     * <p>Note: The returned future could be cancelled by ResourceManager. This means
+     * ResourceManager don't need this resource anymore, Driver should try to cancel this request
+     * from the external resource manager.
+     *
      * <p>Note: Completion of the returned future does not necessarily mean the success of resource
      * allocation and task manager launching. Allocation and launching failures can still happen
      * after the future completion. In such cases, {@link ResourceEventHandler#onWorkerTerminated}

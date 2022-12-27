@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Implementation of {@link TaskManagerTracker} supporting fine-grained resource management. */
 public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
@@ -82,12 +83,14 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         LOG.trace("Record the pending allocations {}.", pendingSlotAllocations);
         pendingSlotAllocationRecords.clear();
         pendingSlotAllocationRecords.putAll(pendingSlotAllocations);
+        removeUnusedPendingTaskManagers();
     }
 
     @Override
     public void clearPendingAllocationsOfJob(JobID jobId) {
         LOG.info("Clear all pending allocations for job {}.", jobId);
         pendingSlotAllocationRecords.values().forEach(allocation -> allocation.remove(jobId));
+        removeUnusedPendingTaskManagers();
     }
 
     @Override
@@ -264,6 +267,16 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                         SlotState.PENDING);
         taskManager.notifyAllocation(allocationId, slot);
         slots.put(allocationId, slot);
+    }
+
+    private void removeUnusedPendingTaskManagers() {
+        Set<PendingTaskManagerId> unusedPendingTaskManager =
+                pendingTaskManagers.keySet().stream()
+                        .filter(id -> !pendingSlotAllocationRecords.containsKey(id))
+                        .collect(Collectors.toSet());
+        for (PendingTaskManagerId pendingTaskManagerId : unusedPendingTaskManager) {
+            removePendingTaskManager(pendingTaskManagerId);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------

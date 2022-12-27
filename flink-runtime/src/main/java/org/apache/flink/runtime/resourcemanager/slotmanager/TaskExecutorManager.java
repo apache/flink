@@ -27,6 +27,7 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -524,6 +525,38 @@ class TaskExecutorManager implements AutoCloseable {
 
     public Collection<PendingTaskManagerSlot> getPendingTaskManagerSlots() {
         return pendingSlots.values();
+    }
+
+    /**
+     * remove unused pending task manager slots.
+     *
+     * @param unusedResourceCounter the count of unused resources.
+     */
+    public void removePendingTaskManagerSlots(ResourceCounter unusedResourceCounter) {
+        if (!resourceAllocator.isSupported()) {
+            return;
+        }
+        Preconditions.checkState(unusedResourceCounter.getResources().size() == 1);
+        Preconditions.checkState(
+                unusedResourceCounter.getResources().contains(defaultSlotResourceProfile));
+
+        int wantedPendingSlotsNumber =
+                pendingSlots.size()
+                        - unusedResourceCounter.getResourceCount(defaultSlotResourceProfile);
+        pendingSlots.entrySet().removeIf(ignore -> pendingSlots.size() > wantedPendingSlotsNumber);
+
+        declareNeededResourcesWithDelay();
+    }
+
+    /** clear all pending task manager slots. */
+    public void clearPendingTaskManagerSlots() {
+        if (!resourceAllocator.isSupported()) {
+            return;
+        }
+        if (!pendingSlots.isEmpty()) {
+            this.pendingSlots.clear();
+            declareNeededResourcesWithDelay();
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
