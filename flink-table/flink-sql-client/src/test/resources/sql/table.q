@@ -463,20 +463,6 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
 # ==========================================================================
 # test alter table modify schema
 # ==========================================================================
-# test alter table schema modify a nonexistent column
-alter table orders2 modify shipment_info string first;
-[ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Failed to execute ALTER TABLE statement.
-Try to modify a column `shipment_info` which does not exist in the table.
-!error
-
-# test alter table schema modify a column after a nonexistent column
-alter table orders2 modify product string after shipment_info;
-[ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Failed to execute ALTER TABLE statement.
-Referenced column `shipment_info` by 'AFTER' does not exist in the table.
-!error
-
 # test alter table schema modify primary key
 alter table orders2 modify constraint order_constraint primary key (trade_order_id) not enforced;
 [INFO] Execute statement succeed.
