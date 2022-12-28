@@ -1281,6 +1281,7 @@ public class SqlToOperationConverterTest {
                                 .column("a", DataTypes.INT().notNull())
                                 .column("b", DataTypes.BIGINT().notNull())
                                 .column("c1", DataTypes.STRING().notNull())
+                                .withComment("column comment")
                                 .columnByExpression("d", "a*(b+2 + a*b)")
                                 .column(
                                         "e",
@@ -1307,6 +1308,7 @@ public class SqlToOperationConverterTest {
                                 .column("a", DataTypes.INT().notNull())
                                 .column("b", DataTypes.BIGINT().notNull())
                                 .column("c", DataTypes.STRING().notNull())
+                                .withComment("column comment")
                                 .columnByExpression("d", "a*(b+2 + a*b)")
                                 .column(
                                         "e",
@@ -1540,7 +1542,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1574,7 +1576,7 @@ public class SqlToOperationConverterTest {
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
                                 + "  `i` AS [`b` * 2],\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1594,6 +1596,7 @@ public class SqlToOperationConverterTest {
                         .column("b", DataTypes.BIGINT().notNull())
                         .columnByExpression("i", new SqlCallExpression("`b` * 2"))
                         .column("c", DataTypes.STRING().notNull())
+                        .withComment("column comment")
                         .columnByExpression("d", "a*(b+2 + a*b)")
                         .column(
                                 "e",
@@ -1624,7 +1627,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1759,7 +1762,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1781,7 +1784,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1806,7 +1809,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1830,7 +1833,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1909,7 +1912,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1930,7 +1933,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1959,7 +1962,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -1989,7 +1992,7 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
                                 + "  `a` INT NOT NULL,\n"
                                 + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
                                 + "  `d` AS [a*(b+2 + a*b)],\n"
                                 + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
                                 + "  `f` AS [e.f1 + e.f2.f0],\n"
@@ -2112,6 +2115,7 @@ public class SqlToOperationConverterTest {
                         .withComment("move b to first and add comment")
                         .column("a", DataTypes.INT().notNull())
                         .column("c", DataTypes.STRING().notNull())
+                        .withComment("column comment")
                         .columnByExpression("d", "a*(b+2 + a*b)")
                         .column(
                                 "e",
@@ -2137,6 +2141,7 @@ public class SqlToOperationConverterTest {
                         .column("a", DataTypes.INT().notNull())
                         .column("b", DataTypes.BIGINT().notNull())
                         .column("c", DataTypes.STRING().notNull())
+                        .withComment("column comment")
                         .columnByExpression("d", "a*(b+2 + a*b)")
                         .column(
                                 "e",
@@ -2169,6 +2174,7 @@ public class SqlToOperationConverterTest {
                 tableIdentifier,
                 Schema.newBuilder()
                         .column("c", DataTypes.BIGINT())
+                        .withComment("column comment")
                         .column("a", DataTypes.INT().notNull())
                         .column("b", DataTypes.BIGINT().notNull())
                         .columnByExpression("d", "`a` + 2")
@@ -2204,6 +2210,7 @@ public class SqlToOperationConverterTest {
                         .column("a", DataTypes.INT().notNull())
                         .column("b", DataTypes.BIGINT().notNull())
                         .column("c", DataTypes.STRING().notNull())
+                        .withComment("column comment")
                         .columnByExpression("d", "a*(b+2 + a*b)")
                         .columnByMetadata("e", DataTypes.INT(), null, true)
                         .column("f", DataTypes.TIMESTAMP(3).notNull())
@@ -2289,6 +2296,7 @@ public class SqlToOperationConverterTest {
                         .column("a", DataTypes.INT().notNull())
                         .column("b", DataTypes.BIGINT().notNull())
                         .column("c", DataTypes.STRING().notNull())
+                        .withComment("column comment")
                         .columnByExpression("d", "a*(b+2 + a*b)")
                         .column(
                                 "e",
@@ -2777,6 +2785,7 @@ public class SqlToOperationConverterTest {
                         .column("a", DataTypes.INT().notNull())
                         .column("b", DataTypes.BIGINT().notNull())
                         .column("c", DataTypes.STRING().notNull())
+                        .withComment("column comment")
                         .columnByExpression("d", "a*(b+2 + a*b)")
                         .column(
                                 "e",

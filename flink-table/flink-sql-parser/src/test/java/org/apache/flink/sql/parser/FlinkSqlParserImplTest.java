@@ -315,25 +315,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testAlterTable() {
         sql("alter table t1 rename to t2").ok("ALTER TABLE `T1` RENAME TO `T2`");
         sql("alter table c1.d1.t1 rename to t2").ok("ALTER TABLE `C1`.`D1`.`T1` RENAME TO `T2`");
-        final String sql0 = "alter table t1 set ('key1'='value1')";
-        final String expected0 = "ALTER TABLE `T1` SET (\n" + "  'key1' = 'value1'\n" + ")";
-        sql(sql0).ok(expected0);
-        final String sql1 = "alter table t1 " + "add constraint ct1 primary key(a, b) not enforced";
-        final String expected1 =
-                "ALTER TABLE `T1` ADD (\n"
-                        + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
-                        + ")";
-        sql(sql1).ok(expected1);
-        final String sql2 = "alter table t1 " + "add unique(a, b)";
-        final String expected2 = "ALTER TABLE `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")";
-        sql(sql2).ok(expected2);
-        final String sql3 = "alter table t1 drop constraint ct1";
-        final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
-        sql(sql3).ok(expected3);
-
-        final String sql4 = "alter table t1 rename a to b";
-        final String expected4 = "ALTER TABLE `T1` RENAME `A` TO `B`";
-        sql(sql4).ok(expected4);
+        sql("alter table t1 set ('key1'='value1')")
+                .ok("ALTER TABLE `T1` SET (\n" + "  'key1' = 'value1'\n" + ")");
+        sql("alter table t1 add constraint ct1 primary key(a, b) not enforced")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
+        sql("alter table t1 " + "add unique(a, b)")
+                .ok("ALTER TABLE `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
+        sql("alter table t1 drop constraint ct1").ok("ALTER TABLE `T1` DROP CONSTRAINT `CT1`");
+        sql("alter table t1 rename a to b").ok("ALTER TABLE `T1` RENAME `A` TO `B`");
+        sql("alter table t1 rename a.x to a.y").ok("ALTER TABLE `T1` RENAME `A`.`X` TO `A`.`Y`");
     }
 
     @Test

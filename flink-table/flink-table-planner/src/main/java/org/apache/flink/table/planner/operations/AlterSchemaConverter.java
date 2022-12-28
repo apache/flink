@@ -72,6 +72,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  */
 public class AlterSchemaConverter {
 
+    private static final String EX_MSG_PREFIX = "Failed to execute ALTER TABLE statement.\n";
+
     private final SqlValidator sqlValidator;
     private final Function<SqlNode, String> escapeExpression;
     private final Consumer<SqlTableConstraint> constraintValidator;
@@ -157,7 +159,6 @@ public class AlterSchemaConverter {
                         column -> {
                             if (oldColumnName.equals(column.getName())) {
                                 buildNewColumnFromOriginColumn(builder, column, newColumnName);
-                                builder.withComment(column.getName());
                             } else {
                                 builder.fromColumns(Collections.singletonList(column));
                             }
@@ -190,8 +191,6 @@ public class AlterSchemaConverter {
     // --------------------------------------------------------------------------------------------
 
     private abstract static class SchemaConverter {
-
-        static final String EX_MSG_PREFIX = "Failed to execute ALTER TABLE statement.\n";
 
         List<String> sortedColumnNames = new ArrayList<>();
         Set<String> alterColNames = new HashSet<>();
@@ -640,12 +639,15 @@ public class AlterSchemaConverter {
                     metadataColumn.getMetadataKey(),
                     metadataColumn.isVirtual());
         }
+        originColumn.getComment().ifPresent(builder::withComment);
     }
 
     private static String getColumnName(SqlIdentifier identifier) {
         if (!identifier.isSimple()) {
             throw new UnsupportedOperationException(
-                    String.format("Alter nested row type %s is not supported yet.", identifier));
+                    String.format(
+                            "%sAlter nested row type %s is not supported yet.",
+                            EX_MSG_PREFIX, identifier));
         }
         return identifier.getSimple();
     }
