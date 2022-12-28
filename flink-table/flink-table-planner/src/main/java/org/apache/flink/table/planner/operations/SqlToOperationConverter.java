@@ -698,16 +698,19 @@ public class SqlToOperationConverter {
                         tableIdentifier));
     }
 
-    private AlterTableSchemaOperation convertAlterTableSchema(
+    private Operation convertAlterTableSchema(
             ObjectIdentifier tableIdentifier,
             ResolvedCatalogTable originalTable,
             SqlAlterTableSchema alterTableSchema) {
-
-        return new AlterTableSchemaOperation(
+        List<TableChange> tableChanges = new ArrayList<>();
+        Schema newSchema =
+                alterSchemaConverter.applySchemaChange(
+                        alterTableSchema, originalTable.getUnresolvedSchema(), tableChanges);
+        return new AlterTableChangeOperation(
                 tableIdentifier,
+                tableChanges,
                 CatalogTable.of(
-                        alterSchemaConverter.applySchemaChange(
-                                alterTableSchema, originalTable.getUnresolvedSchema()),
+                        newSchema,
                         originalTable.getComment(),
                         originalTable.getPartitionKeys(),
                         originalTable.getOptions()));

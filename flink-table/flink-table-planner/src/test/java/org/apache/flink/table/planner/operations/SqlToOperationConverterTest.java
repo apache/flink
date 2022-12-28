@@ -1539,17 +1539,8 @@ public class SqlToOperationConverterTest {
                 parse("alter table tb1 add h double not null comment 'h is double not null'");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  `h` DOUBLE NOT NULL COMMENT 'h is double not null'\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `h` DOUBLE NOT NULL COMMENT 'h is double not null' ");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1569,21 +1560,12 @@ public class SqlToOperationConverterTest {
                                 + " k string primary key not enforced after h)");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `j` METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata',\n"
-                                + "  `h` AS [`e`.`f2`.`f1`],\n"
-                                + "  `k` STRING NOT NULL,\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `i` AS [`b` * 2],\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  CONSTRAINT `PK_k` PRIMARY KEY (`k`) NOT ENFORCED\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `h` ARRAY<FLOAT> AS `e`.`f2`.`f1` FIRST,\n"
+                                + "  ADD `i` BIGINT NOT NULL AS `b` * 2 AFTER `b`,\n"
+                                + "  ADD `j` INT METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' FIRST,\n"
+                                + "  ADD `k` STRING NOT NULL AFTER `h`,\n"
+                                + "  ADD CONSTRAINT `PK_k` PRIMARY KEY (`k`) NOT ENFORCED");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1624,21 +1606,12 @@ public class SqlToOperationConverterTest {
                                 + " na as r.r3 after ts)");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  `na` AS [`r`.`r3`],\n"
-                                + "  `tss` AS [`to_timestamp`(`r`.`r2`)] COMMENT 'rowtime',\n"
-                                + "  `r` ROW<`r1` BIGINT, `r2` STRING, `r3` ARRAY<DOUBLE> NOT NULL> NOT NULL COMMENT 'add composite type',\n"
-                                + "  `n` AS [`r`.`r1` * 2],\n"
-                                + "  `m` MAP<STRING NOT NULL, INT NOT NULL>\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `r` ROW<`r1` BIGINT, `r2` STRING, `r3` ARRAY<DOUBLE> NOT NULL> NOT NULL COMMENT 'add composite type' ,\n"
+                                + "  ADD `m` MAP<STRING NOT NULL, INT NOT NULL> ,\n"
+                                + "  ADD `n` BIGINT AS `r`.`r1` * 2 AFTER `r`,\n"
+                                + "  ADD `tss` TIMESTAMP(3) AS `to_timestamp`(`r`.`r2`) COMMENT 'rowtime' AFTER `ts`,\n"
+                                + "  ADD `na` ARRAY<DOUBLE> NOT NULL AS `r`.`r3` AFTER `ts`");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1759,17 +1732,8 @@ public class SqlToOperationConverterTest {
                 parse("alter table tb1 add constraint my_pk primary key (a, b) not enforced");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  CONSTRAINT `my_pk` PRIMARY KEY (`a`, `b`) NOT ENFORCED\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD CONSTRAINT `my_pk` PRIMARY KEY (`a`, `b`) NOT ENFORCED");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1781,18 +1745,9 @@ public class SqlToOperationConverterTest {
         operation = parse("alter table tb1 add x bigint not null primary key not enforced");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  `x` BIGINT NOT NULL,\n"
-                                + "  CONSTRAINT `PK_x` PRIMARY KEY (`x`) NOT ENFORCED\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `x` BIGINT NOT NULL ,\n"
+                                + "  ADD CONSTRAINT `PK_x` PRIMARY KEY (`x`) NOT ENFORCED");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1806,18 +1761,9 @@ public class SqlToOperationConverterTest {
         operation = parse("alter table tb1 add x bigint primary key not enforced");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  `x` BIGINT NOT NULL,\n"
-                                + "  CONSTRAINT `PK_x` PRIMARY KEY (`x`) NOT ENFORCED\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `x` BIGINT NOT NULL ,\n"
+                                + "  ADD CONSTRAINT `PK_x` PRIMARY KEY (`x`) NOT ENFORCED");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1830,17 +1776,8 @@ public class SqlToOperationConverterTest {
         operation = parse("alter table tb1 add constraint ct primary key(ts) not enforced");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) NOT NULL COMMENT 'just a comment',\n"
-                                + "  CONSTRAINT `ct` PRIMARY KEY (`ts`) NOT ENFORCED\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD CONSTRAINT `ct` PRIMARY KEY (`ts`) NOT ENFORCED");
         List<Schema.UnresolvedColumn> subColumns =
                 originalSchema.getColumns().subList(0, originalSchema.getColumns().size() - 1);
         assertAlterTableSchema(
@@ -1909,17 +1846,8 @@ public class SqlToOperationConverterTest {
         Operation operation = parse("alter table tb1 add watermark for ts as ts");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  WATERMARK FOR `ts` AS [`ts`]\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD WATERMARK FOR `ts`: TIMESTAMP(3) AS `ts`");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1930,18 +1858,9 @@ public class SqlToOperationConverterTest {
                 parse("alter table tb1 add (tss timestamp(3) not null, watermark for tss as tss)");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  `tss` TIMESTAMP(3) NOT NULL,\n"
-                                + "  WATERMARK FOR `tss` AS [`tss`]\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `tss` TIMESTAMP(3) NOT NULL ,\n"
+                                + "  ADD WATERMARK FOR `tss`: TIMESTAMP(3) NOT NULL AS `tss`");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1959,19 +1878,10 @@ public class SqlToOperationConverterTest {
                                 + "watermark for tss as tss - interval '3' second)");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  `log_ts` STRING NOT NULL,\n"
-                                + "  `tss` AS [`to_timestamp`(`log_ts`)],\n"
-                                + "  WATERMARK FOR `tss` AS [`tss` - INTERVAL '3' SECOND]\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `log_ts` STRING NOT NULL ,\n"
+                                + "  ADD `tss` TIMESTAMP(3) AS `to_timestamp`(`log_ts`) ,\n"
+                                + "  ADD WATERMARK FOR `tss`: TIMESTAMP(3) AS `tss` - INTERVAL '3' SECOND");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -1989,19 +1899,10 @@ public class SqlToOperationConverterTest {
                                 + "y as x.f1, watermark for y as y - interval '1' day)");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
-                                + "  `x` ROW<`f0` STRING, `f1` TIMESTAMP(3) NOT NULL> NOT NULL,\n"
-                                + "  `y` AS [`x`.`f1`],\n"
-                                + "  WATERMARK FOR `y` AS [`y` - INTERVAL '1' DAY]\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  ADD `x` ROW<`f0` STRING, `f1` TIMESTAMP(3) NOT NULL> NOT NULL ,\n"
+                                + "  ADD `y` TIMESTAMP(3) NOT NULL AS `x`.`f1` ,\n"
+                                + "  ADD WATERMARK FOR `y`: TIMESTAMP(3) NOT NULL AS `y` - INTERVAL '1' DAY");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
@@ -2730,11 +2631,11 @@ public class SqlToOperationConverterTest {
 
     private void assertAlterTableSchema(
             Operation operation, ObjectIdentifier expectedIdentifier, Schema expectedSchema) {
-        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
-        final AlterTableSchemaOperation alterTableSchemaOperation =
-                (AlterTableSchemaOperation) operation;
-        assertThat(alterTableSchemaOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
-        assertThat(alterTableSchemaOperation.getCatalogTable().getUnresolvedSchema())
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
+        final AlterTableChangeOperation alterTableChangeOperation =
+                (AlterTableChangeOperation) operation;
+        assertThat(alterTableChangeOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableChangeOperation.getNewTable().getUnresolvedSchema())
                 .isEqualTo(expectedSchema);
     }
 

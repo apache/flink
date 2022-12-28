@@ -27,12 +27,14 @@ import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -90,7 +92,10 @@ public class AlterSchemaConverter {
         this.schemaResolver = schemaResolver;
     }
 
-    public Schema applySchemaChange(SqlAlterTableSchema alterTableSchema, Schema originalSchema) {
+    public Schema applySchemaChange(
+            SqlAlterTableSchema alterTableSchema,
+            Schema originalSchema,
+            List<TableChange> tableChangeCollector) {
         AlterSchemaStrategy strategy = computeAlterSchemaStrategy(alterTableSchema);
         SchemaConverter converter =
                 strategy == AlterSchemaStrategy.ADD
@@ -100,14 +105,16 @@ public class AlterSchemaConverter {
                                 sqlValidator,
                                 constraintValidator,
                                 escapeExpression,
-                                schemaResolver)
+                                schemaResolver,
+                                tableChangeCollector)
                         : new ModifySchemaConverter(
                                 originalSchema,
                                 (FlinkTypeFactory) sqlValidator.getTypeFactory(),
                                 sqlValidator,
                                 constraintValidator,
                                 escapeExpression,
-                                schemaResolver);
+                                schemaResolver,
+                                tableChangeCollector);
         converter.updateColumn(alterTableSchema.getColumnPositions().getList());
         alterTableSchema.getWatermark().ifPresent(converter::updateWatermark);
         alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
@@ -204,18 +211,23 @@ public class AlterSchemaConverter {
         Consumer<SqlTableConstraint> constraintValidator;
         SchemaResolver schemaResolver;
 
+        List<TableChange> changesCollector;
+        List<Function<ResolvedSchema, TableChange>> changeBuilders = new ArrayList<>();
+
         SchemaConverter(
                 Schema originalSchema,
                 FlinkTypeFactory typeFactory,
                 SqlValidator sqlValidator,
                 Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
-                SchemaResolver schemaResolver) {
+                SchemaResolver schemaResolver,
+                List<TableChange> changesCollector) {
             this.typeFactory = typeFactory;
             this.sqlValidator = sqlValidator;
             this.constraintValidator = constraintValidator;
             this.escapeExpressions = escapeExpressions;
             this.schemaResolver = schemaResolver;
+            this.changesCollector = changesCollector;
             populateColumnsFromSourceTable(originalSchema);
             populatePrimaryKeyFromSourceTable(originalSchema);
             populateWatermarkFromSourceTable(originalSchema);
@@ -247,8 +259,9 @@ public class AlterSchemaConverter {
 
         private void updateColumn(List<SqlNode> alterColumnPositions) {
             applyColumnPosition(alterColumnPositions);
-            for (SqlNode alterColumnPos : alterColumnPositions) {
-                SqlTableColumn alterColumn = ((SqlTableColumnPosition) alterColumnPos).getColumn();
+            for (SqlNode sqlNode : alterColumnPositions) {
+                SqlTableColumnPosition alterColumnPos = (SqlTableColumnPosition) sqlNode;
+                SqlTableColumn alterColumn = alterColumnPos.getColumn();
                 Schema.UnresolvedColumn newColumn;
                 if (alterColumn instanceof SqlTableColumn.SqlComputedColumn) {
                     newColumn =
@@ -270,7 +283,7 @@ public class AlterSchemaConverter {
         }
 
         private void updatePrimaryKey(SqlTableConstraint alterPrimaryKey) {
-            checkPrimaryKeyExists();
+            checkAndCollectPrimaryKeyChange();
             constraintValidator.accept(alterPrimaryKey);
             List<String> primaryKeyColumns = Arrays.asList(alterPrimaryKey.getColumnNames());
             primaryKey =
@@ -301,7 +314,7 @@ public class AlterSchemaConverter {
         }
 
         private void updateWatermark(SqlWatermark alterWatermarkSpec) {
-            checkWatermarkExists();
+            checkAndCollectWatermarkChange();
             SqlIdentifier eventTimeColumnName = alterWatermarkSpec.getEventTimeColumnName();
             if (!eventTimeColumnName.isSimple()) {
                 throw new ValidationException(
@@ -369,23 +382,11 @@ public class AlterSchemaConverter {
                                     "%sEncounter duplicate column `%s`.",
                                     EX_MSG_PREFIX, columnName));
                 }
-                checkColumnExists(columnName);
-                getColumnPosition(columnPosition)
-                        .ifPresent(pos -> sortedColumnNames.add(pos, columnName));
+                updatePositionAndCollectColumnChange(columnPosition, columnName);
             }
         }
 
-        Optional<Integer> getColumnPosition(SqlTableColumnPosition columnPosition) {
-            int pos = sortedColumnNames.size();
-            if (columnPosition.isFirstColumn()) {
-                pos = 0;
-            } else if (columnPosition.isAfterReferencedColumn()) {
-                pos = sortedColumnNames.indexOf(getReferencedColumn(columnPosition)) + 1;
-            }
-            return Optional.of(pos);
-        }
-
-        private String getReferencedColumn(SqlTableColumnPosition columnPosition) {
+        protected String getReferencedColumn(SqlTableColumnPosition columnPosition) {
             SqlIdentifier referencedIdent = columnPosition.getAfterReferencedColumn();
             Preconditions.checkNotNull(
                     referencedIdent,
@@ -430,7 +431,11 @@ public class AlterSchemaConverter {
             }
             Schema updatedSchema = resultBuilder.build();
             try {
-                schemaResolver.resolve(updatedSchema);
+                ResolvedSchema resolvedSchema = schemaResolver.resolve(updatedSchema);
+                changesCollector.addAll(
+                        changeBuilders.stream()
+                                .map(changeBuilder -> changeBuilder.apply(resolvedSchema))
+                                .collect(Collectors.toList()));
                 return updatedSchema;
             } catch (Exception e) {
                 throw new ValidationException(
@@ -438,11 +443,12 @@ public class AlterSchemaConverter {
             }
         }
 
-        abstract void checkColumnExists(String columnName);
+        abstract void updatePositionAndCollectColumnChange(
+                SqlTableColumnPosition columnPosition, String columnName);
 
-        abstract void checkPrimaryKeyExists();
+        abstract void checkAndCollectPrimaryKeyChange();
 
-        abstract void checkWatermarkExists();
+        abstract void checkAndCollectWatermarkChange();
     }
 
     private static class AddSchemaConverter extends SchemaConverter {
@@ -453,18 +459,20 @@ public class AlterSchemaConverter {
                 SqlValidator sqlValidator,
                 Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
-                SchemaResolver schemaResolver) {
+                SchemaResolver schemaResolver,
+                List<TableChange> changeCollector) {
             super(
                     originalSchema,
                     typeFactory,
                     sqlValidator,
                     constraintValidator,
                     escapeExpressions,
-                    schemaResolver);
+                    schemaResolver,
+                    changeCollector);
         }
 
         @Override
-        void checkPrimaryKeyExists() {
+        void checkAndCollectPrimaryKeyChange() {
             if (primaryKey != null) {
                 throw new ValidationException(
                         String.format(
@@ -474,10 +482,11 @@ public class AlterSchemaConverter {
                                 primaryKey.getColumnNames().stream()
                                         .collect(Collectors.joining("`, `", "[`", "`]"))));
             }
+            changeBuilders.add(schema -> TableChange.add(unwrap(schema.getPrimaryKey())));
         }
 
         @Override
-        void checkWatermarkExists() {
+        void checkAndCollectWatermarkChange() {
             if (watermarkSpec != null) {
                 throw new ValidationException(
                         String.format(
@@ -488,15 +497,37 @@ public class AlterSchemaConverter {
                                 ((SqlCallExpression) watermarkSpec.getWatermarkExpression())
                                         .getSqlExpression()));
             }
+            changeBuilders.add(schema -> TableChange.add(schema.getWatermarkSpecs().get(0)));
         }
 
         @Override
-        void checkColumnExists(String columnName) {
+        void updatePositionAndCollectColumnChange(
+                SqlTableColumnPosition columnPosition, String columnName) {
             if (sortedColumnNames.contains(columnName)) {
                 throw new ValidationException(
                         String.format(
                                 "%sTry to add a column `%s` which already exists in the table.",
                                 EX_MSG_PREFIX, columnName));
+            }
+
+            if (columnPosition.isFirstColumn()) {
+                changeBuilders.add(
+                        schema ->
+                                TableChange.add(
+                                        unwrap(schema.getColumn(columnName)),
+                                        TableChange.ColumnPosition.first()));
+                sortedColumnNames.add(0, columnName);
+            } else if (columnPosition.isAfterReferencedColumn()) {
+                String referenceName = getReferencedColumn(columnPosition);
+                sortedColumnNames.add(sortedColumnNames.indexOf(referenceName) + 1, columnName);
+                changeBuilders.add(
+                        schema ->
+                                TableChange.add(
+                                        unwrap(schema.getColumn(columnName)),
+                                        TableChange.ColumnPosition.after(referenceName)));
+            } else {
+                changeBuilders.add(schema -> TableChange.add(unwrap(schema.getColumn(columnName))));
+                sortedColumnNames.add(columnName);
             }
         }
     }
@@ -509,28 +540,40 @@ public class AlterSchemaConverter {
                 SqlValidator sqlValidator,
                 Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
-                SchemaResolver schemaResolver) {
+                SchemaResolver schemaResolver,
+                List<TableChange> tableChangeCollector) {
             super(
                     originalSchema,
                     typeFactory,
                     sqlValidator,
                     constraintValidator,
                     escapeExpressions,
-                    schemaResolver);
+                    schemaResolver,
+                    tableChangeCollector);
         }
 
         @Override
-        void checkColumnExists(String columnName) {
+        void updatePositionAndCollectColumnChange(
+                SqlTableColumnPosition columnPosition, String columnName) {
             if (!sortedColumnNames.contains(columnName)) {
                 throw new ValidationException(
                         String.format(
                                 "%sTry to modify a column `%s` which does not exist in the table.",
                                 EX_MSG_PREFIX, columnName));
             }
+
+            if (columnPosition.isFirstColumn()) {
+                sortedColumnNames.remove(columnName);
+                sortedColumnNames.add(0, columnName);
+            } else if (columnPosition.isAfterReferencedColumn()) {
+                String referenceName = getReferencedColumn(columnPosition);
+                sortedColumnNames.remove(columnName);
+                sortedColumnNames.add(sortedColumnNames.indexOf(referenceName) + 1, columnName);
+            }
         }
 
         @Override
-        void checkPrimaryKeyExists() {
+        void checkAndCollectPrimaryKeyChange() {
             if (primaryKey == null) {
                 throw new ValidationException(
                         String.format(
@@ -541,7 +584,7 @@ public class AlterSchemaConverter {
         }
 
         @Override
-        void checkWatermarkExists() {
+        void checkAndCollectWatermarkChange() {
             if (watermarkSpec == null) {
                 throw new ValidationException(
                         String.format(
@@ -549,15 +592,6 @@ public class AlterSchemaConverter {
                                         + "want to add a new one.",
                                 EX_MSG_PREFIX));
             }
-        }
-
-        @Override
-        Optional<Integer> getColumnPosition(SqlTableColumnPosition columnPosition) {
-            if (columnPosition.isFirstColumn() || columnPosition.isAfterReferencedColumn()) {
-                sortedColumnNames.remove(columnPosition.getColumn().getName().getSimple());
-                return super.getColumnPosition(columnPosition);
-            }
-            return Optional.empty();
         }
 
         @Nullable
@@ -662,6 +696,10 @@ public class AlterSchemaConverter {
                 String.format(
                         "Unsupported alter table schema class: %s",
                         alterTableSchema.getClass().getCanonicalName()));
+    }
+
+    private static <T> T unwrap(Optional<T> value) {
+        return value.orElseThrow(() -> new TableException("The value should never be empty."));
     }
 
     /** A strategy to describe the alter schema kind. */

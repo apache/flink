@@ -30,19 +30,24 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.validate.SqlValidator;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,8 +94,22 @@ public class OperationConverterUtils {
             }
             setWatermarkAndPK(builder, catalogTable.getSchema());
         }
+        List<TableChange> tableChanges = new ArrayList<>();
         for (SqlNode sqlNode : addReplaceColumns.getNewColumns()) {
-            builder.add(toTableColumn((SqlTableColumn) sqlNode, sqlValidator));
+            TableColumn tableColumn = toTableColumn((SqlTableColumn) sqlNode, sqlValidator);
+            builder.add(tableColumn);
+            // TODO: support ALTER TABLE REPLACE with TableChange in FLINK-30497
+            if (!addReplaceColumns.isReplace()) {
+                tableChanges.add(
+                        TableChange.add(
+                                Column.physical(tableColumn.getName(), tableColumn.getType())
+                                        .withComment(
+                                                ((SqlTableColumn) sqlNode)
+                                                        .getComment()
+                                                        .map(SqlCharStringLiteral.class::cast)
+                                                        .map(c -> c.getValueAs(String.class))
+                                                        .orElse(null))));
+            }
         }
 
         // set partition columns
@@ -106,13 +125,17 @@ public class OperationConverterUtils {
         Map<String, String> newProperties = new HashMap<>(catalogTable.getOptions());
         newProperties.putAll(extractProperties(addReplaceColumns.getProperties()));
 
-        return new AlterTableSchemaOperation(
-                tableIdentifier,
+        CatalogTableImpl newTable =
                 new CatalogTableImpl(
                         builder.build(),
                         catalogTable.getPartitionKeys(),
                         newProperties,
-                        catalogTable.getComment()));
+                        catalogTable.getComment());
+        if (addReplaceColumns.isReplace()) {
+            return new AlterTableSchemaOperation(tableIdentifier, newTable);
+        } else {
+            return new AlterTableChangeOperation(tableIdentifier, tableChanges, newTable);
+        }
     }
 
     public static Operation convertChangeColumn(
