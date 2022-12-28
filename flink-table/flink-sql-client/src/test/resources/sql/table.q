@@ -396,6 +396,30 @@ org.apache.flink.table.api.ValidationException: ALTER TABLE RESET does not suppo
 !error
 
 # ==========================================================================
+# test alter table rename column
+# ==========================================================================
+
+alter table orders2 rename amount to amount1;
+[INFO] Execute statement succeed.
+!info
+
+# verify table options using SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount1` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
+# ==========================================================================
 # test alter table add schema
 # ==========================================================================
 
@@ -424,7 +448,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `user` BIGINT NOT NULL,
   `product_id` BIGINT NOT NULL,
   `product` VARCHAR(32),
-  `amount` INT,
+  `amount1` INT,
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
@@ -449,7 +473,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `product_id` BIGINT NOT NULL,
   `product` VARCHAR(32),
   `cleaned_product` AS COALESCE(`product`, 'missing_sku'),
-  `amount` INT,
+  `amount1` INT,
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
@@ -477,7 +501,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `product_id` BIGINT NOT NULL,
   `product` VARCHAR(32),
   `cleaned_product` AS COALESCE(`product`, 'missing_sku'),
-  `amount` INT,
+  `amount1` INT,
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
@@ -503,7 +527,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `product_id` BIGINT NOT NULL,
   `product` VARCHAR(32),
   `cleaned_product` AS COALESCE(`product`, 'missing_sku'),
-  `amount` INT,
+  `amount1` INT,
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' MINUTE,
   CONSTRAINT `order_constraint` PRIMARY KEY (`trade_order_id`) NOT ENFORCED
@@ -530,7 +554,7 @@ describe orders2;
 |      product_id |                      BIGINT | FALSE |                     |                                       |                            |
 |         product |                 VARCHAR(32) |  TRUE |                     |                                       |                            |
 | cleaned_product |                 VARCHAR(32) | FALSE |                     | AS COALESCE(`product`, 'missing_sku') |                            |
-|          amount |                         INT |  TRUE |                     |                                       |                            |
+|         amount1 |                         INT |  TRUE |                     |                                       |                            |
 |           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |                     |                         AS PROCTIME() |                            |
 +-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
 9 rows in set
@@ -548,7 +572,7 @@ desc orders2;
 |      product_id |                      BIGINT | FALSE |                     |                                       |                            |
 |         product |                 VARCHAR(32) |  TRUE |                     |                                       |                            |
 | cleaned_product |                 VARCHAR(32) | FALSE |                     | AS COALESCE(`product`, 'missing_sku') |                            |
-|          amount |                         INT |  TRUE |                     |                                       |                            |
+|         amount1 |                         INT |  TRUE |                     |                                       |                            |
 |           ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |                     |                         AS PROCTIME() |                            |
 +-----------------+-----------------------------+-------+---------------------+---------------------------------------+----------------------------+
 9 rows in set

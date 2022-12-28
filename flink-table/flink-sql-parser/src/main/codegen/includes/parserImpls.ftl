@@ -614,9 +614,9 @@ SqlAlterTable SqlAlterTable() :
         }
     |
         <RENAME>
-            originColumnIdentifier = SimpleIdentifier()
+            originColumnIdentifier = CompoundIdentifier()
         <TO>
-            newColumnIdentifier = SimpleIdentifier()
+            newColumnIdentifier = CompoundIdentifier()
         {
             return new SqlAlterTableRenameColumn(
                     startPos.plus(getPos()),

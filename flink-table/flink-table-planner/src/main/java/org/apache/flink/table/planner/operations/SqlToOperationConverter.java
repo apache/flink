@@ -535,12 +535,17 @@ public class SqlToOperationConverter {
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             SqlAlterTableRenameColumn sqlAlterTableRenameColumn =
                     (SqlAlterTableRenameColumn) sqlAlterTable;
-            return OperationConverterUtils.convertRenameColumn(
+            Schema newSchema =
+                    alterSchemaConverter.applySchemaChange(
+                            sqlAlterTableRenameColumn, optionalCatalogTable.get());
+            CatalogTable baseCatalogTable = (CatalogTable) baseTable;
+            return new AlterTableSchemaOperation(
                     tableIdentifier,
-                    sqlAlterTableRenameColumn.getOriginColumnIdentifier().getSimple(),
-                    sqlAlterTableRenameColumn.getNewColumnIdentifier().getSimple(),
-                    (CatalogTable) baseTable,
-                    optionalCatalogTable.get().getResolvedSchema());
+                    CatalogTable.of(
+                            newSchema,
+                            baseCatalogTable.getComment(),
+                            baseCatalogTable.getPartitionKeys(),
+                            baseCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAddPartitions) {
             List<CatalogPartitionSpec> specs = new ArrayList<>();
             List<CatalogPartition> partitions = new ArrayList<>();
