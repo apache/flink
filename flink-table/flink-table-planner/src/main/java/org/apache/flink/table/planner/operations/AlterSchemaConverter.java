@@ -189,9 +189,6 @@ public class AlterSchemaConverter {
             checkPrimaryKeyExists();
             constraintValidator.accept(alterPrimaryKey);
             List<String> primaryKeyColumns = Arrays.asList(alterPrimaryKey.getColumnNames());
-            if (alterColNames.isEmpty()) {
-                primaryKeyColumns.forEach(this::updatePrimaryKeyNullability);
-            }
             primaryKey =
                     new Schema.UnresolvedPrimaryKey(
                             alterPrimaryKey
@@ -331,20 +328,24 @@ public class AlterSchemaConverter {
         }
 
         private Schema convert() {
-            List<Schema.UnresolvedColumn> newColumns = new ArrayList<>();
-            for (String column : sortedColumnNames) {
-                newColumns.add(columns.get(column));
-            }
-            Schema.Builder resultBuilder = Schema.newBuilder().fromColumns(newColumns);
+            Schema.Builder resultBuilder = Schema.newBuilder(); // .fromColumns(newColumns);
             if (primaryKey != null) {
                 String constraintName = primaryKey.getConstraintName();
                 List<String> pkColumns = primaryKey.getColumnNames();
+                pkColumns.forEach(this::updatePrimaryKeyNullability);
                 if (constraintName != null) {
                     resultBuilder.primaryKeyNamed(constraintName, pkColumns);
                 } else {
                     resultBuilder.primaryKey(pkColumns);
                 }
             }
+
+            List<Schema.UnresolvedColumn> newColumns = new ArrayList<>();
+            for (String column : sortedColumnNames) {
+                newColumns.add(columns.get(column));
+            }
+            resultBuilder.fromColumns(newColumns);
+
             if (watermarkSpec != null) {
                 resultBuilder.watermark(
                         watermarkSpec.getColumnName(), watermarkSpec.getWatermarkExpression());
@@ -479,22 +480,6 @@ public class AlterSchemaConverter {
                 return super.getColumnPosition(columnPosition);
             }
             return Optional.empty();
-        }
-
-        @Override
-        Schema.UnresolvedPhysicalColumn convertPhysicalColumn(
-                SqlTableColumn.SqlRegularColumn physicalColumn) {
-            Schema.UnresolvedPhysicalColumn newColumn = super.convertPhysicalColumn(physicalColumn);
-            String columnName = newColumn.getName();
-            // preserves the primary key's nullability
-            if (primaryKey != null && primaryKey.getColumnNames().contains(columnName)) {
-                newColumn =
-                        new Schema.UnresolvedPhysicalColumn(
-                                columnName,
-                                newColumn.getDataType().notNull(),
-                                newColumn.getComment().orElse(null));
-            }
-            return newColumn;
         }
 
         @Nullable
