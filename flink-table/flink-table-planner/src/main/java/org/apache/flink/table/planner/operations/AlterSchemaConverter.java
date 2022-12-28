@@ -35,6 +35,7 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -94,7 +95,7 @@ public class AlterSchemaConverter {
 
     public Schema applySchemaChange(
             SqlAlterTableSchema alterTableSchema,
-            Schema originalSchema,
+            Schema originSchema,
             List<TableChange> tableChangeCollector) {
         AlterSchemaStrategy strategy = computeAlterSchemaStrategy(alterTableSchema);
         SchemaConverter converter =
