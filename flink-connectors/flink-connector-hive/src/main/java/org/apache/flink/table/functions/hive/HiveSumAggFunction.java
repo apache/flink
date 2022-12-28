@@ -27,8 +27,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNIX_TIMESTAMP;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.call;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.hiveAggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
@@ -38,7 +36,6 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.tryCa
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 import static org.apache.flink.table.types.logical.DecimalType.MAX_PRECISION;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 
@@ -46,7 +43,6 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getSc
 public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     private final UnresolvedReferenceExpression sum = unresolvedRef("sum");
-    private DataType argsType;
     private DataType resultType;
 
     @Override
@@ -76,15 +72,7 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public Expression[] accumulateExpressions() {
-        Expression operand;
-        // TimestampToNumericCastRule can't cast timestamp to numeric directly, so here use
-        // UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead
-        if (argsType.getLogicalType().is(TIMESTAMP_WITHOUT_TIME_ZONE)) {
-            operand = castTimestampToLong(operand(0));
-        } else {
-            operand = operand(0);
-        }
-        Expression tryCastOperand = tryCast(operand, typeLiteral(getResultType()));
+        Expression tryCastOperand = tryCast(operand(0), typeLiteral(getResultType()));
         return new Expression[] {
             /* sum = */ ifThenElse(
                     isNull(operand(0)),
@@ -123,8 +111,7 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public void setArguments(CallContext callContext) {
         if (resultType == null) {
-            argsType = callContext.getArgumentDataTypes().get(0);
-            resultType = initResultType(argsType);
+            resultType = initResultType(callContext.getArgumentDataTypes().get(0));
         }
     }
 
@@ -135,7 +122,6 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
             case INTEGER:
             case BIGINT:
                 return DataTypes.BIGINT();
-            case TIMESTAMP_WITHOUT_TIME_ZONE:
             case FLOAT:
             case DOUBLE:
             case CHAR:
@@ -159,9 +145,5 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
         } else {
             return plus(arg1, arg2);
         }
-    }
-
-    private UnresolvedCallExpression castTimestampToLong(Expression child) {
-        return call(UNIX_TIMESTAMP, tryCast(child, typeLiteral(DataTypes.STRING())));
     }
 }
