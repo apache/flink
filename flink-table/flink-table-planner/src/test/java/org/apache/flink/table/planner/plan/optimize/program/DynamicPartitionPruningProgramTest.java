@@ -22,9 +22,6 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.planner.factories.TestValuesCatalog;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
@@ -32,12 +29,6 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Tests for rules that extend {@link FlinkDynamicPartitionPruningProgram} to create {@link
@@ -601,85 +592,6 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPWithJoinReorderTableWithoutStats() {
-        // Dpp will success.
-        String ddl =
-                "CREATE TABLE test_database.item (\n"
-                        + "  id BIGINT,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl);
-        TableConfig tableConfig = util.tableEnv().getConfig();
-        // Join reorder need open.
-        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
-
-        String query =
-                "Select * from fact_part, item, dim"
-                        + " where fact_part.fact_date_sk = dim.dim_date_sk"
-                        + " and fact_part.id = item.id"
-                        + " and dim.id = item.id "
-                        + " and dim.price < 500 and dim.price > 300";
-        util.verifyRelPlan(query);
-    }
-
-    @Test
-    public void testDPPWithJoinReorderTableWithStats() throws TableNotExistException {
-        String ddl =
-                "CREATE TABLE test_database.item (\n"
-                        + "  id BIGINT,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl);
-        TableConfig tableConfig = util.tableEnv().getConfig();
-        // Join reorder need open.
-        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
-
-        // Alter table stats and column stats.
-        CatalogTableStatistics tableStatistics = new CatalogTableStatistics(10, 10, 10, 10);
-        catalog.alterTableStatistics(
-                new ObjectPath("test_database", "dim"), tableStatistics, false);
-        catalog.alterTableColumnStatistics(
-                new ObjectPath("test_database", "dim"),
-                createJoinKeyColumnStats(
-                        Arrays.asList("dim_date_sk", "id", "price"), 10L, 1000L, 5L, 10L),
-                false);
-
-        // table item have same stats with table dim, but item not meets dpp pattern.
-        tableStatistics = new CatalogTableStatistics(10, 10, 10, 10);
-        catalog.alterTableStatistics(
-                new ObjectPath("test_database", "item"), tableStatistics, false);
-        catalog.alterTableColumnStatistics(
-                new ObjectPath("test_database", "item"),
-                createJoinKeyColumnStats(Collections.singletonList("id"), 10L, 1000L, 5L, 10L),
-                false);
-
-        tableStatistics = new CatalogTableStatistics(10000, 10000, 10000, 10000);
-        catalog.alterTableStatistics(
-                new ObjectPath("test_database", "fact_part"), tableStatistics, false);
-        catalog.alterTableColumnStatistics(
-                new ObjectPath("test_database", "fact_part"),
-                createJoinKeyColumnStats(
-                        Arrays.asList("fact_date_sk", "id"), 100L, 1000000L, 8500L, 9800L),
-                false);
-
-        String query =
-                "Select * from fact_part, item, dim"
-                        + " where fact_part.fact_date_sk = dim.dim_date_sk"
-                        + " and fact_part.id = item.id"
-                        + " and dim.id = item.id "
-                        + " and dim.price < 500 and dim.price > 300";
-        util.verifyRelPlan(query);
-    }
-
-    @Test
     public void testDPPWithFactSideJoinKeyChanged() {
         // If partition keys changed in fact side. DPP factor will not success.
         String ddl =
@@ -692,9 +604,6 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl);
-        TableConfig tableConfig = util.tableEnv().getConfig();
-        // Join reorder need open.
-        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
         String query =
                 "Select * from (select fact_date_sk + 1 as fact_date_sk, id from fact_part) fact_part1 join item on "
@@ -717,9 +626,6 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl);
-        TableConfig tableConfig = util.tableEnv().getConfig();
-        // Join reorder need open.
-        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
         String query =
                 "Select * from fact_part join item on fact_part.id = item.id"
@@ -743,9 +649,6 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl);
-        TableConfig tableConfig = util.tableEnv().getConfig();
-        // Join reorder need open.
-        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
         String query =
                 "Select * from fact_part, item, dim"
@@ -754,16 +657,5 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                         + " and dim.id = item.id "
                         + " and dim.price < 500 and dim.price > 300";
         util.verifyRelPlan(query);
-    }
-
-    private CatalogColumnStatistics createJoinKeyColumnStats(
-            List<String> columnNames, Long min, Long max, Long ndv, Long nullCount) {
-        CatalogColumnStatisticsDataLong longColStats =
-                new CatalogColumnStatisticsDataLong(min, max, ndv, nullCount);
-        Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(1);
-        for (String columnName : columnNames) {
-            colStatsMap.put(columnName, longColStats);
-        }
-        return new CatalogColumnStatistics(colStatsMap);
     }
 }

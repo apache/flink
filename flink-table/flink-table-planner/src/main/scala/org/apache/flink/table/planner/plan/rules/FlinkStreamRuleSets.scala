@@ -217,14 +217,14 @@ object FlinkStreamRuleSets {
     // merge filter to MultiJoin
     CoreRules.FILTER_MULTI_JOIN_MERGE,
     // merge join to MultiJoin
-    CoreRules.JOIN_TO_MULTI_JOIN
+    FlinkJoinToMultiJoinRule.INSTANCE
   )
 
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,
     // join reorder
-    CoreRules.MULTI_JOIN_OPTIMIZE
+    FlinkJoinReorderRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */

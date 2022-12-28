@@ -135,6 +135,18 @@ public class OptimizerConfigOptions {
                     .defaultValue(false)
                     .withDescription("Enables join reorder in optimizer. Default is disabled.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer> TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD =
+            key("table.optimizer.bushy-join-reorder-threshold")
+                    .intType()
+                    .defaultValue(12)
+                    .withDescription(
+                            "The maximum number of joined nodes allowed in the bushy join reorder algorithm, "
+                                    + "otherwise the left-deep join reorder algorithm will be used. The search "
+                                    + "space of bushy join reorder algorithm will increase with the increase of "
+                                    + "this threshold value, so this threshold is not recommended to be set too "
+                                    + "large. The default value is 12.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
             key("table.optimizer.multiple-input-enabled")
