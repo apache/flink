@@ -227,7 +227,7 @@ object FlinkBatchRuleSets {
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,
     // join reorder
-    CoreRules.MULTI_JOIN_OPTIMIZE
+    FlinkJoinReorderRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */

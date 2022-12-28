@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.planner.utils.ShortcutUtils
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.core.JoinRelType
@@ -45,7 +47,12 @@ class RewriteMultiJoinConditionRule
     // currently only supports all join types are INNER join
     val isAllInnerJoin = multiJoin.getJoinTypes.forall(_ eq JoinRelType.INNER)
     val (equiJoinFilters, _) = partitionJoinFilters(multiJoin)
-    !multiJoin.isFullOuterJoin && isAllInnerJoin && equiJoinFilters.size > 1
+    val numJoinInputs = multiJoin.getInputs.size()
+    val dpThreshold = ShortcutUtils
+      .unwrapContext(multiJoin)
+      .getTableConfig
+      .get(FlinkJoinReorderRule.TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD)
+    (numJoinInputs > dpThreshold) && !multiJoin.isFullOuterJoin && isAllInnerJoin && equiJoinFilters.size > 1
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
