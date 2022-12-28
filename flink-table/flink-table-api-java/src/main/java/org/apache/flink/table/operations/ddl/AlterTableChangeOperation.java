@@ -52,26 +52,33 @@ public class AlterTableChangeOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         String changes =
-                tableChanges.stream()
-                        .map(
-                                tableChange -> {
-                                    if (tableChange instanceof TableChange.SetOption) {
-                                        TableChange.SetOption setChange =
-                                                (TableChange.SetOption) tableChange;
-                                        return String.format(
-                                                "  SET '%s' = '%s'",
-                                                setChange.getKey(), setChange.getValue());
-                                    } else if (tableChange instanceof TableChange.ResetOption) {
-                                        TableChange.ResetOption resetChange =
-                                                (TableChange.ResetOption) tableChange;
-                                        return String.format("  RESET '%s'", resetChange.getKey());
-                                    } else {
-                                        throw new UnsupportedOperationException(
-                                                String.format(
-                                                        "Unknown table change: %s.", tableChange));
-                                    }
-                                })
-                        .collect(Collectors.joining(",\n"));
+                tableChanges.stream().map(this::toString).collect(Collectors.joining(",\n"));
         return String.format("ALTER TABLE %s\n%s", tableIdentifier.asSummaryString(), changes);
+    }
+
+    private String toString(TableChange tableChange) {
+        if (tableChange instanceof TableChange.SetOption) {
+            TableChange.SetOption setChange = (TableChange.SetOption) tableChange;
+            return String.format("  SET '%s' = '%s'", setChange.getKey(), setChange.getValue());
+        } else if (tableChange instanceof TableChange.ResetOption) {
+            TableChange.ResetOption resetChange = (TableChange.ResetOption) tableChange;
+            return String.format("  RESET '%s'", resetChange.getKey());
+        } else if (tableChange instanceof TableChange.AddColumn) {
+            TableChange.AddColumn addColumn = (TableChange.AddColumn) tableChange;
+            return String.format(
+                    "  ADD %s %s",
+                    addColumn.getColumn(),
+                    addColumn.getPosition() == null ? "" : addColumn.getPosition());
+        } else if (tableChange instanceof TableChange.AddWatermark) {
+            TableChange.AddWatermark addWatermark = (TableChange.AddWatermark) tableChange;
+            return String.format("  ADD %s", addWatermark.getWatermark());
+        } else if (tableChange instanceof TableChange.AddUniqueConstraint) {
+            TableChange.AddUniqueConstraint addUniqueConstraint =
+                    (TableChange.AddUniqueConstraint) tableChange;
+            return String.format("  ADD %s", addUniqueConstraint.getConstraint());
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Unknown table change: %s.", tableChange));
+        }
     }
 }
