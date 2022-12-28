@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,45 +18,56 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-/** ALTER TABLE [catalog_name.][db_name.]table_name DROP CONSTRAINT constraint_name. */
-public class SqlAlterTableDropConstraint extends SqlAlterTable {
+/**
+ * SqlNode to describe ALTER TABLE table_name DROP column clause.
+ *
+ * <p>Example: DDL like the below for drop column.
+ *
+ * <pre>{@code
+ * -- drop single column
+ * ALTER TABLE prod.db.sample DROP col1;
+ *
+ * -- drop multiple columns
+ * ALTER TABLE prod.db.sample DROP (col1, col2, col3);
+ * }</pre>
+ */
+public class SqlAlterTableDropColumn extends SqlAlterTable {
 
-    private final SqlIdentifier constraintName;
+    private final SqlNodeList columnList;
 
-    /**
-     * Creates an alter table drop constraint node.
-     *
-     * @param pos Parser position
-     * @param tableName Table name
-     * @param constraintName Constraint name
-     */
-    public SqlAlterTableDropConstraint(
-            SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier constraintName) {
+    public SqlAlterTableDropColumn(
+            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList) {
         super(pos, tableName);
-        this.constraintName = constraintName;
-    }
-
-    public SqlIdentifier getConstraintName() {
-        return constraintName;
+        this.columnList = columnList;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName(), this.constraintName);
+        return Arrays.asList(tableIdentifier, columnList);
+    }
+
+    public SqlNodeList getColumnList() {
+        return columnList;
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("DROP CONSTRAINT");
-        this.constraintName.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("DROP");
+        // unparse table column
+        SqlUnparseUtils.unparseTableSchema(
+                writer, leftPrec, rightPrec, columnList, Collections.emptyList(), null);
     }
 }

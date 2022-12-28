@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,41 +22,25 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
+import java.util.Collections;
 import java.util.List;
 
-/** ALTER TABLE [catalog_name.][db_name.]table_name DROP CONSTRAINT constraint_name. */
-public class SqlAlterTableDropConstraint extends SqlAlterTable {
+/** ALTER TABLE [catalog_name.][db_name.]table_name DROP PRIMARY KEY. */
+public class SqlAlterTableDropPrimaryKey extends SqlAlterTable {
 
-    private final SqlIdentifier constraintName;
-
-    /**
-     * Creates an alter table drop constraint node.
-     *
-     * @param pos Parser position
-     * @param tableName Table name
-     * @param constraintName Constraint name
-     */
-    public SqlAlterTableDropConstraint(
-            SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier constraintName) {
+    public SqlAlterTableDropPrimaryKey(SqlParserPos pos, SqlIdentifier tableName) {
         super(pos, tableName);
-        this.constraintName = constraintName;
-    }
-
-    public SqlIdentifier getConstraintName() {
-        return constraintName;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName(), this.constraintName);
+        return Collections.singletonList(tableIdentifier);
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("DROP CONSTRAINT");
-        this.constraintName.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("DROP PRIMARY KEY");
     }
 }

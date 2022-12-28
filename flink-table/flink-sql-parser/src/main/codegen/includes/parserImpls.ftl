@@ -684,13 +684,45 @@ SqlAlterTable SqlAlterTable() :
         }
 
     |
-        <DROP> <CONSTRAINT>
-        constraintName = SimpleIdentifier() {
-            return new SqlAlterTableDropConstraint(
-                tableIdentifier,
-                constraintName,
-                startPos.plus(getPos()));
-        }
+     <DROP>
+        (
+            { SqlIdentifier columnName = null; }
+            columnName = CompoundIdentifier() {
+                return new SqlAlterTableDropColumn(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            new SqlNodeList(
+                                Collections.singletonList(columnName),
+                                getPos()));
+            }
+        |
+            { Pair<SqlNodeList, SqlNodeList> columnWithTypePair = null; }
+            columnWithTypePair = ParenthesizedCompoundIdentifierList() {
+                return new SqlAlterTableDropColumn(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            columnWithTypePair.getKey());
+            }
+        |
+            <PRIMARY> <KEY> {
+                return new SqlAlterTableDropPrimaryKey(
+                        startPos.plus(getPos()),
+                        tableIdentifier);
+            }
+        |
+            <CONSTRAINT> constraintName = SimpleIdentifier() {
+                return new SqlAlterTableDropConstraint(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            constraintName);
+            }
+        |
+            <WATERMARK> {
+                return new SqlAlterTableDropWatermark(
+                            startPos.plus(getPos()),
+                            tableIdentifier);
+            }
+        )
     |
         [
             <PARTITION>

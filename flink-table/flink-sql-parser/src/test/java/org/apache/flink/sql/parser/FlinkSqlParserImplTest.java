@@ -564,6 +564,46 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterTableDropSingleColumn() {
+        sql("alter table t1 drop id").ok("ALTER TABLE `T1` DROP (\n" + "  `ID`\n" + ")");
+
+        sql("alter table t1 drop (id)").ok("ALTER TABLE `T1` DROP (\n" + "  `ID`\n" + ")");
+
+        sql("alter table t1 drop tuple.id")
+                .ok("ALTER TABLE `T1` DROP (\n" + "  `TUPLE`.`ID`\n" + ")");
+    }
+
+    @Test
+    public void testAlterTableDropMultipleColumn() {
+        sql("alter table t1 drop (id, ts, tuple.f0, tuple.f1)")
+                .ok(
+                        "ALTER TABLE `T1` DROP (\n"
+                                + "  `ID`,\n"
+                                + "  `TS`,\n"
+                                + "  `TUPLE`.`F0`,\n"
+                                + "  `TUPLE`.`F1`\n"
+                                + ")");
+    }
+
+    @Test
+    public void testAlterTableDropPrimaryKey() {
+        sql("alter table t1 drop primary key").ok("ALTER TABLE `T1` DROP PRIMARY KEY");
+    }
+
+    @Test
+    public void testAlterTableDropConstraint() {
+        sql("alter table t1 drop constraint ct").ok("ALTER TABLE `T1` DROP CONSTRAINT `CT`");
+
+        sql("alter table t1 drop constrain^t^")
+                .fails("(?s).*Encountered \"<EOF>\" at line 1, column 30.\n.*");
+    }
+
+    @Test
+    public void testAlterTableDropWatermark() {
+        sql("alter table t1 drop watermark").ok("ALTER TABLE `T1` DROP WATERMARK");
+    }
+
+    @Test
     void testAlterTableReset() {
         sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
 
