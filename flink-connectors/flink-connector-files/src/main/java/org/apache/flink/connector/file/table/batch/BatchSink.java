@@ -27,7 +27,7 @@ import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connector.file.table.batch.compact.BatchCompactCoordinator;
 import org.apache.flink.connector.file.table.batch.compact.BatchCompactOperator;
-import org.apache.flink.connector.file.table.batch.compact.BatchPartitionCommitterSink;
+import org.apache.flink.connector.file.table.batch.compact.BatchPartitionCommitOutputFormat;
 import org.apache.flink.connector.file.table.stream.compact.CompactBucketWriter;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
@@ -109,8 +109,8 @@ public class BatchSink {
                         TypeInformation.of(CompactMessages.CompactOutput.class),
                         new BatchCompactOperator<>(fsSupplier, readFactory, writerFactory))
                 .setParallelism(compactParallelism)
-                .addSink(
-                        new BatchPartitionCommitterSink(
+                .writeUsingOutputFormat(
+                        new BatchPartitionCommitOutputFormat(
                                 fsFactory,
                                 metaStoreFactory,
                                 overwrite,
