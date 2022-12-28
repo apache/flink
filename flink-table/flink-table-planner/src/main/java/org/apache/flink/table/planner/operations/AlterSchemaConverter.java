@@ -157,6 +157,7 @@ public class AlterSchemaConverter {
                         column -> {
                             if (oldColumnName.equals(column.getName())) {
                                 buildNewColumnFromOriginColumn(builder, column, newColumnName);
+                                builder.withComment(column.getName());
                             } else {
                                 builder.fromColumns(Collections.singletonList(column));
                             }
