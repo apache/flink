@@ -87,6 +87,7 @@ public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutpu
             // compact them to a single file
             Path path =
                     CompactFileUtils.doCompact(
+                            getRuntimeContext().getAttemptNumber(),
                             fileSystem,
                             partition,
                             paths,

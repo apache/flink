@@ -42,6 +42,7 @@ public class CompactFileUtils {
     public static final String UNCOMPACTED_PREFIX = ".uncompacted-";
 
     public static final String COMPACTED_PREFIX = "compacted-";
+    public static final String ATTEMPT_PREFIX = "attempt-";
 
     /** The function interface for move single file. */
     @FunctionalInterface
@@ -55,6 +56,7 @@ public class CompactFileUtils {
      * writing.
      */
     public static <T> Path doCompact(
+            int attemptNumber,
             FileSystem fileSystem,
             String partition,
             List<Path> paths,
@@ -67,12 +69,7 @@ public class CompactFileUtils {
             return null;
         }
 
-        Map<Path, Long> inputMap = new HashMap<>();
-        for (Path path : paths) {
-            inputMap.put(path, fileSystem.getFileStatus(path).getLen());
-        }
-
-        Path target = createCompactedFile(paths);
+        Path target = createCompactedFile(paths, attemptNumber);
         if (fileSystem.exists(target)) {
             return target;
         }
@@ -82,6 +79,10 @@ public class CompactFileUtils {
         long startMillis = System.currentTimeMillis();
 
         boolean success = false;
+        Map<Path, Long> inputMap = new HashMap<>();
+        for (Path path : paths) {
+            inputMap.put(path, fileSystem.getFileStatus(path).getLen());
+        }
         if (paths.size() == 1) {
             // optimizer for single file
             success = singleFileMvFunc.apply(paths.get(0), target);
@@ -140,13 +141,19 @@ public class CompactFileUtils {
         }
     }
 
-    private static Path createCompactedFile(List<Path> uncompactedFiles) {
+    private static Path createCompactedFile(List<Path> uncompactedFiles, int attemptNumber) {
         Path path = convertFromUncompacted(uncompactedFiles.get(0));
-        return new Path(path.getParent(), COMPACTED_PREFIX + path.getName());
+        return new Path(
+                path.getParent(), convertToCompactWithAttempt(attemptNumber, path.getName()));
     }
 
     public static String convertToUncompacted(String path) {
         return UNCOMPACTED_PREFIX + path;
+    }
+
+    private static String convertToCompactWithAttempt(int attemptNumber, String fileName) {
+        return String.format(
+                "%s%s%d-%s", COMPACTED_PREFIX, ATTEMPT_PREFIX, attemptNumber, fileName);
     }
 
     public static Path convertFromUncompacted(Path path) {
