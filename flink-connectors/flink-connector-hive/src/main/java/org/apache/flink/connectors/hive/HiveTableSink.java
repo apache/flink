@@ -50,10 +50,12 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -67,9 +69,12 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -97,6 +102,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +120,12 @@ import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants
 import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
 
 /** Table sink to write to Hive tables. */
-public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {
+public class HiveTableSink
+        implements DynamicTableSink,
+                SupportsPartitioning,
+                SupportsOverwrite,
+                SupportsDeletePushDown,
+                SupportsRowLevelDelete {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSink.class);
 
@@ -662,6 +673,35 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     @Override
     public String asSummaryString() {
         return "HiveSink";
+    }
+
+    @Override
+    public boolean applyDeleteFilters(List<ResolvedExpression> filters) {
+        System.out.println(filters);
+        return false;
+    }
+
+    @Override
+    public Optional<Long> executeDeletion() {
+        return Optional.empty();
+    }
+
+    @Override
+    public RowLevelDeleteInfo applyRowLevelDelete() {
+        return new RowLevelDeleteInfo() {
+            @Override
+            public Optional<List<Column>> requiredColumns() {
+                return Optional.of(
+                        Collections.singletonList(
+                                Column.metadata(
+                                        "file.path", DataTypes.STRING().notNull(), null, true)));
+            }
+
+            @Override
+            public RowLevelDeleteInfo.RowLevelDeleteMode getRowLevelDeleteMode() {
+                return RowLevelDeleteMode.REMAINING_ROWS;
+            }
+        };
     }
 
     /**

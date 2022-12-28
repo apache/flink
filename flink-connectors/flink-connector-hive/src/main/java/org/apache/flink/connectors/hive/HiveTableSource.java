@@ -40,6 +40,7 @@ import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -57,6 +58,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsDynamicFilterin
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
@@ -77,6 +79,7 @@ import javax.annotation.Nullable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -94,7 +97,8 @@ public class HiveTableSource
                 SupportsProjectionPushDown,
                 SupportsLimitPushDown,
                 SupportsStatisticReport,
-                SupportsDynamicFiltering {
+                SupportsDynamicFiltering,
+                SupportsReadingMetadata {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
     private static final String HIVE_TRANSFORMATION = "hive";
@@ -401,6 +405,19 @@ public class HiveTableSource
                     "Now for hive table source, reporting statistics only support Orc and Parquet formats.");
             return TableStats.UNKNOWN;
         }
+    }
+
+    @Override
+    public Map<String, DataType> listReadableMetadata() {
+        Map<String, DataType> dataTypeMap = new HashMap<>();
+        dataTypeMap.put("file.path", DataTypes.STRING().notNull());
+        dataTypeMap.put("file.name", DataTypes.STRING().notNull());
+        return dataTypeMap;
+    }
+
+    @Override
+    public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+        System.out.println("apply readable meta data.");
     }
 
     /** PartitionFetcher.Context for {@link ContinuousPartitionFetcher}. */

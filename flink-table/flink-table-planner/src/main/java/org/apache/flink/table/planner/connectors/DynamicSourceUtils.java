@@ -202,13 +202,20 @@ public final class DynamicSourceUtils {
      * name.
      */
     public static RowType createProducedType(ResolvedSchema schema, DynamicTableSource source) {
-        final Map<String, DataType> metadataMap = extractMetadataMap(source);
+        List<MetadataColumn> metadataColumns = createRequiredMetadataColumns(schema, source);
+        return createProducedType(schema, source, metadataColumns);
+    }
 
+    public static RowType createProducedType(
+            ResolvedSchema schema,
+            DynamicTableSource source,
+            List<MetadataColumn> metadataColumns) {
+        final Map<String, DataType> metadataMap = extractMetadataMap(source);
         final Stream<RowField> physicalFields =
                 ((RowType) schema.toPhysicalRowDataType().getLogicalType()).getFields().stream();
 
         final Stream<RowField> metadataFields =
-                createRequiredMetadataColumns(schema, source).stream()
+                metadataColumns.stream()
                         .map(
                                 k ->
                                         new RowField(
@@ -378,7 +385,7 @@ public final class DynamicSourceUtils {
                 .collect(Collectors.toList());
     }
 
-    private static void validateAndApplyMetadata(
+    public static void validateAndApplyMetadata(
             String tableDebugName, ResolvedSchema schema, DynamicTableSource source) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 

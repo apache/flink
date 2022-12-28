@@ -90,6 +90,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
+import org.apache.flink.table.operations.DeleteFromFiltersOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -1413,6 +1414,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (Exception e) {
                 throw new TableException("Failed to execute ANALYZE TABLE command", e);
             }
+        } else if (operation instanceof DeleteFromFiltersOperation) {
+            if (isStreamingMode) {
+                throw new TableException("Delete TABLE is not supported for streaming mode now");
+            }
+            Optional<Long> rows =
+                    ((DeleteFromFiltersOperation) operation)
+                            .getSupportsDeletePushDown()
+                            .executeDeletion();
+            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {

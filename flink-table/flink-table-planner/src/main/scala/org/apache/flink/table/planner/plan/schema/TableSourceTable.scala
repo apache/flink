@@ -88,6 +88,24 @@ class TableSourceTable(
     builder.build()
   }
 
+  def copy(
+            newTableSource: DynamicTableSource,
+            newResolveTable:ContextResolvedTable,
+            newRowType: RelDataType,
+            newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      newRowType,
+      statistic,
+      newTableSource,
+      isStreamingMode,
+      newResolveTable,
+      flinkContext,
+      flinkTypeFactory,
+      abilitySpecs ++ newAbilitySpecs
+    )
+  }
+
   /**
    * Creates a copy of this table with specified digest.
    *
