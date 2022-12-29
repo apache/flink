@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -69,7 +70,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
      * depends on the {@link DistributionPattern} and the subtask indices of the producing and
      * consuming task. The range is inclusive.
      */
-    private final SubpartitionIndexRange consumedSubpartitionIndexRange;
+    private final IndexRange consumedSubpartitionIndexRange;
 
     /** An input channel for each consumed subpartition. */
     private transient ShuffleDescriptor[] inputChannels;
@@ -87,14 +88,14 @@ public class InputGateDeploymentDescriptor implements Serializable {
         this(
                 consumedResultId,
                 consumedPartitionType,
-                new SubpartitionIndexRange(consumedSubpartitionIndex, consumedSubpartitionIndex),
+                new IndexRange(consumedSubpartitionIndex, consumedSubpartitionIndex),
                 new NonOffloaded<>(CompressedSerializedValue.fromObject(inputChannels)));
     }
 
     public InputGateDeploymentDescriptor(
             IntermediateDataSetID consumedResultId,
             ResultPartitionType consumedPartitionType,
-            SubpartitionIndexRange consumedSubpartitionIndexRange,
+            IndexRange consumedSubpartitionIndexRange,
             MaybeOffloaded<ShuffleDescriptor[]> serializedInputChannels) {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
@@ -124,7 +125,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
     }
 
     /** Return the index range of the the consumed subpartitions. */
-    public SubpartitionIndexRange getConsumedSubpartitionIndexRange() {
+    public IndexRange getConsumedSubpartitionIndexRange() {
         return consumedSubpartitionIndexRange;
     }
 

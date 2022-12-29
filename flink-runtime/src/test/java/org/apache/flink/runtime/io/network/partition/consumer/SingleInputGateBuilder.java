@@ -21,7 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -56,7 +56,7 @@ public class SingleInputGateBuilder {
 
     private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
-    private SubpartitionIndexRange subpartitionIndexRange = new SubpartitionIndexRange(0, 0);
+    private IndexRange subpartitionIndexRange = new IndexRange(0, 0);
 
     private int gateIndex = 0;
 
@@ -92,8 +92,7 @@ public class SingleInputGateBuilder {
         return this;
     }
 
-    public SingleInputGateBuilder setSubpartitionIndexRange(
-            SubpartitionIndexRange subpartitionIndexRange) {
+    public SingleInputGateBuilder setSubpartitionIndexRange(IndexRange subpartitionIndexRange) {
         this.subpartitionIndexRange = subpartitionIndexRange;
         return this;
     }

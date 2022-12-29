@@ -26,10 +26,10 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -859,7 +859,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                     new IntermediateResultPartitionID()
                 };
 
-        SubpartitionIndexRange subpartitionIndexRange = new SubpartitionIndexRange(0, 1);
+        IndexRange subpartitionIndexRange = new IndexRange(0, 1);
         final NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder().build();
 
         ResourceID localLocation = ResourceID.generate();
@@ -1174,7 +1174,7 @@ public class SingleInputGateTest extends InputGateTestBase {
         return createSingleInputGate(
                 partitionIds,
                 resultPartitionType,
-                new SubpartitionIndexRange(0, 0),
+                new IndexRange(0, 0),
                 netEnv,
                 ResourceID.generate(),
                 null,
@@ -1184,7 +1184,7 @@ public class SingleInputGateTest extends InputGateTestBase {
     static SingleInputGate createSingleInputGate(
             IntermediateResultPartitionID[] partitionIds,
             ResultPartitionType resultPartitionType,
-            SubpartitionIndexRange subpartitionIndexRange,
+            IndexRange subpartitionIndexRange,
             NettyShuffleEnvironment netEnv,
             ResourceID localLocation,
             ConnectionManager connectionManager,

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
@@ -130,7 +130,7 @@ public class SingleInputGateFactory {
         final String owningTaskName = owner.getOwnerName();
         final MetricGroup networkInputGroup = owner.getInputGroup();
 
-        SubpartitionIndexRange subpartitionIndexRange = igdd.getConsumedSubpartitionIndexRange();
+        IndexRange subpartitionIndexRange = igdd.getConsumedSubpartitionIndexRange();
         SingleInputGate inputGate =
                 new SingleInputGate(
                         owningTaskName,
@@ -179,7 +179,7 @@ public class SingleInputGateFactory {
             String owningTaskName,
             InputGateDeploymentDescriptor inputGateDeploymentDescriptor,
             SingleInputGate inputGate,
-            SubpartitionIndexRange subpartitionIndexRange,
+            IndexRange subpartitionIndexRange,
             InputChannelMetrics metrics) {
         ShuffleDescriptor[] shuffleDescriptors =
                 inputGateDeploymentDescriptor.getShuffleDescriptors();
@@ -253,7 +253,7 @@ public class SingleInputGateFactory {
     }
 
     private static int calculateNumChannels(
-            int numShuffleDescriptors, SubpartitionIndexRange subpartitionIndexRange) {
+            int numShuffleDescriptors, IndexRange subpartitionIndexRange) {
         return MathUtils.checkedDownCast(
                 ((long) numShuffleDescriptors) * subpartitionIndexRange.size());
     }

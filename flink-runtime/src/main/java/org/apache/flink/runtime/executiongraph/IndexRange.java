@@ -16,18 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.deployment;
+package org.apache.flink.runtime.executiongraph;
 
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** This class represents the range of subpartition index. The range is inclusive. */
-public class SubpartitionIndexRange implements Serializable {
+/** This class represents the range of index. The range is inclusive. */
+public class IndexRange implements Serializable {
+
     private final int startIndex;
     private final int endIndex;
 
-    public SubpartitionIndexRange(int startIndex, int endIndex) {
+    public IndexRange(int startIndex, int endIndex) {
         checkArgument(startIndex >= 0);
         checkArgument(endIndex >= startIndex);
 
@@ -50,5 +51,22 @@ public class SubpartitionIndexRange implements Serializable {
     @Override
     public String toString() {
         return String.format("[%d, %d]", startIndex, endIndex);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.startIndex * 31 + this.endIndex;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj != null && obj.getClass() == getClass()) {
+            IndexRange that = (IndexRange) obj;
+            return that.startIndex == this.startIndex && that.endIndex == this.endIndex;
+        } else {
+            return false;
+        }
     }
 }

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -190,81 +191,78 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
 
     @Test
     public void testComputeConsumedSubpartitionRange3to1() {
-        final SubpartitionIndexRange range = computeConsumedSubpartitionRange(0, 1, 3);
+        final IndexRange range = computeConsumedSubpartitionRange(0, 1, 3);
         assertThat(range.getStartIndex(), is(0));
         assertThat(range.getEndIndex(), is(2));
     }
 
     @Test
     public void testComputeConsumedSubpartitionRange3to2() {
-        final SubpartitionIndexRange range1 = computeConsumedSubpartitionRange(0, 2, 3);
+        final IndexRange range1 = computeConsumedSubpartitionRange(0, 2, 3);
         assertThat(range1.getStartIndex(), is(0));
         assertThat(range1.getEndIndex(), is(0));
 
-        final SubpartitionIndexRange range2 = computeConsumedSubpartitionRange(1, 2, 3);
+        final IndexRange range2 = computeConsumedSubpartitionRange(1, 2, 3);
         assertThat(range2.getStartIndex(), is(1));
         assertThat(range2.getEndIndex(), is(2));
     }
 
     @Test
     public void testComputeConsumedSubpartitionRange6to4() {
-        final SubpartitionIndexRange range1 = computeConsumedSubpartitionRange(0, 4, 6);
+        final IndexRange range1 = computeConsumedSubpartitionRange(0, 4, 6);
         assertThat(range1.getStartIndex(), is(0));
         assertThat(range1.getEndIndex(), is(0));
 
-        final SubpartitionIndexRange range2 = computeConsumedSubpartitionRange(1, 4, 6);
+        final IndexRange range2 = computeConsumedSubpartitionRange(1, 4, 6);
         assertThat(range2.getStartIndex(), is(1));
         assertThat(range2.getEndIndex(), is(2));
 
-        final SubpartitionIndexRange range3 = computeConsumedSubpartitionRange(2, 4, 6);
+        final IndexRange range3 = computeConsumedSubpartitionRange(2, 4, 6);
         assertThat(range3.getStartIndex(), is(3));
         assertThat(range3.getEndIndex(), is(3));
 
-        final SubpartitionIndexRange range4 = computeConsumedSubpartitionRange(3, 4, 6);
+        final IndexRange range4 = computeConsumedSubpartitionRange(3, 4, 6);
         assertThat(range4.getStartIndex(), is(4));
         assertThat(range4.getEndIndex(), is(5));
     }
 
     @Test
     public void testComputeBroadcastConsumedSubpartitionRange() {
-        final SubpartitionIndexRange range1 = computeConsumedSubpartitionRange(0, 3, 1, true, true);
+        final IndexRange range1 = computeConsumedSubpartitionRange(0, 3, 1, true, true);
         assertThat(range1.getStartIndex(), is(0));
         assertThat(range1.getEndIndex(), is(0));
 
-        final SubpartitionIndexRange range2 = computeConsumedSubpartitionRange(1, 3, 1, true, true);
+        final IndexRange range2 = computeConsumedSubpartitionRange(1, 3, 1, true, true);
         assertThat(range2.getStartIndex(), is(0));
         assertThat(range2.getEndIndex(), is(0));
 
-        final SubpartitionIndexRange range3 = computeConsumedSubpartitionRange(2, 3, 1, true, true);
+        final IndexRange range3 = computeConsumedSubpartitionRange(2, 3, 1, true, true);
         assertThat(range3.getStartIndex(), is(0));
         assertThat(range3.getEndIndex(), is(0));
     }
 
     @Test
     public void testComputeConsumedSubpartitionRangeForNonDynamicGraph() {
-        final SubpartitionIndexRange range1 =
-                computeConsumedSubpartitionRange(0, 3, 3, false, false);
+        final IndexRange range1 = computeConsumedSubpartitionRange(0, 3, 3, false, false);
         assertThat(range1.getStartIndex(), is(0));
         assertThat(range1.getEndIndex(), is(0));
 
-        final SubpartitionIndexRange range2 =
-                computeConsumedSubpartitionRange(1, 3, 3, false, false);
+        final IndexRange range2 = computeConsumedSubpartitionRange(1, 3, 3, false, false);
         assertThat(range2.getStartIndex(), is(1));
         assertThat(range2.getEndIndex(), is(1));
 
-        final SubpartitionIndexRange range3 =
-                computeConsumedSubpartitionRange(2, 3, 3, false, false);
+        final IndexRange range3 = computeConsumedSubpartitionRange(2, 3, 3, false, false);
         assertThat(range3.getStartIndex(), is(2));
         assertThat(range3.getEndIndex(), is(2));
     }
 
-    private static SubpartitionIndexRange computeConsumedSubpartitionRange(
+    private static IndexRange computeConsumedSubpartitionRange(
             int consumerIndex, int numConsumers, int numSubpartitions) {
         return computeConsumedSubpartitionRange(
                 consumerIndex, numConsumers, numSubpartitions, true, false);
     }
 
-    private static SubpartitionIndexRange computeConsumedSubpartitionRange(
+    private static IndexRange computeConsumedSubpartitionRange(
             int consumerIndex,
             int numConsumers,
             int numSubpartitions,

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
@@ -131,7 +132,7 @@ public class TaskDeploymentDescriptorFactory {
                     resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
             IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
-            SubpartitionIndexRange consumedSubpartitionRange =
+            IndexRange consumedSubpartitionRange =
                     computeConsumedSubpartitionRange(
                             consumedPartitionGroup.getNumConsumers(),
                             resultPartition,
@@ -165,7 +166,7 @@ public class TaskDeploymentDescriptorFactory {
         return inputGates;
     }
 
-    public static SubpartitionIndexRange computeConsumedSubpartitionRange(
+    public static IndexRange computeConsumedSubpartitionRange(
             int numConsumers,
             IntermediateResultPartition resultPartition,
             int consumerSubtaskIndex) {
@@ -181,7 +182,7 @@ public class TaskDeploymentDescriptorFactory {
     }
 
     @VisibleForTesting
-    static SubpartitionIndexRange computeConsumedSubpartitionRange(
+    static IndexRange computeConsumedSubpartitionRange(
             int consumerIndex,
             int numConsumers,
             int numSubpartitions,
@@ -190,13 +191,13 @@ public class TaskDeploymentDescriptorFactory {
 
         if (!isDynamicGraph) {
             checkArgument(numConsumers == numSubpartitions);
-            return new SubpartitionIndexRange(consumerIndex, consumerIndex);
+            return new IndexRange(consumerIndex, consumerIndex);
         } else {
             if (isBroadcast) {
                 // broadcast result should have only one subpartition, and be consumed multiple
                 // times.
                 checkArgument(numSubpartitions == 1);
-                return new SubpartitionIndexRange(0, 0);
+                return new IndexRange(0, 0);
             } else {
                 checkArgument(consumerIndex < numConsumers);
                 checkArgument(numConsumers <= numSubpartitions);
@@ -204,7 +205,7 @@ public class TaskDeploymentDescriptorFactory {
                 int start = consumerIndex * numSubpartitions / numConsumers;
                 int nextStart = (consumerIndex + 1) * numSubpartitions / numConsumers;
 
-                return new SubpartitionIndexRange(start, nextStart - 1);
+                return new IndexRange(start, nextStart - 1);
             }
         }
     }
