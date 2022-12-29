@@ -25,7 +25,10 @@ import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropPrimaryKey;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn;
@@ -88,7 +91,6 @@ import org.apache.flink.sql.parser.dql.SqlUnloadModule;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -163,7 +165,6 @@ import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
-import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
@@ -488,6 +489,7 @@ public class SqlToOperationConverter {
         if (baseTable instanceof CatalogView) {
             throw new ValidationException("ALTER TABLE for a view is not allowed");
         }
+        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) baseTable;
         if (sqlAlterTable instanceof SqlAlterTableRename) {
             UnresolvedIdentifier newUnresolvedIdentifier =
                     UnresolvedIdentifier.of(
@@ -503,23 +505,45 @@ public class SqlToOperationConverter {
         } else if (sqlAlterTable instanceof SqlAlterTableReset) {
             return convertAlterTableReset(
                     tableIdentifier, (CatalogTable) baseTable, (SqlAlterTableReset) sqlAlterTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableDropColumn) {
+            return new AlterTableSchemaOperation(
+                    tableIdentifier,
+                    CatalogTable.of(
+                            alterSchemaConverter.applySchemaChange(
+                                    (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable),
+                            resolvedCatalogTable.getComment(),
+                            resolvedCatalogTable.getPartitionKeys(),
+                            resolvedCatalogTable.getOptions()));
+        } else if (sqlAlterTable instanceof SqlAlterTableDropPrimaryKey) {
+            return new AlterTableSchemaOperation(
+                    tableIdentifier,
+                    CatalogTable.of(
+                            alterSchemaConverter.applySchemaChange(
+                                    (SqlAlterTableDropPrimaryKey) sqlAlterTable,
+                                    resolvedCatalogTable),
+                            resolvedCatalogTable.getComment(),
+                            resolvedCatalogTable.getPartitionKeys(),
+                            resolvedCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
-            SqlAlterTableDropConstraint dropConstraint =
-                    ((SqlAlterTableDropConstraint) sqlAlterTable);
-            String constraintName = dropConstraint.getConstraintName().getSimple();
-            TableSchema oriSchema =
-                    TableSchema.fromResolvedSchema(
-                            baseTable
-                                    .getUnresolvedSchema()
-                                    .resolve(catalogManager.getSchemaResolver()));
-            if (!oriSchema
-                    .getPrimaryKey()
-                    .filter(pk -> pk.getName().equals(constraintName))
-                    .isPresent()) {
-                throw new ValidationException(
-                        String.format("CONSTRAINT [%s] does not exist", constraintName));
-            }
-            return new AlterTableDropConstraintOperation(tableIdentifier, constraintName);
+            return new AlterTableSchemaOperation(
+                    tableIdentifier,
+                    CatalogTable.of(
+                            alterSchemaConverter.applySchemaChange(
+                                    (SqlAlterTableDropConstraint) sqlAlterTable,
+                                    resolvedCatalogTable),
+                            resolvedCatalogTable.getComment(),
+                            resolvedCatalogTable.getPartitionKeys(),
+                            resolvedCatalogTable.getOptions()));
+        } else if (sqlAlterTable instanceof SqlAlterTableDropWatermark) {
+            return new AlterTableSchemaOperation(
+                    tableIdentifier,
+                    CatalogTable.of(
+                            alterSchemaConverter.applySchemaChange(
+                                    (SqlAlterTableDropWatermark) sqlAlterTable,
+                                    resolvedCatalogTable),
+                            resolvedCatalogTable.getComment(),
+                            resolvedCatalogTable.getPartitionKeys(),
+                            resolvedCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
             return OperationConverterUtils.convertAddReplaceColumns(
                     tableIdentifier,
@@ -537,15 +561,14 @@ public class SqlToOperationConverter {
                     (SqlAlterTableRenameColumn) sqlAlterTable;
             Schema newSchema =
                     alterSchemaConverter.applySchemaChange(
-                            sqlAlterTableRenameColumn, optionalCatalogTable.get());
-            CatalogTable baseCatalogTable = (CatalogTable) baseTable;
+                            sqlAlterTableRenameColumn, resolvedCatalogTable);
             return new AlterTableSchemaOperation(
                     tableIdentifier,
                     CatalogTable.of(
                             newSchema,
-                            baseCatalogTable.getComment(),
-                            baseCatalogTable.getPartitionKeys(),
-                            baseCatalogTable.getOptions()));
+                            resolvedCatalogTable.getComment(),
+                            resolvedCatalogTable.getPartitionKeys(),
+                            resolvedCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAddPartitions) {
             List<CatalogPartitionSpec> specs = new ArrayList<>();
             List<CatalogPartition> partitions = new ArrayList<>();
