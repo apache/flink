@@ -18,21 +18,20 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
-import org.apache.flink.api.common.io.FinalizeOnMaster;
-import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemCommitter;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicy;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactOutput;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,12 +40,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An {@link OutputFormat} to commit partition in batch mode. This is the single (non-parallel)
- * task. It collects all the partition information including partition and written files send from
- * upstream and commit these files and partitions in method {@link #finalizeGlobal}.
+ * Committer operator for partition in batch mode. This is the single (non-parallel) task. It
+ * collects all the partition information including partition and written files send from upstream.
  */
-public class BatchPartitionCommitOutputFormat
-        implements OutputFormat<CompactOutput>, FinalizeOnMaster, Serializable {
+public class BatchPartitionCommitterSink extends RichSinkFunction<CompactOutput> {
 
     private static final long serialVersionUID = 1L;
 
@@ -62,7 +59,7 @@ public class BatchPartitionCommitOutputFormat
 
     private transient Map<String, List<Path>> partitionsFiles;
 
-    public BatchPartitionCommitOutputFormat(
+    public BatchPartitionCommitterSink(
             FileSystemFactory fsFactory,
             TableMetaStoreFactory msFactory,
             boolean overwrite,
@@ -84,13 +81,30 @@ public class BatchPartitionCommitOutputFormat
     }
 
     @Override
-    public void finalizeGlobal(int parallelism) throws IOException {
+    public void open(Configuration parameters) throws Exception {
+        partitionsFiles = new HashMap<>();
+    }
+
+    @Override
+    public void invoke(CompactMessages.CompactOutput compactOutput, Context context)
+            throws Exception {
+        for (Map.Entry<String, List<Path>> compactFiles :
+                compactOutput.getCompactedFiles().entrySet()) {
+            // collect the written partition and written files
+            partitionsFiles
+                    .computeIfAbsent(compactFiles.getKey(), k -> new ArrayList<>())
+                    .addAll(compactFiles.getValue());
+        }
+    }
+
+    @Override
+    public void finish() throws Exception {
         try {
             List<PartitionCommitPolicy> policies = Collections.emptyList();
             if (partitionCommitPolicyFactory != null) {
                 policies =
                         partitionCommitPolicyFactory.createPolicyChain(
-                                Thread.currentThread().getContextClassLoader(),
+                                getRuntimeContext().getUserCodeClassLoader(),
                                 () -> {
                                     try {
                                         return fsFactory.create(tmpPath.toUri());
@@ -99,7 +113,6 @@ public class BatchPartitionCommitOutputFormat
                                     }
                                 });
             }
-
             // commit the partitions with the given files
             // it will move the written temporary files to partition's location
             FileSystemCommitter committer =
@@ -123,26 +136,4 @@ public class BatchPartitionCommitOutputFormat
             }
         }
     }
-
-    @Override
-    public void configure(Configuration parameters) {}
-
-    @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
-        partitionsFiles = new HashMap<>();
-    }
-
-    @Override
-    public void writeRecord(CompactOutput compactOutput) throws IOException {
-        for (Map.Entry<String, List<Path>> compactFiles :
-                compactOutput.getCompactedFiles().entrySet()) {
-            // collect the written partition and written files
-            partitionsFiles
-                    .computeIfAbsent(compactFiles.getKey(), k -> new ArrayList<>())
-                    .addAll(compactFiles.getValue());
-        }
-    }
-
-    @Override
-    public void close() throws IOException {}
 }

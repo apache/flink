@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemCommitterTest;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
@@ -25,11 +27,13 @@ import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,13 +46,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 
-/** Test for {@link BatchPartitionCommitOutputFormat}. */
-public class BatchPartitionCommitOutputFormatTest {
+/** Test for batch partition committer. */
+public class BatchPartitionCommitterSinkTest {
     private final FileSystemFactory fileSystemFactory = FileSystem::get;
 
     private TableMetaStoreFactory metaStoreFactory;
     private ObjectIdentifier identifier;
+
     @TempDir private java.nio.file.Path path;
     @TempDir private java.nio.file.Path outputPath;
 
@@ -61,8 +67,8 @@ public class BatchPartitionCommitOutputFormatTest {
 
     @Test
     public void testPartitionCommit() throws Exception {
-        BatchPartitionCommitOutputFormat commitOutputFormat =
-                new BatchPartitionCommitOutputFormat(
+        BatchPartitionCommitterSink committerSink =
+                new BatchPartitionCommitterSink(
                         fileSystemFactory,
                         metaStoreFactory,
                         false,
@@ -72,20 +78,20 @@ public class BatchPartitionCommitOutputFormatTest {
                         new LinkedHashMap<>(),
                         identifier,
                         new PartitionCommitPolicyFactory(null, null, null));
-        commitOutputFormat.open(1, 1);
+        committerSink.open(new Configuration());
 
         List<Path> pathList1 = createFiles(path, "task-1/p1=0/p2=0/", "f1", "f2");
         List<Path> pathList2 = createFiles(path, "task-2/p1=0/p2=0/", "f3");
         List<Path> pathList3 = createFiles(path, "task-2/p1=0/p2=1/", "f4");
-
         Map<String, List<Path>> compactedFiles = new HashMap<>();
         pathList1.addAll(pathList2);
         compactedFiles.put("p1=0/p2=0/", pathList1);
         compactedFiles.put("p1=0/p2=1/", pathList3);
 
-        commitOutputFormat.writeRecord(new CompactMessages.CompactOutput(compactedFiles));
-        commitOutputFormat.finalizeGlobal(0);
-
+        committerSink.invoke(new CompactMessages.CompactOutput(compactedFiles), TEST_SINK_CONTEXT);
+        committerSink.setRuntimeContext(TEST_RUNTIME_CONTEXT);
+        committerSink.finish();
+        committerSink.close();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f1")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f2")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f3")).exists();
@@ -100,5 +106,32 @@ public class BatchPartitionCommitOutputFormatTest {
             paths.add(new Path(Files.createFile(dir.resolve(file)).toFile().getPath()));
         }
         return paths;
+    }
+
+    private static final RuntimeContext TEST_RUNTIME_CONTEXT = getMockRuntimeContext();
+    private static final SinkFunction.Context TEST_SINK_CONTEXT =
+            new SinkFunction.Context() {
+                @Override
+                public long currentProcessingTime() {
+                    return 0;
+                }
+
+                @Override
+                public long currentWatermark() {
+                    return 0;
+                }
+
+                @Override
+                public Long timestamp() {
+                    return null;
+                }
+            };
+
+    private static RuntimeContext getMockRuntimeContext() {
+        RuntimeContext context = Mockito.mock(RuntimeContext.class);
+        doReturn(Thread.currentThread().getContextClassLoader())
+                .when(context)
+                .getUserCodeClassLoader();
+        return context;
     }
 }
