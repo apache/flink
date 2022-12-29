@@ -19,11 +19,13 @@
 package org.apache.flink.connector.file.table.batch.compact;
 
 import org.apache.flink.api.java.io.TextOutputFormat;
+import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionTempFileManager;
 import org.apache.flink.connector.file.table.RowPartitionComputer;
 import org.apache.flink.connector.file.table.stream.compact.AbstractCompactTestBase;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.InputFile;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -42,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link BatchFileWriter}. */
 public class BatchFileWriterTest extends AbstractCompactTestBase {
     private final String[] columnNames = new String[] {"a", "b", "c"};
+    private FileSystemFactory fsFactory = FileSystem::get;
 
     @Test
     public void testWriteWithoutPartition() throws Exception {
@@ -49,7 +52,8 @@ public class BatchFileWriterTest extends AbstractCompactTestBase {
         BatchFileWriter<Row> fileWriter =
                 createBatchFileWriter(columnNames, partitionColumns, new LinkedHashMap<>(), false);
         PartitionTempFileManager tempFileManager =
-                new PartitionTempFileManager(folder, 0, 0, OutputFileConfig.builder().build());
+                new PartitionTempFileManager(
+                        fsFactory, folder, 0, 0, OutputFileConfig.builder().build());
 
         try (OneInputStreamOperatorTestHarness<Row, CoordinatorInput> testHarness =
                 new OneInputStreamOperatorTestHarness<>(fileWriter)) {
@@ -80,7 +84,8 @@ public class BatchFileWriterTest extends AbstractCompactTestBase {
         BatchFileWriter<Row> fileWriter =
                 createBatchFileWriter(partitionColumns, partitionColumns, staticParts, false);
         PartitionTempFileManager tempFileManager =
-                new PartitionTempFileManager(folder, 0, 0, OutputFileConfig.builder().build());
+                new PartitionTempFileManager(
+                        fsFactory, folder, 0, 0, OutputFileConfig.builder().build());
 
         try (OneInputStreamOperatorTestHarness<Row, CoordinatorInput> testHarness =
                 new OneInputStreamOperatorTestHarness<>(fileWriter)) {
@@ -119,7 +124,8 @@ public class BatchFileWriterTest extends AbstractCompactTestBase {
                 createBatchFileWriter(
                         columnNames, partitionColumns, new LinkedHashMap<>(), dynamicGrouped);
         PartitionTempFileManager tempFileManager =
-                new PartitionTempFileManager(folder, 0, 0, OutputFileConfig.builder().build());
+                new PartitionTempFileManager(
+                        fsFactory, folder, 0, 0, OutputFileConfig.builder().build());
 
         try (OneInputStreamOperatorTestHarness<Row, CoordinatorInput> testHarness =
                 new OneInputStreamOperatorTestHarness<>(fileWriter)) {
@@ -161,6 +167,7 @@ public class BatchFileWriterTest extends AbstractCompactTestBase {
             LinkedHashMap<String, String> staticPartitions,
             boolean dynamicGrouped) {
         return new BatchFileWriter<>(
+                fsFactory,
                 folder,
                 partitionColumns,
                 dynamicGrouped,

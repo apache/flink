@@ -77,7 +77,11 @@ public class PartitionTempFileManager {
     }
 
     public PartitionTempFileManager(
-            Path tmpPath, int taskNumber, int attemptNumber, OutputFileConfig outputFileConfig)
+            FileSystemFactory factory,
+            Path tmpPath,
+            int taskNumber,
+            int attemptNumber,
+            OutputFileConfig outputFileConfig)
             throws IOException {
         this.taskNumber = taskNumber;
         this.outputFileConfig = outputFileConfig;
@@ -87,6 +91,7 @@ public class PartitionTempFileManager {
                 String.format(
                         "%s%d-%s%d", TASK_DIR_PREFIX, taskNumber, ATTEMPT_PREFIX, attemptNumber);
         this.taskTmpDir = new Path(tmpPath, taskTmpDirName);
+        factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
     }
 
     /** Generate a new partition directory with partitions. */

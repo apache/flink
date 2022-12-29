@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table.batch.compact;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.OutputFormatFactory;
 import org.apache.flink.connector.file.table.PartitionComputer;
 import org.apache.flink.connector.file.table.PartitionTempFileManager;
@@ -46,6 +47,7 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
 
     private static final long serialVersionUID = 1L;
 
+    private final FileSystemFactory fsFactory;
     private final Path tmpPath;
     private final String[] partitionColumns;
     private final boolean dynamicGrouped;
@@ -57,6 +59,7 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
     private transient PartitionWriter<T> writer;
 
     public BatchFileWriter(
+            FileSystemFactory fsFactory,
             Path tmpPath,
             String[] partitionColumns,
             boolean dynamicGrouped,
@@ -64,6 +67,7 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
             OutputFormatFactory<T> formatFactory,
             PartitionComputer<T> computer,
             OutputFileConfig outputFileConfig) {
+        this.fsFactory = fsFactory;
         this.tmpPath = tmpPath;
         this.partitionColumns = partitionColumns;
         this.dynamicGrouped = dynamicGrouped;
@@ -79,6 +83,7 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
         try {
             PartitionTempFileManager fileManager =
                     new PartitionTempFileManager(
+                            fsFactory,
                             tmpPath,
                             getRuntimeContext().getIndexOfThisSubtask(),
                             getRuntimeContext().getAttemptNumber(),
