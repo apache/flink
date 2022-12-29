@@ -48,7 +48,8 @@ import java.util.Map;
  *
  * <p>Note: if the size of the files to be compacted is 1, this operator won't do anything and just
  * emit the file to downstream. Also, the name of the files to be compacted is not a hidden file,
- * it's expected these files are in a hidden or temporary directory. so please make sure
+ * it's expected these files are in hidden or temporary directory. Please make sure it. This
+ * assumption can help skip rename hidden file.
  */
 public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutput>
         implements OneInputStreamOperator<CoordinatorOutput, CompactOutput>, BoundedOneInput {
@@ -94,9 +95,8 @@ public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutpu
                     getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
             Path path = null;
             if (paths.size() == 1) {
-                // for single file, we only need to rename it to make it visible instead of
-                // compacting.
-                // we make the downstream commit operator to do the renaming
+                // for single file, we only need to move it to corresponding partition instead of
+                // compacting. we make the downstream commit operator to do the moving
                 path = paths.get(0);
             } else if (paths.size() > 1) {
                 Path targetPath =
@@ -114,6 +114,8 @@ public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutpu
             if (path != null) {
                 compactedFiles.computeIfAbsent(partition, k -> new ArrayList<>()).add(path);
             }
+        } else {
+            throw new UnsupportedOperationException("Unsupported input message: " + value);
         }
     }
 

@@ -44,6 +44,9 @@ import java.util.function.Function;
  * Coordinator for compaction in batch mode. It will collect the written files in {@link
  * BatchFileWriter} and determine whether to compact files or not as well as what files should be
  * merged into a single file.
+ *
+ * <p>NOTE: The coordination is a stable algorithm, which can ensure different attempts will produce
+ * same outputs.
  */
 public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorOutput>
         implements OneInputStreamOperator<CoordinatorInput, CoordinatorOutput>, BoundedOneInput {
@@ -83,6 +86,9 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
             inputFiles
                     .computeIfAbsent(file.getPartition(), k -> new ArrayList<>())
                     .add(file.getFile());
+        } else {
+            throw new UnsupportedOperationException(
+                    "Unsupported input message: " + coordinatorInput);
         }
     }
 

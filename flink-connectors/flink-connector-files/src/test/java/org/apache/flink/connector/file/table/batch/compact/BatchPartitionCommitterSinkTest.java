@@ -48,7 +48,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
-/** Test for batch partition committer. */
+/** Test for {@link BatchPartitionCommitterSink}. */
 public class BatchPartitionCommitterSinkTest {
     private final FileSystemFactory fileSystemFactory = FileSystem::get;
 
