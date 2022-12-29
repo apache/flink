@@ -29,4 +29,8 @@
   >
     <i nz-icon nzType="download" nzTheme="outline"></i>
   </a>
+  <a nz-button nzType="primary" nzSize="small" (click)="toggleFullScreen()">
+    <i *ngIf="isFullScreen" nz-icon nzType="fullscreen-exit" nzTheme="outline"></i>
+    <i *ngIf="!isFullScreen" nz-icon nzType="fullscreen" nzTheme="outline"></i>
+  </a>
 </nz-button-group>

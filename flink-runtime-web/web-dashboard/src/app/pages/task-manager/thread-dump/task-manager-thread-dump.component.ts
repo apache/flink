@@ -39,7 +39,10 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   styleUrls: ['./task-manager-thread-dump.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  standalone: true,
+  host: {
+    '[class.full-screen]': 'isFullScreen'
+  }
 })
 export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;
@@ -49,6 +52,7 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
   public taskManagerId: string;
   public downloadUrl = '';
   public downloadName = '';
+  public isFullScreen = false;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -88,5 +92,9 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
         this.dump = data;
         this.cdr.markForCheck();
       });
+  }
+
+  public toggleFullScreen(fullScreen: boolean): void {
+    this.isFullScreen = fullScreen;
   }
 }
