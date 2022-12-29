@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.table.batch.compact;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.file.table.CompactFileUtils;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactOutput;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactionUnit;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorOutput;
@@ -32,6 +31,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
@@ -45,11 +45,19 @@ import java.util.Map;
  * emit the compacted file's path to downstream operator. The main logic is similar to {@link
  * org.apache.flink.connector.file.table.stream.compact.CompactOperator} but skip some unnecessary
  * operations in batch mode.
+ *
+ * <p>Note: if the size of the files to be compacted is 1, this operator won't do anything and just
+ * emit the file to downstream. Also, the name of the files to be compacted is not a hidden file,
+ * it's expected these files are in a hidden or temporary directory. so please make sure
  */
 public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutput>
         implements OneInputStreamOperator<CoordinatorOutput, CompactOutput>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
+
+    public static final String UNCOMPACTED_PREFIX = "uncompacted-";
+    public static final String COMPACTED_PREFIX = "compacted-";
+    public static final String ATTEMPT_PREFIX = "attempt-";
 
     private final SupplierWithException<FileSystem, IOException> fsFactory;
     private final CompactReader.Factory<T> readerFactory;
@@ -84,32 +92,54 @@ public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutpu
             List<Path> paths = unit.getPaths();
             Configuration config =
                     getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
-            // compact them to a single file
-            Path path =
-                    CompactFileUtils.doCompact(
-                            getRuntimeContext().getAttemptNumber(),
-                            fileSystem,
-                            partition,
-                            paths,
-                            config,
-                            this::doSingleFileMove,
-                            readerFactory,
-                            writerFactory);
+            Path path = null;
+            if (paths.size() == 1) {
+                // for single file, we only need to rename it to make it visible instead of
+                // compacting.
+                // we make the downstream commit operator to do the renaming
+                path = paths.get(0);
+            } else if (paths.size() > 1) {
+                Path targetPath =
+                        createCompactedFile(paths, getRuntimeContext().getAttemptNumber());
+                path =
+                        CompactFileUtils.doCompact(
+                                fileSystem,
+                                partition,
+                                paths,
+                                targetPath,
+                                config,
+                                readerFactory,
+                                writerFactory);
+            }
             if (path != null) {
                 compactedFiles.computeIfAbsent(partition, k -> new ArrayList<>()).add(path);
             }
         }
     }
 
-    private boolean doSingleFileMove(Path src, Path dst) throws IOException {
-        // in batch mode, we can just rename the file
-        fileSystem.rename(src, dst);
-        return true;
-    }
-
     @Override
     public void endInput() throws Exception {
         // emit the compacted files to downstream
         output.collect(new StreamRecord<>(new CompactOutput(compactedFiles)));
+    }
+
+    private static Path createCompactedFile(List<Path> uncompactedFiles, int attemptNumber) {
+        Path path = convertFromUncompacted(uncompactedFiles.get(0));
+        // different attempt will have different target paths to avoid different attempts will
+        // write same path
+        return new Path(
+                path.getParent(), convertToCompactWithAttempt(attemptNumber, path.getName()));
+    }
+
+    public static Path convertFromUncompacted(Path path) {
+        Preconditions.checkArgument(
+                path.getName().startsWith(UNCOMPACTED_PREFIX),
+                "This should be uncompacted file: " + path);
+        return new Path(path.getParent(), path.getName().substring(UNCOMPACTED_PREFIX.length()));
+    }
+
+    private static String convertToCompactWithAttempt(int attemptNumber, String fileName) {
+        return String.format(
+                "%s%s%d-%s", COMPACTED_PREFIX, ATTEMPT_PREFIX, attemptNumber, fileName);
     }
 }

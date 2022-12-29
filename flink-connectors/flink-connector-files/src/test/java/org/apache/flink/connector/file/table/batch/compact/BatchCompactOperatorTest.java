@@ -56,11 +56,11 @@ public class BatchCompactOperatorTest extends AbstractCompactTestBase {
             testHarness.setup();
             testHarness.open();
 
-            Path f0 = newFile(".uncompacted-f0", 3);
-            Path f1 = newFile(".uncompacted-f1", 2);
-            Path f2 = newFile(".uncompacted-f2", 2);
+            Path f0 = newFile("uncompacted-f0", 3);
+            Path f1 = newFile("uncompacted-f1", 2);
+            Path f2 = newFile("uncompacted-f2", 2);
 
-            Path f3 = newFile(".uncompacted-f3", 10);
+            Path f3 = newFile("uncompacted-f3", 10);
 
             testHarness.processElement(
                     new StreamRecord<>(new CompactionUnit(1, "p=p1/", Arrays.asList(f0, f1, f2))));
@@ -75,9 +75,9 @@ public class BatchCompactOperatorTest extends AbstractCompactTestBase {
             expectCompactedFiles.put(
                     "p=p1/",
                     Collections.singletonList(new Path(folder + "/compacted-attempt-0-f0")));
+            // for single file, we won't compact, so the name won't change
             expectCompactedFiles.put(
-                    "p=p2/",
-                    Collections.singletonList(new Path(folder + "/compacted-attempt-0-f3")));
+                    "p=p2/", Collections.singletonList(new Path(folder + "/uncompacted-f3")));
 
             // check compacted file
             byte[] bytes =
@@ -86,9 +86,7 @@ public class BatchCompactOperatorTest extends AbstractCompactTestBase {
             Arrays.sort(bytes);
             assertThat(bytes).isEqualTo(new byte[] {0, 0, 0, 1, 1, 1, 2});
 
-            bytes =
-                    FileUtils.readAllBytes(
-                            new File(folder.getPath(), "compacted-attempt-0-f3").toPath());
+            bytes = FileUtils.readAllBytes(new File(folder.getPath(), "uncompacted-f3").toPath());
             assertThat(bytes).isEqualTo(new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
             assertCompactOutput(

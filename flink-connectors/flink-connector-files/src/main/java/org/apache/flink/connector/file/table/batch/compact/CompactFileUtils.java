@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.file.table;
+package org.apache.flink.connector.file.table.batch.compact;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.stream.compact.CompactContext;
@@ -24,7 +24,6 @@ import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connector.file.table.stream.compact.CompactWriter;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,29 +38,16 @@ public class CompactFileUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(CompactFileUtils.class);
 
-    public static final String UNCOMPACTED_PREFIX = ".uncompacted-";
-
-    public static final String COMPACTED_PREFIX = "compacted-";
-    public static final String ATTEMPT_PREFIX = "attempt-";
-
-    /** The function interface for move single file. */
-    @FunctionalInterface
-    public interface SingleFileMvFunction<T, U, R> {
-        R apply(T t, U u) throws IOException;
-    }
-
     /**
-     * Do Compaction: - Target file exists, do nothing. - Can do compaction: - Single file, do
-     * atomic renaming, there are optimizations for FileSystem. - Multiple file, do reading and
-     * writing.
+     * Do Compaction: - Target file exists, do nothing. Otherwise, it'll read the input files and
+     * write the target file to achieve compaction purpose.
      */
     public static <T> Path doCompact(
-            int attemptNumber,
             FileSystem fileSystem,
             String partition,
             List<Path> paths,
+            Path target,
             Configuration config,
-            SingleFileMvFunction<Path, Path, Boolean> singleFileMvFunc,
             CompactReader.Factory<T> readerFactory,
             CompactWriter.Factory<T> writerFactory)
             throws IOException {
@@ -69,7 +55,6 @@ public class CompactFileUtils {
             return null;
         }
 
-        Path target = createCompactedFile(paths, attemptNumber);
         if (fileSystem.exists(target)) {
             return target;
         }
@@ -78,24 +63,15 @@ public class CompactFileUtils {
 
         long startMillis = System.currentTimeMillis();
 
-        boolean success = false;
         Map<Path, Long> inputMap = new HashMap<>();
         for (Path path : paths) {
             inputMap.put(path, fileSystem.getFileStatus(path).getLen());
         }
-        if (paths.size() == 1) {
-            // optimizer for single file
-            success = singleFileMvFunc.apply(paths.get(0), target);
-        }
 
-        if (!success) {
-            doMultiFilesCompact(
-                    partition, paths, target, config, fileSystem, readerFactory, writerFactory);
-        }
-
+        doMultiFilesCompact(
+                partition, paths, target, config, fileSystem, readerFactory, writerFactory);
         Map<Path, Long> targetMap = new HashMap<>();
         targetMap.put(target, fileSystem.getFileStatus(target).getLen());
-
         double costSeconds = ((double) (System.currentTimeMillis() - startMillis)) / 1000;
         LOG.info(
                 "Compaction time cost is '{}S', output per file as following format: name=size(byte), target file is '{}', input files are '{}'",
@@ -139,27 +115,5 @@ public class CompactFileUtils {
                 throw new IOException("Compaction file not exist: " + path);
             }
         }
-    }
-
-    private static Path createCompactedFile(List<Path> uncompactedFiles, int attemptNumber) {
-        Path path = convertFromUncompacted(uncompactedFiles.get(0));
-        return new Path(
-                path.getParent(), convertToCompactWithAttempt(attemptNumber, path.getName()));
-    }
-
-    public static String convertToUncompacted(String path) {
-        return UNCOMPACTED_PREFIX + path;
-    }
-
-    private static String convertToCompactWithAttempt(int attemptNumber, String fileName) {
-        return String.format(
-                "%s%s%d-%s", COMPACTED_PREFIX, ATTEMPT_PREFIX, attemptNumber, fileName);
-    }
-
-    public static Path convertFromUncompacted(Path path) {
-        Preconditions.checkArgument(
-                path.getName().startsWith(UNCOMPACTED_PREFIX),
-                "This should be uncompacted file: " + path);
-        return new Path(path.getParent(), path.getName().substring(UNCOMPACTED_PREFIX.length()));
     }
 }
