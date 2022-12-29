@@ -205,6 +205,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -393,6 +394,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertStopJob((SqlStopJob) validated));
         } else if (validated instanceof SqlDelete) {
             return Optional.of(converter.convertDelete((SqlDelete) validated));
+        } else if (validated instanceof SqlUpdate) {
+            return Optional.of(converter.convertUpdate((SqlUpdate) validated));
         } else {
             return Optional.empty();
         }
@@ -1518,6 +1521,21 @@ public class SqlToOperationConverter {
         }
         // delete push down is not applicable, use row level delete
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        return new SinkModifyOperation(contextResolvedTable, queryOperation);
+    }
+
+    private Operation convertUpdate(SqlUpdate sqlUpdate) {
+        RelRoot updateRelational = flinkPlanner.rel(sqlUpdate);
+        // get target sink table
+        LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
+        List<String> targetTablePath = tableModify.getTable().getQualifiedName();
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(
+                        catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(targetTablePath)));
+
+        // get query
+        PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+
         return new SinkModifyOperation(contextResolvedTable, queryOperation);
     }
 

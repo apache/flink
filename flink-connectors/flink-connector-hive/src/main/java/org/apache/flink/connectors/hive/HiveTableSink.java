@@ -73,6 +73,7 @@ import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -125,7 +126,8 @@ public class HiveTableSink
                 SupportsPartitioning,
                 SupportsOverwrite,
                 SupportsDeletePushDown,
-                SupportsRowLevelDelete {
+                SupportsRowLevelDelete,
+                SupportsRowLevelUpdate {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSink.class);
 
@@ -700,6 +702,21 @@ public class HiveTableSink
             @Override
             public RowLevelDeleteInfo.RowLevelDeleteMode getRowLevelDeleteMode() {
                 return RowLevelDeleteMode.REMAINING_ROWS;
+            }
+        };
+    }
+
+    @Override
+    public RowLevelUpdateInfo applyRowLevelUpdate(List<Column> updatedColumns) {
+        return new RowLevelUpdateInfo() {
+            @Override
+            public Optional<List<Column>> requiredColumns() {
+                return Optional.empty();
+            }
+
+            @Override
+            public RowLevelUpdateMode getRowLevelUpdateMode() {
+                return RowLevelUpdateMode.ALL_ROWS;
             }
         };
     }

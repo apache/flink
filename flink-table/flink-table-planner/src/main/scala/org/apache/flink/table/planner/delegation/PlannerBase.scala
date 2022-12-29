@@ -192,7 +192,9 @@ abstract class PlannerBase(
     }
 
     val relNodes = modifyOperations.map(translateToRel)
+    println(relNodes.get(0).explain())
     val optimizedRelNodes = optimize(relNodes)
+    println(optimizedRelNodes.get(0).explain())
     val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = false)
     val transformations = translateToPlan(execGraph)
     afterTranslation()
