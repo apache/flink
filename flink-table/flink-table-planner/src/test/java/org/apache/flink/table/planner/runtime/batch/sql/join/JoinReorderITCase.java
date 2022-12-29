@@ -23,9 +23,13 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.plan.rules.logical.FlinkJoinReorderRule;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -39,10 +43,17 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import scala.Enumeration;
 
-/** ITCase for JoinReorder in batch mode. */
+/**
+ * ITCase for JoinReorder in batch mode. This class will test {@link
+ * org.apache.flink.table.planner.plan.rules.logical.FlinkBushyJoinReorderRule} and {@link
+ * org.apache.calcite.rel.rules.LoptOptimizeJoinRule} together by changing the factor
+ * isBushyJoinReorder.
+ */
 @RunWith(Parameterized.class)
 public class JoinReorderITCase extends BatchTestBase {
 
@@ -53,9 +64,9 @@ public class JoinReorderITCase extends BatchTestBase {
     public Enumeration.Value expectedJoinType;
 
     @Parameterized.Parameter(value = 1)
-    public boolean isBusyJoinReorder;
+    public boolean isBushyJoinReorder;
 
-    @Parameterized.Parameters(name = "expectedJoinType={0}, isBusyJoinReorder={1}")
+    @Parameterized.Parameters(name = "expectedJoinType={0}, isBushyJoinReorder={1}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -83,10 +94,10 @@ public class JoinReorderITCase extends BatchTestBase {
                 .getConfiguration()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
-        if (isBusyJoinReorder) {
+        if (!isBushyJoinReorder) {
             tEnv.getConfig()
                     .getConfiguration()
-                    .set(FlinkJoinReorderRule.TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD, 5);
+                    .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 3);
         }
 
         JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv(), expectedJoinType);
@@ -171,21 +182,60 @@ public class JoinReorderITCase extends BatchTestBase {
     }
 
     @Test
-    public void testFullOuterJoinReorder() {
-        // Only supports NestedLoopJoin.
-        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+    public void testJoinReorderWithFullOuterJoin() {
+        if (expectedJoinType == JoinType.BroadcastHashJoin()) {
             return;
         }
         checkResult(
-                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4, T3, T2, T1 "
-                        + "WHERE T4.a4 <= 1 AND T3.a3 <= 1 AND T2.a2 <= 1 AND T1.a1 <= 1",
+                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
+                        + "FULL OUTER JOIN T3 ON T4.b4 = T3.b3 "
+                        + "FULL OUTER JOIN T2 ON T4.b4 = T2.b2 "
+                        + "FULL OUTER JOIN T1 ON T2.b2 = T1.b1",
                 JavaScalaConversionUtil.toScala(
-                        Collections.singletonList(Row.of("Hallo", "Hi", "Hallo", "Hallo"))),
+                        Arrays.asList(
+                                Row.of("ABC", null, "ABC", "ABC"),
+                                Row.of("BCD", null, "BCD", "BCD"),
+                                Row.of("CDE", null, "CDE", "CDE"),
+                                Row.of("DEF", null, "DEF", "DEF"),
+                                Row.of("EFG", null, "EFG", "EFG"),
+                                Row.of("FGH", null, "FGH", "FGH"),
+                                Row.of("GHI", null, "GHI", "GHI"),
+                                Row.of("HIJ", null, "HIJ", "HIJ"),
+                                Row.of(
+                                        "Hallo Welt wie gehts?",
+                                        null,
+                                        "Hallo Welt wie gehts?",
+                                        "Hallo Welt wie gehts?"),
+                                Row.of("Hallo Welt wie", null, "Hallo Welt wie", "Hallo Welt wie"),
+                                Row.of("Hallo Welt", "Hello world", "Hallo Welt", "Hallo Welt"),
+                                Row.of("Hallo Welt", "Hello", "Hallo Welt", "Hallo Welt"),
+                                Row.of("Hallo", "Hi", "Hallo", "Hallo"),
+                                Row.of("IJK", null, "IJK", "IJK"),
+                                Row.of("JKL", null, "JKL", "JKL"),
+                                Row.of("KLM", null, "KLM", "KLM"))),
                 false);
     }
 
     @Test
-    public void testInnerJoinReorder() {
+    public void testJoinReorderWithInnerAndFullOuterJoin() {
+        if (expectedJoinType == JoinType.BroadcastHashJoin()) {
+            return;
+        }
+        checkResult(
+                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
+                        + "JOIN T3 ON T4.b4 = T3.b3 "
+                        + "FULL OUTER JOIN T2 ON T4.b4 = T2.b2 "
+                        + "JOIN T1 ON T4.b4 = T1.b1",
+                JavaScalaConversionUtil.toScala(
+                        Arrays.asList(
+                                Row.of("Hallo Welt", "Hello world", "Hallo Welt", "Hallo Welt"),
+                                Row.of("Hallo Welt", "Hello", "Hallo Welt", "Hallo Welt"),
+                                Row.of("Hallo", "Hi", "Hallo", "Hallo"))),
+                false);
+    }
+
+    @Test
+    public void testJoinReorderWithInnerJoin() {
         checkResult(
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
@@ -201,7 +251,7 @@ public class JoinReorderITCase extends BatchTestBase {
     }
 
     @Test
-    public void testLeftOuterJoinReorder() {
+    public void testJoinReorderWithLeftOuterJoin() {
         // can reorder, all join keys will not generate null.
         checkResult(
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
@@ -223,7 +273,7 @@ public class JoinReorderITCase extends BatchTestBase {
     }
 
     @Test
-    public void testInnerAndLeftOuterJoinReorder() {
+    public void testJoinReorderWithInnerAndLeftOuterJoin() {
         checkResult(
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
@@ -239,7 +289,7 @@ public class JoinReorderITCase extends BatchTestBase {
     }
 
     @Test
-    public void testRightOuterJoinReorder() {
+    public void testJoinReorderWithRightOuterJoin() {
         checkResult(
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "RIGHT OUTER JOIN T3 ON T4.b4 = T3.b3 "
@@ -255,12 +305,102 @@ public class JoinReorderITCase extends BatchTestBase {
     }
 
     @Test
-    public void testBusyJoinReorderDpThreshold() {
-        // Set busy join reorder dp threshold to 2, so that the busy join reorder strategy will not
-        // be selected if the number of tables need to be reordered more than 2.
+    public void testJoinReorderWithTrueCondition() {
+        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+            return;
+        }
+        checkResult(
+                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4, T3, T2, T1 "
+                        + "WHERE T4.a4 <= 1 AND T3.a3 <= 1 AND T2.a2 <= 1 AND T1.a1 <= 1",
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(Row.of("Hallo", "Hi", "Hallo", "Hallo"))),
+                false);
+    }
+
+    @Test
+    public void testJoinReorderWithInnerJoinAndTrueCondition() {
+        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+            return;
+        }
+        checkResult(
+                "SELECT tab1.d4, tab1.c3, T2.d2, T1.d1 FROM T1, "
+                        + "(SELECT * FROM T3 JOIN T4 ON T4.b4 = T3.b3) tab1, T2 "
+                        + "WHERE tab1.a4 <= 1 AND tab1.a3 <= 1 AND T2.a2 <= 1 AND T1.a1 <= 1",
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(Row.of("Hallo", "Hi", "Hallo", "Hallo"))),
+                false);
+    }
+
+    @Test
+    public void testJoinReorderWithMixedJoinTypeAndCondition() {
+        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+            return;
+        }
+        checkResult(
+                "SELECT tab2.d4, tab2.c3, tab2.d2, T1.d1 FROM T1, (SELECT * FROM T4 "
+                        + "LEFT OUTER JOIN T3 ON T4.b4 = T3.b3 "
+                        + "JOIN T2 ON T4.b4 = T2.b2) tab2 "
+                        + "WHERE tab2.a4 <= 1 AND tab2.a3 <= 1 AND tab2.a2 <= 1 AND T1.a1 <= 1",
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(Row.of("Hallo", "Hi", "Hallo", "Hallo"))),
+                false);
+    }
+
+    @Test
+    public void testBusyTreeJoinReorder() throws TableNotExistException, TablePartitionedException {
+        CatalogColumnStatisticsDataLong longColStats =
+                new CatalogColumnStatisticsDataLong(100L, 100L, 50L, 1000L);
+        Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b1", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T1"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        longColStats = new CatalogColumnStatisticsDataLong(100L, 100L, 500000L, 1000L);
+        colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b2", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T2"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        longColStats = new CatalogColumnStatisticsDataLong(100L, 100L, 50L, 1000L);
+        colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b3", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T3"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        longColStats = new CatalogColumnStatisticsDataLong(100L, 100L, 500000L, 1000L);
+        colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b4", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T4"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        checkResult(
+                "SELECT tab2.d4, tab2.c3, tab1.d2, tab1.d1 FROM "
+                        + "(SELECT * FROM T1 JOIN T2 ON T1.b1 = T2.b2) tab1 "
+                        + "JOIN (SELECT * FROM T3 JOIN T4 ON T3.b3 = T4.b4) tab2 "
+                        + "ON tab1.b2 = tab2.b4",
+                JavaScalaConversionUtil.toScala(
+                        Arrays.asList(
+                                Row.of("Hallo", "Hi", "Hallo", "Hallo"),
+                                Row.of("Hallo Welt", "Hello", "Hallo Welt", "Hallo Welt"),
+                                Row.of("Hallo Welt", "Hello world", "Hallo Welt", "Hallo Welt"))),
+                false);
+    }
+
+    @Test
+    public void testBushyJoinReorderThreshold() {
+        // Set bushy join reorder dp threshold to 2, so that the bushy join reorder strategy will
+        // not be selected if the number of tables need to be reordered more than 2.
         tEnv.getConfig()
                 .getConfiguration()
-                .set(FlinkJoinReorderRule.TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD, 2);
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 2);
         checkResult(
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "

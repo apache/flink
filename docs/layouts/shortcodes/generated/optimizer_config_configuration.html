@@ -42,6 +42,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>Enables join reorder in optimizer. Default is disabled.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.bushy-join-reorder-threshold</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">12</td>
+            <td>Integer</td>
+            <td>The maximum number of joined nodes allowed in the bushy join reorder algorithm, otherwise the left-deep join reorder algorithm will be used. The search space of bushy join reorder algorithm will increase with the increase of this threshold value, so this threshold is not recommended to be set too large. The default value is 12.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.join.broadcast-threshold</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">1048576</td>
             <td>Long</td>

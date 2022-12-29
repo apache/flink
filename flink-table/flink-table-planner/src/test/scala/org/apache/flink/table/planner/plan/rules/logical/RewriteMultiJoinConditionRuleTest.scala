@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -75,6 +76,10 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
     util.addTableSource[(Int, Long)]("B", 'b1, 'b2)
     util.addTableSource[(Int, Long)]("C", 'c1, 'c2)
     util.addTableSource[(Int, Long)]("D", 'd1, 'd2)
+
+    // Set TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD to 1 means disable bushy join reorder.
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, Integer.valueOf(1))
   }
 
   @Test
@@ -153,6 +158,23 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
   @Test
   def testMultiJoin_FullJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A FULL OUTER JOIN B ON a1 = b1 FULL OUTER JOIN C ON a1 = c1"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultiJoin_InnerJoin2_WithBushyJoinReorderEnable(): Unit = {
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, Integer.valueOf(3))
+    val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 = c1"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultiJoin_InnerJoin4_WithBushyJoinReorderEnable(): Unit = {
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, Integer.valueOf(3))
+    // non-equi join condition
+    val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 > c1"
     util.verifyRelPlan(sqlQuery)
   }
 

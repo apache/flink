@@ -121,6 +121,8 @@ abstract class JoinReorderTestBase extends TableTestBase {
 
     util.getTableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, Boolean.box(true))
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, Integer.valueOf(1))
   }
 
   @Test

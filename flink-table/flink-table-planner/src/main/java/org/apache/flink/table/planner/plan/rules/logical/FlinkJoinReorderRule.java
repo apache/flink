@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -31,16 +30,15 @@ import org.apache.calcite.rel.rules.TransformationRule;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
-
 /**
  * Flink join reorder rule, which can change the join order of input relNode tree.
  *
  * <p>It is triggered by the ({@link MultiJoin}).
  *
  * <p>In this rule, there are two specific join reorder strategies can be chosen, one is {@link
- * LoptOptimizeJoinRule}, another is {@link FlinkBusyJoinReorderRule}. Which rule is selected
- * depends on the parameter TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD.
+ * LoptOptimizeJoinRule}, another is {@link FlinkBushyJoinReorderRule}. Which rule is selected
+ * depends on the parameter {@link
+ * OptimizerConfigOptions#TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD}.
  */
 public class FlinkJoinReorderRule extends RelRule<FlinkJoinReorderRule.Config>
         implements TransformationRule {
@@ -48,22 +46,11 @@ public class FlinkJoinReorderRule extends RelRule<FlinkJoinReorderRule.Config>
     public static final FlinkJoinReorderRule INSTANCE =
             FlinkJoinReorderRule.Config.DEFAULT.toRule();
 
-    public static final LoptOptimizeJoinRule LOPT_JOIN_REORDER =
+    private static final LoptOptimizeJoinRule LOPT_JOIN_REORDER =
             LoptOptimizeJoinRule.Config.DEFAULT.toRule();
 
-    public static final FlinkBusyJoinReorderRule BUSY_JOIN_REORDER =
-            FlinkBusyJoinReorderRule.Config.DEFAULT.toRule();
-
-    @Experimental
-    public static final ConfigOption<Integer> TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD =
-            key("table.optimizer.busy-join-reorder-threshold")
-                    .intType()
-                    .defaultValue(-1)
-                    .withDescription(
-                            "The maximum number of joined nodes allowed in the busy join reorder algorithm. "
-                                    + "If this parameter is set too large, the search space of join reorder "
-                                    + "algorithm will be too large, which will spend so much time. the default "
-                                    + "value is -1, which means that Flink disable busy join reorder by default.");
+    private static final FlinkBushyJoinReorderRule BUSHY_JOIN_REORDER =
+            FlinkBushyJoinReorderRule.Config.DEFAULT.toRule();
 
     /** Creates an SparkJoinReorderRule. */
     protected FlinkJoinReorderRule(FlinkJoinReorderRule.Config config) {
@@ -90,12 +77,12 @@ public class FlinkJoinReorderRule extends RelRule<FlinkJoinReorderRule.Config>
     public void onMatch(RelOptRuleCall call) {
         final MultiJoin multiJoinRel = call.rel(0);
         int numJoinInputs = multiJoinRel.getInputs().size();
-        int dpThreshold =
+        int bushyTreeThreshold =
                 ShortcutUtils.unwrapContext(multiJoinRel)
                         .getTableConfig()
-                        .get(FlinkJoinReorderRule.TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD);
-        if (numJoinInputs <= dpThreshold) {
-            BUSY_JOIN_REORDER.onMatch(call);
+                        .get(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD);
+        if (numJoinInputs <= bushyTreeThreshold) {
+            BUSHY_JOIN_REORDER.onMatch(call);
         } else {
             LOPT_JOIN_REORDER.onMatch(call);
         }

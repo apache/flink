@@ -28,9 +28,11 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.plan.rules.logical.FlinkJoinReorderRule;
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper;
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType;
 import org.apache.flink.table.planner.runtime.utils.TestData;
@@ -49,14 +51,21 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import scala.Enumeration;
 import scala.Tuple2;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** ITCase for JoinReorder in stream mode. */
+/**
+ * ITCase for JoinReorder in stream mode. This class will test {@link
+ * org.apache.flink.table.planner.plan.rules.logical.FlinkBushyJoinReorderRule} and {@link
+ * org.apache.calcite.rel.rules.LoptOptimizeJoinRule} together by changing the factor
+ * isBushyJoinReorder.
+ */
 @RunWith(Parameterized.class)
 public class JoinReorderITCase extends TestLogger {
 
@@ -68,9 +77,9 @@ public class JoinReorderITCase extends TestLogger {
     public Enumeration.Value expectedJoinType;
 
     @Parameterized.Parameter(value = 1)
-    public boolean isBusyJoinReorder;
+    public boolean isBushyJoinReorder;
 
-    @Parameterized.Parameters(name = "expectedJoinType={0}, isBusyJoinReorder={1}")
+    @Parameterized.Parameters(name = "expectedJoinType={0}, isBushyJoinReorder={1}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -98,10 +107,10 @@ public class JoinReorderITCase extends TestLogger {
                 .getConfiguration()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
-        if (isBusyJoinReorder) {
+        if (!isBushyJoinReorder) {
             tEnv.getConfig()
                     .getConfiguration()
-                    .set(FlinkJoinReorderRule.TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD, 5);
+                    .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 3);
         }
 
         JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType);
@@ -186,25 +195,60 @@ public class JoinReorderITCase extends TestLogger {
     }
 
     @Test
-    public void testFullOuterJoinReorder() {
-        // Only supports NestedLoopJoin.
-        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+    public void testJoinReorderWithFullOuterJoin() throws Exception {
+        if (expectedJoinType == JoinType.BroadcastHashJoin()) {
             return;
         }
 
         String query =
-                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4, T3, T2, T1 "
-                        + "WHERE T4.a4 <= 1 AND T3.a3 <= 1 AND T2.a2 <= 1 AND T1.a1 <= 1";
-        List<Row> results =
-                CollectionUtil.iteratorToList(
-                        DataStreamUtils.collect(
-                                tEnv.toAppendStream(tEnv.sqlQuery(query), Row.class)));
-        String expected = "+I[Hallo, Hi, Hallo, Hallo]";
-        TestBaseUtils.compareResultAsText(results, expected);
+                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
+                        + "FULL OUTER JOIN T3 ON T4.b4 = T3.b3 "
+                        + "FULL OUTER JOIN T2 ON T4.b4 = T2.b2 "
+                        + "FULL OUTER JOIN T1 ON T2.b2 = T1.b1";
+
+        List<String> expectedList =
+                Arrays.asList(
+                        "ABC,null,ABC,ABC",
+                        "BCD,null,BCD,BCD",
+                        "CDE,null,CDE,CDE",
+                        "DEF,null,DEF,DEF",
+                        "EFG,null,EFG,EFG",
+                        "FGH,null,FGH,FGH",
+                        "GHI,null,GHI,GHI",
+                        "HIJ,null,HIJ,HIJ",
+                        "Hallo Welt wie gehts?,null,Hallo Welt wie gehts?,Hallo Welt wie gehts?",
+                        "Hallo Welt wie,null,Hallo Welt wie,Hallo Welt wie",
+                        "Hallo Welt,Hello world,Hallo Welt,Hallo Welt",
+                        "Hallo Welt,Hello,Hallo Welt,Hallo Welt",
+                        "Hallo,Hi,Hallo,Hallo",
+                        "IJK,null,IJK,IJK",
+                        "JKL,null,JKL,JKL",
+                        "KLM,null,KLM,KLM");
+        assertEquals(query, expectedList);
     }
 
     @Test
-    public void testInnerJoinReorder() {
+    public void testJoinReorderWithInnerAndFullOuterJoin() throws Exception {
+        if (expectedJoinType == JoinType.BroadcastHashJoin()) {
+            return;
+        }
+
+        String query =
+                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
+                        + "JOIN T3 ON T4.b4 = T3.b3 "
+                        + "FULL OUTER JOIN T2 ON T4.b4 = T2.b2 "
+                        + "JOIN T1 ON T4.b4 = T1.b1";
+
+        List<String> expectedList =
+                Arrays.asList(
+                        "Hallo Welt,Hello world,Hallo Welt,Hallo Welt",
+                        "Hallo Welt,Hello,Hallo Welt,Hallo Welt",
+                        "Hallo,Hi,Hallo,Hallo");
+        assertEquals(query, expectedList);
+    }
+
+    @Test
+    public void testJoinReorderWithInnerJoin() {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
@@ -222,7 +266,7 @@ public class JoinReorderITCase extends TestLogger {
     }
 
     @Test
-    public void testLeftOuterJoinReorder() throws Exception {
+    public void testJoinReorderWithLeftOuterJoin() throws Exception {
         // can reorder, all join keys will not generate null.
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
@@ -240,7 +284,7 @@ public class JoinReorderITCase extends TestLogger {
     }
 
     @Test
-    public void testInnerAndLeftOuterJoinReorder() throws Exception {
+    public void testJoinReorderWithInnerAndLeftOuterJoin() throws Exception {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
@@ -257,7 +301,7 @@ public class JoinReorderITCase extends TestLogger {
     }
 
     @Test
-    public void testRightOuterJoinReorder() throws Exception {
+    public void testJoinReorderWithRightOuterJoin() throws Exception {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "RIGHT OUTER JOIN T3 ON T4.b4 = T3.b3 "
@@ -273,12 +317,121 @@ public class JoinReorderITCase extends TestLogger {
     }
 
     @Test
-    public void testBusyJoinReorderDpThreshold() throws Exception {
-        // Set busy join reorder dp threshold to 2, so that the busy join reorder strategy will not
-        // be selected if the number of tables need to be reordered more than 2.
+    public void testJoinReorderWithTrueCondition() {
+        // Only supports NestedLoopJoin.
+        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+            return;
+        }
+
+        String query =
+                "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4, T3, T2, T1 "
+                        + "WHERE T4.a4 <= 1 AND T3.a3 <= 1 AND T2.a2 <= 1 AND T1.a1 <= 1";
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        DataStreamUtils.collect(
+                                tEnv.toAppendStream(tEnv.sqlQuery(query), Row.class)));
+        String expected = "+I[Hallo, Hi, Hallo, Hallo]";
+        TestBaseUtils.compareResultAsText(results, expected);
+    }
+
+    @Test
+    public void testJoinReorderWithInnerJoinAndTrueCondition() {
+        // Only supports NestedLoopJoin.
+        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+            return;
+        }
+
+        String query =
+                "SELECT tab1.d4, tab1.c3, T2.d2, T1.d1 FROM T1, "
+                        + "(SELECT * FROM T3 JOIN T4 ON T4.b4 = T3.b3) tab1, T2 "
+                        + "WHERE tab1.a4 <= 1 AND tab1.a3 <= 1 AND T2.a2 <= 1 AND T1.a1 <= 1";
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        DataStreamUtils.collect(
+                                tEnv.toAppendStream(tEnv.sqlQuery(query), Row.class)));
+        String expected = "+I[Hallo, Hi, Hallo, Hallo]";
+        TestBaseUtils.compareResultAsText(results, expected);
+    }
+
+    @Test
+    public void testJoinReorderWithMixedJoinTypeAndCondition() {
+        // Only supports NestedLoopJoin.
+        if (expectedJoinType != JoinType.NestedLoopJoin()) {
+            return;
+        }
+
+        String query =
+                "SELECT tab2.d4, tab2.c3, tab2.d2, T1.d1 FROM T1, (SELECT * FROM T4 "
+                        + "LEFT OUTER JOIN T3 ON T4.b4 = T3.b3 "
+                        + "JOIN T2 ON T4.b4 = T2.b2) tab2 "
+                        + "WHERE tab2.a4 <= 1 AND tab2.a3 <= 1 AND tab2.a2 <= 1 AND T1.a1 <= 1";
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        DataStreamUtils.collect(
+                                tEnv.toAppendStream(tEnv.sqlQuery(query), Row.class)));
+        String expected = "+I[Hallo, Hi, Hallo, Hallo]";
+        TestBaseUtils.compareResultAsText(results, expected);
+    }
+
+    @Test
+    public void testBusyTreeJoinReorder() throws Exception {
+        CatalogColumnStatisticsDataLong longColStats =
+                new CatalogColumnStatisticsDataLong(100L, 100L, 50L, 1000L);
+        Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b1", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T1"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        longColStats = new CatalogColumnStatisticsDataLong(100L, 100L, 500000L, 1000L);
+        colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b2", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T2"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        longColStats = new CatalogColumnStatisticsDataLong(100L, 100L, 50L, 1000L);
+        colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b3", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T3"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        longColStats = new CatalogColumnStatisticsDataLong(100L, 100L, 500000L, 1000L);
+        colStatsMap = new HashMap<>(1);
+        colStatsMap.put("b4", longColStats);
+        catalog.alterTableColumnStatistics(
+                new ObjectPath(tEnv.getCurrentDatabase(), "T4"),
+                new CatalogColumnStatistics(colStatsMap),
+                false);
+
+        String query =
+                "SELECT tab2.d4, tab2.c3, tab1.d2, tab1.d1 FROM "
+                        + "(SELECT * FROM T1 JOIN T2 ON T1.b1 = T2.b2) tab1 "
+                        + "JOIN (SELECT * FROM T3 JOIN T4 ON T3.b3 = T4.b4) tab2 "
+                        + "ON tab1.b2 = tab2.b4";
+
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        DataStreamUtils.collect(
+                                tEnv.toAppendStream(tEnv.sqlQuery(query), Row.class)));
+        String expected =
+                "+I[Hallo Welt, Hello, Hallo Welt, Hallo Welt]\n"
+                        + "+I[Hallo Welt, Hello world, Hallo Welt, Hallo Welt]\n"
+                        + "+I[Hallo, Hi, Hallo, Hallo]";
+        TestBaseUtils.compareResultAsText(results, expected);
+    }
+
+    @Test
+    public void testBushyJoinReorderDpThreshold() throws Exception {
+        // Set bushy join reorder dp threshold to 2, so that the bushy join reorder strategy will
+        // not be selected if the number of tables need to be reordered more than 2.
         tEnv.getConfig()
                 .getConfiguration()
-                .set(FlinkJoinReorderRule.TABLE_OPTIMIZER_BUSY_JOIN_REORDER_THRESHOLD, 2);
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 2);
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
