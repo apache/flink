@@ -81,7 +81,6 @@ import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
-import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
@@ -1275,70 +1274,50 @@ public class SqlToOperationConverterTest {
         // rename pk column c
         Operation operation = parse("alter table tb1 rename c to c1");
         assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
-        assertThat(((AlterTableSchemaOperation) operation).getCatalogTable().getUnresolvedSchema())
+        assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        Schema.newBuilder()
-                                .column("a", DataTypes.INT().notNull())
-                                .column("b", DataTypes.BIGINT().notNull())
-                                .column("c1", DataTypes.STRING().notNull())
-                                .withComment("column comment")
-                                .columnByExpression("d", "a*(b+2 + a*b)")
-                                .column(
-                                        "e",
-                                        DataTypes.ROW(
-                                                DataTypes.STRING(),
-                                                DataTypes.INT(),
-                                                DataTypes.ROW(
-                                                        DataTypes.DOUBLE(),
-                                                        DataTypes.ARRAY(DataTypes.FLOAT()))))
-                                .columnByExpression("f", "e.f1 + e.f2.f0")
-                                .columnByMetadata("g", DataTypes.STRING(), null, true)
-                                .column("ts", DataTypes.TIMESTAMP(3))
-                                .withComment("just a comment")
-                                .watermark("ts", "ts - interval '5' seconds")
-                                .primaryKeyNamed("ct1", "a", "b", "c1")
-                                .build());
+                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
+                                + "  `a` INT NOT NULL,\n"
+                                + "  `b` BIGINT NOT NULL,\n"
+                                + "  `c1` STRING NOT NULL COMMENT 'column comment',\n"
+                                + "  `d` AS [a*(b+2 + a*b)],\n"
+                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
+                                + "  `f` AS [e.f1 + e.f2.f0],\n"
+                                + "  `g` METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
+                                + "  WATERMARK FOR `ts` AS [ts - interval '5' seconds],\n"
+                                + "  CONSTRAINT `ct1` PRIMARY KEY (`a`, `b`, `c1`) NOT ENFORCED\n"
+                                + ")");
 
         // rename computed column
         operation = parse("alter table tb1 rename f to f1");
         assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
-        assertThat(((AlterTableSchemaOperation) operation).getCatalogTable().getUnresolvedSchema())
+        assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        Schema.newBuilder()
-                                .column("a", DataTypes.INT().notNull())
-                                .column("b", DataTypes.BIGINT().notNull())
-                                .column("c", DataTypes.STRING().notNull())
-                                .withComment("column comment")
-                                .columnByExpression("d", "a*(b+2 + a*b)")
-                                .column(
-                                        "e",
-                                        DataTypes.ROW(
-                                                DataTypes.STRING(),
-                                                DataTypes.INT(),
-                                                DataTypes.ROW(
-                                                        DataTypes.DOUBLE(),
-                                                        DataTypes.ARRAY(DataTypes.FLOAT()))))
-                                .columnByExpression("f1", "e.f1 + e.f2.f0")
-                                .columnByMetadata("g", DataTypes.STRING(), null, true)
-                                .column("ts", DataTypes.TIMESTAMP(3))
-                                .withComment("just a comment")
-                                .watermark("ts", "ts - interval '5' seconds")
-                                .primaryKeyNamed("ct1", "a", "b", "c")
-                                .build());
+                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
+                                + "  `a` INT NOT NULL,\n"
+                                + "  `b` BIGINT NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
+                                + "  `d` AS [a*(b+2 + a*b)],\n"
+                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
+                                + "  `f1` AS [e.f1 + e.f2.f0],\n"
+                                + "  `g` METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment',\n"
+                                + "  WATERMARK FOR `ts` AS [ts - interval '5' seconds],\n"
+                                + "  CONSTRAINT `ct1` PRIMARY KEY (`a`, `b`, `c`) NOT ENFORCED\n"
+                                + ")");
 
         // rename column c that is used in a computed column
         assertThatThrownBy(() -> parse("alter table tb1 rename a to a1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column a is referred by computed column `d` BIGINT NOT NULL AS a*(b+2 + a*b), "
-                                + "currently doesn't allow to rename column which is referred by computed column.");
+                        "The column `a` is referenced by computed column `d` BIGINT NOT NULL AS a*(b+2 + a*b).");
 
         // rename column used in the watermark expression
         assertThatThrownBy(() -> parse("alter table tb1 rename ts to ts1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column ts is referred by watermark expression WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds, "
-                                + "currently doesn't allow to rename column which is referred by watermark expression.");
+                        "The column `ts` is referenced by watermark expression [WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds].");
 
         // rename nested column
         assertThatThrownBy(() -> parse("alter table tb1 rename e.f1 to e.f11"))
@@ -1348,8 +1327,7 @@ public class SqlToOperationConverterTest {
         // rename column with duplicate name
         assertThatThrownBy(() -> parse("alter table tb1 rename c to a"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "New column a already existed in table schema for RENAME COLUMN");
+                .hasMessageContaining("The column `a` already existed in table schema.");
 
         // rename column e test computed column expression is ApiExpression which doesn't implement
         // the equals method
@@ -1374,29 +1352,152 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table `cat1`.`db1`.`tb2` rename e to e1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Old column e is referred by computed column `j` STRING AS upper(e), currently doesn't "
-                                + "allow to rename column which is referred by computed column.");
+                        "Failed to execute ALTER TABLE statement.\nThe column `e` is referenced by computed column `j` STRING AS upper(e).");
 
         // rename column used as partition key
         assertThatThrownBy(() -> parse("alter table tb2 rename a to a1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Can not rename column a because it is used as the partition keys");
+                        "Failed to execute ALTER TABLE statement.\nThe column `a` is used as the partition keys.");
+    }
+
+    @Test
+    public void testFailedToAlterTableDropColumn() throws Exception {
+        prepareTable("tb1", false, false, true, 3);
+
+        // drop a nonexistent column
+        assertThatThrownBy(() -> parse("alter table tb1 drop x"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The column `x` does not exist in the base table.");
+
+        assertThatThrownBy(() -> parse("alter table tb1 drop (g, x)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The column `x` does not exist in the base table.");
+
+        // duplicate column
+        assertThatThrownBy(() -> parse("alter table tb1 drop (g, c, g)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Duplicate column `g`.");
+
+        // drop a nested column
+        assertThatThrownBy(() -> parse("alter table tb1 drop e.f2"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("Alter nested row type e.f2 is not supported yet.");
+
+        // drop a column which generates a computed column
+        assertThatThrownBy(() -> parse("alter table tb1 drop a"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The column `a` is referenced by computed column `d` BIGINT NOT NULL AS a*(b+2 + a*b).");
+
+        // drop a column which is pk
+        assertThatThrownBy(() -> parse("alter table tb1 drop c"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The column `c` is used as the primary key.");
+
+        // drop a column which defines watermark
+        assertThatThrownBy(() -> parse("alter table tb1 drop ts"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The column `ts` is referenced by watermark expression [WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds].");
+    }
+
+    @Test
+    public void testAlterTableDropColumn() throws Exception {
+        prepareNonManagedTable(false);
+        // drop a single column
+        Operation operation = parse("alter table tb1 drop c");
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
+                                + "  `a` INT NOT NULL,\n"
+                                + "  `b` BIGINT NOT NULL,\n"
+                                + "  `d` AS [a*(b+2 + a*b)],\n"
+                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
+                                + "  `f` AS [e.f1 + e.f2.f0],\n"
+                                + "  `g` METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
+                                + ")");
+
+        // drop computed column and referenced columns together
+        operation = parse("alter table tb1 drop (f, e, b, d)");
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
+                                + "  `a` INT NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
+                                + "  `g` METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
+                                + ")");
+    }
+
+    @Test
+    public void testFailedToAlterTableDropConstraint() throws Exception {
+        prepareNonManagedTable("tb1", 0);
+        assertThatThrownBy(() -> parse("alter table tb1 drop primary key"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The base table does not define any primary key.");
+        assertThatThrownBy(() -> parse("alter table tb1 drop constraint ct"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The base table does not define any primary key.");
+        prepareNonManagedTable("tb2", 1);
+        assertThatThrownBy(() -> parse("alter table tb2 drop constraint ct2"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The base table does not define a primary key constraint named 'ct2'. Available constraint name: ['ct1'].");
     }
 
     @Test
     public void testAlterTableDropConstraint() throws Exception {
         prepareNonManagedTable(true);
-        // Test alter table add enforced
+        String expectedSummaryString =
+                "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
+                        + "  `a` INT NOT NULL,\n"
+                        + "  `b` BIGINT NOT NULL,\n"
+                        + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
+                        + "  `d` AS [a*(b+2 + a*b)],\n"
+                        + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
+                        + "  `f` AS [e.f1 + e.f2.f0],\n"
+                        + "  `g` METADATA VIRTUAL,\n"
+                        + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
+                        + ")";
+
         Operation operation = parse("alter table tb1 drop constraint ct1");
-        assertThat(operation).isInstanceOf(AlterTableDropConstraintOperation.class);
-        AlterTableDropConstraintOperation dropConstraint =
-                (AlterTableDropConstraintOperation) operation;
-        assertThat(dropConstraint.asSummaryString())
-                .isEqualTo("ALTER TABLE cat1.db1.tb1 DROP CONSTRAINT ct1");
-        assertThatThrownBy(() -> parse("alter table tb1 drop constraint ct2"))
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+
+        operation = parse("alter table tb1 drop primary key");
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+    }
+
+    @Test
+    public void testFailedToAlterTableDropWatermark() throws Exception {
+        prepareNonManagedTable("tb1", false);
+        assertThatThrownBy(() -> parse("alter table tb1 drop watermark"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("CONSTRAINT [ct2] does not exist");
+                .hasMessageContaining("The base table does not define any watermark strategy.");
+    }
+
+    @Test
+    public void testAlterTableDropWatermark() throws Exception {
+        prepareNonManagedTable("tb1", true);
+        Operation operation = parse("alter table tb1 drop watermark");
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
+                                + "  `a` INT NOT NULL,\n"
+                                + "  `b` BIGINT NOT NULL,\n"
+                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
+                                + "  `d` AS [a*(b+2 + a*b)],\n"
+                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
+                                + "  `f` AS [e.f1 + e.f2.f0],\n"
+                                + "  `g` METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
+                                + ")");
     }
 
     @Test
@@ -1464,50 +1565,38 @@ public class SqlToOperationConverterTest {
         // try to add a column with duplicated name
         assertThatThrownBy(() -> parse("alter table tb1 add a bigint"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Try to add a column `a` which already exists in the table.");
+                .hasMessageContaining("Try to add a column `a` which already exists in the table.");
 
         // try to add multiple columns with duplicated column name
         assertThatThrownBy(() -> parse("alter table tb1 add (x array<string>, x string)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Encounter duplicate column `x`.");
+                .hasMessageContaining("Encounter duplicate column `x`.");
 
         // refer to a nonexistent column
         assertThatThrownBy(() -> parse("alter table tb1 add x bigint after y"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Referenced column `y` by 'AFTER' does not exist in the table.");
+                        "Referenced column `y` by 'AFTER' does not exist in the table.");
 
         // refer to a new added column that appears in the post position
         assertThatThrownBy(() -> parse("alter table tb1 add (x bigint after y, y string first)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Referenced column `y` by 'AFTER' does not exist in the table.");
+                        "Referenced column `y` by 'AFTER' does not exist in the table.");
 
         // add a computed column based on nonexistent column
         assertThatThrownBy(() -> parse("alter table tb1 add m as n + 2"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid expression for computed column 'm'.");
+                .hasMessageContaining("Invalid expression for computed column 'm'.");
 
         // add a computed column based on another computed column
         assertThatThrownBy(() -> parse("alter table tb1 add (m as b * 2, n as m + 2)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid expression for computed column 'n'.");
+                .hasMessageContaining("Invalid expression for computed column 'n'.");
         // invalid expression
         assertThatThrownBy(() -> parse("alter table tb1 add (m as 'hello' || b)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid expression for computed column 'm'.");
+                .hasMessageContaining("Invalid expression for computed column 'm'.");
 
         // add an inner field to a nested row
         assertThatThrownBy(() -> parse("alter table tb1 add (e.f3 string)"))
@@ -1517,9 +1606,7 @@ public class SqlToOperationConverterTest {
         // refer to a nested inner field
         assertThatThrownBy(() -> parse("alter table tb1 add (x string after e.f2)"))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Alter nested row type is not supported yet.");
+                .hasMessageContaining("Alter nested row type is not supported yet.");
 
         assertThatThrownBy(() -> parse("alter table tb1 add (e.f3 string after e.f1)"))
                 .isInstanceOf(UnsupportedOperationException.class)
@@ -1647,8 +1734,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 add primary key(c) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "The base table has already defined the primary key constraint [`a`]. "
+                        "The base table has already defined the primary key constraint [`a`]. "
                                 + "You might want to drop it before adding a new one.");
 
         assertThatThrownBy(
@@ -1657,8 +1743,7 @@ public class SqlToOperationConverterTest {
                                         "alter table tb1 add x string not null primary key not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "The base table has already defined the primary key constraint [`a`]. "
+                        "The base table has already defined the primary key constraint [`a`]. "
                                 + "You might want to drop it before adding a new one");
 
         // the original table has composite pk
@@ -1667,8 +1752,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb2 add primary key(c) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "The base table has already defined the primary key constraint [`a`, `b`]. "
+                        "The base table has already defined the primary key constraint [`a`, `b`]. "
                                 + "You might want to drop it before adding a new one");
 
         assertThatThrownBy(
@@ -1677,8 +1761,7 @@ public class SqlToOperationConverterTest {
                                         "alter table tb2 add x string not null primary key not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "The base table has already defined the primary key constraint [`a`, `b`]. "
+                        "The base table has already defined the primary key constraint [`a`, `b`]. "
                                 + "You might want to drop it before adding a new one");
 
         // the original table does not define pk
@@ -1687,8 +1770,7 @@ public class SqlToOperationConverterTest {
         // specify a nonexistent column as pk
         assertThatThrownBy(() -> parse("alter table tb3 add primary key (x) not enforced"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid primary key 'PK_x'. Column 'x' does not exist.");
+                .hasMessageContaining("Invalid primary key 'PK_x'. Column 'x' does not exist.");
 
         // add unique constraint
         assertThatThrownBy(() -> parse("alter table tb3 add unique(b)"))
@@ -1710,15 +1792,13 @@ public class SqlToOperationConverterTest {
                                                 + "  primary key (d, x) not enforced)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid primary key 'PK_d_x'. Column 'd' is not a physical column.");
+                        "Invalid primary key 'PK_d_x'. Column 'd' is not a physical column.");
 
         // add a pk which is metadata column
         assertThatThrownBy(() -> parse("alter table tb3 add (primary key (g) not enforced)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid primary key 'PK_g'. Column 'g' is not a physical column.");
+                        "Invalid primary key 'PK_g'. Column 'g' is not a physical column.");
     }
 
     @Test
@@ -1799,16 +1879,14 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 add watermark for x as x"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid column name 'x' for rowtime attribute in watermark declaration. "
+                        "Invalid column name 'x' for rowtime attribute in watermark declaration. "
                                 + "Available columns are: [a, b, c, d, e, f, g, ts]");
 
         // add watermark with invalid type
         assertThatThrownBy(() -> parse("alter table tb1 add watermark for b as b"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid data type of time field for watermark definition. "
+                        "Invalid data type of time field for watermark definition. "
                                 + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), "
                                 + "the supported precision 'p' is from 0 to 3, but the time field type is BIGINT NOT NULL");
 
@@ -1818,9 +1896,7 @@ public class SqlToOperationConverterTest {
                                 parse(
                                         "alter table tb1 add (x row<f0 string, f1 timestamp(3)>, watermark for x.f1 as x.f1)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Watermark strategy on nested column is not supported yet.");
+                .hasMessageContaining("Watermark strategy on nested column is not supported yet.");
 
         // add watermark to the table which already has watermark defined
         prepareNonManagedTable("tb2", true);
@@ -1828,8 +1904,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb2 add watermark for ts as ts"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "The base table has already defined the watermark strategy "
+                        "The base table has already defined the watermark strategy "
                                 + "`ts` AS ts - interval '5' seconds. "
                                 + "You might want to drop it before adding a new one.");
     }
@@ -1924,47 +1999,42 @@ public class SqlToOperationConverterTest {
         // modify duplicated column same
         assertThatThrownBy(() -> parse("alter table tb1 modify (b int, b array<int not null>)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nEncounter duplicate column `b`.");
+                .hasMessageContaining("Encounter duplicate column `b`.");
 
         // modify nonexistent column name
         assertThatThrownBy(() -> parse("alter table tb1 modify x bigint"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nTry to modify a column `x` which does not exist in the table.");
+                        "Try to modify a column `x` which does not exist in the table.");
 
         // refer to nonexistent column name
         assertThatThrownBy(() -> parse("alter table tb1 modify a bigint after x"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nReferenced column `x` by 'AFTER' does not exist in the table.");
+                        "Referenced column `x` by 'AFTER' does not exist in the table.");
 
         // modify physical columns which generates computed column
         assertThatThrownBy(() -> parse("alter table tb1 modify e array<int>"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'f'.");
+                .hasMessageContaining("Invalid expression for computed column 'f'.");
 
         assertThatThrownBy(() -> parse("alter table tb1 modify a string"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'd'.");
+                .hasMessageContaining("Invalid expression for computed column 'd'.");
 
         assertThatThrownBy(() -> parse("alter table tb1 modify b as a + 2"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'd'.");
+                .hasMessageContaining("Invalid expression for computed column 'd'.");
 
         assertThatThrownBy(() -> parse("alter table tb1 modify (a timestamp(3), b multiset<int>)"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid expression for computed column 'd'.");
+                .hasMessageContaining("Invalid expression for computed column 'd'.");
 
         // modify the rowtime field which defines watermark
         assertThatThrownBy(() -> parse("alter table tb1 modify ts int"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid data type of time field for watermark definition. "
+                        "Invalid data type of time field for watermark definition. "
                                 + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), "
                                 + "the supported precision 'p' is from 0 to 3, but the time field type is INT");
 
@@ -1974,12 +2044,12 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb2 modify (d int, a as b + 2)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid primary key 'ct1'. Column 'a' is not a physical column.");
+                        "Invalid primary key 'ct1'. Column 'a' is not a physical column.");
 
         assertThatThrownBy(() -> parse("alter table tb2 modify (d string, a int metadata virtual)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid primary key 'ct1'. Column 'a' is not a physical column.");
+                        "Invalid primary key 'ct1'. Column 'a' is not a physical column.");
 
         // modify an inner field to a nested row
         assertThatThrownBy(() -> parse("alter table tb2 modify (e.f0 string)"))
@@ -1989,9 +2059,7 @@ public class SqlToOperationConverterTest {
         // refer to a nested inner field
         assertThatThrownBy(() -> parse("alter table tb2 modify (g string after e.f2)"))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Alter nested row type is not supported yet.");
+                .hasMessageContaining("Alter nested row type is not supported yet.");
 
         assertThatThrownBy(() -> parse("alter table tb2 modify (e.f0 string after e.f1)"))
                 .isInstanceOf(UnsupportedOperationException.class)
@@ -2132,8 +2200,7 @@ public class SqlToOperationConverterTest {
                                         "alter table tb1 modify constraint ct primary key (b) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "The base table does not define any primary key constraint. You might want to add a new one.");
+                        "The base table does not define any primary key constraint. You might want to add a new one.");
 
         prepareNonManagedTable("tb2", 1);
 
@@ -2143,9 +2210,7 @@ public class SqlToOperationConverterTest {
                                 parse(
                                         "alter table tb2 modify constraint ct primary key (x) not enforced"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid primary key 'ct'. Column 'x' does not exist.");
+                .hasMessageContaining("Invalid primary key 'ct'. Column 'x' does not exist.");
 
         // specify computed column as pk
         assertThatThrownBy(
@@ -2154,8 +2219,7 @@ public class SqlToOperationConverterTest {
                                         "alter table tb2 modify constraint ct primary key (d) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid primary key 'ct'. Column 'd' is not a physical column.");
+                        "Invalid primary key 'ct'. Column 'd' is not a physical column.");
 
         // specify metadata column as pk
         assertThatThrownBy(
@@ -2164,8 +2228,7 @@ public class SqlToOperationConverterTest {
                                         "alter table tb2 modify constraint ct primary key (g) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\n"
-                                + "Invalid primary key 'ct'. Column 'g' is not a physical column.");
+                        "Invalid primary key 'ct'. Column 'g' is not a physical column.");
     }
 
     @Test
@@ -2226,7 +2289,7 @@ public class SqlToOperationConverterTest {
                                         "alter table tb1 modify watermark for a as to_timestamp(a) - interval '1' minute"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nThe base table does not define any watermark. You might want to add a new one.");
+                        "The base table does not define any watermark. You might want to add a new one.");
 
         prepareNonManagedTable("tb2", true);
 
@@ -2234,7 +2297,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb2 modify watermark for a as a"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid data type of time field for watermark definition. "
+                        "Invalid data type of time field for watermark definition. "
                                 + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), the supported precision 'p' is from 0 to 3, "
                                 + "but the time field type is INT NOT NULL");
 
@@ -2244,7 +2307,7 @@ public class SqlToOperationConverterTest {
                                         "alter table tb2 modify watermark for c as to_timestamp(c) - interval '1' day"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nInvalid data type of time field for watermark definition. "
+                        "Invalid data type of time field for watermark definition. "
                                 + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), the supported precision 'p' is from 0 to 3, "
                                 + "but the time field type is STRING");
     }

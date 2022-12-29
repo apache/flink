@@ -819,6 +819,106 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterTableDropColumn(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  WATERMARK FOR d AS d - INTERVAL '1' MINUTE
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    tableEnv.executeSql("ALTER TABLE MyTable DROP (e, a)")
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of(
+        "d",
+        "TIMESTAMP(3) *ROWTIME*",
+        Boolean.box(true),
+        null,
+        null,
+        "`d` - INTERVAL '1' MINUTE")
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableDropConstraint(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  CONSTRAINT ct PRIMARY KEY(a, b) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    tableEnv.executeSql("ALTER TABLE MyTable DROP CONSTRAINT ct")
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(false), null, null, null),
+      Row.of("b", "INT", Boolean.box(false), null, null, null),
+      Row.of("d", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of("e", "ROW<`e0` STRING, `e1` TIMESTAMP(3)>", Boolean.box(true), null, null, null)
+    )
+    val tableResult1 = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult.iterator(), tableResult1.collect())
+
+    tableEnv.executeSql("ALTER TABLE MyTable ADD CONSTRAINT ct PRIMARY KEY(a) NOT ENFORCED")
+    tableEnv.executeSql("ALTER TABLE MyTable DROP PRIMARY KEY")
+    val tableResult2 = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    checkData(expectedResult.iterator(), tableResult2.collect())
+  }
+
+  @Test
+  def testAlterTableDropWatermark(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  WATERMARK FOR d AS d - INTERVAL '1' MINUTE
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    tableEnv.executeSql("ALTER TABLE MyTable DROP WATERMARK")
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of("d", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of("e", "ROW<`e0` STRING, `e1` TIMESTAMP(3)>", Boolean.box(true), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
   def testAlterTableCompactOnNonManagedTable(): Unit = {
     val statement =
       """

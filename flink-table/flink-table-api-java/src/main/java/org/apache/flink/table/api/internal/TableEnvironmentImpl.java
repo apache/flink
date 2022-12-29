@@ -47,8 +47,6 @@ import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -125,7 +123,6 @@ import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
-import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -160,7 +157,6 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -993,24 +989,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterTablePropertiesOp.getCatalogTable(),
                             alterTablePropertiesOp.getTableIdentifier(),
                             false);
-                } else if (alterTableOperation instanceof AlterTableDropConstraintOperation) {
-                    AlterTableDropConstraintOperation dropConstraintOperation =
-                            (AlterTableDropConstraintOperation) operation;
-                    CatalogTable oriTable =
-                            catalogManager
-                                    .getTable(dropConstraintOperation.getTableIdentifier())
-                                    .get()
-                                    .getResolvedTable();
-                    CatalogTable newTable =
-                            new CatalogTableImpl(
-                                    TableSchemaUtils.dropConstraint(
-                                            oriTable.getSchema(),
-                                            dropConstraintOperation.getConstraintName()),
-                                    oriTable.getPartitionKeys(),
-                                    oriTable.getOptions(),
-                                    oriTable.getComment());
-                    catalogManager.alterTable(
-                            newTable, dropConstraintOperation.getTableIdentifier(), false);
                 } else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
                     AlterPartitionPropertiesOperation alterPartPropsOp =
                             (AlterPartitionPropertiesOperation) operation;
