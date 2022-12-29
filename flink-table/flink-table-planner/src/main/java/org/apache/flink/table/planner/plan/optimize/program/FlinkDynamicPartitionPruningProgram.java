@@ -64,6 +64,13 @@ import java.util.List;
  *    +- Calc(select=[xxx], where=[<(xxx, xxx)]) # Need have an arbitrary filter condition.
  *       +- TableSourceScan(table=[[dim, filter=[]]], fields=[xxx, dim_key])
  * }</pre>
+ *
+ * <p>We use a {@link FlinkOptimizeProgram} instead of a {@link org.apache.calcite.plan.RelRule} to
+ * realize dynamic partition pruning because the {@link org.apache.calcite.plan.hep.HepPlanner} in
+ * Flink doesn't support matching a simple join, and replacing one node on one side of the join
+ * node. After that, rebuilding this join node. This is a defect of the existing optimizer, and it's
+ * matching pattern need to be simpler. Only then can we use {@link org.apache.calcite.plan.RelRule}
+ * to achieve dpp.
  */
 public class FlinkDynamicPartitionPruningProgram
         implements FlinkOptimizeProgram<BatchOptimizeContext> {
