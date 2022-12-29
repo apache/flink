@@ -115,7 +115,7 @@ public class AlterSchemaConverter {
                                 escapeExpression,
                                 schemaResolver,
                                 tableChangeCollector);
-        converter.updateColumn(alterTableSchema.getColumnPositions().getList(), strategy);
+        converter.updateColumn(alterTableSchema.getColumnPositions().getList());
         alterTableSchema.getWatermark().ifPresent(converter::updateWatermark);
         alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
         return converter.convert();
@@ -257,9 +257,8 @@ public class AlterSchemaConverter {
             }
         }
 
-        private void updateColumn(
-                List<SqlNode> alterColumnPositions, AlterSchemaStrategy strategy) {
-            applyColumnPosition(alterColumnPositions, strategy);
+        private void updateColumn(List<SqlNode> alterColumnPositions) {
+            applyColumnPosition(alterColumnPositions);
             for (SqlNode sqlNode : alterColumnPositions) {
                 SqlTableColumnPosition alterColumnPos = (SqlTableColumnPosition) sqlNode;
                 SqlTableColumn alterColumn = alterColumnPos.getColumn();
@@ -372,7 +371,7 @@ public class AlterSchemaConverter {
                     .orElse(null);
         }
 
-        private void applyColumnPosition(List<SqlNode> alterColumns, AlterSchemaStrategy strategy) {
+        private void applyColumnPosition(List<SqlNode> alterColumns) {
             for (SqlNode alterColumn : alterColumns) {
                 SqlTableColumnPosition columnPosition = (SqlTableColumnPosition) alterColumn;
                 SqlTableColumn column = columnPosition.getColumn();
