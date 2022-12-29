@@ -75,15 +75,9 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
         Expression tryCastOperand = tryCast(operand(0), typeLiteral(getResultType()));
         return new Expression[] {
             /* sum = */ ifThenElse(
-                    isNull(operand(0)),
+                    isNull(tryCastOperand),
                     sum,
-                    ifThenElse(
-                            isNull(tryCastOperand),
-                            sum,
-                            ifThenElse(
-                                    isNull(sum),
-                                    tryCastOperand,
-                                    adjustedPlus(sum, tryCastOperand))))
+                    ifThenElse(isNull(sum), tryCastOperand, adjustedPlus(sum, tryCastOperand)))
         };
     }
 
