@@ -1317,7 +1317,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 rename ts to ts1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The column `ts` is referenced by watermark expression WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds.");
+                        "The column `ts` is referenced by watermark expression [WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds].");
 
         // rename nested column
         assertThatThrownBy(() -> parse("alter table tb1 rename e.f1 to e.f11"))
@@ -1399,7 +1399,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 drop ts"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The column `ts` is referenced by watermark expression WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds.");
+                        "The column `ts` is referenced by watermark expression [WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds].");
     }
 
     @Test

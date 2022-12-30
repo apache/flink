@@ -37,7 +37,6 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
-import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
@@ -142,7 +141,7 @@ public class AlterSchemaConverter {
         validateColumnName(
                 originColumnName,
                 newColumnName,
-                originTable.getResolvedSchema().getColumns(),
+                originTable.getResolvedSchema(),
                 originTable.getPartitionKeys());
         validateWatermark(originTable, originColumnName);
 
@@ -169,11 +168,6 @@ public class AlterSchemaConverter {
     /** Convert ALTER TABLE DROP (col1 [, col2, ...]) to generate an updated Schema. */
     public Schema applySchemaChange(
             SqlAlterTableDropColumn dropColumn, ResolvedCatalogTable originTable) {
-        Set<String> primaryKeys = new HashSet<>();
-        originTable
-                .getResolvedSchema()
-                .getPrimaryKey()
-                .ifPresent(pk -> primaryKeys.addAll(pk.getColumns()));
         Set<String> columnsToDrop = new HashSet<>();
         dropColumn
                 .getColumnList()
@@ -194,9 +188,8 @@ public class AlterSchemaConverter {
             // does not derive any computed column
             validateColumnName(
                     columnToDrop,
-                    originTable.getResolvedSchema().getColumns(),
+                    originTable.getResolvedSchema(),
                     originTable.getPartitionKeys(),
-                    primaryKeys,
                     columnsToDrop);
             validateWatermark(originTable, columnToDrop);
         }
@@ -694,18 +687,16 @@ public class AlterSchemaConverter {
     private void validateColumnName(
             String originColumnName,
             String newColumnName,
-            List<Column> originColumns,
+            ResolvedSchema originSchemas,
             List<String> partitionKeys) {
         validateColumnName(
                 originColumnName,
-                originColumns,
+                originSchemas,
                 partitionKeys,
                 // fail the operation of renaming column, once the column derives a computed column
                 (referencedColumn, computedColumn) -> referencedColumn.contains(originColumnName));
         // validate new column
-        Set<String> tableColumns =
-                originColumns.stream().map(Column::getName).collect(Collectors.toSet());
-        if (tableColumns.contains(newColumnName)) {
+        if (originSchemas.getColumn(newColumnName).isPresent()) {
             throw new ValidationException(
                     String.format(
                             "%sThe column `%s` already existed in table schema.",
@@ -715,35 +706,38 @@ public class AlterSchemaConverter {
 
     private void validateColumnName(
             String columnToDrop,
-            List<Column> originColumns,
+            ResolvedSchema originSchema,
             List<String> partitionKeys,
-            Set<String> primaryKeys,
             Set<String> columnsToDrop) {
         validateColumnName(
                 columnToDrop,
-                originColumns,
+                originSchema,
                 partitionKeys,
                 // fail the operation of dropping column, only if the column derives a computed
                 // column, and the computed column is not being dropped along with the origin column
                 (referencedColumn, computedColumn) ->
                         referencedColumn.contains(columnToDrop)
                                 && !columnsToDrop.contains(computedColumn.getName()));
-        if (primaryKeys.contains(columnToDrop)) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe column `%s` is used as the primary key.",
-                            EX_MSG_PREFIX, columnToDrop));
-        }
+        originSchema
+                .getPrimaryKey()
+                .ifPresent(
+                        pk -> {
+                            if (pk.getColumns().contains(columnToDrop)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "%sThe column `%s` is used as the primary key.",
+                                                EX_MSG_PREFIX, columnToDrop));
+                            }
+                        });
     }
 
     private void validateColumnName(
             String columnToAlter,
-            List<Column> originColumns,
+            ResolvedSchema originSchema,
             List<String> partitionKeys,
             BiFunction<Set<String>, Column.ComputedColumn, Boolean> computedColumnChecker) {
         // validate origin column
-        Set<String> tableColumns =
-                originColumns.stream().map(Column::getName).collect(Collectors.toSet());
+        Set<String> tableColumns = new HashSet<>(originSchema.getColumnNames());
         if (!tableColumns.contains(columnToAlter)) {
             throw new ValidationException(
                     String.format(
@@ -752,14 +746,14 @@ public class AlterSchemaConverter {
         }
 
         // validate origin column name isn't referred by computed column case
-        originColumns.stream()
+        originSchema.getColumns().stream()
                 .filter(column -> column instanceof Column.ComputedColumn)
                 .forEach(
                         column -> {
                             Column.ComputedColumn computedColumn = (Column.ComputedColumn) column;
                             Set<String> referencedColumn =
                                     ColumnReferenceFinder.findReferencedColumn(
-                                            computedColumn.getExpression(), originColumns, false);
+                                            computedColumn.getName(), originSchema);
                             if (computedColumnChecker.apply(referencedColumn, computedColumn)) {
                                 throw new ValidationException(
                                         String.format(
@@ -781,24 +775,20 @@ public class AlterSchemaConverter {
     private void validateWatermark(ResolvedCatalogTable originTable, String columnToAlter) {
         // validate origin column isn't referenced by watermark
         List<WatermarkSpec> watermarkSpecs = originTable.getResolvedSchema().getWatermarkSpecs();
-        watermarkSpecs.forEach(
-                watermarkSpec -> {
-                    String rowtimeAttribute = watermarkSpec.getRowtimeAttribute();
-                    Set<String> referencedColumns =
-                            ColumnReferenceFinder.findReferencedColumn(
-                                    watermarkSpec.getWatermarkExpression(),
-                                    originTable.getResolvedSchema().getColumns(),
-                                    true);
-                    if (columnToAlter.equals(rowtimeAttribute)
-                            || referencedColumns.contains(columnToAlter)) {
-                        throw new ValidationException(
-                                String.format(
-                                        "%sThe column `%s` is referenced by watermark expression %s.",
-                                        EX_MSG_PREFIX,
-                                        columnToAlter,
-                                        watermarkSpec.asSummaryString()));
-                    }
-                });
+        Set<String> referencedColumns =
+                ColumnReferenceFinder.findWatermarkReferencedColumn(
+                        originTable.getResolvedSchema());
+        Set<String> rowtimeAttributes =
+                originTable.getResolvedSchema().getWatermarkSpecs().stream()
+                        .map(WatermarkSpec::getRowtimeAttribute)
+                        .collect(Collectors.toSet());
+        if (rowtimeAttributes.contains(columnToAlter)
+                || referencedColumns.contains(columnToAlter)) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe column `%s` is referenced by watermark expression %s.",
+                            EX_MSG_PREFIX, columnToAlter, watermarkSpecs));
+        }
     }
 
     private void buildUpdatedColumn(

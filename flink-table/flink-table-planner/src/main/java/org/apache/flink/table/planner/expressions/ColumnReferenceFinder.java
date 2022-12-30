@@ -19,7 +19,9 @@
 package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -30,6 +32,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.rex.RexInputRef;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,42 +44,56 @@ public class ColumnReferenceFinder {
     private ColumnReferenceFinder() {}
 
     /**
-     * Find referenced column names that derive the computed column or watermark spec.
+     * Find referenced column names that derive the computed column.
      *
-     * @param resolvedExpression the computed column or watermark expression
-     * @param tableColumns resolved columns
-     * @param isWatermark whether the resolved expression is a watermark spec. The difference is
-     *     that for computed column, the input ref index is based on a projection of non-computed
-     *     columns
+     * @param columnName the name of the column
+     * @param schema the schema contains the computed column definition
      * @return the referenced column names
      */
-    public static Set<String> findReferencedColumn(
-            ResolvedExpression resolvedExpression, List<Column> tableColumns, boolean isWatermark) {
+    public static Set<String> findReferencedColumn(String columnName, ResolvedSchema schema) {
+        Column column =
+                schema.getColumn(columnName)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                String.format(
+                                                        "The input column %s doesn't exist in the schema.",
+                                                        columnName)));
+        if (!(column instanceof Column.ComputedColumn)) {
+            return Collections.emptySet();
+        }
         ColumnReferenceVisitor visitor =
                 new ColumnReferenceVisitor(
-                        tableColumns.stream()
-                                .filter(
-                                        column ->
-                                                isWatermark
-                                                        || !(column
-                                                                instanceof Column.ComputedColumn))
+                        // the input ref index is based on a projection of non-computed columns
+                        schema.getColumns().stream()
+                                .filter(c -> !(c instanceof Column.ComputedColumn))
                                 .map(Column::getName)
                                 .collect(Collectors.toList()));
-        visitor.visit(resolvedExpression);
-        return visitor.referencedColumns;
+        return visitor.visit(((Column.ComputedColumn) column).getExpression());
     }
 
-    private static class ColumnReferenceVisitor extends ExpressionDefaultVisitor<Void> {
+    /**
+     * Find referenced column names that derive the watermark expression.
+     *
+     * @param schema resolved columns contains the watermark expression.
+     * @return the referenced column names
+     */
+    public static Set<String> findWatermarkReferencedColumn(ResolvedSchema schema) {
+        ColumnReferenceVisitor visitor = new ColumnReferenceVisitor(schema.getColumnNames());
+        return schema.getWatermarkSpecs().stream()
+                .flatMap(spec -> visitor.visit(spec.getWatermarkExpression()).stream())
+                .collect(Collectors.toSet());
+    }
+
+    private static class ColumnReferenceVisitor extends ExpressionDefaultVisitor<Set<String>> {
         private final List<String> tableColumns;
-        private final Set<String> referencedColumns;
 
         public ColumnReferenceVisitor(List<String> tableColumns) {
             this.tableColumns = tableColumns;
-            this.referencedColumns = new HashSet<>();
         }
 
         @Override
-        public Void visit(Expression expression) {
+        public Set<String> visit(Expression expression) {
             if (expression instanceof LocalReferenceExpression) {
                 return visit((LocalReferenceExpression) expression);
             } else if (expression instanceof FieldReferenceExpression) {
@@ -91,35 +108,34 @@ public class ColumnReferenceFinder {
         }
 
         @Override
-        public Void visit(FieldReferenceExpression fieldReference) {
-            referencedColumns.add(fieldReference.getName());
-            return null;
+        public Set<String> visit(FieldReferenceExpression fieldReference) {
+            return Collections.singleton(fieldReference.getName());
         }
 
-        public Void visit(LocalReferenceExpression localReference) {
-            referencedColumns.add(localReference.getName());
-            return null;
+        public Set<String> visit(LocalReferenceExpression localReference) {
+            return Collections.singleton(localReference.getName());
         }
 
-        public Void visit(RexNodeExpression rexNode) {
+        public Set<String> visit(RexNodeExpression rexNode) {
             // get the referenced column ref in table
             Set<RexInputRef> inputRefs = FlinkRexUtil.findAllInputRefs(rexNode.getRexNode());
             // get the referenced column name by index
-            inputRefs.forEach(
-                    inputRef -> referencedColumns.add(tableColumns.get(inputRef.getIndex())));
-            return null;
+            return inputRefs.stream()
+                    .map(inputRef -> tableColumns.get(inputRef.getIndex()))
+                    .collect(Collectors.toSet());
         }
 
         @Override
-        public Void visit(CallExpression call) {
+        public Set<String> visit(CallExpression call) {
+            Set<String> references = new HashSet<>();
             for (Expression expression : call.getChildren()) {
-                visit(expression);
+                references.addAll(visit(expression));
             }
-            return null;
+            return references;
         }
 
         @Override
-        protected Void defaultMethod(Expression expression) {
+        protected Set<String> defaultMethod(Expression expression) {
             throw new TableException("Unexpected expression: " + expression);
         }
     }

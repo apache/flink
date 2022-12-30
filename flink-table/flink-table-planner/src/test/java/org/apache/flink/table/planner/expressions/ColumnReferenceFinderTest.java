@@ -18,140 +18,63 @@
 
 package org.apache.flink.table.planner.expressions;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
-import org.apache.flink.table.planner.delegation.ParserImpl;
-import org.apache.flink.table.planner.delegation.PlannerContext;
-import org.apache.flink.table.planner.utils.PlannerMocks;
-import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.table.utils.ExpressionResolverMocks;
+import org.apache.flink.table.planner.utils.StreamTableTestUtil;
+import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
-import java.util.List;
-import java.util.function.Supplier;
 
-import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ColumnReferenceFinder}. */
-public class ColumnReferenceFinderTest {
+public class ColumnReferenceFinderTest extends TableTestBase {
 
-    private final boolean isStreamingMode = true;
-
-    private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
-    private final CatalogManager catalogManager =
-            CatalogManagerMocks.preparedCatalogManager()
-                    .defaultCatalog("builtin", catalog)
-                    .config(
-                            Configuration.fromMap(
-                                    Collections.singletonMap(
-                                            ExecutionOptions.RUNTIME_MODE.key(),
-                                            RuntimeExecutionMode.STREAMING.name())))
-                    .build();
-    private final PlannerMocks plannerMocks =
-            PlannerMocks.newBuilder()
-                    .withTableConfig(TableConfig.getDefault())
-                    .withCatalogManager(catalogManager)
-                    .withRootSchema(
-                            asRootSchema(
-                                    new CatalogManagerCalciteSchema(
-                                            catalogManager, isStreamingMode)))
-                    .build();
-
-    private final PlannerContext plannerContext = plannerMocks.getPlannerContext();
-    private final FunctionCatalog functionCatalog = plannerMocks.getFunctionCatalog();
-
-    private final Supplier<FlinkPlannerImpl> plannerSupplier = plannerContext::createFlinkPlanner;
-
-    private final Parser parser =
-            new ParserImpl(
-                    catalogManager,
-                    plannerSupplier,
-                    () -> plannerSupplier.get().parser(),
-                    plannerContext.getRexFactory());
-
+    private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
     private ResolvedSchema resolvedSchema;
-    private List<Column> resolvedColumns;
 
     @BeforeEach
     public void beforeEach() {
-        catalogManager.initSchemaResolver(
-                true,
-                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser));
-        catalogManager.registerCatalog("cat1", catalog);
-        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "default", "MyTable");
-        catalogManager.createTable(
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .columnByExpression("a", "b || '_001'")
-                                .column("b", DataTypes.STRING())
-                                .columnByExpression("c", "d * e + 2")
-                                .column("d", DataTypes.DOUBLE())
-                                .columnByMetadata("e", DataTypes.INT(), null, true)
-                                .column(
-                                        "tuple",
-                                        DataTypes.ROW(DataTypes.TIMESTAMP(3), DataTypes.INT()))
-                                .columnByExpression("ts", "tuple.f0")
-                                .watermark("ts", "ts - interval '5' day")
-                                .build(),
-                        "comment",
-                        Collections.emptyList(),
-                        Collections.singletonMap("foo", "bar")),
-                tableIdentifier,
-                false);
-        resolvedSchema = catalogManager.getTable(tableIdentifier).get().getResolvedSchema();
-        resolvedColumns = resolvedSchema.getColumns();
+        resolvedSchema =
+                util.testingTableEnv()
+                        .getCatalogManager()
+                        .getSchemaResolver()
+                        .resolve(
+                                Schema.newBuilder()
+                                        .columnByExpression("a", "b || '_001'")
+                                        .column("b", DataTypes.STRING())
+                                        .columnByExpression("c", "d * e + 2")
+                                        .column("d", DataTypes.DOUBLE())
+                                        .columnByMetadata("e", DataTypes.INT(), null, true)
+                                        .column(
+                                                "tuple",
+                                                DataTypes.ROW(
+                                                        DataTypes.TIMESTAMP(3), DataTypes.INT()))
+                                        .columnByExpression("ts", "tuple.f0")
+                                        .watermark("ts", "ts - interval '5' day")
+                                        .build());
     }
 
     @Test
     public void testFindReferencedColumn() {
-        assertThat(
-                        ColumnReferenceFinder.findReferencedColumn(
-                                getComputedColumn(0), resolvedColumns, false))
+        assertThat(ColumnReferenceFinder.findReferencedColumn("b", resolvedSchema))
+                .isEqualTo(Collections.emptySet());
+
+        assertThat(ColumnReferenceFinder.findReferencedColumn("a", resolvedSchema))
                 .containsExactlyInAnyOrder("b");
 
-        assertThat(
-                        ColumnReferenceFinder.findReferencedColumn(
-                                getComputedColumn(2), resolvedColumns, false))
+        assertThat(ColumnReferenceFinder.findReferencedColumn("c", resolvedSchema))
                 .containsExactlyInAnyOrder("d", "e");
 
-        assertThat(
-                        ColumnReferenceFinder.findReferencedColumn(
-                                getComputedColumn(6), resolvedColumns, false))
+        assertThat(ColumnReferenceFinder.findReferencedColumn("ts", resolvedSchema))
                 .containsExactlyInAnyOrder("tuple");
 
-        assertThat(
-                        ColumnReferenceFinder.findReferencedColumn(
-                                getWatermark(), resolvedColumns, true))
+        assertThat(ColumnReferenceFinder.findWatermarkReferencedColumn(resolvedSchema))
                 .containsExactlyInAnyOrder("ts");
-    }
-
-    private ResolvedExpression getComputedColumn(int idx) {
-        Column column = resolvedColumns.get(idx);
-        assertThat(column).isInstanceOf(Column.ComputedColumn.class);
-        return ((Column.ComputedColumn) column).getExpression();
-    }
-
-    private ResolvedExpression getWatermark() {
-        return resolvedSchema.getWatermarkSpecs().get(0).getWatermarkExpression();
     }
 }
