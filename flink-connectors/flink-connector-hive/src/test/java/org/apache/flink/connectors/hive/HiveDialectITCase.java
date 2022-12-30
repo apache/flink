@@ -141,6 +141,14 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void t3() throws Exception {
+        tableEnv.executeSql("create table t1(a int, b int, c int)");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql(
+                "update t1 set b = b * b, a = a + 1 where a > (select count(a) from t1)");
+    }
+
+    @Test
     public void testPluggableDialect() {
         TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         Parser parser = tableEnvInternal.getParser();

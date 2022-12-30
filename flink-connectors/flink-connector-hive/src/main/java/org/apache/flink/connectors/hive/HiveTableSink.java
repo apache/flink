@@ -102,6 +102,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -711,7 +712,9 @@ public class HiveTableSink
         return new RowLevelUpdateInfo() {
             @Override
             public Optional<List<Column>> requiredColumns() {
-                return Optional.empty();
+                List<Column> columns = new ArrayList<>(updatedColumns);
+                columns.add(Column.metadata("file.path", DataTypes.STRING().notNull(), null, true));
+                return Optional.of(columns);
             }
 
             @Override
