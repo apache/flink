@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
@@ -47,12 +48,16 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.validate.SqlValidator;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -95,6 +100,7 @@ public class OperationConverterUtils {
             setWatermarkAndPK(builder, catalogTable.getSchema());
         }
         List<TableChange> tableChanges = new ArrayList<>();
+        // TODO: support TableChange in FLINK-30497
         for (SqlNode sqlNode : addReplaceColumns.getNewColumns()) {
             TableColumn tableColumn = toTableColumn((SqlTableColumn) sqlNode, sqlValidator);
             builder.add(tableColumn);
@@ -141,7 +147,7 @@ public class OperationConverterUtils {
     public static Operation convertChangeColumn(
             ObjectIdentifier tableIdentifier,
             SqlChangeColumn changeColumn,
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             SqlValidator sqlValidator) {
         String oldName = changeColumn.getOldName().getSimple();
         if (catalogTable.getPartitionKeys().indexOf(oldName) >= 0) {
@@ -151,18 +157,79 @@ public class OperationConverterUtils {
         TableSchema oldSchema = catalogTable.getSchema();
         boolean first = changeColumn.isFirst();
         String after = changeColumn.getAfter() == null ? null : changeColumn.getAfter().getSimple();
-        TableColumn newTableColumn = toTableColumn(changeColumn.getNewColumn(), sqlValidator);
+        TableColumn.PhysicalColumn newTableColumn =
+                toTableColumn(changeColumn.getNewColumn(), sqlValidator);
         TableSchema newSchema = changeColumn(oldSchema, oldName, newTableColumn, first, after);
         Map<String, String> newProperties = new HashMap<>(catalogTable.getOptions());
         newProperties.putAll(extractProperties(changeColumn.getProperties()));
-        return new AlterTableSchemaOperation(
+
+        List<TableChange> tableChanges =
+                buildColumnChange(
+                        catalogTable
+                                .getResolvedSchema()
+                                .getColumn(oldName)
+                                .orElseThrow(
+                                        () ->
+                                                new ValidationException(
+                                                        "Failed to get old column: " + oldName)),
+                        Column.physical(newTableColumn.getName(), newTableColumn.getType())
+                                .withComment(
+                                        changeColumn
+                                                .getNewColumn()
+                                                .getComment()
+                                                .map(SqlCharStringLiteral.class::cast)
+                                                .map(c -> c.getValueAs(String.class))
+                                                .orElse(null)),
+                        first
+                                ? TableChange.ColumnPosition.first()
+                                : (after == null ? null : TableChange.ColumnPosition.after(after)));
+        return new AlterTableChangeOperation(
                 tableIdentifier,
+                tableChanges,
                 new CatalogTableImpl(
                         newSchema,
                         catalogTable.getPartitionKeys(),
                         newProperties,
                         catalogTable.getComment()));
         // TODO: handle watermark and constraints
+    }
+
+    public static List<TableChange> buildColumnChange(
+            Column oldColumn,
+            Column newColumn,
+            @Nullable TableChange.ColumnPosition columnPosition) {
+        if (oldColumn.isPhysical() && newColumn.isPhysical()) {
+            List<TableChange> changes = new ArrayList<>();
+            String newComment = newColumn.getComment().orElse(oldColumn.getComment().orElse(null));
+            if (!newColumn.getComment().equals(oldColumn.getComment())) {
+                changes.add(TableChange.modifyColumnComment(oldColumn, newComment));
+            }
+
+            if (!oldColumn
+                    .getDataType()
+                    .getLogicalType()
+                    .equals(newColumn.getDataType().getLogicalType())) {
+                changes.add(
+                        TableChange.modifyPhysicalColumnType(
+                                oldColumn.withComment(newComment), newColumn.getDataType()));
+            }
+
+            if (!Objects.equals(newColumn.getName(), oldColumn.getName())) {
+                changes.add(
+                        TableChange.modifyColumnName(
+                                oldColumn.withComment(newComment).copy(newColumn.getDataType()),
+                                newColumn.getName()));
+            }
+
+            if (columnPosition != null) {
+                changes.add(TableChange.modifyColumnPosition(newColumn, columnPosition));
+            }
+
+            return changes;
+        } else {
+            return Collections.singletonList(
+                    TableChange.modify(oldColumn, newColumn, columnPosition));
+        }
     }
 
     // change a column in the old table schema and return the updated table schema
@@ -206,7 +273,7 @@ public class OperationConverterUtils {
         return builder.build();
     }
 
-    private static TableColumn toTableColumn(
+    private static TableColumn.PhysicalColumn toTableColumn(
             SqlTableColumn tableColumn, SqlValidator sqlValidator) {
         if (!(tableColumn instanceof SqlRegularColumn)) {
             throw new TableException("Only regular columns are supported for this operation yet.");

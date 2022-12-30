@@ -554,16 +554,19 @@ public class SqlToOperationConverter {
             return OperationConverterUtils.convertChangeColumn(
                     tableIdentifier,
                     (SqlChangeColumn) sqlAlterTable,
-                    (CatalogTable) baseTable,
+                    (ResolvedCatalogTable) baseTable,
                     flinkPlanner.getOrCreateSqlValidator());
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             SqlAlterTableRenameColumn sqlAlterTableRenameColumn =
                     (SqlAlterTableRenameColumn) sqlAlterTable;
+            ResolvedCatalogTable baseCatalogTable = (ResolvedCatalogTable) baseTable;
+            List<TableChange> tableChanges = new ArrayList<>();
             Schema newSchema =
                     alterSchemaConverter.applySchemaChange(
-                            sqlAlterTableRenameColumn, resolvedCatalogTable);
-            return new AlterTableSchemaOperation(
+                            sqlAlterTableRenameColumn, baseCatalogTable, tableChanges);
+            return new AlterTableChangeOperation(
                     tableIdentifier,
+                    tableChanges,
                     CatalogTable.of(
                             newSchema,
                             resolvedCatalogTable.getComment(),
@@ -728,7 +731,7 @@ public class SqlToOperationConverter {
         List<TableChange> tableChanges = new ArrayList<>();
         Schema newSchema =
                 alterSchemaConverter.applySchemaChange(
-                        alterTableSchema, originalTable.getUnresolvedSchema(), tableChanges);
+                        alterTableSchema, originalTable, tableChanges);
         return new AlterTableChangeOperation(
                 tableIdentifier,
                 tableChanges,
