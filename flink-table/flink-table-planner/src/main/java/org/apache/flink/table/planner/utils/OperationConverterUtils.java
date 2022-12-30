@@ -100,6 +100,14 @@ public class OperationConverterUtils {
             if (!addReplaceColumns.isReplace()) {
                 tableChanges.add(
                         TableChange.add(
+                                Column.physical(tableColumn.getName(), tableColumn.getType())
+                                        .withComment(
+                                                ((SqlTableColumn) sqlNode)
+                                                        .getComment()
+                                                        .map(SqlCharStringLiteral.class::cast)
+                                                        .map(c -> c.getValueAs(String.class))
+                                                        .orElse(null))));
+                        TableChange.add(
                                 Column.physical(tableColumn.getName(), tableColumn.getType())));
             }
         }

@@ -440,7 +440,7 @@ public interface TableChange {
 
         @Override
         public String toString() {
-            return "AFTER " + column;
+            return String.format("AFTER `%s`", column);
         }
     }
 }
