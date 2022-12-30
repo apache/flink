@@ -283,7 +283,7 @@ public class AlterSchemaConverter {
         }
 
         private void updatePrimaryKey(SqlTableConstraint alterPrimaryKey) {
-            checkAndGeneratePrimaryKeyChange();
+            checkAndCollectPrimaryKeyChange();
             constraintValidator.accept(alterPrimaryKey);
             List<String> primaryKeyColumns = Arrays.asList(alterPrimaryKey.getColumnNames());
             primaryKey =
@@ -314,7 +314,7 @@ public class AlterSchemaConverter {
         }
 
         private void updateWatermark(SqlWatermark alterWatermarkSpec) {
-            checkAndGenerateWatermarkChange();
+            checkAndCollectWatermarkChange();
             SqlIdentifier eventTimeColumnName = alterWatermarkSpec.getEventTimeColumnName();
             if (!eventTimeColumnName.isSimple()) {
                 throw new ValidationException(
@@ -382,7 +382,7 @@ public class AlterSchemaConverter {
                                     "%sEncounter duplicate column `%s`.",
                                     EX_MSG_PREFIX, columnName));
                 }
-                updateColumnPosition(columnPosition, columnName);
+                updatePositionAndCollectColumnChange(columnPosition, columnName);
             }
         }
 
@@ -443,12 +443,12 @@ public class AlterSchemaConverter {
             }
         }
 
-        abstract void updateColumnPosition(
+        abstract void updatePositionAndCollectColumnChange(
                 SqlTableColumnPosition columnPosition, String columnName);
 
-        abstract void checkAndGeneratePrimaryKeyChange();
+        abstract void checkAndCollectPrimaryKeyChange();
 
-        abstract void checkAndGenerateWatermarkChange();
+        abstract void checkAndCollectWatermarkChange();
     }
 
     private static class AddSchemaConverter extends SchemaConverter {
@@ -472,7 +472,7 @@ public class AlterSchemaConverter {
         }
 
         @Override
-        void checkAndGeneratePrimaryKeyChange() {
+        void checkAndCollectPrimaryKeyChange() {
             if (primaryKey != null) {
                 throw new ValidationException(
                         String.format(
@@ -486,7 +486,7 @@ public class AlterSchemaConverter {
         }
 
         @Override
-        void checkAndGenerateWatermarkChange() {
+        void checkAndCollectWatermarkChange() {
             if (watermarkSpec != null) {
                 throw new ValidationException(
                         String.format(
@@ -501,7 +501,8 @@ public class AlterSchemaConverter {
         }
 
         @Override
-        void updateColumnPosition(SqlTableColumnPosition columnPosition, String columnName) {
+        void updatePositionAndCollectColumnChange(
+                SqlTableColumnPosition columnPosition, String columnName) {
             if (sortedColumnNames.contains(columnName)) {
                 throw new ValidationException(
                         String.format(
@@ -552,7 +553,8 @@ public class AlterSchemaConverter {
         }
 
         @Override
-        void updateColumnPosition(SqlTableColumnPosition columnPosition, String columnName) {
+        void updatePositionAndCollectColumnChange(
+                SqlTableColumnPosition columnPosition, String columnName) {
             if (!sortedColumnNames.contains(columnName)) {
                 throw new ValidationException(
                         String.format(
@@ -571,7 +573,7 @@ public class AlterSchemaConverter {
         }
 
         @Override
-        void checkAndGeneratePrimaryKeyChange() {
+        void checkAndCollectPrimaryKeyChange() {
             if (primaryKey == null) {
                 throw new ValidationException(
                         String.format(
@@ -582,7 +584,7 @@ public class AlterSchemaConverter {
         }
 
         @Override
-        void checkAndGenerateWatermarkChange() {
+        void checkAndCollectWatermarkChange() {
             if (watermarkSpec == null) {
                 throw new ValidationException(
                         String.format(

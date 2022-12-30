@@ -41,6 +41,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
@@ -97,6 +98,7 @@ public class OperationConverterUtils {
         for (SqlNode sqlNode : addReplaceColumns.getNewColumns()) {
             TableColumn tableColumn = toTableColumn((SqlTableColumn) sqlNode, sqlValidator);
             builder.add(tableColumn);
+            // TODO: support ALTER TABLE REPLACE with TableChange in FLINK-30497
             if (!addReplaceColumns.isReplace()) {
                 tableChanges.add(
                         TableChange.add(
@@ -107,8 +109,6 @@ public class OperationConverterUtils {
                                                         .map(SqlCharStringLiteral.class::cast)
                                                         .map(c -> c.getValueAs(String.class))
                                                         .orElse(null))));
-                        TableChange.add(
-                                Column.physical(tableColumn.getName(), tableColumn.getType())));
             }
         }
 

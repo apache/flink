@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import javax.annotation.Nullable;
 
@@ -440,7 +441,7 @@ public interface TableChange {
 
         @Override
         public String toString() {
-            return String.format("AFTER `%s`", column);
+            return String.format("AFTER %s", EncodingUtils.escapeIdentifier(column));
         }
     }
 }

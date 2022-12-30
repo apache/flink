@@ -1562,9 +1562,9 @@ public class SqlToOperationConverterTest {
                 .isEqualTo(
                         "ALTER TABLE cat1.db1.tb1\n"
                                 + "  ADD `h` ARRAY<FLOAT> AS `e`.`f2`.`f1` FIRST,\n"
-                                + "  ADD `i` BIGINT NOT NULL AS `b` * 2 AFTER b,\n"
+                                + "  ADD `i` BIGINT NOT NULL AS `b` * 2 AFTER `b`,\n"
                                 + "  ADD `j` INT METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' FIRST,\n"
-                                + "  ADD `k` STRING NOT NULL AFTER h,\n"
+                                + "  ADD `k` STRING NOT NULL AFTER `h`,\n"
                                 + "  ADD CONSTRAINT `PK_k` PRIMARY KEY (`k`) NOT ENFORCED");
         assertAlterTableSchema(
                 operation,
@@ -1609,9 +1609,9 @@ public class SqlToOperationConverterTest {
                         "ALTER TABLE cat1.db1.tb1\n"
                                 + "  ADD `r` ROW<`r1` BIGINT, `r2` STRING, `r3` ARRAY<DOUBLE> NOT NULL> NOT NULL COMMENT 'add composite type' ,\n"
                                 + "  ADD `m` MAP<STRING NOT NULL, INT NOT NULL> ,\n"
-                                + "  ADD `n` BIGINT AS `r`.`r1` * 2 AFTER r,\n"
-                                + "  ADD `tss` TIMESTAMP(3) AS `to_timestamp`(`r`.`r2`) COMMENT 'rowtime' AFTER ts,\n"
-                                + "  ADD `na` ARRAY<DOUBLE> NOT NULL AS `r`.`r3` AFTER ts");
+                                + "  ADD `n` BIGINT AS `r`.`r1` * 2 AFTER `r`,\n"
+                                + "  ADD `tss` TIMESTAMP(3) AS `to_timestamp`(`r`.`r2`) COMMENT 'rowtime' AFTER `ts`,\n"
+                                + "  ADD `na` ARRAY<DOUBLE> NOT NULL AS `r`.`r3` AFTER `ts`");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
