@@ -119,6 +119,16 @@ public class AlterTableChangeOperation extends AlterTableOperation {
             TableChange.ModifyUniqueConstraint modifyUniqueConstraint =
                     (TableChange.ModifyUniqueConstraint) tableChange;
             return String.format("  MODIFY %s", modifyUniqueConstraint.getNewConstraint());
+        } else if (tableChange instanceof TableChange.DropColumn) {
+            TableChange.DropColumn dropColumn = (TableChange.DropColumn) tableChange;
+            return String.format(
+                    "  DROP %s", EncodingUtils.escapeIdentifier(dropColumn.getColumnName()));
+        } else if (tableChange instanceof TableChange.DropUniqueConstraint) {
+            TableChange.DropUniqueConstraint dropUniqueConstraint =
+                    (TableChange.DropUniqueConstraint) tableChange;
+            return String.format("  DROP CONSTRAINT %s", dropUniqueConstraint.getConstraintName());
+        } else if (tableChange instanceof TableChange.DropWatermark) {
+            return "  DROP WATERMARK";
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unknown table change: %s.", tableChange));

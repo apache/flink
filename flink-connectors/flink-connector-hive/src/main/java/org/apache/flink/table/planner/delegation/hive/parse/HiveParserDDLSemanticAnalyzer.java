@@ -2006,7 +2006,6 @@ public class HiveParserDDLSemanticAnalyzer {
         final int numPartCol = oldTable.getPartitionKeys().size();
         TableSchema.Builder builder = TableSchema.builder();
         // add existing non-part col if we're not replacing
-        // TODO: support TableChange in FLINK-30497
         if (!replace) {
             List<TableColumn> nonPartCols =
                     oldSchema.getTableColumns().subList(0, oldSchema.getFieldCount() - numPartCol);

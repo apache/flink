@@ -506,41 +506,54 @@ public class SqlToOperationConverter {
             return convertAlterTableReset(
                     tableIdentifier, (CatalogTable) baseTable, (SqlAlterTableReset) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropColumn) {
-            return new AlterTableSchemaOperation(
+            List<TableChange> tableChanges = new ArrayList<>();
+            return new AlterTableChangeOperation(
                     tableIdentifier,
+                    tableChanges,
                     CatalogTable.of(
                             alterSchemaConverter.applySchemaChange(
-                                    (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable),
+                                    (SqlAlterTableDropColumn) sqlAlterTable,
+                                    resolvedCatalogTable,
+                                    tableChanges),
                             resolvedCatalogTable.getComment(),
                             resolvedCatalogTable.getPartitionKeys(),
                             resolvedCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAlterTableDropPrimaryKey) {
-            return new AlterTableSchemaOperation(
+            ArrayList<TableChange> tableChanges = new ArrayList<>();
+            return new AlterTableChangeOperation(
                     tableIdentifier,
+                    tableChanges,
                     CatalogTable.of(
                             alterSchemaConverter.applySchemaChange(
                                     (SqlAlterTableDropPrimaryKey) sqlAlterTable,
-                                    resolvedCatalogTable),
+                                    resolvedCatalogTable,
+                                    tableChanges),
                             resolvedCatalogTable.getComment(),
                             resolvedCatalogTable.getPartitionKeys(),
                             resolvedCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
-            return new AlterTableSchemaOperation(
+            List<TableChange> changes = new ArrayList<>();
+            return new AlterTableChangeOperation(
                     tableIdentifier,
+                    changes,
                     CatalogTable.of(
                             alterSchemaConverter.applySchemaChange(
                                     (SqlAlterTableDropConstraint) sqlAlterTable,
-                                    resolvedCatalogTable),
+                                    resolvedCatalogTable,
+                                    changes),
                             resolvedCatalogTable.getComment(),
                             resolvedCatalogTable.getPartitionKeys(),
                             resolvedCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAlterTableDropWatermark) {
-            return new AlterTableSchemaOperation(
+            List<TableChange> changes = new ArrayList<>();
+            return new AlterTableChangeOperation(
                     tableIdentifier,
+                    changes,
                     CatalogTable.of(
                             alterSchemaConverter.applySchemaChange(
                                     (SqlAlterTableDropWatermark) sqlAlterTable,
-                                    resolvedCatalogTable),
+                                    resolvedCatalogTable,
+                                    changes),
                             resolvedCatalogTable.getComment(),
                             resolvedCatalogTable.getPartitionKeys(),
                             resolvedCatalogTable.getOptions()));

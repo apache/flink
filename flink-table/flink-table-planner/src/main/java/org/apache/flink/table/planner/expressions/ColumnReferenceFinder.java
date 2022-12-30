@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** A finder used to look up referenced column name in a {@link ResolvedExpression}. */
 public class ColumnReferenceFinder {
@@ -81,7 +82,11 @@ public class ColumnReferenceFinder {
     public static Set<String> findWatermarkReferencedColumn(ResolvedSchema schema) {
         ColumnReferenceVisitor visitor = new ColumnReferenceVisitor(schema.getColumnNames());
         return schema.getWatermarkSpecs().stream()
-                .flatMap(spec -> visitor.visit(spec.getWatermarkExpression()).stream())
+                .flatMap(
+                        spec ->
+                                Stream.concat(
+                                        visitor.visit(spec.getWatermarkExpression()).stream(),
+                                        Stream.of(spec.getRowtimeAttribute())))
                 .collect(Collectors.toSet());
     }
 

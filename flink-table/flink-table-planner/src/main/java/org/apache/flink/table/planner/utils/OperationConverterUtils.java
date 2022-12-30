@@ -79,7 +79,8 @@ public class OperationConverterUtils {
         TableSchema oldSchema = catalogTable.getSchema();
         int numPartCol = catalogTable.getPartitionKeys().size();
         Set<String> lastCols =
-                oldSchema.getTableColumns()
+                oldSchema
+                        .getTableColumns()
                         .subList(oldSchema.getFieldCount() - numPartCol, oldSchema.getFieldCount())
                         .stream()
                         .map(TableColumn::getName)
@@ -100,11 +101,9 @@ public class OperationConverterUtils {
             setWatermarkAndPK(builder, catalogTable.getSchema());
         }
         List<TableChange> tableChanges = new ArrayList<>();
-        // TODO: support TableChange in FLINK-30497
         for (SqlNode sqlNode : addReplaceColumns.getNewColumns()) {
             TableColumn tableColumn = toTableColumn((SqlTableColumn) sqlNode, sqlValidator);
             builder.add(tableColumn);
-            // TODO: support ALTER TABLE REPLACE with TableChange in FLINK-30497
             if (!addReplaceColumns.isReplace()) {
                 tableChanges.add(
                         TableChange.add(
@@ -133,6 +132,14 @@ public class OperationConverterUtils {
                         newProperties,
                         catalogTable.getComment());
         if (addReplaceColumns.isReplace()) {
+            // It's hard to determine how to decompose the ALTER TABLE REPLACE into multiple
+            // TableChanges. For example, with old schema <a INT, b INT, c INT> and the new schema
+            // <a INT, d INT>, there are multiple choices:
+            // plan 1: DROP COLUMN c, RENAME COLUMN b TO d;
+            // plan 2: DROP COLUMN b, RENAME COLUMN c TO d;
+            // So we don't translate with TableChanges here. One solution to solve this problem is
+            // the minimum edit distance, which tries to minimize the modification times, but it
+            // also can not give a unique answer.
             return new AlterTableSchemaOperation(tableIdentifier, newTable);
         } else {
             return new AlterTableChangeOperation(tableIdentifier, tableChanges, newTable);
