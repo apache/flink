@@ -21,6 +21,7 @@ package org.apache.flink.table.operations.ddl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -76,6 +77,48 @@ public class AlterTableChangeOperation extends AlterTableOperation {
             TableChange.AddUniqueConstraint addUniqueConstraint =
                     (TableChange.AddUniqueConstraint) tableChange;
             return String.format("  ADD %s", addUniqueConstraint.getConstraint());
+        } else if (tableChange instanceof TableChange.ModifyColumnComment) {
+            TableChange.ModifyColumnComment modifyColumnComment =
+                    (TableChange.ModifyColumnComment) tableChange;
+            return String.format(
+                    "  MODIFY %s COMMENT '%s'",
+                    EncodingUtils.escapeIdentifier(modifyColumnComment.getNewColumn().getName()),
+                    modifyColumnComment.getNewComment());
+        } else if (tableChange instanceof TableChange.ModifyPhysicalColumnType) {
+            TableChange.ModifyPhysicalColumnType modifyPhysicalColumnType =
+                    (TableChange.ModifyPhysicalColumnType) tableChange;
+            return String.format(
+                    "  MODIFY %s %s",
+                    EncodingUtils.escapeIdentifier(
+                            modifyPhysicalColumnType.getNewColumn().getName()),
+                    modifyPhysicalColumnType.getNewType());
+        } else if (tableChange instanceof TableChange.ModifyColumnPosition) {
+            TableChange.ModifyColumnPosition modifyColumnPosition =
+                    (TableChange.ModifyColumnPosition) tableChange;
+            return String.format(
+                    "  MODIFY %s %s",
+                    EncodingUtils.escapeIdentifier(modifyColumnPosition.getNewColumn().getName()),
+                    modifyColumnPosition.getNewPosition());
+        } else if (tableChange instanceof TableChange.ModifyColumnName) {
+            TableChange.ModifyColumnName modifyColumnName =
+                    (TableChange.ModifyColumnName) tableChange;
+            return String.format(
+                    "  MODIFY %s TO %s",
+                    EncodingUtils.escapeIdentifier(modifyColumnName.getOldColumnName()),
+                    EncodingUtils.escapeIdentifier(modifyColumnName.getNewColumnName()));
+        } else if (tableChange instanceof TableChange.ModifyColumn) {
+            TableChange.ModifyColumn modifyColumn = (TableChange.ModifyColumn) tableChange;
+            return String.format(
+                    "  MODIFY %s %s",
+                    modifyColumn.getNewColumn(),
+                    modifyColumn.getNewPosition() == null ? "" : modifyColumn.getNewPosition());
+        } else if (tableChange instanceof TableChange.ModifyWatermark) {
+            TableChange.ModifyWatermark modifyWatermark = (TableChange.ModifyWatermark) tableChange;
+            return String.format("  MODIFY %s", modifyWatermark.getNewWatermark());
+        } else if (tableChange instanceof TableChange.ModifyUniqueConstraint) {
+            TableChange.ModifyUniqueConstraint modifyUniqueConstraint =
+                    (TableChange.ModifyUniqueConstraint) tableChange;
+            return String.format("  MODIFY %s", modifyUniqueConstraint.getNewConstraint());
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unknown table change: %s.", tableChange));

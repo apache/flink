@@ -42,11 +42,14 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -439,7 +442,7 @@ public class HiveParserDDLSemanticAnalyzer {
         if (partSpecNode != null) {
             partSpec = getPartSpec(partSpecNode);
         }
-        CatalogBaseTable alteredTable = getAlteredTable(tableName, false);
+        ResolvedCatalogBaseTable<?> alteredTable = getAlteredTable(tableName, false);
         switch (ast.getType()) {
             case HiveASTParser.TOK_ALTERTABLE_RENAME:
                 operation = convertAlterTableRename(tableName, ast, false);
@@ -1880,7 +1883,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableChangeCol(
-            CatalogBaseTable alteredTable, String[] qualified, HiveParserASTNode ast)
+            ResolvedCatalogBaseTable<?> alteredTable, String[] qualified, HiveParserASTNode ast)
             throws SemanticException {
         String newComment = null;
         boolean first = false;
@@ -1933,7 +1936,7 @@ public class HiveParserDDLSemanticAnalyzer {
         String tblName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tblName);
-        CatalogTable oldTable = (CatalogTable) alteredTable;
+        ResolvedCatalogTable oldTable = (ResolvedCatalogTable) alteredTable;
         String oldName = HiveParserBaseSemanticAnalyzer.unescapeIdentifier(oldColName);
         String newName = HiveParserBaseSemanticAnalyzer.unescapeIdentifier(newColName);
 
@@ -1954,8 +1957,27 @@ public class HiveParserDDLSemanticAnalyzer {
         if (isCascade) {
             props.put(ALTER_COL_CASCADE, "true");
         }
-        return new AlterTableSchemaOperation(
+
+        List<TableChange> tableChanges =
+                OperationConverterUtils.buildModifyColumnChange(
+                        oldTable.getResolvedSchema()
+                                .getColumn(oldName)
+                                .orElseThrow(
+                                        () ->
+                                                new ValidationException(
+                                                        "Can not find the old column: "
+                                                                + oldColName)),
+                        Column.physical(newTableColumn.getName(), newTableColumn.getType())
+                                .withComment(newComment),
+                        first
+                                ? TableChange.ColumnPosition.first()
+                                : (flagCol == null
+                                        ? null
+                                        : TableChange.ColumnPosition.after(flagCol)));
+
+        return new AlterTableChangeOperation(
                 tableIdentifier,
+                tableChanges,
                 new CatalogTableImpl(
                         newSchema, oldTable.getPartitionKeys(), props, oldTable.getComment()));
     }
@@ -1984,6 +2006,7 @@ public class HiveParserDDLSemanticAnalyzer {
         final int numPartCol = oldTable.getPartitionKeys().size();
         TableSchema.Builder builder = TableSchema.builder();
         // add existing non-part col if we're not replacing
+        // TODO: support TableChange in FLINK-30497
         if (!replace) {
             List<TableColumn> nonPartCols =
                     oldSchema.getTableColumns().subList(0, oldSchema.getFieldCount() - numPartCol);
@@ -2146,9 +2169,9 @@ public class HiveParserDDLSemanticAnalyzer {
         return new AlterViewPropertiesOperation(viewIdentifier, newView);
     }
 
-    private CatalogBaseTable getAlteredTable(String tableName, boolean expectView) {
+    private ResolvedCatalogBaseTable<?> getAlteredTable(String tableName, boolean expectView) {
         ObjectIdentifier objectIdentifier = parseObjectIdentifier(tableName);
-        CatalogBaseTable catalogBaseTable = getCatalogBaseTable(objectIdentifier);
+        ResolvedCatalogBaseTable<?> catalogBaseTable = getCatalogBaseTable(objectIdentifier);
         if (expectView) {
             if (catalogBaseTable instanceof CatalogTable) {
                 throw new ValidationException("ALTER VIEW for a table is not allowed");
@@ -2177,11 +2200,11 @@ public class HiveParserDDLSemanticAnalyzer {
         return database;
     }
 
-    private CatalogBaseTable getCatalogBaseTable(ObjectIdentifier tableIdentifier) {
+    private ResolvedCatalogBaseTable<?> getCatalogBaseTable(ObjectIdentifier tableIdentifier) {
         return getCatalogBaseTable(tableIdentifier, false);
     }
 
-    private CatalogBaseTable getCatalogBaseTable(
+    private ResolvedCatalogBaseTable<?> getCatalogBaseTable(
             ObjectIdentifier tableIdentifier, boolean ifExists) {
         Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);

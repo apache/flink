@@ -19,7 +19,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -51,7 +53,7 @@ public interface TableChange {
      * <p>It is equal to the following statement:
      *
      * <pre>
-     *    ALTER TABLE &lt;table_name&gt; ADD &lt;column_definition&gt; &lt;position&gt;
+     *    ALTER TABLE &lt;table_name&gt; ADD &lt;column_definition&gt; &lt;column_position&gt;
      * </pre>
      *
      * @param column the added column definition.
@@ -68,7 +70,7 @@ public interface TableChange {
      * <p>It is equal to the following statement:
      *
      * <pre>
-     *    ALTER TABLE &lt;table_name&gt; ADD PRIMARY KEY (&lt;column_name&gt;...) NOT ENFORCED;
+     *    ALTER TABLE &lt;table_name&gt; ADD PRIMARY KEY (&lt;column_name&gt;...) NOT ENFORCED
      * </pre>
      *
      * @param constraint the added constraint definition.
@@ -92,6 +94,139 @@ public interface TableChange {
      */
     static AddWatermark add(WatermarkSpec watermarkSpec) {
         return new AddWatermark(watermarkSpec);
+    }
+
+    /**
+     * A table change to modify a column. The modification includes:
+     *
+     * <ul>
+     *   <li>change column data type
+     *   <li>reorder column position
+     *   <li>modify column comment
+     *   <li>rename column name
+     *   <li>change the computed expression
+     *   <li>change the metadata column expression
+     * </ul>
+     *
+     * <p>Some fine-grained column changes are represented by the {@link
+     * TableChange#modifyPhysicalColumnType}, {@link TableChange#modifyColumnName}, {@link
+     * TableChange#modifyColumnComment} and {@link TableChange#modifyColumnPosition}.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_definition&gt; COMMENT '&lt;column_comment&gt;' &lt;column_position&gt;
+     * </pre>
+     *
+     * @param oldColumn the definition of the old column.
+     * @param newColumn the definition of the new column.
+     * @param columnPosition the new position of the column.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyColumn modify(
+            Column oldColumn, Column newColumn, @Nullable ColumnPosition columnPosition) {
+        return new ModifyColumn(oldColumn, newColumn, columnPosition);
+    }
+
+    /**
+     * A table change that modify the physical column data type.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_name&gt; &lt;new_column_type&gt;
+     * </pre>
+     *
+     * @param oldColumn the definition of the old column.
+     * @param newType the type of the new column.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyPhysicalColumnType modifyPhysicalColumnType(Column oldColumn, DataType newType) {
+        return new ModifyPhysicalColumnType(oldColumn, newType);
+    }
+
+    /**
+     * A table change to modify the column name.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; RENAME &lt;old_column_name&gt; TO &lt;new_column_name&gt;
+     * </pre>
+     *
+     * @param oldColumn the definition of the old column.
+     * @param newName the name of the new column.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyColumnName modifyColumnName(Column oldColumn, String newName) {
+        return new ModifyColumnName(oldColumn, newName);
+    }
+
+    /**
+     * A table change to modify the column comment.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_name&gt; &lt;original_column_type&gt; COMMENT '&lt;new_column_comment&gt;'
+     * </pre>
+     *
+     * @param oldColumn the definition of the old column.
+     * @param newComment the modified comment.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyColumnComment modifyColumnComment(Column oldColumn, String newComment) {
+        return new ModifyColumnComment(oldColumn, newComment);
+    }
+
+    /**
+     * A table change to modify the column position.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_name&gt; &lt;original_column_type&gt; &lt;column_position&gt;
+     * </pre>
+     *
+     * @param oldColumn the definition of the old column.
+     * @param columnPosition the new position of the column.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyColumnPosition modifyColumnPosition(
+            Column oldColumn, ColumnPosition columnPosition) {
+        return new ModifyColumnPosition(oldColumn, columnPosition);
+    }
+
+    /**
+     * A table change to modify a unique constraint.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY PRIMARY KEY (&lt;column_name&gt;...) NOT ENFORCED;
+     * </pre>
+     *
+     * @param newConstraint the modified constraint definition.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyUniqueConstraint modify(UniqueConstraint newConstraint) {
+        return new ModifyUniqueConstraint(newConstraint);
+    }
+
+    /**
+     * A table change to modify a watermark.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY WATERMARK FOR &lt;row_time&gt; AS &lt;row_time_expression&gt;
+     * </pre>
+     *
+     * @param newWatermarkSpec the modified watermark definition.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyWatermark modify(WatermarkSpec newWatermarkSpec) {
+        return new ModifyWatermark(newWatermarkSpec);
     }
 
     /**
@@ -137,7 +272,7 @@ public interface TableChange {
      * <p>It is equal to the following statement:
      *
      * <pre>
-     *    ALTER TABLE &lt;table_name&gt; ADD &lt;column_definition&gt; &lt;position&gt;
+     *    ALTER TABLE &lt;table_name&gt; ADD &lt;column_definition&gt; &lt;column_position&gt;
      * </pre>
      */
     @PublicEvolving
@@ -273,6 +408,361 @@ public interface TableChange {
         @Override
         public String toString() {
             return "AddWatermark{" + "watermarkSpec=" + watermarkSpec + '}';
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Modify Change
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * A base schema change to modify a column. The modification includes:
+     *
+     * <ul>
+     *   <li>change column data type
+     *   <li>reorder column position
+     *   <li>modify column comment
+     *   <li>rename column name
+     *   <li>change the computed expression
+     *   <li>change the metadata column expression
+     * </ul>
+     *
+     * <p>Some fine-grained column changes are defined in the {@link ModifyPhysicalColumnType},
+     * {@link ModifyColumnComment}, {@link ModifyColumnPosition} and {@link ModifyColumnName}.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_definition&gt; COMMENT '&lt;column_comment&gt;' &lt;column_position&gt;
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyColumn implements TableChange {
+
+        protected final Column oldColumn;
+        protected final Column newColumn;
+
+        protected final @Nullable ColumnPosition newPosition;
+
+        public ModifyColumn(
+                Column oldColumn, Column newColumn, @Nullable ColumnPosition newPosition) {
+            this.oldColumn = oldColumn;
+            this.newColumn = newColumn;
+            this.newPosition = newPosition;
+        }
+
+        /** Returns the original {@link Column} instance. */
+        public Column getOldColumn() {
+            return oldColumn;
+        }
+
+        /** Returns the modified {@link Column} instance. */
+        public Column getNewColumn() {
+            return newColumn;
+        }
+
+        /**
+         * Returns the position of the modified {@link Column} instance. When the return value is
+         * null, it means modify the column at the original position. When the return value is
+         * FIRST, it means move the modified column to the first. When the return value is AFTER, it
+         * means move the column after the referred column.
+         */
+        public @Nullable ColumnPosition getNewPosition() {
+            return newPosition;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ModifyColumn)) {
+                return false;
+            }
+            ModifyColumn that = (ModifyColumn) o;
+            return Objects.equals(oldColumn, that.oldColumn)
+                    && Objects.equals(newColumn, that.newColumn)
+                    && Objects.equals(newPosition, that.newPosition);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(oldColumn, newColumn, newPosition);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyColumn{"
+                    + "oldColumn="
+                    + oldColumn
+                    + ", newColumn="
+                    + newColumn
+                    + ", newPosition="
+                    + newPosition
+                    + '}';
+        }
+    }
+
+    /**
+     * A table change to modify the column comment.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_name&gt; &lt;original_column_type&gt; COMMENT '&lt;new_column_comment&gt;'
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyColumnComment extends ModifyColumn {
+
+        private final String newComment;
+
+        private ModifyColumnComment(Column oldColumn, String newComment) {
+            super(oldColumn, oldColumn.withComment(newComment), null);
+            this.newComment = newComment;
+        }
+
+        /** Get the new comment for the column. */
+        public String getNewComment() {
+            return newComment;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return (o instanceof ModifyColumnComment) && super.equals(o);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyColumnComment{"
+                    + "Column="
+                    + oldColumn
+                    + ", newComment='"
+                    + newComment
+                    + '\''
+                    + '}';
+        }
+    }
+
+    /**
+     * A table change to modify the column position.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_name&gt; &lt;original_column_type&gt; &lt;column_position&gt;
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyColumnPosition extends ModifyColumn {
+
+        public ModifyColumnPosition(Column oldColumn, ColumnPosition newPosition) {
+            super(oldColumn, oldColumn, newPosition);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return (o instanceof ModifyColumnPosition) && super.equals(o);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyColumnPosition{"
+                    + "Column="
+                    + oldColumn
+                    + ", newPosition="
+                    + newPosition
+                    + '}';
+        }
+    }
+
+    /**
+     * A table change that modify the physical column data type.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY &lt;column_name&gt; &lt;new_column_type&gt;
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyPhysicalColumnType extends ModifyColumn {
+
+        private ModifyPhysicalColumnType(Column oldColumn, DataType newType) {
+            super(oldColumn, oldColumn.copy(newType), null);
+            Preconditions.checkArgument(oldColumn.isPhysical());
+        }
+
+        /** Get the column type for the new column. */
+        public DataType getNewType() {
+            return newColumn.getDataType();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return (o instanceof ModifyPhysicalColumnType) && super.equals(o);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyPhysicalColumnType{"
+                    + "Column="
+                    + oldColumn
+                    + ", newType="
+                    + getNewType()
+                    + '}';
+        }
+    }
+
+    /**
+     * A table change to modify the column name.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; RENAME &lt;old_column_name&gt; TO &lt;new_column_name&gt;
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyColumnName extends ModifyColumn {
+
+        private ModifyColumnName(Column oldColumn, String newName) {
+            super(oldColumn, createNewColumn(oldColumn, newName), null);
+        }
+
+        private static Column createNewColumn(Column oldColumn, String newName) {
+            if (oldColumn instanceof Column.PhysicalColumn) {
+                return Column.physical(newName, oldColumn.getDataType())
+                        .withComment(oldColumn.comment);
+            } else if (oldColumn instanceof Column.MetadataColumn) {
+                Column.MetadataColumn metadataColumn = (Column.MetadataColumn) oldColumn;
+                return Column.metadata(
+                                newName,
+                                oldColumn.getDataType(),
+                                metadataColumn.getMetadataKey().orElse(null),
+                                metadataColumn.isVirtual())
+                        .withComment(oldColumn.comment);
+            } else {
+                return Column.computed(newName, ((Column.ComputedColumn) oldColumn).getExpression())
+                        .withComment(oldColumn.comment);
+            }
+        }
+
+        /** Returns the origin column name. */
+        public String getOldColumnName() {
+            return oldColumn.getName();
+        }
+
+        /** Returns the new column name after renaming the column name. */
+        public String getNewColumnName() {
+            return newColumn.getName();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return (o instanceof ModifyColumnName) && super.equals(o);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyColumnName{"
+                    + "Column="
+                    + oldColumn
+                    + ", newName="
+                    + getNewColumnName()
+                    + '}';
+        }
+    }
+
+    /**
+     * A table change to modify a unique constraint.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY PRIMARY KEY (&lt;column_name&gt; ...) NOT ENFORCED
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyUniqueConstraint implements TableChange {
+
+        private final UniqueConstraint newConstraint;
+
+        public ModifyUniqueConstraint(UniqueConstraint newConstraint) {
+            this.newConstraint = newConstraint;
+        }
+
+        /** Returns the modified unique constraint. */
+        public UniqueConstraint getNewConstraint() {
+            return newConstraint;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ModifyUniqueConstraint)) {
+                return false;
+            }
+            ModifyUniqueConstraint that = (ModifyUniqueConstraint) o;
+            return Objects.equals(newConstraint, that.newConstraint);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(newConstraint);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyUniqueConstraint{" + "newConstraint=" + newConstraint + '}';
+        }
+    }
+
+    /**
+     * A table change to modify the watermark.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY WATERMARK FOR &lt;row_time_column_name&gt; AS &lt;watermark_expression&gt;
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyWatermark implements TableChange {
+
+        private final WatermarkSpec newWatermark;
+
+        public ModifyWatermark(WatermarkSpec newWatermark) {
+            this.newWatermark = newWatermark;
+        }
+
+        /** Returns the modified watermark. */
+        public WatermarkSpec getNewWatermark() {
+            return newWatermark;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ModifyWatermark)) {
+                return false;
+            }
+            ModifyWatermark that = (ModifyWatermark) o;
+            return Objects.equals(newWatermark, that.newWatermark);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(newWatermark);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyWatermark{" + "newWatermark=" + newWatermark + '}';
         }
     }
 

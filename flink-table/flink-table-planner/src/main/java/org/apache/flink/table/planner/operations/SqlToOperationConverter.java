@@ -554,16 +554,19 @@ public class SqlToOperationConverter {
             return OperationConverterUtils.convertChangeColumn(
                     tableIdentifier,
                     (SqlChangeColumn) sqlAlterTable,
-                    (CatalogTable) baseTable,
+                    (ResolvedCatalogTable) baseTable,
                     flinkPlanner.getOrCreateSqlValidator());
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             SqlAlterTableRenameColumn sqlAlterTableRenameColumn =
                     (SqlAlterTableRenameColumn) sqlAlterTable;
+            ResolvedCatalogTable baseCatalogTable = (ResolvedCatalogTable) baseTable;
+            List<TableChange> tableChanges = new ArrayList<>();
             Schema newSchema =
                     alterSchemaConverter.applySchemaChange(
-                            sqlAlterTableRenameColumn, resolvedCatalogTable);
-            return new AlterTableSchemaOperation(
+                            sqlAlterTableRenameColumn, baseCatalogTable, tableChanges);
+            return new AlterTableChangeOperation(
                     tableIdentifier,
+                    tableChanges,
                     CatalogTable.of(
                             newSchema,
                             resolvedCatalogTable.getComment(),
@@ -723,20 +726,19 @@ public class SqlToOperationConverter {
 
     private Operation convertAlterTableSchema(
             ObjectIdentifier tableIdentifier,
-            ResolvedCatalogTable originalTable,
+            ResolvedCatalogTable oldTable,
             SqlAlterTableSchema alterTableSchema) {
         List<TableChange> tableChanges = new ArrayList<>();
         Schema newSchema =
-                alterSchemaConverter.applySchemaChange(
-                        alterTableSchema, originalTable.getUnresolvedSchema(), tableChanges);
+                alterSchemaConverter.applySchemaChange(alterTableSchema, oldTable, tableChanges);
         return new AlterTableChangeOperation(
                 tableIdentifier,
                 tableChanges,
                 CatalogTable.of(
                         newSchema,
-                        originalTable.getComment(),
-                        originalTable.getPartitionKeys(),
-                        originalTable.getOptions()));
+                        oldTable.getComment(),
+                        oldTable.getPartitionKeys(),
+                        oldTable.getOptions()));
     }
 
     /** Convert CREATE FUNCTION statement. */
