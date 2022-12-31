@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.AcknowledgeCheckpointEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
@@ -46,6 +48,7 @@ import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.CountingOutput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -58,6 +61,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
+import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.util.FlinkException;
@@ -199,7 +203,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             userCodeClassloader,
                             recordWriterOutputs,
                             allOpWrappers,
-                            containingTask.getMailboxExecutorFactory());
+                            containingTask.getMailboxExecutorFactory(),
+                            operatorFactory != null);
 
             if (operatorFactory != null) {
                 Tuple2<OP, Optional<ProcessingTimeService>> mainOperatorAndTimeService =
@@ -622,6 +627,44 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return chainedSourceInputs;
     }
 
+    /**
+     * Get the numRecordsOut counter for the operator represented by the given config. And re-use
+     * the operator-level counter for the task-level numRecordsOut counter if this operator is at
+     * the end of the operator chain.
+     *
+     * <p>Return null if we should not use the numRecordsOut counter to track the records emitted by
+     * this operator.
+     */
+    @Nullable
+    private Counter getOperatorRecordsOutCounter(
+            StreamTask<?, ?> containingTask, StreamConfig operatorConfig) {
+        ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
+        StreamOperatorFactory<?> operatorFactory =
+                operatorConfig.getStreamOperatorFactory(userCodeClassloader);
+        // Do not use the numRecordsOut counter on output if this operator is SinkWriterOperator.
+        //
+        // Metric "numRecordsOut" is defined as the total number of records written to the
+        // external system in FLIP-33, but this metric is occupied in AbstractStreamOperator as the
+        // number of records sent to downstream operators, which is number of Committable batches
+        // sent to SinkCommitter. So we skip registering this metric on output and leave this metric
+        // to sink writer implementations to report.
+        if (operatorFactory instanceof SinkWriterOperatorFactory) {
+            return null;
+        }
+
+        InternalOperatorMetricGroup operatorMetricGroup =
+                containingTask
+                        .getEnvironment()
+                        .getMetricGroup()
+                        .getOrAddOperator(
+                                operatorConfig.getOperatorID(), operatorConfig.getOperatorName());
+        if (operatorConfig.isChainEnd()) {
+            operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
+        }
+
+        return operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+    }
+
     @SuppressWarnings({"rawtypes", "unchecked"})
     private WatermarkGaugeExposingOutput<StreamRecord> createChainedSourceOutput(
             StreamTask<?, OP> containingTask,
@@ -631,14 +674,18 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             OperatorMetricGroup metricGroup,
             OutputTag outputTag) {
 
+        Counter recordsOutCounter = getOperatorRecordsOutCounter(containingTask, sourceInputConfig);
+
         WatermarkGaugeExposingOutput<StreamRecord> chainedSourceOutput;
         if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-            chainedSourceOutput = new ChainingOutput(input, metricGroup, outputTag);
+            chainedSourceOutput =
+                    new ChainingOutput(input, recordsOutCounter, metricGroup, outputTag);
         } else {
             TypeSerializer<?> inSerializer =
                     sourceInputConfig.getTypeSerializerOut(userCodeClassloader);
             chainedSourceOutput =
-                    new CopyingChainingOutput(input, inSerializer, metricGroup, outputTag);
+                    new CopyingChainingOutput(
+                            input, inSerializer, recordsOutCounter, metricGroup, outputTag);
         }
         /**
          * Chained sources are closed when {@link
@@ -654,7 +701,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             ClassLoader userCodeClassloader,
             Map<IntermediateDataSetID, RecordWriterOutput<?>> recordWriterOutputs,
             List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
-            MailboxExecutorFactory mailboxExecutorFactory) {
+            MailboxExecutorFactory mailboxExecutorFactory,
+            boolean shouldAddMetric) {
         List<WatermarkGaugeExposingOutput<StreamRecord<T>>> allOutputs = new ArrayList<>(4);
 
         // create collectors for the network outputs
@@ -675,18 +723,26 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             WatermarkGaugeExposingOutput<StreamRecord<T>> output =
                     createOperatorChain(
                             containingTask,
+                            operatorConfig,
                             chainedOpConfig,
                             chainedConfigs,
                             userCodeClassloader,
                             recordWriterOutputs,
                             allOperatorWrappers,
                             outputEdge.getOutputTag(),
-                            mailboxExecutorFactory);
+                            mailboxExecutorFactory,
+                            shouldAddMetric);
             allOutputs.add(output);
+            // If the operator has multiple downstream chained operators, only one of them should
+            // increment the recordsOutCounter for this operator. Set shouldAddMetric to false
+            // so that we would skip adding the counter to other downstream operators.
+            shouldAddMetric = false;
         }
 
+        WatermarkGaugeExposingOutput<StreamRecord<T>> result;
+
         if (allOutputs.size() == 1) {
-            return allOutputs.get(0);
+            result = allOutputs.get(0);
         } else {
             // send to N outputs. Note that this includes the special case
             // of sending to zero outputs
@@ -700,11 +756,22 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             // If the chaining output does not copy we need to copy in the broadcast output,
             // otherwise multi-chaining would not work correctly.
             if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-                return closer.register(new CopyingBroadcastingOutputCollector<>(asArray));
+                result = closer.register(new CopyingBroadcastingOutputCollector<>(asArray));
             } else {
-                return closer.register(new BroadcastingOutputCollector<>(asArray));
+                result = closer.register(new BroadcastingOutputCollector<>(asArray));
             }
         }
+
+        if (shouldAddMetric) {
+            // Create a CountingOutput to increment the recordsOutCounter for this operator
+            // if we have not added the counter to any downstream chained operator.
+            Counter recordsOutCounter =
+                    getOperatorRecordsOutCounter(containingTask, operatorConfig);
+            if (recordsOutCounter != null) {
+                result = new CountingOutput<>(result, recordsOutCounter);
+            }
+        }
+        return result;
     }
 
     /**
@@ -713,13 +780,15 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      */
     private <IN, OUT> WatermarkGaugeExposingOutput<StreamRecord<IN>> createOperatorChain(
             StreamTask<OUT, ?> containingTask,
+            StreamConfig prevOperatorConfig,
             StreamConfig operatorConfig,
             Map<Integer, StreamConfig> chainedConfigs,
             ClassLoader userCodeClassloader,
             Map<IntermediateDataSetID, RecordWriterOutput<?>> recordWriterOutputs,
             List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
             OutputTag<IN> outputTag,
-            MailboxExecutorFactory mailboxExecutorFactory) {
+            MailboxExecutorFactory mailboxExecutorFactory,
+            boolean shouldAddMetricForPrevOperator) {
         // create the output that the operator writes to first. this may recursively create more
         // operators
         WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainedOperatorOutput =
@@ -730,7 +799,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                         userCodeClassloader,
                         recordWriterOutputs,
                         allOperatorWrappers,
-                        mailboxExecutorFactory);
+                        mailboxExecutorFactory,
+                        true);
 
         OneInputStreamOperator<IN, OUT> chainedOperator =
                 createOperator(
@@ -742,7 +812,13 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                         false);
 
         return wrapOperatorIntoOutput(
-                chainedOperator, containingTask, operatorConfig, userCodeClassloader, outputTag);
+                chainedOperator,
+                containingTask,
+                prevOperatorConfig,
+                operatorConfig,
+                userCodeClassloader,
+                outputTag,
+                shouldAddMetricForPrevOperator);
     }
 
     /**
@@ -786,17 +862,33 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     private <IN, OUT> WatermarkGaugeExposingOutput<StreamRecord<IN>> wrapOperatorIntoOutput(
             OneInputStreamOperator<IN, OUT> operator,
             StreamTask<OUT, ?> containingTask,
+            StreamConfig prevOperatorConfig,
             StreamConfig operatorConfig,
             ClassLoader userCodeClassloader,
-            OutputTag<IN> outputTag) {
+            OutputTag<IN> outputTag,
+            boolean shouldAddMetricForPrevOperator) {
+
+        Counter recordsOutCounter = null;
+
+        if (shouldAddMetricForPrevOperator) {
+            recordsOutCounter = getOperatorRecordsOutCounter(containingTask, prevOperatorConfig);
+        }
 
         WatermarkGaugeExposingOutput<StreamRecord<IN>> currentOperatorOutput;
         if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-            currentOperatorOutput = new ChainingOutput<>(operator, outputTag);
+            currentOperatorOutput =
+                    new ChainingOutput<>(
+                            operator, recordsOutCounter, operator.getMetricGroup(), outputTag);
         } else {
             TypeSerializer<IN> inSerializer =
                     operatorConfig.getTypeSerializerIn1(userCodeClassloader);
-            currentOperatorOutput = new CopyingChainingOutput<>(operator, inSerializer, outputTag);
+            currentOperatorOutput =
+                    new CopyingChainingOutput<>(
+                            operator,
+                            inSerializer,
+                            recordsOutCounter,
+                            operator.getMetricGroup(),
+                            outputTag);
         }
 
         // wrap watermark gauges since registered metrics must be unique
