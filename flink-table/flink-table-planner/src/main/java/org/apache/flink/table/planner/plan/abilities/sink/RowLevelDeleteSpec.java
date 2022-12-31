@@ -62,6 +62,10 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
         }
     }
 
+    public SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode getRowLevelDeleteMode() {
+        return rowLevelDeleteMode;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

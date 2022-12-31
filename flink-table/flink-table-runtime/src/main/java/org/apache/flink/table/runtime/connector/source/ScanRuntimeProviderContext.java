@@ -27,6 +27,9 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.apache.flink.table.types.utils.DataTypeUtils.validateInputDataType;
 
 /** Implementation of {@link ScanTableSource.Context}. */
@@ -34,6 +37,23 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.validateInputData
 public final class ScanRuntimeProviderContext implements ScanTableSource.ScanContext {
 
     public static final ScanRuntimeProviderContext INSTANCE = new ScanRuntimeProviderContext();
+
+    private final ScanTableSource.ScanPurpose scanPurpose;
+    private final Map<String, Object> contextParameters;
+
+    public ScanRuntimeProviderContext() {
+        this(ScanTableSource.ScanPurpose.SELECT);
+    }
+
+    public ScanRuntimeProviderContext(ScanTableSource.ScanPurpose scanPurpose) {
+        this(scanPurpose, new HashMap<>());
+    }
+
+    public ScanRuntimeProviderContext(
+            ScanTableSource.ScanPurpose scanPurpose, Map<String, Object> contextParameters) {
+        this.scanPurpose = scanPurpose;
+        this.contextParameters = contextParameters;
+    }
 
     @Override
     public TypeInformation<?> createTypeInformation(DataType producedDataType) {
@@ -51,5 +71,15 @@ public final class ScanRuntimeProviderContext implements ScanTableSource.ScanCon
         validateInputDataType(producedDataType);
         return new DataStructureConverterWrapper(
                 DataStructureConverters.getConverter(producedDataType));
+    }
+
+    @Override
+    public ScanTableSource.ScanPurpose getScanPurpose() {
+        return scanPurpose;
+    }
+
+    @Override
+    public void addContextParameter(String key, Object value) {
+        this.contextParameters.put(key, value);
     }
 }

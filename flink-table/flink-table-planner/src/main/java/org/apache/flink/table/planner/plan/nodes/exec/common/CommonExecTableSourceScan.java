@@ -48,6 +48,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
+import org.apache.flink.table.planner.utils.InternalConfigOptions;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -103,8 +104,12 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         final ScanTableSource tableSource =
                 tableSourceSpec.getScanTableSource(
                         planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
+        ScanRuntimeProviderContext scanRuntimeProviderContext =
+                new ScanRuntimeProviderContext(
+                        planner.getTableConfig().get(InternalConfigOptions.TABLE_EXEC_SCAN_PURPOSE),
+                        planner.getFlinkContext().getContextParameters());
         ScanTableSource.ScanRuntimeProvider provider =
-                tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+                tableSource.getScanRuntimeProvider(scanRuntimeProviderContext);
         if (provider instanceof SourceFunctionProvider) {
             final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
             final SourceFunction<RowData> function = sourceFunctionProvider.createSourceFunction();

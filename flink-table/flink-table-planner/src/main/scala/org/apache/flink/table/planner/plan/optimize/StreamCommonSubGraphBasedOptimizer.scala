@@ -196,6 +196,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
 
         override def getClassLoader: ClassLoader = context.getClassLoader
+
+        override def getContextParameters: util.Map[String, Object] = context.getContextParameters
       }
     )
   }

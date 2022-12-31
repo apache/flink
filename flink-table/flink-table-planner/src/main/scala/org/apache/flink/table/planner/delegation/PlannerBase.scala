@@ -118,7 +118,8 @@ abstract class PlannerBase(
       catalogManager,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList,
-      classLoader
+      classLoader,
+      new mutable.HashMap[String, Object]()
     )
 
   private[flink] def createRelBuilder: FlinkRelBuilder = {

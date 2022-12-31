@@ -47,9 +47,15 @@ import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -67,6 +73,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
+import org.apache.flink.table.runtime.operators.sink.SinkRowDataKindEnforcer;
 import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
@@ -99,6 +106,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     public static final String PARTITIONER_TRANSFORMATION = "partitioner";
     public static final String UPSERT_MATERIALIZE_TRANSFORMATION = "upsert-materialize";
     public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
+    public static final String ROW_KIND_ENFORCER = "row-kind-enforcer";
     public static final String SINK_TRANSFORMATION = "sink";
 
     public static final String FIELD_NAME_DYNAMIC_TABLE_SINK = "dynamicTableSink";
@@ -143,10 +151,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             DynamicTableSink tableSink,
             int rowtimeFieldIndex,
             boolean upsertMaterialize,
-            int[] inputUpsertKey) {
+            int[] inputUpsertKey,
+            SinkRuntimeProviderContext sinkRuntimeProviderContext) {
         final ResolvedSchema schema = tableSinkSpec.getContextResolvedTable().getResolvedSchema();
         final SinkRuntimeProvider runtimeProvider =
-                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));
+                tableSink.getSinkRuntimeProvider(sinkRuntimeProviderContext);
         final RowType physicalRowType = getPhysicalRowType(schema);
         final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
@@ -197,6 +206,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             classLoader,
                             physicalRowType,
                             inputUpsertKey);
+        }
+
+        Optional<RowKind> expectRowKind = getExpectRowKind();
+        if (expectRowKind.isPresent()) {
+            sinkTransform = applyRowKindEnforce(sinkTransform, expectRowKind.get(), config);
         }
 
         return (Transformation<Object>)
@@ -454,6 +468,20 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         return materializeTransform;
     }
 
+    private Transformation<RowData> applyRowKindEnforce(
+            Transformation<RowData> inputTransform, RowKind rowKind, ExecNodeConfig config) {
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransform,
+                createTransformationMeta(
+                        ROW_KIND_ENFORCER,
+                        String.format("RowKindEnforcer(RowKind=[%s])", rowKind),
+                        "RowKindEnforcer",
+                        config),
+                new SinkRowDataKindEnforcer(rowKind),
+                inputTransform.getOutputType(),
+                inputTransform.getParallelism());
+    }
+
     private Transformation<?> applySinkProvider(
             Transformation<RowData> inputTransform,
             StreamExecutionEnvironment env,
@@ -617,5 +645,41 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     private enum LengthEnforcerType {
         CHAR,
         BINARY
+    }
+
+    protected ScanTableSource.ScanPurpose getScanPurpose() {
+        if (tableSinkSpec.getSinkAbilities() != null) {
+            for (SinkAbilitySpec sinkAbilitySpec : tableSinkSpec.getSinkAbilities()) {
+                if (sinkAbilitySpec instanceof RowLevelDeleteSpec) {
+                    return ScanTableSource.ScanPurpose.DELETE;
+                } else if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
+                    return ScanTableSource.ScanPurpose.UPDATE;
+                }
+            }
+        }
+        return ScanTableSource.ScanPurpose.INSERT;
+    }
+
+    private Optional<RowKind> getExpectRowKind() {
+        if (tableSinkSpec.getSinkAbilities() != null) {
+            for (SinkAbilitySpec sinkAbilitySpec : tableSinkSpec.getSinkAbilities()) {
+                if (sinkAbilitySpec instanceof RowLevelDeleteSpec) {
+                    RowLevelDeleteSpec deleteSpec = (RowLevelDeleteSpec) sinkAbilitySpec;
+                    if (deleteSpec.getRowLevelDeleteMode()
+                            == SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode
+                                    .DELETED_ROWS) {
+                        return Optional.of(RowKind.DELETE);
+                    }
+                } else if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
+                    RowLevelUpdateSpec updateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
+                    if (updateSpec.getRowLevelUpdateMode()
+                            == SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode
+                                    .UPDATED_ROWS) {
+                        return Optional.of(RowKind.UPDATE_AFTER);
+                    }
+                }
+            }
+        }
+        return Optional.empty();
     }
 }

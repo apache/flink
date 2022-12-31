@@ -31,6 +31,8 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rel.core.TableScan;
 
+import java.util.Map;
+
 /**
  * A sub-class of {@link FlinkContext} which contains the information for {@link SourceAbilitySpec}
  * to apply the following abilities to {@link DynamicTableSource}.
@@ -90,6 +92,11 @@ public class SourceAbilityContext implements FlinkContext {
     @Override
     public RexFactory getRexFactory() {
         return context.getRexFactory();
+    }
+
+    @Override
+    public Map<String, Object> getContextParameters() {
+        return context.getContextParameters();
     }
 
     public FlinkTypeFactory getTypeFactory() {

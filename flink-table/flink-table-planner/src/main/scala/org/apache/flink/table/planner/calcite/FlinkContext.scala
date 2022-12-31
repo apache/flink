@@ -50,6 +50,8 @@ trait FlinkContext extends Context {
    */
   def getRexFactory: RexFactory
 
+  def getContextParameters: java.util.Map[String, Object]
+
   override def unwrap[C](clazz: Class[C]): C = {
     if (clazz.isInstance(this)) clazz.cast(this) else null.asInstanceOf[C]
   }

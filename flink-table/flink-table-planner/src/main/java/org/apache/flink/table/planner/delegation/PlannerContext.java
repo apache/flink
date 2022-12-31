@@ -70,6 +70,7 @@ import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -100,7 +101,8 @@ public class PlannerContext {
             CatalogManager catalogManager,
             CalciteSchema rootSchema,
             List<RelTraitDef> traitDefs,
-            ClassLoader classLoader) {
+            ClassLoader classLoader,
+            Map<String, Object> contextParameters) {
         this.typeSystem = FlinkTypeSystem.INSTANCE;
         this.typeFactory = new FlinkTypeFactory(classLoader, typeSystem);
         this.context =
@@ -115,7 +117,8 @@ public class PlannerContext {
                                 this::createFlinkPlanner,
                                 this::getCalciteSqlDialect,
                                 this::createRelBuilder),
-                        classLoader);
+                        classLoader,
+                        contextParameters);
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
         // Make a framework config to initialize the RelOptCluster instance,

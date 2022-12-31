@@ -39,6 +39,7 @@ import org.apache.calcite.plan.RelTraitDef;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
@@ -85,7 +86,8 @@ public class PlannerMocks {
                                         new CatalogManagerCalciteSchema(
                                                 catalogManager, !isBatchMode)),
                         traitDefs,
-                        PlannerMocks.class.getClassLoader());
+                        PlannerMocks.class.getClassLoader(),
+                        new HashMap<>());
 
         this.planner = plannerContext.createFlinkPlanner();
         this.parser =

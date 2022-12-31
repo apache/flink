@@ -70,6 +70,10 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         }
     }
 
+    public SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode getRowLevelUpdateMode() {
+        return rowLevelUpdateMode;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

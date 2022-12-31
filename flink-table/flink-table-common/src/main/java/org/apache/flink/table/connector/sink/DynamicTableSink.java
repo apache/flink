@@ -143,6 +143,12 @@ public interface DynamicTableSink {
         boolean isBounded();
 
         /**
+         * Get the value registered in {@link
+         * org.apache.flink.table.connector.source.ScanTableSource.ScanContext#addContextParameter}.
+         */
+        Object getContextParameter(String key);
+
+        /**
          * Creates type information describing the internal data structures of the given {@link
          * DataType}.
          *

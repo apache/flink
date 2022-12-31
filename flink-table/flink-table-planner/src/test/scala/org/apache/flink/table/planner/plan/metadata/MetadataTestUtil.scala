@@ -272,7 +272,8 @@ object MetadataTestUtil {
     null,
     CatalogManagerMocks.createEmptyCatalogManager,
     null,
-    classOf[MockMetaTable].getClassLoader)
+    classOf[MockMetaTable].getClassLoader,
+    null)
 
   private def createProjectedTableSourceTable(): Table = {
     val resolvedSchema = new ResolvedSchema(

@@ -28,7 +28,8 @@ class FlinkContextImpl(
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
     rexFactory: RexFactory,
-    classLoader: ClassLoader)
+    classLoader: ClassLoader,
+    contextParameters: java.util.Map[String, Object])
   extends FlinkContext {
 
   override def isBatchMode: Boolean = inBatchMode
@@ -44,4 +45,6 @@ class FlinkContextImpl(
   override def getRexFactory: RexFactory = rexFactory
 
   override def getClassLoader: ClassLoader = classLoader
+
+  override def getContextParameters: java.util.Map[String, Object] = contextParameters
 }

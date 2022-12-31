@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.connector.source.ScanTableSource;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -71,4 +72,11 @@ public final class InternalConfigOptions {
                                     + "used using only for testing, to help verify that streaming "
                                     + "SQL can generate the same result (with changelog events) "
                                     + "as batch SQL.");
+
+    public static final ConfigOption<ScanTableSource.ScanPurpose> TABLE_EXEC_SCAN_PURPOSE =
+            key("__table.exec.scan-purpose__")
+                    .enumType(ScanTableSource.ScanPurpose.class)
+                    .defaultValue(ScanTableSource.ScanPurpose.INSERT)
+                    .withDescription(
+                            "The config used to save the sql in for, it will be set by sink and got by source scan.");
 }

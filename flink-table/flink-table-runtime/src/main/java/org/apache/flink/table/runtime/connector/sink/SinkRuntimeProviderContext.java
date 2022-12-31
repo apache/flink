@@ -26,6 +26,9 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.apache.flink.table.types.utils.DataTypeUtils.validateOutputDataType;
 
 /** Implementation of {@link DynamicTableSink.Context}. */
@@ -33,9 +36,15 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.validateOutputDat
 public final class SinkRuntimeProviderContext implements DynamicTableSink.Context {
 
     private final boolean isBounded;
+    private final Map<String, Object> contextParameters;
+
+    public SinkRuntimeProviderContext(boolean isBounded, Map<String, Object> contextParameters) {
+        this.isBounded = isBounded;
+        this.contextParameters = contextParameters;
+    }
 
     public SinkRuntimeProviderContext(boolean isBounded) {
-        this.isBounded = isBounded;
+        this(isBounded, new HashMap<>());
     }
 
     @Override
@@ -60,5 +69,10 @@ public final class SinkRuntimeProviderContext implements DynamicTableSink.Contex
         validateOutputDataType(consumedDataType);
         return new DataStructureConverterWrapper(
                 DataStructureConverters.getConverter(consumedDataType));
+    }
+
+    @Override
+    public Object getContextParameter(String key) {
+        return contextParameters.get(key);
     }
 }

@@ -134,6 +134,14 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void t6() throws Exception {
+        tableEnv.executeSql("create table t1(a int, b int)");
+        tableEnv.executeSql("create table t2(a int, b int)");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql("insert into t1 select * from t2 ");
+    }
+
+    @Test
     public void t2() throws Exception {
         tableEnv.executeSql("create table t1(a int, b int, c int)");
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);

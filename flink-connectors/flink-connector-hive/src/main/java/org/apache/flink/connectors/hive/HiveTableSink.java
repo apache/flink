@@ -200,6 +200,7 @@ public class HiveTableSink
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         DataStructureConverter converter =
                 context.createDataStructureConverter(tableSchema.toRowDataType());
+        System.out.println("getSinkRuntimeProvider: " + context.getContextParameter("k"));
         return new DataStreamSinkProvider() {
             @Override
             public DataStreamSink<?> consumeDataStream(
@@ -702,7 +703,7 @@ public class HiveTableSink
 
             @Override
             public RowLevelDeleteInfo.RowLevelDeleteMode getRowLevelDeleteMode() {
-                return RowLevelDeleteMode.REMAINING_ROWS;
+                return RowLevelDeleteMode.DELETED_ROWS;
             }
         };
     }

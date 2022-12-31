@@ -135,6 +135,7 @@ public class HiveTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+        runtimeProviderContext.addContextParameter("k", "v");
         return new DataStreamScanProvider() {
             @Override
             public DataStream<RowData> produceDataStream(

@@ -28,9 +28,9 @@ import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.rel.RelNode
 
+import java.util
 import java.util.Collections
 
 /** A [[CommonSubGraphBasedOptimizer]] for Batch. */
@@ -109,6 +109,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
         override def needFinalTimeIndicatorConversion: Boolean = true
 
         override def getClassLoader: ClassLoader = context.getClassLoader
+
+        override def getContextParameters: util.Map[String, Object] = context.getContextParameters
       }
     )
   }

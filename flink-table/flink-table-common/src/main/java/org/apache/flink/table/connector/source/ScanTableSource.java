@@ -110,6 +110,29 @@ public interface ScanTableSource extends DynamicTableSource {
     @PublicEvolving
     interface ScanContext extends DynamicTableSource.Context {
         // may introduce scan specific methods in the future
+        /**
+         * Return in what purpose that the table scan is for. The table scan may behavior
+         * differently according to different purposes.
+         */
+        ScanPurpose getScanPurpose();
+
+        /**
+         * Register a value with a key, then the sink can get the value using the method {@link
+         * org.apache.flink.table.connector.sink.DynamicTableSink.Context#getContextParameter}.
+         *
+         * <p>Note: it's a mechanism to allow source to pass some values to sink in compile phase
+         * and the scope for the registered value is limited to single statement.
+         */
+        void addContextParameter(String key, Object value);
+    }
+
+    /** An enum to identify what purpose the table scan is for. */
+    @PublicEvolving
+    enum ScanPurpose {
+        SELECT, // for SELECT statement
+        INSERT, // for INSERT statement
+        DELETE, // for DELETE statement
+        UPDATE, // for UPDATE statement
     }
 
     /**

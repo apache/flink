@@ -35,6 +35,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.planner.utils.InternalConfigOptions;
+import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -140,9 +142,14 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     @Override
     protected Transformation<Object> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
+        planner.getTableConfig()
+                .set(InternalConfigOptions.TABLE_EXEC_SCAN_PURPOSE, getScanPurpose());
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        planner.getTableConfig()
+                .getConfiguration()
+                .removeConfig(InternalConfigOptions.TABLE_EXEC_SCAN_PURPOSE);
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner.getFlinkContext());
         final boolean isCollectSink = tableSink instanceof CollectDynamicSink;
@@ -181,6 +188,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 tableSink,
                 rowtimeFieldIndex,
                 upsertMaterialize,
-                inputUpsertKey);
+                inputUpsertKey,
+                new SinkRuntimeProviderContext(
+                        false, planner.getFlinkContext().getContextParameters()));
     }
 }

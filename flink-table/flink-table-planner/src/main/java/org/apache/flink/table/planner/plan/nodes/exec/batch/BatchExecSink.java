@@ -30,6 +30,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.planner.utils.InternalConfigOptions;
+import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Collections;
@@ -61,8 +63,13 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     @Override
     protected Transformation<Object> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
+        planner.getTableConfig()
+                .set(InternalConfigOptions.TABLE_EXEC_SCAN_PURPOSE, getScanPurpose());
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
+        planner.getTableConfig()
+                .getConfiguration()
+                .removeConfig(InternalConfigOptions.TABLE_EXEC_SCAN_PURPOSE);
         final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner.getFlinkContext());
         return createSinkTransformation(
                 planner.getExecEnv(),
@@ -72,6 +79,8 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
                 tableSink,
                 -1,
                 false,
-                null);
+                null,
+                new SinkRuntimeProviderContext(
+                        true, planner.getFlinkContext().getContextParameters()));
     }
 }
