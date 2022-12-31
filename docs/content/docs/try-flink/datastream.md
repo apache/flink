@@ -80,6 +80,18 @@ $ mvn archetype:generate \
     -Dpackage=spendreport \
     -DinteractiveMode=false
 ```
+```PowerShell
+# Windows PowerShell
+$ mvn "archetype:generate"  `
+    "-DarchetypeGroupId=org.apache.flink"  `
+    "-DarchetypeArtifactId=flink-walkthrough-datastream-java"  `
+    "-DarchetypeVersion={{< version >}}"   `
+    "-DgroupId=frauddetection"   `
+    "-DartifactId=frauddetection"   `
+    "-Dversion=0.1"   `
+    "-Dpackage=spendreport"  `
+    "-DinteractiveMode=false"
+```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```bash
@@ -92,6 +104,18 @@ $ mvn archetype:generate \
     -Dversion=0.1 \
     -Dpackage=spendreport \
     -DinteractiveMode=false
+```
+```PowerShell
+# Windows PowerShell
+$ mvn "archetype:generate"  `
+    "-DarchetypeGroupId=org.apache.flink"  `
+    "-DarchetypeArtifactId=flink-walkthrough-datastream-scala"  `
+    "-DarchetypeVersion={{< version >}}"   `
+    "-DgroupId=frauddetection"   `
+    "-DartifactId=frauddetection"   `
+    "-Dversion=0.1"   `
+    "-Dpackage=spendreport"  `
+    "-DinteractiveMode=false"
 ```
 {{< /tab >}}
 {{< /tabs >}}
