@@ -523,7 +523,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
+    @Test
     public void testDetachedPerJobYarnCluster() throws Exception {
         runTest(
                 () -> {
@@ -538,7 +538,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
+    @Test
     public void testDetachedPerJobYarnClusterWithStreamingJob() throws Exception {
         runTest(
                 () -> {
