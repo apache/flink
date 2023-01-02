@@ -43,18 +43,21 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
     private final Map<String, PartitionableListState<?>> registeredOperatorStates;
     private final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates;
     private final Collection<OperatorStateHandle> stateHandles;
+    private final StreamCompressionDecorator compressionDecorator;
 
     public OperatorStateRestoreOperation(
             CloseableRegistry closeStreamOnCancelRegistry,
             ClassLoader userClassloader,
             Map<String, PartitionableListState<?>> registeredOperatorStates,
             Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates,
-            @Nonnull Collection<OperatorStateHandle> stateHandles) {
+            @Nonnull Collection<OperatorStateHandle> stateHandles,
+            StreamCompressionDecorator compressionDecorator) {
         this.closeStreamOnCancelRegistry = closeStreamOnCancelRegistry;
         this.userClassloader = userClassloader;
         this.registeredOperatorStates = registeredOperatorStates;
         this.registeredBroadcastStates = registeredBroadcastStates;
         this.stateHandles = stateHandles;
+        this.compressionDecorator = compressionDecorator;
     }
 
     @Override
@@ -176,17 +179,27 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
 
                     PartitionableListState<?> listStateForName =
                             registeredOperatorStates.get(stateName);
-                    if (listStateForName == null) {
-                        BackendWritableBroadcastState<?, ?> broadcastStateForName =
-                                registeredBroadcastStates.get(stateName);
-                        Preconditions.checkState(
-                                broadcastStateForName != null,
-                                "Found state without " + "corresponding meta info: " + stateName);
-                        deserializeBroadcastStateValues(
-                                broadcastStateForName, in, nameToOffsets.getValue());
-                    } else {
-                        deserializeOperatorStateValues(
-                                listStateForName, in, nameToOffsets.getValue());
+                    // create the compressed stream for each state to have the compression header
+                    // for each
+                    try (final CompressibleFSDataInputStream compressedIn =
+                            new CompressibleFSDataInputStream(
+                                    in,
+                                    compressionDecorator)) { // closes only the outer compression
+                        // stream
+                        if (listStateForName == null) {
+                            BackendWritableBroadcastState<?, ?> broadcastStateForName =
+                                    registeredBroadcastStates.get(stateName);
+                            Preconditions.checkState(
+                                    broadcastStateForName != null,
+                                    "Found state without "
+                                            + "corresponding meta info: "
+                                            + stateName);
+                            deserializeBroadcastStateValues(
+                                    broadcastStateForName, compressedIn, nameToOffsets.getValue());
+                        } else {
+                            deserializeOperatorStateValues(
+                                    listStateForName, compressedIn, nameToOffsets.getValue());
+                        }
                     }
                 }
 

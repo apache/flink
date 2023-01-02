@@ -66,16 +66,22 @@ public class DefaultOperatorStateBackendBuilder
                 new HashMap<>();
         CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
 
+        final StreamCompressionDecorator compressionDecorator =
+                AbstractStateBackend.getCompressionDecorator(executionConfig);
         DefaultOperatorStateBackendSnapshotStrategy snapshotStrategy =
                 new DefaultOperatorStateBackendSnapshotStrategy(
-                        userClassloader, registeredOperatorStates, registeredBroadcastStates);
+                        userClassloader,
+                        registeredOperatorStates,
+                        registeredBroadcastStates,
+                        compressionDecorator);
         OperatorStateRestoreOperation restoreOperation =
                 new OperatorStateRestoreOperation(
                         cancelStreamRegistry,
                         userClassloader,
                         registeredOperatorStates,
                         registeredBroadcastStates,
-                        restoreStateHandles);
+                        restoreStateHandles,
+                        compressionDecorator);
         try {
             restoreOperation.restore();
         } catch (Exception e) {
