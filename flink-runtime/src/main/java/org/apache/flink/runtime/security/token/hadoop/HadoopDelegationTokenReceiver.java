@@ -19,46 +19,43 @@
 package org.apache.flink.runtime.security.token.hadoop;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.security.token.DelegationTokenContainer;
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiver;
 
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Delegation token updater functionality. */
+/** Hadoop delegation token receiver base class. */
 @Internal
-public final class HadoopDelegationTokenUpdater {
+public abstract class HadoopDelegationTokenReceiver implements DelegationTokenReceiver {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HadoopDelegationTokenUpdater.class);
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
-    private HadoopDelegationTokenUpdater() {}
+    public abstract String serviceName();
 
-    /** Updates delegation tokens for the current user. */
-    public static void addCurrentUserCredentials(byte[] containerBytes) throws Exception {
-        if (containerBytes == null || containerBytes.length == 0) {
-            throw new IllegalArgumentException("Illegal container tried to be processed");
+    public void init(Configuration configuration) throws Exception {}
+
+    @Override
+    public void onNewTokensObtained(byte[] tokens) throws Exception {
+        if (tokens == null || tokens.length == 0) {
+            throw new IllegalArgumentException("Illegal tokens tried to be processed");
         }
-        DelegationTokenContainer container =
-                InstantiationUtil.deserializeObject(
-                        containerBytes, HadoopDelegationTokenUpdater.class.getClassLoader());
-        Credentials credentials = new Credentials();
-        for (byte[] v : container.getTokens().values()) {
-            credentials.addAll(HadoopDelegationTokenConverter.deserialize(v));
-        }
-        LOG.info("Updating delegation tokens for current user");
+        Credentials credentials = HadoopDelegationTokenConverter.deserialize(tokens);
+
+        log.info("Updating delegation tokens for current user");
         dumpAllTokens(credentials);
         UserGroupInformation.getCurrentUser().addCredentials(credentials);
-        LOG.info("Updated delegation tokens for current user successfully");
+        log.info("Updated delegation tokens for current user successfully");
     }
 
-    public static void dumpAllTokens(Credentials credentials) {
+    private void dumpAllTokens(Credentials credentials) {
         credentials
                 .getAllTokens()
                 .forEach(
                         token ->
-                                LOG.info(
+                                log.info(
                                         "Token Service:{} Identifier:{}",
                                         token.getService(),
                                         token.getIdentifier()));

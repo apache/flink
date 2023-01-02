@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
@@ -143,6 +144,9 @@ public class TaskExecutorBuilder {
             resolvedTaskManagerServices = taskManagerServices;
         }
 
+        final DelegationTokenReceiverRepository delegationTokenReceiverRepository =
+                new DelegationTokenReceiverRepository(configuration);
+
         return new TaskExecutor(
                 rpcService,
                 resolvedTaskManagerConfiguration,
@@ -154,7 +158,8 @@ public class TaskExecutorBuilder {
                 metricQueryServiceAddress,
                 resolvedTaskExecutorBlobService,
                 fatalErrorHandler,
-                partitionTracker);
+                partitionTracker,
+                delegationTokenReceiverRepository);
     }
 
     public static TaskExecutorBuilder newBuilder(

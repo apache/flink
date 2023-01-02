@@ -91,6 +91,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.security.token.DefaultDelegationTokenManagerFactory;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
@@ -198,6 +199,9 @@ public class MiniCluster implements AutoCloseableAsync {
 
     @GuardedBy("lock")
     private DelegationTokenManager delegationTokenManager;
+
+    @GuardedBy("lock")
+    private DelegationTokenReceiverRepository delegationTokenReceiverRepository;
 
     @GuardedBy("lock")
     private BlobCacheService blobCacheService;
@@ -430,6 +434,9 @@ public class MiniCluster implements AutoCloseableAsync {
                 delegationTokenManager =
                         DefaultDelegationTokenManagerFactory.create(
                                 configuration, commonRpcService.getScheduledExecutor(), ioExecutor);
+
+                delegationTokenReceiverRepository =
+                        new DelegationTokenReceiverRepository(configuration);
 
                 blobCacheService =
                         BlobUtils.createBlobCacheService(
@@ -749,7 +756,8 @@ public class MiniCluster implements AutoCloseableAsync {
                             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                             workingDirectory.createSubWorkingDirectory("tm_" + taskManagers.size()),
                             taskManagerTerminatingFatalErrorHandlerFactory.create(
-                                    taskManagers.size()));
+                                    taskManagers.size()),
+                            delegationTokenReceiverRepository);
 
             taskExecutor.start();
             taskManagers.add(taskExecutor);

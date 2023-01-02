@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.token.hadoop;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -47,7 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /** Delegation token provider for Hadoop filesystems. */
-@Experimental
+@Internal
 public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider {
 
     private static final Logger LOG =
@@ -69,12 +69,35 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
     @Override
     public void init(Configuration configuration) throws Exception {
         flinkConfiguration = configuration;
-        hadoopConfiguration = HadoopUtils.getHadoopConfiguration(configuration);
-        kerberosLoginProvider = new KerberosLoginProvider(configuration);
+        try {
+            hadoopConfiguration = HadoopUtils.getHadoopConfiguration(configuration);
+            kerberosLoginProvider = new KerberosLoginProvider(configuration);
+        } catch (NoClassDefFoundError e) {
+            LOG.info(
+                    "Hadoop FS is not available (not packaged with this application): {} : \"{}\".",
+                    e.getClass().getSimpleName(),
+                    e.getMessage());
+        }
     }
 
     @Override
     public boolean delegationTokensRequired() throws Exception {
+        /**
+         * The general rule how a provider/receiver must behave is the following: The provider and
+         * the receiver must be added to the classpath together with all the additionally required
+         * dependencies.
+         *
+         * <p>This null check is required because the Hadoop FS provider is always on classpath but
+         * Hadoop FS jars are optional. Such case configuration is not able to be loaded. This
+         * construct is intended to be removed when HBase provider/receiver pair can be externalized
+         * (namely if a provider/receiver throws an exception then workload must be stopped).
+         */
+        if (hadoopConfiguration == null) {
+            LOG.debug(
+                    "Hadoop FS is not available (not packaged with this application), hence no "
+                            + "tokens will be acquired.");
+            return false;
+        }
         return HadoopUtils.isKerberosSecurityEnabled(UserGroupInformation.getCurrentUser())
                 && kerberosLoginProvider.isLoginPossible();
     }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.token.hadoop;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.security.token.DelegationTokenProvider;
 import org.apache.flink.runtime.util.HadoopUtils;
@@ -34,7 +34,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -42,7 +41,7 @@ import java.util.Optional;
  * flink-connector-hbase-base but HBase connection can be made without the connector. All in all I
  * tend to move this but that would be a breaking change.
  */
-@Experimental
+@Internal
 public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseDelegationTokenProvider.class);
@@ -80,7 +79,8 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
         } catch (InvocationTargetException
                 | NoSuchMethodException
                 | IllegalAccessException
-                | ClassNotFoundException e) {
+                | ClassNotFoundException
+                | NoClassDefFoundError e) {
             LOG.info(
                     "HBase is not available (not packaged with this application): {} : \"{}\".",
                     e.getClass().getSimpleName(),
@@ -91,6 +91,22 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
 
     @Override
     public boolean delegationTokensRequired() throws Exception {
+        /**
+         * The general rule how a provider/receiver must behave is the following: The provider and
+         * the receiver must be added to the classpath together with all the additionally required
+         * dependencies.
+         *
+         * <p>This null check is required because the HBase provider is always on classpath but
+         * HBase jars are optional. Such case configuration is not able to be loaded. This construct
+         * is intended to be removed when HBase provider/receiver pair can be externalized (namely
+         * if a provider/receiver throws an exception then workload must be stopped).
+         */
+        if (hbaseConf == null) {
+            LOG.debug(
+                    "HBase is not available (not packaged with this application), hence no "
+                            + "tokens will be acquired.");
+            return false;
+        }
         try {
             if (!HadoopUtils.isKerberosSecurityEnabled(UserGroupInformation.getCurrentUser())) {
                 return false;
@@ -99,8 +115,7 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
             LOG.debug("Hadoop Kerberos is not enabled.");
             return false;
         }
-        return Objects.nonNull(hbaseConf)
-                && hbaseConf.get("hbase.security.authentication").equals("kerberos")
+        return hbaseConf.get("hbase.security.authentication").equals("kerberos")
                 && kerberosLoginProvider.isLoginPossible();
     }
 

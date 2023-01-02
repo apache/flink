@@ -21,7 +21,6 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.security.token.hadoop.HadoopDelegationTokenUpdater;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -34,9 +33,11 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Clock;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -58,6 +59,13 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
+    private static final String PROVIDER_RECEIVER_INCONSISTENCY_ERROR =
+            "There is an inconsistency between loaded delegation token providers and receivers. "
+                    + "One must implement a DelegationTokenProvider and a DelegationTokenReceiver "
+                    + "with the same service name and add them together to the classpath to make "
+                    + "the system consistent. The mentioned classes are loaded with Java's service "
+                    + "loader so the appropriate META-INF registration also needs to be created.";
+
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDelegationTokenManager.class);
 
     private final Configuration configuration;
@@ -67,6 +75,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private final long renewalRetryBackoffPeriod;
 
     @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
+
+    private final DelegationTokenReceiverRepository delegationTokenReceiverRepository;
 
     @Nullable private final ScheduledExecutor scheduledExecutor;
 
@@ -89,8 +99,13 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         this.renewalRetryBackoffPeriod =
                 configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF).toMillis();
         this.delegationTokenProviders = loadProviders();
+        this.delegationTokenReceiverRepository =
+                new DelegationTokenReceiverRepository(configuration);
         this.scheduledExecutor = scheduledExecutor;
         this.ioExecutor = ioExecutor;
+        checkProviderAndReceiverConsistency(
+                delegationTokenProviders,
+                delegationTokenReceiverRepository.delegationTokenReceivers);
     }
 
     private Map<String, DelegationTokenProvider> loadProviders() {
@@ -102,7 +117,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         Map<String, DelegationTokenProvider> providers = new HashMap<>();
         for (DelegationTokenProvider provider : serviceLoader) {
             try {
-                if (isProviderEnabled(provider.serviceName())) {
+                if (isProviderEnabled(configuration, provider.serviceName())) {
                     provider.init(configuration);
                     LOG.info(
                             "Delegation token provider {} loaded and initialized",
@@ -118,10 +133,13 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                             provider.serviceName());
                 }
             } catch (Exception | NoClassDefFoundError e) {
-                LOG.warn(
+                // The intentional general rule is that if a provider's init method throws exception
+                // then stop the workload
+                LOG.error(
                         "Failed to initialize delegation token provider {}",
                         provider.serviceName(),
                         e);
+                throw new FlinkRuntimeException(e);
             }
         }
 
@@ -130,8 +148,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         return providers;
     }
 
-    @VisibleForTesting
-    boolean isProviderEnabled(String serviceName) {
+    static boolean isProviderEnabled(Configuration configuration, String serviceName) {
         return configuration.getBoolean(
                 String.format("security.delegation.token.provider.%s.enabled", serviceName), true);
     }
@@ -139,6 +156,38 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @VisibleForTesting
     boolean isProviderLoaded(String serviceName) {
         return delegationTokenProviders.containsKey(serviceName);
+    }
+
+    @VisibleForTesting
+    boolean isReceiverLoaded(String serviceName) {
+        return delegationTokenReceiverRepository.isReceiverLoaded(serviceName);
+    }
+
+    @VisibleForTesting
+    static void checkProviderAndReceiverConsistency(
+            Map<String, DelegationTokenProvider> providers,
+            Map<String, DelegationTokenReceiver> receivers) {
+        LOG.info("Checking provider and receiver instances consistency");
+        if (providers.size() != receivers.size()) {
+            Set<String> missingReceiverServiceNames = new HashSet<>(providers.keySet());
+            missingReceiverServiceNames.removeAll(receivers.keySet());
+            if (!missingReceiverServiceNames.isEmpty()) {
+                throw new IllegalStateException(
+                        PROVIDER_RECEIVER_INCONSISTENCY_ERROR
+                                + " Missing receivers: "
+                                + String.join(",", missingReceiverServiceNames));
+            }
+
+            Set<String> missingProviderServiceNames = new HashSet<>(receivers.keySet());
+            missingProviderServiceNames.removeAll(providers.keySet());
+            if (!missingProviderServiceNames.isEmpty()) {
+                throw new IllegalStateException(
+                        PROVIDER_RECEIVER_INCONSISTENCY_ERROR
+                                + " Missing providers: "
+                                + String.join(",", missingProviderServiceNames));
+            }
+        }
+        LOG.info("Provider and receiver instances are consistent");
     }
 
     /**
@@ -212,12 +261,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
 
             if (container.hasTokens()) {
-                byte[] containerBytes = InstantiationUtil.serializeObject(container);
-                HadoopDelegationTokenUpdater.addCurrentUserCredentials(containerBytes);
+                delegationTokenReceiverRepository.onNewTokensObtained(container);
 
                 LOG.info("Notifying listener about new tokens");
                 checkNotNull(listener, "Listener must not be null");
-                listener.onNewTokensObtained(containerBytes);
+                listener.onNewTokensObtained(InstantiationUtil.serializeObject(container));
                 LOG.info("Listener notified successfully");
             } else {
                 LOG.warn("No tokens obtained so skipping listener notification");

@@ -380,6 +380,7 @@ function check_logs_for_errors {
       | grep -v "Error sending fetch request" \
       | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
       | grep -v "Options.*error_*" \
+      | grep -v "not packaged with this application" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
