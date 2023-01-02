@@ -29,6 +29,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -64,10 +65,12 @@ import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJobsOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -77,6 +80,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,9 +93,12 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_CANDIDATES;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
+import static org.apache.flink.table.gateway.service.utils.Constants.JOB_NAME;
 import static org.apache.flink.table.gateway.service.utils.Constants.SAVEPOINT_PATH;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_VALUE;
+import static org.apache.flink.table.gateway.service.utils.Constants.START_TIME;
+import static org.apache.flink.table.gateway.service.utils.Constants.STATUS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** An executor to execute the {@link Operation}. */
@@ -316,6 +323,8 @@ public class OperationExecutor {
             return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
         } else if (op instanceof StopJobOperation) {
             return callStopJobOperation(handle, (StopJobOperation) op);
+        } else if (op instanceof ShowJobsOperation) {
+            return callShowJobsOperation(handle, (ShowJobsOperation) op);
         } else {
             return callOperation(tableEnv, handle, op);
         }
@@ -522,6 +531,45 @@ public class OperationExecutor {
                 TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
                 CollectionUtil.iteratorToList(
                         TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+    }
+
+    public ResultFetcher callShowJobsOperation(
+            OperationHandle operationHandle, ShowJobsOperation showJobsOperation)
+            throws SqlExecutionException {
+        try {
+            Collection<JobStatusMessage> jobs =
+                    runClusterAction(
+                            operationHandle,
+                            clusterClient -> {
+                                try {
+                                    return clusterClient.listJobs().get();
+                                } catch (Exception e) {
+                                    throw new FlinkException(e);
+                                }
+                            });
+            List<RowData> resultRows =
+                    jobs.stream()
+                            .map(
+                                    job ->
+                                            GenericRowData.of(
+                                                    StringData.fromString(job.getJobId().toString()),
+                                                    StringData.fromString(job.getJobName()),
+                                                    StringData.fromString(job.getJobState().toString()),
+                                                    DateTimeUtils.toTimestampData(
+                                                            job.getStartTime(), 3)))
+                            .collect(Collectors.toList());
+            return new ResultFetcher(
+                    operationHandle,
+                    ResolvedSchema.of(
+                            Column.physical(JOB_ID, DataTypes.STRING()),
+                            Column.physical(JOB_NAME, DataTypes.STRING()),
+                            Column.physical(STATUS, DataTypes.STRING()),
+                            Column.physical(
+                                    START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
+                    resultRows);
+        } catch (FlinkException | RuntimeException e) {
+            throw new SqlExecutionException("Failed to list jobs in the cluster.", e);
+        }
     }
 
     /**

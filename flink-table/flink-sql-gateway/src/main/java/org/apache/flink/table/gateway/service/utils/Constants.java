@@ -22,6 +22,9 @@ package org.apache.flink.table.gateway.service.utils;
 public class Constants {
 
     public static final String JOB_ID = "job id";
+    public static final String JOB_NAME = "job name";
+    public static final String STATUS = "status";
+    public static final String START_TIME = "start_time";
     public static final String SET_KEY = "key";
     public static final String SET_VALUE = "value";
     public static final String COMPLETION_CANDIDATES = "candidates";

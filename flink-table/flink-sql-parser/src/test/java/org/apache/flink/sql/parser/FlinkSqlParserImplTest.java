@@ -2088,6 +2088,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testShowJobs() {
+        sql("show jobs").ok("SHOW JOBS");
+    }
+
+    @Test
     void testStopJob() {
         sql("STOP JOB 'myjob'").ok("STOP JOB 'myjob'");
         sql("STOP JOB 'myjob' WITH SAVEPOINT").ok("STOP JOB 'myjob' WITH SAVEPOINT");

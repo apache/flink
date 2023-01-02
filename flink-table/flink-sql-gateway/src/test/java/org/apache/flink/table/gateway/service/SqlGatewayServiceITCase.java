@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -454,6 +455,56 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         runGetOperationSchemaUntilOperationIsReadyOrError(
                 this::getDefaultResultSet,
                 task -> assertThat(task.get()).isEqualTo(getDefaultResultSet().getResultSchema()));
+    }
+
+    @Test
+    public void testShowJobsOperation(@InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
+
+        String pipelineName = "test-job";
+        configuration.setString(PipelineOptions.NAME, pipelineName);
+
+        // running jobs
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+        String insertSql = "INSERT INTO sink SELECT * FROM source;";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, configuration);
+        service.executeStatement(sessionHandle, sinkDdl, -1, configuration);
+
+        long timeOpStart = System.currentTimeMillis();
+        OperationHandle insertsOperationHandle =
+                service.executeStatement(sessionHandle, insertSql, -1, configuration);
+        String jobId = fetchAllResults(sessionHandle, insertsOperationHandle).get(0).getString(0).toString();
+
+        TestUtils.waitUntilAllTasksAreRunning(restClusterClient, JobID.fromHexString(jobId));
+        long timeOpSucceed =  System.currentTimeMillis();
+
+        OperationHandle showJobsOperationHandle1 =
+                service.executeStatement(sessionHandle, "SHOW JOBS", -1 , configuration);
+
+        List<RowData> result1 = fetchAllResults(sessionHandle, showJobsOperationHandle1);
+        assertThat(result1.size()).isEqualTo(1);
+        assertThat(result1.get(0).getString(0).toString()).isEqualTo(jobId);
+        assertThat(result1.get(0).getString(1).toString()).isEqualTo(pipelineName);
+        assertThat(result1.get(0).getString(2).toString()).isEqualTo("RUNNING");
+        assertThat(result1.get(0).getTimestamp(3, 3).getMillisecond()).isBetween(timeOpStart, timeOpSucceed);
+
+        OperationHandle stopOperationHandle =
+                service.executeStatement(sessionHandle, String.format("STOP JOB '%s'", jobId), -1 , configuration);
+        List<RowData> stopResults = fetchAllResults(sessionHandle, stopOperationHandle);
+        assertThat(stopResults.get(0).getString(0).toString()).isEqualTo("OK");
+
+        TestUtils.waitUntilJobCanceled(JobID.fromHexString(jobId), restClusterClient);
+
+        OperationHandle showJobsOperationHandle2 =
+                service.executeStatement(sessionHandle, "SHOW JOBS", -1 , configuration);
+        List<RowData> result2 = fetchAllResults(sessionHandle, showJobsOperationHandle2);
+        assertThat(result2.size()).isEqualTo(1);
+        assertThat(result2.get(0).getString(0).toString()).isEqualTo(jobId);
+        assertThat(result2.get(0).getString(1).toString()).isEqualTo(pipelineName);
+        assertThat(result2.get(0).getString(2).toString()).isEqualTo("CANCELED");
     }
 
     // --------------------------------------------------------------------------------------------
