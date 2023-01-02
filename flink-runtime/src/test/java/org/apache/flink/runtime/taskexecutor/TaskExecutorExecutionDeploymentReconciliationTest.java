@@ -52,6 +52,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
@@ -251,7 +252,8 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                new TestingTaskExecutorPartitionTracker());
+                new TestingTaskExecutorPartitionTracker(),
+                new DelegationTokenReceiverRepository(configuration));
     }
 
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(JobID jobId)

@@ -1300,9 +1300,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         DelegationTokenContainer container = new DelegationTokenContainer();
         delegationTokenManager.obtainDelegationTokens(container);
 
+        // This is here for backward compatibility to make log aggregation work
         Credentials credentials = new Credentials();
-        for (byte[] v : container.getTokens().values()) {
-            credentials.addAll(HadoopDelegationTokenConverter.deserialize(v));
+        for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
+            if (e.getKey().equals("hadoopfs")) {
+                credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
+            }
         }
         ByteBuffer tokens = ByteBuffer.wrap(HadoopDelegationTokenConverter.serialize(credentials));
         containerLaunchContext.setTokens(tokens);

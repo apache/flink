@@ -58,6 +58,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -599,7 +600,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 new TestingFatalErrorHandler(),
-                partitionTracker);
+                partitionTracker,
+                new DelegationTokenReceiverRepository(configuration));
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable() {

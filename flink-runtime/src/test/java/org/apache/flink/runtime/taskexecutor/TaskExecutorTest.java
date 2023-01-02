@@ -79,6 +79,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
@@ -2818,7 +2819,8 @@ public class TaskExecutorTest extends TestLogger {
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
-                taskExecutorPartitionTracker);
+                taskExecutorPartitionTracker,
+                new DelegationTokenReceiverRepository(configuration));
     }
 
     private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices)
@@ -2853,7 +2855,8 @@ public class TaskExecutorTest extends TestLogger {
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
+                new DelegationTokenReceiverRepository(configuration));
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(int numberOfSlots)

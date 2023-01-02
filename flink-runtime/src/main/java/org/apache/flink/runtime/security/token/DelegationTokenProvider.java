@@ -25,10 +25,16 @@ import java.util.Optional;
 
 /**
  * Delegation token provider API. Instances of {@link DelegationTokenProvider}s are loaded by {@link
- * DelegationTokenManager} through service loader.
+ * DelegationTokenManager} through service loader. Basically the implementation of this interface is
+ * responsible to produce the serialized form of tokens which will be handled by {@link
+ * DelegationTokenReceiver} instances both on JobManager and TaskManager side.
  */
 @Experimental
 public interface DelegationTokenProvider {
+
+    /** Config prefix of providers. */
+    String CONFIG_PREFIX = "security.delegation.token.provider";
+
     /** Container for obtained delegation tokens. */
     class ObtainedDelegationTokens {
         /** Serialized form of delegation tokens. */
@@ -56,6 +62,11 @@ public interface DelegationTokenProvider {
 
     /** Name of the service to provide delegation tokens. This name should be unique. */
     String serviceName();
+
+    /** Config prefix of the service. */
+    default String serviceConfigPrefix() {
+        return String.format("%s.%s", CONFIG_PREFIX, serviceName());
+    }
 
     /**
      * Called by {@link DelegationTokenManager} to initialize provider after construction.
