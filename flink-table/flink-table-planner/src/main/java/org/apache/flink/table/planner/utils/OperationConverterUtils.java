@@ -109,12 +109,7 @@ public class OperationConverterUtils {
                 tableChanges.add(
                         TableChange.add(
                                 Column.physical(tableColumn.getName(), tableColumn.getType())
-                                        .withComment(
-                                                ((SqlTableColumn) sqlNode)
-                                                        .getComment()
-                                                        .map(SqlCharStringLiteral.class::cast)
-                                                        .map(c -> c.getValueAs(String.class))
-                                                        .orElse(null))));
+                                        .withComment(getComment((SqlTableColumn) sqlNode))));
             }
         }
 
@@ -164,7 +159,7 @@ public class OperationConverterUtils {
         newProperties.putAll(extractProperties(changeColumn.getProperties()));
 
         List<TableChange> tableChanges =
-                buildColumnChange(
+                buildModifyColumnChange(
                         catalogTable
                                 .getResolvedSchema()
                                 .getColumn(oldName)
@@ -173,13 +168,7 @@ public class OperationConverterUtils {
                                                 new ValidationException(
                                                         "Failed to get old column: " + oldName)),
                         Column.physical(newTableColumn.getName(), newTableColumn.getType())
-                                .withComment(
-                                        changeColumn
-                                                .getNewColumn()
-                                                .getComment()
-                                                .map(SqlCharStringLiteral.class::cast)
-                                                .map(c -> c.getValueAs(String.class))
-                                                .orElse(null)),
+                                .withComment(getComment(changeColumn.getNewColumn())),
                         first
                                 ? TableChange.ColumnPosition.first()
                                 : (after == null ? null : TableChange.ColumnPosition.after(after)));
@@ -194,7 +183,7 @@ public class OperationConverterUtils {
         // TODO: handle watermark and constraints
     }
 
-    public static List<TableChange> buildColumnChange(
+    public static List<TableChange> buildModifyColumnChange(
             Column oldColumn,
             Column newColumn,
             @Nullable TableChange.ColumnPosition columnPosition) {
@@ -273,6 +262,13 @@ public class OperationConverterUtils {
         return builder.build();
     }
 
+    public static @Nullable String getComment(SqlTableColumn column) {
+        return column.getComment()
+                .map(SqlCharStringLiteral.class::cast)
+                .map(c -> c.getValueAs(String.class))
+                .orElse(null);
+    }
+
     private static TableColumn.PhysicalColumn toTableColumn(
             SqlTableColumn tableColumn, SqlValidator sqlValidator) {
         if (!(tableColumn instanceof SqlRegularColumn)) {
@@ -281,7 +277,7 @@ public class OperationConverterUtils {
         SqlRegularColumn regularColumn = (SqlRegularColumn) tableColumn;
         String name = regularColumn.getName().getSimple();
         SqlDataTypeSpec typeSpec = regularColumn.getType();
-        boolean nullable = typeSpec.getNullable() == null ? true : typeSpec.getNullable();
+        boolean nullable = typeSpec.getNullable() == null || typeSpec.getNullable();
         LogicalType logicalType =
                 FlinkTypeFactory.toLogicalType(typeSpec.deriveType(sqlValidator, nullable));
         DataType dataType = TypeConversions.fromLogicalToDataType(logicalType);

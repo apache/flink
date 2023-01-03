@@ -1959,7 +1959,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         List<TableChange> tableChanges =
-                OperationConverterUtils.buildColumnChange(
+                OperationConverterUtils.buildModifyColumnChange(
                         oldTable.getResolvedSchema()
                                 .getColumn(oldName)
                                 .orElseThrow(

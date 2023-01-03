@@ -726,20 +726,19 @@ public class SqlToOperationConverter {
 
     private Operation convertAlterTableSchema(
             ObjectIdentifier tableIdentifier,
-            ResolvedCatalogTable originalTable,
+            ResolvedCatalogTable oldTable,
             SqlAlterTableSchema alterTableSchema) {
         List<TableChange> tableChanges = new ArrayList<>();
         Schema newSchema =
-                alterSchemaConverter.applySchemaChange(
-                        alterTableSchema, originalTable, tableChanges);
+                alterSchemaConverter.applySchemaChange(alterTableSchema, oldTable, tableChanges);
         return new AlterTableChangeOperation(
                 tableIdentifier,
                 tableChanges,
                 CatalogTable.of(
                         newSchema,
-                        originalTable.getComment(),
-                        originalTable.getPartitionKeys(),
-                        originalTable.getOptions()));
+                        oldTable.getComment(),
+                        oldTable.getPartitionKeys(),
+                        oldTable.getOptions()));
     }
 
     /** Convert CREATE FUNCTION statement. */

@@ -50,7 +50,7 @@ public class SqlAlterTableRenameColumn extends SqlAlterTable {
                 tableIdentifier, originColumnIdentifier, newColumnIdentifier);
     }
 
-    public SqlIdentifier getOriginColumnIdentifier() {
+    public SqlIdentifier getOldColumnIdentifier() {
         return originColumnIdentifier;
     }
 

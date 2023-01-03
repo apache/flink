@@ -103,10 +103,12 @@ public interface TableChange {
      *   <li>change column data type
      *   <li>reorder column position
      *   <li>modify column comment
+     *   <li>rename column name
      *   <li>change the computed expression
+     *   <li>change the metadata column expression
      * </ul>
      *
-     * <p>Some fine-grained column changes are built in the {@link
+     * <p>Some fine-grained column changes are represented by the {@link
      * TableChange#modifyPhysicalColumnType}, {@link TableChange#modifyColumnName}, {@link
      * TableChange#modifyColumnComment} and {@link TableChange#modifyColumnPosition}.
      *
@@ -196,7 +198,7 @@ public interface TableChange {
     }
 
     /**
-     * A table change to add a unique constraint.
+     * A table change to modify a unique constraint.
      *
      * <p>It is equal to the following statement:
      *
@@ -212,7 +214,7 @@ public interface TableChange {
     }
 
     /**
-     * A table change to add a watermark.
+     * A table change to modify a watermark.
      *
      * <p>It is equal to the following statement:
      *
@@ -420,7 +422,9 @@ public interface TableChange {
      *   <li>change column data type
      *   <li>reorder column position
      *   <li>modify column comment
+     *   <li>rename column name
      *   <li>change the computed expression
+     *   <li>change the metadata column expression
      * </ul>
      *
      * <p>Some fine-grained column changes are defined in the {@link ModifyPhysicalColumnType},
@@ -671,7 +675,7 @@ public interface TableChange {
     }
 
     /**
-     * A table change to modify an unique constraint.
+     * A table change to modify a unique constraint.
      *
      * <p>It is equal to the following statement:
      *
