@@ -733,16 +733,16 @@ public class AlterSchemaConverter {
     private void validateColumnName(
             String oldColumnName,
             String newColumnName,
-            ResolvedSchema oldSchemas,
+            ResolvedSchema oldSchema,
             List<String> partitionKeys) {
         validateColumnName(
                 oldColumnName,
-                oldSchemas,
+                oldSchema,
                 partitionKeys,
                 // fail the operation of renaming column, once the column derives a computed column
                 (referencedColumn, computedColumn) -> referencedColumn.contains(oldColumnName));
         // validate new column
-        if (oldSchemas.getColumn(newColumnName).isPresent()) {
+        if (oldSchema.getColumn(newColumnName).isPresent()) {
             throw new ValidationException(
                     String.format(
                             "%sThe column `%s` already existed in table schema.",
