@@ -95,7 +95,7 @@ public class StreamMockEnvironment implements Environment {
 
     private final List<IndexedInputGate> inputs;
 
-    private final List<ResultPartitionWriter> outputs;
+    private List<ResultPartitionWriter> outputs;
 
     private final JobID jobID;
 
@@ -234,6 +234,10 @@ public class StreamMockEnvironment implements Environment {
             t.printStackTrace();
             fail(t.getMessage());
         }
+    }
+
+    public void setOutputs(List<ResultPartitionWriter> outputs) {
+        this.outputs = outputs;
     }
 
     public void setExternalExceptionHandler(Consumer<Throwable> externalExceptionHandler) {

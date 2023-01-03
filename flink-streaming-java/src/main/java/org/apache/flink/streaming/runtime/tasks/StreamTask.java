@@ -1610,7 +1610,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         int index = 0;
         for (NonChainedOutput streamOutput : outputsInOrder) {
-            replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(environment, streamOutput);
+            replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(
+                    environment, streamOutput, index);
             recordWriters.add(
                     createRecordWriter(
                             streamOutput,
@@ -1623,10 +1624,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     private static void replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(
-            Environment environment, NonChainedOutput streamOutput) {
+            Environment environment, NonChainedOutput streamOutput, int outputIndex) {
         if (streamOutput.getPartitioner() instanceof ForwardPartitioner
-                && streamOutput.getConsumerParallelism()
+                && environment.getWriter(outputIndex).getNumberOfSubpartitions()
                         != environment.getTaskInfo().getNumberOfParallelSubtasks()) {
+            LOG.debug(
+                    "Replacing forward partitioner with rebalance for {}",
+                    environment.getTaskInfo().getTaskNameWithSubtasks());
             streamOutput.setPartitioner(new RebalancePartitioner<>());
         }
     }
