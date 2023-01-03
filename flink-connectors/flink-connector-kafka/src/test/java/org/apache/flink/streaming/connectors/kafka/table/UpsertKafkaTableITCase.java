@@ -196,6 +196,72 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
     }
 
     @Test
+    public void testBufferedUpsertSinkWithNullWatermark() throws Exception {
+        final String topic = "buffered_upsert_topic_with_null_watermark_" + format;
+        createTestTopic(topic, 1, 1);
+        String bootstraps = getBootstrapServers();
+        env.setParallelism(1);
+
+        Table table =
+                tEnv.fromDataStream(
+                        env.fromElements(
+                                        Row.of(1, null, "payload 1"),
+                                        Row.of(2, null, "payload 2"),
+                                        Row.of(3, null, "payload 3"),
+                                        Row.of(3, null, "payload"))
+                                .returns(
+                                        ROW_NAMED(
+                                                new String[] {"k_id", "ts", "payload"},
+                                                INT,
+                                                LOCAL_DATE_TIME,
+                                                STRING)),
+                        Schema.newBuilder()
+                                .column("k_id", DataTypes.INT())
+                                .column("ts", DataTypes.TIMESTAMP(3))
+                                .column("payload", DataTypes.STRING())
+                                .watermark("ts", "ts")
+                                .build());
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE upsert_kafka (\n"
+                                + "  `k_id` INTEGER,\n"
+                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `payload` STRING,\n"
+                                + "  PRIMARY KEY (k_id) NOT ENFORCED"
+                                + ") WITH (\n"
+                                + "  'connector' = 'upsert-kafka',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'key.format' = '%s',\n"
+                                + "  'sink.buffer-flush.max-rows' = '2',\n"
+                                + "  'sink.buffer-flush.interval' = '100000',\n"
+                                + "  'value.format' = '%s',\n"
+                                + "  'value.fields-include' = 'ALL',\n"
+                                + "  'key.csv.null-literal' = '<NULL>',\n"
+                                + "  'value.csv.null-literal' = '<NULL>'\n"
+                                + ")",
+                        topic, bootstraps, "csv", "csv");
+
+        tEnv.executeSql(createTable);
+
+        table.executeInsert("upsert_kafka").await();
+
+        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM upsert_kafka"), 3);
+        final List<Row> expected =
+                Arrays.asList(
+                        changelogRow("+I", 1, null, "payload 1"),
+                        changelogRow("+I", 2, null, "payload 2"),
+                        changelogRow("+I", 3, null, "payload"));
+
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
+
+        // ------------- cleanup -------------------
+
+        deleteTestTopic(topic);
+    }
+
+    @Test
     public void testSourceSinkWithKeyAndPartialValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
