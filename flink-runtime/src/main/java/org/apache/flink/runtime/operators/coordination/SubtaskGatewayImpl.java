@@ -45,9 +45,7 @@ import java.util.concurrent.CompletableFuture;
  * releasing them later. If the instance is closed for a specific checkpoint, events arrived after
  * that would be blocked temporarily, and released after the checkpoint finishes. If an event is
  * blocked & buffered when there are multiple ongoing checkpoints, the event would be released after
- * all these checkpoints finish. It is used for "alignment" of operator event streams with
- * checkpoint barrier injection, similar to how the input channels are aligned during a common
- * checkpoint.
+ * all these checkpoints finish.
  *
  * <p>The methods on the critical communication path, including closing/reopening the gateway and
  * sending the operator events, are required to be used in a single-threaded context specified by

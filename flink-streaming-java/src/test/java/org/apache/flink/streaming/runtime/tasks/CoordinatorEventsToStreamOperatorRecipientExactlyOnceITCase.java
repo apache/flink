@@ -116,9 +116,6 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         ManuallyClosedSourceFunction.shouldCloseSource = false;
         EventReceivingOperator.shouldUnblockAllCheckpoint = false;
         EventReceivingOperator.shouldUnblockNextCheckpoint = false;
-        EventSendingCoordinatorWithGuaranteedConcurrentCheckpoint
-                        .isCheckpointAbortedBeforeScriptFailure =
-                false;
         TestScript.reset();
     }
 
@@ -158,19 +155,6 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
                         TestScript.getForOperator("eventReceivingWithFailure-subtask0")
                                 .hasAlreadyFailed())
                 .isTrue();
-    }
-
-    @Test
-    public void testConcurrentCheckpoint() throws Exception {
-        env.getCheckpointConfig().setMaxConcurrentCheckpoints(2);
-        executeAndVerifyResults(
-                env,
-                new EventReceivingOperatorFactoryWithGuaranteedConcurrentCheckpoint<>(
-                        "eventReceiving", NUM_EVENTS, DELAY));
-        assertThat(
-                        EventSendingCoordinatorWithGuaranteedConcurrentCheckpoint
-                                .isCheckpointAbortedBeforeScriptFailure)
-                .isFalse();
     }
 
     private void executeAndVerifyResults(
@@ -560,174 +544,6 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
                     .getOperatorCoordinatorEventGateway()
                     .sendOperatorEventToCoordinator(
                             getOperatorID(), new SerializedValue<>(new StartEvent(lastValue)));
-        }
-    }
-
-    /**
-     * A wrapper operator factory for {@link
-     * EventSendingCoordinatorWithGuaranteedConcurrentCheckpoint} and {@link
-     * EventReceivingOperator}.
-     */
-    private static class EventReceivingOperatorFactoryWithGuaranteedConcurrentCheckpoint<IN, OUT>
-            extends EventReceivingOperatorFactory<IN, OUT> {
-
-        public EventReceivingOperatorFactoryWithGuaranteedConcurrentCheckpoint(
-                String name, int numEvents, int delay) {
-            super(name, numEvents, delay);
-        }
-
-        @Override
-        public OperatorCoordinator.Provider getCoordinatorProvider(
-                String operatorName, OperatorID operatorID) {
-            return new OperatorCoordinator.Provider() {
-
-                @Override
-                public OperatorID getOperatorId() {
-                    return operatorID;
-                }
-
-                @Override
-                public OperatorCoordinator create(OperatorCoordinator.Context context) {
-                    return new EventSendingCoordinatorWithGuaranteedConcurrentCheckpoint(
-                            context, name, numEvents, delay);
-                }
-            };
-        }
-    }
-
-    /**
-     * A subclass of {@link EventSendingCoordinator} that additionally guarantees the following
-     * behavior around checkpoint.
-     *
-     * <ul>
-     *   <li>The job must have completed two checkpoints before the coordinator injects the failure.
-     *   <li>The two checkpoints must have an overlapping period. i.e. The second checkpoint must
-     *       have started before the first checkpoint finishes.
-     *   <li>The failure must be injected after the coordinator has completed its second checkpoint
-     *       and before it completes the third.
-     *   <li>There must be events being sent when the coordinator has completed the second
-     *       checkpoint while the subtask has not.
-     * </ul>
-     *
-     * <p>In order for this class to work correctly, make sure to invoke {@link
-     * org.apache.flink.streaming.api.environment.CheckpointConfig#setMaxConcurrentCheckpoints(int)}
-     * method with a parameter value larger than 1.
-     */
-    private static class EventSendingCoordinatorWithGuaranteedConcurrentCheckpoint
-            extends EventSendingCoordinator {
-
-        /** Whether there is a checkpoint aborted before the test script failure is triggered. */
-        private static boolean isCheckpointAbortedBeforeScriptFailure;
-
-        /**
-         * The max number that the coordinator might send out before it completes the second
-         * checkpoint.
-         */
-        private final int maxNumberBeforeSecondCheckpoint;
-
-        /** Whether the coordinator has sent out any event after the second checkpoint. */
-        private boolean isEventSentAfterSecondCheckpoint;
-
-        /** Whether the coordinator has completed the first checkpoint. */
-        private boolean isCoordinatorFirstCheckpointCompleted;
-
-        /** Whether the job (both coordinator and operator) has completed the first checkpoint. */
-        private boolean isJobFirstCheckpointCompleted;
-
-        /** Whether the coordinator has completed the second checkpoint. */
-        private boolean isCoordinatorSecondCheckpointCompleted;
-
-        /** Whether the job (both coordinator and operator) has completed the second checkpoint. */
-        private boolean isJobSecondCheckpointCompleted;
-
-        public EventSendingCoordinatorWithGuaranteedConcurrentCheckpoint(
-                Context context, String name, int numEvents, int delay) {
-            super(context, name, numEvents, delay);
-            this.maxNumberBeforeSecondCheckpoint = new Random().nextInt(numEvents / 6);
-            this.isEventSentAfterSecondCheckpoint = false;
-            this.isCoordinatorFirstCheckpointCompleted = false;
-            this.isJobFirstCheckpointCompleted = false;
-            this.isCoordinatorSecondCheckpointCompleted = false;
-            this.isJobSecondCheckpointCompleted = false;
-        }
-
-        @Override
-        protected void sendNextEvent() {
-            if (!isCoordinatorSecondCheckpointCompleted
-                    && nextNumber > maxNumberBeforeSecondCheckpoint) {
-                return;
-            }
-
-            if (!isJobSecondCheckpointCompleted && nextNumber >= maxNumberBeforeFailure) {
-                return;
-            }
-
-            super.sendNextEvent();
-
-            if (!isEventSentAfterSecondCheckpoint && isCoordinatorSecondCheckpointCompleted) {
-                isEventSentAfterSecondCheckpoint = true;
-            }
-
-            // If the checkpoint coordinator receives the completion message of checkpoint 1 and
-            // checkpoint 2 at the same time, checkpoint 2 might be completed before checkpoint 1
-            // due to the async mechanism in the checkpoint process, which would cause checkpoint 1
-            // to be accidentally aborted. In order to avoid this situation, the following code is
-            // required to make sure that checkpoint 2 is not completed until checkpoint 1 finishes.
-            if (isEventSentAfterSecondCheckpoint && isJobFirstCheckpointCompleted) {
-                EventReceivingOperator.shouldUnblockAllCheckpoint = true;
-            }
-        }
-
-        @Override
-        protected void handleCheckpoint() {
-            if (nextToComplete != null) {
-                if (!isCoordinatorFirstCheckpointCompleted) {
-                    isCoordinatorFirstCheckpointCompleted = true;
-                } else if (!isCoordinatorSecondCheckpointCompleted) {
-                    isCoordinatorSecondCheckpointCompleted = true;
-                    EventReceivingOperator.shouldUnblockNextCheckpoint = true;
-                }
-            }
-
-            super.handleCheckpoint();
-
-            if (nextToComplete != null
-                    && isEventSentAfterSecondCheckpoint
-                    && !testScript.hasAlreadyFailed()) {
-                testScript.recordHasFailed();
-                context.failJob(new Exception("test failure"));
-            }
-        }
-
-        @Override
-        public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData)
-                throws Exception {
-            super.resetToCheckpoint(checkpointId, checkpointData);
-            runInMailbox(
-                    () -> {
-                        isCoordinatorFirstCheckpointCompleted = true;
-                        isJobFirstCheckpointCompleted = true;
-                    });
-        }
-
-        @Override
-        public void notifyCheckpointAborted(long checkpointId) {
-            if (!testScript.hasAlreadyFailed()) {
-                isCheckpointAbortedBeforeScriptFailure = true;
-            }
-        }
-
-        @Override
-        public void notifyCheckpointComplete(long checkpointId) {
-            super.notifyCheckpointComplete(checkpointId);
-            runInMailbox(
-                    () -> {
-                        if (!isJobFirstCheckpointCompleted) {
-                            isJobFirstCheckpointCompleted = true;
-                        } else if (!isJobSecondCheckpointCompleted) {
-                            isJobSecondCheckpointCompleted = true;
-                        }
-                    });
         }
     }
 }
