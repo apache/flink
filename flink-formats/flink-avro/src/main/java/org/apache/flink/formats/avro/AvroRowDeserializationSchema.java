@@ -58,7 +58,10 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoField;
 import java.util.HashMap;
 import java.util.List;
@@ -286,6 +289,8 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
                 if (info == Types.SQL_TIMESTAMP) {
                     return convertToTimestamp(
                             object, schema.getLogicalType() == LogicalTypes.timestampMicros());
+                } else if (info == Types.LOCAL_DATE_TIME) {
+                    return convertToLocalDateTime(object);
                 } else if (info == Types.SQL_TIME) {
                     return convertToTime(object);
                 }
@@ -376,6 +381,23 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
                     "Unexpected object type for DATE logical type. Received: " + object);
         }
         return new Timestamp(millis - LOCAL_TZ.getOffset(millis));
+    }
+
+    private LocalDateTime convertToLocalDateTime(Object object) {
+        final LocalDateTime localDateTime;
+        ZoneId zoneId = ZoneId.systemDefault();
+        final Instant localDateTimeInstant;
+        if (object instanceof Long) {
+            long localDateTimeEpochMilli = (Long) object;
+            localDateTimeInstant = Instant.ofEpochMilli(localDateTimeEpochMilli);
+        } else if (object instanceof LocalDateTime) {
+            localDateTime = (LocalDateTime) object;
+            localDateTimeInstant = localDateTime.toInstant(ZoneOffset.UTC);
+        } else {
+            throw new IllegalArgumentException(
+                    "Unexpected object type for LocalDateTime logical type. Received: " + object);
+        }
+        return localDateTimeInstant.atZone(zoneId).toLocalDateTime();
     }
 
     private Object[] convertToObjectArray(

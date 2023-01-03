@@ -39,6 +39,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -302,9 +303,8 @@ class EncoderDecoderTest {
                         ByteBuffer.wrap(
                                 BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()), // 20.00
                         new Fixed2(
-                                BigDecimal.valueOf(2000, 2)
-                                        .unscaledValue()
-                                        .toByteArray())); // 20.00
+                                BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()), // 20.00
+                        LocalDateTime.parse("2022-12-24T20:40:56.978"));
 
         testObjectSerialization(user);
     }

@@ -112,7 +112,8 @@ class AvroTypeExtractionTest {
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n"
+                        + "\"type_decimal_fixed\": [7, -48], "
+                        + "\"type_local_timestamp_millis\": \"2022-12-24T20:40:56.978\"}\n"
                         + "{\"name\": \"Charlie\", \"favorite_number\": null, "
                         + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
                         + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
@@ -124,7 +125,8 @@ class AvroTypeExtractionTest {
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n";
+                        + "\"type_decimal_fixed\": [7, -48], "
+                        + "\"type_local_timestamp_millis\": \"2022-12-24T20:40:56.978\"}\n";
     }
 
     @ParameterizedTest
@@ -163,7 +165,8 @@ class AvroTypeExtractionTest {
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n"
+                        + "\"type_decimal_fixed\": [7, -48], "
+                        + "\"type_local_timestamp_millis\": \"2022-12-24T20:40:56.978\"}\n"
                         + "{\"name\": \"Charlie\", \"favorite_number\": null, "
                         + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
                         + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
@@ -175,7 +178,8 @@ class AvroTypeExtractionTest {
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n";
+                        + "\"type_decimal_fixed\": [7, -48], "
+                        + "\"type_local_timestamp_millis\": \"2022-12-24T20:40:56.978\"}\n";
     }
 
     @ParameterizedTest

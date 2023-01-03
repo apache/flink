@@ -43,6 +43,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -189,6 +190,7 @@ class AvroOutputFormatTest {
             // 20.00
             user.setTypeDecimalFixed(
                     new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+            user.setTypeLocalTimestampMillis(LocalDateTime.parse("2022-12-24T20:40:56.978"));
 
             outputFormat.writeRecord(user);
         }

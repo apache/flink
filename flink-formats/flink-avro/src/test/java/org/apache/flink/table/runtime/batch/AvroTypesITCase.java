@@ -43,6 +43,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -94,6 +95,7 @@ public class AvroTypesITCase extends AbstractTestBase {
                                     BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
                     .setTypeDecimalFixed(
                             new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeLocalTimestampMillis(LocalDateTime.parse("2022-12-24T20:40:56.978"))
                     .build();
 
     private static final User USER_2 =
@@ -124,6 +126,7 @@ public class AvroTypesITCase extends AbstractTestBase {
                                     BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
                     .setTypeDecimalFixed(
                             new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeLocalTimestampMillis(LocalDateTime.parse("2022-12-24T20:40:56.978"))
                     .build();
 
     private static final User USER_3 =
@@ -154,6 +157,7 @@ public class AvroTypesITCase extends AbstractTestBase {
                                     BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
                     .setTypeDecimalFixed(
                             new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeLocalTimestampMillis(LocalDateTime.parse("2022-12-24T20:40:56.978"))
                     .build();
 
     @Test
@@ -173,16 +177,16 @@ public class AvroTypesITCase extends AbstractTestBase {
         String expected =
                 "+I[black, null, Whatever, [true], [hello], true, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], "
                         + "2014-03-01, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
-                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 42, {}, null, null, null, 00:00:00.123456, "
+                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 2022-12-24T20:40:56.978, 42, {}, null, null, null, 00:00:00.123456, "
                         + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]\n"
                         + "+I[blue, null, Charlie, [], [], false, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
-                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 1.337, RED, null, 1337, {}, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 1.337, RED, null, 2022-12-24T20:40:56.978, 1337, {}, "
                         + "+I[Berlin, 42, Berlin, Bakerstreet, 12049], null, null, 00:00:00.123456, 12:12:12, 1970-01-01T00:00:00.123456Z, "
                         + "2014-03-01T12:12:12.321Z, null]\n"
                         + "+I[yellow, null, Terminator, [false], [world], false, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
-                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 1, {}, null, null, null, 00:00:00.123456, "
+                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 2022-12-24T20:40:56.978, 1, {}, null, null, null, 00:00:00.123456, "
                         + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]";
         TestBaseUtils.compareResultAsText(results, expected);
     }

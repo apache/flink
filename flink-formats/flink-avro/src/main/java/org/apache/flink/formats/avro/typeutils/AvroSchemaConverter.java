@@ -29,6 +29,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
@@ -165,6 +166,8 @@ public class AvroSchemaConverter {
                     return Types.SQL_TIMESTAMP;
                 } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
                     return Types.SQL_TIME;
+                } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()) {
+                    return Types.LOCAL_DATE_TIME;
                 }
                 return Types.LONG;
             case FLOAT:
@@ -279,6 +282,8 @@ public class AvroSchemaConverter {
                     return DataTypes.TIME(3).notNull();
                 } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
                     return DataTypes.TIME(6).notNull();
+                } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()) {
+                    return DataTypes.TIMESTAMP_LTZ(3).notNull();
                 }
                 return DataTypes.BIGINT().notNull();
             case FLOAT:
@@ -363,6 +368,23 @@ public class AvroSchemaConverter {
                 }
                 Schema timestamp = avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
                 return nullable ? nullableSchema(timestamp) : timestamp;
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                final LocalZonedTimestampType localZonedTimestampType =
+                        (LocalZonedTimestampType) logicalType;
+                precision = localZonedTimestampType.getPrecision();
+                org.apache.avro.LogicalType avrolocalLogicalType;
+                if (precision <= 3) {
+                    avrolocalLogicalType = LogicalTypes.localTimestampMillis();
+                } else {
+                    throw new IllegalArgumentException(
+                            "Avro does not support LocalDateTime type "
+                                    + "with precision: "
+                                    + precision
+                                    + ", it only supports precision equal to or less than 3.");
+                }
+                Schema localDateTime =
+                        avrolocalLogicalType.addToSchema(SchemaBuilder.builder().longType());
+                return nullable ? nullableSchema(localDateTime) : localDateTime;
             case DATE:
                 // use int to represents Date
                 Schema date = LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
@@ -424,7 +446,6 @@ public class AvroSchemaConverter {
                                 .items(convertToSchema(arrayType.getElementType(), rowName));
                 return nullable ? nullableSchema(array) : array;
             case RAW:
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported to derive Schema for type: " + logicalType);

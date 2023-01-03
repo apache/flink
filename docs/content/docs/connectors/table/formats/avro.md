@@ -172,6 +172,11 @@ So the following table lists the type mapping from Flink type to Avro type.
       <td><code>timestamp-millis</code></td>
     </tr>
     <tr>
+      <td><code>TIMESTAMP_LTZ(3)</code></td>
+      <td><code>long</code></td>
+      <td><code>local_timestamp_millis</code></td>
+    </tr>
+    <tr>
       <td><code>ARRAY</code></td>
       <td><code>array</code></td>
       <td></td>

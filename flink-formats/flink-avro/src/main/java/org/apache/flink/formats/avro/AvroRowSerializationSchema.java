@@ -51,6 +51,8 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -250,7 +252,7 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
                 if (object instanceof Timestamp) {
                     return convertFromTimestamp(schema, (Timestamp) object);
                 } else if (object instanceof LocalDateTime) {
-                    return convertFromTimestamp(schema, Timestamp.valueOf((LocalDateTime) object));
+                    return convertFromLocalDateTime(schema, (LocalDateTime) object);
                 } else if (object instanceof Time) {
                     return convertFromTimeMicros(schema, (Time) object);
                 }
@@ -324,6 +326,17 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
             return micros + offset;
         } else {
             throw new RuntimeException("Unsupported timestamp type.");
+        }
+    }
+
+    private long convertFromLocalDateTime(Schema schema, LocalDateTime localDateTime) {
+        final LogicalType logicalType = schema.getLogicalType();
+        if (logicalType == LogicalTypes.localTimestampMillis()) {
+            ZoneId zoneId = ZoneId.systemDefault();
+            ZonedDateTime zonedDateTime = localDateTime.atZone(zoneId);
+            return zonedDateTime.toInstant().toEpochMilli();
+        } else {
+            throw new RuntimeException("Unsupported localDateTime type.");
         }
     }
 

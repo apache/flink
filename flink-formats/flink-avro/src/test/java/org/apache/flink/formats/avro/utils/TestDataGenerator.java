@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -63,7 +64,8 @@ public class TestDataGenerator {
                 Instant.parse("2014-03-01T12:12:12.321Z"),
                 Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS),
                 ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()),
-                new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+                new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()),
+                LocalDateTime.parse("2022-12-24T20:40:56.978"));
     }
 
     public static SimpleUser generateRandomSimpleUser(Random rnd) {

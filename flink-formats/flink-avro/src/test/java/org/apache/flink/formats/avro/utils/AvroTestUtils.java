@@ -46,6 +46,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -113,9 +114,10 @@ public final class AvroTestUtils {
                         .setTypeDecimalFixed(
                                 new Fixed2(
                                         BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                        .setTypeLocalTimestampMillis(LocalDateTime.parse("2022-12-24T20:40:56.978"))
                         .build();
 
-        final Row rowUser = new Row(23);
+        final Row rowUser = new Row(24);
         rowUser.setField(0, "Charlie");
         rowUser.setField(1, null);
         rowUser.setField(2, "blue");
@@ -141,6 +143,7 @@ public final class AvroTestUtils {
                 20, Timestamp.from(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS)));
         rowUser.setField(21, BigDecimal.valueOf(2000, 2));
         rowUser.setField(22, BigDecimal.valueOf(2000, 2));
+        rowUser.setField(23, LocalDateTime.parse("2022-12-24T20:40:56.978"));
 
         final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
         t.f0 = User.class;
@@ -173,7 +176,8 @@ public final class AvroTestUtils {
                         + "\"logicalType\":\"timestamp-millis\"}},{\"name\":\"type_timestamp_micros\",\"type\":{\"type\":\"long\","
                         + "\"logicalType\":\"timestamp-micros\"}},{\"name\":\"type_decimal_bytes\",\"type\":{\"type\":\"bytes\","
                         + "\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}},{\"name\":\"type_decimal_fixed\",\"type\":{\"type\":\"fixed\","
-                        + "\"name\":\"Fixed2\",\"size\":2,\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}}]}";
+                        + "\"name\":\"Fixed2\",\"size\":2,\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}},{\"name\":\"type_local_timestamp_millis\",\"type\":{\"type\":\"long\","
+                        + "\"logicalType\":\"local-timestamp-millis\"}}]}";
         final Schema schema = new Schema.Parser().parse(schemaString);
         GenericRecord addr =
                 new GenericData.Record(schema.getField("type_nested").schema().getTypes().get(1));
@@ -225,8 +229,9 @@ public final class AvroTestUtils {
                 new GenericData.Fixed(
                         schema.getField("type_decimal_fixed").schema(),
                         BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+        user.put("type_local_timestamp_millis", LocalDateTime.parse("2022-12-24T20:40:56.978"));
 
-        final Row rowUser = new Row(23);
+        final Row rowUser = new Row(24);
         rowUser.setField(0, "Charlie");
         rowUser.setField(1, null);
         rowUser.setField(2, "blue");
@@ -252,6 +257,7 @@ public final class AvroTestUtils {
                 20, Timestamp.from(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS)));
         rowUser.setField(21, BigDecimal.valueOf(2000, 2));
         rowUser.setField(22, BigDecimal.valueOf(2000, 2));
+        rowUser.setField(23, LocalDateTime.parse("2022-12-24T20:40:56.978"));
 
         final Tuple3<GenericRecord, Row, Schema> t = new Tuple3<>();
         t.f0 = user;
