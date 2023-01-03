@@ -314,7 +314,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-aws-kinesis-firehose</artifactId>
-			<version>${project.version}</version>
+			<version>4.0.0-1.16</version>
 			<scope>test</scope>
 		</dependency>
 
