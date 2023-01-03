@@ -361,8 +361,8 @@ public class SqlToOperationConverter {
         } else if (validated instanceof SqlShowJars) {
             return Optional.of(converter.convertShowJars((SqlShowJars) validated));
         } else if (validated instanceof SqlShowJobs) {
-        return Optional.of(converter.convertShowJobs((SqlShowJobs) validated));
-    } else if (validated instanceof RichSqlInsert) {
+            return Optional.of(converter.convertShowJobs((SqlShowJobs) validated));
+        } else if (validated instanceof RichSqlInsert) {
             return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
         } else if (validated instanceof SqlBeginStatementSet) {
             return Optional.of(

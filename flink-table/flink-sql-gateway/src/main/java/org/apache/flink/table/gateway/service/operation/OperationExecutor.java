@@ -552,9 +552,11 @@ public class OperationExecutor {
                             .map(
                                     job ->
                                             GenericRowData.of(
-                                                    StringData.fromString(job.getJobId().toString()),
+                                                    StringData.fromString(
+                                                            job.getJobId().toString()),
                                                     StringData.fromString(job.getJobName()),
-                                                    StringData.fromString(job.getJobState().toString()),
+                                                    StringData.fromString(
+                                                            job.getJobState().toString()),
                                                     DateTimeUtils.toTimestampData(
                                                             job.getStartTime(), 3)))
                             .collect(Collectors.toList());
