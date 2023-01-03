@@ -148,8 +148,6 @@ flink-connectors/flink-connector-kinesis,\
 flink-connectors/flink-sql-connector-kinesis,\
 flink-connectors/flink-connector-aws-kinesis-streams,\
 flink-connectors/flink-sql-connector-aws-kinesis-streams,\
-flink-connectors/flink-connector-aws-kinesis-firehose,\
-flink-connectors/flink-sql-connector-aws-kinesis-firehose,\
 "
 
 MODULES_TESTS="\
