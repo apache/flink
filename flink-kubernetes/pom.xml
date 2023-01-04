@@ -17,8 +17,8 @@ under the License.
 -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.apache.flink</groupId>
@@ -31,7 +31,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>5.12.3</kubernetes.client.version>
+		<kubernetes.client.version>5.12.4</kubernetes.client.version>
 	</properties>
 
 	<dependencies>
@@ -110,10 +110,15 @@ under the License.
 
 									<!-- Shade all the dependencies of kubernetes client  -->
 									<include>com.fasterxml.jackson.core:jackson-core</include>
-									<include>com.fasterxml.jackson.core:jackson-annotations</include>
+									<include>com.fasterxml.jackson.core:jackson-annotations
+									</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
-									<include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
-									<include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
+									<include>
+										com.fasterxml.jackson.dataformat:jackson-dataformat-yaml
+									</include>
+									<include>
+										com.fasterxml.jackson.datatype:jackson-datatype-jsr310
+									</include>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:okio</include>
 									<include>org.yaml:*</include>
@@ -142,7 +147,9 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.kubernetes.shaded.com.fasterxml.jackson
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okhttp3/internal/publicsuffix</pattern>
@@ -153,23 +160,29 @@ under the License.
 								</relocation>
 								<relocation>
 									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.okhttp3</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.okhttp3
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.okio</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.okio
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.yaml</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>dk.brics.automaton</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.dk.brics.automaton</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.kubernetes.shaded.dk.brics.automaton
+									</shadedPattern>
 								</relocation>
 								<relocation>
-								    <pattern>io.fabric8</pattern>
-								    <shadedPattern>org.apache.flink.kubernetes.shaded.io.fabric8</shadedPattern>
+									<pattern>io.fabric8</pattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.io.fabric8
+									</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
