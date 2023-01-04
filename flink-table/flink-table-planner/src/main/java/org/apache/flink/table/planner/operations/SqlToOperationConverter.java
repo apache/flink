@@ -236,7 +236,7 @@ public class SqlToOperationConverter {
     private final FlinkPlannerImpl flinkPlanner;
     private final CatalogManager catalogManager;
     private final SqlCreateTableConverter createTableConverter;
-    private final AlterSchemaConverter alterTableConverter;
+    private final AlterSchemaConverter alterSchemaConverter;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -249,7 +249,7 @@ public class SqlToOperationConverter {
                         catalogManager,
                         this::getQuotedSqlString,
                         this::validateTableConstraint);
-        this.alterTableConverter =
+        this.alterSchemaConverter =
                 new AlterSchemaConverter(
                         flinkPlanner.getOrCreateSqlValidator(),
                         this::validateTableConstraint,
@@ -505,16 +505,16 @@ public class SqlToOperationConverter {
             return convertAlterTableReset(
                     tableIdentifier, (CatalogTable) baseTable, (SqlAlterTableReset) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropColumn) {
-            return alterTableConverter.convertAlterSchema(
+            return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropPrimaryKey) {
-            return alterTableConverter.convertAlterSchema(
+            return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropPrimaryKey) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
-            return alterTableConverter.convertAlterSchema(
+            return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropConstraint) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropWatermark) {
-            return alterTableConverter.convertAlterSchema(
+            return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropWatermark) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
             return OperationConverterUtils.convertAddReplaceColumns(
@@ -529,7 +529,7 @@ public class SqlToOperationConverter {
                     resolvedCatalogTable,
                     flinkPlanner.getOrCreateSqlValidator());
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
-            return alterTableConverter.convertAlterSchema(
+            return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAddPartitions) {
             List<CatalogPartitionSpec> specs = new ArrayList<>();
@@ -557,7 +557,7 @@ public class SqlToOperationConverter {
                     optionalCatalogTable.get(),
                     (SqlAlterTableCompact) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAlterTableSchema) {
-            return alterTableConverter.convertAlterSchema(
+            return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableSchema) sqlAlterTable, resolvedCatalogTable);
         } else {
             throw new ValidationException(
