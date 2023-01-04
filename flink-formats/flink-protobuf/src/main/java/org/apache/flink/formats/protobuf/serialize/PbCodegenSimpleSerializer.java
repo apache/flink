@@ -60,9 +60,7 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
             case SMALLINT:
             case TINYINT:
                 if (fd.getJavaType() == JavaType.ENUM) {
-                    String enumTypeStr =
-                            PbFormatUtils.getFullJavaName(
-                                    fd.getEnumType(), formatContext.getOuterPrefix());
+                    String enumTypeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
                     appender.appendLine(
                             resultVar
                                     + " = "
@@ -86,9 +84,7 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
                 appender.appendLine(fromVar + " = " + flinkObjectCode + ".toString()");
                 if (fd.getJavaType() == JavaType.ENUM) {
                     String enumValueDescVar = "enumValueDesc" + uid;
-                    String enumTypeStr =
-                            PbFormatUtils.getFullJavaName(
-                                    fd.getEnumType(), formatContext.getOuterPrefix());
+                    String enumTypeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
                     appender.appendLine(
                             "Descriptors.EnumValueDescriptor "
                                     + enumValueDescVar

@@ -109,6 +109,7 @@ under the License.
 						</goals>
 						<configuration>
 							<protocArtifact>com.google.protobuf:protoc:${protoc.version}</protocArtifact>
+							<includeMavenTypes>direct</includeMavenTypes>
 							<inputDirectories>
 								<include>src/test/proto</include>
 							</inputDirectories>

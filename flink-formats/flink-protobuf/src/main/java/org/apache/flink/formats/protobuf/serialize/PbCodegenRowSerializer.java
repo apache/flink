@@ -52,8 +52,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
         int uid = varUid.getAndIncrement();
         PbCodegenAppender appender = new PbCodegenAppender(indent);
         String flinkRowDataVar = "rowData" + uid;
-        String pbMessageTypeStr =
-                PbFormatUtils.getFullJavaName(descriptor, formatContext.getOuterPrefix());
+        String pbMessageTypeStr = PbFormatUtils.getFullJavaName(descriptor);
         String messageBuilderVar = "messageBuilder" + uid;
         appender.appendLine("RowData " + flinkRowDataVar + " = " + flinkObjectCode);
         appender.appendLine(
@@ -71,15 +70,11 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
             String elementPbVar = "elementPbVar" + subUid;
             String elementPbTypeStr;
             if (elementFd.isMapField()) {
-                elementPbTypeStr =
-                        PbCodegenUtils.getTypeStrFromProto(
-                                elementFd, false, formatContext.getOuterPrefix());
+                elementPbTypeStr = PbCodegenUtils.getTypeStrFromProto(elementFd, false);
             } else {
                 elementPbTypeStr =
                         PbCodegenUtils.getTypeStrFromProto(
-                                elementFd,
-                                PbFormatUtils.isArrayType(subType),
-                                formatContext.getOuterPrefix());
+                                elementFd, PbFormatUtils.isArrayType(subType));
             }
             String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
 
