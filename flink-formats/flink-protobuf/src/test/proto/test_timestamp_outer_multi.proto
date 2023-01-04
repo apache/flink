@@ -16,23 +16,13 @@
  * limitations under the License.
  */
 
-syntax = "proto2";
+syntax = "proto3";
 package org.apache.flink.formats.protobuf.proto;
+import "google/protobuf/timestamp.proto";
 option java_package = "org.apache.flink.formats.protobuf.testproto";
+option java_outer_classname = "TimestampTestOuterMultiProto";
 option java_multiple_files = true;
 
-message MultipleLevelMessageTest {
-  optional int32 a = 1;
-  optional int64 b = 2;
-  optional bool c = 3;
-  optional InnerMessageTest1 d = 4;
-
-  message InnerMessageTest1{
-    optional InnerMessageTest2 a = 1;
-    optional bool c = 2;
-    message InnerMessageTest2{
-      optional int32 a = 1;
-      optional int64 b = 2;
-    }
-  }
+message TimestampTestOuterMulti {
+  google.protobuf.Timestamp ts = 1;
 }

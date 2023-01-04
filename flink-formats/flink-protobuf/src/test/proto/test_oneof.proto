@@ -22,8 +22,8 @@ option java_package = "org.apache.flink.formats.protobuf.testproto";
 option java_multiple_files = true;
 
 message OneofTest {
-    oneof test_oneof{
-       int32 a = 1;
-       int32 b = 2;
-    }
+  oneof test_oneof{
+    int32 a = 1;
+    int32 b = 2;
+  }
 }

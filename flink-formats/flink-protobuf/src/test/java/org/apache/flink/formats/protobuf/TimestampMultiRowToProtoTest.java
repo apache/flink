@@ -18,15 +18,27 @@
 
 package org.apache.flink.formats.protobuf;
 
-/** store config and common information. */
-public class PbFormatContext {
-    private final PbFormatConfig pbFormatConfig;
+import org.apache.flink.formats.protobuf.testproto.TimestampTestMulti;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 
-    public PbFormatContext(PbFormatConfig pbFormatConfig) {
-        this.pbFormatConfig = pbFormatConfig;
-    }
+import org.junit.Test;
 
-    public PbFormatConfig getPbFormatConfig() {
-        return pbFormatConfig;
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Test conversion of flink internal primitive data to proto timestamp data with multiple_files
+ * options.
+ */
+public class TimestampMultiRowToProtoTest {
+
+    @Test
+    public void testSimple() throws Exception {
+        RowData row = GenericRowData.of(GenericRowData.of(1672498800L, 123));
+
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, TimestampTestMulti.class);
+        TimestampTestMulti timestampTestMulti = TimestampTestMulti.parseFrom(bytes);
+        assertEquals(1672498800, timestampTestMulti.getTs().getSeconds());
+        assertEquals(123, timestampTestMulti.getTs().getNanos());
     }
 }

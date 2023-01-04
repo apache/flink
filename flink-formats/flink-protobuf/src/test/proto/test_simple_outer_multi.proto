@@ -23,18 +23,17 @@ option java_outer_classname = "SimpleTestOuterMultiProto";
 option java_multiple_files = true;
 
 message SimpleTestOuterMulti {
+  optional int32 a = 1;
+  optional int64 b = 2;
+  optional bool c = 3;
+  optional float d = 4;
+  optional double e = 5;
+  optional string f = 6;
+  optional bytes g = 7;
+  optional InnerMessageTest h = 8;
+
+  message InnerMessageTest{
     optional int32 a = 1;
     optional int64 b = 2;
-    optional bool c = 3;
-    optional float d = 4;
-    optional double e = 5;
-    optional string f = 6;
-    optional bytes g = 7;
-    optional InnerMessageTest h = 8;
-
-    message InnerMessageTest{
-           optional int32 a =1;
-           optional int64 b =2;
-    }
+  }
 }
-

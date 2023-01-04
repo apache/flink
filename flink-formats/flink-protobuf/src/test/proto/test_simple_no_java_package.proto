@@ -21,26 +21,24 @@ package org.apache.flink.formats.protobuf.proto;
 option java_multiple_files = true;
 
 message SimpleTestNoJavaPackage {
-    optional int32 a = 1 [default=10];
-    optional int64 b = 2 [default=100];
-    optional bool c = 3;
-    optional float d = 4;
-    optional double e = 5;
-    optional string f = 6 [default="f"];
-    optional bytes g = 7;
-    optional Corpus h = 8;
-    //this is must because protobuf have some field name parse bug if number is after "_".
-    optional int32 f_abc_7d = 9;
+  optional int32 a = 1 [default = 10];
+  optional int64 b = 2 [default = 100];
+  optional bool c = 3;
+  optional float d = 4;
+  optional double e = 5;
+  optional string f = 6 [default = "f"];
+  optional bytes g = 7;
+  optional Corpus h = 8;
+  //this is must because protobuf have some field name parse bug if number is after "_".
+  optional int32 f_abc_7d = 9;
 
-    enum Corpus {
-        UNIVERSAL = 0;
-        WEB = 1;
-        IMAGES = 2;
-        LOCAL = 3;
-        NEWS = 4;
-        PRODUCTS = 5;
-        VIDEO = 7;
-      }
+  enum Corpus {
+    UNIVERSAL = 0;
+    WEB = 1;
+    IMAGES = 2;
+    LOCAL = 3;
+    NEWS = 4;
+    PRODUCTS = 5;
+    VIDEO = 7;
+  }
 }
-
-

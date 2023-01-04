@@ -19,20 +19,26 @@
 syntax = "proto2";
 package org.apache.flink.formats.protobuf.proto;
 option java_package = "org.apache.flink.formats.protobuf.testproto";
-option java_multiple_files = true;
+option java_multiple_files = false;
 
-message MultipleLevelMessageTest {
+message SimpleTestNoMulti {
   optional int32 a = 1;
   optional int64 b = 2;
   optional bool c = 3;
-  optional InnerMessageTest1 d = 4;
+  optional float d = 4;
+  optional double e = 5;
+  optional string f = 6;
+  optional bytes g = 7;
+  optional InnerMessageTest h = 8;
+  optional Result i = 9;
 
-  message InnerMessageTest1{
-    optional InnerMessageTest2 a = 1;
-    optional bool c = 2;
-    message InnerMessageTest2{
-      optional int32 a = 1;
-      optional int64 b = 2;
-    }
+  message InnerMessageTest{
+    optional int32 a = 1;
+    optional int64 b = 2;
   }
+}
+
+enum Result {
+  SUCCESS = 0;
+  FAIL = 1;
 }
