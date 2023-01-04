@@ -52,14 +52,6 @@ under the License.
 	    <suppress
 			files="OverConvertRule.java|InConverter.java|SymbolUtil.java|RexNodeJsonDeserializer.java|RexNodeJsonSerializer.java|RexNodeJsonSerdeTest.java"
 			checks="IllegalImport"/>
-		<!-- Kinesis producer has to use guava directly -->
-		<suppress
-			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
-			checks="IllegalImport"/>
-		<!-- Kinesis EFO consumer required to handle Netty ReadTimeoutException -->
-		<suppress 
-			files="FanOutRecordPublisherTest.java|FanOutShardSubscriber.java|FanOutShardSubscriberTest.java" 
-			checks="IllegalImport"/>
 		<!-- Classes copied from AWS -->
 		<suppress
 			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"
