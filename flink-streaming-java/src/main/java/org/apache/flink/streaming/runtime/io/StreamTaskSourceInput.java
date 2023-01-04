@@ -157,4 +157,9 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
     public SourceOperator<T, ?> getOperator() {
         return operator;
     }
+
+    // Configure StreamTaskSourceInput#emitNext to emit at most one record to the given DataOutput.
+    public void disableEmitNextLoop() {
+        operator.disableEmitNextLoop();
+    }
 }

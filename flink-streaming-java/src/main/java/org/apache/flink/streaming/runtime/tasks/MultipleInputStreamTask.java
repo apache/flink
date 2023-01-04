@@ -82,6 +82,14 @@ public class MultipleInputStreamTask<OUT>
         StreamConfig configuration = getConfiguration();
         ClassLoader userClassLoader = getUserCodeClassLoader();
 
+        // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing
+        // behavior of choosing an input every time a record is emitted. This behavior is good for
+        // fairness between input consumption. But it can reduce throughput due to added control
+        // flow cost on the per-record code path.
+        for (StreamTaskSourceInput<?> input : operatorChain.getSourceTaskInputs()) {
+            input.disableEmitNextLoop();
+        }
+
         InputConfig[] inputs = configuration.getInputs(userClassLoader);
 
         WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputs.length];
