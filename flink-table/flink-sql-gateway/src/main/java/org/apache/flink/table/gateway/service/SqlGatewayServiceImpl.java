@@ -361,8 +361,8 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
                     .map(StringData::toString)
                     .collect(Collectors.toList());
         } catch (Throwable t) {
-            LOG.error("Failed to get statement completion hints.", t);
-            throw new SqlGatewayException("Failed to get statement completion hints.", t);
+            LOG.error("Failed to get statement completion candidates.", t);
+            throw new SqlGatewayException("Failed to get statement completion candidates.", t);
         }
     }
 

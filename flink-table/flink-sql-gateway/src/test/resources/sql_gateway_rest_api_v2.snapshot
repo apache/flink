@@ -144,6 +144,43 @@
       }
     }
   }, {
+    "url" : "/sessions/:session_handle/complete-statement",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "session_handle"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:statement:CompleteStatementRequestBody",
+      "properties" : {
+        "statement" : {
+          "type" : "string"
+        },
+        "position" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:statement:CompleteStatementResponseBody",
+      "properties" : {
+        "candidates" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }, {
     "url" : "/sessions/:session_handle/configure-session",
     "method" : "POST",
     "status-code" : "200 OK",

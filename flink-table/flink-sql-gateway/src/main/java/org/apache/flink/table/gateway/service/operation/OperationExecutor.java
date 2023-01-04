@@ -87,7 +87,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_HINTS;
+import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_CANDIDATES;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.gateway.service.utils.Constants.SAVEPOINT_PATH;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
@@ -263,7 +263,7 @@ public class OperationExecutor {
         return new ResultSet(
                 ResultSet.ResultType.EOS,
                 null,
-                ResolvedSchema.of(Column.physical(COMPLETION_HINTS, DataTypes.STRING())),
+                ResolvedSchema.of(Column.physical(COMPLETION_CANDIDATES, DataTypes.STRING())),
                 Arrays.stream(
                                 getTableEnvironment()
                                         .getParser()
