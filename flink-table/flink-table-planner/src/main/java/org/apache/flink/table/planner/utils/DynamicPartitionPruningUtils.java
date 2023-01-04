@@ -21,15 +21,18 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.TransformationScanProvider;
+import org.apache.flink.table.planner.plan.abilities.source.AggregatePushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringDataCollector;
@@ -137,6 +140,20 @@ public class DynamicPartitionPruningUtils {
                     || !(tableSource instanceof ScanTableSource)) {
                 return rel;
             }
+
+            // Dpp cannot success if source support aggregate push down, source aggregate push
+            // down enabled is true and aggregate push down success.
+            if (tableSource instanceof SupportsAggregatePushDown
+                    && ShortcutUtils.unwrapContext(rel)
+                            .getTableConfig()
+                            .get(
+                                    OptimizerConfigOptions
+                                            .TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED)
+                    && Arrays.stream(tableSourceTable.abilitySpecs())
+                            .anyMatch(spec -> spec instanceof AggregatePushDownSpec)) {
+                return rel;
+            }
+
             if (!isNewSource((ScanTableSource) tableSource)) {
                 return rel;
             }
@@ -256,14 +273,29 @@ public class DynamicPartitionPruningUtils {
         } else if (rel instanceof BatchPhysicalGroupAggregateBase) {
             BatchPhysicalGroupAggregateBase agg = (BatchPhysicalGroupAggregateBase) rel;
             RelNode input = agg.getInput();
+            int[] grouping = agg.grouping();
+
+            // If one of joinKey in joinKeys are aggregate function field, dpp will not success.
+            for (int k : joinKeys) {
+                if (k >= grouping.length) {
+                    return rel;
+                }
+            }
+
             RelNode convertedRel =
                     convertDppFactSide(
                             input,
-                            getInputIndices(agg, input, joinKeys),
+                            ImmutableIntList.copyOf(
+                                    joinKeys.stream()
+                                            .map(joinKey -> agg.grouping()[joinKey])
+                                            .collect(Collectors.toList())),
                             dimSide,
                             dimSideJoinKey,
                             factSideFactors);
             return agg.copy(agg.getTraitSet(), Collections.singletonList(convertedRel));
+        } else {
+            // TODO In the future, we need to support more operators to enrich matchable dpp
+            // pattern.
         }
 
         return rel;
@@ -281,31 +313,6 @@ public class DynamicPartitionPruningUtils {
 
         JoinInfo joinInfo = join.analyzeCondition();
         return !joinInfo.leftKeys.isEmpty();
-    }
-
-    private static ImmutableIntList getInputIndices(
-            BatchPhysicalGroupAggregateBase agg, RelNode aggInput, ImmutableIntList joinKeys) {
-        int[] indexMap = new int[aggInput.getRowType().getFieldCount()];
-        int[] grouping = agg.grouping();
-        if (grouping.length == 0) {
-            return joinKeys;
-        }
-        int beginIndex = grouping[0] - 1;
-        for (int i = 0; i < indexMap.length; i++) {
-            indexMap[i] = i;
-        }
-
-        System.arraycopy(grouping, 0, indexMap, 0, grouping.length);
-        if (beginIndex >= 0) {
-            for (int i = 0; i <= beginIndex; i++) {
-                indexMap[grouping.length + i] = i;
-            }
-        }
-        List<Integer> indices = new ArrayList<>();
-        for (int k : joinKeys) {
-            indices.add(indexMap[k]);
-        }
-        return ImmutableIntList.copyOf(indices);
     }
 
     private static BatchPhysicalDynamicFilteringDataCollector createDynamicFilteringConnector(

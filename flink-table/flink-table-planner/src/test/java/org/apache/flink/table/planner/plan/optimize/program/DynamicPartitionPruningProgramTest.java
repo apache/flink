@@ -509,7 +509,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithAggInFactSide() {
+    public void testDppWithAggInFactSideAndJoinKeyInGrouping() {
         // Dpp will success
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -525,6 +525,77 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
         String query =
                 "Select * from (Select fact_date_sk, item.amount, sum(fact_part.price) from fact_part "
                         + "join item on fact_part.id = item.id group by fact_date_sk, item.amount) t1 "
+                        + "join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDppWithAggInFactSideAndJoinKeyInGroupFunction() {
+        // Dpp will not success because join key in group function.
+        String ddl =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        String query =
+                "Select * from (Select fact_part.id, item.amount, fact_part.name, sum(fact_part.price), sum(item.price), sum(fact_date_sk) as fact_date_sk1 "
+                        + "from fact_part join item on fact_part.id = item.id "
+                        + "group by fact_part.id, fact_part.name, item.amount) t1 "
+                        + "join dim on t1.fact_date_sk1 = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDppWithAggInFactSideWithAggPushDownEnable() {
+        // Dpp will not success while fact side source support agg push down and source agg push
+        // down enabled is true.
+        String ddl =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        String query =
+                "Select * from (Select id, amount, fact_date_sk, count(name), sum(price) "
+                        + "from fact_part where fact_date_sk > 100 group by id, amount, fact_date_sk) t1 "
+                        + "join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDppWithAggInFactSideWithAggPushDownDisable() {
+        // Dpp will success while fact side source support agg push down but source agg push down
+        // enabled is false.
+        TableConfig tableConfig = util.tableEnv().getConfig();
+        // Disable source agg push down.
+        tableConfig.set(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED, false);
+
+        String ddl =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        String query =
+                "Select * from (Select id, amount, fact_date_sk, count(name), sum(price) "
+                        + "from fact_part where fact_date_sk > 100 group by id, amount, fact_date_sk) t1 "
                         + "join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ";
         util.verifyRelPlan(query);
     }
