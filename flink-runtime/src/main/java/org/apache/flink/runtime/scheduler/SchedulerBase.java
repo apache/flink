@@ -626,8 +626,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings) {
         metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(jobStatusProvider));
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(jobStatusProvider));
-        metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts);
-        metrics.gauge(MetricNames.FULL_RESTARTS, numberOfRestarts);
+        metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts::getValue);
+        metrics.gauge(MetricNames.FULL_RESTARTS, numberOfRestarts::getValue);
 
         final JobStatusMetrics jobStatusMetrics =
                 new JobStatusMetrics(initializationTimestamp, jobStatusMetricsSettings);
