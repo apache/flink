@@ -1480,7 +1480,7 @@ public class SqlToOperationConverterTest {
                                 .getNewTable()
                                 .getUnresolvedSchema()
                                 .getPrimaryKey()
-                                .isPresent())
+                                isNotPresent()
                 .isEqualTo(false);
 
         operation = parse("alter table tb1 drop primary key");
@@ -1492,7 +1492,13 @@ public class SqlToOperationConverterTest {
                                 .getUnresolvedSchema()
                                 .getPrimaryKey()
                                 .isPresent())
-                .isEqualTo(false);
+assertThat(
+                        ((AlterTableChangeOperation) operation)
+                                .getNewTable()
+                                .getUnresolvedSchema()
+                                .getPrimaryKey()
+                                )
+                .isNotPresent();
     }
 
     @Test

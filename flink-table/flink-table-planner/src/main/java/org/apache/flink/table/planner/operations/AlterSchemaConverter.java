@@ -844,8 +844,8 @@ public class AlterSchemaConverter {
             primaryKeys.add(newName);
         }
 
-        Set<String> lookupColumnDependencies(String columnName) {
-            return columnToDependencies.getOrDefault(columnName, Collections.emptySet());
+        int getColumnDependencyCount(String columnName) {
+            return columnToDependencies.getOrDefault(columnName, Collections.emptySet()).size();
         }
 
         private void checkReferences(String columnName) {
