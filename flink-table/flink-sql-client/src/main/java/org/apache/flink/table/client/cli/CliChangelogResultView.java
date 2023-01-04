@@ -104,10 +104,7 @@ public class CliChangelogResultView
         // retrieve change record
         final TypedResult<List<RowData>> result;
         try {
-            result =
-                    client.getExecutor()
-                            .retrieveResultChanges(
-                                    client.getSessionId(), resultDescriptor.getResultId());
+            result = client.getExecutor().retrieveResultChanges(resultDescriptor.getResultId());
         } catch (SqlExecutionException e) {
             close(e);
             return;

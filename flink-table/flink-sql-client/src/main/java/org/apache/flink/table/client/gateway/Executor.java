@@ -42,54 +42,50 @@ public interface Executor {
      * Open a new session by using the given session id.
      *
      * @param sessionId session identifier.
-     * @return used session identifier to track the session.
      * @throws SqlExecutionException if any error happen
      */
-    String openSession(@Nullable String sessionId) throws SqlExecutionException;
+    void openSession(@Nullable String sessionId) throws SqlExecutionException;
 
     /**
      * Close the resources of session for given session id.
      *
-     * @param sessionId session identifier
      * @throws SqlExecutionException if any error happen
      */
-    void closeSession(String sessionId) throws SqlExecutionException;
+    void closeSession() throws SqlExecutionException;
 
     /**
      * Returns a copy of {@link Map} of all session configurations that are defined by the executor
      * and the session.
      *
-     * <p>Both this method and {@link #getSessionConfig(String)} return the same configuration set,
-     * but different return type.
+     * <p>Both this method and {@link #getSessionConfig()} return the same configuration set, but
+     * different return type.
      */
-    Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException;
+    Map<String, String> getSessionConfigMap() throws SqlExecutionException;
 
     /**
      * Returns a {@link ReadableConfig} of all session configurations that are defined by the
      * executor and the session.
      *
-     * <p>Both this method and {@link #getSessionConfigMap(String)} return the same configuration
-     * set, but different return type.
+     * <p>Both this method and {@link #getSessionConfigMap()} return the same configuration set, but
+     * different return type.
      */
-    ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException;
+    ReadableConfig getSessionConfig() throws SqlExecutionException;
 
     /**
      * Reset all the properties for the given session identifier.
      *
-     * @param sessionId to identifier the session
      * @throws SqlExecutionException if any error happen.
      */
-    void resetSessionProperties(String sessionId) throws SqlExecutionException;
+    void resetSessionProperties() throws SqlExecutionException;
 
     /**
      * Reset given key's the session property for default value, if key is not defined in config
      * file, then remove it.
      *
-     * @param sessionId to identifier the session
      * @param key of need to reset the session property
      * @throws SqlExecutionException if any error happen.
      */
-    void resetSessionProperty(String sessionId, String key) throws SqlExecutionException;
+    void resetSessionProperty(String key) throws SqlExecutionException;
 
     /**
      * Set given key's session property to the specific value.
@@ -98,37 +94,32 @@ public interface Executor {
      * @param value of the session property
      * @throws SqlExecutionException if any error happen.
      */
-    void setSessionProperty(String sessionId, String key, String value)
-            throws SqlExecutionException;
+    void setSessionProperty(String key, String value) throws SqlExecutionException;
 
     /** Parse a SQL statement to {@link Operation}. */
-    Operation parseStatement(String sessionId, String statement) throws SqlExecutionException;
+    Operation parseStatement(String statement) throws SqlExecutionException;
 
     /** Returns a list of completion hints for the given statement at the given position. */
-    List<String> completeStatement(String sessionId, String statement, int position);
+    List<String> completeStatement(String statement, int position);
 
     /** Executes an operation, and return {@link TableResult} as execution result. */
-    TableResultInternal executeOperation(String sessionId, Operation operation)
-            throws SqlExecutionException;
+    TableResultInternal executeOperation(Operation operation) throws SqlExecutionException;
 
     /** Executes modify operations, and return {@link TableResult} as execution result. */
-    TableResultInternal executeModifyOperations(String sessionId, List<ModifyOperation> operations)
+    TableResultInternal executeModifyOperations(List<ModifyOperation> operations)
             throws SqlExecutionException;
 
     /** Submits a Flink SQL query job (detached) and returns the result descriptor. */
-    ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-            throws SqlExecutionException;
+    ResultDescriptor executeQuery(QueryOperation query) throws SqlExecutionException;
 
     /** Asks for the next changelog results (non-blocking). */
-    TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
-            throws SqlExecutionException;
+    TypedResult<List<RowData>> retrieveResultChanges(String resultId) throws SqlExecutionException;
 
     /**
      * Creates an immutable result snapshot of the running Flink job. Throws an exception if no
      * Flink job can be found. Returns the number of pages.
      */
-    TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-            throws SqlExecutionException;
+    TypedResult<Integer> snapshotResult(String resultId, int pageSize) throws SqlExecutionException;
 
     /**
      * Returns the rows that are part of the current page or throws an exception if the snapshot has
@@ -140,13 +131,12 @@ public interface Executor {
      * Cancels a table program and stops the result retrieval. Blocking until cancellation command
      * has been sent to cluster.
      */
-    void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
+    void cancelQuery(String resultId) throws SqlExecutionException;
 
     /** Remove the JAR resource from the classloader with specified session. */
-    void removeJar(String sessionId, String jarPath);
+    void removeJar(String jarPath);
 
     /** Stops a job in the specified session. */
-    Optional<String> stopJob(
-            String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+    Optional<String> stopJob(String jobId, boolean isWithSavepoint, boolean isWithDrain)
             throws SqlExecutionException;
 }

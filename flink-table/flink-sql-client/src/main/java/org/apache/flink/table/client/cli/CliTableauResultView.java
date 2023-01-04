@@ -43,18 +43,15 @@ public class CliTableauResultView implements AutoCloseable {
 
     private final Terminal terminal;
     private final Executor sqlExecutor;
-    private final String sessionId;
     private final ResultDescriptor resultDescriptor;
     private final ExecutorService displayResultExecutorService;
 
     public CliTableauResultView(
             final Terminal terminal,
             final Executor sqlExecutor,
-            final String sessionId,
             final ResultDescriptor resultDescriptor) {
         this.terminal = terminal;
         this.sqlExecutor = sqlExecutor;
-        this.sessionId = sessionId;
         this.resultDescriptor = resultDescriptor;
         this.displayResultExecutorService =
                 Executors.newSingleThreadExecutor(
@@ -112,7 +109,7 @@ public class CliTableauResultView implements AutoCloseable {
     private void checkAndCleanUpQuery(boolean cleanUpQuery) {
         if (cleanUpQuery) {
             try {
-                sqlExecutor.cancelQuery(sessionId, resultDescriptor.getResultId());
+                sqlExecutor.cancelQuery(resultDescriptor.getResultId());
             } catch (SqlExecutionException e) {
                 // ignore further exceptions
             }
@@ -149,7 +146,7 @@ public class CliTableauResultView implements AutoCloseable {
 
         while (true) {
             final TypedResult<List<RowData>> result =
-                    sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
+                    sqlExecutor.retrieveResultChanges(resultDescriptor.getResultId());
 
             switch (result.getType()) {
                 case EMPTY:
@@ -196,7 +193,7 @@ public class CliTableauResultView implements AutoCloseable {
                 Thread.currentThread().interrupt();
             }
             TypedResult<List<RowData>> result =
-                    sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
+                    sqlExecutor.retrieveResultChanges(resultDescriptor.getResultId());
 
             if (result.getType() == TypedResult.ResultType.EOS) {
                 break;
