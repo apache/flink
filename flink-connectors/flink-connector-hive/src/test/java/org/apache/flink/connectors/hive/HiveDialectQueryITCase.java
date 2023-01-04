@@ -986,6 +986,77 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testCountAggFunctionPlan() {
+        // test explain
+        String actualPlan =
+                explainSql("select x, count(*), count(y), count(distinct y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testCountAggFunctionPlan.out"));
+    }
+
+    @Test
+    public void testSimpleCount() throws Exception {
+        tableEnv.executeSql("create table test_count(a int, x string, y string, z int, d bigint)");
+        tableEnv.executeSql(
+                        "insert into test_count values (1, NULL, '2', 1, 2), "
+                                + "(1, NULL, 'b', 2, NULL), "
+                                + "(2, NULL, '4', 1, 2), "
+                                + "(2, NULL, NULL, 4, 3)")
+                .await();
+
+        // test count(*)
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(*) from test_count").collect());
+        assertThat(result.toString()).isEqualTo("[+I[4]]");
+
+        // test count(1)
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(1) from test_count").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[4]]");
+
+        // test count(col1)
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(y) from test_count").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[3]]");
+
+        // test count(distinct col1)
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(distinct z) from test_count").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[3]]");
+
+        // test count(distinct col1, col2)
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(distinct z, d) from test_count")
+                                .collect());
+        assertThat(result5.toString()).isEqualTo("[+I[2]]");
+
+        tableEnv.executeSql("drop table test_count");
+    }
+
+    @Test
+    public void testCountAggWithGroupKey() throws Exception {
+        tableEnv.executeSql(
+                "create table test_count_group(a int, x string, y string, z int, d bigint)");
+        tableEnv.executeSql(
+                        "insert into test_count_group values (1, NULL, '2', 1, 2), "
+                                + "(1, NULL, '2', 2, NULL), "
+                                + "(2, NULL, '4', 1, 2), "
+                                + "(2, NULL, 3, 4, 3)")
+                .await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select count(*), count(x), count(distinct y), count(distinct z, d) from test_count_group group by a")
+                                .collect());
+        assertThat(result.toString()).isEqualTo("[+I[2, 0, 1, 1], +I[2, 0, 2, 2]]");
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
