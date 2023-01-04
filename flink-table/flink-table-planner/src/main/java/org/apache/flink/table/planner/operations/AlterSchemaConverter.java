@@ -122,7 +122,15 @@ public class AlterSchemaConverter {
             List<TableChange> tableChangeCollector) {
         String oldColumnName = getColumnName(renameColumn.getOldColumnIdentifier());
         String newColumnName = getColumnName(renameColumn.getNewColumnIdentifier());
-        ReferencesManager.create(oldTable).renameColumn(oldColumnName, newColumnName);
+
+        ReferencesManager.create(oldTable).checkReferences(oldColumnName);
+        if (oldTable.getResolvedSchema().getColumn(newColumnName).isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe column `%s` already existed in table schema.",
+                            EX_MSG_PREFIX, newColumnName));
+        }
+
         // generate new schema
         Schema.Builder schemaBuilder = Schema.newBuilder();
         buildUpdatedColumn(
@@ -173,10 +181,8 @@ public class AlterSchemaConverter {
                         .sorted(
                                 Comparator.comparingInt(
                                                 col ->
-                                                        referencesManager
-                                                                .lookupColumnDependencies(
-                                                                        (String) col)
-                                                                .size())
+                                                        referencesManager.getColumnDependencyCount(
+                                                                (String) col))
                                         .reversed())
                         .collect(Collectors.toList());
         for (String columnToDrop : sortedColumnsToDrop) {
@@ -819,36 +825,11 @@ public class AlterSchemaConverter {
             columns.remove(columnName);
         }
 
-        void renameColumn(String columnName, String newName) {
-            checkReferences(columnName);
-            if (columns.contains(newName)) {
-                throw new ValidationException(
-                        String.format(
-                                "%sThe column `%s` already existed in table schema.",
-                                EX_MSG_PREFIX, newName));
-            }
-
-            columnToDependencies
-                    .getOrDefault(columnName, Collections.emptySet())
-                    .forEach(
-                            referredColumn -> {
-                                columnToReferences.get(referredColumn).remove(columnName);
-                                columnToReferences.get(referredColumn).add(newName);
-                            });
-            columnToDependencies.put(newName, columnToDependencies.remove(columnName));
-
-            columns.remove(columnName);
-            columns.add(newName);
-
-            primaryKeys.remove(columnName);
-            primaryKeys.add(newName);
-        }
-
         int getColumnDependencyCount(String columnName) {
             return columnToDependencies.getOrDefault(columnName, Collections.emptySet()).size();
         }
 
-        private void checkReferences(String columnName) {
+        void checkReferences(String columnName) {
             if (!columns.contains(columnName)) {
                 throw new ValidationException(
                         String.format(

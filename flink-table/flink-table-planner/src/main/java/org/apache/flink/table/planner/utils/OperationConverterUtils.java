@@ -79,8 +79,7 @@ public class OperationConverterUtils {
         TableSchema oldSchema = catalogTable.getSchema();
         int numPartCol = catalogTable.getPartitionKeys().size();
         Set<String> lastCols =
-                oldSchema
-                        .getTableColumns()
+                oldSchema.getTableColumns()
                         .subList(oldSchema.getFieldCount() - numPartCol, oldSchema.getFieldCount())
                         .stream()
                         .map(TableColumn::getName)
@@ -134,12 +133,12 @@ public class OperationConverterUtils {
         if (addReplaceColumns.isReplace()) {
             // It's hard to determine how to decompose the ALTER TABLE REPLACE into multiple
             // TableChanges. For example, with old schema <a INT, b INT, c INT> and the new schema
-            // <a INT, d INT>, there are multiple choices:
+            // <a INT, d INT>, there are multiple alternatives:
             // plan 1: DROP COLUMN c, RENAME COLUMN b TO d;
             // plan 2: DROP COLUMN b, RENAME COLUMN c TO d;
-            // So we don't translate with TableChanges here. One solution to solve this problem is
-            // the minimum edit distance, which tries to minimize the modification times, but it
-            // also can not give a unique answer.
+            // So we don't translate with TableChanges here. One workaround is
+            // to minimize the edit distance, i.e., minimize the modification times, but it
+            // still cannot provide a deterministic answer.
             return new AlterTableSchemaOperation(tableIdentifier, newTable);
         } else {
             return new AlterTableChangeOperation(tableIdentifier, tableChanges, newTable);

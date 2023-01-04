@@ -272,8 +272,8 @@ public interface TableChange {
      * @param constraintName the constraint to drop.
      * @return a TableChange represents the modification.
      */
-    static DropUniqueConstraint dropConstraint(String constraintName) {
-        return new DropUniqueConstraint(constraintName);
+    static DropConstraint dropConstraint(String constraintName) {
+        return new DropConstraint(constraintName);
     }
 
     /**
@@ -892,11 +892,11 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class DropUniqueConstraint implements TableChange {
+    class DropConstraint implements TableChange {
 
         private final String constraintName;
 
-        private DropUniqueConstraint(String constraintName) {
+        private DropConstraint(String constraintName) {
             this.constraintName = constraintName;
         }
 
@@ -910,10 +910,10 @@ public interface TableChange {
             if (this == o) {
                 return true;
             }
-            if (!(o instanceof DropUniqueConstraint)) {
+            if (!(o instanceof DropConstraint)) {
                 return false;
             }
-            DropUniqueConstraint that = (DropUniqueConstraint) o;
+            DropConstraint that = (DropConstraint) o;
             return Objects.equals(constraintName, that.constraintName);
         }
 
@@ -924,7 +924,7 @@ public interface TableChange {
 
         @Override
         public String toString() {
-            return "DropUniqueConstraint{" + "constraintName='" + constraintName + '\'' + '}';
+            return "DropConstraint{" + "constraintName='" + constraintName + '\'' + '}';
         }
     }
 

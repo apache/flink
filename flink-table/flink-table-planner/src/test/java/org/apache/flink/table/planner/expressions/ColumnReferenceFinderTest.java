@@ -55,8 +55,9 @@ public class ColumnReferenceFinderTest extends TableTestBase {
                                                 "tuple",
                                                 DataTypes.ROW(
                                                         DataTypes.TIMESTAMP(3), DataTypes.INT()))
+                                        .column("g", DataTypes.TIMESTAMP(3))
                                         .columnByExpression("ts", "tuple.f0")
-                                        .watermark("ts", "ts - interval '5' day")
+                                        .watermark("ts", "g - interval '5' day")
                                         .build());
     }
 
@@ -75,6 +76,6 @@ public class ColumnReferenceFinderTest extends TableTestBase {
                 .containsExactlyInAnyOrder("tuple");
 
         assertThat(ColumnReferenceFinder.findWatermarkReferencedColumn(resolvedSchema))
-                .containsExactlyInAnyOrder("ts");
+                .containsExactlyInAnyOrder("ts", "g");
     }
 }

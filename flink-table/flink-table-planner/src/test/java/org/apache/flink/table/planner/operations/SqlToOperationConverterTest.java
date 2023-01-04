@@ -1479,9 +1479,8 @@ public class SqlToOperationConverterTest {
                         ((AlterTableChangeOperation) operation)
                                 .getNewTable()
                                 .getUnresolvedSchema()
-                                .getPrimaryKey()
-                                isNotPresent()
-                .isEqualTo(false);
+                                .getPrimaryKey())
+                .isNotPresent();
 
         operation = parse("alter table tb1 drop primary key");
         assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
@@ -1490,14 +1489,7 @@ public class SqlToOperationConverterTest {
                         ((AlterTableChangeOperation) operation)
                                 .getNewTable()
                                 .getUnresolvedSchema()
-                                .getPrimaryKey()
-                                .isPresent())
-assertThat(
-                        ((AlterTableChangeOperation) operation)
-                                .getNewTable()
-                                .getUnresolvedSchema()
-                                .getPrimaryKey()
-                                )
+                                .getPrimaryKey())
                 .isNotPresent();
     }
 
@@ -1521,7 +1513,7 @@ assertThat(
                                 .getNewTable()
                                 .getUnresolvedSchema()
                                 .getWatermarkSpecs())
-                .isEqualTo(Collections.emptyList());
+                .isEmpty();
     }
 
     @Test
