@@ -1547,6 +1547,7 @@ under the License.
 						<exclude>**/target/**</exclude>
 						<exclude>build-target/**</exclude>
 						<exclude>docs/layouts/shortcodes/generated/**</exclude>
+						<exclude>docs/themes/connectors/layouts/shortcodes/generated/**</exclude>
 						<exclude>docs/static/generated/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
