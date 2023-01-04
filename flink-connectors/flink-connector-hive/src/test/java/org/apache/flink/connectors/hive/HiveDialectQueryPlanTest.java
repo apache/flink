@@ -70,25 +70,41 @@ public class HiveDialectQueryPlanTest {
     @Test
     public void testSumAggFunctionPlan() {
         // test explain
-        String actualPlan = explainSql("select x, sum(y) from foo group by x");
+        String sql = "select x, sum(y) from foo group by x";
+        String actualPlan = explainSql(sql);
         assertThat(actualPlan).isEqualTo(readFromResource("/explain/testSumAggFunctionPlan.out"));
 
         // test fallback to hive sum udaf
         tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
-        String actualSortAggPlan = explainSql("select x, sum(y) from foo group by x");
+        String actualSortAggPlan = explainSql(sql);
         assertThat(actualSortAggPlan)
                 .isEqualTo(readFromResource("/explain/testSumAggFunctionFallbackPlan.out"));
     }
 
     @Test
+    public void testCountAggFunctionPlan() {
+        // test explain
+        String sql = "select x, count(*), count(y), count(distinct y) from foo group by x";
+        String actualPlan = explainSql(sql);
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testCountAggFunctionPlan.out"));
+
+        // test fallback to hive count udaf
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
+        String actualSortAggPlan = explainSql(sql);
+        assertThat(actualSortAggPlan)
+                .isEqualTo(readFromResource("/explain/testCountAggFunctionFallbackPlan.out"));
+    }
+
+    @Test
     public void testMinAggFunctionPlan() {
         // test explain
-        String actualPlan = explainSql("select x, min(y) from foo group by x");
+        String sql = "select x, min(y) from foo group by x";
+        String actualPlan = explainSql(sql);
         assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMinAggFunctionPlan.out"));
 
         // test fallback to hive min udaf
         tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
-        String actualSortAggPlan = explainSql("select x, min(y) from foo group by x");
+        String actualSortAggPlan = explainSql(sql);
         assertThat(actualSortAggPlan)
                 .isEqualTo(readFromResource("/explain/testMinAggFunctionFallbackPlan.out"));
     }

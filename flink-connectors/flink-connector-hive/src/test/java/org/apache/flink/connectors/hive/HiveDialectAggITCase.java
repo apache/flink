@@ -30,7 +30,6 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentTypeException;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -58,6 +57,8 @@ public class HiveDialectAggITCase {
         hiveCatalog.getHiveConf().setVar(HiveConf.ConfVars.HIVE_QUOTEDID_SUPPORT, "none");
         hiveCatalog.open();
         tableEnv = getTableEnvWithHiveCatalog();
+        // enable native hive agg function
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, true);
 
         // create tables
         tableEnv.executeSql("create table foo (x int, y int)");
@@ -69,12 +70,6 @@ public class HiveDialectAggITCase {
                 .addRow(new Object[] {4, 4})
                 .addRow(new Object[] {5, 5})
                 .commit();
-    }
-
-    @Before
-    public void before() {
-        // enable native hive agg function
-        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, true);
     }
 
     @Test
@@ -165,6 +160,69 @@ public class HiveDialectAggITCase {
                         "[+I[tom, 12, 10.53000, 47.70000], +I[tony, 6, 28.15000, 65.20000], +I[nadal, 4, 10.45500, 41.82000]]");
 
         tableEnv.executeSql("drop table test_sum_group");
+    }
+
+    @Test
+    public void testSimpleCount() throws Exception {
+        tableEnv.executeSql("create table test_count(a int, x string, y string, z int, d bigint)");
+        tableEnv.executeSql(
+                        "insert into test_count values (1, NULL, '2', 1, 2), "
+                                + "(1, NULL, 'b', 2, NULL), "
+                                + "(2, NULL, '4', 1, 2), "
+                                + "(2, NULL, NULL, 4, 3)")
+                .await();
+
+        // test count(*)
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(*) from test_count").collect());
+        assertThat(result.toString()).isEqualTo("[+I[4]]");
+
+        // test count(1)
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(1) from test_count").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[4]]");
+
+        // test count(col1)
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(y) from test_count").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[3]]");
+
+        // test count(distinct col1)
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(distinct z) from test_count").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[3]]");
+
+        // test count(distinct col1, col2)
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select count(distinct z, d) from test_count")
+                                .collect());
+        assertThat(result5.toString()).isEqualTo("[+I[2]]");
+
+        tableEnv.executeSql("drop table test_count");
+    }
+
+    @Test
+    public void testCountAggWithGroupKey() throws Exception {
+        tableEnv.executeSql(
+                "create table test_count_group(a int, x string, y string, z int, d bigint)");
+        tableEnv.executeSql(
+                        "insert into test_count_group values (1, NULL, '2', 1, 2), "
+                                + "(1, NULL, '2', 2, NULL), "
+                                + "(2, NULL, '4', 1, 2), "
+                                + "(2, NULL, 3, 4, 3)")
+                .await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select count(*), count(x), count(distinct y), count(distinct z, d) from test_count_group group by a")
+                                .collect());
+        assertThat(result.toString()).isEqualTo("[+I[2, 0, 1, 1], +I[2, 0, 2, 2]]");
     }
 
     @Test
