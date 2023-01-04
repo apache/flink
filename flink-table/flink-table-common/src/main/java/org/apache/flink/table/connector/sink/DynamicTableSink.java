@@ -143,8 +143,15 @@ public interface DynamicTableSink {
         boolean isBounded();
 
         /**
-         * Get the value registered in {@link
-         * org.apache.flink.table.connector.source.ScanTableSource.ScanContext#addContextParameter}.
+         * Return the value registered with the given key in {@link
+         * org.apache.flink.table.connector.source.ScanTableSource.ScanContext#addContextParameter},
+         * and null will be returned if there's no such key registered.
+         *
+         * <p>Note: If there's only one sink in single Job DAG, the sink will get the values
+         * registered by all the table sources. If there are multiple sinks in the case for
+         * statement set containing multiple insert statements, the sink will not only get the
+         * values registered by table sources that belong to same statement, but also get the values
+         * registered by table sources that belong to the other statements which are added earlier.
          */
         Object getContextParameter(String key);
 

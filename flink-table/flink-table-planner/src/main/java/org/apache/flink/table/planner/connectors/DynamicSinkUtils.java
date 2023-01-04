@@ -758,7 +758,7 @@ public final class DynamicSinkUtils {
 
         sinkAbilitySpecs.add(new RowLevelDeleteSpec(rowLevelDeleteInfo.getRowLevelDeleteMode()));
         if (rowLevelDeleteInfo.getRowLevelDeleteMode()
-                == SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode.DELETED_ROWS) {
+                == SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS) {
             return convertToRowLevelDelete(
                     tableModify,
                     contextResolvedTable,
@@ -767,7 +767,7 @@ public final class DynamicSinkUtils {
                     dataTypeFactory,
                     typeFactory);
         } else if (rowLevelDeleteInfo.getRowLevelDeleteMode()
-                == SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode.REMAINING_ROWS) {
+                == SupportsRowLevelDelete.RowLevelDeleteMode.REMAINING_ROWS) {
             convertToComplementRowLevelDelete(tableModify);
             return convertToRowLevelDelete(
                     tableModify,
@@ -799,9 +799,9 @@ public final class DynamicSinkUtils {
         SupportsRowLevelUpdate.RowLevelUpdateInfo updateInfo =
                 supportsRowLevelUpdate.applyRowLevelUpdate(updatedColumns);
         if (updateInfo.getRowLevelUpdateMode()
-                        != SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode.UPDATED_ROWS
+                        != SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS
                 && updateInfo.getRowLevelUpdateMode()
-                        != SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode.ALL_ROWS) {
+                        != SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS) {
             throw new IllegalArgumentException(
                     "Unknown update mode:" + updateInfo.getRowLevelUpdateMode());
         }
@@ -1003,7 +1003,7 @@ public final class DynamicSinkUtils {
             int originColsCount,
             ResolvedSchema resolvedSchema,
             List<Integer> updatedIndexes,
-            SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode updateMode,
+            SupportsRowLevelUpdate.RowLevelUpdateMode updateMode,
             String tableDebugName,
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory) {
@@ -1018,7 +1018,7 @@ public final class DynamicSinkUtils {
         LogicalFilter filter = null;
         // if the update mode is all rows, we need to know the filter to rewrite
         // the update expression to IF(filter, updated_expr, col_expr)
-        if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode.ALL_ROWS
+        if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS
                 && project.getInput() instanceof LogicalFilter) {
             filter = (LogicalFilter) project.getInput();
         }
@@ -1048,7 +1048,7 @@ public final class DynamicSinkUtils {
             } else {
                 newRexNodeList.add(rexBuilder.makeInputRef(project.getInput(), index));
             }
-            newFieldNames.add(resolvedSchema.getColumnNames().get(index));
+            newFieldNames.add(colName);
             updateTargetDataTypes.add(resolvedSchema.getColumnDataTypes().get(index));
         }
 
@@ -1084,7 +1084,7 @@ public final class DynamicSinkUtils {
             MetadataColumn column = metadataColumns.get(i);
             newFields.add(
                     new RelDataTypeFieldImpl(
-                            column.getMetadataKey().orElse(column.getName()),
+                            column.getName(),
                             oldFields.size() + i,
                             typeFactory.createFieldTypeFromLogicalType(
                                     column.getDataType().getLogicalType())));

@@ -40,12 +40,12 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_ROW_LEVEL_DELETE_MODE = "rowLevelDeleteMode";
 
     @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE)
-    private final SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode rowLevelDeleteMode;
+    private final SupportsRowLevelDelete.RowLevelDeleteMode rowLevelDeleteMode;
 
     @JsonCreator
     public RowLevelDeleteSpec(
             @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE)
-                    SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode
+                    SupportsRowLevelDelete.RowLevelDeleteMode
                             rowLevelDeleteMode) {
         this.rowLevelDeleteMode = rowLevelDeleteMode;
     }
@@ -62,7 +62,7 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
         }
     }
 
-    public SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode getRowLevelDeleteMode() {
+    public SupportsRowLevelDelete.RowLevelDeleteMode getRowLevelDeleteMode() {
         return rowLevelDeleteMode;
     }
 

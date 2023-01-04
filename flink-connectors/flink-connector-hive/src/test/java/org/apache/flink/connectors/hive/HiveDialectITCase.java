@@ -130,7 +130,14 @@ public class HiveDialectITCase {
     public void t1() throws Exception {
         tableEnv.executeSql("create table t1(a int, b int)");
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
-        tableEnv.executeSql("delete from t1");
+        tableEnv.executeSql("delete from t1 where a = 1 + 4");
+    }
+
+    @Test
+    public void t34() throws Exception {
+        tableEnv.executeSql("create table t1(a int, b int)");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql("select * from t1 where a = 1 + 4");
     }
 
     @Test

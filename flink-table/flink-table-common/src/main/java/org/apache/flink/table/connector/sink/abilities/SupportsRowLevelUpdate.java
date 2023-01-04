@@ -83,22 +83,22 @@ public interface SupportsRowLevelUpdate {
         default RowLevelUpdateMode getRowLevelUpdateMode() {
             return RowLevelUpdateMode.UPDATED_ROWS;
         }
+    }
 
-        /**
-         * Type of delete modes that the sink expects for update purpose.
-         *
-         * <p>Currently, two modes are supported:
-         *
-         * <ul>
-         *   <li>UPDATED_ROWS - in this mode, The sink will only get the rows that need to updated
-         *       with updated value.
-         *   <li>ALL_ROWS - in this mode, the sink will get all the rows containing the updated rows
-         *       and the other rows that don't need to be updated.
-         * </ul>
-         */
-        enum RowLevelUpdateMode {
-            UPDATED_ROWS,
-            ALL_ROWS
-        }
+    /**
+     * Type of delete modes that the sink expects for update purpose.
+     *
+     * <p>Currently, two modes are supported:
+     *
+     * <ul>
+     *   <li>UPDATED_ROWS - in this mode, The sink will only get the rows that need to updated with
+     *       updated value.
+     *   <li>ALL_ROWS - in this mode, the sink will get all the rows containing the updated rows and
+     *       the other rows that don't need to be updated.
+     * </ul>
+     */
+    enum RowLevelUpdateMode {
+        UPDATED_ROWS,
+        ALL_ROWS
     }
 }

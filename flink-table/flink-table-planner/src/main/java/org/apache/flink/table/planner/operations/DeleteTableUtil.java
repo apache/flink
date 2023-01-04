@@ -42,15 +42,18 @@ import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 
+import org.apache.calcite.plan.RelOptPredicateList;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalTableModify;
 import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.rel.rules.ReduceExpressionsRule;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -68,6 +71,9 @@ public class DeleteTableUtil {
             ContextResolvedTable contextResolvedTable,
             LogicalTableModify tableModify,
             CatalogManager catalogManager) {
+        if (contextResolvedTable.isAnonymous()) {
+            return Optional.empty();
+        }
         final FlinkContext context = ShortcutUtils.unwrapContext(tableModify.getCluster());
 
         CatalogBaseTable catalogBaseTable = contextResolvedTable.getTable();
@@ -77,16 +83,13 @@ public class DeleteTableUtil {
             Optional<Catalog> optionalCatalog = contextResolvedTable.getCatalog();
             ObjectIdentifier objectIdentifier = contextResolvedTable.getIdentifier();
             boolean isTemporary = contextResolvedTable.isTemporary();
-            if (contextResolvedTable.isAnonymous()
-                    || !TableFactoryUtil.isLegacyConnectorOptions(
-                            catalogManager
-                                    .getCatalog(objectIdentifier.getCatalogName())
-                                    .orElse(null),
-                            context.getTableConfig(),
-                            !context.isBatchMode(),
-                            objectIdentifier,
-                            resolvedTable,
-                            isTemporary)) {
+            if (!TableFactoryUtil.isLegacyConnectorOptions(
+                    catalogManager.getCatalog(objectIdentifier.getCatalogName()).orElse(null),
+                    context.getTableConfig(),
+                    !context.isBatchMode(),
+                    objectIdentifier,
+                    resolvedTable,
+                    isTemporary)) {
                 DynamicTableSinkFactory dynamicTableSinkFactory = null;
                 if (optionalCatalog.isPresent()
                         && optionalCatalog.get().getFactory().isPresent()
@@ -118,7 +121,6 @@ public class DeleteTableUtil {
 
     public static Optional<List<ResolvedExpression>> extractFilters(
             LogicalTableModify tableModify) {
-        // todo:  // ReduceExpressionsRule#findReducibleExps
         FlinkContext context = ShortcutUtils.unwrapContext(tableModify.getCluster());
         RelNode input = tableModify.getInput().getInput(0);
         if (input instanceof LogicalTableScan) {
@@ -127,20 +129,41 @@ public class DeleteTableUtil {
         if (!(input instanceof LogicalFilter)) {
             return Optional.empty();
         }
+
+        // todo: SimplifyFilterConditionRule.EXTENDED
+        // todo: FlinkRewriteSubQueryRule don't need
+        // todo: FlinkRewriteSubQueryRule.FILTER, don't need
+        // todo: FlinkSubQueryRemoveRule.FILTER, don't need
+        // todo: SimplifyFilterConditionRule.INSTANCE
+        // todo: CoreRules.FILTER_SUB_QUERY_TO_CORRELATE, don't need
+        // todo: RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
+        // todo: CoreRules.FILTER_REDUCE_EXPRESSIONS, need
+        // todo: CoreRules.FILTER_MERGE
+
         LogicalFilter filter = (LogicalFilter) input;
+        if (RexUtil.SubQueryFinder.containsSubQuery(filter)) {
+            return Optional.empty();
+        }
+
+        RexNode newCondition = filter.getCondition();
+        List<RexNode> expList = new ArrayList<>();
+        expList.add(newCondition);
+
+        if (MyFilterReduceExpressions.reduce(filter, expList)) {
+            newCondition = expList.get(0);
+        }
+
         RexBuilder rexBuilder = filter.getCluster().getRexBuilder();
         RexNode simplifiedCondition =
                 FlinkRexUtil.simplify(
-                        rexBuilder,
-                        filter.getCondition(),
-                        filter.getCluster().getPlanner().getExecutor());
-        RexNode newCondition = RexUtil.pullFactors(rexBuilder, simplifiedCondition);
+                        rexBuilder, newCondition, filter.getCluster().getPlanner().getExecutor());
+        newCondition = RexUtil.pullFactors(rexBuilder, simplifiedCondition);
         filter = filter.copy(filter.getTraitSet(), filter.getInput(), newCondition);
         Tuple2<RexNode[], RexNode[]> extractedPredicates =
                 extractPredicates(
                         filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
                         filter.getCondition(),
-                        (TableScan) filter.getInput(),
+                        filter,
                         filter.getCluster().getRexBuilder());
         RexNode[] convertiblePredicates = extractedPredicates._1;
         RexNode[] unconvertedPredicates = extractedPredicates._2;
@@ -193,9 +216,12 @@ public class DeleteTableUtil {
     }
 
     private static Tuple2<RexNode[], RexNode[]> extractPredicates(
-            String[] inputNames, RexNode filterExpression, TableScan scan, RexBuilder rexBuilder) {
-        FlinkContext context = ShortcutUtils.unwrapContext(scan);
-        int maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan);
+            String[] inputNames,
+            RexNode filterExpression,
+            LogicalFilter filter,
+            RexBuilder rexBuilder) {
+        FlinkContext context = ShortcutUtils.unwrapContext(filter);
+        int maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(filter);
         RexNodeToExpressionConverter converter =
                 new RexNodeToExpressionConverter(
                         rexBuilder,
@@ -207,5 +233,27 @@ public class DeleteTableUtil {
 
         return RexNodeExtractor.extractConjunctiveConditions(
                 filterExpression, maxCnfNodeCount, rexBuilder, converter);
+    }
+
+    private static class MyFilterReduceExpressions extends ReduceExpressionsRule {
+
+        protected MyFilterReduceExpressions(Config config) {
+            super(config);
+        }
+
+        @Override
+        public void onMatch(RelOptRuleCall relOptRuleCall) {}
+
+        public static boolean reduce(RelNode rel, List<RexNode> expList) {
+            ReduceExpressionsRule.Config config =
+                    FilterReduceExpressionsRule.FilterReduceExpressionsRuleConfig.DEFAULT;
+            return reduceExpressions(
+                    rel,
+                    expList,
+                    RelOptPredicateList.EMPTY,
+                    true,
+                    config.matchNullability(),
+                    config.treatDynamicCallsAsConstant());
+        }
     }
 }

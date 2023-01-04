@@ -51,12 +51,15 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.DeleteFromFiltersOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -96,6 +99,7 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
+import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
@@ -2191,6 +2195,60 @@ public class SqlToOperationConverterTest {
         assertThat(extendedParser.parse(command)).get().isInstanceOf(QuitOperation.class);
     }
 
+    @Test
+    public void testDeletePushDown() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("support-delete-push-down", "true");
+        options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
+        prepareTable("test_push_down", false, false, false, 1, options);
+
+        // no filter in delete statement
+        Operation operation = parse("DELETE FROM test_push_down");
+        assertDeleteFromFilterOperation(operation, "[]");
+
+        // with filters in delete statement
+        operation = parse("DELETE FROM test_push_down where a = 1 and c = '123'");
+        assertDeleteFromFilterOperation(operation, "[equals(a, 1), equals(c, '123')]");
+
+        // with filter = false after reduced in delete statement
+        operation = parse("DELETE FROM test_push_down where a = 1 + 6 and a = 2");
+        assertDeleteFromFilterOperation(operation, "[false]");
+
+        // with sub-query in filter
+        operation =
+                parse("DELETE FROM test_push_down where a = (select count(*) from test_push_down)");
+        // then should be a ModifyOperation
+        assertThat(operation).isInstanceOf(ModifyOperation.class);
+    }
+
+    @Test
+    public void testUpdate() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("support-delete-push-down", "true");
+        options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
+        prepareTable("test_update", false, false, false, 1, options);
+
+        Operation operation = parse("UPDATE test_update SET a = 1, c = '123'");
+        assertThat(operation).isInstanceOf(ModifyOperation.class);
+
+        operation = parse("UPDATE test_update SET a = 1, c = '123' WHERE a = 3");
+        assertThat(operation).isInstanceOf(ModifyOperation.class);
+
+        operation =
+                parse(
+                        "UPDATE test_update SET a = 1, c = '123' WHERE b = 2 and a = (select count(*) from test_update)");
+        assertThat(operation).isInstanceOf(ModifyOperation.class);
+    }
+
+    private static void assertDeleteFromFilterOperation(
+            Operation operation, String expectedFilters) {
+        assertThat(operation).isInstanceOf(DeleteFromFiltersOperation.class);
+        DeleteFromFiltersOperation deleteFromFiltersOperation =
+                (DeleteFromFiltersOperation) operation;
+        List<ResolvedExpression> filters = deleteFromFiltersOperation.getFilters();
+        assertThat(filters.toString()).isEqualTo(expectedFilters);
+    }
+
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {
@@ -2264,17 +2322,23 @@ public class SqlToOperationConverterTest {
     }
 
     private void prepareNonManagedTable(String tableName, int numOfPkFields) throws Exception {
-        prepareTable(tableName, false, false, false, numOfPkFields);
+        Map<String, String> options = new HashMap<>();
+        options.put("k", "v");
+        prepareTable(tableName, false, false, false, numOfPkFields, options);
     }
 
     private void prepareNonManagedTable(String tableName, boolean hasWatermark) throws Exception {
-        prepareTable(tableName, false, false, hasWatermark, 0);
+        Map<String, String> options = new HashMap<>();
+        options.put("k", "v");
+        prepareTable(tableName, false, false, hasWatermark, 0, options);
     }
 
     private void prepareManagedTable(boolean hasPartition) throws Exception {
         TestManagedTableFactory.MANAGED_TABLES.put(
                 ObjectIdentifier.of("cat1", "db1", "tb1"), new AtomicReference<>());
-        prepareTable("tb1", true, hasPartition, false, 0);
+        Map<String, String> options = new HashMap<>();
+        options.put("k", "v");
+        prepareTable("tb1", true, hasPartition, false, 0, options);
     }
 
     private void prepareTable(
@@ -2282,7 +2346,8 @@ public class SqlToOperationConverterTest {
             boolean managedTable,
             boolean hasPartition,
             boolean hasWatermark,
-            int numOfPkFields)
+            int numOfPkFields,
+            Map<String, String> options)
             throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
         if (!catalogManager.getCatalog("cat1").isPresent()) {
@@ -2306,10 +2371,9 @@ public class SqlToOperationConverterTest {
                         .columnByExpression("f", "e.f1 + e.f2.f0")
                         .columnByMetadata("g", DataTypes.STRING(), null, true)
                         .column("ts", DataTypes.TIMESTAMP(3));
-        Map<String, String> options = new HashMap<>();
-        options.put("k", "v");
         if (!managedTable) {
-            options.put("connector", "dummy");
+            String connector = options.getOrDefault("connector", "dummy");
+            options.put("connector", connector);
         }
         if (numOfPkFields == 1) {
             builder.primaryKeyNamed("ct1", "a");

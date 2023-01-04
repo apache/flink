@@ -702,7 +702,7 @@ public class HiveTableSink
             }
 
             @Override
-            public RowLevelDeleteInfo.RowLevelDeleteMode getRowLevelDeleteMode() {
+            public RowLevelDeleteMode getRowLevelDeleteMode() {
                 return RowLevelDeleteMode.DELETED_ROWS;
             }
         };

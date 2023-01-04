@@ -666,14 +666,14 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 if (sinkAbilitySpec instanceof RowLevelDeleteSpec) {
                     RowLevelDeleteSpec deleteSpec = (RowLevelDeleteSpec) sinkAbilitySpec;
                     if (deleteSpec.getRowLevelDeleteMode()
-                            == SupportsRowLevelDelete.RowLevelDeleteInfo.RowLevelDeleteMode
+                            == SupportsRowLevelDelete.RowLevelDeleteMode
                                     .DELETED_ROWS) {
                         return Optional.of(RowKind.DELETE);
                     }
                 } else if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
                     RowLevelUpdateSpec updateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
                     if (updateSpec.getRowLevelUpdateMode()
-                            == SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode
+                            == SupportsRowLevelUpdate.RowLevelUpdateMode
                                     .UPDATED_ROWS) {
                         return Optional.of(RowKind.UPDATE_AFTER);
                     }

@@ -46,13 +46,13 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
     private final List<Column> updatedColumns;
 
     @JsonProperty(FIELD_NAME_ROW_LEVEL_UPDATE_MODE)
-    private final SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode rowLevelUpdateMode;
+    private final SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode;
 
     @JsonCreator
     public RowLevelUpdateSpec(
             @JsonProperty(FIELD_NAME_UPDATED_COLUMNS) List<Column> updatedColumns,
             @JsonProperty(FIELD_NAME_ROW_LEVEL_UPDATE_MODE)
-                    SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode
+                    SupportsRowLevelUpdate.RowLevelUpdateMode
                             rowLevelUpdateMode) {
         this.updatedColumns = updatedColumns;
         this.rowLevelUpdateMode = rowLevelUpdateMode;
@@ -70,7 +70,7 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         }
     }
 
-    public SupportsRowLevelUpdate.RowLevelUpdateInfo.RowLevelUpdateMode getRowLevelUpdateMode() {
+    public SupportsRowLevelUpdate.RowLevelUpdateMode getRowLevelUpdateMode() {
         return rowLevelUpdateMode;
     }
 

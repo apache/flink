@@ -1515,7 +1515,7 @@ public class SqlToOperationConverter {
                         DeleteTableUtil.extractFilters(tableModify);
                 if (filters.isPresent()
                         && supportsDeletePushDown.applyDeleteFilters(filters.get())) {
-                    return new DeleteFromFiltersOperation(supportsDeletePushDown);
+                    return new DeleteFromFiltersOperation(supportsDeletePushDown, filters.get());
                 }
             }
         }

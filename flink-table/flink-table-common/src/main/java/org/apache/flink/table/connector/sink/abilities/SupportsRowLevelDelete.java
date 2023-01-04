@@ -39,6 +39,7 @@ import java.util.Optional;
  * SupportsDeletePushDown#applyDeleteFilters} returns false, this interface will be considered and
  * to rewrite the delete operation to produce the rows to the sink.
  */
+@PublicEvolving
 public interface SupportsRowLevelDelete {
 
     /**
@@ -71,11 +72,11 @@ public interface SupportsRowLevelDelete {
          * DELETE FROM t WHERE y = 2;
          * }</pre>
          *
-         * <p>If returns {@link RowLevelDeleteMode#DELETED_ROWS}, the sink will get rows to be
-         * deleted which match the filter [y = 2].
+         * <p>If returns {@link SupportsRowLevelDelete.RowLevelDeleteMode#DELETED_ROWS}, the sink
+         * will get rows to be deleted which match the filter [y = 2].
          *
-         * <p>If returns {@link RowLevelDeleteMode#REMAINING_ROWS}, the sink will get the rows which
-         * doesn't match the filter [y = 2].
+         * <p>If returns {@link SupportsRowLevelDelete.RowLevelDeleteMode#REMAINING_ROWS}, the sink
+         * will get the rows which doesn't match the filter [y = 2].
          *
          * <p>Note: All rows will have RowKind#DELETE when RowLevelDeleteMode is DELETED_ROWS, and
          * RowKind#INSERT when RowLevelDeleteMode is REMAINING_ROWS.
@@ -83,22 +84,22 @@ public interface SupportsRowLevelDelete {
         default RowLevelDeleteMode getRowLevelDeleteMode() {
             return RowLevelDeleteMode.DELETED_ROWS;
         }
+    }
 
-        /**
-         * Type of delete modes that the sink expects for delete purpose.
-         *
-         * <p>Currently, two modes are supported:
-         *
-         * <ul>
-         *   <li>DELETED_ROWS - in this mode, the sink will only get the rows that need to be
-         *       deleted.
-         *   <li>REMAINING_ROWS - in this mode, the sink will only get the remaining rows as if the
-         *       the delete operation had been done.
-         * </ul>
-         */
-        enum RowLevelDeleteMode {
-            DELETED_ROWS,
-            REMAINING_ROWS
-        }
+    /**
+     * Type of delete modes that the sink expects for delete purpose.
+     *
+     * <p>Currently, two modes are supported:
+     *
+     * <ul>
+     *   <li>DELETED_ROWS - in this mode, the sink will only get the rows that need to be deleted.
+     *   <li>REMAINING_ROWS - in this mode, the sink will only get the remaining rows as if the the
+     *       delete operation had been done.
+     * </ul>
+     */
+    @PublicEvolving
+    enum RowLevelDeleteMode {
+        DELETED_ROWS,
+        REMAINING_ROWS
     }
 }

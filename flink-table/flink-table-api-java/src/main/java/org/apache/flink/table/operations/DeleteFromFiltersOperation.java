@@ -19,18 +19,28 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
+import org.apache.flink.table.expressions.ResolvedExpression;
+
+import java.util.List;
 
 /** Delete push down operations. */
 public class DeleteFromFiltersOperation implements Operation {
 
     private final SupportsDeletePushDown supportsDeletePushDown;
+    private final List<ResolvedExpression> filters;
 
-    public DeleteFromFiltersOperation(SupportsDeletePushDown supportsDeletePushDown) {
+    public DeleteFromFiltersOperation(
+            SupportsDeletePushDown supportsDeletePushDown, List<ResolvedExpression> filters) {
         this.supportsDeletePushDown = supportsDeletePushDown;
+        this.filters = filters;
     }
 
     public SupportsDeletePushDown getSupportsDeletePushDown() {
         return supportsDeletePushDown;
+    }
+
+    public List<ResolvedExpression> getFilters() {
+        return filters;
     }
 
     @Override

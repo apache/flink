@@ -111,17 +111,24 @@ public interface ScanTableSource extends DynamicTableSource {
     interface ScanContext extends DynamicTableSource.Context {
         // may introduce scan specific methods in the future
         /**
-         * Return in what purpose that the table scan is for. The table scan may behavior
-         * differently according to different purposes.
+         * Return in what purpose that the table scan is for. The implementation for {@link
+         * ScanTableSource} may behavior differently according to different purposes, so in here,
+         * the {@link ScanTableSource} can know what's the purpose.
          */
         ScanPurpose getScanPurpose();
 
         /**
          * Register a value with a key, then the sink can get the value using the method {@link
-         * org.apache.flink.table.connector.sink.DynamicTableSink.Context#getContextParameter}.
+         * org.apache.flink.table.connector.sink.DynamicTableSink.Context#getContextParameter}. The
+         * scope for the value registered is limited to compile phase, more exactly, it's the phase
+         * that Flink translates physical RelNode to ExecNode in single job DAG.
          *
-         * <p>Note: it's a mechanism to allow source to pass some values to sink in compile phase
-         * and the scope for the registered value is limited to single statement.
+         * <p>Note: it's a mechanism to allow source to pass some values to sink. Different table
+         * sources may register values, the order for registering values is consistent to the order
+         * that the table source nodes are translated to ExecNode.
+         *
+         * <p>Note: The key may have been registered by other table sources, in which case the value
+         * will be overwritten.
          */
         void addContextParameter(String key, Object value);
     }
