@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in util related
  * cases.
  */
-class UtilCaseITTest extends RestAPIITTestBase {
+class UtilITCase extends RestAPIITCaseBase {
 
     private static final GetInfoHeaders getInfoHeaders = GetInfoHeaders.getInstance();
     private static final EmptyRequestBody emptyRequestBody = EmptyRequestBody.getInstance();

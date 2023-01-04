@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.rest;
+package org.apache.flink.table.gateway.rest.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
+import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpoint;
 import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
@@ -35,9 +36,10 @@ import java.util.concurrent.CompletableFuture;
  * Utility for setting up a rest server based on {@link SqlGatewayRestEndpoint} with a given set of
  * handlers.
  */
-class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
+public class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
 
-    static Builder builder(Configuration configuration, SqlGatewayService sqlGatewayService) {
+    public static Builder builder(
+            Configuration configuration, SqlGatewayService sqlGatewayService) {
         return new Builder(configuration, sqlGatewayService);
     }
 
@@ -45,7 +47,7 @@ class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
      * TestSqlGatewayRestEndpoint.Builder is a utility class for instantiating a
      * TestSqlGatewayRestEndpoint.
      */
-    static class Builder {
+    public static class Builder {
 
         private final Configuration configuration;
         private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers =
@@ -57,17 +59,17 @@ class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
             this.sqlGatewayService = sqlGatewayService;
         }
 
-        Builder withHandler(
+        public Builder withHandler(
                 RestHandlerSpecification messageHeaders, ChannelInboundHandler handler) {
             this.handlers.add(Tuple2.of(messageHeaders, handler));
             return this;
         }
 
-        TestingSqlGatewayRestEndpoint build() throws IOException, ConfigurationException {
+        public TestingSqlGatewayRestEndpoint build() throws IOException, ConfigurationException {
             return new TestingSqlGatewayRestEndpoint(configuration, handlers, sqlGatewayService);
         }
 
-        TestingSqlGatewayRestEndpoint buildAndStart() throws Exception {
+        public TestingSqlGatewayRestEndpoint buildAndStart() throws Exception {
             TestingSqlGatewayRestEndpoint serverEndpoint = build();
             serverEndpoint.start();
 
