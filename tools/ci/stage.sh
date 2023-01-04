@@ -144,10 +144,6 @@ flink-connectors/flink-connector-gcp-pubsub,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-sql-connector-rabbitmq,\
 flink-connectors/flink-connector-aws-base,\
-flink-connectors/flink-connector-kinesis,\
-flink-connectors/flink-sql-connector-kinesis,\
-flink-connectors/flink-connector-aws-kinesis-streams,\
-flink-connectors/flink-sql-connector-aws-kinesis-streams,\
 "
 
 MODULES_TESTS="\
