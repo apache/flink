@@ -183,22 +183,20 @@ public class TaskDeploymentDescriptorFactory {
         CachedShuffleDescriptors cachedShuffleDescriptors =
                 intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
         if (cachedShuffleDescriptors == null) {
-            // compute all shuffle descriptors if it is not cached before.
-            MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptors =
-                    computeConsumedPartitionShuffleDescriptors(consumedPartitionGroup);
             cachedShuffleDescriptors =
                     intermediateResult.cacheShuffleDescriptors(
-                            consumedPartitionGroup, serializedShuffleDescriptors);
-        } else {
-            cachedShuffleDescriptors.serializeShuffleDescriptors(
-                    this::serializeAndTryOffloadShuffleDescriptor);
+                            consumedPartitionGroup,
+                            // compute all shuffle descriptors if it is not cached before.
+                            computeConsumedPartitionShuffleDescriptors(consumedPartitionGroup));
         }
+        cachedShuffleDescriptors.serializeShuffleDescriptors(
+                this::serializeAndTryOffloadShuffleDescriptor);
 
         return cachedShuffleDescriptors.getAllSerializedShuffleDescriptors();
     }
 
-    private MaybeOffloaded<ShuffleDescriptorAndIndex[]> computeConsumedPartitionShuffleDescriptors(
-            ConsumedPartitionGroup consumedPartitionGroup) throws IOException {
+    private ShuffleDescriptorAndIndex[] computeConsumedPartitionShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup) {
 
         ShuffleDescriptorAndIndex[] shuffleDescriptors =
                 new ShuffleDescriptorAndIndex[consumedPartitionGroup.size()];
@@ -214,7 +212,7 @@ public class TaskDeploymentDescriptorFactory {
                             i);
             i++;
         }
-        return serializeAndTryOffloadShuffleDescriptor(shuffleDescriptors);
+        return shuffleDescriptors;
     }
 
     private MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
@@ -454,7 +452,7 @@ public class TaskDeploymentDescriptorFactory {
      * This class represents the shuffle descriptor with it index in {@link ConsumedPartitionGroup}.
      */
     public static class ShuffleDescriptorAndIndex implements Serializable {
-        private static final long serialVersionUID = 852181945034989215L;
+        private static final long serialVersionUID = 1L;
 
         private final ShuffleDescriptor shuffleDescriptor;
 

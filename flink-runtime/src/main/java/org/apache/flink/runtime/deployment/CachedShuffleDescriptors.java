@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link ShuffleDescriptor}s cache for a {@link ConsumedPartitionGroup}. */
@@ -57,7 +56,7 @@ public class CachedShuffleDescriptors {
 
     public CachedShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup,
-            MaybeOffloaded<ShuffleDescriptorAndIndex[]> initialSerializedShuffleDescriptors) {
+            ShuffleDescriptorAndIndex[] shuffleDescriptors) {
         this.resultPartitionIdToIndex = new HashMap<>();
         int index = 0;
         for (IntermediateResultPartitionID resultPartitionID : consumedPartitionGroup) {
@@ -65,20 +64,15 @@ public class CachedShuffleDescriptors {
         }
         this.toBeSerialized = new ArrayDeque<>(consumedPartitionGroup.size());
         this.serializedShuffleDescriptors = new ArrayList<>();
-        this.serializedShuffleDescriptors.add(initialSerializedShuffleDescriptors);
-    }
-
-    public MaybeOffloaded<ShuffleDescriptorAndIndex[]> getShuffleDescriptors(int index) {
-        checkArgument(index >= 0 && index < serializedShuffleDescriptors.size());
-        return serializedShuffleDescriptors.get(index);
+        for (ShuffleDescriptorAndIndex shuffleDescriptor : shuffleDescriptors) {
+            toBeSerialized.offer(shuffleDescriptor);
+        }
     }
 
     public List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> getAllSerializedShuffleDescriptors() {
-        return serializedShuffleDescriptors;
-    }
-
-    public int getSerializedShuffleDescriptorsSize() {
-        return serializedShuffleDescriptors.size();
+        // the deployment of task is not executed in jobMaster's main thread, copy this list to
+        // avoid new element added to the serializedShuffleDescriptors before TDD is not serialized.
+        return new ArrayList<>(serializedShuffleDescriptors);
     }
 
     public void serializeShuffleDescriptors(

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.deployment.CachedShuffleDescriptors;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -250,8 +249,7 @@ public class IntermediateResult {
 
     public CachedShuffleDescriptors cacheShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup,
-            TaskDeploymentDescriptor.MaybeOffloaded<ShuffleDescriptorAndIndex[]>
-                    shuffleDescriptors) {
+            ShuffleDescriptorAndIndex[] shuffleDescriptors) {
         CachedShuffleDescriptors cachedShuffleDescriptors =
                 new CachedShuffleDescriptors(consumedPartitionGroup, shuffleDescriptors);
         shuffleDescriptorCache.put(consumedPartitionGroup, cachedShuffleDescriptors);
@@ -289,15 +287,19 @@ public class IntermediateResult {
         final CachedShuffleDescriptors cache =
                 this.shuffleDescriptorCache.remove(consumedPartitionGroup);
         if (cache != null) {
-            for (int i = 0; i < cache.getSerializedShuffleDescriptorsSize(); i++) {
-                if (cache.getShuffleDescriptors(i) instanceof Offloaded) {
-                    PermanentBlobKey blobKey =
-                            ((Offloaded<ShuffleDescriptorAndIndex[]>)
-                                            cache.getShuffleDescriptors(i))
-                                    .serializedValueKey;
-                    this.producer.getGraph().deleteBlobs(Collections.singletonList(blobKey));
-                }
-            }
+            cache.getAllSerializedShuffleDescriptors()
+                    .forEach(
+                            shuffleDescriptors -> {
+                                if (shuffleDescriptors instanceof Offloaded) {
+                                    PermanentBlobKey blobKey =
+                                            ((Offloaded<ShuffleDescriptorAndIndex[]>)
+                                                            shuffleDescriptors)
+                                                    .serializedValueKey;
+                                    this.producer
+                                            .getGraph()
+                                            .deleteBlobs(Collections.singletonList(blobKey));
+                                }
+                            });
         }
     }
 
