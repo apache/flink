@@ -230,6 +230,53 @@ public interface TableChange {
     }
 
     /**
+     * A table change to drop column.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP COLUMN &lt;column_name&gt;
+     * </pre>
+     *
+     * @param columnName the column to drop.
+     * @return a TableChange represents the modification.
+     */
+    static DropColumn dropColumn(String columnName) {
+        return new DropColumn(columnName);
+    }
+
+    /**
+     * A table change to drop watermark.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP WATERMARK
+     * </pre>
+     *
+     * @return a TableChange represents the modification.
+     */
+    static DropWatermark dropWatermark() {
+        return DropWatermark.INSTANCE;
+    }
+
+    /**
+     * A table change to drop constraint.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP CONSTRAINT &lt;constraint_name&gt;
+     * </pre>
+     *
+     * @param constraintName the constraint to drop.
+     * @return a TableChange represents the modification.
+     */
+    static DropConstraint dropConstraint(String constraintName) {
+        return new DropConstraint(constraintName);
+    }
+
+    /**
      * A table change to set the table option.
      *
      * <p>It is equal to the following statement:
@@ -763,6 +810,121 @@ public interface TableChange {
         @Override
         public String toString() {
             return "ModifyWatermark{" + "newWatermark=" + newWatermark + '}';
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Drop Change
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * A table change to drop the column.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP COLUMN &lt;column_name&gt;
+     * </pre>
+     */
+    @PublicEvolving
+    class DropColumn implements TableChange {
+
+        private final String columnName;
+
+        private DropColumn(String columnName) {
+            this.columnName = columnName;
+        }
+
+        /** Returns the column name. */
+        public String getColumnName() {
+            return columnName;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof DropColumn)) {
+                return false;
+            }
+            DropColumn that = (DropColumn) o;
+            return Objects.equals(columnName, that.columnName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(columnName);
+        }
+
+        @Override
+        public String toString() {
+            return "DropColumn{" + "columnName='" + columnName + '\'' + '}';
+        }
+    }
+
+    /**
+     * A table change to drop the watermark.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP WATERMARK
+     * </pre>
+     */
+    @PublicEvolving
+    class DropWatermark implements TableChange {
+        static final DropWatermark INSTANCE = new DropWatermark();
+
+        @Override
+        public String toString() {
+            return "DropWatermark";
+        }
+    }
+
+    /**
+     * A table change to drop the constraints.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP CONSTRAINT &lt;constraint_name&gt;
+     * </pre>
+     */
+    @PublicEvolving
+    class DropConstraint implements TableChange {
+
+        private final String constraintName;
+
+        private DropConstraint(String constraintName) {
+            this.constraintName = constraintName;
+        }
+
+        /** Returns the constraint name. */
+        public String getConstraintName() {
+            return constraintName;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof DropConstraint)) {
+                return false;
+            }
+            DropConstraint that = (DropConstraint) o;
+            return Objects.equals(constraintName, that.constraintName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(constraintName);
+        }
+
+        @Override
+        public String toString() {
+            return "DropConstraint{" + "constraintName='" + constraintName + '\'' + '}';
         }
     }
 

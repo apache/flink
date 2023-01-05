@@ -166,7 +166,6 @@ import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
-import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
@@ -255,7 +254,7 @@ public class SqlToOperationConverter {
                         flinkPlanner.getOrCreateSqlValidator(),
                         this::validateTableConstraint,
                         this::getQuotedSqlString,
-                        catalogManager.getSchemaResolver());
+                        catalogManager);
     }
 
     /**
@@ -506,44 +505,17 @@ public class SqlToOperationConverter {
             return convertAlterTableReset(
                     tableIdentifier, (CatalogTable) baseTable, (SqlAlterTableReset) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropColumn) {
-            return new AlterTableSchemaOperation(
-                    tableIdentifier,
-                    CatalogTable.of(
-                            alterSchemaConverter.applySchemaChange(
-                                    (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable),
-                            resolvedCatalogTable.getComment(),
-                            resolvedCatalogTable.getPartitionKeys(),
-                            resolvedCatalogTable.getOptions()));
+            return alterSchemaConverter.convertAlterSchema(
+                    (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropPrimaryKey) {
-            return new AlterTableSchemaOperation(
-                    tableIdentifier,
-                    CatalogTable.of(
-                            alterSchemaConverter.applySchemaChange(
-                                    (SqlAlterTableDropPrimaryKey) sqlAlterTable,
-                                    resolvedCatalogTable),
-                            resolvedCatalogTable.getComment(),
-                            resolvedCatalogTable.getPartitionKeys(),
-                            resolvedCatalogTable.getOptions()));
+            return alterSchemaConverter.convertAlterSchema(
+                    (SqlAlterTableDropPrimaryKey) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
-            return new AlterTableSchemaOperation(
-                    tableIdentifier,
-                    CatalogTable.of(
-                            alterSchemaConverter.applySchemaChange(
-                                    (SqlAlterTableDropConstraint) sqlAlterTable,
-                                    resolvedCatalogTable),
-                            resolvedCatalogTable.getComment(),
-                            resolvedCatalogTable.getPartitionKeys(),
-                            resolvedCatalogTable.getOptions()));
+            return alterSchemaConverter.convertAlterSchema(
+                    (SqlAlterTableDropConstraint) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropWatermark) {
-            return new AlterTableSchemaOperation(
-                    tableIdentifier,
-                    CatalogTable.of(
-                            alterSchemaConverter.applySchemaChange(
-                                    (SqlAlterTableDropWatermark) sqlAlterTable,
-                                    resolvedCatalogTable),
-                            resolvedCatalogTable.getComment(),
-                            resolvedCatalogTable.getPartitionKeys(),
-                            resolvedCatalogTable.getOptions()));
+            return alterSchemaConverter.convertAlterSchema(
+                    (SqlAlterTableDropWatermark) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
             return OperationConverterUtils.convertAddReplaceColumns(
                     tableIdentifier,
@@ -554,24 +526,11 @@ public class SqlToOperationConverter {
             return OperationConverterUtils.convertChangeColumn(
                     tableIdentifier,
                     (SqlChangeColumn) sqlAlterTable,
-                    (ResolvedCatalogTable) baseTable,
+                    resolvedCatalogTable,
                     flinkPlanner.getOrCreateSqlValidator());
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
-            SqlAlterTableRenameColumn sqlAlterTableRenameColumn =
-                    (SqlAlterTableRenameColumn) sqlAlterTable;
-            ResolvedCatalogTable baseCatalogTable = (ResolvedCatalogTable) baseTable;
-            List<TableChange> tableChanges = new ArrayList<>();
-            Schema newSchema =
-                    alterSchemaConverter.applySchemaChange(
-                            sqlAlterTableRenameColumn, baseCatalogTable, tableChanges);
-            return new AlterTableChangeOperation(
-                    tableIdentifier,
-                    tableChanges,
-                    CatalogTable.of(
-                            newSchema,
-                            resolvedCatalogTable.getComment(),
-                            resolvedCatalogTable.getPartitionKeys(),
-                            resolvedCatalogTable.getOptions()));
+            return alterSchemaConverter.convertAlterSchema(
+                    (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAddPartitions) {
             List<CatalogPartitionSpec> specs = new ArrayList<>();
             List<CatalogPartition> partitions = new ArrayList<>();
@@ -598,10 +557,8 @@ public class SqlToOperationConverter {
                     optionalCatalogTable.get(),
                     (SqlAlterTableCompact) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAlterTableSchema) {
-            return convertAlterTableSchema(
-                    tableIdentifier,
-                    optionalCatalogTable.get().getResolvedTable(),
-                    (SqlAlterTableSchema) sqlAlterTable);
+            return alterSchemaConverter.convertAlterSchema(
+                    (SqlAlterTableSchema) sqlAlterTable, resolvedCatalogTable);
         } else {
             throw new ValidationException(
                     String.format(
@@ -722,23 +679,6 @@ public class SqlToOperationConverter {
                 String.format(
                         "ALTER TABLE COMPACT operation is not supported for non-managed table %s",
                         tableIdentifier));
-    }
-
-    private Operation convertAlterTableSchema(
-            ObjectIdentifier tableIdentifier,
-            ResolvedCatalogTable oldTable,
-            SqlAlterTableSchema alterTableSchema) {
-        List<TableChange> tableChanges = new ArrayList<>();
-        Schema newSchema =
-                alterSchemaConverter.applySchemaChange(alterTableSchema, oldTable, tableChanges);
-        return new AlterTableChangeOperation(
-                tableIdentifier,
-                tableChanges,
-                CatalogTable.of(
-                        newSchema,
-                        oldTable.getComment(),
-                        oldTable.getPartitionKeys(),
-                        oldTable.getOptions()));
     }
 
     /** Convert CREATE FUNCTION statement. */

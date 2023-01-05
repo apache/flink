@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAdd;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
@@ -33,19 +34,24 @@ import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UniqueConstraint;
-import org.apache.flink.table.catalog.WatermarkSpec;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.SqlCallExpression;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.ColumnReferenceFinder;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -59,6 +65,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -66,7 +73,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -86,67 +92,47 @@ public class AlterSchemaConverter {
     private final SqlValidator sqlValidator;
     private final Function<SqlNode, String> escapeExpression;
     private final Consumer<SqlTableConstraint> constraintValidator;
-    private final SchemaResolver schemaResolver;
+    private final CatalogManager catalogManager;
 
     AlterSchemaConverter(
             SqlValidator sqlValidator,
             Consumer<SqlTableConstraint> constraintValidator,
             Function<SqlNode, String> escapeExpression,
-            SchemaResolver schemaResolver) {
+            CatalogManager catalogManager) {
         this.sqlValidator = sqlValidator;
         this.escapeExpression = escapeExpression;
         this.constraintValidator = constraintValidator;
-        this.schemaResolver = schemaResolver;
+        this.catalogManager = catalogManager;
     }
 
     /**
      * Convert ALTER TABLE ADD | MODIFY (&lt;schema_component&gt; [, &lt;schema_component&gt;, ...])
      * to generate an updated Schema.
      */
-    public Schema applySchemaChange(
-            SqlAlterTableSchema alterTableSchema,
-            ResolvedCatalogTable oldTable,
-            List<TableChange> tableChangeCollector) {
-        AlterSchemaStrategy strategy = computeAlterSchemaStrategy(alterTableSchema);
-        SchemaConverter converter =
-                strategy == AlterSchemaStrategy.ADD
-                        ? new AddSchemaConverter(
-                                oldTable.getUnresolvedSchema(),
-                                (FlinkTypeFactory) sqlValidator.getTypeFactory(),
-                                sqlValidator,
-                                constraintValidator,
-                                escapeExpression,
-                                schemaResolver,
-                                tableChangeCollector)
-                        : new ModifySchemaConverter(
-                                oldTable,
-                                (FlinkTypeFactory) sqlValidator.getTypeFactory(),
-                                sqlValidator,
-                                constraintValidator,
-                                escapeExpression,
-                                schemaResolver,
-                                tableChangeCollector);
+    public Operation convertAlterSchema(
+            SqlAlterTableSchema alterTableSchema, ResolvedCatalogTable oldTable) {
+        SchemaConverter converter = createSchemaConverter(alterTableSchema, oldTable);
         converter.updateColumn(alterTableSchema.getColumnPositions().getList());
         alterTableSchema.getWatermark().ifPresent(converter::updateWatermark);
         alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
-        return converter.convert();
+
+        return buildAlterTableChangeOperation(
+                alterTableSchema, converter.changesCollector, converter.convert(), oldTable);
     }
 
     /** Convert ALTER TABLE RENAME col_name to new_col_name to generate an updated Schema. */
-    public Schema applySchemaChange(
-            SqlAlterTableRenameColumn renameColumn,
-            ResolvedCatalogTable oldTable,
-            List<TableChange> tableChangeCollector) {
+    public Operation convertAlterSchema(
+            SqlAlterTableRenameColumn renameColumn, ResolvedCatalogTable oldTable) {
         String oldColumnName = getColumnName(renameColumn.getOldColumnIdentifier());
         String newColumnName = getColumnName(renameColumn.getNewColumnIdentifier());
-        // validate old column is exists, new column name does not collide with existed column
-        // names, and old column isn't referenced by computed column
-        validateColumnName(
-                oldColumnName,
-                newColumnName,
-                oldTable.getResolvedSchema(),
-                oldTable.getPartitionKeys());
-        validateWatermark(oldTable, oldColumnName);
+
+        ReferencesManager.create(oldTable).checkReferences(oldColumnName);
+        if (oldTable.getResolvedSchema().getColumn(newColumnName).isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe column `%s` already existed in table schema.",
+                            EX_MSG_PREFIX, newColumnName));
+        }
 
         // generate new schema
         Schema.Builder schemaBuilder = Schema.newBuilder();
@@ -156,12 +142,6 @@ public class AlterSchemaConverter {
                 (builder, column) -> {
                     if (column.getName().equals(oldColumnName)) {
                         buildNewColumnFromOldColumn(builder, column, newColumnName);
-                        tableChangeCollector.add(
-                                TableChange.modifyColumnName(
-                                        unwrap(
-                                                oldTable.getResolvedSchema()
-                                                        .getColumn(oldColumnName)),
-                                        newColumnName));
                     } else {
                         builder.fromColumns(Collections.singletonList(column));
                     }
@@ -169,11 +149,19 @@ public class AlterSchemaConverter {
         buildUpdatedPrimaryKey(
                 schemaBuilder, oldTable, (pk) -> pk.equals(oldColumnName) ? newColumnName : pk);
         buildUpdatedWatermark(schemaBuilder, oldTable);
-        return schemaBuilder.build();
+
+        return buildAlterTableChangeOperation(
+                renameColumn,
+                Collections.singletonList(
+                        TableChange.modifyColumnName(
+                                unwrap(oldTable.getResolvedSchema().getColumn(oldColumnName)),
+                                newColumnName)),
+                schemaBuilder.build(),
+                oldTable);
     }
 
     /** Convert ALTER TABLE DROP (col1 [, col2, ...]) to generate an updated Schema. */
-    public Schema applySchemaChange(
+    public Operation convertAlterSchema(
             SqlAlterTableDropColumn dropColumn, ResolvedCatalogTable oldTable) {
         Set<String> columnsToDrop = new HashSet<>();
         dropColumn
@@ -188,18 +176,25 @@ public class AlterSchemaConverter {
                             }
                         });
 
-        Schema.Builder schemaBuilder = Schema.newBuilder();
-        for (SqlNode columnIdentifier : dropColumn.getColumnList()) {
-            String columnToDrop = getColumnName((SqlIdentifier) columnIdentifier);
-            // validate the column to drop exists in the table schema, is not a primary key and
-            // does not derive any computed column
-            validateColumnName(
-                    columnToDrop,
-                    oldTable.getResolvedSchema(),
-                    oldTable.getPartitionKeys(),
-                    columnsToDrop);
-            validateWatermark(oldTable, columnToDrop);
+        ReferencesManager referencesManager = ReferencesManager.create(oldTable);
+        // Sort by dependencies count from smallest to largest. For example, when dropping column a,
+        // b(b as a+1), the order should be: [b, a] after sort.
+        List<String> sortedColumnsToDrop =
+                columnsToDrop.stream()
+                        .sorted(
+                                Comparator.comparingInt(
+                                                col ->
+                                                        referencesManager.getColumnDependencyCount(
+                                                                (String) col))
+                                        .reversed())
+                        .collect(Collectors.toList());
+        List<TableChange> tableChanges = new ArrayList<>(sortedColumnsToDrop.size());
+        for (String columnToDrop : sortedColumnsToDrop) {
+            referencesManager.dropColumn(columnToDrop);
+            tableChanges.add(TableChange.dropColumn(columnToDrop));
         }
+
+        Schema.Builder schemaBuilder = Schema.newBuilder();
         buildUpdatedColumn(
                 schemaBuilder,
                 oldTable,
@@ -210,11 +205,13 @@ public class AlterSchemaConverter {
                 });
         buildUpdatedPrimaryKey(schemaBuilder, oldTable, Function.identity());
         buildUpdatedWatermark(schemaBuilder, oldTable);
-        return schemaBuilder.build();
+
+        return buildAlterTableChangeOperation(
+                dropColumn, tableChanges, schemaBuilder.build(), oldTable);
     }
 
     /** Convert ALTER TABLE DROP PRIMARY KEY to generate an updated Schema. */
-    public Schema applySchemaChange(
+    public Operation convertAlterSchema(
             SqlAlterTableDropPrimaryKey dropPrimaryKey, ResolvedCatalogTable oldTable) {
         Optional<UniqueConstraint> pkConstraint = oldTable.getResolvedSchema().getPrimaryKey();
         if (!pkConstraint.isPresent()) {
@@ -228,13 +225,18 @@ public class AlterSchemaConverter {
                 oldTable,
                 (builder, column) -> builder.fromColumns(Collections.singletonList(column)));
         buildUpdatedWatermark(schemaBuilder, oldTable);
-        return schemaBuilder.build();
+
+        return buildAlterTableChangeOperation(
+                dropPrimaryKey,
+                Collections.singletonList(TableChange.dropConstraint(pkConstraint.get().getName())),
+                schemaBuilder.build(),
+                oldTable);
     }
 
     /**
      * Convert ALTER TABLE DROP CONSTRAINT constraint_name to generate an updated {@link Schema}.
      */
-    public Schema applySchemaChange(
+    public Operation convertAlterSchema(
             SqlAlterTableDropConstraint dropConstraint, ResolvedCatalogTable oldTable) {
         Optional<UniqueConstraint> pkConstraint = oldTable.getResolvedSchema().getPrimaryKey();
         if (!pkConstraint.isPresent()) {
@@ -258,11 +260,16 @@ public class AlterSchemaConverter {
                 oldTable,
                 (builder, column) -> builder.fromColumns(Collections.singletonList(column)));
         buildUpdatedWatermark(schemaBuilder, oldTable);
-        return schemaBuilder.build();
+
+        return buildAlterTableChangeOperation(
+                dropConstraint,
+                Collections.singletonList(TableChange.dropConstraint(constraintName)),
+                schemaBuilder.build(),
+                oldTable);
     }
 
     /** Convert ALTER TABLE DROP WATERMARK to generate an updated {@link Schema}. */
-    public Schema applySchemaChange(
+    public Operation convertAlterSchema(
             SqlAlterTableDropWatermark dropWatermark, ResolvedCatalogTable oldTable) {
         if (oldTable.getResolvedSchema().getWatermarkSpecs().isEmpty()) {
             throw new ValidationException(
@@ -270,13 +277,19 @@ public class AlterSchemaConverter {
                             "%sThe base table does not define any watermark strategy.",
                             EX_MSG_PREFIX));
         }
+
         Schema.Builder schemaBuilder = Schema.newBuilder();
         buildUpdatedColumn(
                 schemaBuilder,
                 oldTable,
                 (builder, column) -> builder.fromColumns(Collections.singletonList(column)));
         buildUpdatedPrimaryKey(schemaBuilder, oldTable, Function.identity());
-        return schemaBuilder.build();
+
+        return buildAlterTableChangeOperation(
+                dropWatermark,
+                Collections.singletonList(TableChange.dropWatermark()),
+                schemaBuilder.build(),
+                oldTable);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -304,14 +317,13 @@ public class AlterSchemaConverter {
                 SqlValidator sqlValidator,
                 Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
-                SchemaResolver schemaResolver,
-                List<TableChange> changesCollector) {
+                SchemaResolver schemaResolver) {
             this.typeFactory = typeFactory;
             this.sqlValidator = sqlValidator;
             this.constraintValidator = constraintValidator;
             this.escapeExpressions = escapeExpressions;
             this.schemaResolver = schemaResolver;
-            this.changesCollector = changesCollector;
+            this.changesCollector = new ArrayList<>();
             populateColumnsFromSourceTable(oldSchema);
             populatePrimaryKeyFromSourceTable(oldSchema);
             populateWatermarkFromSourceTable(oldSchema);
@@ -540,16 +552,14 @@ public class AlterSchemaConverter {
                 SqlValidator sqlValidator,
                 Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
-                SchemaResolver schemaResolver,
-                List<TableChange> changeCollector) {
+                SchemaResolver schemaResolver) {
             super(
                     oldSchema,
                     typeFactory,
                     sqlValidator,
                     constraintValidator,
                     escapeExpressions,
-                    schemaResolver,
-                    changeCollector);
+                    schemaResolver);
         }
 
         @Override
@@ -634,16 +644,14 @@ public class AlterSchemaConverter {
                 SqlValidator sqlValidator,
                 Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
-                SchemaResolver schemaResolver,
-                List<TableChange> tableChangeCollector) {
+                SchemaResolver schemaResolver) {
             super(
                     oldTable.getUnresolvedSchema(),
                     typeFactory,
                     sqlValidator,
                     constraintValidator,
                     escapeExpressions,
-                    schemaResolver,
-                    tableChangeCollector);
+                    schemaResolver);
             this.oldTable = oldTable;
         }
 
@@ -728,113 +736,140 @@ public class AlterSchemaConverter {
         }
     }
 
+    private static class ReferencesManager {
+
+        /** Available columns in the table. */
+        private final Set<String> columns;
+
+        /**
+         * Mappings about the column refers which columns, e.g. column `b` refers to the column `a`
+         * in the expression "b as a+1".
+         */
+        private final Map<String, Set<String>> columnToReferences;
+
+        /**
+         * Reverse mappings about the column refers which columns, e.g. column `a` has the
+         * dependency of column `b` in the expression "b as a+1".
+         */
+        private final Map<String, Set<String>> columnToDependencies;
+
+        /** Primary keys defined on the table. */
+        private final Set<String> primaryKeys;
+
+        /** The name of the column watermark expression depends on. */
+        private final Set<String> watermarkReferences;
+
+        /** The name of the column partition keys contains. */
+        private final Set<String> partitionKeys;
+
+        private ReferencesManager(
+                Set<String> columns,
+                Map<String, Set<String>> columnToReferences,
+                Map<String, Set<String>> columnToDependencies,
+                Set<String> primaryKeys,
+                Set<String> watermarkReferences,
+                Set<String> partitionKeys) {
+            this.columns = columns;
+            this.columnToReferences = columnToReferences;
+            this.columnToDependencies = columnToDependencies;
+            this.primaryKeys = primaryKeys;
+            this.watermarkReferences = watermarkReferences;
+            this.partitionKeys = partitionKeys;
+        }
+
+        static ReferencesManager create(ResolvedCatalogTable catalogTable) {
+            Map<String, Set<String>> columnToReferences = new HashMap<>();
+            Map<String, Set<String>> columnToDependencies = new HashMap<>();
+            catalogTable.getResolvedSchema().getColumns().stream()
+                    .filter(column -> column instanceof Column.ComputedColumn)
+                    .forEach(
+                            column -> {
+                                Set<String> referencedColumns =
+                                        ColumnReferenceFinder.findReferencedColumn(
+                                                column.getName(), catalogTable.getResolvedSchema());
+                                for (String referencedColumn : referencedColumns) {
+                                    columnToReferences
+                                            .computeIfAbsent(
+                                                    referencedColumn, key -> new HashSet<>())
+                                            .add(column.getName());
+                                    columnToDependencies
+                                            .computeIfAbsent(
+                                                    column.getName(), key -> new HashSet<>())
+                                            .add(referencedColumn);
+                                }
+                            });
+
+            return new ReferencesManager(
+                    new HashSet<>(catalogTable.getResolvedSchema().getColumnNames()),
+                    columnToReferences,
+                    columnToDependencies,
+                    catalogTable
+                            .getResolvedSchema()
+                            .getPrimaryKey()
+                            .map(constraint -> new HashSet<>(constraint.getColumns()))
+                            .orElse(new HashSet<>()),
+                    ColumnReferenceFinder.findWatermarkReferencedColumn(
+                            catalogTable.getResolvedSchema()),
+                    new HashSet<>(catalogTable.getPartitionKeys()));
+        }
+
+        void dropColumn(String columnName) {
+            checkReferences(columnName);
+            if (primaryKeys.contains(columnName)) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe column %s is used as the primary key.",
+                                EX_MSG_PREFIX, EncodingUtils.escapeIdentifier(columnName)));
+            }
+
+            columnToDependencies
+                    .getOrDefault(columnName, Collections.emptySet())
+                    .forEach(
+                            referredColumn ->
+                                    columnToReferences.get(referredColumn).remove(columnName));
+            columnToDependencies.remove(columnName);
+            columns.remove(columnName);
+        }
+
+        int getColumnDependencyCount(String columnName) {
+            return columnToDependencies.getOrDefault(columnName, Collections.emptySet()).size();
+        }
+
+        void checkReferences(String columnName) {
+            if (!columns.contains(columnName)) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe column `%s` does not exist in the base table.",
+                                EX_MSG_PREFIX, columnName));
+            }
+            if (columnToReferences.containsKey(columnName)
+                    && !columnToReferences.get(columnName).isEmpty()) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe column %s is referenced by computed column %s.",
+                                EX_MSG_PREFIX,
+                                EncodingUtils.escapeIdentifier(columnName),
+                                columnToReferences.get(columnName).stream()
+                                        .map(EncodingUtils::escapeIdentifier)
+                                        .sorted()
+                                        .collect(Collectors.joining(", "))));
+            }
+            if (partitionKeys.contains(columnName)) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe column `%s` is used as the partition keys.",
+                                EX_MSG_PREFIX, columnName));
+            }
+            if (watermarkReferences.contains(columnName)) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe column `%s` is referenced by watermark expression.",
+                                EX_MSG_PREFIX, columnName));
+            }
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
-
-    private void validateColumnName(
-            String oldColumnName,
-            String newColumnName,
-            ResolvedSchema oldSchema,
-            List<String> partitionKeys) {
-        validateColumnName(
-                oldColumnName,
-                oldSchema,
-                partitionKeys,
-                // fail the operation of renaming column, once the column derives a computed column
-                (referencedColumn, computedColumn) -> referencedColumn.contains(oldColumnName));
-        // validate new column
-        if (oldSchema.getColumn(newColumnName).isPresent()) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe column `%s` already existed in table schema.",
-                            EX_MSG_PREFIX, newColumnName));
-        }
-    }
-
-    private void validateColumnName(
-            String columnToDrop,
-            ResolvedSchema oldSchema,
-            List<String> partitionKeys,
-            Set<String> columnsToDrop) {
-        validateColumnName(
-                columnToDrop,
-                oldSchema,
-                partitionKeys,
-                // fail the operation of dropping column, only if the column derives a computed
-                // column, and the computed column is not being dropped along with the old column
-                (referencedColumn, computedColumn) ->
-                        referencedColumn.contains(columnToDrop)
-                                && !columnsToDrop.contains(computedColumn.getName()));
-        oldSchema
-                .getPrimaryKey()
-                .ifPresent(
-                        pk -> {
-                            if (pk.getColumns().contains(columnToDrop)) {
-                                throw new ValidationException(
-                                        String.format(
-                                                "%sThe column `%s` is used as the primary key.",
-                                                EX_MSG_PREFIX, columnToDrop));
-                            }
-                        });
-    }
-
-    private void validateColumnName(
-            String columnToAlter,
-            ResolvedSchema oldSchema,
-            List<String> partitionKeys,
-            BiFunction<Set<String>, Column.ComputedColumn, Boolean> computedColumnChecker) {
-        // validate old column
-        Set<String> tableColumns = new HashSet<>(oldSchema.getColumnNames());
-        if (!tableColumns.contains(columnToAlter)) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe column `%s` does not exist in the base table.",
-                            EX_MSG_PREFIX, columnToAlter));
-        }
-
-        // validate old column name isn't referred by computed column case
-        oldSchema.getColumns().stream()
-                .filter(column -> column instanceof Column.ComputedColumn)
-                .forEach(
-                        column -> {
-                            Column.ComputedColumn computedColumn = (Column.ComputedColumn) column;
-                            Set<String> referencedColumn =
-                                    ColumnReferenceFinder.findReferencedColumn(
-                                            computedColumn.getName(), oldSchema);
-                            if (computedColumnChecker.apply(referencedColumn, computedColumn)) {
-                                throw new ValidationException(
-                                        String.format(
-                                                "%sThe column `%s` is referenced by computed column %s.",
-                                                EX_MSG_PREFIX,
-                                                columnToAlter,
-                                                computedColumn.asSummaryString()));
-                            }
-                        });
-        // validate partition keys doesn't contain the old column
-        if (partitionKeys.contains(columnToAlter)) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe column `%s` is used as the partition keys.",
-                            EX_MSG_PREFIX, columnToAlter));
-        }
-    }
-
-    private void validateWatermark(ResolvedCatalogTable oldTable, String columnToAlter) {
-        // validate old column isn't referenced by watermark
-        List<WatermarkSpec> watermarkSpecs = oldTable.getResolvedSchema().getWatermarkSpecs();
-        Set<String> referencedColumns =
-                ColumnReferenceFinder.findWatermarkReferencedColumn(oldTable.getResolvedSchema());
-        Set<String> rowtimeAttributes =
-                oldTable.getResolvedSchema().getWatermarkSpecs().stream()
-                        .map(WatermarkSpec::getRowtimeAttribute)
-                        .collect(Collectors.toSet());
-        if (rowtimeAttributes.contains(columnToAlter)
-                || referencedColumns.contains(columnToAlter)) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe column `%s` is referenced by watermark expression %s.",
-                            EX_MSG_PREFIX, columnToAlter, watermarkSpecs));
-        }
-    }
 
     private void buildUpdatedColumn(
             Schema.Builder builder,
@@ -893,6 +928,22 @@ public class AlterSchemaConverter {
         oldColumn.getComment().ifPresent(builder::withComment);
     }
 
+    private Operation buildAlterTableChangeOperation(
+            SqlAlterTable alterTable,
+            List<TableChange> tableChanges,
+            Schema newSchema,
+            ResolvedCatalogTable oldTable) {
+        return new AlterTableChangeOperation(
+                catalogManager.qualifyIdentifier(
+                        UnresolvedIdentifier.of(alterTable.fullTableName())),
+                tableChanges,
+                CatalogTable.of(
+                        newSchema,
+                        oldTable.getComment(),
+                        oldTable.getPartitionKeys(),
+                        oldTable.getOptions()));
+    }
+
     private static String getColumnName(SqlIdentifier identifier) {
         if (!identifier.isSimple()) {
             throw new UnsupportedOperationException(
@@ -903,11 +954,24 @@ public class AlterSchemaConverter {
         return identifier.getSimple();
     }
 
-    private AlterSchemaStrategy computeAlterSchemaStrategy(SqlAlterTableSchema alterTableSchema) {
+    private SchemaConverter createSchemaConverter(
+            SqlAlterTableSchema alterTableSchema, ResolvedCatalogTable oldTable) {
         if (alterTableSchema instanceof SqlAlterTableAdd) {
-            return AlterSchemaStrategy.ADD;
+            return new AddSchemaConverter(
+                    oldTable.getUnresolvedSchema(),
+                    (FlinkTypeFactory) sqlValidator.getTypeFactory(),
+                    sqlValidator,
+                    constraintValidator,
+                    escapeExpression,
+                    catalogManager.getSchemaResolver());
         } else if (alterTableSchema instanceof SqlAlterTableModify) {
-            return AlterSchemaStrategy.MODIFY;
+            return new ModifySchemaConverter(
+                    oldTable,
+                    (FlinkTypeFactory) sqlValidator.getTypeFactory(),
+                    sqlValidator,
+                    constraintValidator,
+                    escapeExpression,
+                    catalogManager.getSchemaResolver());
         }
         throw new UnsupportedOperationException(
                 String.format(
@@ -917,11 +981,5 @@ public class AlterSchemaConverter {
 
     private <T> T unwrap(Optional<T> value) {
         return value.orElseThrow(() -> new TableException("The value should never be empty."));
-    }
-
-    /** A strategy to describe the alter schema kind. */
-    private enum AlterSchemaStrategy {
-        ADD,
-        MODIFY
     }
 }

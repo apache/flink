@@ -82,7 +82,6 @@ import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
-import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -1332,14 +1331,12 @@ public class SqlToOperationConverterTest {
         // rename column c that is used in a computed column
         assertThatThrownBy(() -> parse("alter table tb1 rename a to a1"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "The column `a` is referenced by computed column `d` BIGINT NOT NULL AS a*(b+2 + a*b).");
+                .hasMessageContaining("The column `a` is referenced by computed column `d`.");
 
         // rename column used in the watermark expression
         assertThatThrownBy(() -> parse("alter table tb1 rename ts to ts1"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "The column `ts` is referenced by watermark expression [WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds].");
+                .hasMessageContaining("The column `ts` is referenced by watermark expression.");
 
         // rename nested column
         assertThatThrownBy(() -> parse("alter table tb1 rename e.f1 to e.f11"))
@@ -1374,7 +1371,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table `cat1`.`db1`.`tb2` rename e to e1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nThe column `e` is referenced by computed column `j` STRING AS upper(e).");
+                        "Failed to execute ALTER TABLE statement.\nThe column `e` is referenced by computed column `g`, `j`.");
 
         // rename column used as partition key
         assertThatThrownBy(() -> parse("alter table tb2 rename a to a1"))
@@ -1409,8 +1406,7 @@ public class SqlToOperationConverterTest {
         // drop a column which generates a computed column
         assertThatThrownBy(() -> parse("alter table tb1 drop a"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "The column `a` is referenced by computed column `d` BIGINT NOT NULL AS a*(b+2 + a*b).");
+                .hasMessageContaining("The column `a` is referenced by computed column `d`.");
 
         // drop a column which is pk
         assertThatThrownBy(() -> parse("alter table tb1 drop c"))
@@ -1420,8 +1416,7 @@ public class SqlToOperationConverterTest {
         // drop a column which defines watermark
         assertThatThrownBy(() -> parse("alter table tb1 drop ts"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "The column `ts` is referenced by watermark expression [WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - interval '5' seconds].");
+                .hasMessageContaining("The column `ts` is referenced by watermark expression.");
     }
 
     @Test
@@ -1429,30 +1424,31 @@ public class SqlToOperationConverterTest {
         prepareNonManagedTable(false);
         // drop a single column
         Operation operation = parse("alter table tb1 drop c");
-        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
-        assertThat(operation.asSummaryString())
-                .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
-                                + ")");
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("ALTER TABLE cat1.db1.tb1\n  DROP `c`");
+        assertThat(
+                        ((AlterTableChangeOperation) operation)
+                                .getNewTable().getUnresolvedSchema().getColumns().stream()
+                                        .map(Schema.UnresolvedColumn::getName)
+                                        .collect(Collectors.toList()))
+                .doesNotContain("c");
 
         // drop computed column and referenced columns together
         operation = parse("alter table tb1 drop (f, e, b, d)");
-        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
-                                + ")");
+                        "ALTER TABLE cat1.db1.tb1\n"
+                                + "  DROP `d`,\n"
+                                + "  DROP `f`,\n"
+                                + "  DROP `b`,\n"
+                                + "  DROP `e`");
+        assertThat(
+                        ((AlterTableChangeOperation) operation)
+                                .getNewTable().getUnresolvedSchema().getColumns().stream()
+                                        .map(Schema.UnresolvedColumn::getName)
+                                        .collect(Collectors.toList()))
+                .doesNotContain("f", "e", "b", "d");
     }
 
     @Test
@@ -1474,25 +1470,27 @@ public class SqlToOperationConverterTest {
     @Test
     public void testAlterTableDropConstraint() throws Exception {
         prepareNonManagedTable(true);
-        String expectedSummaryString =
-                "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                        + "  `a` INT NOT NULL,\n"
-                        + "  `b` BIGINT NOT NULL,\n"
-                        + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                        + "  `d` AS [a*(b+2 + a*b)],\n"
-                        + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                        + "  `f` AS [e.f1 + e.f2.f0],\n"
-                        + "  `g` METADATA VIRTUAL,\n"
-                        + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
-                        + ")";
+        String expectedSummaryString = "ALTER TABLE cat1.db1.tb1\n  DROP CONSTRAINT ct1";
 
         Operation operation = parse("alter table tb1 drop constraint ct1");
-        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        assertThat(
+                        ((AlterTableChangeOperation) operation)
+                                .getNewTable()
+                                .getUnresolvedSchema()
+                                .getPrimaryKey())
+                .isNotPresent();
 
         operation = parse("alter table tb1 drop primary key");
-        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        assertThat(
+                        ((AlterTableChangeOperation) operation)
+                                .getNewTable()
+                                .getUnresolvedSchema()
+                                .getPrimaryKey())
+                .isNotPresent();
     }
 
     @Test
@@ -1507,19 +1505,15 @@ public class SqlToOperationConverterTest {
     public void testAlterTableDropWatermark() throws Exception {
         prepareNonManagedTable("tb1", true);
         Operation operation = parse("alter table tb1 drop watermark");
-        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
         assertThat(operation.asSummaryString())
-                .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1 SET SCHEMA (\n"
-                                + "  `a` INT NOT NULL,\n"
-                                + "  `b` BIGINT NOT NULL,\n"
-                                + "  `c` STRING NOT NULL COMMENT 'column comment',\n"
-                                + "  `d` AS [a*(b+2 + a*b)],\n"
-                                + "  `e` ROW<`f0` STRING, `f1` INT, `f2` ROW<`f0` DOUBLE, `f1` ARRAY<FLOAT>>>,\n"
-                                + "  `f` AS [e.f1 + e.f2.f0],\n"
-                                + "  `g` METADATA VIRTUAL,\n"
-                                + "  `ts` TIMESTAMP(3) COMMENT 'just a comment'\n"
-                                + ")");
+                .isEqualTo("ALTER TABLE cat1.db1.tb1\n  DROP WATERMARK");
+        assertThat(
+                        ((AlterTableChangeOperation) operation)
+                                .getNewTable()
+                                .getUnresolvedSchema()
+                                .getWatermarkSpecs())
+                .isEmpty();
     }
 
     @Test
