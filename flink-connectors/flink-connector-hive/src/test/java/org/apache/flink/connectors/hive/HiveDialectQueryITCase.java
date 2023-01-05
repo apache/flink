@@ -986,6 +986,63 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testAvgAggFunctionPlan() {
+        // test explain
+        String actualPlan = explainSql("select x, avg(y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testAvgAggFunctionPlan.out"));
+    }
+
+    @Test
+    public void testAvgAggFunction() throws Exception {
+        tableEnv.executeSql(
+                "create table test_avg(a int, x string, y string, z int, f bigint, d decimal(20, 5), e double)");
+        tableEnv.executeSql(
+                        "insert into test_avg values (1, NULL, '2', 1, 2, 2.22, 2.3), "
+                                + "(1, NULL, 'b', 2, NULL, 3.33, 3.4), "
+                                + "(2, NULL, '4', 1, 2, 4.55, 4.5), "
+                                + "(2, NULL, NULL, 4, 3, 5.66, 5.2)")
+                .await();
+
+        // test avg all element is null
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(x) from test_avg").collect());
+        assertThat(result.toString()).isEqualTo("[+I[null]]");
+
+        // test avg that some string elements can't convert to double
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(y) from test_avg").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[3.0]]");
+
+        // test avg bigint with null element
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(f) from test_avg").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[2.3333333333333335]]");
+
+        // test avg decimal
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(d) from test_avg").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[3.940000000]]");
+
+        // test avg distinct
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(distinct z) from test_avg").collect());
+        assertThat(result5.toString()).isEqualTo("[+I[2.3333333333333335]]");
+
+        // test avg with group key
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select a, avg(y), avg(z), avg(f) from test_avg group by a")
+                                .collect());
+        assertThat(result6.toString()).isEqualTo("[+I[1, 2.0, 1.5, 2.0], +I[2, 4.0, 2.5, 2.5]]");
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
