@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFacto
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveCountAggFunction;
+import org.apache.flink.table.functions.hive.HiveMaxAggFunction;
 import org.apache.flink.table.functions.hive.HiveMinAggFunction;
 import org.apache.flink.table.functions.hive.HiveSumAggFunction;
 import org.apache.flink.table.module.Module;
@@ -149,6 +150,10 @@ public class HiveModule implements Module {
         // We override some Hive's function by native implementation to supports hash-agg
         if (isNativeAggFunctionEnabled() && BUILTIN_NATIVE_AGG_FUNC.contains(name.toLowerCase())) {
             return getBuiltInNativeAggFunction(name.toLowerCase());
+        }
+
+        if (name.equalsIgnoreCase("max")) {
+            return Optional.of(new HiveMaxAggFunction());
         }
 
         // We override Hive's grouping function. Refer to the implementation for more details.
