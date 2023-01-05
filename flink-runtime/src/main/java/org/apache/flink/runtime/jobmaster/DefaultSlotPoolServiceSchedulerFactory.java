@@ -177,12 +177,12 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         }
 
         if (configuration
-                .getOptional(JobManagerOptions.HYBRID_CONSUME_PARTITION_MODE)
+                .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
                 .isPresent()) {
             Preconditions.checkState(
                     schedulerType == JobManagerOptions.SchedulerType.AdaptiveBatch,
                     "Only adaptive batch scheduler supports setting "
-                            + JobManagerOptions.HYBRID_CONSUME_PARTITION_MODE.key());
+                            + JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT.key());
         }
 
         switch (schedulerType) {

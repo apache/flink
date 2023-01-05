@@ -25,6 +25,9 @@ import org.apache.flink.configuration.description.Description;
 import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -650,15 +653,15 @@ public class JobManagerOptions {
                     .withDescription(
                             "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
 
-    /** Type of consume partition mode of hybrid edge. */
-    public enum HybridConsumePartitionMode {
-        ONLY_CONSUME_ALL_FINISHED(true),
-        CAN_CONSUME_PARTIAL_FINISHED(true),
-        CAN_CONSUME_UN_FINISHED(false);
+    /** Constraints of upstream hybrid partition data consumption by downstream. */
+    public enum HybridPartitionDataConsumeConstraint {
+        ALL_PRODUCERS_FINISHED(true),
+        ONLY_FINISHED_PRODUCERS(true),
+        UNFINISHED_PRODUCERS(false);
 
         private final boolean onlyConsumeFinishedPartition;
 
-        HybridConsumePartitionMode(boolean onlyConsumeFinishedPartition) {
+        HybridPartitionDataConsumeConstraint(boolean onlyConsumeFinishedPartition) {
             this.onlyConsumeFinishedPartition = onlyConsumeFinishedPartition;
         }
 
@@ -671,26 +674,30 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<HybridConsumePartitionMode> HYBRID_CONSUME_PARTITION_MODE =
-            key("jobmanager.partition.hybrid.consume-partition-mode")
-                    .enumType(HybridConsumePartitionMode.class)
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Controls how the downstream task consumes hybrid type producer edge. "
-                                                    + "Note that this option is allowed only when %s has been set to %s. "
-                                                    + "Accepted values are:",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
-                                    .list(
-                                            text(
-                                                    "'ONLY_CONSUME_ALL_FINISHED': Downstream tasks can consume data only when all producers are finished."),
-                                            text(
-                                                    "'CAN_CONSUME_PARTIAL_FINISHED': Downstream tasks can consume data when partial producers are finished."),
-                                            text(
-                                                    "'CAN_CONSUME_UN_FINISHED': Downstream tasks can consume data without any producer finish."))
-                                    .build());
+    public static final ConfigOption<HybridPartitionDataConsumeConstraint>
+            HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT =
+                    key("jobmanager.partition.hybrid.partition-data-consume-constraint")
+                            .enumType(HybridPartitionDataConsumeConstraint.class)
+                            .noDefaultValue()
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Controls the constraint that hybrid partition data can be consumed. "
+                                                            + "Note that this option is allowed only when %s has been set to %s. "
+                                                            + "Accepted values are:",
+                                                    code(SCHEDULER.key()),
+                                                    code(SchedulerType.AdaptiveBatch.name()))
+                                            .list(
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed only when all producers are finished.",
+                                                            code(ALL_PRODUCERS_FINISHED.name())),
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed when its producer is finished.",
+                                                            code(ONLY_FINISHED_PRODUCERS.name())),
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed even if its producer is un-finished.",
+                                                            code(UNFINISHED_PRODUCERS.name())))
+                                            .build());
 
     // ---------------------------------------------------------------------------------------------
 

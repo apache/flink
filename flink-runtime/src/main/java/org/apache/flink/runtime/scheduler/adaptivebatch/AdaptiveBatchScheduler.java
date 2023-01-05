@@ -22,7 +22,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions.HybridConsumePartitionMode;
+import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
@@ -92,7 +92,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
     private final Map<IntermediateDataSetID, BlockingResultInfo> blockingResultInfos;
 
-    private final HybridConsumePartitionMode hybridConsumePartitionMode;
+    private final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint;
 
     public AdaptiveBatchScheduler(
             final Logger log,
@@ -119,7 +119,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             final Time rpcTimeout,
             final VertexParallelismDecider vertexParallelismDecider,
             int defaultMaxParallelism,
-            HybridConsumePartitionMode hybridConsumePartitionMode)
+            HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint)
             throws Exception {
 
         super(
@@ -160,7 +160,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
         this.blockingResultInfos = new HashMap<>();
 
-        this.hybridConsumePartitionMode = hybridConsumePartitionMode;
+        this.hybridPartitionDataConsumeConstraint = hybridPartitionDataConsumeConstraint;
     }
 
     @Override
@@ -233,7 +233,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                 // downstream needs the producer's finished status to start consuming the produced
                 // data, the notification of partition finished is required.
                 rp.isBlockingOrBlockingPersistentResultPartition()
-                        || hybridConsumePartitionMode.isOnlyConsumeFinishedPartition();
+                        || hybridPartitionDataConsumeConstraint.isOnlyConsumeFinishedPartition();
     }
 
     void initializeVerticesIfPossible() {
