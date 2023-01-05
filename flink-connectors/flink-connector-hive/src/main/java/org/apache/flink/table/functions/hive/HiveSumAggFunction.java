@@ -21,22 +21,18 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
 import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.hiveAggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.tryCast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 import static org.apache.flink.table.types.logical.DecimalType.MAX_PRECISION;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 
@@ -78,7 +74,10 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
             /* sum = */ ifThenElse(
                     isNull(tryCastOperand),
                     sum,
-                    ifThenElse(isNull(sum), tryCastOperand, adjustedPlus(sum, tryCastOperand)))
+                    ifThenElse(
+                            isNull(sum),
+                            tryCastOperand,
+                            adjustedPlus(getResultType(), sum, tryCastOperand)))
         };
     }
 
@@ -94,7 +93,9 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
                     isNull(mergeOperand(sum)),
                     sum,
                     ifThenElse(
-                            isNull(sum), mergeOperand(sum), adjustedPlus(sum, mergeOperand(sum))))
+                            isNull(sum),
+                            mergeOperand(sum),
+                            adjustedPlus(getResultType(), sum, mergeOperand(sum))))
         };
     }
 
@@ -138,14 +139,6 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
                         String.format(
                                 "Only numeric or string type arguments are accepted but %s is passed.",
                                 argsType));
-        }
-    }
-
-    private UnresolvedCallExpression adjustedPlus(Expression arg1, Expression arg2) {
-        if (getResultType().getLogicalType().is(DECIMAL)) {
-            return hiveAggDecimalPlus(arg1, arg2);
-        } else {
-            return plus(arg1, arg2);
         }
     }
 }

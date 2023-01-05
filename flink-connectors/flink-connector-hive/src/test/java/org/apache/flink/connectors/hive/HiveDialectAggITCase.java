@@ -219,6 +219,70 @@ public class HiveDialectAggITCase {
     }
 
     @Test
+    public void testAvgAggFunction() throws Exception {
+        tableEnv.executeSql(
+                "create table test_avg(a int, x string, y string, z int, f bigint, d decimal(20, 5), d2 decimal(37, 20), e double, ts timestamp)");
+        tableEnv.executeSql(
+                        "insert into test_avg values (1, NULL, '2', 1, 2, 2.22, NULL, 2.3, '2021-08-04 16:26:33.4'), "
+                                + "(1, NULL, 'b', 2, NULL, 3.33, NULL, 3.4, '2021-08-07 16:26:33.4'), "
+                                + "(2, NULL, '4', 1, 2, 4.55, NULL, 4.5, '2021-08-08 16:26:33.4'), "
+                                + "(2, NULL, NULL, 4, 3, 5.66, NULL, 5.2, '2021-08-09 16:26:33.4')")
+                .await();
+
+        // test avg all element is null
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(x) from test_avg").collect());
+        assertThat(result.toString()).isEqualTo("[+I[null]]");
+
+        // test avg that some string elements can't convert to double
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(y) from test_avg").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[3.0]]");
+
+        // test avg bigint with null element
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(f) from test_avg").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[2.3333333333333335]]");
+
+        // test avg decimal
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(d) from test_avg").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[3.940000000]]");
+
+        // test avg decimal with null element
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(d2) from test_avg").collect());
+        assertThat(result5.toString()).isEqualTo("[+I[null]]");
+
+        // test avg distinct
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(distinct z) from test_avg").collect());
+        assertThat(result6.toString()).isEqualTo("[+I[2.3333333333333335]]");
+
+        // test avg with group key
+        List<Row> result7 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select a, avg(y), avg(z), avg(f) from test_avg group by a")
+                                .collect());
+        assertThat(result7.toString()).isEqualTo("[+I[1, 2.0, 1.5, 2.0], +I[2, 4.0, 2.5, 2.5]]");
+
+        // test unsupported type
+        String expectedMessage =
+                "Native hive avg aggregate function does not support type: TIMESTAMP(9). "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own avg function.";
+        assertSqlException("select avg(ts)from test_avg", TableException.class, expectedMessage);
+
+        tableEnv.executeSql("drop table test_avg");
+    }
+
+    @Test
     public void testMinAggFunction() throws Exception {
         tableEnv.executeSql(
                 "create table test_min(a int, b boolean, x string, y string, z int, d decimal(10,5), e float, f double, ts timestamp, dt date, bar binary)");

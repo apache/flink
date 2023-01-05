@@ -21,6 +21,8 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
@@ -34,6 +36,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.hiveAggDecimalPlus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 
 /**
  * API for hive aggregation functions that are expressed in terms of expressions.
@@ -49,6 +54,8 @@ import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIV
  */
 @Internal
 public abstract class HiveDeclarativeAggregateFunction extends DeclarativeAggregateFunction {
+
+    protected static final int MAX_SCALE = 38;
 
     /**
      * Set input arguments for the function if need some inputs to infer the aggBuffer type and
@@ -83,6 +90,15 @@ public abstract class HiveDeclarativeAggregateFunction extends DeclarativeAggreg
                             logicalType.getTypeRoot(),
                             TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key(),
                             functionName));
+        }
+    }
+
+    protected UnresolvedCallExpression adjustedPlus(
+            DataType dataType, Expression arg1, Expression arg2) {
+        if (dataType.getLogicalType().is(DECIMAL)) {
+            return hiveAggDecimalPlus(arg1, arg2);
+        } else {
+            return plus(arg1, arg2);
         }
     }
 
