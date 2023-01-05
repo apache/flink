@@ -179,7 +179,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
         }
     }
 
-    public void deleteShuffleFile() {
+    public void closeDataIndexAndDeleteShuffleFile() {
+        dataIndex.close();
         IOUtils.deleteFileQuietly(dataFilePath);
     }
 
@@ -207,8 +208,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
             failSubpartitionReaders(
                     pendingReaders,
                     new IllegalStateException("Result partition has been already released."));
-            // delete the shuffle file only when no reader is reading now.
-            releaseFuture.thenRun(this::deleteShuffleFile);
+            // close data index and delete shuffle file only when no reader is reading now.
+            releaseFuture.thenRun(this::closeDataIndexAndDeleteShuffleFile);
         }
     }
 

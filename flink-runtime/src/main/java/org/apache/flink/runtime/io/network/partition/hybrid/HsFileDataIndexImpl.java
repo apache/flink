@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
+import org.apache.flink.util.ExceptionUtils;
+
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,7 +33,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -38,15 +41,35 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class HsFileDataIndexImpl implements HsFileDataIndex {
 
     @GuardedBy("lock")
-    private final List<TreeMap<Integer, InternalRegion>>
-            subpartitionFirstBufferIndexInternalRegions;
+    private final HsFileDataIndexCache indexCache;
 
+    /**
+     * {@link HsFileDataIndexCache} is not thread-safe, any access to it needs to hold this lock.
+     */
     private final Object lock = new Object();
 
-    public HsFileDataIndexImpl(int numSubpartitions) {
-        this.subpartitionFirstBufferIndexInternalRegions = new ArrayList<>(numSubpartitions);
-        for (int subpartitionId = 0; subpartitionId < numSubpartitions; ++subpartitionId) {
-            subpartitionFirstBufferIndexInternalRegions.add(new TreeMap<>());
+    public HsFileDataIndexImpl(
+            int numSubpartitions,
+            Path indexFilePath,
+            int spilledIndexSegmentSize,
+            long numRetainedInMemoryRegionsMax) {
+        this.indexCache =
+                new HsFileDataIndexCache(
+                        numSubpartitions,
+                        indexFilePath,
+                        numRetainedInMemoryRegionsMax,
+                        spilledIndexSegmentSize,
+                        HsFileDataIndexSpilledRegionManagerImpl.Factory.INSTANCE);
+    }
+
+    @Override
+    public void close() {
+        synchronized (lock) {
+            try {
+                indexCache.close();
+            } catch (IOException e) {
+                ExceptionUtils.rethrow(e);
+            }
         }
     }
 
@@ -67,14 +90,7 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         final Map<Integer, List<InternalRegion>> subpartitionInternalRegions =
                 convertToInternalRegions(spilledBuffers);
         synchronized (lock) {
-            subpartitionInternalRegions.forEach(
-                    (subpartition, internalRegions) -> {
-                        TreeMap<Integer, InternalRegion> treeMap =
-                                subpartitionFirstBufferIndexInternalRegions.get(subpartition);
-                        for (InternalRegion internalRegion : internalRegions) {
-                            treeMap.put(internalRegion.firstBufferIndex, internalRegion);
-                        }
-                    });
+            subpartitionInternalRegions.forEach(indexCache::put);
         }
     }
 
@@ -88,12 +104,7 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
 
     @GuardedBy("lock")
     private Optional<InternalRegion> getInternalRegion(int subpartitionId, int bufferIndex) {
-        return Optional.ofNullable(
-                        subpartitionFirstBufferIndexInternalRegions
-                                .get(subpartitionId)
-                                .floorEntry(bufferIndex))
-                .map(Map.Entry::getValue)
-                .filter(internalRegion -> internalRegion.containBuffer(bufferIndex));
+        return indexCache.get(subpartitionId, bufferIndex);
     }
 
     private static Map<Integer, List<InternalRegion>> convertToInternalRegions(

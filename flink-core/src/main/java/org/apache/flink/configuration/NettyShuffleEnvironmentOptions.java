@@ -270,6 +270,24 @@ public class NettyShuffleEnvironmentOptions {
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
+    /** Segment size of hybrid spilled file data index. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_SEGMENT_SIZE =
+            key("taskmanager.network.hybrid-shuffle.spill-index-segment-size")
+                    .intType()
+                    .defaultValue(256)
+                    .withDescription(
+                            "Controls the segment size of hybrid spilled file data index.");
+
+    /** Max number of hybrid retained regions in memory. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Long> HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX =
+            key("taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max")
+                    .longType()
+                    .defaultValue(Long.MAX_VALUE)
+                    .withDescription(
+                            "Controls the max number of hybrid retained regions in memory.");
+
     /** Number of max buffers can be used for each output subpartition. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
