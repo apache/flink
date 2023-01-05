@@ -169,7 +169,14 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
      * <p>Note: This index may not always maintain the longest possible regions. E.g., 2-1, 2-2, 2-3
      * are in two separate regions.
      */
-    private static class InternalRegion {
+    static class InternalRegion {
+        /**
+         * {@link InternalRegion} is consists of immutable and variable parts. (firstBufferIndex,
+         * firstBufferOffset, numBuffer) are immutable part that have fixed size. The array of
+         * released is variable part. This field represents the size of fixed part.
+         */
+        public static final int FIXED_SIZE = Integer.BYTES + Long.BYTES + Integer.BYTES;
+
         private final int firstBufferIndex;
         private final long firstBufferOffset;
         private final int numBuffers;
@@ -181,6 +188,14 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
             this.numBuffers = numBuffers;
             this.released = new boolean[numBuffers];
             Arrays.fill(released, false);
+        }
+
+        InternalRegion(
+                int firstBufferIndex, long firstBufferOffset, int numBuffers, boolean[] released) {
+            this.firstBufferIndex = firstBufferIndex;
+            this.firstBufferOffset = firstBufferOffset;
+            this.numBuffers = numBuffers;
+            this.released = released;
         }
 
         private boolean containBuffer(int bufferIndex) {
@@ -202,6 +217,27 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
 
         private void markBufferReleased(int bufferIndex) {
             released[bufferIndex - firstBufferIndex] = true;
+        }
+
+        /** Get the total size in bytes of this region, including immutable and variable part. */
+        int getSize() {
+            return FIXED_SIZE + numBuffers;
+        }
+
+        int getFirstBufferIndex() {
+            return firstBufferIndex;
+        }
+
+        long getFirstBufferOffset() {
+            return firstBufferOffset;
+        }
+
+        int getNumBuffers() {
+            return numBuffers;
+        }
+
+        boolean[] getReleased() {
+            return released;
         }
     }
 }
