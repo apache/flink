@@ -320,10 +320,12 @@ public class HiveParserDMLHelper {
 
         boolean isInsertInto = topQB.getParseInfo().isInsertIntoTable(tableName);
 
-        assert overwrite || isInsertInto
-                : "Inconsistent data structure detected: we are writing to "
+        Preconditions.checkArgument(
+                overwrite | isInsertInto,
+                "Inconsistent data structure detected: we are writing to "
                         + tableName
-                        + ", but it's not in isInsertIntoTable() or getInsertOverwriteTables()";
+                        + ", but it's not in isInsertIntoTable() or getInsertOverwriteTables()."
+                        + " This is a bug. Please consider filing an issue.");
 
         Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean> insertOperationInfo =
                 createInsertOperationInfo(
