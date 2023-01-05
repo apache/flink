@@ -38,7 +38,6 @@ import org.junit.rules.TemporaryFolder;
 import java.util.List;
 
 import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
-import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -128,16 +127,10 @@ public class HiveDialectAggITCase {
         assertThat(result7.toString()).isEqualTo("[+I[6.0, 10]]");
 
         // test unsupported timestamp type
-        assertThatThrownBy(
-                        () ->
-                                CollectionUtil.iteratorToList(
-                                        tableEnv.executeSql("select sum(ts) from test_sum")
-                                                .collect()))
-                .rootCause()
-                .satisfiesAnyOf(
-                        anyCauseMatches(
-                                "Native hive sum aggregate function does not support type: TIMESTAMP(9). "
-                                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false."));
+        String expectedMessage =
+                "Native hive sum aggregate function does not support type: TIMESTAMP(9). "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own sum function.";
+        assertSqlException("select sum(ts) from test_sum", TableException.class, expectedMessage);
 
         tableEnv.executeSql("drop table test_sum");
     }
@@ -303,7 +296,8 @@ public class HiveDialectAggITCase {
                 "create table test_min_not_support_type(a array<int>,m map<int, string>,s struct<f1:int,f2:string>)");
         // test min with row type
         String expectedRowMessage =
-                "Hive native min aggregate function does not support type: 'ROW' now. Please re-check the data type.";
+                "Native hive min aggregate function does not support type: ROW. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own min function.";
         assertSqlException(
                 "select min(s) from test_min_not_support_type",
                 TableException.class,
@@ -311,7 +305,8 @@ public class HiveDialectAggITCase {
 
         // test min with array type
         String expectedArrayMessage =
-                "Hive native min aggregate function does not support type: 'ARRAY' now. Please re-check the data type.";
+                "Native hive min aggregate function does not support type: ARRAY. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own min function.";
         assertSqlException(
                 "select min(a) from test_min_not_support_type",
                 TableException.class,
@@ -326,6 +321,111 @@ public class HiveDialectAggITCase {
                 expectedMapMessage);
 
         tableEnv.executeSql("drop table test_min_not_support_type");
+    }
+
+    @Test
+    public void testMaxAggFunction() throws Exception {
+        tableEnv.executeSql(
+                "create table test_max(a int, b boolean, x string, y string, z int, d decimal(10,5), e float, f double, ts timestamp, dt date, bar binary)");
+        tableEnv.executeSql(
+                        "insert into test_max values (1, true, NULL, '2', 1, 1.11, 1.2, 1.3, '2021-08-04 16:26:33.4','2021-08-04', 'data1'), "
+                                + "(1, false, NULL, 'b', 2, 2.22, 2.3, 2.4, '2021-08-06 16:26:33.4','2021-08-07', 'data2'), "
+                                + "(2, false, NULL, '4', 1, 3.33, 3.5, 3.6, '2021-08-08 16:26:33.4','2021-08-08', 'data3'), "
+                                + "(2, true, NULL, NULL, 4, 4.45, 4.7, 4.8, '2021-08-10 16:26:33.4','2021-08-01', 'data4')")
+                .await();
+
+        // test max with all elements are null
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(x) from test_max").collect());
+        assertThat(result.toString()).isEqualTo("[+I[null]]");
+
+        // test max with some elements are null
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(y) from test_max").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[b]]");
+
+        // test max with some elements repeated
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(z) from test_max").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[4]]");
+
+        // test max with decimal type
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(d) from test_max").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[4.45000]]");
+
+        // test max with float type
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(e) from test_max").collect());
+        assertThat(result5.toString()).isEqualTo("[+I[4.7]]");
+
+        // test max with double type
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(f) from test_max").collect());
+        assertThat(result6.toString()).isEqualTo("[+I[4.8]]");
+
+        // test max with boolean type
+        List<Row> result7 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(b) from test_max").collect());
+        assertThat(result7.toString()).isEqualTo("[+I[true]]");
+
+        // test max with timestamp type
+        List<Row> result8 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(ts) from test_max").collect());
+        assertThat(result8.toString()).isEqualTo("[+I[2021-08-10T16:26:33.400]]");
+
+        // test max with date type
+        List<Row> result9 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(dt) from test_max").collect());
+        assertThat(result9.toString()).isEqualTo("[+I[2021-08-08]]");
+
+        // test max with binary type
+        List<Row> result10 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select max(bar) from test_max").collect());
+        assertThat(result10.toString()).isEqualTo("[+I[[100, 97, 116, 97, 52]]]");
+
+        tableEnv.executeSql("drop table test_max");
+
+        // test max with unsupported data type
+        tableEnv.executeSql(
+                "create table test_max_not_support_type(a array<int>,m map<int, string>,s struct<f1:int,f2:string>)");
+        // test max with row type
+        String expectedRowMessage =
+                "Native hive max aggregate function does not support type: ROW. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own max function.";
+        assertSqlException(
+                "select max(s) from test_max_not_support_type",
+                TableException.class,
+                expectedRowMessage);
+
+        // test max with array type
+        String expectedArrayMessage =
+                "Native hive max aggregate function does not support type: ARRAY. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own max function.";
+        assertSqlException(
+                "select max(a) from test_max_not_support_type",
+                TableException.class,
+                expectedArrayMessage);
+
+        // test max with map type, hive also does not support map type comparisons.
+        String expectedMapMessage =
+                "Cannot support comparison of map<> type or complex type containing map<>.";
+        assertSqlException(
+                "select max(m) from test_max_not_support_type",
+                UDFArgumentTypeException.class,
+                expectedMapMessage);
+
+        tableEnv.executeSql("drop table test_max_not_support_type");
     }
 
     private void assertSqlException(

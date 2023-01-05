@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.functions.FunctionKind;
@@ -26,8 +27,13 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 
 /**
  * API for hive aggregation functions that are expressed in terms of expressions.
@@ -55,6 +61,29 @@ public abstract class HiveDeclarativeAggregateFunction extends DeclarativeAggreg
         return TypeInference.newBuilder()
                 .outputTypeStrategy(new HiveAggregateFunctionOutputStrategy(this))
                 .build();
+    }
+
+    protected void checkArgumentNum(List<DataType> arguments) {
+        if (arguments.size() != 1) {
+            throw new TableException("Exactly one argument is expected.");
+        }
+    }
+
+    protected void checkMinMaxArgumentType(LogicalType logicalType, String functionName) {
+        // Flink doesn't support to compare nested type now, so here can't support it, see
+        // ScalarOperatorGens#generateComparison for more detail
+        if (logicalType.is(LogicalTypeRoot.ARRAY)
+                || logicalType.is(LogicalTypeRoot.MAP)
+                || logicalType.is(LogicalTypeRoot.ROW)) {
+            throw new TableException(
+                    String.format(
+                            "Native hive %s aggregate function does not support type: %s. "
+                                    + "Please set option '%s' to false to fall back to Hive's own %s function.",
+                            functionName,
+                            logicalType.getTypeRoot(),
+                            TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key(),
+                            functionName));
+        }
     }
 
     @Override

@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFacto
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveCountAggFunction;
+import org.apache.flink.table.functions.hive.HiveMaxAggFunction;
 import org.apache.flink.table.functions.hive.HiveMinAggFunction;
 import org.apache.flink.table.functions.hive.HiveSumAggFunction;
 import org.apache.flink.table.module.Module;
@@ -87,7 +88,7 @@ public class HiveModule implements Module {
                                     "tumble_start")));
 
     static final Set<String> BUILTIN_NATIVE_AGG_FUNC =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList("sum", "count", "min")));
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList("sum", "count", "min", "max")));
 
     private final HiveFunctionDefinitionFactory factory;
     private final String hiveVersion;
@@ -213,6 +214,9 @@ public class HiveModule implements Module {
             case "min":
                 // We override Hive's min function by native implementation to supports hash-agg
                 return Optional.of(new HiveMinAggFunction());
+            case "max":
+                // We override Hive's max function by native implementation to supports hash-agg
+                return Optional.of(new HiveMaxAggFunction());
             default:
                 throw new UnsupportedOperationException(
                         String.format(

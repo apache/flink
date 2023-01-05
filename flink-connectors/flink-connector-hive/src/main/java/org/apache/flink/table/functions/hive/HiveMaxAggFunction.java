@@ -25,15 +25,15 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.lessThan;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 
-/** built-in hive min aggregate function. */
-public class HiveMinAggFunction extends HiveDeclarativeAggregateFunction {
+/** built-in hive max aggregate function. */
+public class HiveMaxAggFunction extends HiveDeclarativeAggregateFunction {
 
-    private final UnresolvedReferenceExpression min = unresolvedRef("min");
+    private final UnresolvedReferenceExpression max = unresolvedRef("max");
     private DataType resultType;
 
     @Override
@@ -43,7 +43,7 @@ public class HiveMinAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public UnresolvedReferenceExpression[] aggBufferAttributes() {
-        return new UnresolvedReferenceExpression[] {min};
+        return new UnresolvedReferenceExpression[] {max};
     }
 
     @Override
@@ -58,46 +58,44 @@ public class HiveMinAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {
-            /* min */
-            nullOf(getResultType())
-        };
+        return new Expression[] {/* max = */ nullOf(getResultType())};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* min = */ ifThenElse(
+            /* max = */ ifThenElse(
                     isNull(operand(0)),
-                    min,
+                    max,
                     ifThenElse(
-                            isNull(min),
+                            isNull(max),
                             operand(0),
-                            ifThenElse(lessThan(operand(0), min), operand(0), min)))
+                            ifThenElse(greaterThan(operand(0), max), operand(0), max)))
         };
     }
 
     @Override
     public Expression[] retractExpressions() {
-        throw new TableException("Min aggregate function does not support retraction.");
+        throw new TableException("Max aggregate function does not support retraction.");
     }
 
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* min = */ ifThenElse(
-                    isNull(mergeOperand(min)),
-                    min,
+            /* max = */ ifThenElse(
+                    isNull(mergeOperand(max)),
+                    max,
                     ifThenElse(
-                            isNull(min),
-                            mergeOperand(min),
-                            ifThenElse(lessThan(mergeOperand(min), min), mergeOperand(min), min)))
+                            isNull(max),
+                            mergeOperand(max),
+                            ifThenElse(
+                                    greaterThan(mergeOperand(max), max), mergeOperand(max), max)))
         };
     }
 
     @Override
     public Expression getValueExpression() {
-        return min;
+        return max;
     }
 
     @Override
@@ -106,7 +104,7 @@ public class HiveMinAggFunction extends HiveDeclarativeAggregateFunction {
             checkArgumentNum(callContext.getArgumentDataTypes());
             // check argument type firstly
             checkMinMaxArgumentType(
-                    callContext.getArgumentDataTypes().get(0).getLogicalType(), "min");
+                    callContext.getArgumentDataTypes().get(0).getLogicalType(), "max");
             resultType = callContext.getArgumentDataTypes().get(0);
         }
     }
