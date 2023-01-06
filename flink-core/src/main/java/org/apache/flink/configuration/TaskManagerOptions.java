@@ -504,7 +504,7 @@ public class TaskManagerOptions {
     public static final ConfigOption<MemorySize> NETWORK_MEMORY_MAX =
             key("taskmanager.memory.network.max")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("1g"))
+                    .defaultValue(MemorySize.MAX_VALUE)
                     .withDeprecatedKeys(
                             NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key())
                     .withDescription(
