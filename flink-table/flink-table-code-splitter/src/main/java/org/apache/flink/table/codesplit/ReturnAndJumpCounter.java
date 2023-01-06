@@ -17,27 +17,22 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.jupiter.api.Test;
+import org.apache.flink.table.codesplit.JavaParser.StatementContext;
 
-/** Tests for {@link IfStatementRewriter}. */
-class IfStatementRewriterTest extends CodeRewriterTestBase<IfStatementRewriter> {
+/** Simple parser that counts combined number of 'return', 'continue' and 'break' kay words. */
+public class ReturnAndJumpCounter extends JavaParserBaseVisitor<Void> {
 
-    public IfStatementRewriterTest() {
-        super("if", code -> new IfStatementRewriter(code, 20));
+    private int counter = 0;
+
+    @Override
+    public Void visitStatement(StatementContext ctx) {
+        if (ctx.RETURN() != null || ctx.BREAK() != null || ctx.CONTINUE() != null) {
+            counter++;
+        }
+        return visitChildren(ctx);
     }
 
-    @Test
-    void testIfStatementRewrite() {
-        runTest("TestIfStatementRewrite");
-    }
-
-    @Test
-    void testNotRewriteIfStatementInFunctionWithReturnValue() {
-        runTest("TestNotRewriteIfStatementInFunctionWithReturnValue");
-    }
-
-    @Test
-    void testRewriteInnerClass() {
-        runTest("TestRewriteInnerClass");
+    public int getCounter() {
+        return counter;
     }
 }
