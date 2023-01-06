@@ -185,9 +185,9 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
     /** A factory to create {@link HiveSourceDynamicFileEnumerator}. */
     public static class Provider implements DynamicFileEnumerator.Provider {
 
-        private final Logger LOG = LoggerFactory.getLogger(Provider.class);
-
         private static final long serialVersionUID = 1L;
+
+        private static final Logger LOG = LoggerFactory.getLogger(Provider.class);
 
         private final String table;
         private final List<String> dynamicFilterPartitionKeys;
