@@ -65,29 +65,26 @@ import java.util.List;
  *       +- TableSourceScan(table=[[dim, filter=[]]], fields=[xxx, dim_key])
  * }</pre>
  *
- * <p>We use a {@link FlinkOptimizeProgram} instead of a {@link org.apache.calcite.plan.RelRule} to
- * realize dynamic partition pruning because the {@link org.apache.calcite.plan.hep.HepPlanner} in
- * Flink doesn't support matching a simple join, and replacing one node on one side of the join
- * node. After that, rebuilding this join node. This is a defect of the existing optimizer, and it's
- * matching pattern need to be simpler. Only then can we use {@link org.apache.calcite.plan.RelRule}
- * to achieve dpp.
+ * <p>Note: We use a {@link FlinkOptimizeProgram} instead of a {@link
+ * org.apache.calcite.plan.RelRule} here because the {@link org.apache.calcite.plan.hep.HepPlanner}
+ * doesn't support matching a partially determined pattern or dynamically replacing the inputs of
+ * matched nodes. Once we improve the {@link org.apache.calcite.plan.hep.HepPlanner}, then class can
+ * be converted to {@link org.apache.calcite.plan.RelRule}.
  */
 public class FlinkDynamicPartitionPruningProgram
         implements FlinkOptimizeProgram<BatchOptimizeContext> {
 
     @Override
     public RelNode optimize(RelNode root, BatchOptimizeContext context) {
+        if (!ShortcutUtils.unwrapContext(root)
+                .getTableConfig()
+                .get(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
+            return root;
+        }
         DefaultRelShuttle shuttle =
                 new DefaultRelShuttle() {
                     @Override
                     public RelNode visit(RelNode rel) {
-                        if (!ShortcutUtils.unwrapContext(rel)
-                                .getTableConfig()
-                                .get(
-                                        OptimizerConfigOptions
-                                                .TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
-                            return rel;
-                        }
                         if (!(rel instanceof Join)
                                 || !DynamicPartitionPruningUtils.isSuitableJoin((Join) rel)) {
                             List<RelNode> newInputs = new ArrayList<>();
@@ -103,7 +100,7 @@ public class FlinkDynamicPartitionPruningProgram
                         RelNode rightSide = join.getRight();
                         Join newJoin = join;
                         boolean changed = false;
-                        if (DynamicPartitionPruningUtils.isDimSide(leftSide)) {
+                        if (DynamicPartitionPruningUtils.isDppDimSide(leftSide)) {
                             if (join.getJoinType() != JoinRelType.RIGHT) {
                                 Tuple2<Boolean, RelNode> relTuple =
                                         DynamicPartitionPruningUtils
@@ -118,7 +115,7 @@ public class FlinkDynamicPartitionPruningProgram
                                                 join.getTraitSet(),
                                                 Arrays.asList(leftSide, relTuple.f1.accept(this)));
                             }
-                        } else if (DynamicPartitionPruningUtils.isDimSide(rightSide)) {
+                        } else if (DynamicPartitionPruningUtils.isDppDimSide(rightSide)) {
                             if (join.getJoinType() != JoinRelType.LEFT) {
                                 Tuple2<Boolean, RelNode> relTuple =
                                         DynamicPartitionPruningUtils
