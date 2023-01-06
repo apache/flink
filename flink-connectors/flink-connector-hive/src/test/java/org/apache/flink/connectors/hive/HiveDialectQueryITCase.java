@@ -986,6 +986,172 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testSumAggFunctionPlan() {
+        // test explain
+        String actualPlan = explainSql("select x, sum(y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testSumAggFunctionPlan.out"));
+    }
+
+    @Test
+    public void testSimpleSumAggFunction() throws Exception {
+        tableEnv.executeSql(
+                "create table test_sum(x string, y string, z int, d decimal(10,5), e float, f double)");
+        tableEnv.executeSql(
+                        "insert into test_sum values (NULL, '2', 1, 1.11, 1.2, 1.3), "
+                                + "(NULL, 'b', 2, 2.22, 2.3, 2.4), "
+                                + "(NULL, '4', 3, 3.33, 3.5, 3.6), "
+                                + "(NULL, NULL, 4, 4.45, 4.7, 4.8)")
+                .await();
+
+        // test sum with all elements are null
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(x) from test_sum").collect());
+        assertThat(result.toString()).isEqualTo("[+I[null]]");
+
+        // test sum string type with partial element can't convert to double, result type is double
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(y) from test_sum").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[6.0]]");
+
+        // test decimal type
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(d) from test_sum").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[11.11000]]");
+
+        // test sum int, result type is bigint
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(z) from test_sum").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[10]]");
+
+        // test float type
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(e) from test_sum").collect());
+        float actualFloatValue = ((Double) result5.get(0).getField(0)).floatValue();
+        assertThat(actualFloatValue).isEqualTo(11.7f);
+
+        // test double type
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(f) from test_sum").collect());
+        actualFloatValue = ((Double) result6.get(0).getField(0)).floatValue();
+        assertThat(actualFloatValue).isEqualTo(12.1f);
+
+        // test sum string&int type simultaneously
+        List<Row> result7 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(y), sum(z) from test_sum").collect());
+        assertThat(result7.toString()).isEqualTo("[+I[6.0, 10]]");
+
+        tableEnv.executeSql("drop table test_sum");
+    }
+
+    @Test
+    public void testSumAggWithGroupKey() throws Exception {
+        tableEnv.executeSql(
+                "create table test_sum_group(name string, num bigint, price decimal(10,5))");
+        tableEnv.executeSql(
+                        "insert into test_sum_group values ('tom', 2, 7.2), ('tony', 2, 23.7), ('tom', 10, 3.33), ('tony', 4, 4.45), ('nadal', 4, 10.455)")
+                .await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select name, sum(num), sum(price),  sum(num * price) from test_sum_group group by name")
+                                .collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[tom, 12, 10.53000, 47.70000], +I[tony, 6, 28.15000, 65.20000], +I[nadal, 4, 10.45500, 41.82000]]");
+
+        tableEnv.executeSql("drop table test_sum_group");
+    }
+
+    @Test
+    public void testMinAggFunctionPlan() {
+        // test explain
+        String actualPlan = explainSql("select x, min(y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMinAggFunctionPlan.out"));
+    }
+
+    @Test
+    public void testMinAggFunction() throws Exception {
+        tableEnv.executeSql(
+                "create table test_min(a int, b boolean, x string, y string, z int, d decimal(10,5), e float, f double, ts timestamp, dt date, bar binary)");
+        tableEnv.executeSql(
+                        "insert into test_min values (1, true, NULL, '2', 1, 1.11, 1.2, 1.3, '2021-08-04 16:26:33.4','2021-08-04', 'data1'), "
+                                + "(1, false, NULL, 'b', 2, 2.22, 2.3, 2.4, '2021-08-06 16:26:33.4','2021-08-07', 'data2'), "
+                                + "(2, false, NULL, '4', 1, 3.33, 3.5, 3.6, '2021-08-08 16:26:33.4','2021-08-08', 'data3'), "
+                                + "(2, true, NULL, NULL, 4, 4.45, 4.7, 4.8, '2021-08-10 16:26:33.4','2021-08-01', 'data4')")
+                .await();
+
+        // test max with all elements are null
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(x) from test_min").collect());
+        assertThat(result.toString()).isEqualTo("[+I[null]]");
+
+        // test max with some elements are null
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(y) from test_min").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[2]]");
+
+        // test max with some elements repeated
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(z) from test_min").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[1]]");
+
+        // test max with decimal type
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(d) from test_min").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[1.11000]]");
+
+        // test max with float type
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(e) from test_min").collect());
+        assertThat(result5.toString()).isEqualTo("[+I[1.2]]");
+
+        // test max with double type
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(f) from test_min").collect());
+        assertThat(result6.toString()).isEqualTo("[+I[1.3]]");
+
+        // test max with boolean type
+        List<Row> result7 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(b) from test_min").collect());
+        assertThat(result7.toString()).isEqualTo("[+I[false]]");
+
+        // test max with timestamp type
+        List<Row> result8 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(ts) from test_min").collect());
+        assertThat(result8.toString()).isEqualTo("[+I[2021-08-04T16:26:33.400]]");
+
+        // test max with date type
+        List<Row> result9 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(dt) from test_min").collect());
+        assertThat(result9.toString()).isEqualTo("[+I[2021-08-01]]");
+
+        // test max with binary type
+        List<Row> result10 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select min(bar) from test_min").collect());
+        assertThat(result10.toString()).isEqualTo("[+I[[100, 97, 116, 97, 49]]]");
+
+        tableEnv.executeSql("drop table test_min");
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {

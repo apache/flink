@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.hive.HiveMinAggFunction;
 import org.apache.flink.table.functions.hive.HiveSumAggFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
@@ -83,6 +84,18 @@ public class HiveModule implements Module {
                                     "tumble_proctime",
                                     "tumble_rowtime",
                                     "tumble_start")));
+
+    static final Set<String> FLINK_BUILT_IN_FUNC_FOR_HIVE =
+            Collections.unmodifiableSet(
+                    new HashSet<>(
+                            Arrays.asList(
+                                    GenericUDFLegacyGroupingID.NAME,
+                                    HiveGenericUDFArrayAccessStructField.NAME,
+                                    HiveGenericUDFToDecimal.NAME,
+                                    "sum",
+                                    "grouping",
+                                    "internal_interval",
+                                    "min")));
 
     private final HiveFunctionDefinitionFactory factory;
     private final String hiveVersion;
@@ -181,6 +194,10 @@ public class HiveModule implements Module {
                             name, HiveGenericUDFToDecimal.class.getName(), context));
         }
 
+        if (FLINK_BUILT_IN_FUNC_FOR_HIVE.contains(name.toLowerCase())) {
+            return getFlinkBuiltInFunction(name.toLowerCase(), context);
+        }
+
         Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);
 
         return info.map(
@@ -194,6 +211,51 @@ public class HiveModule implements Module {
     }
 
     private boolean isNativeAggFunctionEnabled() {
-        return config.get(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED);
+            return config.get(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED);
+    }
+
+    private Optional<FunctionDefinition> getFlinkBuiltInFunction(
+            String name, FunctionDefinitionFactory.Context context) {
+        switch (name) {
+            case "sum":
+                // We override Hive's sum function by native implementation to supports hash-agg
+                return Optional.of(new HiveSumAggFunction());
+            case "min":
+                // We override Hive's min function by native implementation to supports hash-agg
+                return Optional.of(new HiveMinAggFunction());
+            case "grouping":
+                // We override Hive's grouping function. Refer to the implementation for more
+                // details.
+                return Optional.of(
+                        factory.createFunctionDefinitionFromHiveFunction(
+                                name, HiveGenericUDFGrouping.class.getName(), context));
+            case GenericUDFLegacyGroupingID.NAME:
+                // this function is used to generate legacy GROUPING__ID value for old hive versions
+                return Optional.of(
+                        factory.createFunctionDefinitionFromHiveFunction(
+                                name, GenericUDFLegacyGroupingID.class.getName(), context));
+            case "internal_interval":
+                // We override Hive's internal_interval. Refer to the implementation for more
+                // details
+                return Optional.of(
+                        factory.createFunctionDefinitionFromHiveFunction(
+                                name, HiveGenericUDFInternalInterval.class.getName(), context));
+            case HiveGenericUDFArrayAccessStructField.NAME:
+                // used to access the field of struct in array
+                return Optional.of(
+                        factory.createFunctionDefinitionFromHiveFunction(
+                                name,
+                                HiveGenericUDFArrayAccessStructField.class.getName(),
+                                context));
+            case HiveGenericUDFToDecimal.NAME:
+                // We add a custom to_decimal function. Refer to the implementation for more
+                // details.
+                return Optional.of(
+                        factory.createFunctionDefinitionFromHiveFunction(
+                                name, HiveGenericUDFToDecimal.class.getName(), context));
+            default:
+                throw new UnsupportedOperationException(
+                        "flink built-in hive function not support " + name + " yet!");
+        }
     }
 }
