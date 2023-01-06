@@ -2814,7 +2814,7 @@ public class TaskExecutorTest extends TestLogger {
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
                 taskExecutorPartitionTracker,
-                new DelegationTokenReceiverRepository(configuration));
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices)
@@ -2850,7 +2850,7 @@ public class TaskExecutorTest extends TestLogger {
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
                 new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
-                new DelegationTokenReceiverRepository(configuration));
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(int numberOfSlots)

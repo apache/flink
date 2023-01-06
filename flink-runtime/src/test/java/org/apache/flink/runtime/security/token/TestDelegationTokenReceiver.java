@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.security.token.DelegationTokenReceiver;
 
 /** An example implementation of {@link DelegationTokenReceiver} which does nothing. */
 public class TestDelegationTokenReceiver implements DelegationTokenReceiver {

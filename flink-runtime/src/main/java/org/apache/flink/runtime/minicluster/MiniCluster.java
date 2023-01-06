@@ -433,10 +433,14 @@ public class MiniCluster implements AutoCloseableAsync {
 
                 delegationTokenManager =
                         DefaultDelegationTokenManagerFactory.create(
-                                configuration, commonRpcService.getScheduledExecutor(), ioExecutor);
+                                configuration,
+                                miniClusterConfiguration.getPluginManager(),
+                                commonRpcService.getScheduledExecutor(),
+                                ioExecutor);
 
                 delegationTokenReceiverRepository =
-                        new DelegationTokenReceiverRepository(configuration);
+                        new DelegationTokenReceiverRepository(
+                                configuration, miniClusterConfiguration.getPluginManager());
 
                 blobCacheService =
                         BlobUtils.createBlobCacheService(

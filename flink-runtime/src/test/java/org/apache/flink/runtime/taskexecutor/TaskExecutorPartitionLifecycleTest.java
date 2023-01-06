@@ -601,7 +601,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                 NoOpTaskExecutorBlobService.INSTANCE,
                 new TestingFatalErrorHandler(),
                 partitionTracker,
-                new DelegationTokenReceiverRepository(configuration));
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable() {

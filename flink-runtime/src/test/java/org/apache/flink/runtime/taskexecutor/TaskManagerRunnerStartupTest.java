@@ -294,6 +294,6 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 workingDirectory,
                 error -> {},
-                new DelegationTokenReceiverRepository(configuration));
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 }

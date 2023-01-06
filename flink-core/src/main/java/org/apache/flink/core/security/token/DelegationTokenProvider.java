@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.core.security.token;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.Configuration;
@@ -24,8 +24,8 @@ import org.apache.flink.configuration.Configuration;
 import java.util.Optional;
 
 /**
- * Delegation token provider API. Instances of {@link DelegationTokenProvider}s are loaded by {@link
- * DelegationTokenManager} through service loader. Basically the implementation of this interface is
+ * Delegation token provider API. Instances of {@link DelegationTokenProvider}s are loaded by
+ * DelegationTokenManager through service loader. Basically the implementation of this interface is
  * responsible to produce the serialized form of tokens which will be handled by {@link
  * DelegationTokenReceiver} instances both on JobManager and TaskManager side.
  */
@@ -69,7 +69,7 @@ public interface DelegationTokenProvider {
     }
 
     /**
-     * Called by {@link DelegationTokenManager} to initialize provider after construction.
+     * Called by DelegationTokenManager to initialize provider after construction.
      *
      * @param configuration Configuration to initialize the provider.
      */

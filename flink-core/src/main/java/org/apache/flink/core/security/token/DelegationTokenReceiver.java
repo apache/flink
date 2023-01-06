@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.token;
+package org.apache.flink.core.security.token;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.Configuration;

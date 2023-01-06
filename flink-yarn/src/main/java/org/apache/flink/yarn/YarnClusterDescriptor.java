@@ -1296,7 +1296,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         LOG.info("Adding delegation tokens to the AM container.");
 
         DelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(flinkConfiguration, null, null);
+                new DefaultDelegationTokenManager(flinkConfiguration, null, null, null);
         DelegationTokenContainer container = new DelegationTokenContainer();
         delegationTokenManager.obtainDelegationTokens(container);
 
