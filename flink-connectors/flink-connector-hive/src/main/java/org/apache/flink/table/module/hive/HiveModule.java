@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.hive.HiveMinAggFunction;
 import org.apache.flink.table.functions.hive.HiveSumAggFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
@@ -84,6 +85,9 @@ public class HiveModule implements Module {
                                     "tumble_rowtime",
                                     "tumble_start")));
 
+    static final Set<String> BUILTIN_NATIVE_AGG_FUNC =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList("sum", "min")));
+
     private final HiveFunctionDefinitionFactory factory;
     private final String hiveVersion;
     private final HiveShim hiveShim;
@@ -141,9 +145,9 @@ public class HiveModule implements Module {
         }
         FunctionDefinitionFactory.Context context = () -> classLoader;
 
-        // We override Hive's sum function by native implementation to supports hash-agg
-        if (isNativeAggFunctionEnabled() && name.equalsIgnoreCase("sum")) {
-            return Optional.of(new HiveSumAggFunction());
+        // We override some Hive's function by native implementation to supports hash-agg
+        if (isNativeAggFunctionEnabled() && BUILTIN_NATIVE_AGG_FUNC.contains(name.toLowerCase())) {
+            return getBuiltInNativeAggFunction(name.toLowerCase());
         }
 
         // We override Hive's grouping function. Refer to the implementation for more details.
@@ -195,5 +199,20 @@ public class HiveModule implements Module {
 
     private boolean isNativeAggFunctionEnabled() {
         return config.get(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED);
+    }
+
+    private Optional<FunctionDefinition> getBuiltInNativeAggFunction(String name) {
+        switch (name) {
+            case "sum":
+                // We override Hive's sum function by native implementation to supports hash-agg
+                return Optional.of(new HiveSumAggFunction());
+            case "min":
+                // We override Hive's min function by native implementation to supports hash-agg
+                return Optional.of(new HiveMinAggFunction());
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Built-in hive aggregate function doesn't support %s yet!", name));
+        }
     }
 }
