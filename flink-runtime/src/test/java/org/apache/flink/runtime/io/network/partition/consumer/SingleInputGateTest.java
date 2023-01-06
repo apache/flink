@@ -1219,8 +1219,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                     new IntermediateResultPartitionID()
                 };
 
-        SubpartitionIndexRange subpartitionIndexRange =
-                new SubpartitionIndexRange(0, subpartitionRandSize - 1);
+        IndexRange subpartitionIndexRange = new IndexRange(0, subpartitionRandSize - 1);
         NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder().build();
 
         SingleInputGate gate =
