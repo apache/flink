@@ -121,7 +121,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
-            final VertexParallelismDecider vertexParallelismDecider,
+            final VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
             final int defaultMaxParallelism,
             final BlocklistOperations blocklistOperations,
             final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint)
@@ -150,7 +150,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,
-                vertexParallelismDecider,
+                vertexParallelismAndInputInfosDecider,
                 defaultMaxParallelism,
                 hybridPartitionDataConsumeConstraint);
 

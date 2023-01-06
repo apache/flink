@@ -77,6 +77,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
+import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerTest.singleNonParallelJobVertexJobGraph;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createCanceledTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
@@ -365,7 +366,7 @@ class SpeculativeSchedulerTest {
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
         final SpeculativeScheduler scheduler =
                 createSchedulerBuilder(jobGraph, mainThreadExecutor)
-                        .setVertexParallelismDecider(ignore -> 3)
+                        .setVertexParallelismAndInputInfosDecider(createCustomParallelismDecider(3))
                         .buildSpeculativeScheduler();
         mainThreadExecutor.execute(scheduler::startScheduling);
 

@@ -57,7 +57,9 @@ public class VertexInputInfoComputationUtils {
     }
 
     public static Map<IntermediateDataSetID, JobVertexInputInfo> computeVertexInputInfos(
-            int parallelism, List<IntermediateResultInfo> inputs, boolean isDynamicGraph) {
+            int parallelism,
+            List<? extends IntermediateResultInfo> inputs,
+            boolean isDynamicGraph) {
 
         checkArgument(parallelism > 0);
         final Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos =
@@ -101,7 +103,6 @@ public class VertexInputInfoComputationUtils {
      * @param isDynamicGraph whether is dynamic graph
      * @return the computed {@link JobVertexInputInfo}
      */
-    @VisibleForTesting
     static JobVertexInputInfo computeVertexInputInfoForPointwise(
             int sourceCount,
             int targetCount,
@@ -166,7 +167,6 @@ public class VertexInputInfoComputationUtils {
      * @param isBroadcast whether the edge is broadcast
      * @return the computed {@link JobVertexInputInfo}
      */
-    @VisibleForTesting
     static JobVertexInputInfo computeVertexInputInfoForAllToAll(
             int sourceCount,
             int targetCount,

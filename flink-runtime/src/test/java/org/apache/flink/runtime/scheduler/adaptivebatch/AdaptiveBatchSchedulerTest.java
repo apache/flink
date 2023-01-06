@@ -64,6 +64,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
+import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
 import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
@@ -172,7 +173,8 @@ class AdaptiveBatchSchedulerTest {
                                 new FixedDelayRestartBackoffTimeStrategy
                                                 .FixedDelayRestartBackoffTimeStrategyFactory(10, 0)
                                         .create())
-                        .setVertexParallelismDecider((ignored) -> maxParallelism)
+                        .setVertexParallelismAndInputInfosDecider(
+                                createCustomParallelismDecider(maxParallelism))
                         .setDefaultMaxParallelism(maxParallelism)
                         .buildAdaptiveBatchJobScheduler();
 
@@ -312,7 +314,9 @@ class AdaptiveBatchSchedulerTest {
         return new JobGraph(new JobID(), "test job", source1, source2, sink);
     }
 
-    public SchedulerBase createScheduler(JobGraph jobGraph) throws Exception {
+    private SchedulerBase createScheduler(
+            JobGraph jobGraph)
+            throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(
                 JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
@@ -321,7 +325,7 @@ class AdaptiveBatchSchedulerTest {
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                 .setDelayExecutor(taskRestartExecutor)
                 .setJobMasterConfiguration(configuration)
-                .setVertexParallelismDecider((ignored) -> 10)
+                .setVertexParallelismAndInputInfosDecider(createCustomParallelismDecider(10))
                 .buildAdaptiveBatchJobScheduler();
     }
 }
