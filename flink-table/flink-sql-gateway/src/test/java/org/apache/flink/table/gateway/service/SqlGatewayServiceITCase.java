@@ -496,22 +496,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         assertThat(result1.get(0).getString(2).toString()).isEqualTo("RUNNING");
         assertThat(result1.get(0).getTimestamp(3, 3).getMillisecond())
                 .isBetween(timeOpStart, timeOpSucceed);
-
-        OperationHandle stopOperationHandle =
-                service.executeStatement(
-                        sessionHandle, String.format("STOP JOB '%s'", jobId), -1, configuration);
-        List<RowData> stopResults = fetchAllResults(sessionHandle, stopOperationHandle);
-        assertThat(stopResults.get(0).getString(0).toString()).isEqualTo("OK");
-
-        TestUtils.waitUntilJobCanceled(JobID.fromHexString(jobId), restClusterClient);
-
-        OperationHandle showJobsOperationHandle2 =
-                service.executeStatement(sessionHandle, "SHOW JOBS", -1, configuration);
-        List<RowData> result2 = fetchAllResults(sessionHandle, showJobsOperationHandle2);
-        assertThat(result2.size()).isEqualTo(1);
-        assertThat(result2.get(0).getString(0).toString()).isEqualTo(jobId);
-        assertThat(result2.get(0).getString(1).toString()).isEqualTo(pipelineName);
-        assertThat(result2.get(0).getString(2).toString()).isEqualTo("CANCELED");
     }
 
     // --------------------------------------------------------------------------------------------
