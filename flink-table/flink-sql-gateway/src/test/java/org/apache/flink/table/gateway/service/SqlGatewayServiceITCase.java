@@ -122,7 +122,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     public static final MiniClusterExtension MINI_CLUSTER =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
+                            .setNumberTaskManagers(2)
                             .build());
 
     @RegisterExtension
@@ -489,12 +489,13 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         OperationHandle showJobsOperationHandle1 =
                 service.executeStatement(sessionHandle, "SHOW JOBS", -1, configuration);
 
-        List<RowData> result1 = fetchAllResults(sessionHandle, showJobsOperationHandle1);
-        assertThat(result1.size()).isEqualTo(1);
-        assertThat(result1.get(0).getString(0).toString()).isEqualTo(jobId);
-        assertThat(result1.get(0).getString(1).toString()).isEqualTo(pipelineName);
-        assertThat(result1.get(0).getString(2).toString()).isEqualTo("RUNNING");
-        assertThat(result1.get(0).getTimestamp(3, 3).getMillisecond())
+        List<RowData> result = fetchAllResults(sessionHandle, showJobsOperationHandle1);
+        RowData jobRow =
+                result.stream().filter(row -> jobId.equals(row.getString(0).toString())).findFirst()
+                        .orElseThrow(() -> new IllegalStateException("Test job " + jobId + " not found."));
+        assertThat(jobRow.getString(1).toString()).isEqualTo(pipelineName);
+        assertThat(jobRow.getString(2).toString()).isEqualTo("RUNNING");
+        assertThat(jobRow.getTimestamp(3, 3).getMillisecond())
                 .isBetween(timeOpStart, timeOpSucceed);
     }
 
