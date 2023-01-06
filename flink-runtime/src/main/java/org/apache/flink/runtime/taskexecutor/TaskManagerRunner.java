@@ -243,7 +243,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             configuration, pluginManager);
 
             final DelegationTokenReceiverRepository delegationTokenReceiverRepository =
-                    new DelegationTokenReceiverRepository(configuration);
+                    new DelegationTokenReceiverRepository(configuration, pluginManager);
 
             taskExecutorService =
                     taskExecutorServiceFactory.createTaskExecutor(

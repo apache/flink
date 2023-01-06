@@ -24,7 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.runtime.security.token.DelegationTokenProvider.CONFIG_PREFIX;
+import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -45,7 +45,7 @@ class DelegationTokenReceiverRepositoryTest {
 
     @Test
     public void configurationIsNullMustFailFast() {
-        assertThrows(Exception.class, () -> new DelegationTokenReceiverRepository(null));
+        assertThrows(Exception.class, () -> new DelegationTokenReceiverRepository(null, null));
     }
 
     @Test
@@ -54,7 +54,7 @@ class DelegationTokenReceiverRepositoryTest {
                 Exception.class,
                 () -> {
                     ExceptionThrowingDelegationTokenReceiver.throwInInit = true;
-                    new DelegationTokenReceiverRepository(new Configuration());
+                    new DelegationTokenReceiverRepository(new Configuration(), null);
                 });
     }
 
@@ -63,7 +63,7 @@ class DelegationTokenReceiverRepositoryTest {
         Configuration configuration = new Configuration();
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
         DelegationTokenReceiverRepository delegationTokenReceiverRepository =
-                new DelegationTokenReceiverRepository(configuration);
+                new DelegationTokenReceiverRepository(configuration, null);
 
         assertEquals(3, delegationTokenReceiverRepository.delegationTokenReceivers.size());
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs"));

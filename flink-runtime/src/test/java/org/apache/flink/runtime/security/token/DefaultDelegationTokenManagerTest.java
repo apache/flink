@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.security.token.DelegationTokenProvider;
+import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
@@ -35,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
-import static org.apache.flink.runtime.security.token.DelegationTokenProvider.CONFIG_PREFIX;
+import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -73,7 +75,8 @@ public class DefaultDelegationTokenManagerTest {
 
     @Test
     public void configurationIsNullMustFailFast() {
-        assertThrows(Exception.class, () -> new DefaultDelegationTokenManager(null, null, null));
+        assertThrows(
+                Exception.class, () -> new DefaultDelegationTokenManager(null, null, null, null));
     }
 
     @Test
@@ -82,7 +85,7 @@ public class DefaultDelegationTokenManagerTest {
                 Exception.class,
                 () -> {
                     ExceptionThrowingDelegationTokenProvider.throwInInit = true;
-                    new DefaultDelegationTokenManager(new Configuration(), null, null);
+                    new DefaultDelegationTokenManager(new Configuration(), null, null, null);
                 });
     }
 
@@ -91,7 +94,7 @@ public class DefaultDelegationTokenManagerTest {
         Configuration configuration = new Configuration();
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
         DefaultDelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(configuration, null, null);
+                new DefaultDelegationTokenManager(configuration, null, null, null);
 
         assertEquals(3, delegationTokenManager.delegationTokenProviders.size());
 
@@ -171,7 +174,8 @@ public class DefaultDelegationTokenManagerTest {
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", true);
         AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
         DefaultDelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(configuration, scheduledExecutor, scheduler) {
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, scheduler) {
                     @Override
                     void startTokensUpdate() {
                         startTokensUpdateCallCount.incrementAndGet();
@@ -197,7 +201,7 @@ public class DefaultDelegationTokenManagerTest {
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
         configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 0.5);
         DefaultDelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(configuration, null, null);
+                new DefaultDelegationTokenManager(configuration, null, null, null);
 
         Clock constantClock = Clock.fixed(ofEpochMilli(100), ZoneId.systemDefault());
         assertEquals(50, delegationTokenManager.calculateRenewalDelay(constantClock, 200));

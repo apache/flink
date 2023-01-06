@@ -21,6 +21,7 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -40,12 +41,14 @@ public class DefaultDelegationTokenManagerFactory {
 
     public static DelegationTokenManager create(
             Configuration configuration,
+            @Nullable PluginManager pluginManager,
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable ExecutorService ioExecutor)
             throws IOException {
 
         if (configuration.getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
-            return new DefaultDelegationTokenManager(configuration, scheduledExecutor, ioExecutor);
+            return new DefaultDelegationTokenManager(
+                    configuration, pluginManager, scheduledExecutor, ioExecutor);
         } else {
             return new NoOpDelegationTokenManager();
         }

@@ -270,7 +270,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                 taskExecutorBlobService,
                 testingFatalErrorHandler,
                 new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
-                new DelegationTokenReceiverRepository(configuration));
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private static ShuffleEnvironment<?, ?> createShuffleEnvironment(

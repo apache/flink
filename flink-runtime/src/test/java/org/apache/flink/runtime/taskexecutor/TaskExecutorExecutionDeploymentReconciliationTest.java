@@ -253,7 +253,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
                 new TestingTaskExecutorPartitionTracker(),
-                new DelegationTokenReceiverRepository(configuration));
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(JobID jobId)

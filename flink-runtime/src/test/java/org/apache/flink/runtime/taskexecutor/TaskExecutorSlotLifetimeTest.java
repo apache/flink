@@ -238,7 +238,7 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
                 new TestingTaskExecutorPartitionTracker(),
-                new DelegationTokenReceiverRepository(configuration));
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()

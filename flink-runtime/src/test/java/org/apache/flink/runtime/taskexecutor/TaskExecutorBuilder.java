@@ -145,7 +145,7 @@ public class TaskExecutorBuilder {
         }
 
         final DelegationTokenReceiverRepository delegationTokenReceiverRepository =
-                new DelegationTokenReceiverRepository(configuration);
+                new DelegationTokenReceiverRepository(configuration, null);
 
         return new TaskExecutor(
                 rpcService,

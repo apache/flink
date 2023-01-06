@@ -390,7 +390,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             heartbeatServices = createHeartbeatServices(configuration);
             delegationTokenManager =
                     DefaultDelegationTokenManagerFactory.create(
-                            configuration, commonRpcService.getScheduledExecutor(), ioExecutor);
+                            configuration,
+                            pluginManager,
+                            commonRpcService.getScheduledExecutor(),
+                            ioExecutor);
             metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
 
             final RpcService metricQueryServiceRpcService =
