@@ -504,15 +504,15 @@ public class TaskManagerOptions {
     public static final ConfigOption<MemorySize> NETWORK_MEMORY_MAX =
             key("taskmanager.memory.network.max")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("1g"))
+                    .defaultValue(MemorySize.MAX_VALUE)
                     .withDeprecatedKeys(
                             NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key())
                     .withDescription(
                             "Max Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for"
                                     + " ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured"
                                     + " fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max"
-                                    + " size, the min/max size will be used. The exact size of Network Memory can be explicitly specified by"
-                                    + " setting the min/max to the same value.");
+                                    + " size, the min/max size will be used. By default, the max limit of Network Memory is Long.MAX_VALUE."
+                                    + " The exact size of Network Memory can be explicitly specified by setting the min/max to the same value.");
 
     /** Fraction of Total Flink Memory to be used as Network Memory. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
