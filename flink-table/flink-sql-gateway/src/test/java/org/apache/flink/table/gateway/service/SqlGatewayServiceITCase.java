@@ -491,8 +491,13 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         List<RowData> result = fetchAllResults(sessionHandle, showJobsOperationHandle1);
         RowData jobRow =
-                result.stream().filter(row -> jobId.equals(row.getString(0).toString())).findFirst()
-                        .orElseThrow(() -> new IllegalStateException("Test job " + jobId + " not found."));
+                result.stream()
+                        .filter(row -> jobId.equals(row.getString(0).toString()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Test job " + jobId + " not found."));
         assertThat(jobRow.getString(1).toString()).isEqualTo(pipelineName);
         assertThat(jobRow.getString(2).toString()).isEqualTo("RUNNING");
         assertThat(jobRow.getTimestamp(3, 3).getMillisecond())
