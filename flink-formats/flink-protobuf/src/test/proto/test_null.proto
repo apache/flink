@@ -22,40 +22,38 @@ option java_package = "org.apache.flink.formats.protobuf.testproto";
 option java_multiple_files = true;
 
 message NullTest {
-    map<string, string> string_map = 1;
-    map<int32, int32> int_map = 2;
-    map<int64, int64> long_map = 3;
-    map<bool, bool> boolean_map = 4;
-    map<string, float> float_map = 5;
-    map<string, double> double_map = 6;
-    map<string, Corpus> enum_map = 7;
-    map<string, InnerMessageTest> message_map = 8;
-    map<string, bytes> bytes_map=9;
+  map<string, string> string_map = 1;
+  map<int32, int32> int_map = 2;
+  map<int64, int64> long_map = 3;
+  map<bool, bool> boolean_map = 4;
+  map<string, float> float_map = 5;
+  map<string, double> double_map = 6;
+  map<string, Corpus> enum_map = 7;
+  map<string, InnerMessageTest> message_map = 8;
+  map<string, bytes> bytes_map = 9;
 
-    repeated string string_array = 10;
-    repeated int32 int_array = 11;
-    repeated int64 long_array = 12;
-    repeated bool boolean_array = 13;
-    repeated float float_array = 14;
-    repeated double double_array = 15;
-    repeated Corpus enum_array = 16;
-    repeated InnerMessageTest message_array = 17;
-    repeated bytes bytes_array = 18;
+  repeated string string_array = 10;
+  repeated int32 int_array = 11;
+  repeated int64 long_array = 12;
+  repeated bool boolean_array = 13;
+  repeated float float_array = 14;
+  repeated double double_array = 15;
+  repeated Corpus enum_array = 16;
+  repeated InnerMessageTest message_array = 17;
+  repeated bytes bytes_array = 18;
 
-    message InnerMessageTest{
-          optional int32 a =1;
-          optional int64 b =2;
-    }
+  message InnerMessageTest{
+    optional int32 a = 1;
+    optional int64 b = 2;
+  }
 
-    enum Corpus {
-            UNIVERSAL = 0;
-            WEB = 1;
-            IMAGES = 2;
-            LOCAL = 3;
-            NEWS = 4;
-            PRODUCTS = 5;
-            VIDEO = 7;
-    }
+  enum Corpus {
+    UNIVERSAL = 0;
+    WEB = 1;
+    IMAGES = 2;
+    LOCAL = 3;
+    NEWS = 4;
+    PRODUCTS = 5;
+    VIDEO = 7;
+  }
 }
-
-

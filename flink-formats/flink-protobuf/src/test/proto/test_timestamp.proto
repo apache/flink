@@ -20,8 +20,7 @@ syntax = "proto3";
 package org.apache.flink.formats.protobuf.proto;
 import "google/protobuf/timestamp.proto";
 option java_package = "org.apache.flink.formats.protobuf.testproto";
-option java_multiple_files = true;
-option java_outer_classname = "TimestampTestProto";
+option java_multiple_files = false;
 
 message TimestampTest {
   google.protobuf.Timestamp ts = 1;

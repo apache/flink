@@ -22,11 +22,10 @@ option java_package = "org.apache.flink.formats.protobuf.testproto";
 option java_multiple_files = true;
 
 message RepeatedTest {
-    optional int32 a = 1;
-    repeated int64 b = 2;
-    optional bool c = 3;
-    optional float d = 4;
-    optional double e = 5;
-    optional string f = 6;
+  optional int32 a = 1;
+  repeated int64 b = 2;
+  optional bool c = 3;
+  optional float d = 4;
+  optional double e = 5;
+  optional string f = 6;
 }
-
