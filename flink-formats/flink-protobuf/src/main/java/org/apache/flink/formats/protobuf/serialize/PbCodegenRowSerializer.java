@@ -52,8 +52,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
         int uid = varUid.getAndIncrement();
         PbCodegenAppender appender = new PbCodegenAppender(indent);
         String flinkRowDataVar = "rowData" + uid;
-        String pbMessageTypeStr =
-                PbFormatUtils.getFullJavaName(descriptor, formatContext.getOuterPrefix());
+        String pbMessageTypeStr = PbFormatUtils.getFullJavaName(descriptor);
         String messageBuilderVar = "messageBuilder" + uid;
         appender.appendLine("RowData " + flinkRowDataVar + " = " + flinkObjectCode);
         appender.appendLine(

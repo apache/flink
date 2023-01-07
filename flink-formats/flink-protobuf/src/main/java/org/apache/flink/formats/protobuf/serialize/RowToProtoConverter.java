@@ -55,11 +55,10 @@ public class RowToProtoConverter {
     public RowToProtoConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
         try {
-            String outerPrefix =
-                    PbFormatUtils.getOuterProtoPrefix(formatConfig.getMessageClassName());
-            PbFormatContext formatContext = new PbFormatContext(outerPrefix, formatConfig);
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
+            String outerPrefix = PbFormatUtils.getOuterProtoPrefix(descriptor);
+            PbFormatContext formatContext = new PbFormatContext(outerPrefix, formatConfig);
 
             PbCodegenAppender codegenAppender = new PbCodegenAppender(0);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");

@@ -54,8 +54,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
         String flinkRowDataVar = "rowData" + uid;
 
         int fieldSize = rowType.getFieldNames().size();
-        String pbMessageTypeStr =
-                PbFormatUtils.getFullJavaName(descriptor, formatContext.getOuterPrefix());
+        String pbMessageTypeStr = PbFormatUtils.getFullJavaName(descriptor);
         appender.appendLine(pbMessageTypeStr + " " + pbMessageVar + " = " + pbObjectCode);
         appender.appendLine(
                 "GenericRowData " + flinkRowDataVar + " = new GenericRowData(" + fieldSize + ")");

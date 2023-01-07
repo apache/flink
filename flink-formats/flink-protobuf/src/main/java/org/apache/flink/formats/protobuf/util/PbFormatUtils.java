@@ -28,26 +28,25 @@ import com.google.protobuf.ProtobufInternalUtils;
 
 /** Protobuf function util. */
 public class PbFormatUtils {
-    public static String getFullJavaName(Descriptors.Descriptor descriptor, String outerProtoName) {
+    public static String getFullJavaName(Descriptors.Descriptor descriptor) {
         if (null != descriptor.getContainingType()) {
             // nested type
-            String parentJavaFullName =
-                    getFullJavaName(descriptor.getContainingType(), outerProtoName);
+            String parentJavaFullName = getFullJavaName(descriptor.getContainingType());
             return parentJavaFullName + "." + descriptor.getName();
         } else {
             // top level message
+            String outerProtoName = getOuterProtoPrefix(descriptor);
             return outerProtoName + descriptor.getName();
         }
     }
 
-    public static String getFullJavaName(
-            Descriptors.EnumDescriptor enumDescriptor, String outerProtoName) {
+    public static String getFullJavaName(Descriptors.EnumDescriptor enumDescriptor) {
         if (null != enumDescriptor.getContainingType()) {
-            return getFullJavaName(enumDescriptor.getContainingType(), outerProtoName)
+            return getFullJavaName(enumDescriptor.getContainingType())
                     + "."
                     + enumDescriptor.getName();
         } else {
-            return outerProtoName + enumDescriptor.getName();
+            return enumDescriptor.getFullName();
         }
     }
 
@@ -72,14 +71,33 @@ public class PbFormatUtils {
         return ProtobufInternalUtils.underScoreToCamelCase(name, true);
     }
 
-    public static String getOuterProtoPrefix(String name) {
-        name = name.replace('$', '.');
-        int index = name.lastIndexOf('.');
-        if (index != -1) {
-            // include dot
-            return name.substring(0, index + 1);
+    public static String getOuterProtoPrefix(Descriptors.Descriptor descriptor) {
+        String javaPackageName = descriptor.getFile().getOptions().getJavaPackage();
+        if (javaPackageName.isEmpty()) {
+            javaPackageName = descriptor.getFile().getPackage();
+        }
+
+        if (descriptor.getFile().getOptions().getJavaMultipleFiles()) {
+            return javaPackageName + ".";
+        }
+        if (descriptor.getFile().getOptions().hasJavaOuterClassname()) {
+            String outerName = descriptor.getFile().getOptions().getJavaOuterClassname();
+            return javaPackageName + "." + outerName + ".";
         } else {
-            return "";
+            String[] fileNames = descriptor.getFile().getName().split("/");
+            String fileName = fileNames[fileNames.length - 1];
+            String outerName = getStrongCamelCaseJsonName(fileName.split("\\.")[0]);
+            // https://developers.google.com/protocol-buffers/docs/reference/java-generated#invocation
+            // The name of the wrapper class is determined by converting the base name of the .proto
+            // file to camel case if the java_outer_classname option is not specified.
+            // For example, foo_bar.proto produces the class name FooBar. If there is a service,
+            // enum, or message (including nested types) in the file with the same name,
+            // "OuterClass" will be appended to the wrapper class's name.
+            if (outerName.equals(descriptor.getName())) {
+                return javaPackageName + "." + outerName + PbConstant.PB_OUTER_CLASS_SUFFIX + ".";
+            } else {
+                return javaPackageName + "." + outerName + ".";
+            }
         }
     }
 

@@ -95,7 +95,7 @@ public class PbCodegenUtils {
                     typeStr = "Map<" + keyTypeStr + "," + valueTypeStr + ">";
                 } else {
                     // simple message
-                    typeStr = PbFormatUtils.getFullJavaName(fd.getMessageType(), outerPrefix);
+                    typeStr = PbFormatUtils.getFullJavaName(fd.getMessageType());
                 }
                 break;
             case INT:
@@ -108,7 +108,7 @@ public class PbCodegenUtils {
                 typeStr = "String";
                 break;
             case ENUM:
-                typeStr = PbFormatUtils.getFullJavaName(fd.getEnumType(), outerPrefix);
+                typeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
                 break;
             case FLOAT:
                 typeStr = "Float";
@@ -178,7 +178,7 @@ public class PbCodegenUtils {
         String nullLiteral = pbFormatContext.getPbFormatConfig().getWriteNullStringLiterals();
         switch (fieldDescriptor.getJavaType()) {
             case MESSAGE:
-                return PbFormatUtils.getFullJavaName(fieldDescriptor.getMessageType(), outerPrefix)
+                return PbFormatUtils.getFullJavaName(fieldDescriptor.getMessageType())
                         + ".getDefaultInstance()";
             case INT:
                 return "0";
@@ -187,7 +187,7 @@ public class PbCodegenUtils {
             case STRING:
                 return "\"" + nullLiteral + "\"";
             case ENUM:
-                return PbFormatUtils.getFullJavaName(fieldDescriptor.getEnumType(), outerPrefix)
+                return PbFormatUtils.getFullJavaName(fieldDescriptor.getEnumType())
                         + ".values()[0]";
             case FLOAT:
                 return "0.0f";
