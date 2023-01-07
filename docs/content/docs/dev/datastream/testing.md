@@ -315,10 +315,10 @@ Given its importance, in addition to the previous test harnesses that can be use
 ```java
 public static class PassThroughProcessFunction extends ProcessFunction<Integer, Integer> {
 
-	@Override
-	public void processElement(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+    @Override
+    public void processElement(Integer value, Context ctx, Collector<Integer> out) throws Exception {
         out.collect(value);
-	}
+    }
 }
 ```
 {{< /tab >}}
