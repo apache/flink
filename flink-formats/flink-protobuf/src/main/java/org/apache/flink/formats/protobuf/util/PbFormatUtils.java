@@ -72,11 +72,10 @@ public class PbFormatUtils {
     }
 
     public static String getOuterProtoPrefix(Descriptors.Descriptor descriptor) {
-        String javaPackageName = descriptor.getFile().getOptions().getJavaPackage();
-        if (javaPackageName.isEmpty()) {
-            javaPackageName = descriptor.getFile().getPackage();
-        }
-
+        String javaPackageName =
+                descriptor.getFile().getOptions().hasJavaPackage()
+                        ? descriptor.getFile().getOptions().getJavaPackage()
+                        : descriptor.getFile().getPackage();
         if (descriptor.getFile().getOptions().getJavaMultipleFiles()) {
             return javaPackageName + ".";
         }
