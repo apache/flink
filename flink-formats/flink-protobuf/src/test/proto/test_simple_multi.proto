@@ -27,12 +27,13 @@ message SimpleTestMulti {
   optional bool c = 3;
   optional float d = 4;
   optional double e = 5;
-  optional string f = 6 [default = "f"];;
+  optional string f = 6 [default = "f"];
   optional bytes g = 7;
   optional Corpus h = 8;
+  optional Status i = 9;
   //this is must because protobuf have some field name parse bug if number is after "_".
-  optional int32 f_abc_7d = 9;
-  optional int32 vpr6s = 10;
+  optional int32 f_abc_7d = 10;
+  optional int32 vpr6s = 11;
 
   enum Corpus {
     UNIVERSAL = 0;
@@ -43,4 +44,11 @@ message SimpleTestMulti {
     PRODUCTS = 5;
     VIDEO = 7;
   }
+}
+
+enum Status {
+  UNSPECIFIED = 0;
+  STARTED = 1;
+  RUNNING = 2;
+  FINISHED = 3;
 }

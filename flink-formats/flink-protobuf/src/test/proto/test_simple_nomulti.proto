@@ -30,9 +30,15 @@ message SimpleTestNoMulti {
   optional string f = 6;
   optional bytes g = 7;
   optional InnerMessageTest h = 8;
+  optional Result i = 9;
 
   message InnerMessageTest{
     optional int32 a = 1;
     optional int64 b = 2;
   }
+}
+
+enum Result {
+  SUCCESS = 0;
+  FAIL = 1;
 }

@@ -22,4 +22,10 @@ option java_package = "org.apache.flink.formats.protobuf.testproto";
 
 message TestSameOuterClassName {
   int32 a = 1;
+  FooBar b = 2;
+}
+
+enum FooBar {
+  FOO = 0;
+  BAR = 1;
 }

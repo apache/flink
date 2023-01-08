@@ -19,6 +19,7 @@
 package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.SimpleTestMulti;
+import org.apache.flink.formats.protobuf.testproto.Status;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -43,6 +44,7 @@ public class SimpleRowToProtoTest {
                         StringData.fromString("hello"),
                         new byte[] {1},
                         StringData.fromString("IMAGES"),
+                        StringData.fromString("FINISHED"),
                         1,
                         2);
 
@@ -57,6 +59,7 @@ public class SimpleRowToProtoTest {
         assertEquals("hello", simpleTestMulti.getF());
         assertEquals(1, simpleTestMulti.getG().byteAt(0));
         assertEquals(SimpleTestMulti.Corpus.IMAGES, simpleTestMulti.getH());
+        assertEquals(Status.FINISHED, simpleTestMulti.getI());
         assertEquals(1, simpleTestMulti.getFAbc7D());
     }
 
@@ -72,6 +75,7 @@ public class SimpleRowToProtoTest {
                         StringData.fromString("hello"),
                         null,
                         null,
+                        null,
                         1,
                         2);
 
@@ -80,6 +84,7 @@ public class SimpleRowToProtoTest {
         assertFalse(simpleTestMulti.hasA());
         assertFalse(simpleTestMulti.hasG());
         assertFalse(simpleTestMulti.hasH());
+        assertFalse(simpleTestMulti.hasI());
     }
 
     @Test
@@ -87,10 +92,12 @@ public class SimpleRowToProtoTest {
         RowData row =
                 GenericRowData.of(
                         null, null, null, null, null, null, null, 2, // CORPUS: IMAGE
+                        1, // STATUS: STARTED
                         null, null);
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTestMulti.class, true);
         SimpleTestMulti simpleTestMulti = SimpleTestMulti.parseFrom(bytes);
         assertEquals(SimpleTestMulti.Corpus.IMAGES, simpleTestMulti.getH());
+        assertEquals(Status.STARTED, simpleTestMulti.getI());
     }
 }

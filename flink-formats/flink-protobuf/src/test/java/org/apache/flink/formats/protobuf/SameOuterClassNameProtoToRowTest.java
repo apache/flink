@@ -26,13 +26,14 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 /** Test conversion of proto same outer class name data to flink internal data. */
-public class SameOuterClassNameTest {
+public class SameOuterClassNameProtoToRowTest {
 
     @Test
     public void testSimple() throws Exception {
         TestSameOuterClassNameOuterClass.TestSameOuterClassName testSameOuterClassName =
                 TestSameOuterClassNameOuterClass.TestSameOuterClassName.newBuilder()
                         .setA(1)
+                        .setB(TestSameOuterClassNameOuterClass.FooBar.BAR)
                         .build();
         RowData row =
                 ProtobufTestHelper.pbBytesToRow(
@@ -40,5 +41,21 @@ public class SameOuterClassNameTest {
                         testSameOuterClassName.toByteArray());
 
         assertEquals(1, row.getInt(0));
+        assertEquals("BAR", row.getString(1).toString());
+    }
+
+    @Test
+    public void testIntEnum() throws Exception {
+        TestSameOuterClassNameOuterClass.TestSameOuterClassName testSameOuterClassName =
+                TestSameOuterClassNameOuterClass.TestSameOuterClassName.newBuilder()
+                        .setB(TestSameOuterClassNameOuterClass.FooBar.BAR)
+                        .build();
+
+        RowData row =
+                ProtobufTestHelper.pbBytesToRow(
+                        TestSameOuterClassNameOuterClass.TestSameOuterClassName.class,
+                        testSameOuterClassName.toByteArray(),
+                        true);
+        assertEquals(1, row.getInt(1));
     }
 }

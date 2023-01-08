@@ -35,7 +35,7 @@ public class PbFormatUtils {
             return parentJavaFullName + "." + descriptor.getName();
         } else {
             // top level message
-            String outerProtoName = getOuterProtoPrefix(descriptor);
+            String outerProtoName = getOuterProtoPrefix(descriptor.getFile());
             return outerProtoName + descriptor.getName();
         }
     }
@@ -46,7 +46,8 @@ public class PbFormatUtils {
                     + "."
                     + enumDescriptor.getName();
         } else {
-            return enumDescriptor.getFullName();
+            String outerProtoName = getOuterProtoPrefix(enumDescriptor.getFile());
+            return outerProtoName + enumDescriptor.getName();
         }
     }
 
@@ -71,19 +72,11 @@ public class PbFormatUtils {
         return ProtobufInternalUtils.underScoreToCamelCase(name, true);
     }
 
-    public static String getOuterProtoPrefix(Descriptors.Descriptor descriptor) {
-        String javaPackageName =
-                descriptor.getFile().getOptions().hasJavaPackage()
-                        ? descriptor.getFile().getOptions().getJavaPackage()
-                        : descriptor.getFile().getPackage();
-        if (descriptor.getFile().getOptions().getJavaMultipleFiles()) {
-            return javaPackageName + ".";
-        }
-        if (descriptor.getFile().getOptions().hasJavaOuterClassname()) {
-            String outerName = descriptor.getFile().getOptions().getJavaOuterClassname();
-            return javaPackageName + "." + outerName + ".";
+    public static String getOuterClassName(Descriptors.FileDescriptor fileDescriptor) {
+        if (fileDescriptor.getOptions().hasJavaOuterClassname()) {
+            return fileDescriptor.getOptions().getJavaOuterClassname();
         } else {
-            String[] fileNames = descriptor.getFile().getName().split("/");
+            String[] fileNames = fileDescriptor.getName().split("/");
             String fileName = fileNames[fileNames.length - 1];
             String outerName = getStrongCamelCaseJsonName(fileName.split("\\.")[0]);
             // https://developers.google.com/protocol-buffers/docs/reference/java-generated#invocation
@@ -92,11 +85,33 @@ public class PbFormatUtils {
             // For example, foo_bar.proto produces the class name FooBar. If there is a service,
             // enum, or message (including nested types) in the file with the same name,
             // "OuterClass" will be appended to the wrapper class's name.
-            if (outerName.equals(descriptor.getName())) {
-                return javaPackageName + "." + outerName + PbConstant.PB_OUTER_CLASS_SUFFIX + ".";
+            boolean hasSameNameMessage =
+                    fileDescriptor.getMessageTypes().stream()
+                            .anyMatch(f -> f.getName().equals(outerName));
+            boolean hasSameNameEnum =
+                    fileDescriptor.getEnumTypes().stream()
+                            .anyMatch(f -> f.getName().equals(outerName));
+            boolean hasSameNameService =
+                    fileDescriptor.getServices().stream()
+                            .anyMatch(f -> f.getName().equals(outerName));
+            if (hasSameNameMessage || hasSameNameEnum || hasSameNameService) {
+                return outerName + PbConstant.PB_OUTER_CLASS_SUFFIX;
             } else {
-                return javaPackageName + "." + outerName + ".";
+                return outerName;
             }
+        }
+    }
+
+    public static String getOuterProtoPrefix(Descriptors.FileDescriptor fileDescriptor) {
+        String javaPackageName =
+                fileDescriptor.getOptions().hasJavaPackage()
+                        ? fileDescriptor.getOptions().getJavaPackage()
+                        : fileDescriptor.getPackage();
+        if (fileDescriptor.getOptions().getJavaMultipleFiles()) {
+            return javaPackageName + ".";
+        } else {
+            String outerClassName = getOuterClassName(fileDescriptor);
+            return javaPackageName + "." + outerClassName + ".";
         }
     }
 
