@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.benchmark.scheduling;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -27,7 +28,7 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulerOperations;
 
 import java.util.List;
 
-import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createAndInitExecutionGraph;
+import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createAndInitScheduler;
 import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createDefaultJobVertices;
 
 /** The base class of benchmarks related to scheduling tasks. */
@@ -35,6 +36,7 @@ public class SchedulingBenchmarkBase extends SchedulerBenchmarkBase {
 
     TestingSchedulerOperations schedulerOperations;
     List<JobVertex> jobVertices;
+    DefaultScheduler scheduler;
     ExecutionGraph executionGraph;
     SchedulingTopology schedulingTopology;
 
@@ -43,9 +45,8 @@ public class SchedulingBenchmarkBase extends SchedulerBenchmarkBase {
 
         schedulerOperations = new TestingSchedulerOperations();
         jobVertices = createDefaultJobVertices(jobConfiguration);
-        executionGraph =
-                createAndInitExecutionGraph(
-                        jobVertices, jobConfiguration, scheduledExecutorService);
+        scheduler = createAndInitScheduler(jobVertices, jobConfiguration, scheduledExecutorService);
+        executionGraph = scheduler.getExecutionGraph();
         schedulingTopology = executionGraph.getSchedulingTopology();
     }
 }
