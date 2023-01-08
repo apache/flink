@@ -204,6 +204,7 @@ class CreateTableLikeTest {
                                 + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
                                 + "    <QUOTED_IDENTIFIER> ...\n"
                                 + "    <BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> ...\n"
                                 + "    <HYPHENATED_IDENTIFIER> ...\n"
                                 + "    <IDENTIFIER> ...\n"
                                 + "    <UNICODE_QUOTED_IDENTIFIER> ...\n");

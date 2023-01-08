@@ -27,6 +27,7 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,12 +40,15 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 
     private final String name;
     private final byte[] serializedScalarFunction;
-    private final DataType[] inputTypes;
-    private final DataType resultType;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+
+    private DataType[] inputTypes;
+    private String[] inputTypesString;
+    private DataType resultType;
+    private String resultTypeString;
 
     public PythonScalarFunction(
             String name,
@@ -55,10 +59,46 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
-        this.name = name;
-        this.serializedScalarFunction = serializedScalarFunction;
+        this(
+                name,
+                serializedScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
         this.inputTypes = inputTypes;
         this.resultType = resultType;
+    }
+
+    public PythonScalarFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            String[] inputTypesString,
+            String resultTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.inputTypesString = inputTypesString;
+        this.resultTypeString = resultTypeString;
+    }
+
+    public PythonScalarFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this.name = name;
+        this.serializedScalarFunction = serializedScalarFunction;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
@@ -106,17 +146,35 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 
     @Override
     public TypeInformation getResultType(Class[] signature) {
+        if (resultType == null && resultTypeString != null) {
+            throw new RuntimeException(
+                    "String format result type is not supported in old type system. The `register_function` is deprecated, please Use `create_temporary_system_function` instead.");
+        }
         return TypeConversions.fromDataTypeToLegacyInfo(resultType);
     }
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         TypeInference.Builder builder = TypeInference.newBuilder();
+
+        if (inputTypesString != null) {
+            inputTypes =
+                    (DataType[])
+                            Arrays.stream(inputTypesString)
+                                    .map(typeFactory::createDataType)
+                                    .toArray();
+        }
+
         if (inputTypes != null) {
             final List<DataType> argumentDataTypes =
                     Stream.of(inputTypes).collect(Collectors.toList());
             builder.typedArguments(argumentDataTypes);
         }
+
+        if (resultType == null) {
+            resultType = typeFactory.createDataType(resultTypeString);
+        }
+
         return builder.outputTypeStrategy(TypeStrategies.explicit(resultType)).build();
     }
 

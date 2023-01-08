@@ -28,6 +28,7 @@ import org.apache.flink.table.gateway.rest.handler.operation.CancelOperationHand
 import org.apache.flink.table.gateway.rest.handler.operation.CloseOperationHandler;
 import org.apache.flink.table.gateway.rest.handler.operation.GetOperationStatusHandler;
 import org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler;
+import org.apache.flink.table.gateway.rest.handler.session.ConfigureSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.GetSessionConfigHandler;
 import org.apache.flink.table.gateway.rest.handler.session.OpenSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.TriggerSessionHeartbeatHandler;
@@ -39,6 +40,7 @@ import org.apache.flink.table.gateway.rest.header.operation.CancelOperationHeade
 import org.apache.flink.table.gateway.rest.header.operation.CloseOperationHeaders;
 import org.apache.flink.table.gateway.rest.header.operation.GetOperationStatusHeaders;
 import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.session.ConfigureSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
@@ -89,6 +91,12 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                 new CloseSessionHandler(
                         service, responseHeaders, CloseSessionHeaders.getInstance());
         handlers.add(Tuple2.of(CloseSessionHeaders.getInstance(), closeSessionHandler));
+
+        // Configure session
+        ConfigureSessionHandler configureSessionHandler =
+                new ConfigureSessionHandler(
+                        service, responseHeaders, ConfigureSessionHeaders.getINSTANCE());
+        handlers.add(Tuple2.of(ConfigureSessionHeaders.getINSTANCE(), configureSessionHandler));
 
         // Get session configuration
         GetSessionConfigHandler getSessionConfigHandler =

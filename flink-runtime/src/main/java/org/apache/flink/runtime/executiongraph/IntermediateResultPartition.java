@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 public class IntermediateResultPartition {
 
-    private static final int UNKNOWN = -1;
+    static final int NUM_SUBPARTITIONS_UNKNOWN = -1;
 
     private final IntermediateResult totalResult;
 
@@ -44,10 +44,10 @@ public class IntermediateResultPartition {
     private final EdgeManager edgeManager;
 
     /** Number of subpartitions. Initialized lazily and will not change once set. */
-    private int numberOfSubpartitions = UNKNOWN;
+    private int numberOfSubpartitions = NUM_SUBPARTITIONS_UNKNOWN;
 
-    /** Whether this partition has produced some data. */
-    private boolean hasDataProduced = false;
+    /** Whether this partition has produced all data. */
+    private boolean dataAllProduced = false;
 
     /**
      * Releasable {@link ConsumedPartitionGroup}s for this result partition. This result partition
@@ -114,7 +114,7 @@ public class IntermediateResultPartition {
     }
 
     public int getNumberOfSubpartitions() {
-        if (numberOfSubpartitions == UNKNOWN) {
+        if (numberOfSubpartitions == NUM_SUBPARTITIONS_UNKNOWN) {
             numberOfSubpartitions = computeNumberOfSubpartitions();
             checkState(
                     numberOfSubpartitions > 0,
@@ -166,16 +166,12 @@ public class IntermediateResultPartition {
         }
     }
 
-    public void markDataProduced() {
-        hasDataProduced = true;
-    }
-
-    public boolean isConsumable() {
-        return hasDataProduced;
+    public boolean hasDataAllProduced() {
+        return dataAllProduced;
     }
 
     void resetForNewExecution() {
-        if (!getResultType().canBePipelinedConsumed() && hasDataProduced) {
+        if (!getResultType().canBePipelinedConsumed() && dataAllProduced) {
             // A BLOCKING result partition with data produced means it is finished
             // Need to add the running producer count of the result on resetting it
             for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
@@ -183,7 +179,7 @@ public class IntermediateResultPartition {
             }
         }
         releasablePartitionGroups.clear();
-        hasDataProduced = false;
+        dataAllProduced = false;
         for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
             totalResult.clearCachedInformationForPartitionGroup(consumedPartitionGroup);
         }
@@ -198,21 +194,22 @@ public class IntermediateResultPartition {
     }
 
     void markFinished() {
-        // Sanity check that this is only called on blocking partitions.
-        if (getResultType().canBePipelinedConsumed()) {
+        // Sanity check that this is only called on not must be pipelined partitions.
+        if (getResultType().mustBePipelinedConsumed()) {
             throw new IllegalStateException(
-                    "Tried to mark a non-blocking result partition as finished");
+                    "Tried to mark a must-be-pipelined result partition as finished");
         }
 
         // Sanity check to make sure a result partition cannot be marked as finished twice.
-        if (hasDataProduced) {
+        if (dataAllProduced) {
             throw new IllegalStateException(
                     "Tried to mark a finished result partition as finished.");
         }
 
-        hasDataProduced = true;
+        dataAllProduced = true;
 
         for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
+            totalResult.markPartitionFinished(consumedPartitionGroup, this);
             consumedPartitionGroup.partitionFinished();
         }
     }

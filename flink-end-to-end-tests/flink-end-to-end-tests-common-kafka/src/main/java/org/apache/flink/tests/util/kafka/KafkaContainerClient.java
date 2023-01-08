@@ -68,8 +68,16 @@ public class KafkaContainerClient {
                 CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, container.getBootstrapServers());
         try (AdminClient admin = AdminClient.create(properties)) {
             admin.createTopics(
-                    Collections.singletonList(
-                            new NewTopic(topic, numPartitions, (short) replicationFactor)));
+                            Collections.singletonList(
+                                    new NewTopic(topic, numPartitions, (short) replicationFactor)))
+                    .all()
+                    .get();
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Fail to create topic [%s partitions: %d replication factor: %d].",
+                            topic, numPartitions, replicationFactor),
+                    e);
         }
     }
 

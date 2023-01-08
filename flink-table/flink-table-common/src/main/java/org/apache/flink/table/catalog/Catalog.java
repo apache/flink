@@ -315,10 +315,33 @@ public interface Catalog {
             throws TableNotExistException, CatalogException;
 
     /**
-     * If true, tables which do not specify a connector will be translated to managed tables.
+     * Modifies an existing table or view. Note that the new and old {@link CatalogBaseTable} must
+     * be of the same kind. For example, this doesn't allow altering a regular table to partitioned
+     * table, or altering a view to a table, and vice versa.
      *
-     * @see CatalogBaseTable.TableKind#MANAGED
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogTable} or {@link ResolvedCatalogView}. Those instances are easy to serialize
+     * for a durable catalog implementation.
+     *
+     * @param tablePath path of the table or view to be modified
+     * @param newTable the new table definition
+     * @param tableChanges change to describe the modification between the newTable and the original
+     *     table.
+     * @param ignoreIfNotExists flag to specify behavior when the table or view does not exist: if
+     *     set to false, throw an exception, if set to true, do nothing.
+     * @throws TableNotExistException if the table does not exist
+     * @throws CatalogException in case of any runtime exception
      */
+    default void alterTable(
+            ObjectPath tablePath,
+            CatalogBaseTable newTable,
+            List<TableChange> tableChanges,
+            boolean ignoreIfNotExists)
+            throws TableNotExistException, CatalogException {
+        alterTable(tablePath, newTable, ignoreIfNotExists);
+    }
+
+    /** If true, tables which do not specify a connector will be translated to managed tables. */
     default boolean supportsManagedTable() {
         return false;
     }

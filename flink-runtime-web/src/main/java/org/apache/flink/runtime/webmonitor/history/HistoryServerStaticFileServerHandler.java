@@ -41,9 +41,10 @@ import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInput;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpUtil;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
@@ -65,8 +66,8 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.IF_MODIFIED_SINCE;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -232,10 +233,10 @@ public class HistoryServerStaticFileServerHandler
             if (!requestPath.equals("/joboverview.json")) {
                 StaticFileServerHandler.setDateAndCacheHeaders(response, file);
             }
-            if (HttpHeaders.isKeepAlive(request)) {
-                response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+            if (HttpUtil.isKeepAlive(request)) {
+                response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
             }
-            HttpHeaders.setContentLength(response, fileLength);
+            HttpUtil.setContentLength(response, fileLength);
 
             // write the initial line and the header.
             ctx.write(response);
@@ -256,7 +257,7 @@ public class HistoryServerStaticFileServerHandler
             }
 
             // close the connection, if no keep-alive is needed
-            if (!HttpHeaders.isKeepAlive(request)) {
+            if (!HttpUtil.isKeepAlive(request)) {
                 lastContentFuture.addListener(ChannelFutureListener.CLOSE);
             }
         } catch (Exception e) {

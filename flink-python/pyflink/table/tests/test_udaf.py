@@ -56,10 +56,10 @@ class CountAggregateFunction(AggregateFunction):
             accumulator[0] = accumulator[0] + other_acc[0]
 
     def get_accumulator_type(self):
-        return DataTypes.ARRAY(DataTypes.BIGINT())
+        return 'ARRAY<BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.BIGINT()
+        return 'BIGINT'
 
 
 class SumAggregateFunction(AggregateFunction):
@@ -81,10 +81,10 @@ class SumAggregateFunction(AggregateFunction):
             accumulator[0] = accumulator[0] + other_acc[0]
 
     def get_accumulator_type(self):
-        return DataTypes.ARRAY(DataTypes.BIGINT())
+        return 'ARRAY<BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.BIGINT()
+        return 'BIGINT'
 
 
 class ConcatAggregateFunction(AggregateFunction):
@@ -107,12 +107,10 @@ class ConcatAggregateFunction(AggregateFunction):
             accumulator[0].remove(args[0])
 
     def get_accumulator_type(self):
-        return DataTypes.ROW([
-            DataTypes.FIELD("f0", DataTypes.ARRAY(DataTypes.STRING())),
-            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+        return 'ROW<f0 STRING, f1 BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.STRING()
+        return 'STRING'
 
 
 class ListViewConcatAggregateFunction(AggregateFunction):
@@ -169,12 +167,10 @@ class CountDistinctAggregateFunction(AggregateFunction):
             accumulator[0][input_str] = None
 
     def get_accumulator_type(self):
-        return DataTypes.ROW([
-            DataTypes.FIELD("f0", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+        return 'ROW<f0 MAP<STRING, STRING>, f1 BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.BIGINT()
+        return 'BIGINT'
 
 
 class CustomIterateAggregateFunction(AggregateFunction):

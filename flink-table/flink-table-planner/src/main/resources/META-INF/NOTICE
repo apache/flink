@@ -9,9 +9,9 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.guava:guava:29.0-jre
 - com.google.guava:failureaccess:1.0.1
 - com.esri.geometry:esri-geometry-api:2.2.0
-- org.apache.calcite:calcite-core:1.27.0
-- org.apache.calcite:calcite-linq4j:1.27.0
-- org.apache.calcite.avatica:avatica-core:1.18.0
+- org.apache.calcite:calcite-core:1.28.0
+- org.apache.calcite:calcite-linq4j:1.28.0
+- org.apache.calcite.avatica:avatica-core:1.19.0
 - commons-codec:commons-codec:1.15
 - commons-io:commons-io:2.11.0
 

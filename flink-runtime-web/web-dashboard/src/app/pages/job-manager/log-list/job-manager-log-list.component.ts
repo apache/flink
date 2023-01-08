@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
+import { DecimalPipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { RouterLinkWithHref } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, finalize, takeUntil } from 'rxjs/operators';
 
+import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
 import { JobManagerLogItem } from '@flink-runtime-web/interfaces';
 import {
   JOB_MANAGER_MODULE_CONFIG,
@@ -27,6 +30,7 @@ import {
   JobManagerModuleConfig
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
 import { JobManagerService } from '@flink-runtime-web/services';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 import { typeDefinition } from '../../../utils/strong-type';
 
@@ -34,7 +38,9 @@ import { typeDefinition } from '../../../utils/strong-type';
   selector: 'flink-job-manager-log-list',
   templateUrl: './job-manager-log-list.component.html',
   styleUrls: ['./job-manager-log-list.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
+  standalone: true
 })
 export class JobManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: JobManagerLogItem): string => log.name;

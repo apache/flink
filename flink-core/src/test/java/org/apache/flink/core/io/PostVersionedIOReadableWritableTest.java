@@ -29,13 +29,14 @@ import org.junit.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /** Suite of tests for {@link PostVersionedIOReadableWritable}. */
 public class PostVersionedIOReadableWritableTest {
 
     @Test
     public void testReadVersioned() throws IOException {
-        byte[] payload = "test-data".getBytes();
+        byte[] payload = "test-data".getBytes(StandardCharsets.UTF_8);
         byte[] serialized = serializeWithPostVersionedReadableWritable(payload);
         byte[] restored = restoreWithPostVersionedReadableWritable(serialized, payload.length);
 
@@ -54,7 +55,7 @@ public class PostVersionedIOReadableWritableTest {
 
     @Test
     public void testReadNonVersionedWithLongPayload() throws IOException {
-        byte[] preVersionedPayload = "test-data".getBytes();
+        byte[] preVersionedPayload = "test-data".getBytes(StandardCharsets.UTF_8);
         byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
         byte[] restored =
                 restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);

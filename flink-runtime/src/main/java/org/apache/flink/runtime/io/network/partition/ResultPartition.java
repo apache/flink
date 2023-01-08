@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -112,13 +113,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     protected Counter numBuffersOut = new SimpleCounter();
 
-    /**
-     * The difference with {@link #numBytesOut} : numBytesProduced represents the number of bytes
-     * actually produced, and numBytesOut represents the number of bytes sent to downstream tasks.
-     * In unicast scenarios, these two values should be equal. In broadcast scenarios, numBytesOut
-     * should be (N * numBytesProduced), where N refers to the number of subpartitions.
-     */
-    protected Counter numBytesProduced = new SimpleCounter();
+    protected ResultPartitionBytesCounter resultPartitionBytes;
 
     public ResultPartition(
             String owningTaskName,
@@ -141,6 +136,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
         this.partitionManager = checkNotNull(partitionManager);
         this.bufferCompressor = bufferCompressor;
         this.bufferPoolFactory = bufferPoolFactory;
+        this.resultPartitionBytes = new ResultPartitionBytesCounter(numSubpartitions);
     }
 
     /**
@@ -301,8 +297,8 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         numBytesOut = metrics.getNumBytesOutCounter();
         numBuffersOut = metrics.getNumBuffersOutCounter();
-        metrics.registerNumBytesProducedCounterForPartition(
-                partitionId.getPartitionId(), numBytesProduced);
+        metrics.registerResultPartitionBytesCounter(
+                partitionId.getPartitionId(), resultPartitionBytes);
     }
 
     /**

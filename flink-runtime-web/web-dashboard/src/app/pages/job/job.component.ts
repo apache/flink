@@ -16,18 +16,22 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
 
+import { JobListComponent } from '@flink-runtime-web/components/job-list/job-list.component';
 import { JobsItem } from '@flink-runtime-web/interfaces';
 
 @Component({
   selector: 'flink-job',
   templateUrl: './job.component.html',
   styleUrls: ['./job.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgIf, JobListComponent, RouterOutlet],
+  standalone: true
 })
 export class JobComponent implements OnInit, OnDestroy {
   jobIdSelected?: string;

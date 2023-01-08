@@ -87,8 +87,8 @@ import java.util.concurrent.CompletableFuture;
  *     Get get = new Get(Bytes.toBytes(rowkey));
  *     ListenableFuture<Result> future = hbase.asyncGet(get);
  *     Futures.addCallback(future, new FutureCallback<Result>() {
- *       public void onSuccess(Result result) {
- *         List<Row> ret = process(result);
+ *       public void onSuccess(Result hbaseResult) {
+ *         List<Row> ret = process(hbaseResult);
  *         result.complete(ret);
  *       }
  *       public void onFailure(Throwable thrown) {

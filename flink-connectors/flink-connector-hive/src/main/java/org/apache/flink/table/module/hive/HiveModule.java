@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.hive.HiveSumAggFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayAccessStructField;
@@ -125,6 +126,12 @@ public class HiveModule implements Module {
             return Optional.empty();
         }
         FunctionDefinitionFactory.Context context = () -> classLoader;
+
+        // We override Hive's sum function by native implementation to supports hash-agg
+        if (name.equalsIgnoreCase("sum")) {
+            return Optional.of(new HiveSumAggFunction());
+        }
+
         // We override Hive's grouping function. Refer to the implementation for more details.
         if (name.equalsIgnoreCase("grouping")) {
             return Optional.of(

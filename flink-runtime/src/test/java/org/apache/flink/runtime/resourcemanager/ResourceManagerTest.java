@@ -84,7 +84,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -491,12 +490,7 @@ class ResourceManagerTest {
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
         runHeartbeatTimeoutTest(
-                builder ->
-                        builder.withStopWorkerFunction(
-                                (worker) -> {
-                                    stopWorkerFuture.complete(worker);
-                                    return true;
-                                }),
+                builder -> builder.withStopWorkerConsumer(stopWorkerFuture::complete),
                 resourceManagerGateway ->
                         registerTaskExecutor(
                                 resourceManagerGateway,
@@ -538,12 +532,7 @@ class ResourceManagerTest {
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
         runHeartbeatTargetBecomesUnreachableTest(
-                builder ->
-                        builder.withStopWorkerFunction(
-                                (worker) -> {
-                                    stopWorkerFuture.complete(worker);
-                                    return true;
-                                }),
+                builder -> builder.withStopWorkerConsumer(stopWorkerFuture::complete),
                 resourceManagerGateway ->
                         registerTaskExecutor(
                                 resourceManagerGateway,
@@ -579,7 +568,7 @@ class ResourceManagerTest {
 
         resourceManager =
                 new ResourceManagerBuilder()
-                        .withStopWorkerFunction(stopWorkerFuture::complete)
+                        .withStopWorkerConsumer(stopWorkerFuture::complete)
                         .buildAndStart();
 
         registerTaskExecutor(resourceManager, taskExecutorId, taskExecutorGateway.getAddress());
@@ -884,7 +873,7 @@ class ResourceManagerTest {
         private SlotManager slotManager = null;
         private BlocklistHandler.Factory blocklistHandlerFactory =
                 new NoOpBlocklistHandler.Factory();
-        private Function<ResourceID, Boolean> stopWorkerFunction = null;
+        private Consumer<ResourceID> stopWorkerConsumer = null;
         private CompletableFuture<Void> readyToServeFuture =
                 CompletableFuture.completedFuture(null);
 
@@ -910,9 +899,9 @@ class ResourceManagerTest {
             return this;
         }
 
-        private ResourceManagerBuilder withStopWorkerFunction(
-                Function<ResourceID, Boolean> stopWorkerFunction) {
-            this.stopWorkerFunction = stopWorkerFunction;
+        private ResourceManagerBuilder withStopWorkerConsumer(
+                Consumer<ResourceID> stopWorkerConsumer) {
+            this.stopWorkerConsumer = stopWorkerConsumer;
             return this;
         }
 
@@ -941,8 +930,8 @@ class ResourceManagerTest {
                                 .build();
             }
 
-            if (stopWorkerFunction == null) {
-                stopWorkerFunction = (ignore) -> false;
+            if (stopWorkerConsumer == null) {
+                stopWorkerConsumer = (ignore) -> {};
             }
 
             resourceManagerId = ResourceManagerId.generate();
@@ -959,7 +948,7 @@ class ResourceManagerTest {
                             jobLeaderIdService,
                             testingFatalErrorHandler,
                             UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-                            stopWorkerFunction,
+                            stopWorkerConsumer,
                             readyToServeFuture);
 
             resourceManager.start();

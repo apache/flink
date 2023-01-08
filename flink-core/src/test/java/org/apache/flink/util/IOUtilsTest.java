@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /** Tests for the {@link IOUtils}. */
@@ -30,21 +31,25 @@ public class IOUtilsTest extends TestLogger {
 
     @Test
     public void testTryReadFullyFromLongerStream() throws IOException {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream("test-data".getBytes());
+        ByteArrayInputStream inputStream =
+                new ByteArrayInputStream("test-data".getBytes(StandardCharsets.UTF_8));
 
         byte[] out = new byte[4];
         int read = IOUtils.tryReadFully(inputStream, out);
 
-        Assert.assertArrayEquals("test".getBytes(), Arrays.copyOfRange(out, 0, read));
+        Assert.assertArrayEquals(
+                "test".getBytes(StandardCharsets.UTF_8), Arrays.copyOfRange(out, 0, read));
     }
 
     @Test
     public void testTryReadFullyFromShorterStream() throws IOException {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream("t".getBytes());
+        ByteArrayInputStream inputStream =
+                new ByteArrayInputStream("t".getBytes(StandardCharsets.UTF_8));
 
         byte[] out = new byte[4];
         int read = IOUtils.tryReadFully(inputStream, out);
 
-        Assert.assertArrayEquals("t".getBytes(), Arrays.copyOfRange(out, 0, read));
+        Assert.assertArrayEquals(
+                "t".getBytes(StandardCharsets.UTF_8), Arrays.copyOfRange(out, 0, read));
     }
 }

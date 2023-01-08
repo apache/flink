@@ -24,6 +24,7 @@
     [nzSize]="'small'"
     [nzFrontPagination]="false"
     [nzShowPagination]="false"
+    [nzWidthConfig]="['50%', '50%']"
   >
     <tbody>
       <tr>
@@ -53,15 +54,17 @@
 </nz-card>
 <nz-card nzType="inner" nzTitle="User Configuration">
   <nz-table
+    #userTable
     *ngIf="config"
     class="no-border small"
     [nzData]="listOfUserConfig"
     [nzSize]="'small'"
     [nzFrontPagination]="false"
     [nzShowPagination]="false"
+    [nzWidthConfig]="['50%', '50%']"
   >
     <tbody>
-      <tr *ngFor="let config of listOfUserConfig">
+      <tr *ngFor="let config of userTable.data">
         <td>{{ config.key }}</td>
         <td>{{ config.value }}</td>
       </tr>

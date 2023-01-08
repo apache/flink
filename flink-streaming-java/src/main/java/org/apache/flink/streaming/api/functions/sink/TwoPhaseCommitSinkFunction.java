@@ -25,13 +25,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -877,49 +872,6 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
         @Override
         public StateSerializerSnapshot<TXN, CONTEXT> snapshotConfiguration() {
             return new StateSerializerSnapshot<>(this);
-        }
-    }
-
-    /**
-     * {@link TypeSerializerConfigSnapshot} for sink state. This has to be public so that it can be
-     * deserialized/instantiated, should not be used anywhere outside {@code
-     * TwoPhaseCommitSinkFunction}.
-     *
-     * @deprecated this snapshot class is no longer in use, and is maintained only for backwards
-     *     compatibility purposes. It is fully replaced by {@link StateSerializerSnapshot}.
-     */
-    @Internal
-    @Deprecated
-    public static final class StateSerializerConfigSnapshot<TXN, CONTEXT>
-            extends CompositeTypeSerializerConfigSnapshot<State<TXN, CONTEXT>> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public StateSerializerConfigSnapshot() {}
-
-        public StateSerializerConfigSnapshot(
-                TypeSerializer<TXN> transactionSerializer,
-                TypeSerializer<CONTEXT> contextSerializer) {
-            super(transactionSerializer, contextSerializer);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<State<TXN, CONTEXT>> resolveSchemaCompatibility(
-                TypeSerializer<State<TXN, CONTEXT>> newSerializer) {
-
-            final TypeSerializerSnapshot<?>[] nestedSnapshots =
-                    getNestedSerializersAndConfigs().stream()
-                            .map(t -> t.f1)
-                            .toArray(TypeSerializerSnapshot[]::new);
-
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer, new StateSerializerSnapshot<>(), nestedSnapshots);
         }
     }
 

@@ -27,7 +27,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
@@ -37,12 +36,11 @@ import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.OrcFile;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -53,6 +51,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.orc.OrcColumnarRowInputFormatTest.copyFileFromResource;
 import static org.apache.flink.table.utils.DateTimeUtils.toSQLDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -61,7 +60,6 @@ public class OrcColumnarRowSplitReaderTest {
 
     protected static final int BATCH_SIZE = 10;
 
-    private final Path testFileFlat = new Path(getPath("test-data-flat.orc"));
     private final DataType[] testSchemaFlat =
             new DataType[] {
                 DataTypes.INT(),
@@ -75,13 +73,22 @@ public class OrcColumnarRowSplitReaderTest {
                 DataTypes.INT()
             };
 
-    private final Path testFileDecimal = new Path(getPath("test-data-decimal.orc"));
     private final DataType[] testSchemaDecimal = new DataType[] {DataTypes.DECIMAL(10, 5)};
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    private static Path testFileFlat;
+    private static Path testFileDecimal;
+
+    @BeforeAll
+    static void setupFiles(@TempDir java.nio.file.Path tmpDir) {
+        testFileFlat =
+                copyFileFromResource("test-data-flat.orc", tmpDir.resolve("test-data-flat.orc"));
+        testFileDecimal =
+                copyFileFromResource(
+                        "test-data-decimal.orc", tmpDir.resolve("test-data-decimal.orc"));
+    }
 
     @Test
-    public void testReadFileInSplits() throws IOException {
+    void testReadFileInSplits() throws IOException {
         FileInputSplit[] splits = createSplits(testFileFlat, 4);
 
         long cnt = 0;
@@ -108,7 +115,7 @@ public class OrcColumnarRowSplitReaderTest {
     }
 
     @Test
-    public void testReadDecimalTypeFile() throws IOException {
+    void testReadDecimalTypeFile() throws IOException {
         FileInputSplit[] splits = createSplits(testFileDecimal, 1);
 
         try (OrcColumnarRowSplitReader reader =
@@ -140,7 +147,7 @@ public class OrcColumnarRowSplitReaderTest {
     }
 
     @Test
-    public void testReadFileWithSelectFields() throws IOException {
+    void testReadFileWithSelectFields() throws IOException {
         FileInputSplit[] splits = createSplits(testFileFlat, 4);
 
         long cnt = 0;
@@ -206,7 +213,7 @@ public class OrcColumnarRowSplitReaderTest {
     }
 
     @Test
-    public void testReadFileWithPartitionValues() throws IOException {
+    void testReadFileWithPartitionValues() throws IOException {
         FileInputSplit[] splits = createSplits(testFileFlat, 4);
 
         long cnt = 0;
@@ -289,8 +296,7 @@ public class OrcColumnarRowSplitReaderTest {
     }
 
     @Test
-    public void testReadFileWithTypes() throws IOException {
-        File folder = TEMPORARY_FOLDER.newFolder();
+    void testReadFileWithTypes(@TempDir File folder) throws IOException {
         String file = new File(folder, "testOrc").getPath();
         int rowSize = 1024;
 
@@ -375,7 +381,7 @@ public class OrcColumnarRowSplitReaderTest {
     }
 
     @Test
-    public void testReachEnd() throws Exception {
+    void testReachEnd() throws Exception {
         FileInputSplit[] splits = createSplits(testFileFlat, 1);
         try (OrcColumnarRowSplitReader reader =
                 createReader(new int[] {0, 1}, testSchemaFlat, new HashMap<>(), splits[0])) {
@@ -409,19 +415,6 @@ public class OrcColumnarRowSplitReaderTest {
                 split.getPath(),
                 split.getStart(),
                 split.getLength());
-    }
-
-    private String getPath(String fileName) {
-        try {
-            File file = TEMPORARY_FOLDER.newFile();
-            IOUtils.copyBytes(
-                    getClass().getClassLoader().getResource(fileName).openStream(),
-                    new FileOutputStream(file),
-                    true);
-            return file.getPath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private static FileInputSplit[] createSplits(Path path, int minNumSplits) throws IOException {

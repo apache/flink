@@ -38,7 +38,6 @@ import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
@@ -48,8 +47,6 @@ import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -125,8 +122,7 @@ import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
-import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -161,7 +157,6 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -994,49 +989,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterTablePropertiesOp.getCatalogTable(),
                             alterTablePropertiesOp.getTableIdentifier(),
                             false);
-                } else if (alterTableOperation instanceof AlterTableAddConstraintOperation) {
-                    AlterTableAddConstraintOperation addConstraintOP =
-                            (AlterTableAddConstraintOperation) operation;
-                    CatalogTable oriTable =
-                            catalogManager
-                                    .getTable(addConstraintOP.getTableIdentifier())
-                                    .get()
-                                    .getTable();
-                    TableSchema.Builder builder =
-                            TableSchemaUtils.builderWithGivenSchema(oriTable.getSchema());
-                    if (addConstraintOP.getConstraintName().isPresent()) {
-                        builder.primaryKey(
-                                addConstraintOP.getConstraintName().get(),
-                                addConstraintOP.getColumnNames());
-                    } else {
-                        builder.primaryKey(addConstraintOP.getColumnNames());
-                    }
-                    CatalogTable newTable =
-                            new CatalogTableImpl(
-                                    builder.build(),
-                                    oriTable.getPartitionKeys(),
-                                    oriTable.getOptions(),
-                                    oriTable.getComment());
-                    catalogManager.alterTable(
-                            newTable, addConstraintOP.getTableIdentifier(), false);
-                } else if (alterTableOperation instanceof AlterTableDropConstraintOperation) {
-                    AlterTableDropConstraintOperation dropConstraintOperation =
-                            (AlterTableDropConstraintOperation) operation;
-                    CatalogTable oriTable =
-                            catalogManager
-                                    .getTable(dropConstraintOperation.getTableIdentifier())
-                                    .get()
-                                    .getTable();
-                    CatalogTable newTable =
-                            new CatalogTableImpl(
-                                    TableSchemaUtils.dropConstraint(
-                                            oriTable.getSchema(),
-                                            dropConstraintOperation.getConstraintName()),
-                                    oriTable.getPartitionKeys(),
-                                    oriTable.getOptions(),
-                                    oriTable.getComment());
-                    catalogManager.alterTable(
-                            newTable, dropConstraintOperation.getTableIdentifier(), false);
                 } else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
                     AlterPartitionPropertiesOperation alterPartPropsOp =
                             (AlterPartitionPropertiesOperation) operation;
@@ -1074,6 +1026,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     for (CatalogPartitionSpec spec : dropPartitionsOperation.getPartitionSpecs()) {
                         catalog.dropPartition(tablePath, spec, ifExists);
                     }
+                } else if (alterTableOperation instanceof AlterTableChangeOperation) {
+                    AlterTableChangeOperation alterTableChangeOperation =
+                            (AlterTableChangeOperation) alterTableOperation;
+                    catalogManager.alterTable(
+                            alterTableChangeOperation.getNewTable(),
+                            alterTableChangeOperation.getTableChanges(),
+                            alterTableChangeOperation.getTableIdentifier(),
+                            false);
                 }
                 return TableResultImpl.TABLE_RESULT_OK;
             } catch (TableAlreadyExistException | TableNotExistException e) {
@@ -1514,22 +1474,37 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal buildDescribeResult(ResolvedSchema schema) {
         Object[][] rows = buildTableColumns(schema);
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+        boolean nonComments = isSchemaNonColumnComments(schema);
+        return buildResult(
+                generateTableColumnsNames(nonComments),
+                generateTableColumnsDataTypes(nonComments),
+                rows);
     }
 
-    private DataType[] generateTableColumnsDataTypes() {
-        return new DataType[] {
-            DataTypes.STRING(),
-            DataTypes.STRING(),
-            DataTypes.BOOLEAN(),
-            DataTypes.STRING(),
-            DataTypes.STRING(),
-            DataTypes.STRING()
-        };
+    private DataType[] generateTableColumnsDataTypes(boolean nonComments) {
+        final ArrayList<DataType> result =
+                new ArrayList<>(
+                        Arrays.asList(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.BOOLEAN(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING()));
+        if (!nonComments) {
+            result.add(DataTypes.STRING());
+        }
+        return result.toArray(new DataType[0]);
     }
 
-    private String[] generateTableColumnsNames() {
-        return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+    private String[] generateTableColumnsNames(boolean nonComments) {
+        final ArrayList<String> result =
+                new ArrayList<>(
+                        Arrays.asList("name", "type", "null", "key", "extras", "watermark"));
+        if (!nonComments) {
+            result.add("comment");
+        }
+        return result.toArray(new String[0]);
     }
 
     private TableResultInternal buildShowTablesResult(
@@ -1565,7 +1540,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "\\"))
                             .toArray(Object[][]::new);
         }
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+        boolean nonComments = isSchemaNonColumnComments(schema);
+        return buildResult(
+                generateTableColumnsNames(nonComments),
+                generateTableColumnsDataTypes(nonComments),
+                rows);
     }
 
     private TableResultInternal buildShowFullModulesResult(ModuleEntry[] moduleEntries) {
@@ -1600,21 +1579,32 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "PRI(%s)",
                                                             String.join(", ", columns))));
                         });
-
+        boolean nonComments = isSchemaNonColumnComments(schema);
         return schema.getColumns().stream()
                 .map(
                         (c) -> {
                             final LogicalType logicalType = c.getDataType().getLogicalType();
-                            return new Object[] {
-                                c.getName(),
-                                logicalType.copy(true).asSummaryString(),
-                                logicalType.isNullable(),
-                                fieldToPrimaryKey.getOrDefault(c.getName(), null),
-                                c.explainExtras().orElse(null),
-                                fieldToWatermark.getOrDefault(c.getName(), null)
-                            };
+                            final ArrayList<Object> result =
+                                    new ArrayList<>(
+                                            Arrays.asList(
+                                                    c.getName(),
+                                                    logicalType.copy(true).asSummaryString(),
+                                                    logicalType.isNullable(),
+                                                    fieldToPrimaryKey.getOrDefault(
+                                                            c.getName(), null),
+                                                    c.explainExtras().orElse(null),
+                                                    fieldToWatermark.getOrDefault(
+                                                            c.getName(), null)));
+                            if (!nonComments) {
+                                result.add(c.getComment().orElse(null));
+                            }
+                            return result.toArray();
                         })
                 .toArray(Object[][]::new);
+    }
+
+    private boolean isSchemaNonColumnComments(ResolvedSchema schema) {
+        return schema.getColumns().stream().map(Column::getComment).noneMatch(Optional::isPresent);
     }
 
     private TableResultInternal buildResult(String[] headers, DataType[] types, Object[][] rows) {
@@ -1844,7 +1834,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return catalogManager
                 .getTable(identifier)
                 .filter(ContextResolvedTable::isTemporary)
-                .map(ContextResolvedTable::getTable);
+                .map(ContextResolvedTable::getResolvedTable);
     }
 
     private TableResultInternal createCatalogFunction(

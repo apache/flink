@@ -46,9 +46,10 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHtt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInput;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpUtil;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
@@ -73,13 +74,13 @@ import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.DATE;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.LAST_MODIFIED;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CACHE_CONTROL;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.DATE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.EXPIRES;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.IF_MODIFIED_SINCE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.LAST_MODIFIED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
@@ -246,10 +247,10 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
             setContentTypeHeader(response, file);
             setDateAndCacheHeaders(response, file);
 
-            if (HttpHeaders.isKeepAlive(request)) {
-                response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+            if (HttpUtil.isKeepAlive(request)) {
+                response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
             }
-            HttpHeaders.setContentLength(response, fileLength);
+            HttpUtil.setContentLength(response, fileLength);
 
             // write the initial line and the header.
             ctx.write(response);
@@ -270,7 +271,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
             }
 
             // close the connection, if no keep-alive is needed
-            if (!HttpHeaders.isKeepAlive(request)) {
+            if (!HttpUtil.isKeepAlive(request)) {
                 lastContentFuture.addListener(ChannelFutureListener.CLOSE);
             }
         } catch (Exception e) {

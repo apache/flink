@@ -114,7 +114,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             randomize(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
             randomize(
                     conf,
-                    ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                    ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT,
                     Duration.ofSeconds(0),
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));

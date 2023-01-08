@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
-    private final Function<JobVertexThreadInfoStats, T> createStatsFn;
+    private final Function<VertexThreadInfoStats, T> createStatsFn;
     private final ScheduledExecutorService executor;
     private final Time restTimeout;
 
@@ -56,7 +56,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
 
     JobVertexThreadInfoTrackerBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<JobVertexThreadInfoStats, T> createStatsFn,
+            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Time restTimeout) {
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -188,7 +188,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      */
     public static <T extends Statistics> JobVertexThreadInfoTrackerBuilder<T> newBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<JobVertexThreadInfoStats, T> createStatsFn,
+            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Time restTimeout) {
         return new JobVertexThreadInfoTrackerBuilder<>(

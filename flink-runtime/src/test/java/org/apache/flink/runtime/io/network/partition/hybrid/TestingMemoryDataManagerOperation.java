@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.util.function.SupplierWithException;
 
+import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -37,18 +38,22 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
 
     private final Runnable onDataAvailableRunnable;
 
+    private final BiConsumer<Integer, HsConsumerId> onConsumerReleasedBiConsumer;
+
     private TestingMemoryDataManagerOperation(
             SupplierWithException<BufferBuilder, InterruptedException>
                     requestBufferFromPoolSupplier,
             BiConsumer<Integer, Integer> markBufferReadableConsumer,
             Consumer<BufferIndexAndChannel> onBufferConsumedConsumer,
             Runnable onBufferFinishedRunnable,
-            Runnable onDataAvailableRunnable) {
+            Runnable onDataAvailableRunnable,
+            BiConsumer<Integer, HsConsumerId> onConsumerReleasedBiConsumer) {
         this.requestBufferFromPoolSupplier = requestBufferFromPoolSupplier;
         this.markBufferReadableConsumer = markBufferReadableConsumer;
         this.onBufferConsumedConsumer = onBufferConsumedConsumer;
         this.onBufferFinishedRunnable = onBufferFinishedRunnable;
         this.onDataAvailableRunnable = onDataAvailableRunnable;
+        this.onConsumerReleasedBiConsumer = onConsumerReleasedBiConsumer;
     }
 
     @Override
@@ -72,8 +77,13 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
     }
 
     @Override
-    public void onDataAvailable(int subpartitionId) {
+    public void onDataAvailable(int subpartitionId, Collection<HsConsumerId> consumerIds) {
         onDataAvailableRunnable.run();
+    }
+
+    @Override
+    public void onConsumerReleased(int subpartitionId, HsConsumerId consumerId) {
+        onConsumerReleasedBiConsumer.accept(subpartitionId, consumerId);
     }
 
     public static Builder builder() {
@@ -92,6 +102,9 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
         private Runnable onBufferFinishedRunnable = () -> {};
 
         private Runnable onDataAvailableRunnable = () -> {};
+
+        private BiConsumer<Integer, HsConsumerId> onConsumerReleasedBiConsumer =
+                (ignore1, ignore2) -> {};
 
         public Builder setRequestBufferFromPoolSupplier(
                 SupplierWithException<BufferBuilder, InterruptedException>
@@ -122,6 +135,12 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
             return this;
         }
 
+        public Builder setOnConsumerReleasedBiConsumer(
+                BiConsumer<Integer, HsConsumerId> onConsumerReleasedBiConsumer) {
+            this.onConsumerReleasedBiConsumer = onConsumerReleasedBiConsumer;
+            return this;
+        }
+
         private Builder() {}
 
         public TestingMemoryDataManagerOperation build() {
@@ -130,7 +149,8 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
                     markBufferReadableConsumer,
                     onBufferConsumedConsumer,
                     onBufferFinishedRunnable,
-                    onDataAvailableRunnable);
+                    onDataAvailableRunnable,
+                    onConsumerReleasedBiConsumer);
         }
     }
 }

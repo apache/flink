@@ -118,17 +118,6 @@ Enabling this feature will make Flink more resilient against temporary connectio
 
 For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
 
-## ZooKeeper Versions
-
-Flink ships with separate ZooKeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution
-and thus used by default, whereas 3.5 is placed in the `opt` directory.
-
-The 3.5 client allows you to secure the ZooKeeper connection via SSL, but _may_ not work with 3.4- ZooKeeper installations.
-
-You can control which version is used by Flink by placing either jar in the `lib` directory.
-
-{{< top >}}
-
 ## Bootstrap ZooKeeper
 
 If you don't have a running ZooKeeper installation, you can use the helper scripts, which ship with Flink.

@@ -160,7 +160,7 @@ class TypeMappingUtilsTest {
                         "Type DECIMAL(38, 10) of table field 'f0' does not match with the "
                                 + "physical type LEGACY('DECIMAL', 'DECIMAL') of the "
                                 + "'f0' field of the TableSource return type.")
-                .getCause()
+                .cause()
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Legacy decimal type can only be mapped to DECIMAL(38, 18).");
     }

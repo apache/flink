@@ -38,6 +38,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -117,6 +118,7 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriConsumerWithException;
 
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.After;
@@ -128,6 +130,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -152,7 +155,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.stream.IntStream.range;
@@ -2545,13 +2550,7 @@ public class TaskExecutorTest extends TestLogger {
                 range(0, 5).mapToObj(i -> new AllocationID()).toArray(AllocationID[]::new);
         try (TaskExecutorTestingContext ctx = createTaskExecutorTestingContext(slots.length)) {
             ctx.start();
-            ResourceManagerId rmId;
-            {
-                CompletableFuture<Tuple3<ResourceID, InstanceID, SlotReport>>
-                        initialSlotReportFuture = new CompletableFuture<>();
-                rmId = createAndRegisterResourceManager(initialSlotReportFuture);
-                initialSlotReportFuture.get();
-            }
+            ResourceManagerId rmId = getResourceManagerId();
 
             TaskExecutorGateway tm = ctx.taskExecutor.getSelfGateway(TaskExecutorGateway.class);
             for (int i = 0; i < slots.length; i++) {
@@ -2575,9 +2574,7 @@ public class TaskExecutorTest extends TestLogger {
             tm.cancelTask(exec, timeout).get();
             // wait for task thread to notify TM about its final state
             // (taskSlotTable isn't thread safe - using MainThread)
-            while (callInMain(ctx, () -> ctx.taskSlotTable.getTasks(jobId).hasNext())) {
-                Thread.sleep(50);
-            }
+            waitForTasks(ctx, numTasks -> numTasks > 0);
 
             for (int i = 0; i < slots.length; i++) {
                 tm.freeSlot(slots[i], new RuntimeException("test exception"), timeout).get();
@@ -3036,5 +3033,135 @@ public class TaskExecutorTest extends TestLogger {
                 .getMainThreadExecutableForTesting()
                 .callAsync(booleanCallable, Duration.ofSeconds(5))
                 .get();
+    }
+
+    @Test
+    public void testSharedResourcesLifecycle() throws Exception {
+        SharedResourceCollectingInvokable.reset();
+        AllocationID[] slots =
+                range(0, 10).mapToObj(i -> new AllocationID()).toArray(AllocationID[]::new);
+
+        try (TaskExecutorTestingContext ctx = createTaskExecutorTestingContext(slots.length)) {
+            // prepare: start services
+            ctx.start();
+            ResourceManagerId rmId = getResourceManagerId();
+            TaskExecutorGateway taskGateway =
+                    ctx.taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+            // prepare: request slots
+            for (int i = 0; i < slots.length; i++) {
+                requestSlot(
+                        taskGateway,
+                        jobId,
+                        slots[i],
+                        new SlotID(ctx.taskExecutor.getResourceID(), i),
+                        ResourceProfile.UNKNOWN,
+                        ctx.jobMasterGateway.getAddress(),
+                        rmId);
+            }
+            ctx.offerSlotsLatch.await();
+            // prepare: submit tasks
+            List<ExecutionAttemptID> executions = new ArrayList<>(slots.length);
+            for (AllocationID allocationID : slots) {
+                executions.add(
+                        submit(
+                                allocationID,
+                                ctx.jobMasterGateway,
+                                taskGateway,
+                                SharedResourceCollectingInvokable.class));
+            }
+            waitForTasks(ctx, numTasks -> numTasks < slots.length);
+            // cancel tasks
+            // verify that the resource is not released as long as there are tasks running
+            for (int i = 0; i < executions.size(); i++) {
+                int numRemaining = slots.length - (i + 1);
+                ctx.taskExecutor.cancelTask(executions.get(i), timeout).get();
+                waitForTasks(ctx, numTasks -> numTasks > numRemaining);
+                if (numRemaining > 0) {
+                    assertEquals(0, SharedResourceCollectingInvokable.timesDeallocated.get());
+                }
+            }
+        }
+        // verify
+        assertEquals(1, SharedResourceCollectingInvokable.timesAllocated.get());
+        assertEquals(1, SharedResourceCollectingInvokable.timesDeallocated.get());
+    }
+
+    private void waitForTasks(
+            TaskExecutorTestingContext ctx, Function<Integer, Boolean> waitPredicate)
+            throws InterruptedException, ExecutionException {
+        while (callInMain(
+                ctx,
+                () -> waitPredicate.apply(Iterators.size(ctx.taskSlotTable.getTasks(jobId))))) {
+            Thread.sleep(50);
+        }
+    }
+
+    private ResourceManagerId getResourceManagerId()
+            throws InterruptedException, ExecutionException {
+        CompletableFuture<Tuple3<ResourceID, InstanceID, SlotReport>> initialSlotReportFuture =
+                new CompletableFuture<>();
+        ResourceManagerId rmId = createAndRegisterResourceManager(initialSlotReportFuture);
+        initialSlotReportFuture.get();
+        return rmId;
+    }
+
+    public static class SharedResourceCollectingInvokable implements TaskInvokable {
+
+        public static void reset() {
+            timesAllocated.set(0);
+            timesDeallocated.set(0);
+        }
+
+        private static final String RESOURCE_ID = "test";
+        private static final AtomicInteger timesAllocated = new AtomicInteger(0);
+        private static final AtomicInteger timesDeallocated = new AtomicInteger(0);
+
+        private final Environment env;
+        private final Object leaseHolder;
+        private volatile boolean cancelled = false;
+
+        public SharedResourceCollectingInvokable(Environment env) {
+            this.env = env;
+            this.leaseHolder = new Object();
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            this.env
+                    .getSharedResources()
+                    .getOrAllocateSharedResource(
+                            RESOURCE_ID,
+                            leaseHolder,
+                            unused -> {
+                                timesAllocated.incrementAndGet();
+                                return timesDeallocated::incrementAndGet;
+                            },
+                            0L);
+            while (!cancelled) {
+                Thread.sleep(50);
+            }
+        }
+
+        @Override
+        public void restore() throws Exception {}
+
+        @Override
+        public void cleanUp(@Nullable Throwable throwable) throws Exception {
+            env.getSharedResources().release(RESOURCE_ID, leaseHolder, unused -> {});
+        }
+
+        @Override
+        public void cancel() throws Exception {
+            cancelled = true;
+        }
+
+        @Override
+        public boolean isUsingNonBlockingInput() {
+            return false;
+        }
+
+        @Override
+        public void maybeInterruptOnCancel(
+                Thread toInterrupt, @Nullable String taskName, @Nullable Long timeout) {}
     }
 }

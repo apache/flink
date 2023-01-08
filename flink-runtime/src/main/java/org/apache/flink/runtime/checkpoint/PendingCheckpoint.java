@@ -182,12 +182,6 @@ public class PendingCheckpoint implements Checkpoint {
         return jobId;
     }
 
-    /** @deprecated use {@link #getCheckpointID()} */
-    @Deprecated
-    public long getCheckpointId() {
-        return getCheckpointID();
-    }
-
     @Override
     public long getCheckpointID() {
         return checkpointId;

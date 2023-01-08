@@ -75,6 +75,8 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private CharacterFilter labelValueCharactersFilter = CHARACTER_FILTER;
 
+    @VisibleForTesting final CollectorRegistry registry = new CollectorRegistry(true);
+
     @Override
     public void open(MetricConfig config) {
         boolean filterLabelValueCharacters =
@@ -89,7 +91,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     @Override
     public void close() {
-        CollectorRegistry.defaultRegistry.clear();
+        registry.clear();
     }
 
     @Override
@@ -126,7 +128,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
                                 scopedMetricName,
                                 helpString);
                 try {
-                    collector.register();
+                    collector.register(registry);
                 } catch (Exception e) {
                     log.warn("There was a problem registering metric {}.", metricName, e);
                 }
@@ -245,7 +247,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
             if (count == 1) {
                 try {
-                    CollectorRegistry.defaultRegistry.unregister(collector);
+                    registry.unregister(collector);
                 } catch (Exception e) {
                     log.warn("There was a problem unregistering metric {}.", scopedMetricName, e);
                 }

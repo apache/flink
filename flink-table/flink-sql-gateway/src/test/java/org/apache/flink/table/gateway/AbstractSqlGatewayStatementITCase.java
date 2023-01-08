@@ -101,6 +101,9 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 "$VAR_STREAMING_PATH",
                 Files.createDirectory(temporaryFolder.resolve("streaming")).toFile().getPath());
         replaceVars.put(
+                "$VAR_STREAMING_PATH2",
+                Files.createDirectory(temporaryFolder.resolve("streaming2")).toFile().getPath());
+        replaceVars.put(
                 "$VAR_BATCH_PATH",
                 Files.createDirectory(temporaryFolder.resolve("batch")).toFile().getPath());
         replaceVars.put(

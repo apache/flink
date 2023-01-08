@@ -1031,6 +1031,10 @@ public class AdaptiveScheduler
                 vertexAttemptNumberStore,
                 adjustedParallelismStore,
                 deploymentTimeMetrics,
+                // adaptive scheduler works in streaming mode, actually it only
+                // supports must be pipelined result partition, mark partition finish is
+                // no need.
+                rp -> false,
                 LOG);
     }
 

@@ -364,7 +364,7 @@ class BatchingStateChangeUploadSchedulerTest {
                 new StateChangeSet(
                         UUID.randomUUID(),
                         SequenceNumber.of(0),
-                        singletonList(new StateChange(0, change))));
+                        singletonList(StateChange.ofDataChange(0, change))));
     }
 
     private static void withStore(

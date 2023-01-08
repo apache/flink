@@ -257,14 +257,6 @@ public interface JobMasterGateway
             @RpcTimeout final Time timeout);
 
     /**
-     * Notifies that the allocation has failed.
-     *
-     * @param allocationID the failed allocation id.
-     * @param cause the reason that the allocation failed
-     */
-    void notifyAllocationFailure(AllocationID allocationID, Exception cause);
-
-    /**
      * Notifies that not enough resources are available to fulfill the resource requirements of a
      * job.
      *

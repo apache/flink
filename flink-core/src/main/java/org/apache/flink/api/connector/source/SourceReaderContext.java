@@ -63,4 +63,13 @@ public interface SourceReaderContext {
      * @see UserCodeClassLoader
      */
     UserCodeClassLoader getUserCodeClassLoader();
+
+    /**
+     * Get the current parallelism of this Source.
+     *
+     * @return the parallelism of the Source.
+     */
+    default int currentParallelism() {
+        throw new UnsupportedOperationException();
+    }
 }

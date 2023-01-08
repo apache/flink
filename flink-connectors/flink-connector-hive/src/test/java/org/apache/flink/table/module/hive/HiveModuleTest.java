@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.module.hive;
 
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
@@ -37,8 +38,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_9;
-import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -72,15 +71,12 @@ public class HiveModuleTest {
     }
 
     private void verifyNumBuiltInFunctions(String hiveVersion, HiveModule hiveModule) {
-        switch (hiveVersion) {
-            case HIVE_VERSION_V2_3_9:
-                assertThat(hiveModule.listFunctions()).hasSize(277);
-                break;
-            case HIVE_VERSION_V3_1_1:
-                assertThat(hiveModule.listFunctions()).hasSize(296);
-                break;
-            default:
-                fail("Unknown test version " + hiveVersion);
+        if (HiveVersionTestUtil.HIVE_310_OR_LATER) {
+            assertThat(hiveModule.listFunctions()).hasSize(297);
+        } else if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
+            assertThat(hiveModule.listFunctions()).hasSize(277);
+        } else {
+            fail("Unknown test version " + hiveVersion);
         }
     }
 

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -53,10 +54,15 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelectorRecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.metrics.TimerGauge;
@@ -65,6 +71,7 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -109,6 +116,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -122,6 +130,8 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.MockStreamConfig;
@@ -132,6 +142,7 @@ import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -1796,6 +1807,64 @@ public class StreamTaskTest extends TestLogger {
                     is(
                             both(greaterThanOrEqualTo(new Long(sleepTime * numMails)))
                                     .and(lessThanOrEqualTo(endTime - startTime))));
+        }
+    }
+
+    @Test
+    public void testForwardPartitionerIsConvertedToRebalanceOnParallelismChanges()
+            throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setOutputPartitioner(new ForwardPartitioner<>())
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator());
+
+        try (StreamTaskMailboxTestHarness<Integer> harness = builder.build()) {
+
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<Object>>> recordWriterDelegate =
+                    harness.streamTask.createRecordWriterDelegate(
+                            harness.streamTask.configuration, harness.streamMockEnvironment);
+            // Prerequisite: We are using the ForwardPartitioner
+            assertTrue(
+                    ((ChannelSelectorRecordWriter)
+                                            ((SingleRecordWriter) recordWriterDelegate)
+                                                    .getRecordWriter(0))
+                                    .getChannelSelector()
+                            instanceof ForwardPartitioner);
+
+            // Change consumer parallelism
+            harness.streamTask.configuration.setVertexNonChainedOutputs(
+                    Arrays.asList(
+                            new NonChainedOutput(
+                                    false,
+                                    0,
+                                    // Set a different consumer parallelism to force trigger
+                                    // replacing the ForwardPartitioner
+                                    42,
+                                    100,
+                                    1000,
+                                    false,
+                                    new IntermediateDataSetID(),
+                                    new OutputTag<>("output", IntegerTypeInfo.INT_TYPE_INFO),
+                                    // Use forward partitioner
+                                    new ForwardPartitioner<>(),
+                                    ResultPartitionType.PIPELINED)));
+            harness.streamTask.configuration.serializeAllConfigs();
+
+            // Re-create outputs
+            recordWriterDelegate =
+                    harness.streamTask.createRecordWriterDelegate(
+                            harness.streamTask.configuration, harness.streamMockEnvironment);
+            // We should now have a RebalancePartitioner to distribute the load
+            // for the non-matching downstream parallelism
+            assertTrue(
+                    ((ChannelSelectorRecordWriter)
+                                            ((SingleRecordWriter) recordWriterDelegate)
+                                                    .getRecordWriter(0))
+                                    .getChannelSelector()
+                            instanceof RebalancePartitioner);
         }
     }
 

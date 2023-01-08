@@ -98,7 +98,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                         consumedPartition.getResultType());
 
         consumedPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
-        if (consumedPartition.getState() == ResultPartitionState.CONSUMABLE) {
+        if (consumedPartition.getState() == ResultPartitionState.ALL_DATA_PRODUCED) {
             consumedPartitionGroup.partitionFinished();
         }
 

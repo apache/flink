@@ -111,16 +111,6 @@ Enabling this feature will make Flink more resilient against temporary connectio
 
 For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
 
-## ZooKeeper 版本
-
-Flink 附带了 3.4 和 3.5 的单独的 ZooKeeper 客户端，其中 3.4 位于发行版的 `lib` 目录中，为默认使用版本，而 3.5 位于 opt 目录中。
-
-3.5 客户端允许你通过 SSL 保护 ZooKeeper 连接，但 _可能_ 不适用于 3.4 版本的 ZooKeeper 安装。
-
-你可以通过在 `lib` 目录中放置任意一个 jar 来控制 Flink 使用哪个版本。
-
-{{< top >}}
-
 <a name="bootstrap-zookeeper" />
 
 ## 启动 ZooKeeper

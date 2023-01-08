@@ -30,7 +30,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -69,7 +68,7 @@ public class DeclarativeSlotManager implements SlotManager {
 
     private final SlotTracker slotTracker;
     private final ResourceTracker resourceTracker;
-    private final BiFunction<Executor, ResourceActions, TaskExecutorManager>
+    private final BiFunction<Executor, ResourceAllocator, TaskExecutorManager>
             taskExecutorManagerFactory;
     @Nullable private TaskExecutorManager taskExecutorManager;
 
@@ -97,8 +96,8 @@ public class DeclarativeSlotManager implements SlotManager {
     /** Executor for future callbacks which have to be "synchronized". */
     @Nullable private Executor mainThreadExecutor;
 
-    /** Callbacks for resource (de-)allocations. */
-    @Nullable private ResourceActions resourceActions;
+    /** Callbacks for resource not enough. */
+    @Nullable private ResourceEventListener resourceEventListener;
 
     /** The future of the requirements delay check. */
     @Nullable private CompletableFuture<Void> requirementsCheckFuture;
@@ -131,7 +130,7 @@ public class DeclarativeSlotManager implements SlotManager {
         slotMatchingStrategy = slotManagerConfiguration.getSlotMatchingStrategy();
 
         taskExecutorManagerFactory =
-                (executor, resourceActions) ->
+                (executor, resourceAllocator) ->
                         new TaskExecutorManager(
                                 slotManagerConfiguration.getDefaultWorkerResourceSpec(),
                                 slotManagerConfiguration.getNumSlotsPerWorker(),
@@ -139,12 +138,13 @@ public class DeclarativeSlotManager implements SlotManager {
                                 slotManagerConfiguration.isWaitResultConsumedBeforeRelease(),
                                 slotManagerConfiguration.getRedundantTaskManagerNum(),
                                 slotManagerConfiguration.getTaskManagerTimeout(),
+                                slotManagerConfiguration.getDeclareNeededResourceDelay(),
                                 scheduledExecutor,
                                 executor,
-                                resourceActions);
+                                resourceAllocator);
 
         resourceManagerId = null;
-        resourceActions = null;
+        resourceEventListener = null;
         mainThreadExecutor = null;
         taskExecutorManager = null;
         blockedTaskManagerChecker = null;
@@ -199,22 +199,23 @@ public class DeclarativeSlotManager implements SlotManager {
      *
      * @param newResourceManagerId to use for communication with the task managers
      * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
-     * @param newResourceActions to use for resource (de-)allocations
+     * @param newResourceAllocator to use for resource (de-)allocations
      * @param newBlockedTaskManagerChecker to query whether a task manager is blocked
      */
     @Override
     public void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions,
+            ResourceAllocator newResourceAllocator,
+            ResourceEventListener newResourceEventListener,
             BlockedTaskManagerChecker newBlockedTaskManagerChecker) {
         LOG.debug("Starting the slot manager.");
 
         this.resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
         mainThreadExecutor = Preconditions.checkNotNull(newMainThreadExecutor);
-        resourceActions = Preconditions.checkNotNull(newResourceActions);
+        resourceEventListener = Preconditions.checkNotNull(newResourceEventListener);
         taskExecutorManager =
-                taskExecutorManagerFactory.apply(newMainThreadExecutor, newResourceActions);
+                taskExecutorManagerFactory.apply(newMainThreadExecutor, newResourceAllocator);
         blockedTaskManagerChecker = Preconditions.checkNotNull(newBlockedTaskManagerChecker);
 
         started = true;
@@ -253,7 +254,7 @@ public class DeclarativeSlotManager implements SlotManager {
 
         taskExecutorManager = null;
         resourceManagerId = null;
-        resourceActions = null;
+        resourceEventListener = null;
         blockedTaskManagerChecker = null;
         started = false;
     }
@@ -318,19 +319,8 @@ public class DeclarativeSlotManager implements SlotManager {
         }
     }
 
-    /**
-     * Registers a new task manager at the slot manager. This will make the task managers slots
-     * known and, thus, available for allocation.
-     *
-     * @param taskExecutorConnection for the new task manager
-     * @param initialSlotReport for the new task manager
-     * @param totalResourceProfile for the new task manager
-     * @param defaultSlotResourceProfile for the new task manager
-     * @return True if the task manager has not been registered before and is registered
-     *     successfully; otherwise false
-     */
     @Override
-    public boolean registerTaskManager(
+    public RegistrationResult registerTaskManager(
             final TaskExecutorConnection taskExecutorConnection,
             SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
@@ -347,7 +337,7 @@ public class DeclarativeSlotManager implements SlotManager {
                     "Task executor {} was already registered.",
                     taskExecutorConnection.getResourceID());
             reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
-            return false;
+            return RegistrationResult.IGNORED;
         } else {
             if (!taskExecutorManager.registerTaskManager(
                     taskExecutorConnection,
@@ -357,7 +347,7 @@ public class DeclarativeSlotManager implements SlotManager {
                 LOG.debug(
                         "Task executor {} could not be registered.",
                         taskExecutorConnection.getResourceID());
-                return false;
+                return RegistrationResult.REJECTED;
             }
 
             // register the new slots
@@ -370,7 +360,7 @@ public class DeclarativeSlotManager implements SlotManager {
             }
 
             checkResourceRequirementsWithDelay();
-            return true;
+            return RegistrationResult.SUCCESS;
         }
     }
 
@@ -723,7 +713,7 @@ public class DeclarativeSlotManager implements SlotManager {
                                 "Could not fulfill resource requirements of job {}. Free slots: {}",
                                 jobId,
                                 slotTracker.getFreeSlots().size());
-                        resourceActions.notifyNotEnoughResourcesAvailable(
+                        resourceEventListener.notEnoughResourceAvailable(
                                 jobId, resourceTracker.getAcquiredResources(jobId));
                         return pendingSlots;
                     }
@@ -794,11 +784,6 @@ public class DeclarativeSlotManager implements SlotManager {
     @Override
     public int getNumberFreeSlotsOf(InstanceID instanceId) {
         return taskExecutorManager.getNumberFreeSlotsOf(instanceId);
-    }
-
-    @Override
-    public Map<WorkerResourceSpec, Integer> getRequiredResources() {
-        return taskExecutorManager.getRequiredWorkers();
     }
 
     @Override

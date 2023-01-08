@@ -21,7 +21,7 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -199,15 +199,15 @@ class ChangelogMapState<K, N, UK, UV>
         }
     }
 
-    private void serializeValue(UV value, DataOutputViewStreamWrapper out) throws IOException {
+    private void serializeValue(UV value, DataOutputView out) throws IOException {
         getMapSerializer().getValueSerializer().serialize(value, out);
     }
 
-    private void serializeKey(UK key, DataOutputViewStreamWrapper out) throws IOException {
+    private void serializeKey(UK key, DataOutputView out) throws IOException {
         getMapSerializer().getKeySerializer().serialize(key, out);
     }
 
-    private ThrowingConsumer<DataOutputViewStreamWrapper, IOException> getWriter(UK key, UV value) {
+    private ThrowingConsumer<DataOutputView, IOException> getWriter(UK key, UV value) {
         return out -> {
             serializeKey(key, out);
             serializeValue(value, out);

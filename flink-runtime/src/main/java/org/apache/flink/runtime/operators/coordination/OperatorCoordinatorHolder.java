@@ -67,7 +67,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *       closed. Events coming after that are held back (buffered), because they belong to the epoch
  *       after the checkpoint.
  *   <li>Once all coordinators in the job have completed the checkpoint, the barriers to the sources
- *       are injected. If a coordinator receives a {@link AcknowledgeCheckpointEvent} from one of
+ *       are injected. If a coordinator receives an {@link AcknowledgeCheckpointEvent} from one of
  *       its subtasks, which denotes that the subtask has received the checkpoint barrier and
  *       completed checkpoint, the coordinator reopens the corresponding subtask gateway and sends
  *       out buffered events.
@@ -75,23 +75,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  *       coordinator's perspective, these events are lost, because they were sent to a failed
  *       subtask after it's latest complete checkpoint.
  * </ul>
- *
- * Thus, events delivered from coordinators behave as follows.
- *
- * <ul>
- *   <li>If the event is generated before the coordinator completes checkpoint, it would be sent out
- *       immediately.
- *   <li>If the event is generated after the coordinator completes checkpoint, it would be
- *       temporarily buffered and not be sent out to the subtask until the coordinator received a
- *       {@link AcknowledgeCheckpointEvent} from that subtask.
- *   <li>If the event is generated after the coordinator received {@link
- *       AcknowledgeCheckpointEvent}, it would be sent out immediately.
- * </ul>
- *
- * <p>This implementation can handle concurrent checkpoints. In the behavior described above, If an
- * event is generated after the coordinator has completed multiple checkpoints, and before it
- * receives {@link AcknowledgeCheckpointEvent} about any of them, the event would be buffered until
- * the coordinator has received {@link AcknowledgeCheckpointEvent} about all of these checkpoints.
  *
  * <p><b>IMPORTANT:</b> A critical assumption is that all events from the scheduler to the Tasks are
  * transported strictly in order. Events being sent from the coordinator after the checkpoint

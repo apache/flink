@@ -26,9 +26,8 @@ import org.apache.flink.orc.vector.Vectorizer;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.MemoryManager;
 import org.apache.orc.OrcFile;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,18 +37,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the behavior of {@link OrcBulkWriterFactory}. */
-public class OrcBulkWriterFactoryTest {
-
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+class OrcBulkWriterFactoryTest {
 
     @Test
-    public void testNotOverrideInMemoryManager() throws IOException {
+    void testNotOverrideInMemoryManager(@TempDir java.nio.file.Path tmpDir) throws IOException {
         TestMemoryManager memoryManager = new TestMemoryManager();
         OrcBulkWriterFactory<Record> factory =
                 new TestOrcBulkWriterFactory<>(
                         new RecordVectorizer("struct<_col0:string,_col1:int>"), memoryManager);
-        factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
-        factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
+        factory.create(new LocalDataOutputStream(tmpDir.resolve("file1").toFile()));
+        factory.create(new LocalDataOutputStream(tmpDir.resolve("file2").toFile()));
 
         List<Path> addedWriterPath = memoryManager.getAddedWriterPath();
         assertThat(addedWriterPath).hasSize(2);

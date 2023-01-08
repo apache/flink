@@ -696,6 +696,10 @@ under the License.
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.apache.hive</groupId>
 					<artifactId>hive-exec</artifactId>
 				</exclusion>
@@ -782,6 +786,10 @@ under the License.
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.apache.hive</groupId>
 					<artifactId>hive-exec</artifactId>
 				</exclusion>
@@ -834,6 +842,10 @@ under the License.
 			<version>${hive.version}</version>
 			<scope>test</scope>
 			<exclusions>
+				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
@@ -944,6 +956,10 @@ under the License.
 			<version>${hive.version}</version>
 			<scope>test</scope>
 			<exclusions>
+				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>log4j</groupId>
 					<artifactId>log4j</artifactId>

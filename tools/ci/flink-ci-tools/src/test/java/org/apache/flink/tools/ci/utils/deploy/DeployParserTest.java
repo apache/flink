@@ -20,7 +20,7 @@ package org.apache.flink.tools.ci.utils.deploy;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,10 +29,9 @@ class DeployParserTest {
     void testParseDeployOutputDetectsDeployment() {
         assertThat(
                         DeployParser.parseDeployOutput(
-                                Arrays.asList(
-                                                "[INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---",
-                                                "[INFO] ")
-                                        .iterator()))
+                                Stream.of(
+                                        "[INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---",
+                                        "[INFO] ")))
                 .containsExactly("flink-parent");
     }
 
@@ -40,10 +39,9 @@ class DeployParserTest {
     void testParseDeployOutputDetectsDeploymentWithAltRepository() {
         assertThat(
                         DeployParser.parseDeployOutput(
-                                Arrays.asList(
-                                                "[INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---",
-                                                "[INFO] Using alternate deployment repository.../tmp/flink-validation-deployment")
-                                        .iterator()))
+                                Stream.of(
+                                        "[INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---",
+                                        "[INFO] Using alternate deployment repository.../tmp/flink-validation-deployment")))
                 .containsExactly("flink-parent");
     }
 
@@ -51,10 +49,9 @@ class DeployParserTest {
     void testParseDeployOutputDetectsSkippedDeployments() {
         assertThat(
                         DeployParser.parseDeployOutput(
-                                Arrays.asList(
-                                                "[INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---",
-                                                "[INFO] Skipping artifact deployment")
-                                        .iterator()))
+                                Stream.of(
+                                        "[INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---",
+                                        "[INFO] Skipping artifact deployment")))
                 .isEmpty();
     }
 }

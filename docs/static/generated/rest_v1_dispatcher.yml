@@ -89,11 +89,9 @@ paths:
                 $ref: '#/components/schemas/JarListInfo'
   /jars/upload:
     post:
-      description: "Uploads a jar to the cluster. The jar must be sent as multi-part\
-        \ data. Make sure that the \"Content-Type\" header is set to \"application/x-java-archive\"\
-        , as some http libraries do not add the header by default.\nUsing 'curl' you\
-        \ can upload a jar via 'curl -X POST -H \"Expect:\" -F \"jarfile=@path/to/flink-job.jar\"\
-        \ http://hostname:port/jars/upload'."
+      description: |-
+        Uploads a jar to the cluster. The jar must be sent as multi-part data. Make sure that the "Content-Type" header is set to "application/x-java-archive", as some http libraries do not add the header by default.
+        Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@path/to/flink-job.jar" http://hostname:port/jars/upload'.
       operationId: uploadJar
       requestBody:
         content:
@@ -712,7 +710,7 @@ paths:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobs/{jobid}/jobmanager/environment:
     get:
-      description: Returns the jobmanager's environment variables of a specific job.
+      description: Returns the jobmanager's environment of a specific job.
       operationId: getJobManagerJobEnvironment
       parameters:
       - name: jobid
@@ -1721,6 +1719,8 @@ components:
         processed_data:
           type: integer
           format: int64
+        savepointFormat:
+          type: string
         state_size:
           type: integer
           format: int64
@@ -1886,18 +1886,6 @@ components:
         total:
           type: integer
           format: int64
-    CurrentAttempts:
-      type: object
-      properties:
-        currentAttempts:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int32
-        representativeAttempt:
-          type: integer
-          format: int32
     DashboardConfiguration:
       type: object
       properties:
@@ -1929,19 +1917,8 @@ components:
           type: array
           items:
             type: string
-        environment:
-          type: array
-          items:
-            $ref: '#/components/schemas/EnvironmentVariableItem'
         jvm:
           $ref: '#/components/schemas/JVMInfo'
-    EnvironmentVariableItem:
-      type: object
-      properties:
-        key:
-          type: string
-        value:
-          type: string
     ExceptionInfo:
       type: object
       properties:
@@ -2136,6 +2113,10 @@ components:
       properties:
         entryClass:
           type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
         jobId:
           $ref: '#/components/schemas/JobID'
         parallelism:
@@ -2154,6 +2135,10 @@ components:
           type: boolean
         entryClass:
           type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
         jobId:
           $ref: '#/components/schemas/JobID'
         parallelism:
@@ -2210,36 +2195,27 @@ components:
     JobDetails:
       type: object
       properties:
-        currentExecutionAttempts:
-          type: object
-          additionalProperties:
-            type: object
-            additionalProperties:
-              $ref: '#/components/schemas/CurrentAttempts'
         duration:
           type: integer
           format: int64
-        endTime:
+        end-time:
           type: integer
           format: int64
-        jobId:
+        jid:
           $ref: '#/components/schemas/JobID'
-        jobName:
+        last-modification:
+          type: integer
+          format: int64
+        name:
           type: string
-        lastUpdateTime:
+        start-time:
           type: integer
           format: int64
-        numTasks:
-          type: integer
-          format: int32
-        startTime:
-          type: integer
-          format: int64
-        status:
+        state:
           $ref: '#/components/schemas/JobStatus'
-        tasksPerState:
-          type: array
-          items:
+        tasks:
+          type: object
+          additionalProperties:
             type: integer
             format: int32
     JobDetailsInfo:

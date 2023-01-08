@@ -47,6 +47,7 @@ import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -62,8 +63,10 @@ import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -87,6 +90,9 @@ public class SessionContext {
 
     private final OperationManager operationManager;
 
+    private boolean isStatementSetState;
+    private final List<ModifyOperation> statementSetOperations;
+
     private SessionContext(
             DefaultContext defaultContext,
             SessionHandle sessionId,
@@ -102,6 +108,8 @@ public class SessionContext {
         this.userClassloader = classLoader;
         this.sessionState = sessionState;
         this.operationManager = operationManager;
+        this.isStatementSetState = false;
+        this.statementSetOperations = new ArrayList<>();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -166,6 +174,33 @@ public class SessionContext {
     public OperationExecutor createOperationExecutor(Configuration executionConfig) {
         return new OperationExecutor(this, executionConfig);
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Begin statement set
+    // --------------------------------------------------------------------------------------------
+
+    public boolean isStatementSetState() {
+        return isStatementSetState;
+    }
+
+    public void enableStatementSet() {
+        isStatementSetState = true;
+    }
+
+    public void disableStatementSet() {
+        isStatementSetState = false;
+        statementSetOperations.clear();
+    }
+
+    public List<ModifyOperation> getStatementSetOperations() {
+        return Collections.unmodifiableList(new ArrayList<>(statementSetOperations));
+    }
+
+    public void addStatementSetOperation(ModifyOperation operation) {
+        statementSetOperations.add(operation);
+    }
+
+    // --------------------------------------------------------------------------------------------
 
     /** Close resources, e.g. catalogs. */
     public void close() {

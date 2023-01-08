@@ -18,17 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
+import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
-import java.util.List;
 import java.util.Optional;
 import java.util.TreeMap;
-
-import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyUtils.getBuffersByConsumptionPriorityInOrder;
 
 /** A special implementation of {@link HsSpillingStrategy} that spilled all buffers to disk. */
 public class HsFullSpillingStrategy implements HsSpillingStrategy {
@@ -92,12 +88,14 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
                             subpartitionId,
                             // get all not start spilling buffers.
                             spillingInfoProvider.getBuffersInOrder(
-                                    subpartitionId, SpillStatus.NOT_SPILL, ConsumeStatus.ALL))
+                                    subpartitionId,
+                                    SpillStatus.NOT_SPILL,
+                                    ConsumeStatusWithId.ALL_ANY))
                     .addBufferToRelease(
                             subpartitionId,
                             // get all not released buffers.
                             spillingInfoProvider.getBuffersInOrder(
-                                    subpartitionId, SpillStatus.ALL, ConsumeStatus.ALL));
+                                    subpartitionId, SpillStatus.ALL, ConsumeStatusWithId.ALL_ANY));
         }
         return builder.build();
     }
@@ -114,10 +112,15 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
             builder.addBufferToSpill(
                     i,
                     spillingInfoProvider.getBuffersInOrder(
-                            i, SpillStatus.NOT_SPILL, ConsumeStatus.ALL));
+                            i, SpillStatus.NOT_SPILL, ConsumeStatusWithId.ALL_ANY));
         }
     }
 
+    /**
+     * Release subpartition's spilled buffer from head. Each subpartition fairly retains a fixed
+     * number of buffers, and all the remaining buffers are released. If this subpartition does not
+     * have so many qualified buffers, all of them will be retained.
+     */
     private void checkRelease(
             HsSpillingInfoProvider spillingInfoProvider, int poolSize, Decision.Builder builder) {
         if (spillingInfoProvider.getNumTotalRequestedBuffers() < poolSize * releaseThreshold) {
@@ -125,47 +128,32 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
             return;
         }
 
-        int releaseNum = (int) (spillingInfoProvider.getPoolSize() * releaseBufferRatio);
+        int releaseNum = (int) (poolSize * releaseBufferRatio);
+        int numSubpartitions = spillingInfoProvider.getNumSubpartitions();
+        int expectedSubpartitionReleaseNum = releaseNum / numSubpartitions;
+        TreeMap<Integer, Deque<BufferIndexAndChannel>> bufferToRelease = new TreeMap<>();
 
-        // first, release all consumed buffers
-        TreeMap<Integer, Deque<BufferIndexAndChannel>> consumedBuffersToRelease = new TreeMap<>();
-        int numConsumedBuffers = 0;
-        for (int subpartitionId = 0;
-                subpartitionId < spillingInfoProvider.getNumSubpartitions();
-                subpartitionId++) {
-
-            Deque<BufferIndexAndChannel> consumedSpillSubpartitionBuffers =
+        for (int subpartitionId = 0; subpartitionId < numSubpartitions; subpartitionId++) {
+            Deque<BufferIndexAndChannel> buffersInOrder =
                     spillingInfoProvider.getBuffersInOrder(
-                            subpartitionId, SpillStatus.SPILL, ConsumeStatus.CONSUMED);
-            numConsumedBuffers += consumedSpillSubpartitionBuffers.size();
-            consumedBuffersToRelease.put(subpartitionId, consumedSpillSubpartitionBuffers);
-        }
-
-        // make up the releaseNum with unconsumed buffers, if needed, w.r.t. the consuming priority
-        TreeMap<Integer, List<BufferIndexAndChannel>> unconsumedBufferToRelease = new TreeMap<>();
-        if (releaseNum > numConsumedBuffers) {
-            TreeMap<Integer, Deque<BufferIndexAndChannel>> unconsumedBuffers = new TreeMap<>();
-            for (int subpartitionId = 0;
-                    subpartitionId < spillingInfoProvider.getNumSubpartitions();
-                    subpartitionId++) {
-                unconsumedBuffers.put(
-                        subpartitionId,
-                        spillingInfoProvider.getBuffersInOrder(
-                                subpartitionId, SpillStatus.SPILL, ConsumeStatus.NOT_CONSUMED));
+                            subpartitionId, SpillStatus.SPILL, ConsumeStatusWithId.ALL_ANY);
+            // if the number of subpartition spilling buffers less than expected release number,
+            // release all of them.
+            int subpartitionReleaseNum =
+                    Math.min(buffersInOrder.size(), expectedSubpartitionReleaseNum);
+            int subpartitionSurvivedNum = buffersInOrder.size() - subpartitionReleaseNum;
+            while (subpartitionSurvivedNum-- != 0) {
+                buffersInOrder.pollLast();
             }
-            unconsumedBufferToRelease.putAll(
-                    getBuffersByConsumptionPriorityInOrder(
-                            spillingInfoProvider.getNextBufferIndexToConsume(),
-                            unconsumedBuffers,
-                            releaseNum - numConsumedBuffers));
+            bufferToRelease.put(subpartitionId, buffersInOrder);
         }
 
         // collect results in order
-        for (int i = 0; i < spillingInfoProvider.getNumSubpartitions(); i++) {
-            List<BufferIndexAndChannel> toRelease = new ArrayList<>();
-            toRelease.addAll(consumedBuffersToRelease.getOrDefault(i, new ArrayDeque<>()));
-            toRelease.addAll(unconsumedBufferToRelease.getOrDefault(i, new ArrayList<>()));
-            builder.addBufferToRelease(i, toRelease);
+        for (int i = 0; i < numSubpartitions; i++) {
+            Deque<BufferIndexAndChannel> bufferIndexAndChannels = bufferToRelease.get(i);
+            if (bufferIndexAndChannels != null && !bufferIndexAndChannels.isEmpty()) {
+                builder.addBufferToRelease(i, bufferToRelease.getOrDefault(i, new ArrayDeque<>()));
+            }
         }
     }
 }

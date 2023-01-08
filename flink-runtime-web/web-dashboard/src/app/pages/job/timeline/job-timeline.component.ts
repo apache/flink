@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -32,6 +33,7 @@ import * as G2 from '@antv/g2';
 import { Chart } from '@antv/g2';
 import { JobDetailCorrect, VerticesItemRange } from '@flink-runtime-web/interfaces';
 import { JobService, ColorKey, ConfigService } from '@flink-runtime-web/services';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
 
 import { JobLocalService } from '../job-local.service';
 
@@ -39,7 +41,9 @@ import { JobLocalService } from '../job-local.service';
   selector: 'flink-job-timeline',
   templateUrl: './job-timeline.component.html',
   styleUrls: ['./job-timeline.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzDividerModule, NgIf],
+  standalone: true
 })
 export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   public listOfVertex: VerticesItemRange[] = [];

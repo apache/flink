@@ -89,8 +89,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.security.token.DefaultDelegationTokenManagerFactory;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.security.token.KerberosDelegationTokenManagerFactory;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
@@ -428,11 +428,8 @@ public class MiniCluster implements AutoCloseableAsync {
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
                 delegationTokenManager =
-                        KerberosDelegationTokenManagerFactory.create(
-                                getClass().getClassLoader(),
-                                configuration,
-                                commonRpcService.getScheduledExecutor(),
-                                ioExecutor);
+                        DefaultDelegationTokenManagerFactory.create(
+                                configuration, commonRpcService.getScheduledExecutor(), ioExecutor);
 
                 blobCacheService =
                         BlobUtils.createBlobCacheService(
@@ -1103,7 +1100,8 @@ public class MiniCluster implements AutoCloseableAsync {
             Configuration config, long maximumMessageSizeInBytes) {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
-                ReporterSetup.fromConfiguration(config, null));
+                ReporterSetup.fromConfiguration(
+                        config, miniClusterConfiguration.getPluginManager()));
     }
 
     /**

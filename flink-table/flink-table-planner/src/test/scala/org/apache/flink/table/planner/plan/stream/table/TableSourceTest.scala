@@ -170,7 +170,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testProctimeOnWatermarkSpec(): Unit = {
-    thrown.expect(classOf[TableException])
+    thrown.expect(classOf[ValidationException])
     thrown.expect(
       containsMessage("A watermark can not be defined for a processing-time attribute."))
 

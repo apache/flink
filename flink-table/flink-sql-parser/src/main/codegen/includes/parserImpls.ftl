@@ -594,12 +594,16 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
+    SqlTableConstraint constraint;
+    SqlIdentifier originColumnIdentifier;
+    SqlIdentifier newColumnIdentifier;
     AlterTableContext ctx = new AlterTableContext();
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
         tableIdentifier = CompoundIdentifier()
     (
+        LOOKAHEAD(2)
         <RENAME> <TO>
         newTableIdentifier = CompoundIdentifier()
         {
@@ -607,6 +611,18 @@ SqlAlterTable SqlAlterTable() :
                         startPos.plus(getPos()),
                         tableIdentifier,
                         newTableIdentifier);
+        }
+    |
+        <RENAME>
+            originColumnIdentifier = CompoundIdentifier()
+        <TO>
+            newColumnIdentifier = CompoundIdentifier()
+        {
+            return new SqlAlterTableRenameColumn(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    originColumnIdentifier,
+                    newColumnIdentifier);
         }
     |
         <RESET>
@@ -629,16 +645,7 @@ SqlAlterTable SqlAlterTable() :
     |
         <ADD>
         (
-            AlterTableAddOrModify(ctx) {
-                // TODO: remove it after supports convert SqlNode to Operation,
-                // the jira link https://issues.apache.org/jira/browse/FLINK-22315
-                if (ctx.constraints.size() > 0) {
-                    return new SqlAlterTableAddConstraint(
-                                tableIdentifier,
-                                ctx.constraints.get(0),
-                                startPos.plus(getPos()));
-                }
-            }
+            AlterTableAddOrModify(ctx)
         |
             <LPAREN>
             AlterTableAddOrModify(ctx)
@@ -677,13 +684,45 @@ SqlAlterTable SqlAlterTable() :
         }
 
     |
-        <DROP> <CONSTRAINT>
-        constraintName = SimpleIdentifier() {
-            return new SqlAlterTableDropConstraint(
-                tableIdentifier,
-                constraintName,
-                startPos.plus(getPos()));
-        }
+     <DROP>
+        (
+            { SqlIdentifier columnName = null; }
+            columnName = CompoundIdentifier() {
+                return new SqlAlterTableDropColumn(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            new SqlNodeList(
+                                Collections.singletonList(columnName),
+                                getPos()));
+            }
+        |
+            { Pair<SqlNodeList, SqlNodeList> columnWithTypePair = null; }
+            columnWithTypePair = ParenthesizedCompoundIdentifierList() {
+                return new SqlAlterTableDropColumn(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            columnWithTypePair.getKey());
+            }
+        |
+            <PRIMARY> <KEY> {
+                return new SqlAlterTableDropPrimaryKey(
+                        startPos.plus(getPos()),
+                        tableIdentifier);
+            }
+        |
+            <CONSTRAINT> constraintName = SimpleIdentifier() {
+                return new SqlAlterTableDropConstraint(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            constraintName);
+            }
+        |
+            <WATERMARK> {
+                return new SqlAlterTableDropWatermark(
+                            startPos.plus(getPos()),
+                            tableIdentifier);
+            }
+        )
     |
         [
             <PARTITION>
@@ -771,7 +810,7 @@ SqlTableColumn TypedColumn(TableCreationContext context) :
     SqlDataTypeSpec type;
 }
 {
-    name = SimpleIdentifier() {pos = getPos();}
+    name = CompoundIdentifier() {pos = getPos();}
     type = ExtendedDataType()
     (
         tableColumn = MetadataColumn(context, name, type)
@@ -905,7 +944,7 @@ void AddOrModifyColumn(AlterTableContext context) :
     [
         (
             <AFTER>
-            referencedColumn = SimpleIdentifier()
+            referencedColumn = CompoundIdentifier()
             {
                 columnPos = new SqlTableColumnPosition(
                     getPos(),
@@ -2092,12 +2131,12 @@ void ParseExplainDetail(Set<String> explainDetails):
 }
 {
     (
-        <ESTIMATED_COST> 
-        | 
-        <CHANGELOG_MODE> 
-        | 
+        <ESTIMATED_COST>
+        |
+        <CHANGELOG_MODE>
+        |
         <JSON_EXECUTION_PLAN>
-    ) 
+    )
     {
         if (explainDetails.contains(token.image.toUpperCase())) {
             throw SqlUtil.newContextException(

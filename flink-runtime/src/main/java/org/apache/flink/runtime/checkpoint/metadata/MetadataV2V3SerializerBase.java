@@ -74,6 +74,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle.UNKNOWN_CHECKPOINTED_SIZE;
+import static org.apache.flink.runtime.state.changelog.StateChange.META_KEY_GROUP;
 
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
@@ -494,7 +495,11 @@ public abstract class MetadataV2V3SerializerBase {
                 int bytesSize = dis.readInt();
                 byte[] bytes = new byte[bytesSize];
                 IOUtils.readFully(dis, bytes, 0, bytesSize);
-                changes.add(new StateChange(keyGroup, bytes));
+                StateChange stateChange =
+                        keyGroup == META_KEY_GROUP
+                                ? StateChange.ofMetadataChange(bytes)
+                                : StateChange.ofDataChange(keyGroup, bytes);
+                changes.add(stateChange);
             }
             StateHandleID stateHandleId = new StateHandleID(dis.readUTF());
             return InMemoryChangelogStateHandle.restore(

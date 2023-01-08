@@ -314,6 +314,11 @@ public class TableSchema {
 
     /** Helps to migrate to the new {@link Schema} class. */
     public Schema toSchema() {
+        return toSchema(Collections.emptyMap());
+    }
+
+    /** Helps to migrate to the new {@link Schema} class, retain comments when needed. */
+    public Schema toSchema(Map<String, String> comments) {
         final Schema.Builder builder = Schema.newBuilder();
 
         columns.forEach(
@@ -333,6 +338,10 @@ public class TableSchema {
                         builder.columnByExpression(c.getName(), c.getExpression());
                     } else {
                         throw new IllegalArgumentException("Unsupported column type: " + column);
+                    }
+                    String colName = column.getName();
+                    if (comments.containsKey(colName)) {
+                        builder.withComment(comments.get(colName));
                     }
                 });
 

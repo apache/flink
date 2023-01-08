@@ -29,7 +29,7 @@ to get started writing streaming applications.
 
 ## What can be Streamed?
 
-Flink's DataStream APIs for Java and Scala will let you stream anything they can serialize. Flink's
+Flink's DataStream APIs will let you stream anything they can serialize. Flink's
 own serializer is used for
 
 - basic types, i.e., String, Long, Integer, Boolean, Array
@@ -84,6 +84,12 @@ Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/
 ### Scala tuples and case classes
 
 These work just as you'd expect.
+
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
 
 {{< top >}}
 

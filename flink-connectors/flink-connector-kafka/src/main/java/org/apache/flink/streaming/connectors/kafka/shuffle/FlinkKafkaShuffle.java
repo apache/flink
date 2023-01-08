@@ -342,8 +342,12 @@ public class FlinkKafkaShuffle {
                 "Missing partition number for Kafka Shuffle");
         int numberOfPartitions =
                 PropertiesUtil.getInt(kafkaProperties, PARTITION_NUMBER, Integer.MIN_VALUE);
+        // Set the parallelism / max parallelism of the keyed stream in consumer side as the number
+        // of kafka partitions
         DataStream<T> outputDataStream =
-                env.addSource(kafkaConsumer).setParallelism(numberOfPartitions);
+                env.addSource(kafkaConsumer)
+                        .setParallelism(numberOfPartitions)
+                        .setMaxParallelism(numberOfPartitions);
 
         return DataStreamUtils.reinterpretAsKeyedStream(outputDataStream, keySelector);
     }

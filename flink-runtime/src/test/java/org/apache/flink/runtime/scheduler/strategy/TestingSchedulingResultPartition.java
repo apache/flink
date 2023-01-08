@@ -102,24 +102,23 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         return Collections.unmodifiableList(consumedPartitionGroups);
     }
 
-    void addConsumerGroup(Collection<TestingSchedulingExecutionVertex> consumerVertices) {
+    void addConsumerGroup(
+            Collection<TestingSchedulingExecutionVertex> consumerVertices,
+            ResultPartitionType resultPartitionType) {
         checkState(this.consumerVertexGroup == null);
 
         final ConsumerVertexGroup consumerVertexGroup =
                 ConsumerVertexGroup.fromMultipleVertices(
                         consumerVertices.stream()
                                 .map(TestingSchedulingExecutionVertex::getId)
-                                .collect(Collectors.toList()));
+                                .collect(Collectors.toList()),
+                        resultPartitionType);
 
         this.consumerVertexGroup = consumerVertexGroup;
     }
 
     void registerConsumedPartitionGroup(ConsumedPartitionGroup consumedPartitionGroup) {
         consumedPartitionGroups.add(consumedPartitionGroup);
-
-        if (getState() == ResultPartitionState.CONSUMABLE) {
-            consumedPartitionGroup.partitionFinished();
-        }
     }
 
     void setProducer(TestingSchedulingExecutionVertex producer) {
@@ -130,7 +129,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             consumedPartitionGroup.partitionFinished();
         }
-        setState(ResultPartitionState.CONSUMABLE);
+        setState(ResultPartitionState.ALL_DATA_PRODUCED);
     }
 
     void setState(ResultPartitionState state) {
@@ -142,7 +141,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         private IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
         private int partitionNum = 0;
         private ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
-        private ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
+        private ResultPartitionState resultPartitionState = ResultPartitionState.ALL_DATA_PRODUCED;
 
         Builder withIntermediateDataSetID(IntermediateDataSetID intermediateDataSetId) {
             this.intermediateDataSetId = intermediateDataSetId;

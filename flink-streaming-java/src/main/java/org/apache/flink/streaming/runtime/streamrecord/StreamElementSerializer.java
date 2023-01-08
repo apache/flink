@@ -19,11 +19,8 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -262,35 +259,6 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
     @Override
     public StreamElementSerializerSnapshot<T> snapshotConfiguration() {
         return new StreamElementSerializerSnapshot<>(this);
-    }
-
-    /**
-     * Configuration snapshot specific to the {@link StreamElementSerializer}.
-     *
-     * @deprecated see {@link StreamElementSerializerSnapshot}.
-     */
-    @Deprecated
-    public static final class StreamElementSerializerConfigSnapshot<T>
-            extends CompositeTypeSerializerConfigSnapshot<StreamElement> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public StreamElementSerializerConfigSnapshot() {}
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<StreamElement> resolveSchemaCompatibility(
-                TypeSerializer<StreamElement> newSerializer) {
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer,
-                    new StreamElementSerializerSnapshot<>(),
-                    getSingleNestedSerializerAndConfig().f1);
-        }
     }
 
     /** Configuration snapshot specific to the {@link StreamElementSerializer}. */

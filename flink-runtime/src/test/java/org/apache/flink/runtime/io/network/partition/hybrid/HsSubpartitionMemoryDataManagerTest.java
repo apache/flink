@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
-import org.apache.flink.runtime.io.network.buffer.ReadOnlySlicedNetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
@@ -53,9 +52,14 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsConsumerId.DEFAULT;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId.ALL_ANY;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId.fromStatusAndConsumerId;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HsSubpartitionMemoryDataManager}. */
 class HsSubpartitionMemoryDataManagerTest {
@@ -119,98 +123,9 @@ class HsSubpartitionMemoryDataManagerTest {
         assertThat(finishedBuffers).hasValue(2);
     }
 
-    @Test
-    void testPeekNextToConsumeDataTypeNotMeetBufferIndexToConsume() throws Exception {
-        TestingMemoryDataManagerOperation memoryDataManagerOperation =
-                TestingMemoryDataManagerOperation.builder()
-                        .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(RECORD_SIZE))
-                        .build();
-        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
-                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
-
-        subpartitionMemoryDataManager.append(createRecord(0), DataType.DATA_BUFFER);
-
-        assertThat(subpartitionMemoryDataManager.peekNextToConsumeDataType(1))
-                .isEqualTo(DataType.NONE);
-    }
-
-    @Test
-    void testPeekNextToConsumeDataTypeTrimHeadingReleasedBuffers() throws Exception {
-        TestingMemoryDataManagerOperation memoryDataManagerOperation =
-                TestingMemoryDataManagerOperation.builder()
-                        .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(RECORD_SIZE))
-                        .build();
-        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
-                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
-
-        subpartitionMemoryDataManager.append(createRecord(0), DataType.DATA_BUFFER);
-        subpartitionMemoryDataManager.append(createRecord(1), DataType.DATA_BUFFER);
-        subpartitionMemoryDataManager.append(createRecord(2), DataType.EVENT_BUFFER);
-
-        List<BufferIndexAndChannel> toRelease =
-                HybridShuffleTestUtils.createBufferIndexAndChannelsList(0, 0, 1);
-        subpartitionMemoryDataManager.releaseSubpartitionBuffers(toRelease);
-
-        assertThat(subpartitionMemoryDataManager.peekNextToConsumeDataType(2))
-                .isEqualTo(DataType.EVENT_BUFFER);
-    }
-
-    @Test
-    void testConsumeBufferFirstUnConsumedBufferIndexNotMeetNextToConsume() throws Exception {
-        TestingMemoryDataManagerOperation memoryDataManagerOperation =
-                TestingMemoryDataManagerOperation.builder()
-                        .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(RECORD_SIZE))
-                        .build();
-        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
-                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
-
-        subpartitionMemoryDataManager.append(createRecord(0), DataType.DATA_BUFFER);
-
-        assertThat(subpartitionMemoryDataManager.consumeBuffer(1)).isNotPresent();
-    }
-
-    @Test
-    void testConsumeBufferTrimHeadingReleasedBuffers() throws Exception {
-        TestingMemoryDataManagerOperation memoryDataManagerOperation =
-                TestingMemoryDataManagerOperation.builder()
-                        .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(RECORD_SIZE))
-                        .build();
-        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
-                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
-
-        subpartitionMemoryDataManager.append(createRecord(0), DataType.DATA_BUFFER);
-        subpartitionMemoryDataManager.append(createRecord(1), DataType.DATA_BUFFER);
-        subpartitionMemoryDataManager.append(createRecord(2), DataType.EVENT_BUFFER);
-
-        List<BufferIndexAndChannel> toRelease =
-                HybridShuffleTestUtils.createBufferIndexAndChannelsList(0, 0, 1);
-        subpartitionMemoryDataManager.releaseSubpartitionBuffers(toRelease);
-
-        assertThat(subpartitionMemoryDataManager.consumeBuffer(2)).isPresent();
-    }
-
-    @Test
-    void testConsumeBufferReturnSlice() throws Exception {
-        TestingMemoryDataManagerOperation memoryDataManagerOperation =
-                TestingMemoryDataManagerOperation.builder()
-                        .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(RECORD_SIZE))
-                        .build();
-        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
-                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
-
-        subpartitionMemoryDataManager.append(createRecord(0), DataType.DATA_BUFFER);
-
-        Optional<BufferAndBacklog> bufferOpt = subpartitionMemoryDataManager.consumeBuffer(0);
-        assertThat(bufferOpt)
-                .hasValueSatisfying(
-                        (bufferAndBacklog ->
-                                assertThat(bufferAndBacklog.buffer())
-                                        .isInstanceOf(ReadOnlySlicedNetworkBuffer.class)));
-    }
-
     @ParameterizedTest
     @ValueSource(strings = {"LZ4", "LZO", "ZSTD", "NULL"})
-    void testConsumeBuffer(String compressionFactoryName) throws Exception {
+    void testCompressBufferAndConsume(String compressionFactoryName) throws Exception {
         final int numDataBuffers = 10;
         final int numRecordsPerBuffer = 10;
         // write numRecordsPerBuffer long record to one buffer, as a single long is
@@ -246,9 +161,11 @@ class HsSubpartitionMemoryDataManagerTest {
         subpartitionMemoryDataManager.append(createRecord(recordValue), DataType.EVENT_BUFFER);
         expectedRecords.add(Tuple2.of(recordValue, DataType.EVENT_BUFFER));
 
+        HsSubpartitionConsumerMemoryDataManager consumer =
+                subpartitionMemoryDataManager.registerNewConsumer(DEFAULT);
         ArrayList<Optional<BufferAndBacklog>> bufferAndBacklogOpts = new ArrayList<>();
         for (int i = 0; i < numDataBuffers + 1; i++) {
-            bufferAndBacklogOpts.add(subpartitionMemoryDataManager.consumeBuffer(i));
+            bufferAndBacklogOpts.add(consumer.consumeBuffer(i));
         }
         checkConsumedBufferAndNextDataType(
                 numRecordsPerBuffer, bufferDecompressor, expectedRecords, bufferAndBacklogOpts);
@@ -274,6 +191,8 @@ class HsSubpartitionMemoryDataManagerTest {
                         .build();
         HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
                 createSubpartitionMemoryDataManager(memoryDataManagerOperation);
+        HsSubpartitionConsumerMemoryDataManager consumer =
+                subpartitionMemoryDataManager.registerNewConsumer(DEFAULT);
         final int numBuffers = 4;
         for (int i = 0; i < numBuffers; i++) {
             subpartitionMemoryDataManager.append(createRecord(i), DataType.DATA_BUFFER);
@@ -286,44 +205,48 @@ class HsSubpartitionMemoryDataManagerTest {
         subpartitionMemoryDataManager.spillSubpartitionBuffers(toStartSpilling, spilledDoneFuture);
 
         // consume buffer 0, 1
-        subpartitionMemoryDataManager.consumeBuffer(0);
-        subpartitionMemoryDataManager.consumeBuffer(1);
+        consumer.consumeBuffer(0);
+        consumer.consumeBuffer(1);
 
         checkBufferIndex(
-                subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.ALL, ConsumeStatus.ALL),
+                subpartitionMemoryDataManager.getBuffersSatisfyStatus(SpillStatus.ALL, ALL_ANY),
                 Arrays.asList(0, 1, 2, 3));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.ALL, ConsumeStatus.CONSUMED),
+                        SpillStatus.ALL,
+                        fromStatusAndConsumerId(ConsumeStatus.CONSUMED, HsConsumerId.DEFAULT)),
                 Arrays.asList(0, 1));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.ALL, ConsumeStatus.NOT_CONSUMED),
+                        SpillStatus.ALL,
+                        fromStatusAndConsumerId(ConsumeStatus.NOT_CONSUMED, HsConsumerId.DEFAULT)),
                 Arrays.asList(2, 3));
         checkBufferIndex(
-                subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.SPILL, ConsumeStatus.ALL),
+                subpartitionMemoryDataManager.getBuffersSatisfyStatus(SpillStatus.SPILL, ALL_ANY),
                 Arrays.asList(1, 2));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.NOT_SPILL, ConsumeStatus.ALL),
+                        SpillStatus.NOT_SPILL, ALL_ANY),
                 Arrays.asList(0, 3));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.SPILL, ConsumeStatus.NOT_CONSUMED),
+                        SpillStatus.SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.NOT_CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(2));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.SPILL, ConsumeStatus.CONSUMED),
+                        SpillStatus.SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(1));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.NOT_SPILL, ConsumeStatus.CONSUMED),
+                        SpillStatus.NOT_SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(0));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.NOT_SPILL, ConsumeStatus.NOT_CONSUMED),
+                        SpillStatus.NOT_SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.NOT_CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(3));
     }
 
@@ -424,6 +347,33 @@ class HsSubpartitionMemoryDataManagerTest {
                 DataType.EVENT_BUFFER);
         assertThat(metrics.getNumBuffersOut().getCount()).isEqualTo(2);
         assertThat(metrics.getNumBytesOut().getCount()).isEqualTo(recordSize + eventSize);
+    }
+
+    @Test
+    void testConsumerRegisterRepeatedly() {
+        TestingMemoryDataManagerOperation memoryDataManagerOperation =
+                TestingMemoryDataManagerOperation.builder().build();
+        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
+                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
+
+        HsConsumerId consumerId = HsConsumerId.newId(null);
+        subpartitionMemoryDataManager.registerNewConsumer(consumerId);
+        assertThatThrownBy(() -> subpartitionMemoryDataManager.registerNewConsumer(consumerId))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testRegisterAndReleaseConsumer() {
+        TestingMemoryDataManagerOperation memoryDataManagerOperation =
+                TestingMemoryDataManagerOperation.builder().build();
+        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
+                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
+
+        HsConsumerId consumerId = HsConsumerId.newId(null);
+        subpartitionMemoryDataManager.registerNewConsumer(consumerId);
+        subpartitionMemoryDataManager.releaseConsumer(consumerId);
+        assertThatNoException()
+                .isThrownBy(() -> subpartitionMemoryDataManager.registerNewConsumer(consumerId));
     }
 
     private static void checkBufferIndex(

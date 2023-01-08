@@ -47,10 +47,18 @@ public class JobExceptionsInfoWithHistoryTest
                 new ArrayList<>();
         executionTaskExceptionInfoList.add(
                 new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception1", "task1", "location1", System.currentTimeMillis()));
+                        "exception1",
+                        "task1",
+                        "location1",
+                        System.currentTimeMillis(),
+                        "taskManagerId1"));
         executionTaskExceptionInfoList.add(
                 new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception2", "task2", "location2", System.currentTimeMillis()));
+                        "exception2",
+                        "task2",
+                        "location2",
+                        System.currentTimeMillis(),
+                        "taskManagerId2"));
         return new JobExceptionsInfoWithHistory(
                 "root exception",
                 System.currentTimeMillis(),

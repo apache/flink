@@ -150,7 +150,7 @@ public class DynamicPartitionPruningUtils {
                 factSideFactors.isSuitableFactScanSource = false;
                 return;
             }
-            CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getTable();
+            CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getResolvedTable();
             List<String> partitionKeys = catalogTable.getPartitionKeys();
             if (partitionKeys.isEmpty()) {
                 factSideFactors.isSuitableFactScanSource = false;
@@ -257,7 +257,7 @@ public class DynamicPartitionPruningUtils {
                     }
                 }
             }
-            CatalogTable catalogTable = table.contextResolvedTable().getTable();
+            CatalogTable catalogTable = table.contextResolvedTable().getResolvedTable();
             dimSideFactors.hasNonPartitionedScan = !catalogTable.isPartitioned();
         } else if (rel instanceof HepRelVertex) {
             visitDimSide(((HepRelVertex) rel).getCurrentRel(), dimSideFactors);

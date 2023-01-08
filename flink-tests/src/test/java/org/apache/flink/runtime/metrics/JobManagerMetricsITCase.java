@@ -18,26 +18,31 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -45,7 +50,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /** Integration tests for proper initialization of the job manager metrics. */
-public class JobManagerMetricsITCase extends TestLogger {
+class JobManagerMetricsITCase {
 
     private static final String JOB_MANAGER_METRICS_PREFIX = "localhost.jobmanager.";
 
@@ -53,17 +58,25 @@ public class JobManagerMetricsITCase extends TestLogger {
 
     private CheckedThread jobExecuteThread;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    @Order(1)
+    static final ContextClassLoaderExtension CONTEXT_CLASS_LOADER_EXTENSION =
+            ContextClassLoaderExtension.builder()
+                    .withServiceEntry(MetricReporterFactory.class, TestReporter.class.getName())
+                    .build();
+
+    @RegisterExtension
+    @Order(2)
+    static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(1)
                             .build());
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         jobExecuteThread =
                 new CheckedThread() {
 
@@ -96,7 +109,7 @@ public class JobManagerMetricsITCase extends TestLogger {
     }
 
     @Test
-    public void testJobManagerMetrics() throws Exception {
+    void testJobManagerMetrics() throws Exception {
         assertEquals(1, TestReporter.OPENED_REPORTERS.size());
         TestReporter reporter = TestReporter.OPENED_REPORTERS.iterator().next();
 
@@ -137,8 +150,8 @@ public class JobManagerMetricsITCase extends TestLogger {
 
     private static Configuration getConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setString(
-                "metrics.reporter.test_reporter.class", TestReporter.class.getName());
+        MetricOptions.forReporter(configuration, "test_reporter")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter.class.getName());
         return configuration;
     }
 
@@ -160,7 +173,8 @@ public class JobManagerMetricsITCase extends TestLogger {
     }
 
     /** Test metric reporter that exposes registered metrics. */
-    public static final class TestReporter extends AbstractReporter {
+    public static final class TestReporter extends AbstractReporter
+            implements MetricReporterFactory {
         public static final Set<TestReporter> OPENED_REPORTERS = ConcurrentHashMap.newKeySet();
 
         @Override
@@ -180,6 +194,11 @@ public class JobManagerMetricsITCase extends TestLogger {
 
         public Map<Gauge<?>, String> getGauges() {
             return gauges;
+        }
+
+        @Override
+        public MetricReporter createMetricReporter(Properties properties) {
+            return this;
         }
     }
 }

@@ -53,10 +53,9 @@ import org.apache.orc.CompressionKind;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -72,12 +71,10 @@ import java.util.Properties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for the ORC BulkWriter write RowData with nested type. */
-public class OrcBulkRowDataWriterTest {
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+class OrcBulkRowDataWriterTest {
 
     @SuppressWarnings("FieldCanBeLocal")
-    private String schema =
+    private final String schema =
             "struct<_col0:string,_col1:int,_col2:array<struct<_col2_col0:string>>,"
                     + "_col3:map<string,struct<_col3_col0:string,_col3_col1:timestamp>>>";
 
@@ -85,8 +82,7 @@ public class OrcBulkRowDataWriterTest {
     private List<RowData> input;
 
     @Test
-    public void testOrcBulkWriterWithRowData() throws Exception {
-        final File outDir = TEMPORARY_FOLDER.newFolder();
+    void testOrcBulkWriterWithRowData(@TempDir File outDir) throws Exception {
         final Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 
@@ -120,8 +116,8 @@ public class OrcBulkRowDataWriterTest {
         }
     }
 
-    @Before
-    public void initInput() {
+    @BeforeEach
+    void initInput() {
         input = new ArrayList<>();
         fieldTypes = new LogicalType[4];
         fieldTypes[0] = new VarCharType();
@@ -189,7 +185,6 @@ public class OrcBulkRowDataWriterTest {
 
     private void validate(File files, List<RowData> expected) throws IOException {
         final File[] buckets = files.listFiles();
-        assertThat(buckets).isNotNull();
         assertThat(buckets).hasSize(1);
 
         final File[] partFiles = buckets[0].listFiles();
@@ -209,8 +204,7 @@ public class OrcBulkRowDataWriterTest {
 
             List<RowData> results = getResults(reader);
 
-            assertThat(results).hasSize(2);
-            assertThat(results).isEqualTo(expected);
+            assertThat(results).hasSize(2).isEqualTo(expected);
         }
     }
 

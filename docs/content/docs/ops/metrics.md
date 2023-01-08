@@ -331,7 +331,7 @@ class MyMapper extends RichMapFunction[Long, Long] {
   @transient private var histogram: Histogram = _
 
   override def open(config: Configuration): Unit = {
-    com.codahale.metrics.Histogram dropwizardHistogram =
+    val dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500))
         
     histogram = getRuntimeContext()
@@ -1556,7 +1556,7 @@ Note that the metrics are only available via reporters.
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="7"><strong>Task/Operator</strong></th>
+      <th rowspan="8"><strong>Task/Operator</strong></th>
       <td>startedMaterialization</td>
       <td>The number of started materializations.</td>
       <td>Counter</td>
@@ -1570,6 +1570,11 @@ Note that the metrics are only available via reporters.
       <td>failedMaterialization</td>
       <td>The number of failed materializations.</td>
       <td>Counter</td>
+    </tr>
+    <tr>
+      <td>lastDurationOfMaterialization</td>
+      <td>The duration of the last materialization (in milliseconds).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>lastFullSizeOfMaterialization</td>
@@ -2209,7 +2214,7 @@ Request metrics aggregated over a subset of all entities of the respective type:
   - `/jobs/metrics?jobs=D,E,F`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics?subtask=1,2,3`
 
-<span class="label label-danger">Warning</span> Metric names can contain special characters that you need to be escape when querying metrics.
+<span class="label label-danger">Warning</span> Metric names can contain special characters that you need to escape when querying metrics.
 For example, "`a_+_b`" would be escaped to "`a_%2B_b`".
 
 List of characters that should be escaped:

@@ -126,7 +126,6 @@ flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
 flink-connectors/flink-connector-files,\
 flink-connectors/flink-connector-jdbc,\
-flink-connectors/flink-connector-cassandra,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\
@@ -142,17 +141,9 @@ flink-connectors/flink-connector-base,\
 flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,\
 flink-connectors/flink-connector-gcp-pubsub,\
-flink-connectors/flink-connector-pulsar,\
-flink-connectors/flink-sql-connector-pulsar,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-sql-connector-rabbitmq,\
 flink-connectors/flink-connector-aws-base,\
-flink-connectors/flink-connector-kinesis,\
-flink-connectors/flink-sql-connector-kinesis,\
-flink-connectors/flink-connector-aws-kinesis-streams,\
-flink-connectors/flink-sql-connector-aws-kinesis-streams,\
-flink-connectors/flink-connector-aws-kinesis-firehose,\
-flink-connectors/flink-sql-connector-aws-kinesis-firehose,\
 "
 
 MODULES_TESTS="\

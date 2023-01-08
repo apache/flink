@@ -159,6 +159,12 @@
             <td>Total Process Memory size for the JobManager. This includes all the memory that a JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. In containerized setups, this should be set to the container memory. See also 'jobmanager.memory.flink.size' for Total Flink Memory size configuration.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.partition.hybrid.partition-data-consume-constraint</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p></td>
+            <td>Controls the constraint that hybrid partition data can be consumed. Note that this option is allowed only when <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Accepted values are:<ul><li>'<code class="highlighter-rouge">ALL_PRODUCERS_FINISHED</code>': hybrid partition data can be consumed only when all producers are finished.</li><li>'<code class="highlighter-rouge">ONLY_FINISHED_PRODUCERS</code>': hybrid partition data can be consumed when its producer is finished.</li><li>'<code class="highlighter-rouge">UNFINISHED_PRODUCERS</code>': hybrid partition data can be consumed even if its producer is un-finished.</li></ul><br /><br />Possible values:<ul><li>"ALL_PRODUCERS_FINISHED"</li><li>"ONLY_FINISHED_PRODUCERS"</li><li>"UNFINISHED_PRODUCERS"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.resource-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

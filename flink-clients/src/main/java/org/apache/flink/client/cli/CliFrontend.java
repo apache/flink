@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
@@ -80,7 +81,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static java.lang.Math.min;
 import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -88,6 +91,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CliFrontend {
 
     private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
+
+    private static final int INITIAL_RET_CODE = 31;
 
     // actions
     private static final String ACTION_RUN = "run";
@@ -316,7 +321,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
 
-        final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
         final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
@@ -498,20 +503,7 @@ public class CliFrontend {
 
     private static void printJobStatusMessages(List<JobStatusMessage> jobs) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-        Comparator<JobStatusMessage> startTimeComparator =
-                (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
-        Comparator<Map.Entry<JobStatus, List<JobStatusMessage>>> statusComparator =
-                (o1, o2) ->
-                        String.CASE_INSENSITIVE_ORDER.compare(
-                                o1.getKey().toString(), o2.getKey().toString());
-
-        Map<JobStatus, List<JobStatusMessage>> jobsByState =
-                jobs.stream().collect(Collectors.groupingBy(JobStatusMessage::getJobState));
-        jobsByState.entrySet().stream()
-                .sorted(statusComparator)
-                .map(Map.Entry::getValue)
-                .flatMap(List::stream)
-                .sorted(startTimeComparator)
+        sortJobStatusMessages(jobs)
                 .forEachOrdered(
                         job ->
                                 System.out.println(
@@ -523,6 +515,22 @@ public class CliFrontend {
                                                 + " ("
                                                 + job.getJobState()
                                                 + ")"));
+    }
+
+    @VisibleForTesting
+    static Stream<JobStatusMessage> sortJobStatusMessages(List<JobStatusMessage> jobs) {
+        Comparator<Map.Entry<JobStatus, List<JobStatusMessage>>> statusComparator =
+                (o1, o2) ->
+                        String.CASE_INSENSITIVE_ORDER.compare(
+                                o1.getKey().toString(), o2.getKey().toString());
+
+        Map<JobStatus, List<JobStatusMessage>> jobsByState =
+                jobs.stream().collect(Collectors.groupingBy(JobStatusMessage::getJobState));
+        return jobsByState.entrySet().stream()
+                .sorted(statusComparator)
+                .map(Map.Entry::getValue)
+                .flatMap(List::stream)
+                .sorted(Comparator.comparing(JobStatusMessage::getStartTime));
     }
 
     /**
@@ -720,10 +728,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
 
-        final Options commandLineOptions =
-                CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-        final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
         final SavepointOptions savepointOptions = new SavepointOptions(commandLine);
 
@@ -1147,6 +1152,16 @@ public class CliFrontend {
 
     /** Submits the job based on the arguments. */
     public static void main(final String[] args) {
+        int retCode = INITIAL_RET_CODE;
+        try {
+            retCode = mainInternal(args);
+        } finally {
+            System.exit(retCode);
+        }
+    }
+
+    @VisibleForTesting
+    static int mainInternal(final String[] args) {
         EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
         // 1. find the configuration directory
@@ -1160,12 +1175,14 @@ public class CliFrontend {
         final List<CustomCommandLine> customCommandLines =
                 loadCustomCommandLines(configuration, configurationDirectory);
 
-        int retCode = 31;
+        int retCode = INITIAL_RET_CODE;
         try {
             final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
             CommandLine commandLine =
                     cli.getCommandLine(
-                            new Options(), Arrays.copyOfRange(args, 1, args.length), true);
+                            new Options(),
+                            Arrays.copyOfRange(args, min(args.length, 1), args.length),
+                            true);
             Configuration securityConfig = new Configuration(cli.configuration);
             DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
             SecurityUtils.install(new SecurityConfiguration(securityConfig));
@@ -1175,9 +1192,8 @@ public class CliFrontend {
                     ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
             LOG.error("Fatal error while running command line interface.", strippedThrowable);
             strippedThrowable.printStackTrace();
-        } finally {
-            System.exit(retCode);
         }
+        return retCode;
     }
 
     // --------------------------------------------------------------------------------------------

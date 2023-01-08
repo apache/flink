@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { NgForOf, NgIf } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -25,11 +26,13 @@ import {
   QueryList,
   ViewChildren
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, mergeMap, takeUntil } from 'rxjs/operators';
 
+import { JobChartComponent } from '@flink-runtime-web/components/job-chart/job-chart.component';
 import { MetricsService } from '@flink-runtime-web/services';
-import { JobChartComponent } from '@flink-runtime-web/share/customize/job-chart/job-chart.component';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -37,7 +40,9 @@ import { JobLocalService } from '../../job-local.service';
   selector: 'flink-job-overview-drawer-chart',
   templateUrl: './job-overview-drawer-chart.component.html',
   styleUrls: ['./job-overview-drawer-chart.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgIf, NzSelectModule, FormsModule, NgForOf, JobChartComponent],
+  standalone: true
 })
 export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
   public data = [];

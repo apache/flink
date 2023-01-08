@@ -23,12 +23,15 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.rocksdb.Cache;
 import org.rocksdb.LRUCache;
 import org.rocksdb.WriteBufferManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utils to create {@link Cache} and {@link WriteBufferManager} which are used to control total
  * memory usage of RocksDB.
  */
 public class RocksDBMemoryControllerUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(RocksDBMemoryControllerUtils.class);
 
     /**
      * Allocate memory controllable RocksDB shared resources.
@@ -57,6 +60,12 @@ public class RocksDBMemoryControllerUtils {
                 RocksDBMemoryControllerUtils.createWriteBufferManager(
                         writeBufferManagerCapacity, cache);
 
+        LOG.debug(
+                "Allocated RocksDB shared resources, calculatedCacheCapacity: {}, highPriorityPoolRatio: {}, writeBufferManagerCapacity: {}, usingPartitionedIndexFilters: {}",
+                calculatedCacheCapacity,
+                highPriorityPoolRatio,
+                writeBufferManagerCapacity,
+                usingPartitionedIndexFilters);
         return new RocksDBSharedResources(
                 cache, wbm, writeBufferManagerCapacity, usingPartitionedIndexFilters);
     }
@@ -82,7 +91,7 @@ public class RocksDBMemoryControllerUtils {
      * @return The actual calculated cache capacity.
      */
     @VisibleForTesting
-    static long calculateActualCacheCapacity(long totalMemorySize, double writeBufferRatio) {
+    public static long calculateActualCacheCapacity(long totalMemorySize, double writeBufferRatio) {
         return (long) ((3 - writeBufferRatio) * totalMemorySize / 3);
     }
 

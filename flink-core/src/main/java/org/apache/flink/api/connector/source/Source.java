@@ -21,8 +21,6 @@ package org.apache.flink.api.connector.source;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import java.io.Serializable;
-
 /**
  * The interface for Source. It acts like a factory class that helps construct the {@link
  * SplitEnumerator} and {@link SourceReader} and corresponding serializers.
@@ -32,7 +30,8 @@ import java.io.Serializable;
  * @param <EnumChkT> The type of the enumerator checkpoints.
  */
 @Public
-public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Serializable {
+public interface Source<T, SplitT extends SourceSplit, EnumChkT>
+        extends SourceReaderFactory<T, SplitT> {
 
     /**
      * Get the boundedness of this source.
@@ -40,17 +39,6 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
      * @return the boundedness of this source.
      */
     Boundedness getBoundedness();
-
-    /**
-     * Creates a new reader to read data from the splits it gets assigned. The reader starts fresh
-     * and does not have any state to resume.
-     *
-     * @param readerContext The {@link SourceReaderContext context} for the source reader.
-     * @return A new SourceReader.
-     * @throws Exception The implementor is free to forward all exceptions directly. Exceptions
-     *     thrown from this method cause task failure/recovery.
-     */
-    SourceReader<T, SplitT> createReader(SourceReaderContext readerContext) throws Exception;
 
     /**
      * Creates a new SplitEnumerator for this source, starting a new input.

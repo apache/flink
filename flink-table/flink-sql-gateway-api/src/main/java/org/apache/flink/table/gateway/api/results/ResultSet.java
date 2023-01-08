@@ -25,7 +25,6 @@ import org.apache.flink.table.data.RowData;
 
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -33,13 +32,7 @@ import java.util.stream.Collectors;
 
 /** The collection of the results. */
 @PublicEvolving
-public class ResultSet implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-
-    public static final String FIELD_NAME_COLUMN_INFOS = "columns";
-
-    public static final String FIELD_NAME_DATA = "data";
+public class ResultSet {
 
     private final ResultType resultType;
 

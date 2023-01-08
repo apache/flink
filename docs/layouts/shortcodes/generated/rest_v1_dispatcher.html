@@ -473,6 +473,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "entryClass" : {
       "type" : "string"
     },
+    "flinkConfiguration" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "string"
+      }
+    },
     "jobId" : {
       "type" : "any"
     },
@@ -563,6 +569,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "entryClass" : {
       "type" : "string"
+    },
+    "flinkConfiguration" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "string"
+      }
     },
     "jobId" : {
       "type" : "any"
@@ -690,21 +702,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "array",
       "items" : {
         "type" : "string"
-      }
-    },
-    "environment" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:EnvironmentVariableItem",
-        "properties" : {
-          "key" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
       }
     },
     "jvm" : {
@@ -1084,7 +1081,38 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "jobs" : {
       "type" : "array",
       "items" : {
-        "type" : "any"
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobDetails",
+        "properties" : {
+          "duration" : {
+            "type" : "integer"
+          },
+          "end-time" : {
+            "type" : "integer"
+          },
+          "jid" : {
+            "type" : "any"
+          },
+          "last-modification" : {
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "start-time" : {
+            "type" : "integer"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+          },
+          "tasks" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer"
+            }
+          }
+        }
       }
     }
   }
@@ -1368,7 +1396,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "job-accumulators" : {
       "type" : "array",
       "items" : {
-        "type" : "any"
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobAccumulatorsInfo:JobAccumulator"
       }
     },
     "serialized-user-task-accumulators" : {
@@ -1503,6 +1532,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "processed_data" : {
             "type" : "integer"
           },
+          "savepointFormat" : {
+            "type" : "string"
+          },
           "state_size" : {
             "type" : "integer"
           },
@@ -1570,6 +1602,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             },
             "processed_data" : {
               "type" : "integer"
+            },
+            "savepointFormat" : {
+              "type" : "string"
             },
             "state_size" : {
               "type" : "integer"
@@ -1669,6 +1704,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             },
             "processed_data" : {
               "type" : "integer"
+            },
+            "savepointFormat" : {
+              "type" : "string"
             },
             "state_size" : {
               "type" : "integer"
@@ -2013,6 +2051,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "processed_data" : {
       "type" : "integer"
+    },
+    "savepointFormat" : {
+      "type" : "string"
     },
     "state_size" : {
       "type" : "integer"
@@ -2643,7 +2684,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Returns the jobmanager's environment variables of a specific job.</td>
+      <td colspan="2">Returns the jobmanager's environment of a specific job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2677,21 +2718,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "array",
       "items" : {
         "type" : "string"
-      }
-    },
-    "environment" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:EnvironmentVariableItem",
-        "properties" : {
-          "key" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
       }
     },
     "jvm" : {

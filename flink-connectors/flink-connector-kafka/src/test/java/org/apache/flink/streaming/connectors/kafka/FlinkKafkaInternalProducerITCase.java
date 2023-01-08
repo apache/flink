@@ -204,7 +204,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 
     @Test(timeout = 30000L)
     public void testProducerWhenCommitEmptyPartitionsToOutdatedTxnCoordinator() throws Exception {
-        String topic = "flink-kafka-producer-txn-coordinator-changed";
+        String topic = "flink-kafka-producer-txn-coordinator-changed-" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
         Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
         try {
@@ -238,7 +238,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
             kafkaConsumer.subscribe(Collections.singletonList(topicName));
             ConsumerRecords<String, String> records = ConsumerRecords.empty();
             while (records.isEmpty()) {
-                records = kafkaConsumer.poll(10000);
+                records = kafkaConsumer.poll(Duration.ofMillis(10000));
             }
 
             ConsumerRecord<String, String> record = Iterables.getOnlyElement(records);

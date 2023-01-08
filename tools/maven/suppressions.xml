@@ -32,6 +32,7 @@ under the License.
 		<suppress files="NoticeFileChecker.java" checks="Regexp"/>
 		<suppress files="NoticeFileChecker.java" checks="IllegalImport"/>
 		<suppress files="NoticeFileCheckerTest.java" checks="IllegalImport"/>
+		<suppress files="DependencyTree.java" checks="IllegalImport"/>
 
 		<suppress files="JoinOperator.java" checks="FileLength"/>
 		<suppress files="WindowOperatorTest.java" checks="FileLength"/>
@@ -51,32 +52,6 @@ under the License.
 	    <suppress
 			files="OverConvertRule.java|InConverter.java|SymbolUtil.java|RexNodeJsonDeserializer.java|RexNodeJsonSerializer.java|RexNodeJsonSerdeTest.java"
 			checks="IllegalImport"/>
-		<!-- Cassandra connectors have to use guava directly -->
-		<suppress
-			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormatBase.java|OutputFormatBase.java|OutputFormatBaseTest.java|CassandraColumnarOutputFormatBase.java|CassandraSinkBase.java|CassandraSinkBaseTest.java|CassandraPojoSink.java|CassandraRowSink.java|CassandraTupleWriteAheadSink.java|CassandraRowWriteAheadSink.java|CassandraPojoOutputFormat.java"
-			checks="IllegalImport"/>
-		<!-- Kinesis producer has to use guava directly -->
-		<suppress
-			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
-			checks="IllegalImport"/>
-		<!-- Kinesis EFO consumer required to handle Netty ReadTimeoutException -->
-		<suppress 
-			files="FanOutRecordPublisherTest.java|FanOutShardSubscriber.java|FanOutShardSubscriberTest.java" 
-			checks="IllegalImport"/>
-		<!-- Pulsar broker required to handle Netty EventLoopGroup -->
-		<suppress
-			files="MockBookKeeperClientFactory.java"
-			checks="IllegalImport"/>
-		<!-- Classes copied from Hadoop -->
-		<suppress
-			files="org[\\/]apache[\\/]hadoop[\\/]conf[\\/]Configuration.java"
-			checks=".*"/>
-		<suppress
-			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]NativeCodeLoader.java"
-			checks=".*"/>
-		<suppress
-			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]VersionInfo.java"
-			checks=".*"/>
 		<!-- Classes copied from AWS -->
 		<suppress
 			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"

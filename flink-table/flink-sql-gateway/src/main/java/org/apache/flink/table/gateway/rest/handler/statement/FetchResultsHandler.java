@@ -33,6 +33,7 @@ import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathPa
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenPathParameter;
+import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import javax.annotation.Nonnull;
@@ -86,6 +87,7 @@ public class FetchResultsHandler
                         nextToken);
 
         return CompletableFuture.completedFuture(
-                new FetchResultsResponseBody(resultSet, resultType, nextResultUri));
+                new FetchResultsResponseBody(
+                        ResultInfo.createResultInfo(resultSet), resultType, nextResultUri));
     }
 }

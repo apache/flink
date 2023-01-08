@@ -70,18 +70,14 @@ under the License.
 		<module>flink-streaming-kafka-test</module>
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
-		<module>flink-streaming-kinesis-test</module>
 		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
 		<module>flink-python-test</module>
 		<module>flink-end-to-end-tests-hbase</module>
-		<module>flink-end-to-end-tests-pulsar</module>
 		<module>flink-glue-schema-registry-avro-test</module>
 		<module>flink-glue-schema-registry-json-test</module>
 		<module>flink-end-to-end-tests-scala</module>
-		<module>flink-end-to-end-tests-aws-kinesis-streams</module>
-		<module>flink-end-to-end-tests-aws-kinesis-firehose</module>
 		<module>flink-end-to-end-tests-sql</module>
     </modules>
 

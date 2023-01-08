@@ -18,9 +18,11 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -30,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -315,6 +319,25 @@ public class ConfigurationTest extends TestLogger {
     }
 
     @Test
+    public void testRemoveKey() {
+        Configuration cfg = new Configuration();
+        String key1 = "a.b";
+        String key2 = "c.d";
+        cfg.setInteger(key1, 42);
+        cfg.setInteger(key2, 44);
+        cfg.setInteger(key2 + ".f1", 44);
+        cfg.setInteger(key2 + ".f2", 44);
+        cfg.setInteger("e.f", 1337);
+
+        assertFalse(cfg.removeKey("not-existing-key"));
+        assertTrue(cfg.removeKey(key1));
+        assertFalse(cfg.containsKey(key1));
+
+        assertTrue(cfg.removeKey(key2));
+        assertThat(cfg.keySet(), containsInAnyOrder("e.f"));
+    }
+
+    @Test
     public void testShouldParseValidStringToEnum() {
         final Configuration configuration = new Configuration();
         configuration.setString(STRING_OPTION.key(), TestEnum.VALUE1.toString());
@@ -433,6 +456,44 @@ public class ConfigurationTest extends TestLogger {
         assertFalse(cfg.contains(MAP_OPTION));
         assertFalse(cfg.containsKey(MAP_PROPERTY_1));
         assertFalse(cfg.containsKey(MAP_PROPERTY_2));
+    }
+
+    @Test
+    public void testListParserErrorDoesNotLeakSensitiveData() {
+        ConfigOption<List<String>> secret =
+                ConfigOptions.key("secret").stringType().asList().noDefaultValue();
+
+        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+
+        final Configuration cfg = new Configuration();
+        // missing closing quote
+        cfg.setString(secret.key(), "'secret_value");
+
+        assertThatThrownBy(() -> cfg.get(secret))
+                .isInstanceOf(IllegalArgumentException.class)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                        .doesNotContain("secret_value"));
+    }
+
+    @Test
+    public void testMapParserErrorDoesNotLeakSensitiveData() {
+        ConfigOption<Map<String, String>> secret =
+                ConfigOptions.key("secret").mapType().noDefaultValue();
+
+        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+
+        final Configuration cfg = new Configuration();
+        // malformed map representation
+        cfg.setString(secret.key(), "secret_value");
+
+        assertThatThrownBy(() -> cfg.get(secret))
+                .isInstanceOf(IllegalArgumentException.class)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                        .doesNotContain("secret_value"));
     }
 
     // --------------------------------------------------------------------------------------------

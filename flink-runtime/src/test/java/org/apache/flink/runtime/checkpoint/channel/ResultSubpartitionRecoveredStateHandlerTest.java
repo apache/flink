@@ -26,24 +26,24 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashSet;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test of different implementation of {@link ResultSubpartitionRecoveredStateHandler}. */
-public class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChannelStateHandlerTest {
+class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChannelStateHandlerTest {
     private static final int preAllocatedSegments = 3;
     private NetworkBufferPool networkBufferPool;
     private ResultPartition partition;
     private ResultSubpartitionRecoveredStateHandler rstHandler;
     private ResultSubpartitionInfo channelInfo;
 
-    @Before
-    public void setUp() throws IOException {
+    @BeforeEach
+    void setUp() throws IOException {
         // given: Segment provider with defined number of allocated segments.
         channelInfo = new ResultSubpartitionInfo(0, 0);
 
@@ -74,7 +74,7 @@ public class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChanne
     }
 
     @Test
-    public void testRecycleBufferBeforeRecoverWasCalled() throws Exception {
+    void testRecycleBufferBeforeRecoverWasCalled() throws Exception {
         // when: Request the buffer.
         RecoveredChannelStateHandler.BufferWithContext<BufferBuilder> bufferWithContext =
                 rstHandler.getBuffer(new ResultSubpartitionInfo(0, 0));
@@ -86,11 +86,12 @@ public class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChanne
         partition.close();
 
         // then: All pre-allocated segments should be successfully recycled.
-        assertEquals(preAllocatedSegments, networkBufferPool.getNumberOfAvailableMemorySegments());
+        assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
+                .isEqualTo(preAllocatedSegments);
     }
 
     @Test
-    public void testRecycleBufferAfterRecoverWasCalled() throws Exception {
+    void testRecycleBufferAfterRecoverWasCalled() throws Exception {
         // when: Request the buffer.
         RecoveredChannelStateHandler.BufferWithContext<BufferBuilder> bufferWithContext =
                 rstHandler.getBuffer(channelInfo);
@@ -102,6 +103,7 @@ public class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChanne
         partition.close();
 
         // then: All pre-allocated segments should be successfully recycled.
-        assertEquals(preAllocatedSegments, networkBufferPool.getNumberOfAvailableMemorySegments());
+        assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
+                .isEqualTo(preAllocatedSegments);
     }
 }

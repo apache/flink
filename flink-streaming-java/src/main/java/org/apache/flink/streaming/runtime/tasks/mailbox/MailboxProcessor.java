@@ -453,7 +453,6 @@ public class MailboxProcessor implements Closeable {
         return mailboxLoopRunning;
     }
 
-    @VisibleForTesting
     public boolean hasMail() {
         return mailbox.hasMail();
     }

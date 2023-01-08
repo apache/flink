@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
 

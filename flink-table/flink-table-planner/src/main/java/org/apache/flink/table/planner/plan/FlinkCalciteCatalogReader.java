@@ -199,7 +199,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                     names,
                     rowType,
                     schemaTable,
-                    schemaTable.getContextResolvedTable().getTable());
+                    schemaTable.getContextResolvedTable().getResolvedTable());
         } else {
             return new CatalogSourceTable(relOptSchema, names, rowType, schemaTable);
         }
@@ -209,7 +209,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
     private static boolean isLegacySourceOptions(CatalogSchemaTable schemaTable) {
         // normalize option keys
         DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(schemaTable.getContextResolvedTable().getTable().getOptions());
+        properties.putProperties(
+                schemaTable.getContextResolvedTable().getResolvedTable().getOptions());
         if (properties.containsKey(ConnectorDescriptorValidator.CONNECTOR_TYPE)) {
             return true;
         } else {
@@ -219,7 +220,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 TableFactoryUtil.findAndCreateTableSource(
                         schemaTable.getContextResolvedTable().getCatalog().orElse(null),
                         schemaTable.getContextResolvedTable().getIdentifier(),
-                        schemaTable.getContextResolvedTable().getTable(),
+                        schemaTable.getContextResolvedTable().getResolvedTable(),
                         new Configuration(),
                         schemaTable.isTemporary());
                 // success, then we will use the legacy factories

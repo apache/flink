@@ -18,63 +18,39 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
-import org.apache.flink.runtime.executiongraph.IntermediateResult;
-import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.executiongraph.IntermediateResultInfo;
+import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 
-import java.util.ArrayList;
-import java.util.List;
+/**
+ * The blocking result info, which will be used to calculate the vertex parallelism and input infos.
+ */
+public interface BlockingResultInfo extends IntermediateResultInfo {
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
+    /**
+     * Return the num of bytes produced(numBytesProduced) by the producer.
+     *
+     * <p>The difference between numBytesProduced and numBytesOut : numBytesProduced represents the
+     * number of bytes actually produced, and numBytesOut represents the number of bytes sent to
+     * downstream tasks. In unicast scenarios, these two values should be equal. In broadcast
+     * scenarios, numBytesOut should be (N * numBytesProduced), where N refers to the number of
+     * subpartitions.
+     *
+     * @return the num of bytes produced by the producer
+     */
+    long getNumBytesProduced();
 
-/** The blocking result info, which will be used to calculate the vertex parallelism. */
-public class BlockingResultInfo {
+    /**
+     * Record the information of the result partition.
+     *
+     * @param partitionIndex the intermediate result partition index
+     * @param partitionBytes the {@link ResultPartitionBytes} of the partition
+     */
+    void recordPartitionInfo(int partitionIndex, ResultPartitionBytes partitionBytes);
 
-    private final List<Long> blockingPartitionSizes;
-
-    private final boolean isBroadcast;
-
-    private BlockingResultInfo(List<Long> blockingPartitionSizes, boolean isBroadcast) {
-        this.blockingPartitionSizes = blockingPartitionSizes;
-        this.isBroadcast = isBroadcast;
-    }
-
-    public List<Long> getBlockingPartitionSizes() {
-        return blockingPartitionSizes;
-    }
-
-    public boolean isBroadcast() {
-        return isBroadcast;
-    }
-
-    @VisibleForTesting
-    static BlockingResultInfo createFromBroadcastResult(List<Long> blockingPartitionSizes) {
-        return new BlockingResultInfo(blockingPartitionSizes, true);
-    }
-
-    @VisibleForTesting
-    static BlockingResultInfo createFromNonBroadcastResult(List<Long> blockingPartitionSizes) {
-        return new BlockingResultInfo(blockingPartitionSizes, false);
-    }
-
-    public static BlockingResultInfo createFromIntermediateResult(
-            IntermediateResult intermediateResult) {
-        checkArgument(intermediateResult != null);
-
-        List<Long> blockingPartitionSizes = new ArrayList<>();
-        for (IntermediateResultPartition partition : intermediateResult.getPartitions()) {
-            checkState(partition.isConsumable());
-
-            IOMetrics ioMetrics = partition.getProducer().getPartitionProducer().getIOMetrics();
-            checkNotNull(ioMetrics, "IOMetrics should not be null.");
-
-            blockingPartitionSizes.add(
-                    ioMetrics.getNumBytesProducedOfPartitions().get(partition.getPartitionId()));
-        }
-
-        return new BlockingResultInfo(blockingPartitionSizes, intermediateResult.isBroadcast());
-    }
+    /**
+     * Reset the information of the result partition.
+     *
+     * @param partitionIndex the intermediate result partition index
+     */
+    void resetPartitionInfo(int partitionIndex);
 }

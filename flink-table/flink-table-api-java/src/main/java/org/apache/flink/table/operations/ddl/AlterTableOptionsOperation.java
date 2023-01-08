@@ -24,7 +24,12 @@ import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.stream.Collectors;
 
-/** Operation to describe a ALTER TABLE .. SET .. statement. */
+/**
+ * Operation to describe a ALTER TABLE .. SET .. statement.
+ *
+ * @deprecated Please use {@link AlterTableChangeOperation} instead.
+ */
+@Deprecated
 public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
 

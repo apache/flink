@@ -26,7 +26,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /** Tests for {@link AdaptiveScheduler AdaptiveScheduler's} {@link Finished} state. */
@@ -85,10 +84,6 @@ public class FinishedTest extends TestLogger {
             } else {
                 throw new AssertionError("Transitioned to onFinished twice");
             }
-        }
-
-        private void assertNoStateTransition() {
-            assertThat(archivedExecutionGraph, nullValue());
         }
 
         private ArchivedExecutionGraph getArchivedExecutionGraph() {

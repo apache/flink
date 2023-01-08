@@ -91,6 +91,8 @@ import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
@@ -135,6 +137,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
@@ -990,6 +993,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         return this.mailboxProcessor::getMailboxExecutor;
     }
 
+    public Supplier<Boolean> getMailboxHasMail() {
+        return this.mailboxProcessor::hasMail;
+    }
+
     public final boolean isRunning() {
         return isRunning;
     }
@@ -1603,6 +1610,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         int index = 0;
         for (NonChainedOutput streamOutput : outputsInOrder) {
+            replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(environment, streamOutput);
             recordWriters.add(
                     createRecordWriter(
                             streamOutput,
@@ -1612,6 +1620,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             streamOutput.getBufferTimeout()));
         }
         return recordWriters;
+    }
+
+    private static void replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(
+            Environment environment, NonChainedOutput streamOutput) {
+        if (streamOutput.getPartitioner() instanceof ForwardPartitioner
+                && streamOutput.getConsumerParallelism()
+                        != environment.getTaskInfo().getNumberOfParallelSubtasks()) {
+            streamOutput.setPartitioner(new RebalancePartitioner<>());
+        }
     }
 
     @SuppressWarnings("unchecked")

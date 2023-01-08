@@ -77,7 +77,7 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
     def test_get_set_task_cancellation_interval(self):
 
-        self.assertEqual(self.execution_config.get_task_cancellation_interval(), -1)
+        self.assertEqual(self.execution_config.get_task_cancellation_interval(), 30000)
 
         self.execution_config.set_task_cancellation_interval(1000)
 
@@ -85,7 +85,7 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
     def test_get_set_task_cancellation_timeout(self):
 
-        self.assertEqual(self.execution_config.get_task_cancellation_timeout(), -1)
+        self.assertEqual(self.execution_config.get_task_cancellation_timeout(), 180000)
 
         self.execution_config.set_task_cancellation_timeout(3000)
 
@@ -267,7 +267,7 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
         self.assertNotEqual(config1, config2)
 
-        self.assertNotEqual(hash(config1), hash(config2))
+        # it is allowed for hashes to be equal even if objects are not
 
         config2.set_parallelism(12)
 

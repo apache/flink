@@ -22,8 +22,8 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -31,7 +31,6 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
-import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
@@ -40,12 +39,14 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementReq
 import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
+import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
-import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -59,8 +60,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 
+import static org.apache.flink.table.gateway.rest.util.TestingRestClient.getTestingRestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -76,7 +77,7 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
     private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
             new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
-    private static final RestClient restClient = getTestRestClient();
+    private static TestingRestClient restClient;
     private static final ExecuteStatementHeaders executeStatementHeaders =
             ExecuteStatementHeaders.getInstance();
     private static SessionMessageParameters sessionMessageParameters;
@@ -93,6 +94,16 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
                     .build();
 
     private SessionHandle sessionHandle;
+
+    @BeforeAll
+    public static void setup() throws Exception {
+        restClient = getTestingRestClient();
+    }
+
+    @AfterAll
+    public static void cleanUp() throws Exception {
+        restClient.shutdown();
+    }
 
     @BeforeEach
     @Override
@@ -139,20 +150,23 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
         FetchResultsResponseBody fetchResultsResponseBody =
                 fetchResults(sessionHandle, operationHandle, 0L);
 
-        ResultSet resultSet = fetchResultsResponseBody.getResults();
+        ResultInfo resultInfo = fetchResultsResponseBody.getResults();
+        assertThat(resultInfo).isNotNull();
+
         String resultType = fetchResultsResponseBody.getResultType();
-        assertThat(resultSet).isNotNull();
         assertThat(
                         Arrays.asList(
                                 ResultSet.ResultType.PAYLOAD.name(),
                                 ResultSet.ResultType.EOS.name()))
                 .contains(resultType);
 
+        ResolvedSchema resultSchema = resultInfo.getResultSchema();
+
         return toString(
                 StatementType.match(statement),
-                resultSet.getResultSchema(),
+                resultSchema,
                 new RowDataToStringConverterImpl(
-                        resultSet.getResultSchema().toPhysicalRowDataType(),
+                        resultSchema.toPhysicalRowDataType(),
                         DateTimeUtils.UTC_ZONE.toZoneId(),
                         SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
                         false),
@@ -186,17 +200,6 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
         return Configuration.fromMap(service.getSessionConfig(sessionHandle))
                 .get(ExecutionOptions.RUNTIME_MODE)
                 .equals(RuntimeExecutionMode.STREAMING);
-    }
-
-    private static RestClient getTestRestClient() {
-        try {
-            return new RestClient(
-                    new Configuration(),
-                    Executors.newFixedThreadPool(
-                            1, new ExecutorThreadFactory("rest-client-thread-pool")));
-        } catch (ConfigurationException e) {
-            throw new SqlGatewayException("Cannot get rest client.", e);
-        }
     }
 
     private class RowDataIterator implements Iterator<RowData> {
@@ -234,10 +237,11 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
         private void fetch() throws Exception {
             FetchResultsResponseBody fetchResultsResponseBody =
                     fetchResults(sessionHandle, operationHandle, token);
+
             String nextResultUri = fetchResultsResponseBody.getNextResultUri();
-            ResultSet resultSet = fetchResultsResponseBody.getResults();
             token = parseTokenFromUri(nextResultUri);
-            fetchedRows = resultSet.getData().iterator();
+
+            fetchedRows = fetchResultsResponseBody.getResults().getData().iterator();
         }
     }
 

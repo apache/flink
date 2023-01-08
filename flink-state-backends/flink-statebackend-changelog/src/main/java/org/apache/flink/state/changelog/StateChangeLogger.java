@@ -19,7 +19,7 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.Closeable;
@@ -60,17 +60,17 @@ public interface StateChangeLogger<Value, Namespace> extends Closeable {
 
     /** State element added, such as append of a single element to a list. */
     void valueElementAdded(
-            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Namespace ns)
+            ThrowingConsumer<DataOutputView, IOException> dataSerializer, Namespace ns)
             throws IOException;
 
     /** State element added or updated, such as put into a map. */
     void valueElementAddedOrUpdated(
-            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Namespace ns)
+            ThrowingConsumer<DataOutputView, IOException> dataSerializer, Namespace ns)
             throws IOException;
 
     /** State element removed, such mapping removal from a map. */
     void valueElementRemoved(
-            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Namespace ns)
+            ThrowingConsumer<DataOutputView, IOException> dataSerializer, Namespace ns)
             throws IOException;
 
     /** Enable logging meta data before next writes. */

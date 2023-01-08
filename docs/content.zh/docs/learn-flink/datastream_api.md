@@ -28,7 +28,7 @@ under the License.
 
 ## 什么能被转化成流？
 
-Flink 的 Java 和 Scala DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
+Flink 的 Java DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
 
 - 基本类型，即 String、Long、Integer、Boolean、Array
 - 复合类型：Tuples、POJOs 和 Scala case classes
@@ -79,6 +79,12 @@ Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev
 ### Scala tuples 和 case classes
 
 如果你了解 Scala，那一定知道 tuple 和 case class。
+
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
 
 {{< top >}}
 

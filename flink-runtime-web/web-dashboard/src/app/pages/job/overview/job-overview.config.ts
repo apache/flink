@@ -18,13 +18,13 @@
 
 import { InjectionToken } from '@angular/core';
 
+import { BackpressureBadgeComponent } from '@flink-runtime-web/components/backpressure-badge/backpressure-badge.component';
+import { DurationBadgeComponent } from '@flink-runtime-web/components/duration-badge/duration-badge.component';
+import { JobBadgeComponent } from '@flink-runtime-web/components/job-badge/job-badge.component';
+import { TaskBadgeComponent } from '@flink-runtime-web/components/task-badge/task-badge.component';
 import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 import { SubtasksTableActionComponent } from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
 import { TaskmanagersTableActionComponent } from '@flink-runtime-web/pages/job/overview/taskmanagers/table-action/taskmanagers-table-action.component';
-import { BackpressureBadgeComponent } from '@flink-runtime-web/share/customize/backpressure-badge/backpressure-badge.component';
-import { DurationBadgeComponent } from '@flink-runtime-web/share/customize/duration-badge/duration-badge.component';
-import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
-import { TaskBadgeComponent } from '@flink-runtime-web/share/customize/task-badge/task-badge.component';
 
 type customComponentKeys =
   | 'taskManagerActionComponent'

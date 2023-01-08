@@ -25,8 +25,8 @@ public class Constants {
     public static final String API_VERSION = "v1";
     public static final String APPS_API_VERSION = "apps/v1";
 
-    public static final String DNS_PLOICY_DEFAULT = "ClusterFirst";
-    public static final String DNS_PLOICY_HOSTNETWORK = "ClusterFirstWithHostNet";
+    public static final String DNS_POLICY_DEFAULT = "ClusterFirst";
+    public static final String DNS_POLICY_HOSTNETWORK = "ClusterFirstWithHostNet";
 
     public static final String CONFIG_FILE_LOGBACK_NAME = "logback-console.xml";
     public static final String CONFIG_FILE_LOG4J_NAME = "log4j-console.properties";

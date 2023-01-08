@@ -67,6 +67,9 @@ import org.apache.hive.service.rpc.thrift.TExecuteStatementReq;
 import org.apache.hive.service.rpc.thrift.TExecuteStatementResp;
 import org.apache.hive.service.rpc.thrift.TFetchOrientation;
 import org.apache.hive.service.rpc.thrift.TFetchResultsReq;
+import org.apache.hive.service.rpc.thrift.TGetInfoReq;
+import org.apache.hive.service.rpc.thrift.TGetInfoResp;
+import org.apache.hive.service.rpc.thrift.TGetInfoType;
 import org.apache.hive.service.rpc.thrift.TGetOperationStatusReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
@@ -592,6 +595,28 @@ public class HiveServer2EndpointITCase extends TestLogger {
             assertThat(metaData.getDatabaseProductName()).isEqualTo("Apache Flink");
             assertThat(metaData.getDatabaseProductVersion())
                     .isEqualTo(FlinkVersion.current().toString());
+        }
+    }
+
+    @Test
+    public void testUnknownGetInfoType() throws Exception {
+        TCLIService.Client client = createClient();
+        TOpenSessionReq openSessionReq = new TOpenSessionReq();
+        TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
+        TSessionHandle tSessionHandle = openSessionResp.getSessionHandle();
+
+        // send GetInfoReq using a GetInfoType which is unknown to HiveServer2 endpoint
+        TGetInfoReq getInfoReq =
+                new TGetInfoReq(tSessionHandle, TGetInfoType.CLI_MAX_IDENTIFIER_LEN);
+        TGetInfoResp getInfoResp = client.GetInfo(getInfoReq);
+        assertThat(getInfoResp.getStatus().getStatusCode()).isEqualTo(TStatusCode.ERROR_STATUS);
+
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            connection.createStatement().execute("CREATE SCHEMA test;");
+
+            assertThat(collectAndCompact(metaData.getSchemas("hive", null), 2))
+                    .contains(Arrays.asList("test", "hive"));
         }
     }
 

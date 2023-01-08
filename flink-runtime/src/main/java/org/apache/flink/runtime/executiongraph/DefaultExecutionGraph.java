@@ -289,11 +289,16 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final Map<IntermediateResultPartitionID, IntermediateResultPartition>
             resultPartitionsById;
 
+    private final VertexInputInfoStore vertexInputInfoStore;
     private final boolean isDynamic;
 
     private final ExecutionJobVertex.Factory executionJobVertexFactory;
 
     private final List<JobStatusHook> jobStatusHooks;
+
+    private final MarkPartitionFinishedStrategy markPartitionFinishedStrategy;
+
+    private final boolean nonFinishedHybridPartitionShouldBeUnknown;
 
     // --------------------------------------------------------------------------------------------
     //   Constructors
@@ -318,7 +323,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             VertexParallelismStore vertexParallelismStore,
             boolean isDynamic,
             ExecutionJobVertex.Factory executionJobVertexFactory,
-            List<JobStatusHook> jobStatusHooks)
+            List<JobStatusHook> jobStatusHooks,
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
+            boolean nonFinishedHybridPartitionShouldBeUnknown)
             throws IOException {
 
         this.executionGraphId = new ExecutionGraphID();
@@ -383,12 +390,17 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.edgeManager = new EdgeManager();
         this.executionVerticesById = new HashMap<>();
         this.resultPartitionsById = new HashMap<>();
+        this.vertexInputInfoStore = new VertexInputInfoStore();
 
         this.isDynamic = isDynamic;
 
         this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
 
         this.jobStatusHooks = checkNotNull(jobStatusHooks);
+
+        this.markPartitionFinishedStrategy = markPartitionFinishedStrategy;
+
+        this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
 
         LOG.info(
                 "Created execution graph {} for job {}.",
@@ -823,17 +835,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
-        if (isDynamic) {
-            attachJobGraph(topologicallySorted, Collections.emptyList());
-        } else {
-            attachJobGraph(topologicallySorted, topologicallySorted);
-        }
-    }
-
-    private void attachJobGraph(
-            List<JobVertex> verticesToAttach, List<JobVertex> verticesToInitialize)
-            throws JobException {
+    public void attachJobGraph(List<JobVertex> verticesToAttach) throws JobException {
 
         assertRunningInJobMasterMainThread();
 
@@ -845,7 +847,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 intermediateResults.size());
 
         attachJobVertices(verticesToAttach);
-        initializeJobVertices(verticesToInitialize);
+        if (!isDynamic) {
+            initializeJobVertices(verticesToAttach);
+        }
 
         // the topology assigning should happen before notifying new vertices to failoverStrategy
         executionTopology = DefaultExecutionTopology.fromExecutionGraph(this);
@@ -893,10 +897,18 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp)
+    public void initializeJobVertex(
+            ExecutionJobVertex ejv,
+            long createTimestamp,
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
             throws JobException {
 
         checkNotNull(ejv);
+        checkNotNull(jobVertexInputInfos);
+
+        jobVertexInputInfos.forEach(
+                (resultId, info) ->
+                        this.vertexInputInfoStore.put(ejv.getJobVertexId(), resultId, info));
 
         ejv.initialize(
                 executionHistorySizeLimit,
@@ -1683,5 +1695,21 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateDataSetID) {
         return partitionTracker.getClusterPartitionShuffleDescriptors(intermediateDataSetID);
+    }
+
+    @Override
+    public MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
+        return markPartitionFinishedStrategy;
+    }
+
+    @Override
+    public boolean isNonFinishedHybridPartitionShouldBeUnknown() {
+        return nonFinishedHybridPartitionShouldBeUnknown;
+    }
+
+    @Override
+    public JobVertexInputInfo getJobVertexInputInfo(
+            JobVertexID jobVertexId, IntermediateDataSetID resultId) {
+        return vertexInputInfoStore.get(jobVertexId, resultId);
     }
 }

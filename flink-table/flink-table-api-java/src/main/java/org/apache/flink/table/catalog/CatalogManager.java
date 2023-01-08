@@ -807,6 +807,30 @@ public final class CatalogManager {
     }
 
     /**
+     * Alters a table in a given fully qualified path with table changes.
+     *
+     * @param table The table to put in the given path
+     * @param changes The table changes from the original table to the new table.
+     * @param objectIdentifier The fully qualified path where to alter the table.
+     * @param ignoreIfNotExists If false exception will be thrown if the table or database or
+     *     catalog to be altered does not exist.
+     */
+    public void alterTable(
+            CatalogBaseTable table,
+            List<TableChange> changes,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
+                    catalog.alterTable(path, resolvedTable, changes, ignoreIfNotExists);
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterTable");
+    }
+
+    /**
      * Drops a table in a given fully qualified path.
      *
      * @param objectIdentifier The fully qualified path of the table to drop.

@@ -446,11 +446,6 @@ class StopWithSavepointTest {
     }
 
     private static StopWithSavepoint createStopWithSavepoint(
-            MockStopWithSavepointContext ctx, ExecutionGraph executionGraph) {
-        return createStopWithSavepoint(ctx, executionGraph, new CompletableFuture<>());
-    }
-
-    private static StopWithSavepoint createStopWithSavepoint(
             MockStopWithSavepointContext ctx,
             CheckpointScheduling checkpointScheduling,
             CompletableFuture<String> savepointFuture) {

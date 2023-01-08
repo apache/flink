@@ -45,7 +45,17 @@ public final class GlobalConfiguration {
 
     // the keys whose values should be hidden
     private static final String[] SENSITIVE_KEYS =
-            new String[] {"password", "secret", "fs.azure.account.key", "apikey"};
+            new String[] {
+                "password",
+                "secret",
+                "fs.azure.account.key",
+                "apikey",
+                "auth-params",
+                "service-key",
+                "token",
+                "basic-auth",
+                "jaas.config"
+            };
 
     // the hidden content to be displayed
     public static final String HIDDEN_CONTENT = "******";
@@ -201,9 +211,7 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
+                                        + ": Line is not a key-value pair (missing space after ':'?)");
                         continue;
                     }
 
@@ -217,9 +225,7 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
+                                        + ": Key or value was empty");
                         continue;
                     }
 

@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -41,10 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_9;
-import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Test for statistics functionality in {@link HiveTableSource}. */
 public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBase {
@@ -299,46 +295,20 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         expectedColumnStatsMap.put(
                 "f_string",
                 new ColumnStats.Builder().setMax("def").setMin("abcd").setNullCount(0L).build());
-        switch (HiveShimLoader.getHiveVersion()) {
-            case HIVE_VERSION_V2_3_9:
-                expectedColumnStatsMap.put(
-                        "f_decimal5",
-                        new ColumnStats.Builder()
-                                .setMax(new BigDecimal("223.45"))
-                                .setMin(new BigDecimal("123.45"))
-                                .setNullCount(0L)
-                                .build());
-                expectedColumnStatsMap.put(
-                        "f_decimal14",
-                        new ColumnStats.Builder()
-                                .setMax(new BigDecimal("123333333355.33"))
-                                .setMin(new BigDecimal("123333333333.33"))
-                                .setNullCount(0L)
-                                .build());
-                break;
-            case HIVE_VERSION_V3_1_1:
-                // TODO For hive 3.x version, Orc format encounter decimal type columns (like
-                // decimal(5, 2), decimal(14, 2)) will write a wrong column stat 'min' or 'max' in
-                // orc metadata footer. This branch will remove after this error is fixed, following
-                // issue HIVE-26492
-                expectedColumnStatsMap.put(
-                        "f_decimal5",
-                        new ColumnStats.Builder()
-                                .setMax(new BigDecimal("223.45"))
-                                .setMin(new BigDecimal("0"))
-                                .setNullCount(0L)
-                                .build());
-                expectedColumnStatsMap.put(
-                        "f_decimal14",
-                        new ColumnStats.Builder()
-                                .setMax(new BigDecimal("123333333355.33"))
-                                .setMin(new BigDecimal("0"))
-                                .setNullCount(0L)
-                                .build());
-                break;
-            default:
-                fail("Unknown test version " + HiveShimLoader.getHiveVersion());
-        }
+        expectedColumnStatsMap.put(
+                "f_decimal5",
+                new ColumnStats.Builder()
+                        .setMax(new BigDecimal("223.45"))
+                        .setMin(new BigDecimal("123.45"))
+                        .setNullCount(0L)
+                        .build());
+        expectedColumnStatsMap.put(
+                "f_decimal14",
+                new ColumnStats.Builder()
+                        .setMax(new BigDecimal("123333333355.33"))
+                        .setMin(new BigDecimal("123333333333.33"))
+                        .setNullCount(0L)
+                        .build());
         expectedColumnStatsMap.put(
                 "f_decimal38",
                 new ColumnStats.Builder()

@@ -142,6 +142,7 @@ export interface CheckpointDetail {
   id: number;
   status: string;
   is_savepoint: boolean;
+  savepointFormat: string;
   trigger_timestamp: number;
   latest_ack_timestamp: number;
   state_size: number;

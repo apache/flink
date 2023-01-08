@@ -146,6 +146,7 @@ public class JobExceptionsInfo {
         public static final String FIELD_NAME_TASK = "task";
         public static final String FIELD_NAME_LOCATION = "location";
         public static final String FIELD_NAME_TIMESTAMP = "timestamp";
+        public static final String FIELD_NAME_TASK_MANAGER_ID = "taskManagerId";
 
         @JsonProperty(FIELD_NAME_EXCEPTION)
         private final String exception;
@@ -159,16 +160,21 @@ public class JobExceptionsInfo {
         @JsonProperty(FIELD_NAME_TIMESTAMP)
         private final long timestamp;
 
+        @JsonProperty(FIELD_NAME_TASK_MANAGER_ID)
+        private final String taskManagerId;
+
         @JsonCreator
         public ExecutionExceptionInfo(
                 @JsonProperty(FIELD_NAME_EXCEPTION) String exception,
                 @JsonProperty(FIELD_NAME_TASK) String task,
                 @JsonProperty(FIELD_NAME_LOCATION) String location,
-                @JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp) {
+                @JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp,
+                @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) String taskManagerId) {
             this.exception = Preconditions.checkNotNull(exception);
             this.task = Preconditions.checkNotNull(task);
             this.location = Preconditions.checkNotNull(location);
             this.timestamp = timestamp;
+            this.taskManagerId = taskManagerId;
         }
 
         @Override
@@ -184,12 +190,13 @@ public class JobExceptionsInfo {
             return timestamp == that.timestamp
                     && Objects.equals(exception, that.exception)
                     && Objects.equals(task, that.task)
-                    && Objects.equals(location, that.location);
+                    && Objects.equals(location, that.location)
+                    && Objects.equals(taskManagerId, that.taskManagerId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(timestamp, exception, task, location);
+            return Objects.hash(timestamp, exception, task, location, taskManagerId);
         }
 
         @Override
@@ -199,6 +206,7 @@ public class JobExceptionsInfo {
                     .add("task='" + task + "'")
                     .add("location='" + location + "'")
                     .add("timestamp=" + timestamp)
+                    .add("taskManagerId=" + taskManagerId)
                     .toString();
         }
     }

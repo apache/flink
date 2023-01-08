@@ -174,11 +174,11 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter);
     }
 
-    public LocalInputChannel toLocalInputChannel() {
+    public LocalInputChannel toLocalInputChannel(ResultPartitionID resultPartitionID) {
         return new LocalInputChannel(
                 inputGate,
                 getChannelIndex(),
-                partitionId,
+                resultPartitionID,
                 consumedSubpartitionIndex,
                 partitionManager,
                 taskEventPublisher,

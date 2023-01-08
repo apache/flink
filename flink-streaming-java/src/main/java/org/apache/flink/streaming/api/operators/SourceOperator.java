@@ -76,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -169,6 +170,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private int numSplits;
     private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
     private final Set<String> currentlyPausedSplits = new HashSet<>();
+    private boolean isEmitNextLoopDisabled = false;
 
     private enum OperatingMode {
         READING,
@@ -190,6 +192,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final boolean allowUnalignedSourceSplits;
 
+    private Supplier<Boolean> mailboxHasMail;
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -199,7 +203,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             ProcessingTimeService timeService,
             Configuration configuration,
             String localHostname,
-            boolean emitProgressiveWatermarks) {
+            boolean emitProgressiveWatermarks,
+            Supplier<Boolean> mailboxHasMail) {
 
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -212,6 +217,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
         this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
         this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
+        this.mailboxHasMail = checkNotNull(mailboxHasMail);
     }
 
     @Override
@@ -297,6 +303,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             }
                         };
                     }
+
+                    @Override
+                    public int currentParallelism() {
+                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                    }
                 };
 
         sourceReader = readerFactory.apply(context);
@@ -328,6 +339,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         // restore the state if necessary.
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
         if (!splits.isEmpty()) {
+            LOG.info("Restoring state for {} split(s) to reader.", splits.size());
             sourceReader.addSplits(splits);
         }
 
@@ -397,10 +409,20 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         // short circuit the hot path. Without this short circuit (READING handled in the
         // switch/case) InputBenchmark.mapSink was showing a performance regression.
-        if (operatingMode == OperatingMode.READING) {
+        if (operatingMode != OperatingMode.READING) {
+            return emitNextNotReading(output);
+        }
+        if (isEmitNextLoopDisabled) {
             return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
         }
-        return emitNextNotReading(output);
+
+        InputStatus status;
+        do {
+            status = sourceReader.pollNext(currentMainOutput);
+        } while (status == InputStatus.MORE_AVAILABLE
+                && !mailboxHasMail.get()
+                && !shouldWaitForAlignment());
+        return convertToInternalStatus(status);
     }
 
     private DataInputStatus emitNextNotReading(DataOutput<OUT> output) throws Exception {
@@ -548,6 +570,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
         }
+    }
+
+    // Configure SourceOperator#emitNext to emit at most one record to the given DataOutput.
+    public void disableEmitNextLoop() {
+        isEmitNextLoopDisabled = true;
     }
 
     private void handleAddSplitsEvent(AddSplitEvent<SplitT> event) {

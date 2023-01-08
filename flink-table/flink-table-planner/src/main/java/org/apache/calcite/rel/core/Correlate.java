@@ -94,6 +94,7 @@ public abstract class Correlate extends BiRel implements Hintable {
      * @param requiredColumns Set of columns that are used by correlation
      * @param joinType Join type
      */
+    @SuppressWarnings("method.invocation.invalid")
     protected Correlate(
             RelOptCluster cluster,
             RelTraitSet traitSet,
@@ -161,7 +162,13 @@ public abstract class Correlate extends BiRel implements Hintable {
 
     @Override
     public boolean isValid(Litmus litmus, RelNode.Context context) {
+        ImmutableBitSet leftColumns = ImmutableBitSet.range(left.getRowType().getFieldCount());
         return super.isValid(litmus, context)
+                && litmus.check(
+                        leftColumns.contains(requiredColumns),
+                        "Required columns {} not subset of left columns {}",
+                        requiredColumns,
+                        leftColumns)
                 && RelOptUtil.notContainsCorrelation(left, correlationId, litmus);
     }
 
@@ -283,7 +290,7 @@ public abstract class Correlate extends BiRel implements Hintable {
     }
 
     @Override
-    public com.google.common.collect.ImmutableList<RelHint> getHints() {
+    public ImmutableList<RelHint> getHints() {
         return hints;
     }
 }

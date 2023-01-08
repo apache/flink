@@ -91,6 +91,40 @@ The `SET` command allows you to tune the job execution and the sql client behavi
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job.
 The [configuration section](#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
+### Key-strokes
+
+There is a list of available key-strokes in SQL client
+
+| Key-Stroke (Linux, Windows(WSL)) | Key-Stroke (Mac) | Description                                                                            |
+|:---------------------------------|------------------|:---------------------------------------------------------------------------------------|
+| `alt-b`, `ctrl+⍇`                | `Esc-b`          | Backward word                                                                          |
+| `alt-f`, `Ctrl+⍈`                | `Esc-f`          | Forward word                                                                           |
+| `alt-c`                          | `Esc-c`          | Capitalize word                                                                        |
+| `alt-l`                          | `Esc-l`          | Lowercase word                                                                         |
+| `alt-u`                          | `Esc-u`          | Uppercase word                                                                         |
+| `alt-d`                          | `Esc-d`          | Kill word                                                                              |
+| `alt-n`                          | `Esc-n`          | History search forward (behaves same as down line from history in case of empty input) |
+| `alt-p`                          | `Esc-p`          | History search backward (behaves same as up line from history in case of empty input)  |
+| `alt-t`                          | `Esc-t`          | Transpose words                                                                        |
+| `ctrl-a`                         | `⌘-a`            | To the beginning of line                                                               |
+| `ctrl-e`                         | `⌘-e`            | To the end of line                                                                     |
+| `ctrl-b`                         | `⌘-b`            | Backward char                                                                          |
+| `ctrl-f`                         | `⌘-f`            | Forward char                                                                           |
+| `ctrl-d`                         | `⌘-d`            | Delete char                                                                            |
+| `ctrl-h`                         | `⌘-h`            | Backward delete char                                                                   |
+| `ctrl-t`                         | `⌘-t`            | Transpose chars                                                                        |
+| `ctrl-i`                         | `⌘-i`            | Invoke completion                                                                      |
+| `ctrl-j`                         | `⌘-j`            | Submit a query                                                                         |
+| `ctrl-m`                         | `⌘-m`            | Submit a query                                                                         |
+| `ctrl-k`                         | `⌘-k`            | Kill the line to the right from the cursor                                             |
+| `ctrl-w`                         | `⌘-w`            | Kill the line to the left from the cursor                                              |
+| `ctrl-u`                         | `⌘-u`            | Kill the whole line                                                                    |
+| `ctrl-l`                         | `⌘-l`            | Clear screen                                                                           |
+| `ctrl-n`                         | `⌘-n`            | Down line from history                                                                 |
+| `ctrl-p`                         | `⌘-p`            | Up line from history                                                                   |
+| `ctrl-r`                         | `⌘-r`            | History incremental search backward                                                    |
+| `ctrl-s`                         | `⌘-s`            | History incremental search forward                                                     |
+
 ### Getting help
 
 The documentation of the SQL client commands can be accessed by typing the `HELP` command.

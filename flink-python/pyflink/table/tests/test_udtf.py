@@ -152,7 +152,7 @@ class MultiEmit(TableFunction, unittest.TestCase):
             yield x, i
 
 
-@udtf(result_types=[DataTypes.BIGINT()])
+@udtf(result_types=['bigint'])
 def identity(x):
     if x is not None:
         from pyflink.common import Row

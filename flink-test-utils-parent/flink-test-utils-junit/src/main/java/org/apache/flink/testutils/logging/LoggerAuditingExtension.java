@@ -25,6 +25,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.config.Property;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -62,7 +63,7 @@ public class LoggerAuditingExtension implements BeforeEachCallback, AfterEachCal
         loggingEvents = new ConcurrentLinkedQueue<>();
 
         Appender testAppender =
-                new AbstractAppender("test-appender", null, null, false) {
+                new AbstractAppender("test-appender", null, null, false, Property.EMPTY_ARRAY) {
                     @Override
                     public void append(LogEvent event) {
                         loggingEvents.add(event.getMessage().getFormattedMessage());

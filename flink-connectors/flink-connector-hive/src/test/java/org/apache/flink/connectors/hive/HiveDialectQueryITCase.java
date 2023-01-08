@@ -43,7 +43,9 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantLongObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.BeforeClass;
@@ -58,6 +60,7 @@ import java.io.FileReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -936,6 +939,127 @@ public class HiveDialectQueryITCase {
             tableEnv.executeSql("drop table t1");
             tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
         }
+    }
+
+    @Test
+    public void testNullLiteralAsArgument() throws Exception {
+        tableEnv.executeSql("create table test_ts(ts timestamp)");
+        tableEnv.executeSql("create table t_bigint(ts bigint)");
+        Long testTimestamp = 1671058803926L;
+        // timestamp's behavior is different between hive2 and hive3, so
+        // use HiveShim in this test to hide such difference
+        HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+        LocalDateTime expectDateTime =
+                hiveShim.toFlinkTimestamp(
+                        PrimitiveObjectInspectorUtils.getTimestamp(
+                                testTimestamp, new JavaConstantLongObjectInspector(testTimestamp)));
+        try {
+            tableEnv.executeSql(
+                            String.format(
+                                    "insert into table t_bigint values (%s), (null)",
+                                    testTimestamp))
+                    .await();
+            // the return data type for expression if(ts = 0, null ,ts) should be bigint instead of
+            // string. otherwise, the all values in table t_bigint wll be null since
+            // cast("1671058803926" as timestamp) will return null
+            tableEnv.executeSql(
+                            "insert into table test_ts select if(ts = 0, null ,ts) from t_bigint")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from test_ts").collect());
+            // verify it can cast to timestamp value correctly
+            assertThat(result.toString())
+                    .isEqualTo(String.format("[+I[%s], +I[null]]", expectDateTime));
+        } finally {
+            tableEnv.executeSql("drop table test_ts");
+            tableEnv.executeSql("drop table t_bigint");
+        }
+    }
+
+    @Test
+    public void testSumAggFunctionPlan() {
+        // test explain
+        String actualPlan = explainSql("select x, sum(y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testSumAggFunctionPlan.out"));
+    }
+
+    @Test
+    public void testSimpleSumAggFunction() throws Exception {
+        tableEnv.executeSql(
+                "create table test_sum(x string, y string, z int, d decimal(10,5), e float, f double)");
+        tableEnv.executeSql(
+                        "insert into test_sum values (NULL, '2', 1, 1.11, 1.2, 1.3), "
+                                + "(NULL, 'b', 2, 2.22, 2.3, 2.4), "
+                                + "(NULL, '4', 3, 3.33, 3.5, 3.6), "
+                                + "(NULL, NULL, 4, 4.45, 4.7, 4.8)")
+                .await();
+
+        // test sum with all elements are null
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(x) from test_sum").collect());
+        assertThat(result.toString()).isEqualTo("[+I[null]]");
+
+        // test sum string type with partial element can't convert to double, result type is double
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(y) from test_sum").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[6.0]]");
+
+        // test decimal type
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(d) from test_sum").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[11.11000]]");
+
+        // test sum int, result type is bigint
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(z) from test_sum").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[10]]");
+
+        // test float type
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(e) from test_sum").collect());
+        float actualFloatValue = ((Double) result5.get(0).getField(0)).floatValue();
+        assertThat(actualFloatValue).isEqualTo(11.7f);
+
+        // test double type
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(f) from test_sum").collect());
+        actualFloatValue = ((Double) result6.get(0).getField(0)).floatValue();
+        assertThat(actualFloatValue).isEqualTo(12.1f);
+
+        // test sum string&int type simultaneously
+        List<Row> result7 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select sum(y), sum(z) from test_sum").collect());
+        assertThat(result7.toString()).isEqualTo("[+I[6.0, 10]]");
+
+        tableEnv.executeSql("drop table test_sum");
+    }
+
+    @Test
+    public void testSumAggWithGroupKey() throws Exception {
+        tableEnv.executeSql(
+                "create table test_sum_group(name string, num bigint, price decimal(10,5))");
+        tableEnv.executeSql(
+                        "insert into test_sum_group values ('tom', 2, 7.2), ('tony', 2, 23.7), ('tom', 10, 3.33), ('tony', 4, 4.45), ('nadal', 4, 10.455)")
+                .await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select name, sum(num), sum(price),  sum(num * price) from test_sum_group group by name")
+                                .collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[tom, 12, 10.53000, 47.70000], +I[tony, 6, 28.15000, 65.20000], +I[nadal, 4, 10.45500, 41.82000]]");
+
+        tableEnv.executeSql("drop table test_sum_group");
     }
 
     private void runQFile(File qfile) throws Exception {

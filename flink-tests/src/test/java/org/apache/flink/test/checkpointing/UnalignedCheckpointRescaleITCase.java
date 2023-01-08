@@ -504,8 +504,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 .map(
                         params ->
                                 new Object[][] {
-                                    ArrayUtils.add(params, 0),
-                                    ArrayUtils.add(params, BUFFER_PER_CHANNEL)
+                                    ArrayUtils.insert(params.length, params, 0),
+                                    ArrayUtils.insert(params.length, params, BUFFER_PER_CHANNEL)
                                 })
                 .flatMap(Arrays::stream)
                 .toArray(Object[][]::new);

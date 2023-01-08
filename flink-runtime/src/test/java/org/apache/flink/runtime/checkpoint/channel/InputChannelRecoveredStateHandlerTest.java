@@ -27,23 +27,23 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test of different implementation of {@link InputChannelRecoveredStateHandler}. */
-public class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandlerTest {
+class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandlerTest {
     private static final int preAllocatedSegments = 3;
     private NetworkBufferPool networkBufferPool;
     private SingleInputGate inputGate;
-    private InputChannelRecoveredStateHandler icsHander;
+    private InputChannelRecoveredStateHandler icsHandler;
     private InputChannelInfo channelInfo;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         // given: Segment provider with defined number of allocated segments.
         networkBufferPool = new NetworkBufferPool(preAllocatedSegments, 1024);
 
@@ -54,7 +54,7 @@ public class InputChannelRecoveredStateHandlerTest extends RecoveredChannelState
                         .setSegmentProvider(networkBufferPool)
                         .build();
 
-        icsHander = buildInputChannelStateHandler(inputGate);
+        icsHandler = buildInputChannelStateHandler(inputGate);
 
         channelInfo = new InputChannelInfo(0, 0);
     }
@@ -78,10 +78,10 @@ public class InputChannelRecoveredStateHandlerTest extends RecoveredChannelState
     }
 
     @Test
-    public void testRecycleBufferBeforeRecoverWasCalled() throws Exception {
+    void testRecycleBufferBeforeRecoverWasCalled() throws Exception {
         // when: Request the buffer.
         RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
-                icsHander.getBuffer(channelInfo);
+                icsHandler.getBuffer(channelInfo);
 
         // and: Recycle buffer outside.
         bufferWithContext.buffer.close();
@@ -90,22 +90,24 @@ public class InputChannelRecoveredStateHandlerTest extends RecoveredChannelState
         inputGate.close();
 
         // then: All pre-allocated segments should be successfully recycled.
-        assertEquals(preAllocatedSegments, networkBufferPool.getNumberOfAvailableMemorySegments());
+        assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
+                .isEqualTo(preAllocatedSegments);
     }
 
     @Test
-    public void testRecycleBufferAfterRecoverWasCalled() throws Exception {
+    void testRecycleBufferAfterRecoverWasCalled() throws Exception {
         // when: Request the buffer.
         RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
-                icsHander.getBuffer(channelInfo);
+                icsHandler.getBuffer(channelInfo);
 
         // and: Recycle buffer outside.
-        icsHander.recover(channelInfo, 0, bufferWithContext);
+        icsHandler.recover(channelInfo, 0, bufferWithContext);
 
         // Close the gate for flushing the cached recycled buffers to the segment provider.
         inputGate.close();
 
         // then: All pre-allocated segments should be successfully recycled.
-        assertEquals(preAllocatedSegments, networkBufferPool.getNumberOfAvailableMemorySegments());
+        assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
+                .isEqualTo(preAllocatedSegments);
     }
 }

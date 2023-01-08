@@ -159,15 +159,6 @@ under the License.
 		</dependency>
 
 		<!-- Tests -->
-
-		<!--Support ParquetFileSystemStatisticsReport using calcite verify plan methods, see FLINK-27990 -->
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>

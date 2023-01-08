@@ -19,15 +19,16 @@
 package org.apache.flink.tools.ci.utils.deploy;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.tools.ci.utils.shared.ParserUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** Parsing utils for the Maven deploy plugin. */
@@ -52,23 +53,21 @@ public class DeployParser {
      */
     public static Set<String> parseDeployOutput(File buildResult) throws IOException {
         try (Stream<String> linesStream = Files.lines(buildResult.toPath())) {
-            return parseDeployOutput(linesStream.iterator());
+            return parseDeployOutput(linesStream);
         }
     }
 
     @VisibleForTesting
-    static Set<String> parseDeployOutput(Iterator<String> lines) {
-        final Set<String> deployedModules = new HashSet<>();
-        while (lines.hasNext()) {
-            final String line = lines.next();
-            final Matcher matcher = DEPLOY_MODULE_PATTERN.matcher(line);
-            if (matcher.find()) {
-                final String module = matcher.group("module");
-                if (lines.hasNext() && !lines.next().contains("Skipping artifact deployment")) {
-                    deployedModules.add(module);
-                }
-            }
-        }
-        return deployedModules;
+    static Set<String> parseDeployOutput(Stream<String> lines) {
+        return ParserUtils.parsePluginOutput(
+                        lines, DEPLOY_MODULE_PATTERN, DeployParser::parseDeployBlock)
+                .entrySet().stream()
+                .filter(Map.Entry::getValue)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+    }
+
+    private static boolean parseDeployBlock(Iterator<String> block) {
+        return block.hasNext() && !block.next().contains("Skipping artifact deployment");
     }
 }

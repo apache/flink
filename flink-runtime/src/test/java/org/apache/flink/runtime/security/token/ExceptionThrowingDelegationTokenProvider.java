@@ -20,8 +20,6 @@ package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.hadoop.security.Credentials;
-
 import java.util.Optional;
 
 /**
@@ -29,8 +27,17 @@ import java.util.Optional;
  */
 public class ExceptionThrowingDelegationTokenProvider implements DelegationTokenProvider {
 
-    public static volatile boolean enabled = false;
+    public static volatile boolean throwInInit = false;
+    public static volatile boolean throwInUsage = false;
+    public static volatile boolean addToken = false;
     public static volatile boolean constructed = false;
+
+    public static void reset() {
+        throwInInit = false;
+        throwInUsage = false;
+        addToken = false;
+        constructed = false;
+    }
 
     public ExceptionThrowingDelegationTokenProvider() {
         constructed = true;
@@ -43,24 +50,28 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
 
     @Override
     public void init(Configuration configuration) {
-        if (enabled) {
+        if (throwInInit) {
             throw new IllegalArgumentException();
         }
     }
 
     @Override
     public boolean delegationTokensRequired() {
-        if (enabled) {
+        if (throwInUsage) {
             throw new IllegalArgumentException();
         }
-        return false;
+        return addToken;
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
-        if (enabled) {
+    public ObtainedDelegationTokens obtainDelegationTokens() {
+        if (throwInUsage) {
             throw new IllegalArgumentException();
         }
-        return Optional.empty();
+        if (addToken) {
+            return new ObtainedDelegationTokens("TEST_TOKEN_VALUE".getBytes(), Optional.empty());
+        } else {
+            return null;
+        }
     }
 }

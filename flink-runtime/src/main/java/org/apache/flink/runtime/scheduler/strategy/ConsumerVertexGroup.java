@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -26,16 +28,26 @@ import java.util.List;
 public class ConsumerVertexGroup implements Iterable<ExecutionVertexID> {
     private final List<ExecutionVertexID> vertices;
 
-    private ConsumerVertexGroup(List<ExecutionVertexID> vertices) {
+    private final ResultPartitionType resultPartitionType;
+
+    private ConsumerVertexGroup(
+            List<ExecutionVertexID> vertices, ResultPartitionType resultPartitionType) {
         this.vertices = vertices;
+        this.resultPartitionType = resultPartitionType;
     }
 
-    public static ConsumerVertexGroup fromMultipleVertices(List<ExecutionVertexID> vertices) {
-        return new ConsumerVertexGroup(vertices);
+    public static ConsumerVertexGroup fromMultipleVertices(
+            List<ExecutionVertexID> vertices, ResultPartitionType resultPartitionType) {
+        return new ConsumerVertexGroup(vertices, resultPartitionType);
     }
 
-    public static ConsumerVertexGroup fromSingleVertex(ExecutionVertexID vertex) {
-        return new ConsumerVertexGroup(Collections.singletonList(vertex));
+    public static ConsumerVertexGroup fromSingleVertex(
+            ExecutionVertexID vertex, ResultPartitionType resultPartitionType) {
+        return new ConsumerVertexGroup(Collections.singletonList(vertex), resultPartitionType);
+    }
+
+    public ResultPartitionType getResultPartitionType() {
+        return resultPartitionType;
     }
 
     @Override

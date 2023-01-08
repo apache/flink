@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+parameters:
+  jdk: # the jdk version to use
+
 jobs:
   - job: ${{parameters.stage_name}}_binary
     pool:
@@ -28,6 +31,10 @@ jobs:
           restoreKeys: $(CACHE_FALLBACK_KEY)
           path: $(MAVEN_CACHE_FOLDER)
         continueOnError: true
+      - script: |
+          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+          echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+        displayName: "Set JDK"
       - task: CmdLine@2
         displayName: Build snapshot binary release
         inputs:
@@ -76,6 +83,10 @@ jobs:
           restoreKeys: $(CACHE_FALLBACK_KEY)
           path: $(MAVEN_CACHE_FOLDER)
         continueOnError: true
+      - script: |
+          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+          echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+        displayName: "Set JDK"
       # Upload snapshot
       - task: CmdLine@2
         displayName: Deploy maven snapshot

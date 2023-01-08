@@ -18,11 +18,18 @@
 
 package org.apache.flink.table.gateway.service;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -53,16 +60,28 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.TableFunc0;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.TestUtils;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +90,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
@@ -84,10 +105,11 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
@@ -95,8 +117,17 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 public class SqlGatewayServiceITCase extends AbstractTestBase {
 
     @RegisterExtension
+    @Order(1)
+    public static final MiniClusterExtension MINI_CLUSTER =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .build());
+
+    @RegisterExtension
+    @Order(2)
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension();
+            new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
     private static SessionManager sessionManager;
     private static SqlGatewayServiceImpl service;
@@ -158,6 +189,83 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testConfigureSessionWithLegalStatement(@TempDir java.nio.file.Path tmpDir)
+            throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        // SET & RESET
+        service.configureSession(sessionHandle, "SET 'key1' = 'value1';", 0);
+        Map<String, String> config = new HashMap<>();
+        config.put("key1", "value1");
+        assertThat(service.getSessionConfig(sessionHandle)).containsAllEntriesOf(config);
+
+        service.configureSession(sessionHandle, "RESET 'key1';", 0);
+        assertThat(service.getSessionConfig(sessionHandle)).doesNotContainEntry("key1", "value1");
+
+        // CREATE & USE & ALTER & DROP
+        service.configureSession(
+                sessionHandle,
+                "CREATE CATALOG mycat with ('type' = 'generic_in_memory', 'default-database' = 'db');",
+                0);
+
+        service.configureSession(sessionHandle, "USE CATALOG mycat;", 0);
+        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("mycat");
+
+        service.configureSession(
+                sessionHandle,
+                "CREATE TABLE db.tbl (score INT) WITH ('connector' = 'datagen');",
+                0);
+
+        Set<TableKind> tableKinds = new HashSet<>();
+        tableKinds.add(TableKind.TABLE);
+        assertThat(service.listTables(sessionHandle, "mycat", "db", tableKinds))
+                .contains(
+                        new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl"), TableKind.TABLE));
+
+        service.configureSession(sessionHandle, "ALTER TABLE db.tbl RENAME TO tbl1;", 0);
+        assertThat(service.listTables(sessionHandle, "mycat", "db", tableKinds))
+                .doesNotContain(
+                        new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl"), TableKind.TABLE))
+                .contains(
+                        new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl1"), TableKind.TABLE));
+
+        service.configureSession(sessionHandle, "USE CATALOG default_catalog;", 0);
+        service.configureSession(sessionHandle, "DROP CATALOG mycat;", 0);
+        assertThat(service.listCatalogs(sessionHandle)).doesNotContain("mycat");
+
+        // LOAD & UNLOAD MODULE
+        validateStatementResult(
+                sessionHandle,
+                "SHOW FULL MODULES",
+                Collections.singletonList(GenericRowData.of(StringData.fromString("core"), true)));
+
+        service.configureSession(sessionHandle, "UNLOAD MODULE core;", 0);
+        validateStatementResult(sessionHandle, "SHOW FULL MODULES", Collections.emptyList());
+
+        service.configureSession(sessionHandle, "LOAD MODULE core;", 0);
+        validateStatementResult(
+                sessionHandle,
+                "SHOW FULL MODULES",
+                Collections.singletonList(GenericRowData.of(StringData.fromString("core"), true)));
+
+        // ADD JAR
+        String udfClassName = GENERATED_LOWER_UDF_CLASS + new Random().nextInt(50);
+        String jarPath =
+                UserClassLoaderJarTestUtils.createJarFile(
+                                new File(tmpDir.toUri()),
+                                "test-add-jar.jar",
+                                udfClassName,
+                                String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
+                        .toURI()
+                        .getPath();
+        service.configureSession(sessionHandle, String.format("ADD JAR '%s';", jarPath), 0);
+        validateStatementResult(
+                sessionHandle,
+                "SHOW JARS",
+                Collections.singletonList(GenericRowData.of(StringData.fromString(jarPath))));
+    }
+
+    @Test
     public void testFetchResultsInRunning() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
@@ -204,15 +312,8 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 Duration.ofSeconds(10),
                 "Failed to wait operation finish.");
 
-        Long token = 0L;
         List<RowData> expectedData = getDefaultResultSet().getData();
-        List<RowData> actualData = new ArrayList<>();
-        while (token != null) {
-            ResultSet currentResult =
-                    service.fetchResults(sessionHandle, operationHandle, token, 1);
-            actualData.addAll(checkNotNull(currentResult.getData()));
-            token = currentResult.getNextToken();
-        }
+        List<RowData> actualData = fetchAllResults(sessionHandle, operationHandle);
         assertThat(actualData).isEqualTo(expectedData);
 
         service.closeOperation(sessionHandle, operationHandle);
@@ -292,19 +393,60 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         -1,
                         Configuration.fromMap(Collections.singletonMap(key, value)));
 
-        Long token = 0L;
-        List<RowData> settings = new ArrayList<>();
-        while (token != null) {
-            ResultSet result =
-                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
-            settings.addAll(result.getData());
-            token = result.getNextToken();
-        }
+        List<RowData> settings = fetchAllResults(sessionHandle, operationHandle);
 
         assertThat(settings)
                 .contains(
                         GenericRowData.of(
                                 StringData.fromString(key), StringData.fromString(value)));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"WITH SAVEPOINT,true", "WITH SAVEPOINT WITH DRAIN,true", "'',false"})
+    public void testStopJobStatementWithSavepoint(
+            String option,
+            boolean hasSavepoint,
+            @InjectClusterClient RestClusterClient<?> restClusterClient,
+            @TempDir File tmpDir)
+            throws Exception {
+        Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
+        configuration.setBoolean(TableConfigOptions.TABLE_DML_SYNC, false);
+        File savepointDir = new File(tmpDir, "savepoints");
+        configuration.set(
+                CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+        String insertSql = "INSERT INTO sink SELECT * FROM source;";
+        String stopSqlTemplate = "STOP JOB '%s' %s;";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, configuration);
+        service.executeStatement(sessionHandle, sinkDdl, -1, configuration);
+
+        OperationHandle insertOperationHandle =
+                service.executeStatement(sessionHandle, insertSql, -1, configuration);
+
+        List<RowData> results = fetchAllResults(sessionHandle, insertOperationHandle);
+        assertThat(results.size()).isEqualTo(1);
+        String jobId = results.get(0).getString(0).toString();
+
+        TestUtils.waitUntilAllTasksAreRunning(restClusterClient, JobID.fromHexString(jobId));
+
+        String stopSql = String.format(stopSqlTemplate, jobId, option);
+        OperationHandle stopOperationHandle =
+                service.executeStatement(sessionHandle, stopSql, -1, configuration);
+
+        List<RowData> stopResults = fetchAllResults(sessionHandle, stopOperationHandle);
+        assertThat(stopResults.size()).isEqualTo(1);
+        if (hasSavepoint) {
+            String savepoint = stopResults.get(0).getString(0).toString();
+            Path savepointPath = Paths.get(savepoint);
+            assertThat(savepointPath.getFileName().toString()).startsWith("savepoint-");
+        } else {
+            assertThat(stopResults.get(0).getString(0).toString()).isEqualTo("OK");
+        }
     }
 
     @Test
@@ -465,6 +607,52 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                                 "default_catalog",
                                                 "default_database",
                                                 "table_func0"))));
+    }
+
+    @Test
+    public void testCompleteStatement() throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        String createTable1 =
+                "CREATE TABLE Table1 (\n"
+                        + "  IntegerField1 INT,\n"
+                        + "  StringField1 STRING,\n"
+                        + "  TimestampField1 TIMESTAMP(3)\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'datagen'\n"
+                        + ")\n";
+        String createTable2 =
+                "CREATE TABLE Table2 (\n"
+                        + "  BooleanField BOOLEAN,\n"
+                        + "  StringField2 STRING,\n"
+                        + "  TimestampField2 TIMESTAMP\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'blackhole'\n"
+                        + ")\n";
+
+        service.getSession(sessionHandle)
+                .createExecutor()
+                .getTableEnvironment()
+                .executeSql(createTable1);
+        service.getSession(sessionHandle)
+                .createExecutor()
+                .getTableEnvironment()
+                .executeSql(createTable2);
+
+        validateCompletionHints(
+                sessionHandle,
+                "SELECT * FROM Ta",
+                Arrays.asList(
+                        "default_catalog.default_database.Table1",
+                        "default_catalog.default_database.Table2"));
+
+        validateCompletionHints(
+                sessionHandle, "SELECT * FROM Table1 WH", Collections.singletonList("WHERE"));
+
+        validateCompletionHints(
+                sessionHandle,
+                "SELECT * FROM Table1 WHERE Inte",
+                Collections.singletonList("IntegerField1"));
     }
 
     @Test
@@ -712,6 +900,23 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     // --------------------------------------------------------------------------------------------
 
     @Test
+    void testConfigureSessionWithIllegalStatement() {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        assertThatThrownBy(() -> service.configureSession(sessionHandle, "SELECT 1;", 0))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                UnsupportedOperationException.class,
+                                "Unsupported statement for configuring session:SELECT 1;\n"
+                                        + "The configureSession API only supports to execute statement of type "
+                                        + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
+                                        + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
+                                        + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
+                                        + "CREATE CATALOG, DROP CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, "
+                                        + "CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE, USE MODULE, ADD JAR."));
+    }
+
+    @Test
     public void testFetchResultsFromCanceledOperation() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
@@ -898,5 +1103,37 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         tableEnv.executeSql("CREATE TABLE cat2.db0.tbl0 WITH('connector' = 'values')");
 
         return sessionHandle;
+    }
+
+    private void validateStatementResult(
+            SessionHandle sessionHandle, String statement, List<RowData> expected) {
+        TableEnvironmentInternal tableEnv =
+                service.getSession(sessionHandle).createExecutor().getTableEnvironment();
+        assertThat(
+                        CollectionUtil.iteratorToList(
+                                ((TableResultInternal) tableEnv.executeSql(statement))
+                                        .collectInternal()))
+                .isEqualTo(expected);
+    }
+
+    private void validateCompletionHints(
+            SessionHandle sessionHandle,
+            String incompleteSql,
+            List<String> expectedCompletionHints) {
+        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
+                .isEqualTo(expectedCompletionHints);
+    }
+
+    private List<RowData> fetchAllResults(
+            SessionHandle sessionHandle, OperationHandle operationHandle) {
+        Long token = 0L;
+        List<RowData> results = new ArrayList<>();
+        while (token != null) {
+            ResultSet result =
+                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
+            results.addAll(result.getData());
+            token = result.getNextToken();
+        }
+        return results;
     }
 }
