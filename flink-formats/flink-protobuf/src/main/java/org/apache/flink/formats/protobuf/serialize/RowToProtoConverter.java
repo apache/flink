@@ -57,8 +57,7 @@ public class RowToProtoConverter {
         try {
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
-            String outerPrefix = PbFormatUtils.getOuterProtoPrefix(descriptor);
-            PbFormatContext formatContext = new PbFormatContext(outerPrefix, formatConfig);
+            PbFormatContext formatContext = new PbFormatContext(formatConfig);
 
             PbCodegenAppender codegenAppender = new PbCodegenAppender(0);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");

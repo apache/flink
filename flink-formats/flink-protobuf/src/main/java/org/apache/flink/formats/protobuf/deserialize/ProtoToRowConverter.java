@@ -60,7 +60,6 @@ public class ProtoToRowConverter {
         try {
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
-            String outerPrefix = PbFormatUtils.getOuterProtoPrefix(descriptor);
             Class<?> messageClass =
                     Class.forName(
                             formatConfig.getMessageClassName(),
@@ -77,7 +76,7 @@ public class ProtoToRowConverter {
                                 formatConfig.getWriteNullStringLiterals());
             }
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
-            PbFormatContext pbFormatContext = new PbFormatContext(outerPrefix, formatConfig);
+            PbFormatContext pbFormatContext = new PbFormatContext(formatConfig);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
             String generatedClassName = "GeneratedProtoToRow_" + uuid;
             String generatedPackageName = ProtoToRowConverter.class.getPackage().getName();

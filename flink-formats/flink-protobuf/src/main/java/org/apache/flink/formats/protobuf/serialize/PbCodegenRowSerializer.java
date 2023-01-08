@@ -70,15 +70,11 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
             String elementPbVar = "elementPbVar" + subUid;
             String elementPbTypeStr;
             if (elementFd.isMapField()) {
-                elementPbTypeStr =
-                        PbCodegenUtils.getTypeStrFromProto(
-                                elementFd, false, formatContext.getOuterPrefix());
+                elementPbTypeStr = PbCodegenUtils.getTypeStrFromProto(elementFd, false);
             } else {
                 elementPbTypeStr =
                         PbCodegenUtils.getTypeStrFromProto(
-                                elementFd,
-                                PbFormatUtils.isArrayType(subType),
-                                formatContext.getOuterPrefix());
+                                elementFd, PbFormatUtils.isArrayType(subType));
             }
             String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
 

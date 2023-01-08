@@ -78,7 +78,7 @@ public class PbCodegenUtils {
      * @return The returned code phrase will be used as java type str in codegen sections.
      * @throws PbCodegenException
      */
-    public static String getTypeStrFromProto(FieldDescriptor fd, boolean isList, String outerPrefix)
+    public static String getTypeStrFromProto(FieldDescriptor fd, boolean isList)
             throws PbCodegenException {
         String typeStr;
         switch (fd.getJavaType()) {
@@ -90,8 +90,8 @@ public class PbCodegenUtils {
                     FieldDescriptor valueFd =
                             fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME);
                     // key and value cannot be repeated
-                    String keyTypeStr = getTypeStrFromProto(keyFd, false, outerPrefix);
-                    String valueTypeStr = getTypeStrFromProto(valueFd, false, outerPrefix);
+                    String keyTypeStr = getTypeStrFromProto(keyFd, false);
+                    String valueTypeStr = getTypeStrFromProto(valueFd, false);
                     typeStr = "Map<" + keyTypeStr + "," + valueTypeStr + ">";
                 } else {
                     // simple message
@@ -174,7 +174,6 @@ public class PbCodegenUtils {
     public static String pbDefaultValueCode(
             FieldDescriptor fieldDescriptor, PbFormatContext pbFormatContext)
             throws PbCodegenException {
-        String outerPrefix = pbFormatContext.getOuterPrefix();
         String nullLiteral = pbFormatContext.getPbFormatConfig().getWriteNullStringLiterals();
         switch (fieldDescriptor.getJavaType()) {
             case MESSAGE:
@@ -229,9 +228,7 @@ public class PbCodegenUtils {
         int uid = varUid.getAndIncrement();
         String flinkElementVar = "elementVar" + uid;
         PbCodegenAppender appender = new PbCodegenAppender(indent);
-        String protoTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(
-                        elementPbFd, false, pbFormatContext.getOuterPrefix());
+        String protoTypeStr = PbCodegenUtils.getTypeStrFromProto(elementPbFd, false);
         String dataTypeStr = PbCodegenUtils.getTypeStrFromLogicType(elementDataType);
         appender.appendLine(protoTypeStr + " " + resultPbVar);
         appender.begin("if(" + flinkArrDataVar + ".isNullAt(" + iVar + ")){");
