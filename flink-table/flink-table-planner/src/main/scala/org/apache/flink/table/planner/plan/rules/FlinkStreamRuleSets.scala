@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.stream._
 
-import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
@@ -135,7 +134,7 @@ object FlinkStreamRuleSets {
 
   /** RuleSet about filter */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
-    // push a filter into a join (which isn't an event time temporal join)
+    // push a filter into a join
     FlinkFilterJoinRule.FILTER_INTO_JOIN,
     // push filter into the children of a join
     FlinkFilterJoinRule.JOIN_CONDITION_PUSH,
@@ -182,7 +181,7 @@ object FlinkStreamRuleSets {
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
-    FlinkPruneEmptyRules.JOIN_RIGHT_INSTANCE,
+    PruneEmptyRules.JOIN_RIGHT_INSTANCE,
     PruneEmptyRules.PROJECT_INSTANCE,
     PruneEmptyRules.SORT_INSTANCE,
     PruneEmptyRules.UNION_INSTANCE
@@ -194,9 +193,7 @@ object FlinkStreamRuleSets {
     CoreRules.PROJECT_FILTER_TRANSPOSE,
     // push a projection to the children of a non semi/anti join
     // push all expressions to handle the time indicator correctly
-    new FlinkProjectJoinTransposeRule(
-      PushProjector.ExprCondition.FALSE,
-      RelFactories.LOGICAL_BUILDER),
+    FlinkProjectJoinTransposeRule.DEFAULT.toRule,
     // push a projection to the children of a semi/anti Join
     ProjectSemiAntiJoinTransposeRule.INSTANCE,
     // merge projections
