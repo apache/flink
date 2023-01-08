@@ -20,7 +20,7 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
-import org.apache.flink.formats.protobuf.testproto.TestSimpleNoouterNomulti;
+import org.apache.flink.formats.protobuf.testproto.TestSimpleNomulti;
 import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -39,18 +39,15 @@ import org.junit.Test;
  *
  * <p>It is valid proto definition.
  */
-public class MetaNoOuterNoMultiProtoToRowTest {
+public class MetaNoMultiProtoToRowTest {
     @Test
     public void testSimple() throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
-                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
+                        TestSimpleNomulti.SimpleTestNoMulti.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
-                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.class.getName(),
-                        false,
-                        false,
-                        "");
+                        TestSimpleNomulti.SimpleTestNoMulti.class.getName(), false, false, "");
         new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
                 .open(null);
 
@@ -62,13 +59,10 @@ public class MetaNoOuterNoMultiProtoToRowTest {
     public void testOuterClassName() throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
-                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
+                        TestSimpleNomulti.SimpleTestNoMulti.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
-                        TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.class.getName(),
-                        false,
-                        false,
-                        "");
+                        TestSimpleNomulti.SimpleTestNoMulti.class.getName(), false, false, "");
         new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
                 .open(null);
         new PbRowDataSerializationSchema(rowType, formatConfig).open(null);

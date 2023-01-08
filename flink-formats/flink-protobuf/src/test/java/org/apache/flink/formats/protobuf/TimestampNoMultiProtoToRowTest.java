@@ -18,8 +18,7 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.testproto.TestTimestamp.TimestampTest;
-import org.apache.flink.formats.protobuf.testproto.TimestampTestMulti;
+import org.apache.flink.formats.protobuf.testproto.TestTimestampNomulti;
 import org.apache.flink.table.data.RowData;
 
 import com.google.protobuf.Timestamp;
@@ -27,18 +26,19 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** Test conversion of proto timestamp data with multiple_files options to flink internal data. */
-public class TimestampMultiToRowTest {
+/** Test conversion of proto timestamp data to flink internal data. */
+public class TimestampNoMultiProtoToRowTest {
 
     @Test
     public void testSimple() throws Exception {
-        TimestampTestMulti timestampTestMulti =
-                TimestampTestMulti.newBuilder()
+        TestTimestampNomulti.TimestampTestNoMulti timestampTestNoMulti =
+                TestTimestampNomulti.TimestampTestNoMulti.newBuilder()
                         .setTs(Timestamp.newBuilder().setSeconds(1672498800).setNanos(123))
                         .build();
         RowData row =
                 ProtobufTestHelper.pbBytesToRow(
-                        TimestampTest.class, timestampTestMulti.toByteArray());
+                        TestTimestampNomulti.TimestampTestNoMulti.class,
+                        timestampTestNoMulti.toByteArray());
 
         RowData rowData = row.getRow(0, 2);
         assertEquals(1672498800, rowData.getLong(0));

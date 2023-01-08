@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.testproto.SimpleTest;
+import org.apache.flink.formats.protobuf.testproto.SimpleTestMulti;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -46,18 +46,18 @@ public class SimpleRowToProtoTest {
                         1,
                         2);
 
-        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class);
-        SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
-        assertTrue(simpleTest.hasA());
-        assertEquals(1, simpleTest.getA());
-        assertEquals(2L, simpleTest.getB());
-        assertFalse(simpleTest.getC());
-        assertEquals(Float.valueOf(0.1f), Float.valueOf(simpleTest.getD()));
-        assertEquals(Double.valueOf(0.01d), Double.valueOf(simpleTest.getE()));
-        assertEquals("hello", simpleTest.getF());
-        assertEquals(1, simpleTest.getG().byteAt(0));
-        assertEquals(SimpleTest.Corpus.IMAGES, simpleTest.getH());
-        assertEquals(1, simpleTest.getFAbc7D());
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTestMulti.class);
+        SimpleTestMulti simpleTestMulti = SimpleTestMulti.parseFrom(bytes);
+        assertTrue(simpleTestMulti.hasA());
+        assertEquals(1, simpleTestMulti.getA());
+        assertEquals(2L, simpleTestMulti.getB());
+        assertFalse(simpleTestMulti.getC());
+        assertEquals(Float.valueOf(0.1f), Float.valueOf(simpleTestMulti.getD()));
+        assertEquals(Double.valueOf(0.01d), Double.valueOf(simpleTestMulti.getE()));
+        assertEquals("hello", simpleTestMulti.getF());
+        assertEquals(1, simpleTestMulti.getG().byteAt(0));
+        assertEquals(SimpleTestMulti.Corpus.IMAGES, simpleTestMulti.getH());
+        assertEquals(1, simpleTestMulti.getFAbc7D());
     }
 
     @Test
@@ -75,11 +75,11 @@ public class SimpleRowToProtoTest {
                         1,
                         2);
 
-        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class);
-        SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
-        assertFalse(simpleTest.hasA());
-        assertFalse(simpleTest.hasG());
-        assertFalse(simpleTest.hasH());
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTestMulti.class);
+        SimpleTestMulti simpleTestMulti = SimpleTestMulti.parseFrom(bytes);
+        assertFalse(simpleTestMulti.hasA());
+        assertFalse(simpleTestMulti.hasG());
+        assertFalse(simpleTestMulti.hasH());
     }
 
     @Test
@@ -89,8 +89,8 @@ public class SimpleRowToProtoTest {
                         null, null, null, null, null, null, null, 2, // CORPUS: IMAGE
                         null, null);
 
-        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class, true);
-        SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
-        assertEquals(SimpleTest.Corpus.IMAGES, simpleTest.getH());
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTestMulti.class, true);
+        SimpleTestMulti simpleTestMulti = SimpleTestMulti.parseFrom(bytes);
+        assertEquals(SimpleTestMulti.Corpus.IMAGES, simpleTestMulti.getH());
     }
 }
