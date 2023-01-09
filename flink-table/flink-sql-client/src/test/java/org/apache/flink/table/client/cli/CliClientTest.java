@@ -68,7 +68,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,6 +81,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link CliClient}. */
 class CliClientTest {
+
+    private static final String SESSION_ID = "test-session";
 
     private static final String INSERT_INTO_STATEMENT =
             "INSERT INTO MyTable SELECT * FROM MyOtherTable";
@@ -126,14 +127,14 @@ class CliClientTest {
     @Test
     void testExecuteSqlInteractiveWithSqlCompleter() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE));
-        String sessionId = mockExecutor.openSession("test-session");
+        String sessionId = "test-session";
+        mockExecutor.openSession(sessionId);
 
         InputStream inputStream = new ByteArrayInputStream(ORIGIN_HIVE_SQL.getBytes());
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
-                        new CliClient(
-                                () -> terminal, sessionId, mockExecutor, historyTempFile(), null)) {
+                        new CliClient(() -> terminal, mockExecutor, historyTempFile(), null)) {
             client.executeInInteractiveMode();
             assertThat(mockExecutor.receivedStatement).contains(HIVE_SQL_WITH_COMPLETER);
         }
@@ -155,15 +156,14 @@ class CliClientTest {
     @Test
     void testHistoryFile() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession("test-session");
+        mockExecutor.openSession(SESSION_ID);
 
         InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
         Path historyFilePath = historyTempFile();
         try (Terminal terminal =
                         new DumbTerminal(inputStream, new TerminalUtils.MockOutputStream());
                 CliClient client =
-                        new CliClient(
-                                () -> terminal, sessionId, mockExecutor, historyFilePath, null)) {
+                        new CliClient(() -> terminal, mockExecutor, historyFilePath, null)) {
             client.executeInInteractiveMode();
             List<String> content = Files.readAllLines(historyFilePath);
             assertThat(content).hasSize(2);
@@ -255,9 +255,9 @@ class CliClientTest {
         String content = String.join("\n", statements);
 
         final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession("test-session");
+        mockExecutor.openSession(SESSION_ID);
         CliClient cliClient =
-                new CliClient(DEFAULT_TERMINAL_FACTORY, sessionId, mockExecutor, historyTempFile());
+                new CliClient(DEFAULT_TERMINAL_FACTORY, mockExecutor, historyTempFile());
 
         assertThat(cliClient.executeInitialization(content)).isFalse();
     }
@@ -289,7 +289,7 @@ class CliClientTest {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.isSync = true;
 
-        String sessionId = mockExecutor.openSession("test-session");
+        mockExecutor.openSession(SESSION_ID);
 
         Path historyFilePath = historyTempFile();
 
@@ -298,7 +298,6 @@ class CliClientTest {
         try (CliClient client =
                 new CliClient(
                         () -> TerminalUtils.createDumbTerminal(outputStream),
-                        sessionId,
                         mockExecutor,
                         historyFilePath,
                         null)) {
@@ -327,7 +326,7 @@ class CliClientTest {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.isSync = true;
 
-        String sessionId = mockExecutor.openSession("test-session");
+        mockExecutor.openSession(SESSION_ID);
         Path historyFilePath = historyTempFile();
         InputStream inputStream =
                 new ByteArrayInputStream("SET 'key'='value';\nSELECT 1;\nSET;\n ".getBytes());
@@ -336,7 +335,6 @@ class CliClientTest {
         try (CliClient client =
                 new CliClient(
                         () -> TerminalUtils.createDumbTerminal(inputStream, outputStream),
-                        sessionId,
                         mockExecutor,
                         historyFilePath,
                         null)) {
@@ -365,12 +363,11 @@ class CliClientTest {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.isSync = false;
 
-        String sessionId = mockExecutor.openSession("test-session");
+        mockExecutor.openSession(SESSION_ID);
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (CliClient client =
                 new CliClient(
                         () -> TerminalUtils.createDumbTerminal(outputStream),
-                        sessionId,
                         mockExecutor,
                         historyTempFile(),
                         null)) {
@@ -390,12 +387,11 @@ class CliClientTest {
         final String mockSavepoint = "/my/savepoint/path";
         mockExecutor.savepoint = mockSavepoint;
 
-        String sessionId = mockExecutor.openSession("test-session");
+        mockExecutor.openSession(SESSION_ID);
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (CliClient client =
                 new CliClient(
                         () -> TerminalUtils.createDumbTerminal(outputStream),
-                        sessionId,
                         mockExecutor,
                         historyTempFile(),
                         null)) {
@@ -433,11 +429,11 @@ class CliClientTest {
     private void verifySqlCompletion(String statement, int position, List<String> expectedHints)
             throws IOException {
         final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession("test-session");
+        mockExecutor.openSession(SESSION_ID);
 
-        final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
+        final SqlCompleter completer = new SqlCompleter(mockExecutor);
         final SqlMultiLineParser parser =
-                new SqlMultiLineParser(new SqlCommandParserImpl(mockExecutor, sessionId));
+                new SqlMultiLineParser(new SqlCommandParserImpl(mockExecutor));
 
         try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
@@ -461,12 +457,11 @@ class CliClientTest {
     }
 
     private String executeSqlFromContent(MockExecutor executor, String content) throws IOException {
-        String sessionId = executor.openSession("test-session");
+        executor.openSession("test-session");
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (CliClient client =
                 new CliClient(
                         () -> TerminalUtils.createDumbTerminal(outputStream),
-                        sessionId,
                         executor,
                         historyTempFile(),
                         null)) {
@@ -495,7 +490,9 @@ class CliClientTest {
         public volatile boolean isAwait = false;
         public String receivedStatement;
         public int receivedPosition;
-        private final Map<String, SessionContext> sessionMap = new HashMap<>();
+
+        private SessionContext sessionContext;
+
         private final SqlParserHelper helper;
 
         public MockExecutor() {
@@ -510,7 +507,7 @@ class CliClientTest {
         public void start() throws SqlExecutionException {}
 
         @Override
-        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+        public void openSession(@Nullable String sessionId) throws SqlExecutionException {
             Configuration configuration = new Configuration();
             configuration.set(TABLE_DML_SYNC, isSync);
 
@@ -519,43 +516,37 @@ class CliClientTest {
                             Collections.emptyList(),
                             configuration,
                             Collections.singletonList(new DefaultCLI()));
-            SessionContext context = SessionContext.create(defaultContext, sessionId);
-            sessionMap.put(sessionId, context);
+            sessionContext = SessionContext.create(defaultContext, sessionId);
             helper.registerTables();
-            return sessionId;
         }
 
         @Override
-        public void closeSession(String sessionId) throws SqlExecutionException {}
+        public void closeSession() throws SqlExecutionException {}
 
         @Override
-        public Map<String, String> getSessionConfigMap(String sessionId)
-                throws SqlExecutionException {
-            return this.sessionMap.get(sessionId).getConfigMap();
+        public Map<String, String> getSessionConfigMap() throws SqlExecutionException {
+            return sessionContext.getConfigMap();
         }
 
         @Override
-        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
-            SessionContext context = this.sessionMap.get(sessionId);
-            return context.getReadableConfig();
+        public ReadableConfig getSessionConfig() throws SqlExecutionException {
+            return sessionContext.getReadableConfig();
         }
 
         @Override
-        public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
+        public void resetSessionProperties() throws SqlExecutionException {}
 
         @Override
-        public void resetSessionProperty(String sessionId, String key)
-                throws SqlExecutionException {}
+        public void resetSessionProperty(String key) throws SqlExecutionException {}
 
         @Override
-        public void setSessionProperty(String sessionId, String key, String value)
-                throws SqlExecutionException {
-            SessionContext context = this.sessionMap.get(sessionId);
+        public void setSessionProperty(String key, String value) throws SqlExecutionException {
+            SessionContext context = sessionContext;
             context.set(key, value);
         }
 
         @Override
-        public TableResultInternal executeOperation(String sessionId, Operation operation)
+        public TableResultInternal executeOperation(Operation operation)
                 throws SqlExecutionException {
             if (failExecution) {
                 throw new SqlExecutionException("Fail execution.");
@@ -580,8 +571,8 @@ class CliClientTest {
         }
 
         @Override
-        public TableResultInternal executeModifyOperations(
-                String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
+        public TableResultInternal executeModifyOperations(List<ModifyOperation> operations)
+                throws SqlExecutionException {
             if (failExecution) {
                 throw new SqlExecutionException("Fail execution.");
             }
@@ -602,8 +593,7 @@ class CliClientTest {
         }
 
         @Override
-        public Operation parseStatement(String sessionId, String statement)
-                throws SqlExecutionException {
+        public Operation parseStatement(String statement) throws SqlExecutionException {
             receivedStatement = statement;
 
             try {
@@ -614,15 +604,14 @@ class CliClientTest {
         }
 
         @Override
-        public List<String> completeStatement(String sessionId, String statement, int position) {
+        public List<String> completeStatement(String statement, int position) {
             receivedStatement = statement;
             receivedPosition = position;
             return Arrays.asList(helper.getSqlParser().getCompletionHints(statement, position));
         }
 
         @Override
-        public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-                throws SqlExecutionException {
+        public ResultDescriptor executeQuery(QueryOperation query) throws SqlExecutionException {
             if (isSync) {
                 isAwait = true;
                 try {
@@ -635,13 +624,13 @@ class CliClientTest {
         }
 
         @Override
-        public TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
+        public TypedResult<List<RowData>> retrieveResultChanges(String resultId)
                 throws SqlExecutionException {
             return null;
         }
 
         @Override
-        public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
+        public TypedResult<Integer> snapshotResult(String resultId, int pageSize)
                 throws SqlExecutionException {
             return null;
         }
@@ -653,18 +642,17 @@ class CliClientTest {
         }
 
         @Override
-        public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+        public void cancelQuery(String resultId) throws SqlExecutionException {
             // nothing to do
         }
 
         @Override
-        public void removeJar(String sessionId, String jarUrl) {
+        public void removeJar(String jarUrl) {
             throw new UnsupportedOperationException("Not implemented.");
         }
 
         @Override
-        public Optional<String> stopJob(
-                String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+        public Optional<String> stopJob(String jobId, boolean isWithSavepoint, boolean isWithDrain)
                 throws SqlExecutionException {
             if (isWithSavepoint) {
                 return Optional.of(savepoint);

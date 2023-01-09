@@ -84,17 +84,16 @@ public class SqlClient {
             final Executor executor = new LocalExecutor(defaultContext);
             executor.start();
 
-            // Open an new session
-            String sessionId = executor.openSession(options.getSessionId());
+            // Open a new session
+            executor.openSession(options.getSessionId());
             try {
                 // add shutdown hook
-                Runtime.getRuntime()
-                        .addShutdownHook(new EmbeddedShutdownThread(sessionId, executor));
+                Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(executor));
 
                 // do the actual work
-                openCli(sessionId, executor);
+                openCli(executor);
             } finally {
-                executor.closeSession(sessionId);
+                executor.closeSession();
             }
         } else {
             throw new SqlClientException("Gateway mode is not supported yet.");
@@ -104,10 +103,9 @@ public class SqlClient {
     /**
      * Opens the CLI client for executing SQL statements.
      *
-     * @param sessionId session identifier for the current client.
      * @param executor executor
      */
-    private void openCli(String sessionId, Executor executor) {
+    private void openCli(Executor executor) {
         Path historyFilePath;
         if (options.getHistoryFilePath() != null) {
             historyFilePath = Paths.get(options.getHistoryFilePath());
@@ -130,7 +128,7 @@ public class SqlClient {
                             CliOptionsParser.OPTION_FILE.getOpt()));
         }
 
-        try (CliClient cli = new CliClient(terminalFactory, sessionId, executor, historyFilePath)) {
+        try (CliClient cli = new CliClient(terminalFactory, executor, historyFilePath)) {
             if (options.getInitFile() != null) {
                 boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
                 if (!success) {
@@ -217,11 +215,9 @@ public class SqlClient {
 
     private static class EmbeddedShutdownThread extends Thread {
 
-        private final String sessionId;
         private final Executor executor;
 
-        public EmbeddedShutdownThread(String sessionId, Executor executor) {
-            this.sessionId = sessionId;
+        public EmbeddedShutdownThread(Executor executor) {
             this.executor = executor;
         }
 
@@ -229,7 +225,7 @@ public class SqlClient {
         public void run() {
             // Shutdown the executor
             System.out.println("\nShutting down the session...");
-            executor.closeSession(sessionId);
+            executor.closeSession();
             System.out.println("done.");
         }
     }

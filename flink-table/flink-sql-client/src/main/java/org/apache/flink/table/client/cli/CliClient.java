@@ -111,8 +111,6 @@ public class CliClient implements AutoCloseable {
 
     private final Executor executor;
 
-    private final String sessionId;
-
     private final Path historyFilePath;
 
     private final String prompt;
@@ -142,16 +140,14 @@ public class CliClient implements AutoCloseable {
     @VisibleForTesting
     public CliClient(
             Supplier<Terminal> terminalFactory,
-            String sessionId,
             Executor executor,
             Path historyFilePath,
             @Nullable MaskingCallback inputTransformer) {
         this.terminalFactory = terminalFactory;
-        this.sessionId = sessionId;
         this.executor = executor;
         this.inputTransformer = inputTransformer;
         this.historyFilePath = historyFilePath;
-        this.parser = new SqlMultiLineParser(new SqlCommandParserImpl(executor, sessionId));
+        this.parser = new SqlMultiLineParser(new SqlCommandParserImpl(executor));
 
         // create prompt
         prompt =
@@ -167,20 +163,12 @@ public class CliClient implements AutoCloseable {
      * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
      * afterwards using {@link #close()}.
      */
-    public CliClient(
-            Supplier<Terminal> terminalFactory,
-            String sessionId,
-            Executor executor,
-            Path historyFilePath) {
-        this(terminalFactory, sessionId, executor, historyFilePath, null);
+    public CliClient(Supplier<Terminal> terminalFactory, Executor executor, Path historyFilePath) {
+        this(terminalFactory, executor, historyFilePath, null);
     }
 
     public Terminal getTerminal() {
         return terminal;
-    }
-
-    public String getSessionId() {
-        return this.sessionId;
     }
 
     public void clearTerminal() {
@@ -394,7 +382,7 @@ public class CliClient implements AutoCloseable {
                         "Unsupported operation in sql init file: " + operation.asSummaryString());
             }
         } else if (executionMode.equals(ExecutionMode.NON_INTERACTIVE_EXECUTION)) {
-            ResultMode mode = executor.getSessionConfig(sessionId).get(EXECUTION_RESULT_MODE);
+            ResultMode mode = executor.getSessionConfig().get(EXECUTION_RESULT_MODE);
             if (operation instanceof QueryOperation && !mode.equals(TABLEAU)) {
                 throw new SqlExecutionException(
                         String.format(
@@ -477,7 +465,7 @@ public class CliClient implements AutoCloseable {
 
     private void callRemoveJar(RemoveJarOperation operation) {
         String jarPath = operation.getPath();
-        executor.removeJar(sessionId, jarPath);
+        executor.removeJar(jarPath);
         printInfo(CliStrings.MESSAGE_REMOVE_JAR_STATEMENT);
     }
 
@@ -493,13 +481,13 @@ public class CliClient implements AutoCloseable {
     private void callReset(ResetOperation resetOperation) {
         // reset all session properties
         if (!resetOperation.getKey().isPresent()) {
-            executor.resetSessionProperties(sessionId);
+            executor.resetSessionProperties();
             printInfo(CliStrings.MESSAGE_RESET);
         }
         // reset a session property
         else {
             String key = resetOperation.getKey().get();
-            executor.resetSessionProperty(sessionId, key);
+            executor.resetSessionProperty(key);
             printInfo(MESSAGE_RESET_KEY);
         }
     }
@@ -509,12 +497,12 @@ public class CliClient implements AutoCloseable {
         if (setOperation.getKey().isPresent() && setOperation.getValue().isPresent()) {
             String key = setOperation.getKey().get().trim();
             String value = setOperation.getValue().get().trim();
-            executor.setSessionProperty(sessionId, key, value);
+            executor.setSessionProperty(key, value);
             printInfo(MESSAGE_SET_KEY);
         }
         // show all properties
         else {
-            final Map<String, String> properties = executor.getSessionConfigMap(sessionId);
+            final Map<String, String> properties = executor.getSessionConfigMap();
             if (properties.isEmpty()) {
                 terminal.writer()
                         .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
@@ -540,11 +528,11 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callSelect(QueryOperation operation) {
-        final ResultDescriptor resultDesc = executor.executeQuery(sessionId, operation);
+        final ResultDescriptor resultDesc = executor.executeQuery(operation);
 
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
-                    new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {
+                    new CliTableauResultView(terminal, executor, resultDesc)) {
                 tableauResultView.displayResults();
             }
         } else {
@@ -575,11 +563,11 @@ public class CliClient implements AutoCloseable {
     private void callInserts(List<ModifyOperation> operations) {
         printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
-        boolean sync = executor.getSessionConfig(sessionId).get(TABLE_DML_SYNC);
+        boolean sync = executor.getSessionConfig().get(TABLE_DML_SYNC);
         if (sync) {
             printInfo(MESSAGE_WAIT_EXECUTE);
         }
-        TableResult tableResult = executor.executeModifyOperations(sessionId, operations);
+        TableResult tableResult = executor.executeModifyOperations(operations);
         checkState(tableResult.getJobClient().isPresent());
 
         if (sync) {
@@ -608,7 +596,7 @@ public class CliClient implements AutoCloseable {
     }
 
     public void printRawContent(Operation operation) {
-        TableResult tableResult = executor.executeOperation(sessionId, operation);
+        TableResult tableResult = executor.executeOperation(operation);
         // show raw content instead of tableau style
         final String explanation =
                 Objects.requireNonNull(tableResult.collect().next().getField(0)).toString();
@@ -639,7 +627,6 @@ public class CliClient implements AutoCloseable {
     private void callStopJob(StopJobOperation stopJobOperation) {
         Optional<String> savepoint =
                 executor.stopJob(
-                        sessionId,
                         stopJobOperation.getJobId(),
                         stopJobOperation.isWithSavepoint(),
                         stopJobOperation.isWithDrain());
@@ -654,7 +641,7 @@ public class CliClient implements AutoCloseable {
     }
 
     private void executeOperation(Operation operation) {
-        TableResultInternal result = executor.executeOperation(sessionId, operation);
+        TableResultInternal result = executor.executeOperation(operation);
         if (TABLE_RESULT_OK == result) {
             // print more meaningful message than tableau OK result
             printInfo(MESSAGE_EXECUTE_STATEMENT);
@@ -675,7 +662,7 @@ public class CliClient implements AutoCloseable {
     private void printExecutionException(Throwable t) {
         final String errorMessage = CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
         LOG.warn(errorMessage, t);
-        boolean isVerbose = executor.getSessionConfig(sessionId).get(SqlClientOptions.VERBOSE);
+        boolean isVerbose = executor.getSessionConfig().get(SqlClientOptions.VERBOSE);
         terminal.writer().println(CliStrings.messageError(errorMessage, t, isVerbose).toAnsi());
         terminal.flush();
     }
@@ -705,7 +692,7 @@ public class CliClient implements AutoCloseable {
                         .parser(parser);
 
         if (enableSqlCompleter) {
-            builder.completer(new SqlCompleter(sessionId, executor));
+            builder.completer(new SqlCompleter(executor));
         }
         LineReader lineReader = builder.build();
 

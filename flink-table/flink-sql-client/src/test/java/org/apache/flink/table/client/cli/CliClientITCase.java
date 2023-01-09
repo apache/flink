@@ -204,16 +204,12 @@ class CliClientITCase {
         final Executor executor = new LocalExecutor(defaultContext);
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-        String sessionId = executor.openSession("test-session");
+        executor.openSession("test-session");
 
         try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
-                                () -> terminal,
-                                sessionId,
-                                executor,
-                                historyPath,
-                                HideSqlStatement.INSTANCE)) {
+                                () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
             client.executeInInteractiveMode();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);

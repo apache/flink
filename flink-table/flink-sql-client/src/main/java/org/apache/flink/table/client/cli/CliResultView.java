@@ -301,8 +301,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
                     // the cancellation happens in the refresh thread in order to keep the main
                     // thread
                     // responsive at all times; esp. if the cluster is not available
-                    client.getExecutor()
-                            .cancelQuery(client.getSessionId(), resultDescriptor.getResultId());
+                    client.getExecutor().cancelQuery(resultDescriptor.getResultId());
                 } catch (SqlExecutionException e) {
                     // ignore further exceptions
                 }

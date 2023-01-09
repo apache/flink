@@ -63,24 +63,23 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+    public void cancelQuery(String resultId) throws SqlExecutionException {
         numCancelCalls++;
     }
 
     @Override
-    public void removeJar(String sessionId, String jarUrl) {
+    public void removeJar(String jarUrl) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public Optional<String> stopJob(
-            String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+    public Optional<String> stopJob(String jobId, boolean isWithSavepoint, boolean isWithDrain)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
+    public TypedResult<List<RowData>> retrieveResultChanges(String resultId)
             throws SqlExecutionException {
         return resultChanges
                 .get(Math.min(numRetrieveResultChancesCalls++, resultChanges.size() - 1))
@@ -96,7 +95,7 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
+    public TypedResult<Integer> snapshotResult(String resultId, int pageSize)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
@@ -105,65 +104,61 @@ class TestingExecutor implements Executor {
     public void start() throws SqlExecutionException {}
 
     @Override
-    public String openSession(@Nullable String sessionId) throws SqlExecutionException {
-        return sessionId;
+    public void openSession(@Nullable String sessionId) throws SqlExecutionException {
+        // do nothing
     }
 
     @Override
-    public void closeSession(String sessionId) throws SqlExecutionException {}
+    public void closeSession() throws SqlExecutionException {}
 
     @Override
-    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap() throws SqlExecutionException {
         return defaultConfig.toMap();
     }
 
     @Override
-    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+    public ReadableConfig getSessionConfig() throws SqlExecutionException {
         return defaultConfig;
     }
 
     @Override
-    public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+    public void resetSessionProperties() throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+    public void resetSessionProperty(String key) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public void setSessionProperty(String sessionId, String key, String value)
+    public void setSessionProperty(String key, String value) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public List<String> completeStatement(String statement, int position) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public TableResultInternal executeOperation(Operation operation) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public TableResultInternal executeModifyOperations(List<ModifyOperation> operations)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public List<String> completeStatement(String sessionId, String statement, int position) {
+    public Operation parseStatement(String statement) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public TableResultInternal executeOperation(String sessionId, Operation operation)
-            throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
-    public TableResultInternal executeModifyOperations(
-            String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
-    public Operation parseStatement(String sessionId, String statement)
-            throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
-    public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-            throws SqlExecutionException {
+    public ResultDescriptor executeQuery(QueryOperation query) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 

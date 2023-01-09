@@ -61,7 +61,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
@@ -75,19 +74,15 @@ public class LocalExecutor implements Executor {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalExecutor.class);
 
-    // Map to hold all the available sessions. the key is session identifier, and the value is the
-    // SessionContext
-    private final ConcurrentHashMap<String, SessionContext> contextMap;
-
     // result maintenance
     private final ResultStore resultStore;
     private final DefaultContext defaultContext;
+    private SessionContext sessionContext;
 
     private final ClusterClientServiceLoader clusterClientServiceLoader;
 
     /** Creates a local executor for submitting table programs and retrieving results. */
     public LocalExecutor(DefaultContext defaultContext) {
-        this.contextMap = new ConcurrentHashMap<>();
         this.resultStore = new ResultStore();
         this.defaultContext = defaultContext;
         this.clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
@@ -99,44 +94,27 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public String openSession(@Nullable String sessionId) throws SqlExecutionException {
-        SessionContext sessionContext =
-                LocalContextUtils.buildSessionContext(sessionId, defaultContext);
-        sessionId = sessionContext.getSessionId();
-        if (this.contextMap.containsKey(sessionId)) {
-            throw new SqlExecutionException(
-                    "Found another session with the same session identifier: " + sessionId);
-        } else {
-            this.contextMap.put(sessionId, sessionContext);
-        }
-        return sessionId;
+    public void openSession(@Nullable String sessionId) throws SqlExecutionException {
+        // do nothing
+        sessionContext = LocalContextUtils.buildSessionContext(sessionId, defaultContext);
     }
 
     @Override
-    public void closeSession(String sessionId) throws SqlExecutionException {
+    public void closeSession() throws SqlExecutionException {
         resultStore
                 .getResults()
                 .forEach(
                         (resultId) -> {
                             try {
-                                cancelQuery(sessionId, resultId);
+                                cancelQuery(resultId);
                             } catch (Throwable t) {
                                 // ignore any throwable to keep the clean up running
                             }
                         });
         // Remove the session's ExecutionContext from contextMap and close it.
-        SessionContext context = this.contextMap.remove(sessionId);
-        if (context != null) {
-            context.close();
+        if (sessionContext != null) {
+            sessionContext.close();
         }
-    }
-
-    private SessionContext getSessionContext(String sessionId) {
-        SessionContext context = this.contextMap.get(sessionId);
-        if (context == null) {
-            throw new SqlExecutionException("Invalid session identifier: " + sessionId);
-        }
-        return context;
     }
 
     /**
@@ -144,43 +122,38 @@ public class LocalExecutor implements Executor {
      * exist.
      */
     @VisibleForTesting
-    protected ExecutionContext getExecutionContext(String sessionId) throws SqlExecutionException {
-        return getSessionContext(sessionId).getExecutionContext();
+    protected ExecutionContext getExecutionContext() throws SqlExecutionException {
+        return sessionContext.getExecutionContext();
     }
 
     @Override
-    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
-        return getSessionContext(sessionId).getConfigMap();
+    public Map<String, String> getSessionConfigMap() throws SqlExecutionException {
+        return sessionContext.getConfigMap();
     }
 
     @Override
-    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
-        return getSessionContext(sessionId).getReadableConfig();
+    public ReadableConfig getSessionConfig() throws SqlExecutionException {
+        return sessionContext.getReadableConfig();
     }
 
     @Override
-    public void resetSessionProperties(String sessionId) throws SqlExecutionException {
-        SessionContext context = getSessionContext(sessionId);
-        context.reset();
+    public void resetSessionProperties() throws SqlExecutionException {
+        sessionContext.reset();
     }
 
     @Override
-    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
-        SessionContext context = getSessionContext(sessionId);
-        context.reset(key);
+    public void resetSessionProperty(String key) throws SqlExecutionException {
+        sessionContext.reset(key);
     }
 
     @Override
-    public void setSessionProperty(String sessionId, String key, String value)
-            throws SqlExecutionException {
-        SessionContext context = getSessionContext(sessionId);
-        context.set(key, value);
+    public void setSessionProperty(String key, String value) throws SqlExecutionException {
+        sessionContext.set(key, value);
     }
 
     @Override
-    public Operation parseStatement(String sessionId, String statement)
-            throws SqlExecutionException {
-        final ExecutionContext context = getExecutionContext(sessionId);
+    public Operation parseStatement(String statement) throws SqlExecutionException {
+        final ExecutionContext context = getExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
         Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
 
@@ -197,8 +170,8 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public List<String> completeStatement(String sessionId, String statement, int position) {
-        final ExecutionContext context = getExecutionContext(sessionId);
+    public List<String> completeStatement(String statement, int position) {
+        final ExecutionContext context = getExecutionContext();
         final TableEnvironmentInternal tableEnv =
                 (TableEnvironmentInternal) context.getTableEnvironment();
 
@@ -214,9 +187,8 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public TableResultInternal executeOperation(String sessionId, Operation operation)
-            throws SqlExecutionException {
-        final ExecutionContext context = getExecutionContext(sessionId);
+    public TableResultInternal executeOperation(Operation operation) throws SqlExecutionException {
+        final ExecutionContext context = getExecutionContext();
         final TableEnvironmentInternal tEnv =
                 (TableEnvironmentInternal) context.getTableEnvironment();
         try {
@@ -227,9 +199,9 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public TableResultInternal executeModifyOperations(
-            String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
-        final ExecutionContext context = getExecutionContext(sessionId);
+    public TableResultInternal executeModifyOperations(List<ModifyOperation> operations)
+            throws SqlExecutionException {
+        final ExecutionContext context = getExecutionContext();
         final TableEnvironmentInternal tEnv =
                 (TableEnvironmentInternal) context.getTableEnvironment();
         try {
@@ -240,10 +212,9 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-            throws SqlExecutionException {
-        final TableResultInternal tableResult = executeOperation(sessionId, query);
-        final SessionContext context = getSessionContext(sessionId);
+    public ResultDescriptor executeQuery(QueryOperation query) throws SqlExecutionException {
+        final TableResultInternal tableResult = executeOperation(query);
+        final SessionContext context = sessionContext;
         final ReadableConfig config = context.getReadableConfig();
         final DynamicResult result = resultStore.createResult(config, tableResult);
         checkArgument(tableResult.getJobClient().isPresent());
@@ -259,7 +230,7 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
+    public TypedResult<List<RowData>> retrieveResultChanges(String resultId)
             throws SqlExecutionException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
@@ -273,7 +244,7 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
+    public TypedResult<Integer> snapshotResult(String resultId, int pageSize)
             throws SqlExecutionException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
@@ -301,7 +272,7 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+    public void cancelQuery(String resultId) throws SqlExecutionException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
             throw new SqlExecutionException(
@@ -320,19 +291,16 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public void removeJar(String sessionId, String jarUrl) {
-        final SessionContext context = getSessionContext(sessionId);
-        context.removeJar(jarUrl);
+    public void removeJar(String jarUrl) {
+        sessionContext.removeJar(jarUrl);
     }
 
     @Override
-    public Optional<String> stopJob(
-            String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+    public Optional<String> stopJob(String jobId, boolean isWithSavepoint, boolean isWithDrain)
             throws SqlExecutionException {
-        Duration clientTimeout = getSessionConfig(sessionId).get(ClientOptions.CLIENT_TIMEOUT);
+        Duration clientTimeout = getSessionConfig().get(ClientOptions.CLIENT_TIMEOUT);
         try {
             return runClusterAction(
-                    sessionId,
                     clusterClient -> {
                         if (isWithSavepoint) {
                             // blocking get savepoint path
@@ -353,7 +321,7 @@ public class LocalExecutor implements Executor {
                                         "Could not stop job "
                                                 + jobId
                                                 + " in session "
-                                                + sessionId
+                                                + sessionContext.getSessionId()
                                                 + ".",
                                         e);
                             }
@@ -364,7 +332,12 @@ public class LocalExecutor implements Executor {
                     });
         } catch (Exception e) {
             throw new SqlExecutionException(
-                    "Could not stop job " + jobId + " in session " + sessionId + ".", e);
+                    "Could not stop job "
+                            + jobId
+                            + " in session "
+                            + sessionContext.getSessionId()
+                            + ".",
+                    e);
         }
     }
 
@@ -372,26 +345,25 @@ public class LocalExecutor implements Executor {
      * Retrieves the {@link ClusterClient} from the session and runs the given {@link ClusterAction}
      * against it.
      *
-     * @param sessionId the specified session ID
      * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
      * @param <ClusterID> type of the cluster id
      * @param <Result>> type of the result
      * @throws FlinkException if something goes wrong
      */
     private <ClusterID, Result> Result runClusterAction(
-            String sessionId, ClusterAction<ClusterID, Result> clusterAction)
-            throws FlinkException {
-        final SessionContext context = getSessionContext(sessionId);
-        final Configuration configuration = (Configuration) context.getReadableConfig();
+            ClusterAction<ClusterID, Result> clusterAction) throws FlinkException {
+        final Configuration configuration = (Configuration) sessionContext.getReadableConfig();
         final ClusterClientFactory<ClusterID> clusterClientFactory =
-                context.getExecutionContext()
+                sessionContext
+                        .getExecutionContext()
                         .wrapClassLoader(
                                 () ->
                                         clusterClientServiceLoader.getClusterClientFactory(
                                                 configuration));
 
         final ClusterID clusterId = clusterClientFactory.getClusterId(configuration);
-        Preconditions.checkNotNull(clusterId, "No cluster ID found for session " + sessionId);
+        Preconditions.checkNotNull(
+                clusterId, "No cluster ID found for session " + sessionContext.getSessionId());
 
         try (final ClusterDescriptor<ClusterID> clusterDescriptor =
                         clusterClientFactory.createClusterDescriptor(configuration);

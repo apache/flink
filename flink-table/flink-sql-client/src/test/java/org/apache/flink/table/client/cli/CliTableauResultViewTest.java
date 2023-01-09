@@ -201,7 +201,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         view.displayResults();
         view.close();
@@ -252,7 +252,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         // submit result display in another thread
         Future<?> furture = EXECUTOR_RESOURCE.getExecutor().submit(view::displayResults);
@@ -295,7 +295,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         view.displayResults();
         view.close();
@@ -322,7 +322,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         try {
             view.displayResults();
@@ -358,7 +358,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         view.displayResults();
         view.close();
@@ -412,7 +412,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         view.displayResults();
         view.close();
@@ -448,7 +448,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         // submit result display in another thread
         Future<?> furture = EXECUTOR_RESOURCE.getExecutor().submit(view::displayResults);
@@ -504,7 +504,7 @@ class CliTableauResultViewTest {
                         .build();
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, mockExecutor, resultDescriptor);
 
         try {
             view.displayResults();

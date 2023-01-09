@@ -93,10 +93,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
         try {
             result =
                     client.getExecutor()
-                            .snapshotResult(
-                                    client.getSessionId(),
-                                    resultDescriptor.getResultId(),
-                                    getVisibleMainHeight());
+                            .snapshotResult(resultDescriptor.getResultId(), getVisibleMainHeight());
         } catch (SqlExecutionException e) {
             close(e);
             return;

@@ -60,6 +60,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Contains basic tests for the {@link CliResultView}. */
 class CliResultViewTest {
 
+    private static final String SESSION_ID = "test-session";
+
     @Test
     void testTableResultViewKeepJobResult() throws Exception {
         testResultViewClearResult(TypedResult.endOfStream(), true, 0);
@@ -100,7 +102,7 @@ class CliResultViewTest {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
-        String sessionId = executor.openSession("test-session");
+        executor.openSession(SESSION_ID);
         ResolvedSchema schema =
                 ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING()));
         final ResultDescriptor descriptor =
@@ -118,7 +120,6 @@ class CliResultViewTest {
         try (CliClient cli =
                 new TestingCliClient(
                         TerminalUtils.createDumbTerminal(),
-                        sessionId,
                         executor,
                         File.createTempFile("history", "tmp").toPath(),
                         null)) {
@@ -157,76 +158,71 @@ class CliResultViewTest {
         }
 
         @Override
-        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
-            return sessionId;
-        }
-
-        @Override
-        public void closeSession(String sessionId) throws SqlExecutionException {
+        public void openSession(@Nullable String sessionId) throws SqlExecutionException {
             // do nothing
         }
 
         @Override
-        public Map<String, String> getSessionConfigMap(String sessionId)
-                throws SqlExecutionException {
+        public void closeSession() throws SqlExecutionException {
+            // do nothing
+        }
+
+        @Override
+        public Map<String, String> getSessionConfigMap() throws SqlExecutionException {
             return defaultConfig.toMap();
         }
 
         @Override
-        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+        public ReadableConfig getSessionConfig() throws SqlExecutionException {
             return defaultConfig;
         }
 
         @Override
-        public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
+        public void resetSessionProperties() throws SqlExecutionException {}
 
         @Override
-        public void resetSessionProperty(String sessionId, String key)
-                throws SqlExecutionException {}
+        public void resetSessionProperty(String key) throws SqlExecutionException {}
 
         @Override
-        public void setSessionProperty(String sessionId, String key, String value)
-                throws SqlExecutionException {}
+        public void setSessionProperty(String key, String value) throws SqlExecutionException {}
 
         @Override
-        public Operation parseStatement(String sessionId, String statement)
+        public Operation parseStatement(String statement) throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public List<String> completeStatement(String statement, int position) {
+            return null;
+        }
+
+        @Override
+        public TableResultInternal executeOperation(Operation operation)
                 throws SqlExecutionException {
             return null;
         }
 
         @Override
-        public List<String> completeStatement(String sessionId, String statement, int position) {
-            return null;
-        }
-
-        @Override
-        public TableResultInternal executeOperation(String sessionId, Operation operation)
+        public TableResultInternal executeModifyOperations(List<ModifyOperation> operations)
                 throws SqlExecutionException {
             return null;
         }
 
         @Override
-        public TableResultInternal executeModifyOperations(
-                String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-                throws SqlExecutionException {
+        public ResultDescriptor executeQuery(QueryOperation query) throws SqlExecutionException {
             return null;
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
+        public TypedResult<List<RowData>> retrieveResultChanges(String resultId)
                 throws SqlExecutionException {
             return (TypedResult<List<RowData>>) typedResult;
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
+        public TypedResult<Integer> snapshotResult(String resultId, int pageSize)
                 throws SqlExecutionException {
             return (TypedResult<Integer>) typedResult;
         }
@@ -238,18 +234,17 @@ class CliResultViewTest {
         }
 
         @Override
-        public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+        public void cancelQuery(String resultId) throws SqlExecutionException {
             cancellationCounter.countDown();
         }
 
         @Override
-        public void removeJar(String sessionId, String jarUrl) {
+        public void removeJar(String jarUrl) {
             throw new UnsupportedOperationException("Not implemented.");
         }
 
         @Override
-        public Optional<String> stopJob(
-                String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+        public Optional<String> stopJob(String jobId, boolean isWithSavepoint, boolean isWithDrain)
                 throws SqlExecutionException {
             throw new UnsupportedOperationException("Not implemented.");
         }
@@ -305,11 +300,10 @@ class CliResultViewTest {
 
         public TestingCliClient(
                 Terminal terminal,
-                String sessionId,
                 Executor executor,
                 Path historyFilePath,
                 @Nullable MaskingCallback inputTransformer) {
-            super(() -> terminal, sessionId, executor, historyFilePath, inputTransformer);
+            super(() -> terminal, executor, historyFilePath, inputTransformer);
             this.terminal = terminal;
         }
 

@@ -129,7 +129,7 @@ class DependencyTest {
                                     "`rowtimeField`"));
             assertThat(CollectionUtil.iteratorToList(tableResult.collect())).isEqualTo(schemaData);
         } finally {
-            executor.closeSession(SESSION_ID);
+            executor.closeSession();
         }
     }
 
@@ -138,12 +138,11 @@ class DependencyTest {
         final LocalExecutor executor = createLocalExecutor();
         try {
             Operation operation =
-                    executor.parseStatement(
-                            SESSION_ID, "SELECT IntegerField1, StringField1 FROM TableNumber1");
+                    executor.parseStatement("SELECT IntegerField1, StringField1 FROM TableNumber1");
 
             assertThat(operation).isInstanceOf(QueryOperation.class);
         } finally {
-            executor.closeSession(SESSION_ID);
+            executor.closeSession();
         }
     }
 
@@ -157,14 +156,14 @@ class DependencyTest {
         LocalExecutor executor = new LocalExecutor(defaultContext);
         executor.openSession(SESSION_ID);
         for (String line : INIT_SQL) {
-            executor.executeOperation(SESSION_ID, executor.parseStatement(SESSION_ID, line));
+            executor.executeOperation(executor.parseStatement(line));
         }
         return executor;
     }
 
     private TableResult executeSql(Executor executor, String sessionId, String sql) {
-        Operation operation = executor.parseStatement(sessionId, sql);
-        return executor.executeOperation(sessionId, operation);
+        Operation operation = executor.parseStatement(sql);
+        return executor.executeOperation(operation);
     }
 
     // --------------------------------------------------------------------------------------------

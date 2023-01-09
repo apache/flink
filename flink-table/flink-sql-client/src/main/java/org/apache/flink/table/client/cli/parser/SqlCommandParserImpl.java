@@ -28,11 +28,9 @@ import java.util.Optional;
 /** SqlCommandParserImpl wrappers an {@link Executor} supports parse a statement to an Operation. */
 public class SqlCommandParserImpl implements SqlCommandParser {
     private final Executor executor;
-    private final String sessionId;
 
-    public SqlCommandParserImpl(Executor executor, String sessionId) {
+    public SqlCommandParserImpl(Executor executor) {
         this.executor = executor;
-        this.sessionId = sessionId;
     }
 
     @Override
@@ -43,7 +41,7 @@ public class SqlCommandParserImpl implements SqlCommandParser {
         if (stmt.isEmpty() || stmt.equals(";")) {
             return Optional.empty();
         }
-        return Optional.ofNullable(executor.parseStatement(sessionId, stmt));
+        return Optional.ofNullable(executor.parseStatement(stmt));
     }
 
     /** A dumb implementation. */

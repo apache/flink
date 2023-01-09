@@ -136,27 +136,24 @@ class LocalExecutorITCase {
     @Test
     void testCompleteStatement() {
         final Executor executor = createLocalExecutor();
-        String sessionId = executor.openSession("test-session");
-        assertThat(sessionId).isEqualTo("test-session");
-        initSession(executor, sessionId, Collections.emptyMap());
+        executor.openSession("test-session");
+        initSession(executor, Collections.emptyMap());
 
         final List<String> expectedTableHints =
                 Arrays.asList(
                         "default_catalog.default_database.TableNumber1",
                         "default_catalog.default_database.TableSourceSink");
-        assertThat(executor.completeStatement(sessionId, "SELECT * FROM Ta", 16))
+        assertThat(executor.completeStatement("SELECT * FROM Ta", 16))
                 .isEqualTo(expectedTableHints);
 
         final List<String> expectedClause = Collections.singletonList("WHERE");
-        assertThat(executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WH", 29))
+        assertThat(executor.completeStatement("SELECT * FROM TableNumber1 WH", 29))
                 .isEqualTo(expectedClause);
 
         final List<String> expectedField = Collections.singletonList("IntegerField1");
-        assertThat(
-                        executor.completeStatement(
-                                sessionId, "SELECT * FROM TableNumber1 WHERE Inte", 37))
+        assertThat(executor.completeStatement("SELECT * FROM TableNumber1 WHERE Inte", 37))
                 .isEqualTo(expectedField);
-        executor.closeSession(sessionId);
+        executor.closeSession();
     }
 
     @Test
@@ -170,26 +167,21 @@ class LocalExecutorITCase {
 
         final LocalExecutor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
-        String sessionId = executor.openSession("test-session");
-        assertThat(sessionId).isEqualTo("test-session");
+        executor.openSession("test-session");
 
-        initSession(executor, sessionId, replaceVars);
+        initSession(executor, replaceVars);
         try {
             // start job and retrieval
             final ResultDescriptor desc =
                     executeQuery(
                             executor,
-                            sessionId,
                             "SELECT scalarUDF(IntegerField1, 5), StringField1, 'ABC' FROM TableNumber1");
 
             assertThat(desc.isMaterialized()).isFalse();
 
             final List<String> actualResults =
                     retrieveChangelogResult(
-                            executor,
-                            sessionId,
-                            desc.getResultId(),
-                            desc.getRowDataStringConverter());
+                            executor, desc.getResultId(), desc.getRowDataStringConverter());
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("[47, Hello World, ABC]");
@@ -202,7 +194,7 @@ class LocalExecutorITCase {
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession();
         }
     }
 
@@ -217,8 +209,7 @@ class LocalExecutorITCase {
 
         final LocalExecutor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
-        String sessionId = executor.openSession("test-session");
-        assertThat(sessionId).isEqualTo("test-session");
+        executor.openSession("test-session");
 
         final List<String> expectedResults = new ArrayList<>();
         expectedResults.add("[47, Hello World]");
@@ -228,30 +219,26 @@ class LocalExecutorITCase {
         expectedResults.add("[47, Hello World]");
         expectedResults.add("[57, Hello World!!!!]");
 
-        initSession(executor, sessionId, replaceVars);
+        initSession(executor, replaceVars);
         try {
             for (int i = 0; i < 3; i++) {
                 // start job and retrieval
                 final ResultDescriptor desc =
                         executeQuery(
                                 executor,
-                                sessionId,
                                 "SELECT scalarUDF(IntegerField1, 5), StringField1 FROM TableNumber1");
 
                 assertThat(desc.isMaterialized()).isFalse();
 
                 final List<String> actualResults =
                         retrieveChangelogResult(
-                                executor,
-                                sessionId,
-                                desc.getResultId(),
-                                desc.getRowDataStringConverter());
+                                executor, desc.getResultId(), desc.getRowDataStringConverter());
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
             }
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession();
         }
     }
 
@@ -341,22 +328,17 @@ class LocalExecutorITCase {
         final Executor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        String sessionId = executor.openSession("test-session");
-        assertThat(sessionId).isEqualTo("test-session");
+        executor.openSession("test-session");
 
-        initSession(executor, sessionId, replaceVars);
+        initSession(executor, replaceVars);
         try {
-            final ResultDescriptor desc =
-                    executeQuery(executor, sessionId, "SELECT *, 'ABC' FROM TestView1");
+            final ResultDescriptor desc = executeQuery(executor, "SELECT *, 'ABC' FROM TestView1");
 
             assertThat(desc.isMaterialized()).isTrue();
 
             final List<String> actualResults =
                     retrieveTableResult(
-                            executor,
-                            sessionId,
-                            desc.getResultId(),
-                            desc.getRowDataStringConverter());
+                            executor, desc.getResultId(), desc.getRowDataStringConverter());
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("[47, ABC]");
@@ -369,7 +351,7 @@ class LocalExecutorITCase {
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession();
         }
     }
 
@@ -387,9 +369,8 @@ class LocalExecutorITCase {
         final Executor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        String sessionId = executor.openSession("test-session");
-        assertThat(sessionId).isEqualTo("test-session");
-        initSession(executor, sessionId, replaceVars);
+        executor.openSession("test-session");
+        initSession(executor, replaceVars);
 
         final List<String> expectedResults = new ArrayList<>();
         expectedResults.add("[47]");
@@ -401,23 +382,19 @@ class LocalExecutorITCase {
 
         try {
             for (int i = 0; i < 3; i++) {
-                final ResultDescriptor desc =
-                        executeQuery(executor, sessionId, "SELECT * FROM TestView1");
+                final ResultDescriptor desc = executeQuery(executor, "SELECT * FROM TestView1");
 
                 assertThat(desc.isMaterialized()).isTrue();
 
                 final List<String> actualResults =
                         retrieveTableResult(
-                                executor,
-                                sessionId,
-                                desc.getResultId(),
-                                desc.getRowDataStringConverter());
+                                executor, desc.getResultId(), desc.getRowDataStringConverter());
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
             }
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession();
         }
     }
 
@@ -431,18 +408,16 @@ class LocalExecutorITCase {
         final LocalExecutor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        String sessionId = executor.openSession("test-session");
+        executor.openSession("test-session");
 
         final String srcDdl = "CREATE TABLE src (a STRING) WITH ('connector' = 'datagen')";
         final String snkDdl = "CREATE TABLE snk (a STRING) WITH ('connector' = 'blackhole')";
         final String insert = "INSERT INTO snk SELECT a FROM src;";
 
         try {
-            executor.executeOperation(sessionId, executor.parseStatement(sessionId, srcDdl));
-            executor.executeOperation(sessionId, executor.parseStatement(sessionId, snkDdl));
-            TableResult result =
-                    executor.executeOperation(
-                            sessionId, executor.parseStatement(sessionId, insert));
+            executor.executeOperation(executor.parseStatement(srcDdl));
+            executor.executeOperation(executor.parseStatement(snkDdl));
+            TableResult result = executor.executeOperation(executor.parseStatement(insert));
             JobClient jobClient = result.getJobClient().get();
             JobID jobId = jobClient.getJobID();
 
@@ -453,10 +428,10 @@ class LocalExecutorITCase {
                 jobStatus = jobClient.getJobStatus().get();
             } while (jobStatus != JobStatus.RUNNING);
 
-            Optional<String> savepoint = executor.stopJob(sessionId, jobId.toString(), true, true);
+            Optional<String> savepoint = executor.stopJob(jobId.toString(), true, true);
             assertThat(savepoint).isPresent();
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession();
         }
     }
 
@@ -464,9 +439,9 @@ class LocalExecutorITCase {
     // Helper method
     // --------------------------------------------------------------------------------------------
 
-    private ResultDescriptor executeQuery(Executor executor, String sessionId, String query) {
-        Operation operation = executor.parseStatement(sessionId, query);
-        return executor.executeQuery(sessionId, (QueryOperation) operation);
+    private ResultDescriptor executeQuery(Executor executor, String query) {
+        Operation operation = executor.parseStatement(query);
+        return executor.executeQuery((QueryOperation) operation);
     }
 
     private LocalExecutor createLocalExecutor() {
@@ -481,9 +456,9 @@ class LocalExecutorITCase {
         return new LocalExecutor(defaultContext);
     }
 
-    private void initSession(Executor executor, String sessionId, Map<String, String> replaceVars) {
+    private void initSession(Executor executor, Map<String, String> replaceVars) {
         for (String sql : getInitSQL(replaceVars)) {
-            executor.executeOperation(sessionId, executor.parseStatement(sessionId, sql));
+            executor.executeOperation(executor.parseStatement(sql));
         }
     }
 
@@ -497,43 +472,34 @@ class LocalExecutorITCase {
         final LocalExecutor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        String sessionId = executor.openSession("test-session");
-
-        assertThat(sessionId).isEqualTo("test-session");
-
-        initSession(executor, sessionId, replaceVars);
+        executor.openSession("test-session");
+        initSession(executor, replaceVars);
 
         try {
             // start job and retrieval
-            final ResultDescriptor desc = executeQuery(executor, sessionId, query);
+            final ResultDescriptor desc = executeQuery(executor, query);
 
             assertThat(desc.isMaterialized()).isTrue();
 
             final List<String> actualResults =
                     retrieveTableResult(
-                            executor,
-                            sessionId,
-                            desc.getResultId(),
-                            desc.getRowDataStringConverter());
+                            executor, desc.getResultId(), desc.getRowDataStringConverter());
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession();
         }
     }
 
     private List<String> retrieveTableResult(
-            Executor executor,
-            String sessionId,
-            String resultID,
-            RowDataToStringConverter rowDataToStringConverter)
+            Executor executor, String resultID, RowDataToStringConverter rowDataToStringConverter)
             throws InterruptedException {
 
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<Integer> result = executor.snapshotResult(sessionId, resultID, 2);
+            final TypedResult<Integer> result = executor.snapshotResult(resultID, 2);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 actualResults.clear();
                 IntStream.rangeClosed(1, result.getPayload())
@@ -555,17 +521,13 @@ class LocalExecutorITCase {
     }
 
     private List<String> retrieveChangelogResult(
-            Executor executor,
-            String sessionId,
-            String resultID,
-            RowDataToStringConverter rowDataToStringConverter)
+            Executor executor, String resultID, RowDataToStringConverter rowDataToStringConverter)
             throws InterruptedException {
 
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<List<RowData>> result =
-                    executor.retrieveResultChanges(sessionId, resultID);
+            final TypedResult<List<RowData>> result = executor.retrieveResultChanges(resultID);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 for (RowData row : result.getPayload()) {
                     actualResults.add(
