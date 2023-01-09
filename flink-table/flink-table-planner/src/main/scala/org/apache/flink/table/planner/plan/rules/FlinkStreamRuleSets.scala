@@ -193,7 +193,7 @@ object FlinkStreamRuleSets {
     CoreRules.PROJECT_FILTER_TRANSPOSE,
     // push a projection to the children of a non semi/anti join
     // push all expressions to handle the time indicator correctly
-    FlinkProjectJoinTransposeRule.DEFAULT.toRule,
+    FlinkProjectJoinTransposeRule.INSTANCE,
     // push a projection to the children of a semi/anti Join
     ProjectSemiAntiJoinTransposeRule.INSTANCE,
     // merge projections

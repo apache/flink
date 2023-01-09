@@ -17,7 +17,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.PushProjector;
 
@@ -26,11 +27,24 @@ import org.apache.calcite.rel.rules.PushProjector;
  * org.apache.calcite.rel.core.Join} by splitting the projection into a projection on top of each
  * child of the join.
  */
-public class FlinkProjectJoinTransposeRule {
-    public static final ProjectJoinTransposeRule.Config DEFAULT =
-            ProjectJoinTransposeRule.Config.DEFAULT
-                    .withPreserveExprCondition(PushProjector.ExprCondition.FALSE)
-                    .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
-                    .withDescription("FlinkProjectJoinTransposeRule")
-                    .as(ProjectJoinTransposeRule.Config.class);
+public class FlinkProjectJoinTransposeRule extends ProjectJoinTransposeRule {
+    public static final ProjectJoinTransposeRule INSTANCE =
+            new FlinkProjectJoinTransposeRule(
+                    Config.DEFAULT
+                            .withPreserveExprCondition(PushProjector.ExprCondition.FALSE)
+                            .withDescription("FlinkProjectJoinTransposeRule")
+                            .as(Config.class));
+
+    private FlinkProjectJoinTransposeRule(Config config) {
+        super(config);
+    }
+
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+        final Join join = call.rel(1);
+        if (!join.getJoinType().projectsRight()) {
+            return; // TODO: support SEMI/ANTI join later
+        }
+        super.onMatch(call);
+    }
 }
