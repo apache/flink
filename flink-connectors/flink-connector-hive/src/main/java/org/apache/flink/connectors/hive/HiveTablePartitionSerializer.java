@@ -31,13 +31,13 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /** SerDe for {@link HiveTablePartition}. */
 public class HiveTablePartitionSerializer implements SimpleVersionedSerializer<HiveTablePartition> {
 
-    private static final int VERSION = 1;
+    private static final int CURRENT_VERSION = 1;
 
     public static final HiveTablePartitionSerializer INSTANCE = new HiveTablePartitionSerializer();
 
     @Override
     public int getVersion() {
-        return VERSION;
+        return CURRENT_VERSION;
     }
 
     @Override
@@ -54,7 +54,7 @@ public class HiveTablePartitionSerializer implements SimpleVersionedSerializer<H
 
     @Override
     public HiveTablePartition deserialize(int version, byte[] serialized) throws IOException {
-        if (version == 1) {
+        if (version == CURRENT_VERSION) {
             try (ObjectInputStream inputStream =
                     new ObjectInputStream(new ByteArrayInputStream(serialized))) {
                 return (HiveTablePartition) inputStream.readObject();
