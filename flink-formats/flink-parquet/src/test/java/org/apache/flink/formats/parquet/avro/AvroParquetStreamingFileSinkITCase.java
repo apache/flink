@@ -19,12 +19,12 @@
 package org.apache.flink.formats.parquet.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.parquet.generated.Address;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -56,11 +56,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Simple integration test case for writing bulk encoded files with the {@link FileSink} with
- * Parquet.
+ * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
+ * with Parquet.
  */
 @ExtendWith(MiniClusterExtension.class)
-class AvroParquetFileSinkITCase {
+class AvroParquetStreamingFileSinkITCase {
 
     @Test
     void testWriteParquetAvroSpecific(@TempDir File folder) throws Exception {
@@ -78,13 +78,13 @@ class AvroParquetFileSinkITCase {
         DataStream<Address> stream =
                 env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Address.class));
 
-        FileSink<Address> sink =
-                FileSink.forBulkFormat(
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 AvroParquetWriters.forSpecificRecord(Address.class))
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
-                        .build();
-        stream.sinkTo(sink);
+                        .build());
+
         env.execute();
 
         validateResults(folder, SpecificData.get(), data);
@@ -104,13 +104,13 @@ class AvroParquetFileSinkITCase {
         DataStream<GenericRecord> stream =
                 env.addSource(new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
 
-        FileSink<GenericRecord> sink =
-                FileSink.forBulkFormat(
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 AvroParquetWriters.forGenericRecord(schema))
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
-                        .build();
-        stream.sinkTo(sink);
+                        .build());
+
         env.execute();
 
         List<Address> expected =
@@ -134,13 +134,13 @@ class AvroParquetFileSinkITCase {
         DataStream<Datum> stream =
                 env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
 
-        FileSink<Datum> sink =
-                FileSink.forBulkFormat(
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 AvroParquetWriters.forReflectRecord(Datum.class))
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
-                        .build();
-        stream.sinkTo(sink);
+                        .build());
+
         env.execute();
 
         validateResults(folder, ReflectData.get(), data);
