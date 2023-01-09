@@ -19,6 +19,8 @@
 package org.apache.flink.table.module.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
@@ -41,6 +43,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Module to provide Hive built-in metadata. */
@@ -85,17 +88,27 @@ public class HiveModule implements Module {
     private final String hiveVersion;
     private final HiveShim hiveShim;
     private Set<String> functionNames;
+    private final ReadableConfig config;
     private final ClassLoader classLoader;
 
+    @VisibleForTesting
     public HiveModule() {
-        this(HiveShimLoader.getHiveVersion(), Thread.currentThread().getContextClassLoader());
+        this(
+                HiveShimLoader.getHiveVersion(),
+                new Configuration(),
+                Thread.currentThread().getContextClassLoader());
     }
 
+    @VisibleForTesting
     public HiveModule(String hiveVersion) {
         this(hiveVersion, Thread.currentThread().getContextClassLoader());
     }
 
     public HiveModule(String hiveVersion, ClassLoader classLoader) {
+        this(hiveVersion, new Configuration(), classLoader);
+    }
+
+    public HiveModule(String hiveVersion, ReadableConfig config, ClassLoader classLoader) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null");
 
@@ -103,6 +116,7 @@ public class HiveModule implements Module {
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         this.factory = new HiveFunctionDefinitionFactory(hiveShim);
         this.functionNames = new HashSet<>();
+        this.config = config;
         this.classLoader = classLoader;
     }
 
@@ -128,7 +142,7 @@ public class HiveModule implements Module {
         FunctionDefinitionFactory.Context context = () -> classLoader;
 
         // We override Hive's sum function by native implementation to supports hash-agg
-        if (name.equalsIgnoreCase("sum")) {
+        if (isNativeAggFunctionEnabled() && name.equalsIgnoreCase("sum")) {
             return Optional.of(new HiveSumAggFunction());
         }
 
@@ -177,5 +191,9 @@ public class HiveModule implements Module {
 
     public String getHiveVersion() {
         return hiveVersion;
+    }
+
+    private boolean isNativeAggFunctionEnabled() {
+        return config.get(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED);
     }
 }

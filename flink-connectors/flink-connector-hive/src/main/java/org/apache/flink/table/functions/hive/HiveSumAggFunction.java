@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.hiveAggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
@@ -125,11 +126,16 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
                 int precision =
                         Math.min(MAX_PRECISION, getPrecision(argsType.getLogicalType()) + 10);
                 return DataTypes.DECIMAL(precision, getScale(argsType.getLogicalType()));
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                throw new TableException(
+                        String.format(
+                                "Native hive sum aggregate function does not support type: %s. Please set option '%s' to false.",
+                                argsType, TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
             default:
                 throw new TableException(
                         String.format(
-                                "Sum aggregate function does not support type: '%s'. Please re-check the data type.",
-                                argsType.getLogicalType().getTypeRoot()));
+                                "Only numeric or string type arguments are accepted but %s is passed.",
+                                argsType));
         }
     }
 
