@@ -84,7 +84,7 @@ public class SqlClient {
             final Executor executor = new LocalExecutor(defaultContext);
             executor.start();
 
-            // Open an new session
+            // Open a new session
             executor.openSession(options.getSessionId());
             try {
                 // add shutdown hook

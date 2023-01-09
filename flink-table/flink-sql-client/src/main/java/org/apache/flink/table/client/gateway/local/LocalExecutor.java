@@ -138,20 +138,17 @@ public class LocalExecutor implements Executor {
 
     @Override
     public void resetSessionProperties() throws SqlExecutionException {
-        SessionContext context = sessionContext;
-        context.reset();
+        sessionContext.reset();
     }
 
     @Override
     public void resetSessionProperty(String key) throws SqlExecutionException {
-        SessionContext context = sessionContext;
-        context.reset(key);
+        sessionContext.reset(key);
     }
 
     @Override
     public void setSessionProperty(String key, String value) throws SqlExecutionException {
-        SessionContext context = sessionContext;
-        context.set(key, value);
+        sessionContext.set(key, value);
     }
 
     @Override
@@ -295,8 +292,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public void removeJar(String jarUrl) {
-        final SessionContext context = sessionContext;
-        context.removeJar(jarUrl);
+        sessionContext.removeJar(jarUrl);
     }
 
     @Override

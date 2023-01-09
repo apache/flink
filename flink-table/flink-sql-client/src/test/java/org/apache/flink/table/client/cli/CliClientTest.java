@@ -530,8 +530,7 @@ class CliClientTest {
 
         @Override
         public ReadableConfig getSessionConfig() throws SqlExecutionException {
-            SessionContext context = sessionContext;
-            return context.getReadableConfig();
+            return sessionContext.getReadableConfig();
         }
 
         @Override
