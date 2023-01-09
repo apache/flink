@@ -148,6 +148,16 @@ class PartitionableSourceTest(val sourceFetchPartitions: Boolean, val useCatalog
       "select name from PartitionableAndFilterableTable " +
         "where part1 = 'A' and part2 > 1 and id > 1")
   }
+
+  @Test
+  def testRandCondition(): Unit = {
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE rand(1) < 0.001")
+  }
+
+  @Test
+  def testRandCondition2(): Unit = {
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE rand(part2) < 0.001")
+  }
 }
 
 object PartitionableSourceTest {

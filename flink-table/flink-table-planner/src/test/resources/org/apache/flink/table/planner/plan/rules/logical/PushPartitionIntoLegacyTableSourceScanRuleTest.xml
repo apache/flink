@@ -1072,4 +1072,118 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRandCondition[sourceFetchPartitions=false, useCatalogFilter=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE rand(1) < 0.001]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND(1), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND(1), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRandCondition[sourceFetchPartitions=false, useCatalogFilter=true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE rand(1) < 0.001]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND(1), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND(1), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRandCondition[sourceFetchPartitions=true, useCatalogFilter=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE rand(1) < 0.001]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND(1), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND(1), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRandCondition2[sourceFetchPartitions=false, useCatalogFilter=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE rand(part2) < 0.001]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND($3), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND($3), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRandCondition2[sourceFetchPartitions=false, useCatalogFilter=true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE rand(part2) < 0.001]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND($3), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND($3), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRandCondition2[sourceFetchPartitions=true, useCatalogFilter=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE rand(part2) < 0.001]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND($3), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
++- LogicalFilter(condition=[<(RAND($3), 0.001:DECIMAL(4, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

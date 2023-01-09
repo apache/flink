@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog, UnresolvedIdentifier}
 import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter, YearMonthIntervalPeriodConverter}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
@@ -48,6 +48,7 @@ import java.util.{List => JList, TimeZone}
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Success, Try}
 
 object RexNodeExtractor extends Logging {
@@ -213,15 +214,22 @@ object RexNodeExtractor extends Logging {
   }
 
   /**
-   * returns true if the given predicate only contains [[RexInputRef]], [[RexLiteral]] and
-   * [[RexCall]], and all [[RexInputRef]]s reference partition fields. otherwise false.
+   * returns true if the given predicate is a deterministic [[RexNode]] and only contains
+   * [[RexInputRef]], [[RexLiteral]] and [[RexCall]], and all [[RexInputRef]]s reference partition
+   * fields. otherwise false.
    */
   private def isSupportedPartitionPredicate(
       predicate: RexNode,
       partitionFieldNames: Array[String],
       inputFieldNames: Array[String]): Boolean = {
+    if (!RexUtil.isDeterministic(predicate)) {
+      return false
+    }
+    val fields = new ListBuffer[Int]
+
     val visitor = new RexVisitorImpl[Boolean](true) {
       override def visitInputRef(inputRef: RexInputRef): Boolean = {
+        fields.append(inputRef.getIndex)
         val fieldName = inputFieldNames.apply(inputRef.getIndex)
         val typeRoot = FlinkTypeFactory.toLogicalType(inputRef.getType).getTypeRoot
         if (
@@ -273,7 +281,8 @@ object RexNodeExtractor extends Logging {
 
     try {
       predicate.accept(visitor)
-      true
+      // if no fields reached, it's not partition condition
+      fields.nonEmpty
     } catch {
       case _: Util.FoundOne => false
     }

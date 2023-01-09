@@ -184,6 +184,16 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
     util.addFunction("MyUdf", Func1)
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
+
+  @Test
+  def testRandCondition(): Unit = {
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE rand(1) < 0.001")
+  }
+
+  @Test
+  def testRandCondition2(): Unit = {
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE rand(part2) < 0.001")
+  }
 }
 
 object PushPartitionIntoLegacyTableSourceScanRuleTest {
