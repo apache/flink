@@ -1504,7 +1504,7 @@ public class SqlToOperationConverter {
                                 UnresolvedIdentifier.of(
                                         tableModify.getTable().getQualifiedName())));
         Optional<DynamicTableSink> optionalDynamicTableSink =
-                DeleteTableUtil.getDynamicTableSink(
+                DeletePushDownUtil.getDynamicTableSink(
                         contextResolvedTable, tableModify, catalogManager);
         if (optionalDynamicTableSink.isPresent()) {
             DynamicTableSink dynamicTableSink = optionalDynamicTableSink.get();
@@ -1512,7 +1512,7 @@ public class SqlToOperationConverter {
                 SupportsDeletePushDown supportsDeletePushDown =
                         (SupportsDeletePushDown) dynamicTableSink;
                 Optional<List<ResolvedExpression>> filters =
-                        DeleteTableUtil.extractFilters(tableModify);
+                        DeletePushDownUtil.extractFilters(tableModify);
                 if (filters.isPresent()
                         && supportsDeletePushDown.applyDeleteFilters(filters.get())) {
                     return new DeleteFromFiltersOperation(supportsDeletePushDown, filters.get());
