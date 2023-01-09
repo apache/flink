@@ -32,6 +32,7 @@ import org.apache.flink.table.gateway.rest.handler.session.ConfigureSessionHandl
 import org.apache.flink.table.gateway.rest.handler.session.GetSessionConfigHandler;
 import org.apache.flink.table.gateway.rest.handler.session.OpenSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.TriggerSessionHeartbeatHandler;
+import org.apache.flink.table.gateway.rest.handler.statement.CompleteStatementHandler;
 import org.apache.flink.table.gateway.rest.handler.statement.ExecuteStatementHandler;
 import org.apache.flink.table.gateway.rest.handler.statement.FetchResultsHandler;
 import org.apache.flink.table.gateway.rest.handler.util.GetApiVersionHandler;
@@ -44,6 +45,7 @@ import org.apache.flink.table.gateway.rest.header.session.ConfigureSessionHeader
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
+import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
@@ -152,6 +154,11 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
 
     private void addStatementRelatedHandlers(
             List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+        // Complete a statement
+        CompleteStatementHandler completeStatementHandler =
+                new CompleteStatementHandler(
+                        service, responseHeaders, CompleteStatementHeaders.getINSTANCE());
+        handlers.add(Tuple2.of(CompleteStatementHeaders.getINSTANCE(), completeStatementHandler));
 
         // Execute a statement
         ExecuteStatementHandler executeStatementHandler =
