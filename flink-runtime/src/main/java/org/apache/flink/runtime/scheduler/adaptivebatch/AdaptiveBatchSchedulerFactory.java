@@ -194,8 +194,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     shuffleMaster,
                     rpcTimeout,
                     DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
-                    DefaultVertexParallelismAndInputInfosDecider.getNormalizedMaxParallelism(
-                            jobMasterConfiguration),
+                    jobMasterConfiguration.getInteger(
+                            JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM),
                     blocklistOperations,
                     hybridPartitionDataConsumeConstraint);
         } else {
@@ -224,8 +224,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     shuffleMaster,
                     rpcTimeout,
                     DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
-                    DefaultVertexParallelismAndInputInfosDecider.getNormalizedMaxParallelism(
-                            jobMasterConfiguration),
+                    jobMasterConfiguration.getInteger(
+                            JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM),
                     hybridPartitionDataConsumeConstraint);
         }
     }

@@ -58,15 +58,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     private static final long DATA_VOLUME_PER_TASK = 1024 * 1024 * 1024L;
 
     @Test
-    void testNormalizedMaxAndMinParallelism() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-        assertThat(decider.getMaxParallelism()).isEqualTo(64);
-        assertThat(decider.getMinParallelism()).isEqualTo(4);
-    }
-
-    @Test
-    void testNormalizeParallelismDownToPowerOf2() {
+    void testDecideParallelism() {
         final DefaultVertexParallelismAndInputInfosDecider decider =
                 createDefaultVertexParallelismAndInputInfosDecider();
 
@@ -77,22 +69,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 decider.decideParallelism(
                         new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism).isEqualTo(8);
-    }
-
-    @Test
-    void testNormalizeParallelismUpToPowerOf2() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-
-        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
-        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_1_GB + BYTE_8_GB);
-
-        int parallelism =
-                decider.decideParallelism(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
-
-        assertThat(parallelism).isEqualTo(16);
+        assertThat(parallelism).isEqualTo(11);
     }
 
     @Test
@@ -107,7 +84,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 decider.decideParallelism(
                         new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism).isEqualTo(64);
+        assertThat(parallelism).isEqualTo(MAX_PARALLELISM);
     }
 
     @Test
@@ -122,7 +99,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 decider.decideParallelism(
                         new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism).isEqualTo(4);
+        assertThat(parallelism).isEqualTo(MIN_PARALLELISM);
     }
 
     @Test
@@ -152,7 +129,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 decider.decideParallelism(
                         new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism).isEqualTo(16);
+        assertThat(parallelism).isEqualTo(17);
     }
 
     @Test

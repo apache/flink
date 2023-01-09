@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.executiongraph.ParallelismAndInputInfos;
 import org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.MathUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,22 +161,20 @@ public class DefaultVertexParallelismAndInputInfosDecider
         long broadcastBytes = getReasonableBroadcastBytes(jobVertexId, consumedResults);
         long nonBroadcastBytes = getNonBroadcastBytes(consumedResults);
 
-        int initiallyDecidedParallelism =
+        int parallelism =
                 (int) Math.ceil((double) nonBroadcastBytes / (dataVolumePerTask - broadcastBytes));
-        int parallelism = normalizeParallelism(initiallyDecidedParallelism);
 
         LOG.debug(
                 "The size of broadcast data is {}, the size of non-broadcast data is {}, "
-                        + "the initially decided parallelism of job vertex {} is {}, after normalization is {}",
+                        + "the initially decided parallelism of job vertex {} is {}.",
                 new MemorySize(broadcastBytes),
                 new MemorySize(nonBroadcastBytes),
                 jobVertexId,
-                initiallyDecidedParallelism,
                 parallelism);
 
         if (parallelism < minParallelism) {
             LOG.info(
-                    "The initially normalized parallelism {} is smaller than the normalized minimum parallelism {}. "
+                    "The initially decided parallelism {} is smaller than the minimum parallelism {}. "
                             + "Use {} as the finally decided parallelism of job vertex {}.",
                     parallelism,
                     minParallelism,
@@ -187,7 +183,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
             parallelism = minParallelism;
         } else if (parallelism > maxParallelism) {
             LOG.info(
-                    "The initially normalized parallelism {} is larger than the normalized maximum parallelism {}. "
+                    "The initially decided parallelism {} is larger than the maximum parallelism {}. "
                             + "Use {} as the finally decided parallelism of job vertex {}.",
                     parallelism,
                     maxParallelism,
@@ -450,50 +446,15 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 .collect(Collectors.toList());
     }
 
-    @VisibleForTesting
-    int getMaxParallelism() {
-        return maxParallelism;
-    }
-
-    @VisibleForTesting
-    int getMinParallelism() {
-        return minParallelism;
-    }
-
     static DefaultVertexParallelismAndInputInfosDecider from(Configuration configuration) {
-        int maxParallelism = getNormalizedMaxParallelism(configuration);
-        int minParallelism = getNormalizedMinParallelism(configuration);
-        checkState(
-                maxParallelism >= minParallelism,
-                String.format(
-                        "Invalid configuration: '%s' should be greater than or equal to '%s' and the range must contain at least one power of 2.",
-                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.key(),
-                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM.key()));
-
         return new DefaultVertexParallelismAndInputInfosDecider(
-                maxParallelism,
-                minParallelism,
+                configuration.getInteger(
+                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM),
+                configuration.getInteger(
+                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM),
                 configuration.get(
                         JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK),
                 configuration.get(
                         JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM));
-    }
-
-    static int getNormalizedMaxParallelism(Configuration configuration) {
-        return MathUtils.roundDownToPowerOf2(
-                configuration.getInteger(
-                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM));
-    }
-
-    static int getNormalizedMinParallelism(Configuration configuration) {
-        return MathUtils.roundUpToPowerOfTwo(
-                configuration.getInteger(
-                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM));
-    }
-
-    static int normalizeParallelism(int parallelism) {
-        int down = MathUtils.roundDownToPowerOf2(parallelism);
-        int up = MathUtils.roundUpToPowerOfTwo(parallelism);
-        return parallelism < (up + down) / 2 ? down : up;
     }
 }
