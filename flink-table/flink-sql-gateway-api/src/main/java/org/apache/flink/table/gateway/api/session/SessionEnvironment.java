@@ -41,7 +41,7 @@ public class SessionEnvironment {
     private final @Nullable String sessionName;
     private final EndpointVersion version;
     private final Map<String, Catalog> registeredCatalogs;
-    private final Map<String, Module> registeredModules;
+    private final Map<String, FunctionCreator<Module>> registeredModules;
     private final @Nullable String defaultCatalog;
     private final Map<String, String> sessionConfig;
 
@@ -50,7 +50,7 @@ public class SessionEnvironment {
             @Nullable String sessionName,
             EndpointVersion version,
             Map<String, Catalog> registeredCatalogs,
-            Map<String, Module> registeredModules,
+            Map<String, FunctionCreator<Module>> registeredModules,
             @Nullable String defaultCatalog,
             Map<String, String> sessionConfig) {
         this.sessionName = sessionName;
@@ -81,7 +81,7 @@ public class SessionEnvironment {
         return Collections.unmodifiableMap(registeredCatalogs);
     }
 
-    public Map<String, Module> getRegisteredModules() {
+    public Map<String, FunctionCreator<Module>> getRegisteredModules() {
         return Collections.unmodifiableMap(registeredModules);
     }
 
@@ -134,7 +134,7 @@ public class SessionEnvironment {
         private EndpointVersion version;
         private final Map<String, String> sessionConfig = new HashMap<>();
         private final Map<String, Catalog> registeredCatalogs = new HashMap<>();
-        private final Map<String, Module> registeredModules = new HashMap<>();
+        private final Map<String, FunctionCreator<Module>> registeredModules = new HashMap<>();
         private @Nullable String defaultCatalog;
 
         public Builder setSessionName(String sessionName) {
@@ -166,13 +166,14 @@ public class SessionEnvironment {
             return this;
         }
 
-        public Builder registerModuleAtHead(String moduleName, Module module) {
+        public Builder registerModuleAtHead(
+                String moduleName, FunctionCreator<Module> moduleCreator) {
             if (registeredModules.containsKey(moduleName)) {
                 throw new ValidationException(
                         String.format("A module with name '%s' already exists", moduleName));
             }
 
-            this.registeredModules.put(moduleName, module);
+            this.registeredModules.put(moduleName, moduleCreator);
             return this;
         }
 

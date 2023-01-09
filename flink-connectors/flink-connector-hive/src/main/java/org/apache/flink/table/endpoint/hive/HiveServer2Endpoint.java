@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
@@ -36,12 +37,12 @@ import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.session.FunctionCreator;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -310,7 +311,11 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             // all the alive PersistenceManager in the ObjectStore, which may get error like
             // "Persistence Manager has been closed" in the later connection.
             hiveCatalog.open();
-            Module hiveModule = new HiveModule();
+            // create hive module lazily
+            FunctionCreator<Module> hiveModuleCreator =
+                    (options, readableConfig, classLoader) ->
+                            FactoryUtil.createModule(
+                                    moduleName, options, readableConfig, classLoader);
             // set variables to HiveConf and Session's conf
             Map<String, String> sessionConfig = new HashMap<>();
             sessionConfig.put(TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name());
@@ -322,7 +327,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             SessionEnvironment.newBuilder()
                                     .setSessionEndpointVersion(sessionVersion)
                                     .registerCatalog(catalogName, hiveCatalog)
-                                    .registerModuleAtHead(moduleName, hiveModule)
+                                    .registerModuleAtHead(moduleName, hiveModuleCreator)
                                     .setDefaultCatalog(catalogName)
                                     .addSessionConfig(sessionConfig)
                                     .build());

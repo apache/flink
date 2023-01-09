@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service.context;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -46,6 +47,7 @@ import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
@@ -265,7 +267,8 @@ public class SessionContext {
 
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
 
-        final ModuleManager moduleManager = buildModuleManager(environment);
+        final ModuleManager moduleManager =
+                buildModuleManager(environment, configuration, userClassLoader);
 
         final CatalogManager catalogManager =
                 buildCatalogManager(configuration, userClassLoader, environment);
@@ -394,17 +397,23 @@ public class SessionContext {
                 TableConfigOptions.RESOURCES_DOWNLOAD_DIR, path.toAbsolutePath().toString());
     }
 
-    private static ModuleManager buildModuleManager(SessionEnvironment environment) {
+    private static ModuleManager buildModuleManager(
+            SessionEnvironment environment,
+            ReadableConfig readableConfig,
+            ClassLoader classLoader) {
         final ModuleManager moduleManager = new ModuleManager();
 
         environment
                 .getRegisteredModules()
                 .forEach(
-                        (moduleName, module) -> {
+                        (moduleName, moduleCreator) -> {
                             Deque<String> moduleNames =
                                     new ArrayDeque<>(moduleManager.listModules());
                             moduleNames.addFirst(moduleName);
 
+                            Module module =
+                                    moduleCreator.create(
+                                            Collections.emptyMap(), readableConfig, classLoader);
                             moduleManager.loadModule(moduleName, module);
                             moduleManager.useModules(moduleNames.toArray(new String[0]));
                         });

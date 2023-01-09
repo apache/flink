@@ -174,7 +174,9 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
                         .registerCatalog(catalogName, defaultCatalog)
-                        .registerModuleAtHead(moduleName, new TestModule())
+                        .registerModuleAtHead(
+                                moduleName,
+                                (options, readableConfig, classLoader) -> new TestModule())
                         .setDefaultCatalog(catalogName)
                         .build();
 
