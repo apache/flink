@@ -236,6 +236,9 @@ public class HiveSourceBuilder {
                         : SimpleSplitAssigner::new;
         List<byte[]> hiveTablePartitionBytes = Collections.emptyList();
         if (partitions != null) {
+            // Serializing the HiveTablePartition list manually at compile time to avoid
+            // deserializing it in TaskManager during runtime. The HiveTablePartition list is no
+            // need for TM.
             hiveTablePartitionBytes = HivePartitionUtils.serializeHiveTablePartition(partitions);
         }
 

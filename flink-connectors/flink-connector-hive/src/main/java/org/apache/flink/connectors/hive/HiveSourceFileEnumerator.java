@@ -33,8 +33,6 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -225,10 +223,10 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     /** A factory to create {@link HiveSourceFileEnumerator}. */
     public static class Provider implements FileEnumerator.Provider {
 
-        private static final Logger LOG = LoggerFactory.getLogger(Provider.class);
-
         private static final long serialVersionUID = 1L;
 
+        // The binary HiveTablePartition list, serialize it manually at compile time to avoid
+        // deserializing it in TaskManager during runtime.
         private final List<byte[]> partitionBytes;
         private final JobConfWrapper jobConfWrapper;
 
@@ -239,7 +237,6 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
 
         @Override
         public FileEnumerator create() {
-            LOG.info("Deserialize hive table partition in HiveSourceFileEnumerator.");
             return new HiveSourceFileEnumerator(
                     HivePartitionUtils.deserializeHiveTablePartition(partitionBytes),
                     jobConfWrapper.conf());

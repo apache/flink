@@ -187,10 +187,10 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
 
         private static final long serialVersionUID = 1L;
 
-        private static final Logger LOG = LoggerFactory.getLogger(Provider.class);
-
         private final String table;
         private final List<String> dynamicFilterPartitionKeys;
+        // The binary HiveTablePartition list, serialize it manually at compile time to avoid
+        // deserializing it in TaskManager during runtime.
         private final List<byte[]> partitionBytes;
         private final String hiveVersion;
         private final JobConfWrapper jobConfWrapper;
@@ -210,9 +210,6 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
 
         @Override
         public DynamicFileEnumerator create() {
-            LOG.info(
-                    "Deserialize {} hive table partition in HiveSourceDynamicFileEnumerator.",
-                    table);
             return new HiveSourceDynamicFileEnumerator(
                     table,
                     dynamicFilterPartitionKeys,
