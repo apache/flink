@@ -68,6 +68,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -653,6 +654,11 @@ public final class ArrowUtils {
         @Override
         public ArrowType visit(DoubleType doubleType) {
             return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+        }
+
+        @Override
+        public ArrowType visit(CharType varCharType) {
+            return ArrowType.Utf8.INSTANCE;
         }
 
         @Override
