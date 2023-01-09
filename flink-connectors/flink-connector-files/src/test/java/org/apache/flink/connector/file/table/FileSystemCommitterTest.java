@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
@@ -35,6 +36,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link FileSystemCommitter}. */
@@ -53,8 +56,12 @@ public class FileSystemCommitterTest {
     @BeforeEach
     public void before() throws IOException {
         metaStoreFactory = new TestMetaStoreFactory(new Path(outputPath.toString()));
+        Configuration options = new Configuration();
+        options.set(SINK_PARTITION_COMMIT_POLICY_KIND, "metastore,success-file");
+        options.set(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME, SUCCESS_FILE_NAME);
+
         policies =
-                new PartitionCommitPolicyFactory("metastore,success-file", null, SUCCESS_FILE_NAME)
+                new PartitionCommitPolicyFactory(options)
                         .createPolicyChain(
                                 Thread.currentThread().getContextClassLoader(),
                                 LocalFileSystem::getSharedInstance);

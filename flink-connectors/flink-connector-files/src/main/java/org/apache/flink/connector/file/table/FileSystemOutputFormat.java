@@ -29,6 +29,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -50,6 +53,7 @@ public class FileSystemOutputFormat<T>
                 Serializable,
                 SupportsConcurrentExecutionAttempts {
 
+    private static final Logger LOG = LoggerFactory.getLogger(FileSystemOutputFormat.class);
     private static final long serialVersionUID = 1L;
 
     private final FileSystemFactory fsFactory;
@@ -100,8 +104,8 @@ public class FileSystemOutputFormat<T>
 
     @Override
     public void finalizeGlobal(FinalizationContext context) {
+        List<PartitionCommitPolicy> policies = Collections.emptyList();
         try {
-            List<PartitionCommitPolicy> policies = Collections.emptyList();
             if (partitionCommitPolicyFactory != null) {
                 policies =
                         partitionCommitPolicyFactory.createPolicyChain(
@@ -140,6 +144,14 @@ public class FileSystemOutputFormat<T>
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);
         } finally {
+            for (PartitionCommitPolicy policy : policies) {
+                try {
+                    policy.close();
+                } catch (Exception e) {
+                    LOG.warn("Failed to close partition commit policy", e);
+                }
+            }
+
             try {
                 fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
             } catch (IOException ignore) {

@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.ValidationException;
 
@@ -43,6 +44,16 @@ public interface PartitionCommitPolicy {
     String METASTORE = "metastore";
     String SUCCESS_FILE = "success-file";
     String CUSTOM = "custom";
+
+    /**
+     * open the partition commit policy.
+     *
+     * @param options the options of the table.
+     */
+    default void open(Configuration options) {}
+
+    /** Close the commit policy. */
+    default void close() throws Exception {}
 
     /** Commit a partition. */
     void commit(Context context) throws Exception;

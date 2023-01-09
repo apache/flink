@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 
 import java.io.Serializable;
@@ -27,6 +28,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 
 /** A factory to create {@link PartitionCommitPolicy} chain. */
 @Internal
@@ -37,12 +42,13 @@ public class PartitionCommitPolicyFactory implements Serializable {
     private final String policyKind;
     private final String customClass;
     private final String successFileName;
+    private final Configuration options;
 
-    public PartitionCommitPolicyFactory(
-            String policyKind, String customClass, String successFileName) {
-        this.policyKind = policyKind;
-        this.customClass = customClass;
-        this.successFileName = successFileName;
+    public PartitionCommitPolicyFactory(Configuration options) {
+        this.policyKind = options.get(SINK_PARTITION_COMMIT_POLICY_KIND);
+        this.customClass = options.get(SINK_PARTITION_COMMIT_POLICY_CLASS);
+        this.successFileName = options.get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+        this.options = options;
     }
 
     /** Create a policy chain. */
@@ -63,8 +69,11 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                             successFileName, fsSupplier.get());
                                 case PartitionCommitPolicy.CUSTOM:
                                     try {
-                                        return (PartitionCommitPolicy)
-                                                cl.loadClass(customClass).newInstance();
+                                        PartitionCommitPolicy policy =
+                                                (PartitionCommitPolicy)
+                                                        cl.loadClass(customClass).newInstance();
+                                        policy.open(options);
+                                        return policy;
                                     } catch (ClassNotFoundException
                                             | IllegalAccessException
                                             | InstantiationException e) {

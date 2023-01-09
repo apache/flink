@@ -41,9 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionSpecFromPath;
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
@@ -117,10 +115,7 @@ public class PartitionCommitter extends AbstractStreamOperator<Void>
                         partitionKeys,
                         getProcessingTimeService());
         PartitionCommitPolicyFactory partitionCommitPolicyFactory =
-                new PartitionCommitPolicyFactory(
-                        conf.get(SINK_PARTITION_COMMIT_POLICY_KIND),
-                        conf.get(SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME));
+                new PartitionCommitPolicyFactory(conf);
         this.policies =
                 partitionCommitPolicyFactory.createPolicyChain(
                         getUserCodeClassloader(),
@@ -131,6 +126,16 @@ public class PartitionCommitter extends AbstractStreamOperator<Void>
                                 throw new RuntimeException(e);
                             }
                         });
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        if (policies != null) {
+            for (PartitionCommitPolicy policy : policies) {
+                policy.close();
+            }
+        }
     }
 
     @Override

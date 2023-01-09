@@ -443,10 +443,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new org.apache.flink.core.fs.Path(toStagingDir(stagingParentDir, jobConf));
 
         PartitionCommitPolicyFactory partitionCommitPolicyFactory =
-                new PartitionCommitPolicyFactory(
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME));
+                new PartitionCommitPolicyFactory(conf);
 
         org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(sd.getLocation());
         BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder =
@@ -596,11 +593,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new org.apache.flink.core.fs.Path(toStagingDir(stagingParentDir, jobConf)));
         builder.setOutputFileConfig(fileNaming);
         builder.setIdentifier(identifier);
-        builder.setPartitionCommitPolicyFactory(
-                new PartitionCommitPolicyFactory(
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
+        builder.setPartitionCommitPolicyFactory(new PartitionCommitPolicyFactory(conf));
         return BatchSink.createBatchNoCompactSink(
                 dataStream, converter, builder.build(), sinkParallelism, sinkParallelismConfigured);
     }

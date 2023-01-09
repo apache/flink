@@ -77,7 +77,7 @@ public class BatchPartitionCommitterSinkTest {
                         new String[] {"p1", "p2"},
                         new LinkedHashMap<>(),
                         identifier,
-                        new PartitionCommitPolicyFactory(null, null, null));
+                        new PartitionCommitPolicyFactory(new Configuration()));
         committerSink.open(new Configuration());
 
         List<Path> pathList1 = createFiles(path, "task-1/p1=0/p2=0/", "f1", "f2");
