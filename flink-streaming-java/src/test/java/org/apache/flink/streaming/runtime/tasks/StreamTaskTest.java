@@ -67,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -1907,6 +1908,8 @@ public class StreamTaskTest extends TestLogger {
                         any(CheckpointOptions.class),
                         any(CheckpointStreamFactory.class)))
                 .thenReturn(operatorSnapshotResult);
+        when(operator.getMetricGroup())
+                .thenReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
 
         return operator;
     }
@@ -1923,6 +1926,8 @@ public class StreamTaskTest extends TestLogger {
                         any(CheckpointOptions.class),
                         any(CheckpointStreamFactory.class)))
                 .thenThrow(exception);
+        when(operator.getMetricGroup())
+                .thenReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
 
         return operator;
     }

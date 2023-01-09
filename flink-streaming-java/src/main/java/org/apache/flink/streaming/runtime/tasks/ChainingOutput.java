@@ -20,10 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -40,33 +38,26 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     private static final Logger LOG = LoggerFactory.getLogger(ChainingOutput.class);
 
     protected final Input<T> input;
+    protected final Counter numRecordsOut;
     protected final Counter numRecordsIn;
     protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
     @Nullable protected final OutputTag<T> outputTag;
     protected WatermarkStatus announcedStatus = WatermarkStatus.ACTIVE;
 
-    public ChainingOutput(OneInputStreamOperator<T, ?> operator, @Nullable OutputTag<T> outputTag) {
-        this(operator, operator.getMetricGroup(), outputTag);
-    }
-
     public ChainingOutput(
             Input<T> input,
-            OperatorMetricGroup operatorMetricGroup,
+            @Nullable Counter prevNumRecordsOut,
+            OperatorMetricGroup curOperatorMetricGroup,
             @Nullable OutputTag<T> outputTag) {
         this.input = input;
-
-        {
-            Counter tmpNumRecordsIn;
-            try {
-                OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup.getIOMetricGroup();
-                tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
-            } catch (Exception e) {
-                LOG.warn("An exception occurred during the metrics setup.", e);
-                tmpNumRecordsIn = new SimpleCounter();
-            }
-            numRecordsIn = tmpNumRecordsIn;
+        if (prevNumRecordsOut != null) {
+            this.numRecordsOut = prevNumRecordsOut;
+        } else {
+            // Uses a dummy counter here to avoid checking the existence of numRecordsOut on the
+            // per-record path.
+            this.numRecordsOut = new SimpleCounter();
         }
-
+        this.numRecordsIn = curOperatorMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
         this.outputTag = outputTag;
     }
 
@@ -94,6 +85,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
             @SuppressWarnings("unchecked")
             StreamRecord<T> castRecord = (StreamRecord<T>) record;
 
+            numRecordsOut.inc();
             numRecordsIn.inc();
             input.setKeyContextElement(castRecord);
             input.processElement(castRecord);

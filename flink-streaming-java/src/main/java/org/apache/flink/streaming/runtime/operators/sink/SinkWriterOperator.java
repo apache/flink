@@ -30,7 +30,6 @@ import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -42,7 +41,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -216,22 +214,6 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Override
     public void close() throws Exception {
         closeAll(sinkWriter, super::close);
-    }
-
-    /**
-     * Skip registering numRecordsOut counter on output.
-     *
-     * <p>Metric "numRecordsOut" is defined as the total number of records written to the external
-     * system in FLIP-33, but this metric is occupied in AbstractStreamOperator as the number of
-     * records sent to downstream operators, which is number of Committable batches sent to
-     * SinkCommitter. So we skip registering this metric on output and leave this metric to sink
-     * writer implementations to report.
-     */
-    @Override
-    protected Output<StreamRecord<CommittableMessage<CommT>>> registerCounterOnOutput(
-            Output<StreamRecord<CommittableMessage<CommT>>> output,
-            OperatorMetricGroup operatorMetricGroup) {
-        return output;
     }
 
     private void emit(
