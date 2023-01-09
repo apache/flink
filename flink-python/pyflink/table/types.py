@@ -2397,7 +2397,7 @@ def to_arrow_type(data_type: DataType):
         return pa.float32()
     elif isinstance(data_type, DoubleType):
         return pa.float64()
-    elif isinstance(data_type, VarCharType):
+    elif isinstance(data_type, (CharType, VarCharType)):
         return pa.utf8()
     elif isinstance(data_type, VarBinaryType):
         return pa.binary()
