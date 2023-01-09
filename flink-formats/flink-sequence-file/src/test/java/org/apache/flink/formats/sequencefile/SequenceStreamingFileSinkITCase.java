@@ -22,10 +22,10 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -47,7 +47,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration test case for writing bulk encoded files with the {@link FileSink} with SequenceFile.
+ * Integration test case for writing bulk encoded files with the {@link StreamingFileSink} with
+ * SequenceFile.
  */
 @ExtendWith(MiniClusterExtension.class)
 class SequenceStreamingFileSinkITCase {
@@ -78,8 +79,8 @@ class SequenceStreamingFileSinkITCase {
                                 return new Tuple2<>(new LongWritable(value.f0), new Text(value.f1));
                             }
                         })
-                .sinkTo(
-                        FileSink.forBulkFormat(
+                .addSink(
+                        StreamingFileSink.forBulkFormat(
                                         testPath,
                                         new SequenceFileWriterFactory<>(
                                                 configuration,
