@@ -180,7 +180,7 @@ public class StreamTwoInputProcessorFactory {
         StreamTaskNetworkOutput<IN1> output1 =
                 new StreamTaskNetworkOutput<>(
                         streamOperator,
-                        record -> processRecord1(record, streamOperator),
+                        RecordProcessorUtils.getRecordProcessor1(streamOperator),
                         input1WatermarkGauge,
                         0,
                         numRecordsIn,
@@ -191,7 +191,7 @@ public class StreamTwoInputProcessorFactory {
         StreamTaskNetworkOutput<IN2> output2 =
                 new StreamTaskNetworkOutput<>(
                         streamOperator,
-                        record -> processRecord2(record, streamOperator),
+                        RecordProcessorUtils.getRecordProcessor2(streamOperator),
                         input2WatermarkGauge,
                         1,
                         numRecordsIn,
@@ -207,22 +207,6 @@ public class StreamTwoInputProcessorFactory {
     @SuppressWarnings("unchecked")
     private static <IN1> StreamTaskInput<IN1> toTypedInput(StreamTaskInput<?> multiInput) {
         return (StreamTaskInput<IN1>) multiInput;
-    }
-
-    private static <T> void processRecord1(
-            StreamRecord<T> record, TwoInputStreamOperator<T, ?, ?> streamOperator)
-            throws Exception {
-
-        streamOperator.setKeyContextElement1(record);
-        streamOperator.processElement1(record);
-    }
-
-    private static <T> void processRecord2(
-            StreamRecord<T> record, TwoInputStreamOperator<?, T, ?> streamOperator)
-            throws Exception {
-
-        streamOperator.setKeyContextElement2(record);
-        streamOperator.processElement2(record);
     }
 
     /**

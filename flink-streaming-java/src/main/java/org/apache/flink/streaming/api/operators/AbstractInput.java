@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * AbstractStreamOperatorV2}.
  */
 @Experimental
-public abstract class AbstractInput<IN, OUT> implements Input<IN> {
+public abstract class AbstractInput<IN, OUT> implements Input<IN>, KeyContextHandler {
     /**
      * {@code KeySelector} for extracting a key from an element being processed. This is used to
      * scope keyed state to a key. This is null if the operator is not a keyed operator.
@@ -74,5 +74,10 @@ public abstract class AbstractInput<IN, OUT> implements Input<IN> {
     @Override
     public void setKeyContextElement(StreamRecord record) throws Exception {
         owner.internalSetKeyContextElement(record, stateKeySelector);
+    }
+
+    @Override
+    public boolean hasKeyContext() {
+        return stateKeySelector != null;
     }
 }
