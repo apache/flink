@@ -19,6 +19,7 @@
 package org.apache.flink.fs.azurefs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.BaseHadoopFsRecoverableFsDataOutputStream;
@@ -50,7 +51,7 @@ public class AzureBlobFsRecoverableDataOutputStream
     private static final String RENAME = ".rename";
 
     // Not final to override in tests
-    public static int minBufferLength = 2097152;
+    @VisibleForTesting static int minBufferLength = 2097152;
 
     AzureBlobFsRecoverableDataOutputStream(FileSystem fs, Path targetFile, Path tempFile)
             throws IOException {
@@ -209,7 +210,7 @@ public class AzureBlobFsRecoverableDataOutputStream
     }
 
     @Override
-    public void flush() throws IOException {
+    public void sync() throws IOException {
         out.hsync();
     }
 

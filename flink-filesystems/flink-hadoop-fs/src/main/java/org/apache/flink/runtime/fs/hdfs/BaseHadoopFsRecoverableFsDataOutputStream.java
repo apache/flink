@@ -59,7 +59,9 @@ public abstract class BaseHadoopFsRecoverableFsDataOutputStream
     }
 
     @Override
-    public abstract void flush() throws IOException;
+    public void flush() throws IOException {
+        out.hsync();
+    }
 
     @Override
     public void sync() throws IOException {

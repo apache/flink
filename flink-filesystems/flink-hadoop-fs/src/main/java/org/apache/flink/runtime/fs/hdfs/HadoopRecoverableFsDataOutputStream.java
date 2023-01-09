@@ -95,11 +95,6 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
     }
 
     @Override
-    public void flush() throws IOException {
-        out.hflush();
-    }
-
-    @Override
     public Committer closeForCommit() throws IOException {
         final long pos = getPos();
         close();
