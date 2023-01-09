@@ -89,6 +89,7 @@ public abstract class AbstractStreamOperator<OUT>
         implements StreamOperator<OUT>,
                 SetupableStreamOperator<OUT>,
                 CheckpointedStreamOperator,
+                KeyContextHandler,
                 Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -481,6 +482,18 @@ public abstract class AbstractStreamOperator<OUT>
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void setKeyContextElement2(StreamRecord record) throws Exception {
         setKeyContextElement(record, stateKeySelector2);
+    }
+
+    @Internal
+    @Override
+    public boolean hasKeyContext1() {
+        return stateKeySelector1 != null;
+    }
+
+    @Internal
+    @Override
+    public boolean hasKeyContext2() {
+        return stateKeySelector2 != null;
     }
 
     private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector)
