@@ -27,7 +27,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -383,9 +382,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void initJobClientExpiredTime(JobGraph jobGraph) {
         JobID jobID = jobGraph.getJobID();
-        long initialClientHeartbeatTimeout =
-                jobGraph.getJobConfiguration()
-                        .getLong(ConfigConstants.INITIAL_CLIENT_HEARTBEAT_TIMEOUT, Long.MIN_VALUE);
+        long initialClientHeartbeatTimeout = jobGraph.getInitialClientHeartbeatTimeout();
         if (initialClientHeartbeatTimeout > 0) {
             log.info(
                     "Begin to detect the client's aliveness for job {}. The heartbeat timeout is {}",
