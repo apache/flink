@@ -546,9 +546,7 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s. "
-                                                    + "Currently, this option should be configured as a power of 2, "
-                                                    + "otherwise it will also be rounded up to a power of 2 automatically.",
+                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -564,9 +562,7 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s. "
-                                                    + "Currently, this option should be configured as a power of 2, "
-                                                    + "otherwise it will also be rounded down to a power of 2 automatically.",
+                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -583,9 +579,7 @@ public class JobManagerOptions {
                             Description.builder()
                                     .text(
                                             "The average size of data volume to expect each task instance to process if %s has been set to %s. "
-                                                    + "Note that since the parallelism of the vertices is adjusted to a power of 2, "
-                                                    + "the actual average size will be 0.75~1.5 times this value. "
-                                                    + "It is also important to note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
+                                                    + "Note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
                                                     + "the data actually processed by some tasks may far exceed this value.",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()),
