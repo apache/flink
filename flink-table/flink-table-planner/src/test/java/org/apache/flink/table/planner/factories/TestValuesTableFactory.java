@@ -1244,14 +1244,14 @@ public final class TestValuesTableFactory
                 } else {
                     // we will read data from Collections.emptyList() if allPartitions is empty.
                     // therefore, we should clear all data manually.
-                    remainingPartitions = (List<Map<String, String>>) Collections.emptyMap();
+                    remainingPartitions = Collections.emptyList();
                     this.data.put(Collections.emptyMap(), Collections.emptyList());
                 }
 
             } else {
                 this.allPartitions = remainingPartitions;
                 if (remainingPartitions.isEmpty()) {
-                    remainingPartitions = (List<Map<String, String>>) Collections.emptyMap();
+                    remainingPartitions = Collections.emptyList();
                 }
             }
             // only keep the data in the remaining partitions
