@@ -76,7 +76,7 @@ public class TestingRestfulGateway implements RestfulGateway {
             DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER =
                     () ->
                             CompletableFuture.completedFuture(
-                                    new ClusterOverview(0, 0, 0, 0, 0, 0, 0, 0, 0));
+                                    new ClusterOverview(0, 0, 0, 0, 0, 0, 0, 0, 0, -1));
     static final Supplier<CompletableFuture<Collection<String>>>
             DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER =
                     () -> CompletableFuture.completedFuture(Collections.emptyList());

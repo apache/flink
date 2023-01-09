@@ -34,6 +34,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /** Handler which returns the cluster overview information with version. */
 public class ClusterOverviewHandler
@@ -47,13 +48,17 @@ public class ClusterOverviewHandler
 
     private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
+    private final Supplier<Integer> restPort;
+
     public ClusterOverviewHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
+            Supplier<Integer> restPort,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters>
                     messageHeaders) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+        this.restPort = restPort;
     }
 
     @Override
@@ -62,8 +67,10 @@ public class ClusterOverviewHandler
         CompletableFuture<ClusterOverview> overviewFuture = gateway.requestClusterOverview(timeout);
 
         return overviewFuture.thenApply(
-                statusOverview ->
-                        ClusterOverviewWithVersion.fromStatusOverview(
-                                statusOverview, version, commitID));
+                statusOverview -> {
+                    statusOverview.setRestPort(restPort.get());
+                    return ClusterOverviewWithVersion.fromStatusOverview(
+                            statusOverview, version, commitID);
+                });
     }
 }

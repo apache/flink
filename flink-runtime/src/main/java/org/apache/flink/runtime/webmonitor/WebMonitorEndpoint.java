@@ -285,6 +285,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new ClusterOverviewHandler(
                         leaderRetriever,
                         timeout,
+                        this::getRestPort,
                         responseHeaders,
                         ClusterOverviewHeaders.getInstance());
 

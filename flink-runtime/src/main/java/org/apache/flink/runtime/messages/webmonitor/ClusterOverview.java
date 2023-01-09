@@ -40,6 +40,7 @@ public class ClusterOverview extends JobsOverview {
     public static final String FIELD_NAME_SLOTS_AVAILABLE = "slots-available";
     public static final String FIELD_NAME_TASKMANAGERS_BLOCKED = "taskmanagers-blocked";
     public static final String FIELD_NAME_SLOTS_FREE_AND_BLOCKED = "slots-free-and-blocked";
+    public static final String FIELD_NAME_REST_PORT = "rest-port";
 
     @JsonProperty(FIELD_NAME_TASKMANAGERS)
     private final int numTaskManagersConnected;
@@ -49,6 +50,9 @@ public class ClusterOverview extends JobsOverview {
 
     @JsonProperty(FIELD_NAME_SLOTS_AVAILABLE)
     private final int numSlotsAvailable;
+
+    @JsonProperty(FIELD_NAME_REST_PORT)
+    private int restPort;
 
     @JsonProperty(FIELD_NAME_TASKMANAGERS_BLOCKED)
     @JsonInclude(Include.NON_DEFAULT)
@@ -71,7 +75,8 @@ public class ClusterOverview extends JobsOverview {
             @JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
             @JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
             @JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
-            @JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed) {
+            @JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed,
+            @JsonProperty(FIELD_NAME_REST_PORT) int restPort) {
 
         super(numJobsRunningOrPending, numJobsFinished, numJobsCancelled, numJobsFailed);
 
@@ -80,6 +85,7 @@ public class ClusterOverview extends JobsOverview {
         this.numSlotsAvailable = numSlotsAvailable;
         this.numTaskManagersBlocked = numTaskManagersBlocked == null ? 0 : numTaskManagersBlocked;
         this.numSlotsFreeAndBlocked = numSlotsFreeAndBlocked == null ? 0 : numSlotsFreeAndBlocked;
+        this.restPort = restPort;
     }
 
     public ClusterOverview(ResourceOverview resourceOverview, JobsOverview jobsOverview) {
@@ -92,7 +98,8 @@ public class ClusterOverview extends JobsOverview {
                 jobsOverview.getNumJobsRunningOrPending(),
                 jobsOverview.getNumJobsFinished(),
                 jobsOverview.getNumJobsCancelled(),
-                jobsOverview.getNumJobsFailed());
+                jobsOverview.getNumJobsFailed(),
+                -1);
     }
 
     public int getNumTaskManagersConnected() {
@@ -114,6 +121,15 @@ public class ClusterOverview extends JobsOverview {
     public int getNumSlotsFreeAndBlocked() {
         return numSlotsFreeAndBlocked;
     }
+
+    public int getRestPort() {
+        return restPort;
+    }
+
+    public void setRestPort(int restPort) {
+        this.restPort = restPort;
+    }
+
     // ------------------------------------------------------------------------
 
     @Override
@@ -130,7 +146,8 @@ public class ClusterOverview extends JobsOverview {
                     && this.getNumJobsRunningOrPending() == that.getNumJobsRunningOrPending()
                     && this.getNumJobsFinished() == that.getNumJobsFinished()
                     && this.getNumJobsCancelled() == that.getNumJobsCancelled()
-                    && this.getNumJobsFailed() == that.getNumJobsFailed();
+                    && this.getNumJobsFailed() == that.getNumJobsFailed()
+                    && this.getRestPort() == that.getRestPort();
         } else {
             return false;
         }
@@ -170,6 +187,8 @@ public class ClusterOverview extends JobsOverview {
                 + getNumJobsCancelled()
                 + ", numJobsFailed="
                 + getNumJobsFailed()
+                + ", restPort="
+                + getRestPort()
                 + '}';
     }
 }

@@ -57,6 +57,7 @@ public class ClusterOverviewWithVersion extends ClusterOverview implements Respo
             @JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
             @JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
             @JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed,
+            @JsonProperty(FIELD_NAME_REST_PORT) int restPort,
             @JsonProperty(FIELD_NAME_VERSION) String version,
             @JsonProperty(FIELD_NAME_COMMIT) String commitId) {
         super(
@@ -68,7 +69,8 @@ public class ClusterOverviewWithVersion extends ClusterOverview implements Respo
                 numJobsRunningOrPending,
                 numJobsFinished,
                 numJobsCancelled,
-                numJobsFailed);
+                numJobsFailed,
+                restPort);
 
         this.version = Preconditions.checkNotNull(version);
         this.commitId = Preconditions.checkNotNull(commitId);
@@ -86,6 +88,7 @@ public class ClusterOverviewWithVersion extends ClusterOverview implements Respo
                 statusOverview.getNumJobsFinished(),
                 statusOverview.getNumJobsCancelled(),
                 statusOverview.getNumJobsFailed(),
+                statusOverview.getRestPort(),
                 version,
                 commitId);
     }
