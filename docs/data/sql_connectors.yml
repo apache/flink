@@ -148,7 +148,7 @@ jdbc:
     name: JDBC
     category: connector
     maven: flink-connector-jdbc
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/$version/flink-connector-jdbc-$version.jar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/3.0.0-1.16/flink-connector-jdbc-3.0.0-1.16.jar
 
 kafka:
     name: Kafka
