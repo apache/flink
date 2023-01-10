@@ -43,6 +43,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTime
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -244,19 +245,40 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         try {
             final long createTimestamp = System.currentTimeMillis();
             for (ExecutionJobVertex jobVertex : getExecutionGraph().getVerticesTopologically()) {
-                Optional<List<BlockingResultInfo>> consumedResultsInfo =
-                        tryGetConsumedResultsInfo(jobVertex);
-                if (consumedResultsInfo.isPresent() && !jobVertex.isInitialized()) {
-                    ParallelismAndInputInfos parallelismAndInputInfos =
-                            tryDecideParallelismAndInputInfos(jobVertex, consumedResultsInfo.get());
-                    changeJobVertexParallelism(
-                            jobVertex, parallelismAndInputInfos.getParallelism());
-                    getExecutionGraph()
-                            .initializeJobVertex(
-                                    jobVertex,
-                                    createTimestamp,
-                                    parallelismAndInputInfos.getJobVertexInputInfos());
+                if (jobVertex.isInitialized()) {
+                    continue;
+                }
+
+                if (canInitialize(jobVertex)) {
+                    // This branch is for: If the parallelism is user-specified(decided), the
+                    // downstream job vertices can be initialized earlier, so that it can be
+                    // scheduled together with its upstream in hybrid shuffle mode.
+
+                    // Note that in current implementation, the decider will not load balance
+                    // (evenly distribute data) for job vertices whose parallelism has already been
+                    // decided, so we can call the
+                    // ExecutionGraph#initializeJobVertex(ExecutionJobVertex, long) to initialize.
+                    // TODO: In the future, if we want to load balance for job vertices whose
+                    // parallelism has already been decided, we need to refactor the logic here.
+                    getExecutionGraph().initializeJobVertex(jobVertex, createTimestamp);
                     newlyInitializedJobVertices.add(jobVertex);
+                } else {
+                    Optional<List<BlockingResultInfo>> consumedResultsInfo =
+                            tryGetConsumedResultsInfo(jobVertex);
+                    if (consumedResultsInfo.isPresent()) {
+                        ParallelismAndInputInfos parallelismAndInputInfos =
+                                tryDecideParallelismAndInputInfos(
+                                        jobVertex, consumedResultsInfo.get());
+                        changeJobVertexParallelism(
+                                jobVertex, parallelismAndInputInfos.getParallelism());
+                        checkState(canInitialize(jobVertex));
+                        getExecutionGraph()
+                                .initializeJobVertex(
+                                        jobVertex,
+                                        createTimestamp,
+                                        parallelismAndInputInfos.getJobVertexInputInfos());
+                        newlyInitializedJobVertices.add(jobVertex);
+                    }
                 }
             }
         } catch (JobException ex) {
@@ -346,6 +368,24 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         }
 
         return Optional.of(consumableResultInfo);
+    }
+
+    private boolean canInitialize(final ExecutionJobVertex jobVertex) {
+        if (jobVertex.isInitialized() || !jobVertex.isParallelismDecided()) {
+            return false;
+        }
+
+        // all the upstream job vertices need to have been initialized
+        for (JobEdge inputEdge : jobVertex.getJobVertex().getInputs()) {
+            final ExecutionJobVertex producerVertex =
+                    getExecutionGraph().getJobVertex(inputEdge.getSource().getProducer().getID());
+            checkNotNull(producerVertex);
+            if (!producerVertex.isInitialized()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void updateTopology(final List<ExecutionJobVertex> newlyInitializedJobVertices) {

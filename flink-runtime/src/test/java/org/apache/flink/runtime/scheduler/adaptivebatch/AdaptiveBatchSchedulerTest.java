@@ -257,6 +257,23 @@ class AdaptiveBatchSchedulerTest {
         assertThat(sink.getParallelism()).isEqualTo(8);
     }
 
+    @Test
+    void testParallelismDecidedVerticesCanBeInitializedEarlier() throws Exception {
+        final JobVertex source = createJobVertex("source", 8);
+        final JobVertex sink = createJobVertex("sink", 8);
+        sink.connectNewDataSetAsInput(
+                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+        SchedulerBase scheduler =
+                createScheduler(new JobGraph(new JobID(), "test job", source, sink));
+        final DefaultExecutionGraph graph = (DefaultExecutionGraph) scheduler.getExecutionGraph();
+        final ExecutionJobVertex sinkExecutionJobVertex = graph.getJobVertex(sink.getID());
+
+        scheduler.startScheduling();
+        // check sink is not initialized
+        assertThat(sinkExecutionJobVertex.isInitialized()).isTrue();
+    }
+
     private BlockingResultInfo getBlockingResultInfo(
             AdaptiveBatchScheduler scheduler, JobVertex jobVertex) {
         return scheduler.getBlockingResultInfo(
