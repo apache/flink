@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service.result;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
@@ -269,11 +270,7 @@ public class ResultFetcherTest extends TestLogger {
     @Test
     public void testFetchResultFromDummyStoreInParallel() throws Exception {
         checkFetchResultInParallel(
-                ResultFetcher.newBuilder()
-                        .operationHandle(OperationHandle.create())
-                        .resolvedSchema(schema)
-                        .rows(data)
-                        .build());
+                ResultFetcher.fromResults(OperationHandle.create(), schema, data));
     }
 
     @Test
@@ -407,6 +404,10 @@ public class ResultFetcherTest extends TestLogger {
                 operationHandle,
                 schema,
                 CloseableIterator.adapterForIterator(new IteratorChain(rows)),
+                null,
+                false,
+                null,
+                ResultKind.SUCCESS_WITH_CONTENT,
                 bufferSize);
     }
 

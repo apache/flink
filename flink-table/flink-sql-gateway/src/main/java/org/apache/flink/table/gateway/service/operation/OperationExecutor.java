@@ -93,8 +93,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
 import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_CANDIDATES;
-import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_NAME;
 import static org.apache.flink.table.gateway.service.utils.Constants.SAVEPOINT_PATH;
@@ -273,7 +273,8 @@ public class OperationExecutor {
         return ResultSetImpl.newBuilder()
                 .resultType(ResultSet.ResultType.EOS)
                 .resolvedSchema(
-                        ResolvedSchema.of(Column.physical(COMPLETION_CANDIDATES, DataTypes.STRING())))
+                        ResolvedSchema.of(
+                                Column.physical(COMPLETION_CANDIDATES, DataTypes.STRING())))
                 .data(
                         Arrays.stream(
                                         getTableEnvironment()
@@ -300,7 +301,7 @@ public class OperationExecutor {
             return callEndStatementSetOperation(tableEnv, handle);
         } else if (operation instanceof ModifyOperation) {
             sessionContext.addStatementSetOperation((ModifyOperation) operation);
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
         } else {
             throw new SqlExecutionException(
                     "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.");
@@ -326,23 +327,18 @@ public class OperationExecutor {
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
         } else if (op instanceof QueryOperation) {
             TableResultInternal result = tableEnv.executeInternal(op);
-            return ResultFetcher.newBuilder()
-                    .operationHandle(handle)
-                    .resolvedSchema(result.getResolvedSchema())
-                    .rowsIterator(result.collectInternal())
-                    .converter(result.getRowDataToStringConverter())
-                    .setIsQueryResult()
-                    .jobID(
-                            result.getJobClient()
-                                    .orElseThrow(
-                                            () ->
-                                                    new SqlExecutionException(
-                                                            String.format(
-                                                                    "Can't get job client for the operation %s.",
-                                                                    handle)))
-                                    .getJobID())
-                    .resultKind(result.getResultKind())
-                    .build();
+            return ResultFetcher.fromTableResult(
+                    handle,
+                    result,
+                    true,
+                    result.getJobClient()
+                            .orElseThrow(
+                                    () ->
+                                            new SqlExecutionException(
+                                                    String.format(
+                                                            "Can't get job client for the operation %s.",
+                                                            handle)))
+                            .getJobID());
         } else if (op instanceof StopJobOperation) {
             return callStopJobOperation(handle, (StopJobOperation) op);
         } else if (op instanceof ShowJobsOperation) {
@@ -357,31 +353,25 @@ public class OperationExecutor {
         if (setOp.getKey().isPresent() && setOp.getValue().isPresent()) {
             // set a property
             sessionContext.set(setOp.getKey().get().trim(), setOp.getValue().get().trim());
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
             // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
-            return ResultFetcher.newBuilder()
-                    .operationHandle(handle)
-                    .resolvedSchema(
-                            ResolvedSchema.of(
-                                    Column.physical(SET_KEY, DataTypes.STRING()),
-                                    Column.physical(SET_VALUE, DataTypes.STRING())))
-                    .rows(
-                            CollectionUtil.iteratorToList(
-                                    configMap.entrySet().stream()
-                                            .map(
-                                                    entry ->
-                                                            GenericRowData.of(
-                                                                    StringData.fromString(
-                                                                            entry.getKey()),
-                                                                    StringData.fromString(
-                                                                            entry.getValue())))
-                                            .map(RowData.class::cast)
-                                            .iterator()))
-                    .converter(SIMPLE_ROW_DATA_TO_STRING_CONVERTER)
-                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .build();
+            return ResultFetcher.fromResults(
+                    handle,
+                    ResolvedSchema.of(
+                            Column.physical(SET_KEY, DataTypes.STRING()),
+                            Column.physical(SET_VALUE, DataTypes.STRING())),
+                    CollectionUtil.iteratorToList(
+                            configMap.entrySet().stream()
+                                    .map(
+                                            entry ->
+                                                    GenericRowData.of(
+                                                            StringData.fromString(entry.getKey()),
+                                                            StringData.fromString(
+                                                                    entry.getValue())))
+                                    .map(RowData.class::cast)
+                                    .iterator()));
         } else {
             // impossible
             throw new SqlExecutionException("Illegal SetOperation: " + setOp.asSummaryString());
@@ -396,12 +386,12 @@ public class OperationExecutor {
             // reset all properties
             sessionContext.reset();
         }
-        return buildOkResultFetcher(handle);
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
     }
 
     private ResultFetcher callBeginStatementSetOperation(OperationHandle handle) {
         sessionContext.enableStatementSet();
-        return buildOkResultFetcher(handle);
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
     }
 
     private ResultFetcher callEndStatementSetOperation(
@@ -412,7 +402,7 @@ public class OperationExecutor {
 
         if (statementSetOperations.isEmpty()) {
             // there's no statement in the statement set, skip submitting
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
         } else {
             return callModifyOperations(tableEnv, handle, statementSetOperations);
         }
@@ -423,51 +413,27 @@ public class OperationExecutor {
             OperationHandle handle,
             List<ModifyOperation> modifyOperations) {
         TableResultInternal result = tableEnv.executeInternal(modifyOperations);
-        return ResultFetcher.newBuilder()
-                .operationHandle(handle)
-                .resolvedSchema(ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())))
-                .rows(
-                        Collections.singletonList(
-                                GenericRowData.of(
-                                        StringData.fromString(
-                                                result.getJobClient()
-                                                        .orElseThrow(
-                                                                () ->
-                                                                        new SqlExecutionException(
-                                                                                String.format(
-                                                                                        "Can't get job client for the operation %s.",
-                                                                                        handle)))
-                                                        .getJobID()
-                                                        .toString()))))
-                .converter(SIMPLE_ROW_DATA_TO_STRING_CONVERTER)
-                .jobID(
-                        result.getJobClient()
-                                .orElseThrow(
-                                        () ->
-                                                new SqlExecutionException(
-                                                        String.format(
-                                                                "Can't get job client for the operation %s.",
-                                                                handle)))
-                                .getJobID())
-                .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                .build();
+        JobID jobID =
+                result.getJobClient()
+                        .orElseThrow(
+                                () ->
+                                        new SqlExecutionException(
+                                                String.format(
+                                                        "Can't get job client for the operation %s.",
+                                                        handle)))
+                        .getJobID();
+        return ResultFetcher.fromResults(
+                handle,
+                ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
+                Collections.singletonList(
+                        GenericRowData.of(StringData.fromString(jobID.toString()))),
+                jobID);
     }
 
     private ResultFetcher callOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
         TableResultInternal result = tableEnv.executeInternal(op);
-        JobID jobID = null;
-        if (result.getJobClient().isPresent()) {
-            jobID = result.getJobClient().get().getJobID();
-        }
-        return ResultFetcher.newBuilder()
-                .operationHandle(handle)
-                .resolvedSchema(result.getResolvedSchema())
-                .rows(CollectionUtil.iteratorToList(result.collectInternal()))
-                .converter(result.getRowDataToStringConverter())
-                .jobID(jobID)
-                .resultKind(result.getResultKind())
-                .build();
+        return ResultFetcher.fromTableResult(handle, result, false, null);
     }
 
     private Set<TableInfo> listTables(
@@ -564,29 +530,14 @@ public class OperationExecutor {
                     "Could not stop job " + jobId + " for operation " + handle + ".", e);
         }
         if (isWithSavepoint) {
-            return ResultFetcher.newBuilder()
-                    .operationHandle(handle)
-                    .resolvedSchema(
-                            ResolvedSchema.of(Column.physical(SAVEPOINT_PATH, DataTypes.STRING())))
-                    .rows(
-                            Collections.singletonList(
-                                    GenericRowData.of(StringData.fromString(savepoint.orElse("")))))
-                    .build();
+            return ResultFetcher.fromResults(
+                    handle,
+                    ResolvedSchema.of(Column.physical(SAVEPOINT_PATH, DataTypes.STRING())),
+                    Collections.singletonList(
+                            GenericRowData.of(StringData.fromString(savepoint.orElse("")))));
         } else {
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
         }
-    }
-
-    private ResultFetcher buildOkResultFetcher(OperationHandle handle) {
-        return ResultFetcher.newBuilder()
-                .operationHandle(handle)
-                .resolvedSchema(TableResultInternal.TABLE_RESULT_OK.getResolvedSchema())
-                .rows(
-                        CollectionUtil.iteratorToList(
-                                TableResultInternal.TABLE_RESULT_OK.collectInternal()))
-                .converter(TableResultInternal.TABLE_RESULT_OK.getRowDataToStringConverter())
-                .resultKind(ResultKind.SUCCESS)
-                .build();
     }
 
     public ResultFetcher callShowJobsOperation(

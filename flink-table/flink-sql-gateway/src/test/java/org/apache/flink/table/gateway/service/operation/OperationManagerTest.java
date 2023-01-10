@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
@@ -69,6 +70,7 @@ public class OperationManagerTest {
                         .resolvedSchema(
                                 ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT())))
                         .data(Collections.singletonList(GenericRowData.of(1L)))
+                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                         .build();
     }
 

@@ -27,7 +27,6 @@ import org.apache.flink.table.utils.print.RowDataToStringConverter;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -42,21 +41,13 @@ public class ResultSetImpl implements ResultSet {
 
     private final ResolvedSchema resultSchema;
     private final List<RowData> data;
-    @Nullable private final RowDataToStringConverter converter;
+    private final RowDataToStringConverter converter;
 
     private final boolean isQueryResult;
 
     @Nullable private final JobID jobID;
 
     @Nullable private final ResultKind resultKind;
-
-    public static final ResultSet NOT_READY_RESULTS =
-            ResultSetImpl.newBuilder()
-                    .resultType(ResultType.NOT_READY)
-                    .nextToken(0L)
-                    .resolvedSchema(ResolvedSchema.of(Collections.emptyList()))
-                    .data(Collections.emptyList())
-                    .build();
 
     private ResultSetImpl(
             ResultType resultType,

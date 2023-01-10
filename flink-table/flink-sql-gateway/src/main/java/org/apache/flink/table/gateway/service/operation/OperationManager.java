@@ -27,6 +27,7 @@ import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.service.result.NotReadyResult;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 
@@ -45,11 +46,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.gateway.api.results.ResultSetImpl.NOT_READY_RESULTS;
-
 /** Manager for the {@link Operation}. */
 @Internal
 public class OperationManager {
+
+    public static final NotReadyResult NOT_READY_RESULT = new NotReadyResult();
 
     private static final Logger LOG = LoggerFactory.getLogger(OperationManager.class);
 
@@ -89,11 +90,8 @@ public class OperationManager {
                         handle,
                         () -> {
                             ResultSet resultSet = executor.call();
-                            return ResultFetcher.newBuilder()
-                                    .operationHandle(handle)
-                                    .resolvedSchema(resultSet.getResultSchema())
-                                    .rows(resultSet.getData())
-                                    .build();
+                            return ResultFetcher.fromResults(
+                                    handle, resultSet.getResultSchema(), resultSet.getData());
                         });
 
         submitOperationInternal(handle, operation);
@@ -351,7 +349,7 @@ public class OperationManager {
             } else if (currentStatus == OperationStatus.RUNNING
                     || currentStatus == OperationStatus.PENDING
                     || currentStatus == OperationStatus.INITIALIZED) {
-                return NOT_READY_RESULTS;
+                return NOT_READY_RESULT;
             } else {
                 throw new SqlGatewayException(
                         String.format(

@@ -27,7 +27,6 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -100,7 +99,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
@@ -108,6 +106,10 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
+import static org.apache.flink.table.gateway.service.operation.OperationManager.NOT_READY_RESULT;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.apache.flink.types.RowKind.DELETE;
@@ -283,8 +285,8 @@ public class SqlGatewayServiceITCase {
                         });
 
         startRunningLatch.await();
-        assertThat(fetchResults(sessionHandle, operationHandle))
-                .isEqualTo(ResultSetImpl.NOT_READY_RESULTS);
+        assertThat(fetchResults(service, sessionHandle, operationHandle))
+                .isEqualTo(NOT_READY_RESULT);
         endRunningLatch.countDown();
     }
 
@@ -308,7 +310,7 @@ public class SqlGatewayServiceITCase {
                 .isEqualTo(new OperationInfo(OperationStatus.RUNNING));
 
         endRunningLatch.countDown();
-        awaitOperationTermination(sessionHandle, operationHandle);
+        awaitOperationTermination(service, sessionHandle, operationHandle);
 
         List<RowData> expectedData = getDefaultResultSet().getData();
         List<RowData> actualData = fetchAllResults(sessionHandle, operationHandle);
@@ -369,7 +371,7 @@ public class SqlGatewayServiceITCase {
                 Duration.ofSeconds(10),
                 "Failed to get expected operation status.");
 
-        assertThatThrownBy(() -> fetchResults(sessionHandle, operationHandle))
+        assertThatThrownBy(() -> fetchResults(service, sessionHandle, operationHandle))
                 .satisfies(anyCauseMatches(SqlExecutionException.class, msg));
 
         service.closeOperation(sessionHandle, operationHandle);
@@ -637,13 +639,13 @@ public class SqlGatewayServiceITCase {
         OperationHandle operationHandle =
                 service.executeStatement(sessionHandle, "CREATE DATABASE db2", -1, configuration);
 
-        awaitOperationTermination(sessionHandle, operationHandle);
+        awaitOperationTermination(service, sessionHandle, operationHandle);
         assertThat(service.listDatabases(sessionHandle, "cat")).contains("db1", "db2");
     }
 
     @Test
     public void testListTables() {
-        SessionHandle sessionHandle = createInitializedSession();
+        SessionHandle sessionHandle = createInitializedSession(service);
         assertThat(
                         service.listTables(
                                 sessionHandle,
@@ -787,7 +789,7 @@ public class SqlGatewayServiceITCase {
 
     @Test
     public void testGetTable() {
-        SessionHandle sessionHandle = createInitializedSession();
+        SessionHandle sessionHandle = createInitializedSession(service);
         ResolvedCatalogTable actualTable =
                 (ResolvedCatalogTable)
                         service.getTable(sessionHandle, ObjectIdentifier.of("cat1", "db1", "tbl1"));
@@ -964,7 +966,7 @@ public class SqlGatewayServiceITCase {
                             }));
         }
         for (OperationHandle handle : handles) {
-            awaitOperationTermination(sessionHandle, handle);
+            awaitOperationTermination(service, sessionHandle, handle);
         }
 
         assertThat(v.get()).isEqualTo(threadNum);
@@ -1000,7 +1002,7 @@ public class SqlGatewayServiceITCase {
                 .satisfies(anyCauseMatches(RejectedExecutionException.class));
         latch.countDown();
         // Wait the first operation finishes
-        awaitOperationTermination(sessions.get(0), operations.get(0));
+        awaitOperationTermination(service, sessions.get(0), operations.get(0));
         // Service is able to submit operation
         CountDownLatch success = new CountDownLatch(1);
         service.submitOperation(
@@ -1042,7 +1044,7 @@ public class SqlGatewayServiceITCase {
 
         OperationHandle operationHandle = submitDefaultOperation(sessionHandle, latch::await);
         service.cancelOperation(sessionHandle, operationHandle);
-        assertThatThrownBy(() -> fetchResults(sessionHandle, operationHandle))
+        assertThatThrownBy(() -> fetchResults(service, sessionHandle, operationHandle))
                 .satisfies(
                         anyCauseMatches(
                                 String.format(
@@ -1060,7 +1062,7 @@ public class SqlGatewayServiceITCase {
                 Arrays.asList(
                         () -> service.cancelOperation(sessionHandle, operationHandle),
                         () -> service.getOperationInfo(sessionHandle, operationHandle),
-                        () -> fetchResults(sessionHandle, operationHandle));
+                        () -> fetchResults(service, sessionHandle, operationHandle));
 
         for (RunnableWithException request : requests) {
             assertThatThrownBy(request::run)
@@ -1186,39 +1188,6 @@ public class SqlGatewayServiceITCase {
         assertThat(getDefaultResultSet().getData()).containsAll(actual);
     }
 
-    private SessionHandle createInitializedSession() {
-        SessionEnvironment environment =
-                SessionEnvironment.newBuilder()
-                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
-                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
-                        .build();
-        SessionHandle sessionHandle = service.openSession(environment);
-
-        // catalogs: cat1 | cat2
-        //     cat1: db1 | db2
-        //         db1: temporary table tbl1, table tbl2, temporary view tbl3, view tbl4
-        //         db2: table tbl1, view tbl2
-        //     cat2 db0
-        //         db0: table tbl0
-        TableEnvironmentInternal tableEnv =
-                service.getSession(sessionHandle).createExecutor().getTableEnvironment();
-        tableEnv.executeSql("CREATE DATABASE cat1.db1");
-        tableEnv.executeSql("CREATE TEMPORARY TABLE cat1.db1.tbl1 WITH ('connector' = 'values')");
-        tableEnv.executeSql("CREATE TABLE cat1.db1.tbl2 WITH('connector' = 'values')");
-        tableEnv.executeSql("CREATE TEMPORARY VIEW cat1.db1.tbl3 AS SELECT 1");
-        tableEnv.executeSql("CREATE VIEW cat1.db1.tbl4 AS SELECT 1");
-
-        tableEnv.executeSql("CREATE DATABASE cat1.db2");
-        tableEnv.executeSql("CREATE TABLE cat1.db2.tbl1 WITH ('connector' = 'values')");
-        tableEnv.executeSql("CREATE VIEW cat1.db2.tbl2 AS SELECT 1");
-
-        tableEnv.executeSql("CREATE DATABASE cat2.db0");
-        tableEnv.executeSql("CREATE TABLE cat2.db0.tbl0 WITH('connector' = 'values')");
-
-        return sessionHandle;
-    }
-
     private void validateStatementResult(
             SessionHandle sessionHandle, String statement, List<RowData> expected) {
         TableEnvironmentInternal tableEnv =
@@ -1249,28 +1218,5 @@ public class SqlGatewayServiceITCase {
             token = result.getNextToken();
         }
         return results;
-    }
-
-    private void awaitOperationTermination(
-            SessionHandle sessionHandle, OperationHandle operationHandle) throws Exception {
-        service.getSession(sessionHandle)
-                .getOperationManager()
-                .awaitOperationTermination(operationHandle);
-    }
-
-    private ResultSet fetchResults(SessionHandle sessionHandle, OperationHandle operationHandle) {
-        return service.fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE);
-    }
-
-    private <T> void validateResultSetField(
-            SessionHandle sessionHandle,
-            String statement,
-            BiFunction<SessionHandle, OperationHandle, T> resultGetter,
-            T expected)
-            throws Exception {
-        OperationHandle operationHandle =
-                service.executeStatement(sessionHandle, statement, -1, new Configuration());
-        awaitOperationTermination(sessionHandle, operationHandle);
-        assertThat(resultGetter.apply(sessionHandle, operationHandle)).isEqualTo(expected);
     }
 }

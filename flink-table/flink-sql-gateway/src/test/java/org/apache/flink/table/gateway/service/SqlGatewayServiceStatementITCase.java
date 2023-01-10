@@ -22,6 +22,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
@@ -34,12 +35,19 @@ import org.apache.flink.table.planner.functions.casting.RowDataToStringConverter
 import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.function.BiFunction;
+
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link SqlGatewayService}#executeStatement. */
 public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatementITCase {
@@ -136,5 +144,111 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
             token = resultSet.getNextToken();
             fetchedRows = resultSet.getData().iterator();
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Validate ResultSet fields
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    public void testIsQueryResult() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession(service);
+
+        BiFunction<SessionHandle, OperationHandle, Boolean> isQueryResultGetter =
+                (sessionHandle1, operationHandle) ->
+                        fetchResults(service, sessionHandle1, operationHandle).isQueryResult();
+
+        // trivial query syntax
+        validateResultSetField(
+                sessionHandle, "SELECT * FROM cat1.db1.tbl1;", isQueryResultGetter, true);
+
+        // query with CTE
+        validateResultSetField(
+                sessionHandle,
+                "WITH hub AS (SELECT * FROM cat1.db1.tbl1)\nSELECT * FROM hub;",
+                isQueryResultGetter,
+                true);
+
+        // non-query
+        validateResultSetField(
+                sessionHandle,
+                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
+                isQueryResultGetter,
+                false);
+    }
+
+    @Test
+    public void testHasJobID() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession(service);
+
+        BiFunction<SessionHandle, OperationHandle, Boolean> hasJobIDGetter =
+                (sessionHandle1, operationHandle) ->
+                        fetchResults(service, sessionHandle1, operationHandle).getJobID() != null;
+
+        // query
+        validateResultSetField(sessionHandle, "SELECT * FROM cat1.db1.tbl1;", hasJobIDGetter, true);
+
+        // insert
+        validateResultSetField(
+                sessionHandle,
+                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
+                hasJobIDGetter,
+                true);
+
+        // ddl
+        validateResultSetField(
+                sessionHandle,
+                "CREATE TABLE test (f0 INT) WITH ('connector' = 'values');",
+                hasJobIDGetter,
+                false);
+    }
+
+    @Test
+    public void testResultKind() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession(service);
+
+        BiFunction<SessionHandle, OperationHandle, ResultKind> resultKindGetter =
+                (sessionHandle1, operationHandle) ->
+                        fetchResults(service, sessionHandle1, operationHandle).getResultKind();
+
+        // query
+        validateResultSetField(
+                sessionHandle,
+                "SELECT * FROM cat1.db1.tbl1;",
+                resultKindGetter,
+                ResultKind.SUCCESS_WITH_CONTENT);
+
+        // insert
+        validateResultSetField(
+                sessionHandle,
+                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
+                resultKindGetter,
+                ResultKind.SUCCESS_WITH_CONTENT);
+
+        // ddl
+        validateResultSetField(
+                sessionHandle,
+                "CREATE TABLE test (f0 INT) WITH ('connector' = 'values');",
+                resultKindGetter,
+                ResultKind.SUCCESS);
+
+        // set
+        validateResultSetField(
+                sessionHandle, "SET 'key' = 'value';", resultKindGetter, ResultKind.SUCCESS);
+
+        validateResultSetField(
+                sessionHandle, "SET;", resultKindGetter, ResultKind.SUCCESS_WITH_CONTENT);
+    }
+
+    private <T> void validateResultSetField(
+            SessionHandle sessionHandle,
+            String statement,
+            BiFunction<SessionHandle, OperationHandle, T> resultGetter,
+            T expected)
+            throws Exception {
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, statement, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, operationHandle);
+        assertThat(resultGetter.apply(sessionHandle, operationHandle)).isEqualTo(expected);
     }
 }
