@@ -29,16 +29,22 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-/** ALTER TABLE [[catalogName.] dataBasesName].tableName [PARTITION partition_spec] COMPACT. */
+/**
+ * ALTER TABLE [IF EXISTS] [[catalogName.] dataBasesName].tableName [PARTITION partition_spec]
+ * COMPACT.
+ */
 public class SqlAlterTableCompact extends SqlAlterTable {
 
     public SqlAlterTableCompact(
-            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
-        super(pos, tableName, partitionSpec);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            @Nullable SqlNodeList partitionSpec,
+            boolean ifExists) {
+        super(pos, tableName, partitionSpec, ifExists);
     }
 
-    public SqlAlterTableCompact(SqlParserPos pos, SqlIdentifier tableName) {
-        super(pos, tableName);
+    public SqlAlterTableCompact(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
+        super(pos, tableName, ifExists);
     }
 
     @Override

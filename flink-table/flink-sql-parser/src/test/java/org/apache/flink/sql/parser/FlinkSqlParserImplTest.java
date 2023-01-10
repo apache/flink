@@ -314,19 +314,37 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testAlterTable() {
         sql("alter table t1 rename to t2").ok("ALTER TABLE `T1` RENAME TO `T2`");
+        sql("alter table if exists t1 rename to t2")
+                .ok("ALTER TABLE IF EXISTS `T1` RENAME TO `T2`");
         sql("alter table c1.d1.t1 rename to t2").ok("ALTER TABLE `C1`.`D1`.`T1` RENAME TO `T2`");
+        sql("alter table if exists c1.d1.t1 rename to t2")
+                .ok("ALTER TABLE IF EXISTS `C1`.`D1`.`T1` RENAME TO `T2`");
         sql("alter table t1 set ('key1'='value1')")
                 .ok("ALTER TABLE `T1` SET (\n" + "  'key1' = 'value1'\n" + ")");
+        sql("alter table if exists t1 set ('key1'='value1')")
+                .ok("ALTER TABLE IF EXISTS `T1` SET (\n" + "  'key1' = 'value1'\n" + ")");
         sql("alter table t1 add constraint ct1 primary key(a, b) not enforced")
                 .ok(
                         "ALTER TABLE `T1` ADD (\n"
                                 + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
                                 + ")");
+        sql("alter table if exists t1 add constraint ct1 primary key(a, b) not enforced")
+                .ok(
+                        "ALTER TABLE IF EXISTS `T1` ADD (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
         sql("alter table t1 " + "add unique(a, b)")
                 .ok("ALTER TABLE `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
+        sql("alter table if exists t1 " + "add unique(a, b)")
+                .ok("ALTER TABLE IF EXISTS `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
         sql("alter table t1 drop constraint ct1").ok("ALTER TABLE `T1` DROP CONSTRAINT `CT1`");
+        sql("alter table if exists t1 drop constraint ct1")
+                .ok("ALTER TABLE IF EXISTS `T1` DROP CONSTRAINT `CT1`");
         sql("alter table t1 rename a to b").ok("ALTER TABLE `T1` RENAME `A` TO `B`");
-        sql("alter table t1 rename a.x to a.y").ok("ALTER TABLE `T1` RENAME `A`.`X` TO `A`.`Y`");
+        sql("alter table if exists t1 rename a to b")
+                .ok("ALTER TABLE IF EXISTS `T1` RENAME `A` TO `B`");
+        sql("alter table if exists t1 rename a.x to a.y")
+                .ok("ALTER TABLE IF EXISTS `T1` RENAME `A`.`X` TO `A`.`Y`");
     }
 
     @Test
@@ -359,6 +377,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testAlterTableAddSingleColumn() {
+        sql("alter table if exists t1 add new_column int not null")
+                .ok(
+                        "ALTER TABLE IF EXISTS `T1` ADD (\n"
+                                + "  `NEW_COLUMN` INTEGER NOT NULL\n"
+                                + ")");
         sql("alter table t1 add new_column string comment 'new_column docs'")
                 .ok(
                         "ALTER TABLE `T1` ADD (\n"
@@ -390,6 +413,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testAlterTableAddWatermark() {
+        sql("alter table if exists t1 add watermark for ts as ts")
+                .ok("ALTER TABLE IF EXISTS `T1` ADD (\n" + "  WATERMARK FOR `TS` AS `TS`\n" + ")");
         sql("alter table t1 add watermark for ts as ts - interval '1' second")
                 .ok(
                         "ALTER TABLE `T1` ADD (\n"
@@ -452,6 +477,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testAlterTableModifySingleColumn() {
+        sql("alter table if exists t1 modify new_column string comment 'new_column docs'")
+                .ok(
+                        "ALTER TABLE IF EXISTS `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
         sql("alter table t1 modify new_column string comment 'new_column docs'")
                 .ok(
                         "ALTER TABLE `T1` MODIFY (\n"
@@ -504,6 +534,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testAlterTableModifyWatermark() {
+        sql("alter table if exists t1 modify watermark for ts as ts")
+                .ok(
+                        "ALTER TABLE IF EXISTS `T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS `TS`\n"
+                                + ")");
         sql("alter table t1 modify watermark for ts as ts - interval '1' second")
                 .ok(
                         "ALTER TABLE `T1` MODIFY (\n"
@@ -565,6 +600,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testAlterTableDropSingleColumn() {
+        sql("alter table if exists t1 drop id")
+                .ok("ALTER TABLE IF EXISTS `T1` DROP (\n" + "  `ID`\n" + ")");
         sql("alter table t1 drop id").ok("ALTER TABLE `T1` DROP (\n" + "  `ID`\n" + ")");
 
         sql("alter table t1 drop (id)").ok("ALTER TABLE `T1` DROP (\n" + "  `ID`\n" + ")");
@@ -575,6 +612,14 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testAlterTableDropMultipleColumn() {
+        sql("alter table if exists t1 drop (id, ts, tuple.f0, tuple.f1)")
+                .ok(
+                        "ALTER TABLE IF EXISTS `T1` DROP (\n"
+                                + "  `ID`,\n"
+                                + "  `TS`,\n"
+                                + "  `TUPLE`.`F0`,\n"
+                                + "  `TUPLE`.`F1`\n"
+                                + ")");
         sql("alter table t1 drop (id, ts, tuple.f0, tuple.f1)")
                 .ok(
                         "ALTER TABLE `T1` DROP (\n"
@@ -587,11 +632,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testAlterTableDropPrimaryKey() {
+        sql("alter table if exists t1 drop primary key")
+                .ok("ALTER TABLE IF EXISTS `T1` DROP PRIMARY KEY");
         sql("alter table t1 drop primary key").ok("ALTER TABLE `T1` DROP PRIMARY KEY");
     }
 
     @Test
     public void testAlterTableDropConstraint() {
+        sql("alter table if exists t1 drop constraint ct")
+                .ok("ALTER TABLE IF EXISTS `T1` DROP CONSTRAINT `CT`");
         sql("alter table t1 drop constraint ct").ok("ALTER TABLE `T1` DROP CONSTRAINT `CT`");
 
         sql("alter table t1 drop constrain^t^")
@@ -600,11 +649,16 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testAlterTableDropWatermark() {
+        sql("alter table if exists t1 drop watermark")
+                .ok("ALTER TABLE IF EXISTS `T1` DROP WATERMARK");
         sql("alter table t1 drop watermark").ok("ALTER TABLE `T1` DROP WATERMARK");
     }
 
     @Test
     void testAlterTableReset() {
+        sql("alter table if exists t1 reset ('key1')")
+                .ok("ALTER TABLE IF EXISTS `T1` RESET (\n  'key1'\n)");
+
         sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
 
         sql("alter table t1 reset ('key1', 'key2')")
@@ -615,6 +669,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testAlterTableCompact() {
+        sql("alter table if exists t1 compact").ok("ALTER TABLE IF EXISTS `T1` COMPACT");
+
         sql("alter table t1 compact").ok("ALTER TABLE `T1` COMPACT");
 
         sql("alter table db1.t1 compact").ok("ALTER TABLE `DB1`.`T1` COMPACT");

@@ -45,7 +45,7 @@ public class SqlAddPartitions extends SqlAlterTable {
             boolean ifNotExists,
             List<SqlNodeList> partSpecs,
             List<SqlNodeList> partProps) {
-        super(pos, tableName);
+        super(pos, tableName, false);
         this.ifNotExists = ifNotExists;
         this.partSpecs = partSpecs;
         this.partProps = partProps;

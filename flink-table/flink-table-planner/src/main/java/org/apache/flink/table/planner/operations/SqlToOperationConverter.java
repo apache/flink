@@ -131,6 +131,7 @@ import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -480,6 +481,9 @@ public class SqlToOperationConverter {
         Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+            if (sqlAlterTable.ignoreIfNotExists()) {
+                return new NopOperation();
+            }
             throw new ValidationException(
                     String.format(
                             "Table %s doesn't exist or is a temporary table.", tableIdentifier));

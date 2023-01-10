@@ -39,8 +39,8 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Abstract class to describe statements like ALTER TABLE [[catalogName.] dataBasesName].tableName
- * ...
+ * Abstract class to describe statements like ALTER TABLE [IF EXISTS] [[catalogName.]
+ * dataBasesName].tableName ...
  */
 public abstract class SqlAlterTable extends SqlCall {
 
@@ -49,16 +49,26 @@ public abstract class SqlAlterTable extends SqlCall {
 
     protected final SqlIdentifier tableIdentifier;
     protected final SqlNodeList partitionSpec;
+    protected final boolean ifExists;
 
     public SqlAlterTable(
-            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            @Nullable SqlNodeList partitionSpec,
+            boolean ifExists) {
         super(pos);
         this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
         this.partitionSpec = partitionSpec;
+        this.ifExists = ifExists;
     }
 
-    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName) {
-        this(pos, tableName, null);
+    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
+        this(pos, tableName, null, ifExists);
+    }
+
+    public SqlAlterTable(
+            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+        this(pos, tableName, partitionSpec, false);
     }
 
     @Override
@@ -73,6 +83,9 @@ public abstract class SqlAlterTable extends SqlCall {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("ALTER TABLE");
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
         tableIdentifier.unparse(writer, leftPrec, rightPrec);
         SqlNodeList partitionSpec = getPartitionSpec();
         if (partitionSpec != null && partitionSpec.size() > 0) {
@@ -96,6 +109,15 @@ public abstract class SqlAlterTable extends SqlCall {
     /** Get partition spec as key-value strings. */
     public LinkedHashMap<String, String> getPartitionKVs() {
         return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+    }
+
+    /**
+     * Whether to ignore the error if the table doesn't exist.
+     *
+     * @return true when IF EXISTS is specified.
+     */
+    public boolean ignoreIfNotExists() {
+        return ifExists;
     }
 
     /** Alter table context. */
