@@ -67,6 +67,7 @@ import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
@@ -691,7 +692,7 @@ public class HiveTableSink
     }
 
     @Override
-    public RowLevelDeleteInfo applyRowLevelDelete() {
+    public RowLevelDeleteInfo applyRowLevelDelete(RowLevelModificationScanContext context) {
         return new RowLevelDeleteInfo() {
             @Override
             public Optional<List<Column>> requiredColumns() {
@@ -709,7 +710,8 @@ public class HiveTableSink
     }
 
     @Override
-    public RowLevelUpdateInfo applyRowLevelUpdate(List<Column> updatedColumns) {
+    public RowLevelUpdateInfo applyRowLevelUpdate(
+            List<Column> updatedColumns, @Nullable RowLevelModificationScanContext context) {
         return new RowLevelUpdateInfo() {
             @Override
             public Optional<List<Column>> requiredColumns() {

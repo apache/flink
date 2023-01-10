@@ -20,7 +20,11 @@ package org.apache.flink.table.connector.sink.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,10 +47,15 @@ import java.util.Optional;
 public interface SupportsRowLevelDelete {
 
     /**
-     * Apply row level delete, and return {@link RowLevelDeleteInfo} to guide the planner on how to
-     * rewrite the delete operation.
+     * Apply row level delete with {@link RowLevelModificationScanContext} passed by table source,
+     * and return {@link RowLevelDeleteInfo} to guide the planner on how to rewrite the delete
+     * operation.
+     *
+     * <p>Note: if the table source doesn't implement {@link SupportsRowLevelModificationScan},
+     * there won't be any {@link RowLevelModificationScanContext} passed, so the {@param context}
+     * will be null.
      */
-    RowLevelDeleteInfo applyRowLevelDelete();
+    RowLevelDeleteInfo applyRowLevelDelete(@Nullable RowLevelModificationScanContext context);
 
     /** The information that guides the planer on how to rewrite the delete operation. */
     @PublicEvolving

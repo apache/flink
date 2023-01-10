@@ -33,15 +33,18 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
@@ -158,6 +161,8 @@ public final class DynamicSourceUtils {
             validateScanSource(
                     tableDebugName, schema, (ScanTableSource) source, isBatchMode, config);
         }
+
+        prepareRowLevelModificationScan(source);
 
         // lookup table source is validated in LookupJoin node
     }
@@ -559,6 +564,21 @@ public final class DynamicSourceUtils {
                     String.format(
                             "A nested field '%s' cannot be declared as rowtime attribute for table '%s' right now.",
                             rowtimeAttribute, tableDebugName));
+        }
+    }
+
+    private static void prepareRowLevelModificationScan(DynamicTableSource dynamicTableSource) {
+        if (RowLevelModificationContextUtils.getRowLevelModificationType() != null
+                && dynamicTableSource instanceof SupportsRowLevelModificationScan) {
+            SupportsRowLevelModificationScan modificationScan =
+                    (SupportsRowLevelModificationScan) dynamicTableSource;
+            RowLevelModificationScanContext scanContext =
+                    RowLevelModificationContextUtils.getScanContext();
+            RowLevelModificationScanContext newScanContext =
+                    modificationScan.applyRowLevelModificationScan(
+                            RowLevelModificationContextUtils.getRowLevelModificationType(),
+                            scanContext);
+            RowLevelModificationContextUtils.putRowLevelModificationScanContext(newScanContext);
         }
     }
 

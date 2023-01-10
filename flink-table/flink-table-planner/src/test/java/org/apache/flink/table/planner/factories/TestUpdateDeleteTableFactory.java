@@ -31,10 +31,12 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
@@ -44,6 +46,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -55,6 +58,8 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
 import com.google.common.base.Objects;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -151,7 +156,7 @@ public final class TestUpdateDeleteTableFactory
         String dataId =
                 helper.getOptions().getOptional(DATA_ID).orElse(String.valueOf(idCounter.get()));
 
-        return new TestTableSource(dataId);
+        return new TestTableSource(dataId, context.getObjectIdentifier());
     }
 
     @Override
@@ -208,11 +213,14 @@ public final class TestUpdateDeleteTableFactory
     }
 
     /** A test table source which supports reading metadata. */
-    private static class TestTableSource implements ScanTableSource, SupportsReadingMetadata {
+    private static class TestTableSource
+            implements ScanTableSource, SupportsReadingMetadata, SupportsRowLevelModificationScan {
         private final String dataId;
+        private final ObjectIdentifier tableIdentifier;
 
-        public TestTableSource(String dataId) {
+        public TestTableSource(String dataId, ObjectIdentifier tableIdentifier) {
             this.dataId = dataId;
+            this.tableIdentifier = tableIdentifier;
         }
 
         @Override
@@ -243,7 +251,7 @@ public final class TestUpdateDeleteTableFactory
 
         @Override
         public DynamicTableSource copy() {
-            return new TestTableSource(dataId);
+            return new TestTableSource(dataId, tableIdentifier);
         }
 
         @Override
@@ -264,6 +272,22 @@ public final class TestUpdateDeleteTableFactory
 
         @Override
         public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {}
+
+        @Override
+        public RowLevelModificationScanContext applyRowLevelModificationScan(
+                RowLevelModificationType rowLevelModificationType,
+                @Nullable RowLevelModificationScanContext previousContext) {
+            TestScanContext scanContext =
+                    previousContext == null
+                            ? new TestScanContext()
+                            : (TestScanContext) previousContext;
+            scanContext.scanTables.add(tableIdentifier);
+            return scanContext;
+        }
+    }
+
+    private static class TestScanContext implements RowLevelModificationScanContext {
+        private final Set<ObjectIdentifier> scanTables = new HashSet<>();
     }
 
     /** A test table sink which supports both row-level delete and row-level update. */
@@ -517,7 +541,7 @@ public final class TestUpdateDeleteTableFactory
         }
 
         @Override
-        public RowLevelDeleteInfo applyRowLevelDelete() {
+        public RowLevelDeleteInfo applyRowLevelDelete(RowLevelModificationScanContext context) {
             this.isDelete = true;
             return new RowLevelDeleteInfo() {
                 @Override
@@ -540,7 +564,8 @@ public final class TestUpdateDeleteTableFactory
         }
 
         @Override
-        public RowLevelUpdateInfo applyRowLevelUpdate(List<Column> updatedColumns) {
+        public RowLevelUpdateInfo applyRowLevelUpdate(
+                List<Column> updatedColumns, @Nullable RowLevelModificationScanContext context) {
             this.isUpdate = true;
             return new RowLevelUpdateInfo() {
 

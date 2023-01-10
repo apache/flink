@@ -58,6 +58,7 @@ import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformations;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -754,9 +755,13 @@ public final class DynamicSinkUtils {
         }
         SupportsRowLevelDelete supportsRowLevelDelete = (SupportsRowLevelDelete) sink;
         SupportsRowLevelDelete.RowLevelDeleteInfo rowLevelDeleteInfo =
-                supportsRowLevelDelete.applyRowLevelDelete();
+                supportsRowLevelDelete.applyRowLevelDelete(
+                        RowLevelModificationContextUtils.getScanContext());
 
-        sinkAbilitySpecs.add(new RowLevelDeleteSpec(rowLevelDeleteInfo.getRowLevelDeleteMode()));
+        sinkAbilitySpecs.add(
+                new RowLevelDeleteSpec(
+                        rowLevelDeleteInfo.getRowLevelDeleteMode(),
+                        RowLevelModificationContextUtils.getScanContext()));
         if (rowLevelDeleteInfo.getRowLevelDeleteMode()
                 == SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS) {
             return convertToRowLevelDelete(
@@ -797,7 +802,8 @@ public final class DynamicSinkUtils {
         ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
         List<Column> updatedColumns = getUpdatedColumns(tableModify, resolvedSchema);
         SupportsRowLevelUpdate.RowLevelUpdateInfo updateInfo =
-                supportsRowLevelUpdate.applyRowLevelUpdate(updatedColumns);
+                supportsRowLevelUpdate.applyRowLevelUpdate(
+                        updatedColumns, RowLevelModificationContextUtils.getScanContext());
         if (updateInfo.getRowLevelUpdateMode()
                         != SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS
                 && updateInfo.getRowLevelUpdateMode()
@@ -806,7 +812,10 @@ public final class DynamicSinkUtils {
                     "Unknown update mode:" + updateInfo.getRowLevelUpdateMode());
         }
         sinkAbilitySpecs.add(
-                new RowLevelUpdateSpec(updatedColumns, updateInfo.getRowLevelUpdateMode()));
+                new RowLevelUpdateSpec(
+                        updatedColumns,
+                        updateInfo.getRowLevelUpdateMode(),
+                        RowLevelModificationContextUtils.getScanContext()));
         return convertToRowLevelUpdate(
                 tableModify,
                 contextResolvedTable,

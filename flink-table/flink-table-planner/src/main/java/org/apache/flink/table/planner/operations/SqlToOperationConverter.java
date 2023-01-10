@@ -115,6 +115,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -189,6 +190,7 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
@@ -1496,6 +1498,8 @@ public class SqlToOperationConverter {
     }
 
     private Operation convertDelete(SqlDelete sqlDelete) {
+        RowLevelModificationContextUtils.putRowLevelModificationType(
+                SupportsRowLevelModificationScan.RowLevelModificationType.DELETE);
         RelRoot updateRelational = flinkPlanner.rel(sqlDelete);
         LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
         ContextResolvedTable contextResolvedTable =
@@ -1525,6 +1529,8 @@ public class SqlToOperationConverter {
     }
 
     private Operation convertUpdate(SqlUpdate sqlUpdate) {
+        RowLevelModificationContextUtils.putRowLevelModificationType(
+                SupportsRowLevelModificationScan.RowLevelModificationType.UPDATE);
         RelRoot updateRelational = flinkPlanner.rel(sqlUpdate);
         // get target sink table
         LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;

@@ -19,13 +19,17 @@
 package org.apache.flink.table.planner.plan.abilities.sink;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
+import javax.annotation.Nullable;
 
 import java.util.Objects;
 
@@ -42,18 +46,21 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
     @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE)
     private final SupportsRowLevelDelete.RowLevelDeleteMode rowLevelDeleteMode;
 
+    @JsonIgnore @Nullable private final RowLevelModificationScanContext scanContext;
+
     @JsonCreator
     public RowLevelDeleteSpec(
             @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE)
-                    SupportsRowLevelDelete.RowLevelDeleteMode
-                            rowLevelDeleteMode) {
+                    SupportsRowLevelDelete.RowLevelDeleteMode rowLevelDeleteMode,
+            RowLevelModificationScanContext scanContext) {
         this.rowLevelDeleteMode = rowLevelDeleteMode;
+        this.scanContext = scanContext;
     }
 
     @Override
     public void apply(DynamicTableSink tableSink) {
         if (tableSink instanceof SupportsRowLevelDelete) {
-            ((SupportsRowLevelDelete) tableSink).applyRowLevelDelete();
+            ((SupportsRowLevelDelete) tableSink).applyRowLevelDelete(scanContext);
         } else {
             throw new TableException(
                     String.format(

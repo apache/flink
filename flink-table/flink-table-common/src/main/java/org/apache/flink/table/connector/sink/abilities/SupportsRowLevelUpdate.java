@@ -20,7 +20,11 @@ package org.apache.flink.table.connector.sink.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,12 +42,17 @@ import java.util.Optional;
 public interface SupportsRowLevelUpdate {
 
     /**
-     * Apply row level update with providing the updated columns, and return {@link
+     * Apply row level update with providing the updated columns and {@link
+     * RowLevelModificationScanContext} passed by table source, then return {@link
      * RowLevelUpdateInfo} to guide the planner on how to rewrite the update operation.
      *
      * @param updatedColumns the columns updated by update operation in table column order.
+     * @param context the context passed by table source which implement {@link
+     *     SupportsRowLevelModificationScan}. there won't be any {@link
+     *     RowLevelModificationScanContext} passed, so the {@param context} will be null.
      */
-    RowLevelUpdateInfo applyRowLevelUpdate(List<Column> updatedColumns);
+    RowLevelUpdateInfo applyRowLevelUpdate(
+            List<Column> updatedColumns, @Nullable RowLevelModificationScanContext context);
 
     /** The information that guides the planer on how to rewrite the update operation. */
     @PublicEvolving
