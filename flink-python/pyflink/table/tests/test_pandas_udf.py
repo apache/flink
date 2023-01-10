@@ -220,6 +220,14 @@ class PandasUDFITTests(object):
             assert isinstance(map_param, pd.Series)
             return map_param
 
+        @udf(result_type=DataTypes.BINARY(5), func_type="pandas")
+        def binary_func(binary_param):
+            assert isinstance(binary_param, pd.Series)
+            assert isinstance(binary_param[0], bytes), \
+                'binary_param of wrong type %s !' % type(binary_param[0])
+            assert len(binary_param[0]) == 5
+            return binary_param
+
         sink_table_ddl = """
             CREATE TABLE Results_test_all_data_types(
                 a TINYINT,
@@ -243,7 +251,8 @@ class PandasUDFITTests(object):
                 s ARRAY<INT>,
                 t ARRAY<STRING>,
                 u ROW<f1 INT, f2 STRING, f3 TIMESTAMP(3), f4 ARRAY<INT>>,
-                v MAP<STRING, STRING>
+                v MAP<STRING, STRING>,
+                w BINARY(5)
             ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
@@ -255,7 +264,7 @@ class PandasUDFITTests(object):
               datetime.date(2014, 9, 13), datetime.time(hour=1, minute=0, second=1),
               timestamp_value, ['hello', '中文', None], [timestamp_value], [1, 2],
               [['hello', '中文', None]], Row(1, 'hello', timestamp_value, [1, 2]),
-              {"1": "hello", "2": "world"})],
+              {"1": "hello", "2": "world"}, bytearray(b'flink'))],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
@@ -278,7 +287,8 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("s", DataTypes.ARRAY(DataTypes.INT())),
                  DataTypes.FIELD("t", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD("u", row_type),
-                 DataTypes.FIELD("v", map_type)]))
+                 DataTypes.FIELD("v", map_type),
+                 DataTypes.FIELD("w", DataTypes.BINARY(5))]))
 
         t.select(
             tinyint_func(t.a),
@@ -302,7 +312,8 @@ class PandasUDFITTests(object):
             array_int_func(t.s),
             nested_array_func(t.t),
             row_func(t.u),
-            map_func(t.v)) \
+            map_func(t.v),
+            binary_func(t.k)) \
             .execute_insert("Results_test_all_data_types").wait()
         actual = source_sink_utils.results()
         self.assert_equals(
@@ -312,7 +323,7 @@ class PandasUDFITTests(object):
              "1000000000000000000.059999999999999999, 2014-09-13, 01:00:01, "
              "1970-01-02T00:00:00.123, [hello, 中文, null], [1970-01-02T00:00:00.123], "
              "[1, 2], [hello, 中文, null], +I[1, hello, 1970-01-02T00:00:00.123, [1, 2]], "
-             "{1=hello, 2=world}]"])
+             "{1=hello, 2=world}, [102, 108, 105, 110, 107]]"])
 
     def test_invalid_pandas_udf(self):
 
