@@ -200,4 +200,4 @@ rabbitmq:
     name: RabbitMQ
     category: connector
     maven: flink-connector-rabbitmq
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/$version/flink-sql-connector-rabbitmq-$version.jar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/3.0.0-1.16/flink-sql-connector-rabbitmq-3.0.0-1.16.jar
