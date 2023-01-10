@@ -313,7 +313,7 @@ class PandasUDFITTests(object):
             nested_array_func(t.t),
             row_func(t.u),
             map_func(t.v),
-            binary_func(t.k)) \
+            binary_func(t.w)) \
             .execute_insert("Results_test_all_data_types").wait()
         actual = source_sink_utils.results()
         self.assert_equals(
