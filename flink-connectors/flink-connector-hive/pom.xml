@@ -44,7 +44,7 @@ under the License.
 		java.lang.NoClassDefFoundError: org/apache/hadoop/metrics/Updater errors 
 		Using this dedicated property avoids CI failures with the Hadoop 3 profile
 		-->
-		<hive.hadoop.version>2.10.2</hive.hadoop.version>
+		<hive.hadoop.version>3.2.4</hive.hadoop.version>
 	</properties>
 
 	<dependencyManagement>
