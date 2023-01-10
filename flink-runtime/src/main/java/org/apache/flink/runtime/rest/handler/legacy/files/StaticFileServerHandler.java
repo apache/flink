@@ -36,6 +36,7 @@ import org.apache.flink.runtime.rest.handler.util.MimeTypes;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -147,7 +148,8 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
             HandlerUtils.sendErrorResponse(
                     channelHandlerContext,
                     routedRequest.getRequest(),
-                    new ErrorResponseBody(rhe.getMessage()),
+                    new ErrorResponseBody(
+                            rhe.getMessage(), ExceptionUtils.getRootCauseMessage(rhe)),
                     rhe.getHttpResponseStatus(),
                     responseHeaders);
         }
@@ -288,7 +290,8 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
             HandlerUtils.sendErrorResponse(
                     ctx,
                     false,
-                    new ErrorResponseBody("Internal server error."),
+                    new ErrorResponseBody(
+                            "Internal server error.", ExceptionUtils.getRootCauseMessage(cause)),
                     INTERNAL_SERVER_ERROR,
                     Collections.emptyMap());
         }

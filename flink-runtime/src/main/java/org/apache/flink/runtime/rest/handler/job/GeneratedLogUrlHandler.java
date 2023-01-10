@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.LogUrlResponse;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -71,7 +72,7 @@ public class GeneratedLogUrlHandler extends SimpleChannelInboundHandler<RoutedRe
             HandlerUtils.sendErrorResponse(
                     ctx,
                     routedRequest.getRequest(),
-                    new ErrorResponseBody(e.getMessage()),
+                    new ErrorResponseBody(e.getMessage(), ExceptionUtils.getRootCauseMessage(e)),
                     HttpResponseStatus.INTERNAL_SERVER_ERROR,
                     Collections.emptyMap());
         }

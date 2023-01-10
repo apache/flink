@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OptionalConsumer;
 import org.apache.flink.util.Preconditions;
 
@@ -87,7 +88,8 @@ public abstract class LeaderRetrievalHandler<T extends RestfulGateway>
                                         channelHandlerContext,
                                         request,
                                         new ErrorResponseBody(
-                                                "Error while responding to the http request."),
+                                                "Error while responding to the http request.",
+                                                ExceptionUtils.getRootCauseMessage(e)),
                                         HttpResponseStatus.INTERNAL_SERVER_ERROR,
                                         responseHeaders);
                             }

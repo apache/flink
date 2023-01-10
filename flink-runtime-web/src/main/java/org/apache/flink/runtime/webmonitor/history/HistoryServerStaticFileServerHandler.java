@@ -49,6 +49,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpConten
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,7 +119,8 @@ public class HistoryServerStaticFileServerHandler
             HandlerUtils.sendErrorResponse(
                     ctx,
                     routedRequest.getRequest(),
-                    new ErrorResponseBody(rhe.getMessage()),
+                    new ErrorResponseBody(
+                            rhe.getMessage(), ExceptionUtils.getRootCauseMessage(rhe)),
                     rhe.getHttpResponseStatus(),
                     Collections.emptyMap());
         }

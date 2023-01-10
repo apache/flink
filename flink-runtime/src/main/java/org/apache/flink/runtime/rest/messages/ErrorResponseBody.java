@@ -28,17 +28,28 @@ import java.util.List;
 public final class ErrorResponseBody implements ResponseBody {
 
     static final String FIELD_NAME_ERRORS = "errors";
+    static final String FIELD_NAME_ROOT_CAUSE = "rootCause";
 
     @JsonProperty(FIELD_NAME_ERRORS)
     public final List<String> errors;
 
+    @JsonProperty(FIELD_NAME_ROOT_CAUSE)
+    public final String rootCause;
+
     public ErrorResponseBody(String error) {
-        this(Collections.singletonList(error));
+        this(Collections.singletonList(error), error);
+    }
+
+    public ErrorResponseBody(String error, String rootCause) {
+        this(Collections.singletonList(error), rootCause);
     }
 
     @JsonCreator
-    public ErrorResponseBody(@JsonProperty(FIELD_NAME_ERRORS) List<String> errors) {
+    public ErrorResponseBody(
+            @JsonProperty(FIELD_NAME_ERRORS) List<String> errors,
+            @JsonProperty(FIELD_NAME_ROOT_CAUSE) String rootCause) {
 
         this.errors = errors;
+        this.rootCause = rootCause;
     }
 }

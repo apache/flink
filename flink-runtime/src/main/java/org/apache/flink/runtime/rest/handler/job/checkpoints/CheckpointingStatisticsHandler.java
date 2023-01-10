@@ -43,6 +43,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -90,7 +91,7 @@ public class CheckpointingStatisticsHandler
         try {
             json = createCheckpointingStatistics(graph);
         } catch (RestHandlerException rhe) {
-            json = new ErrorResponseBody(rhe.getMessage());
+            json = new ErrorResponseBody(rhe.getMessage(), ExceptionUtils.getRootCauseMessage(rhe));
         }
         String path =
                 getMessageHeaders()

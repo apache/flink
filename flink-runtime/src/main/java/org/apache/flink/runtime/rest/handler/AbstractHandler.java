@@ -245,6 +245,7 @@ public abstract class AbstractHandler<
         if (throwable instanceof RestHandlerException) {
             RestHandlerException rhe = (RestHandlerException) throwable;
             String stackTrace = ExceptionUtils.stringifyException(rhe);
+            String rootCause = ExceptionUtils.getRootCauseMessage(rhe);
             String truncatedStackTrace = Ascii.truncate(stackTrace, maxLength, "...");
             if (log.isDebugEnabled()) {
                 log.error("Exception occurred in REST handler.", rhe);
@@ -254,7 +255,7 @@ public abstract class AbstractHandler<
             return HandlerUtils.sendErrorResponse(
                     ctx,
                     httpRequest,
-                    new ErrorResponseBody(truncatedStackTrace),
+                    new ErrorResponseBody(truncatedStackTrace, rootCause),
                     rhe.getHttpResponseStatus(),
                     responseHeaders);
         } else if (throwable instanceof EndpointNotStartedException) {
@@ -276,7 +277,8 @@ public abstract class AbstractHandler<
                     ctx,
                     httpRequest,
                     new ErrorResponseBody(
-                            Arrays.asList("Internal server error.", truncatedStackTrace)),
+                            Arrays.asList("Internal server error.", truncatedStackTrace),
+                            ExceptionUtils.getRootCauseMessage(throwable)),
                     HttpResponseStatus.INTERNAL_SERVER_ERROR,
                     responseHeaders);
         }

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.runtime.rest.util.RestServerClientException;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ConfigurationException;
@@ -532,8 +533,10 @@ public class RestClient implements AutoCloseableAsync {
                 ErrorResponseBody error =
                         objectMapper.treeToValue(rawResponse.getJson(), ErrorResponseBody.class);
                 responseFuture.completeExceptionally(
-                        new RestClientException(
-                                error.errors.toString(), rawResponse.getHttpResponseStatus()));
+                        new RestServerClientException(
+                                error.errors.toString(),
+                                error.rootCause,
+                                rawResponse.getHttpResponseStatus()));
             } catch (JsonProcessingException jpe2) {
                 // if this fails it is either the expected type or response type was wrong, most
                 // likely caused

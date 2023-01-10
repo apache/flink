@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.util.RestServerClientException;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
@@ -44,6 +45,7 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -84,9 +86,6 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
     private static final FetchResultsHeaders fetchResultsHeaders =
             FetchResultsHeaders.getInstance();
     private static final int OPERATION_WAIT_SECONDS = 100;
-
-    private static final String PATTERN1 = "Caused by: ";
-    private static final String PATTERN2 = "\tat ";
 
     private final SessionEnvironment defaultSessionEnvironment =
             SessionEnvironment.newBuilder()
@@ -190,9 +189,13 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
 
     @Override
     protected String stringifyException(Throwable t) {
-        String message = t.getMessage();
-        String[] splitExceptions = message.split(PATTERN1);
-        return splitExceptions[splitExceptions.length - 1].split(PATTERN2)[0];
+        Throwable cause = ExceptionUtils.getRootCause(t);
+        if (cause instanceof RestServerClientException) {
+            RestServerClientException r = (RestServerClientException) cause;
+            return r.getRootCause();
+        } else {
+            return ExceptionUtils.getRootCauseMessage(cause);
+        }
     }
 
     @Override

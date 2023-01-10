@@ -29,6 +29,7 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -700,6 +701,35 @@ public final class ExceptionUtils {
         if (e instanceof FlinkExpectedException) {
             log.debug("Expected exception.", e);
         }
+    }
+
+    /**
+     * Gets a short message summarising the root cause exception.
+     *
+     * <p>The message returned is of the form {ClassNameWithoutPackage}: {ThrowableMessage}
+     *
+     * @param e the throwable to get a message for, null returns empty string
+     * @return the message, non-null
+     */
+    public static String getRootCauseMessage(Throwable e) {
+        Throwable root = getRootCause(e);
+        final String clsName = root.getClass().getCanonicalName();
+        final String msg = root.getMessage();
+        return clsName + ": " + StringUtils.defaultString(msg);
+    }
+
+    /**
+     * Gets the root cause for the throwable.
+     *
+     * @param e the throwable to get root cause for
+     * @return the root cause
+     */
+    public static Throwable getRootCause(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        return root;
     }
 
     // ------------------------------------------------------------------------
