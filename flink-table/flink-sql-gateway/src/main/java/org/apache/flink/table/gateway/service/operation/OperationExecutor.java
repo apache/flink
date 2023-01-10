@@ -495,9 +495,9 @@ public class OperationExecutor {
                     runClusterAction(
                             handle,
                             clusterClient -> {
-                                if (isWithSavepoint) {
-                                    // blocking get savepoint path
-                                    try {
+                                try {
+                                    if (isWithSavepoint) {
+                                        // blocking get savepoint path
                                         return Optional.of(
                                                 clusterClient
                                                         .stopWithSavepoint(
@@ -510,23 +510,22 @@ public class OperationExecutor {
                                                         .get(
                                                                 clientTimeout.toMillis(),
                                                                 TimeUnit.MILLISECONDS));
-                                    } catch (Exception e) {
-                                        throw new FlinkException(
-                                                "Could not stop job "
-                                                        + stopJobOperation.getJobId()
-                                                        + " in session "
-                                                        + handle.getIdentifier()
-                                                        + ".",
-                                                e);
+                                    } else {
+                                        clusterClient.cancel(JobID.fromHexString(jobId)).get();
+                                        return Optional.empty();
                                     }
-                                } else {
-                                    clusterClient.cancel(JobID.fromHexString(jobId));
-                                    return Optional.empty();
+                                } catch (Exception e) {
+                                    throw new FlinkException(e);
                                 }
                             });
         } catch (Exception e) {
             throw new SqlExecutionException(
-                    "Could not stop job " + jobId + " for operation " + handle + ".", e);
+                    "Could not stop job "
+                            + jobId
+                            + " for operation "
+                            + handle.getIdentifier()
+                            + ".",
+                    e);
         }
         if (isWithSavepoint) {
             return ResultFetcher.fromResults(
