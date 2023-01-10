@@ -29,7 +29,7 @@ from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, D
     ExternalTypeInfo
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType
+    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType, MapType
 
 try:
     from pyflink.fn_execution import coder_impl_fast as coder_impl
@@ -148,6 +148,10 @@ class LengthPrefixBaseCoder(ABC):
             return RowType(
                 [RowField(f.name, cls._to_data_type(f.type), f.description)
                  for f in field_type.row_schema.fields], field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.MAP:
+            return MapType(cls._to_data_type(field_type.map_info.key_type),
+                           cls._to_data_type(field_type.map_info.value_type),
+                           field_type.nullable)
         else:
             raise ValueError("field_type %s is not supported." % field_type)
 

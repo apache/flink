@@ -2244,6 +2244,10 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
             return TimestampType(6, nullable)
         else:
             return TimestampType(9, nullable)
+    elif types.is_map(arrow_type):
+        return MapType(from_arrow_type(arrow_type.key_type),
+                       from_arrow_type(arrow_type.item_type),
+                       nullable)
     elif types.is_list(arrow_type):
         return ArrayType(from_arrow_type(arrow_type.value_type), nullable)
     elif types.is_struct(arrow_type):
@@ -2301,6 +2305,8 @@ def to_arrow_type(data_type: DataType):
             return pa.timestamp('us')
         else:
             return pa.timestamp('ns')
+    elif isinstance(data_type, MapType):
+        return pa.map_(to_arrow_type(data_type.key_type), to_arrow_type(data_type.value_type))
     elif isinstance(data_type, ArrayType):
         if type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
             raise ValueError("%s is not supported to be used as the element type of ArrayType." %
