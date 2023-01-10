@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
@@ -1475,17 +1476,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
 
-        // todo: move this parsing to SBL?
-        Configuration mergedConfig =
-                new Configuration(environment.getTaskManagerInfo().getConfiguration());
-        mergedConfig.addAll(
+        Configuration changelogConfigFromJob =
                 StateChangelogOptionsInternal.getConfiguration(
-                        environment.getJobConfiguration(), getClass().getClassLoader()));
+                        environment.getJobConfiguration(), getClass().getClassLoader());
 
         final TernaryBoolean isChangelogEnabled =
-                mergedConfig
-                        .getOptional(
-                                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION)
+                changelogConfigFromJob
+                        .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
                         .map(TernaryBoolean::fromBoolean)
                         .orElse(TernaryBoolean.UNDEFINED);
 

@@ -293,18 +293,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 periodicMaterializeInterval);
     }
 
-    @Internal
-    public int getMaterializationMaxAllowedFailures() {
-        return configuration.get(StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED);
-    }
-
-    @Internal
-    public void setMaterializationMaxAllowedFailures(int materializationMaxAllowedFailures) {
-        configuration.set(
-                StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED,
-                materializationMaxAllowedFailures);
-    }
-
     /**
      * Gets the parallelism with which operation are executed by default. Operations can
      * individually override this value to use a specific parallelism.
@@ -1123,9 +1111,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL)
                 .ifPresent(this::setPeriodicMaterializeIntervalMillis);
-        configuration
-                .getOptional(StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED)
-                .ifPresent(this::setMaterializationMaxAllowedFailures);
 
         configuration
                 .getOptional(PipelineOptions.MAX_PARALLELISM)

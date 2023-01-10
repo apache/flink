@@ -22,22 +22,10 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
-import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
-
 /** StateChangelog options that are used to pass job-level configuration from JM to TM. */
 @Internal
 public class StateChangelogOptionsInternal {
     private StateChangelogOptionsInternal() {}
-
-    public static final ConfigOption<Boolean> ENABLE_CHANGE_LOG_FOR_APPLICATION =
-            ConfigOptions.key("state.backend.changelog.enabled_for_application")
-                    .booleanType()
-                    .noDefaultValue()
-                    .withDescription(
-                            String.format(
-                                    "Whether to enable job-level changelog."
-                                            + "If this config is not set explicitly, it would use %s's value",
-                                    ENABLE_STATE_CHANGE_LOG.key()));
 
     public static final String CHANGE_LOG_CONFIGURATION = "state.backend.changelog.configuration";
 

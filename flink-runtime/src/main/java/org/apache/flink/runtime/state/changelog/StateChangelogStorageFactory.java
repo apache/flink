@@ -55,12 +55,14 @@ public interface StateChangelogStorageFactory {
     /** Extract the relevant to this factory portion of the configuration. */
     default Configuration extractConfiguration(ReadableConfig src) {
         Configuration dst = new Configuration();
-        dst.set(PERIODIC_MATERIALIZATION_INTERVAL, src.get(PERIODIC_MATERIALIZATION_INTERVAL));
-        dst.set(
-                MATERIALIZATION_MAX_FAILURES_ALLOWED,
-                src.get(MATERIALIZATION_MAX_FAILURES_ALLOWED));
-        dst.set(ENABLE_STATE_CHANGE_LOG, src.get(ENABLE_STATE_CHANGE_LOG));
-        dst.set(STATE_CHANGE_LOG_STORAGE, src.get(STATE_CHANGE_LOG_STORAGE));
+        src.getOptional(PERIODIC_MATERIALIZATION_INTERVAL)
+                .ifPresent(value -> dst.set(PERIODIC_MATERIALIZATION_INTERVAL, value));
+        src.getOptional(MATERIALIZATION_MAX_FAILURES_ALLOWED)
+                .ifPresent(value -> dst.set(MATERIALIZATION_MAX_FAILURES_ALLOWED, value));
+        src.getOptional(ENABLE_STATE_CHANGE_LOG)
+                .ifPresent(value -> dst.set(ENABLE_STATE_CHANGE_LOG, value));
+        src.getOptional(STATE_CHANGE_LOG_STORAGE)
+                .ifPresent(value -> dst.set(STATE_CHANGE_LOG_STORAGE, value));
         return dst;
     }
 }

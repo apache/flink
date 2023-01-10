@@ -993,6 +993,16 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                                                 .extractConfiguration(configuration));
                             }
                         });
+        this.configuration
+                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                .ifPresent(
+                        enabled -> {
+                            if (enabled) {
+                                this.configuration.addAll(
+                                        StateChangelogStorageLoader.loadFactory(configuration)
+                                                .extractConfiguration(configuration));
+                            }
+                        });
         Optional.ofNullable(loadStateBackend(configuration, classLoader))
                 .ifPresent(this::setStateBackend);
         configuration

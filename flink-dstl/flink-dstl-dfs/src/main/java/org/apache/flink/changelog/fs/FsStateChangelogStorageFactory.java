@@ -77,20 +77,26 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
     @Override
     public Configuration extractConfiguration(ReadableConfig src) {
         Configuration dst = StateChangelogStorageFactory.super.extractConfiguration(src);
-        dst.set(BASE_PATH, src.get(BASE_PATH));
-        dst.set(COMPRESSION_ENABLED, src.get(COMPRESSION_ENABLED));
-        dst.set(PREEMPTIVE_PERSIST_THRESHOLD, src.get(PREEMPTIVE_PERSIST_THRESHOLD));
-        dst.set(PERSIST_DELAY, src.get(PERSIST_DELAY));
-        dst.set(PERSIST_SIZE_THRESHOLD, src.get(PERSIST_SIZE_THRESHOLD));
-        dst.set(UPLOAD_BUFFER_SIZE, src.get(UPLOAD_BUFFER_SIZE));
-        dst.set(NUM_UPLOAD_THREADS, src.get(NUM_UPLOAD_THREADS));
-        dst.set(NUM_DISCARD_THREADS, src.get(NUM_DISCARD_THREADS));
-        dst.set(IN_FLIGHT_DATA_LIMIT, src.get(IN_FLIGHT_DATA_LIMIT));
-        dst.set(RETRY_POLICY, src.get(RETRY_POLICY));
-        dst.set(UPLOAD_TIMEOUT, src.get(UPLOAD_TIMEOUT));
-        dst.set(RETRY_MAX_ATTEMPTS, src.get(RETRY_MAX_ATTEMPTS));
-        dst.set(RETRY_DELAY_AFTER_FAILURE, src.get(RETRY_DELAY_AFTER_FAILURE));
-        dst.set(CACHE_IDLE_TIMEOUT, src.get(CACHE_IDLE_TIMEOUT));
+        src.getOptional(BASE_PATH).ifPresent(value -> dst.set(BASE_PATH, value));
+        src.getOptional(COMPRESSION_ENABLED)
+                .ifPresent(value -> dst.set(COMPRESSION_ENABLED, value));
+        src.getOptional(PREEMPTIVE_PERSIST_THRESHOLD)
+                .ifPresent(value -> dst.set(PREEMPTIVE_PERSIST_THRESHOLD, value));
+        src.getOptional(PERSIST_DELAY).ifPresent(value -> dst.set(PERSIST_DELAY, value));
+        src.getOptional(PERSIST_SIZE_THRESHOLD)
+                .ifPresent(value -> dst.set(PERSIST_SIZE_THRESHOLD, value));
+        src.getOptional(UPLOAD_BUFFER_SIZE).ifPresent(value -> dst.set(UPLOAD_BUFFER_SIZE, value));
+        src.getOptional(NUM_UPLOAD_THREADS).ifPresent(value -> dst.set(NUM_UPLOAD_THREADS, value));
+        src.getOptional(NUM_DISCARD_THREADS)
+                .ifPresent(value -> dst.set(NUM_DISCARD_THREADS, value));
+        src.getOptional(IN_FLIGHT_DATA_LIMIT)
+                .ifPresent(value -> dst.set(IN_FLIGHT_DATA_LIMIT, value));
+        src.getOptional(RETRY_POLICY).ifPresent(value -> dst.set(RETRY_POLICY, value));
+        src.getOptional(UPLOAD_TIMEOUT).ifPresent(value -> dst.set(UPLOAD_TIMEOUT, value));
+        src.getOptional(RETRY_MAX_ATTEMPTS).ifPresent(value -> dst.set(RETRY_MAX_ATTEMPTS, value));
+        src.getOptional(RETRY_DELAY_AFTER_FAILURE)
+                .ifPresent(value -> dst.set(RETRY_DELAY_AFTER_FAILURE, value));
+        src.getOptional(CACHE_IDLE_TIMEOUT).ifPresent(value -> dst.set(CACHE_IDLE_TIMEOUT, value));
         return dst;
     }
 

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -174,8 +175,9 @@ public class SavepointEnvironment implements Environment {
     public Configuration getJobConfiguration() {
         Configuration jobConfiguration = new Configuration();
         // This means leaving this stateBackend unwrapped.
-        jobConfiguration.setBoolean(
-                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION, false);
+        Configuration changelogConfiguration = new Configuration();
+        changelogConfiguration.setBoolean(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
+        StateChangelogOptionsInternal.putConfiguration(jobConfiguration, changelogConfiguration);
         return jobConfiguration;
     }
 

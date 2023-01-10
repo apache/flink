@@ -86,7 +86,6 @@ import org.apache.flink.streaming.runtime.translators.SourceTransformationTransl
 import org.apache.flink.streaming.runtime.translators.TimestampsAndWatermarksTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -431,7 +430,7 @@ public class StreamGraphGenerator {
         if (useStateBackend) {
             LOG.debug("Using BATCH execution state backend and timer service.");
             graph.setStateBackend(new BatchExecutionStateBackend());
-            graph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE, new Configuration());
+            graph.setChangelogStateBackendEnabled(new Configuration());
             graph.setCheckpointStorage(new BatchExecutionCheckpointStorage());
             graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
         } else {
@@ -444,12 +443,12 @@ public class StreamGraphGenerator {
         Optional<Boolean> enabled =
                 configuration.getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG);
         if (!enabled.isPresent()) {
-            graph.setChangelogStateBackendEnabled(TernaryBoolean.UNDEFINED, new Configuration());
+            graph.setChangelogStateBackendEnabled(new Configuration());
         } else if (!enabled.get()) {
-            graph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE, new Configuration());
+            graph.setChangelogStateBackendEnabled(
+                    new Configuration().set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false));
         } else {
             graph.setChangelogStateBackendEnabled(
-                    TernaryBoolean.TRUE,
                     // assumption: if any factory option is passed here then the correct factory
                     // must also be chosen
                     StateChangelogStorageLoader.loadFactory(configuration)

@@ -34,6 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -127,7 +128,6 @@ public class StreamGraph implements Pipeline {
     protected Map<Integer, String> vertexIDtoBrokerID;
     protected Map<Integer, Long> vertexIDtoLoopTimeout;
     private StateBackend stateBackend;
-    private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED; // todo: remove?
     private Configuration changelogConfiguration = new Configuration();
     private CheckpointStorage checkpointStorage;
     private Path savepointDir;
@@ -203,14 +203,15 @@ public class StreamGraph implements Pipeline {
         return this.stateBackend;
     }
 
-    public void setChangelogStateBackendEnabled(
-            TernaryBoolean changelogStateBackendEnabled, Configuration changelogConfiguration) {
-        this.changelogStateBackendEnabled = changelogStateBackendEnabled;
+    public void setChangelogStateBackendEnabled(Configuration changelogConfiguration) {
         this.changelogConfiguration = changelogConfiguration;
     }
 
     public TernaryBoolean isChangelogStateBackendEnabled() {
-        return changelogStateBackendEnabled;
+        return this.changelogConfiguration
+                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                .map(TernaryBoolean::fromBoolean)
+                .orElse(TernaryBoolean.UNDEFINED);
     }
 
     public void setCheckpointStorage(CheckpointStorage checkpointStorage) {
