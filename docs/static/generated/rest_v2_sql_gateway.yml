@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.17-SNAPSHOT
+  version: v2/1.17-SNAPSHOT
 paths:
   /api_versions:
     get:
@@ -84,6 +84,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CloseSessionResponseBody'
+  /sessions/{session_handle}/complete-statement:
+    get:
+      description: Get the completion hints for the given statement at the given position.
+      operationId: completeStatement
+      parameters:
+      - name: session_handle
+        in: path
+        description: The SessionHandle that identifies a session.
+        required: true
+        schema:
+          $ref: '#/components/schemas/SessionHandle'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteStatementResponseBody'
+  /sessions/{session_handle}/configure-session:
+    post:
+      description: |-
+        Configures the session with the statement which could be:
+        CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE, USE MODULE, ADD JAR.
+      operationId: configureSession
+      parameters:
+      - name: session_handle
+        in: path
+        description: The SessionHandle that identifies a session.
+        required: true
+        schema:
+          $ref: '#/components/schemas/SessionHandle'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigureSessionRequestBody'
+      responses:
+        "200":
+          description: The request was successful.
   /sessions/{session_handle}/heartbeat:
     post:
       description: "Trigger heartbeat to tell the server that the client is active,\
@@ -253,6 +292,21 @@ components:
         logicalType:
           $ref: '#/components/schemas/LogicalType'
         name:
+          type: string
+    CompleteStatementResponseBody:
+      type: object
+      properties:
+        candidates:
+          type: array
+          items:
+            type: string
+    ConfigureSessionRequestBody:
+      type: object
+      properties:
+        executionTimeout:
+          type: integer
+          format: int64
+        statement:
           type: string
     ConstraintType:
       type: string

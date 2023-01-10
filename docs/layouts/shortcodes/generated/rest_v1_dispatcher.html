@@ -2477,6 +2477,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "task" : {
             "type" : "string"
           },
+          "taskManagerId" : {
+            "type" : "string"
+          },
           "timestamp" : {
             "type" : "integer"
           }
@@ -2508,6 +2511,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                     "stacktrace" : {
                       "type" : "string"
                     },
+                    "taskManagerId" : {
+                      "type" : "string"
+                    },
                     "taskName" : {
                       "type" : "string"
                     },
@@ -2524,6 +2530,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                 "type" : "string"
               },
               "stacktrace" : {
+                "type" : "string"
+              },
+              "taskManagerId" : {
                 "type" : "string"
               },
               "taskName" : {
@@ -3713,6 +3722,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td colspan="2">
         <ul>
 <li><code>type</code> (optional): String value that specifies the Flame Graph type. Supported options are: "[FULL, ON_CPU, OFF_CPU]".</li>
+<li><code>subtaskindex</code> (optional): Positive integer value that identifies a subtask.</li>
         </ul>
       </td>
     </tr>
@@ -3732,17 +3742,17 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <summary>Response</summary>
           <pre><code>{
   "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:VertexFlameGraph",
   "properties" : {
     "data" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph:Node",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:VertexFlameGraph:Node",
       "properties" : {
         "children" : {
           "type" : "array",
           "items" : {
             "type" : "object",
-            "$ref" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph:Node"
+            "$ref" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:VertexFlameGraph:Node"
           }
         },
         "name" : {
