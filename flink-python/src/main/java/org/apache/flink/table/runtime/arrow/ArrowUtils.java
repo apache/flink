@@ -43,6 +43,7 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowDoubleColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowMapColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowNullColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowRowColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowSmallIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTimeColumnVector;
@@ -61,6 +62,7 @@ import org.apache.flink.table.runtime.arrow.writers.DoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
 import org.apache.flink.table.runtime.arrow.writers.MapWriter;
+import org.apache.flink.table.runtime.arrow.writers.NullWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.TimeWriter;
@@ -83,6 +85,7 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -110,6 +113,7 @@ import org.apache.arrow.vector.FixedSizeBinaryVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.NullVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeMicroVector;
 import org.apache.arrow.vector.TimeMilliVector;
@@ -310,6 +314,8 @@ public final class ArrowUtils {
                                 ((StructVector) vector).getVectorById(i), rowType.getTypeAt(i));
             }
             return RowWriter.forRow((StructVector) vector, fieldsWriters);
+        } else if (vector instanceof NullVector) {
+            return new NullWriter<>((NullVector) vector);
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unsupported type %s.", fieldType));
@@ -385,6 +391,8 @@ public final class ArrowUtils {
                                 ((StructVector) vector).getVectorById(i), rowType.getTypeAt(i));
             }
             return RowWriter.forArray((StructVector) vector, fieldsWriters);
+        } else if (vector instanceof NullVector) {
+            return new NullWriter<>((NullVector) vector);
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unsupported type %s.", fieldType));
@@ -459,6 +467,8 @@ public final class ArrowUtils {
                                 structVector.getVectorById(i), ((RowType) fieldType).getTypeAt(i));
             }
             return new ArrowRowColumnVector(structVector, fieldColumns);
+        } else if (vector instanceof NullVector) {
+            return ArrowNullColumnVector.INSTANCE;
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unsupported type %s.", fieldType));
@@ -799,6 +809,11 @@ public final class ArrowUtils {
         @Override
         public ArrowType visit(MapType mapType) {
             return new ArrowType.Map(false);
+        }
+
+        @Override
+        public ArrowType visit(NullType nullType) {
+            return ArrowType.Null.INSTANCE;
         }
 
         @Override

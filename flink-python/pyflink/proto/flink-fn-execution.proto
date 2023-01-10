@@ -208,6 +208,7 @@ message Schema {
     MULTISET = 18;
     LOCAL_ZONED_TIMESTAMP = 19;
     ZONED_TIMESTAMP = 20;
+    NULL = 21;
   }
 
   message MapInfo {

@@ -2256,6 +2256,8 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
                             str(arrow_type))
         return RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
                         for field in arrow_type])
+    elif types.is_null(arrow_type):
+        return NullType()
     else:
         raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
 
@@ -2322,6 +2324,8 @@ def to_arrow_type(data_type: DataType):
         fields = [pa.field(field.name, to_arrow_type(field.data_type), field.data_type._nullable)
                   for field in data_type]
         return pa.struct(fields)
+    elif isinstance(data_type, NullType):
+        return pa.null()
     else:
         raise ValueError("field_type %s is not supported." % data_type)
 
