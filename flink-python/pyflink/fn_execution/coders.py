@@ -29,7 +29,8 @@ from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, D
     ExternalTypeInfo
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType, MapType
+    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType, MapType, \
+    BinaryType
 
 try:
     from pyflink.fn_execution import coder_impl_fast as coder_impl
@@ -125,6 +126,8 @@ class LengthPrefixBaseCoder(ABC):
             return DoubleType(field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARCHAR:
             return VarCharType(0x7fffffff, field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.BINARY:
+            return BinaryType(field_type.binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
             return VarBinaryType(0x7fffffff, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:

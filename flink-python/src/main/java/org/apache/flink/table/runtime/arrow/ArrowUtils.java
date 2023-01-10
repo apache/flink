@@ -35,6 +35,7 @@ import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.runtime.arrow.sources.ArrowTableSource;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDateColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDecimalColumnVector;
@@ -52,6 +53,7 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowVarCharColumnVector;
 import org.apache.flink.table.runtime.arrow.writers.ArrayWriter;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.BinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.BooleanWriter;
 import org.apache.flink.table.runtime.arrow.writers.DateWriter;
 import org.apache.flink.table.runtime.arrow.writers.DecimalWriter;
@@ -69,6 +71,7 @@ import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -103,6 +106,7 @@ import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedSizeBinaryVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
@@ -255,6 +259,8 @@ public final class ArrowUtils {
             return DoubleWriter.forRow((Float8Vector) vector);
         } else if (vector instanceof VarCharVector) {
             return VarCharWriter.forRow((VarCharVector) vector);
+        } else if (vector instanceof FixedSizeBinaryVector) {
+            return BinaryWriter.forRow((FixedSizeBinaryVector) vector);
         } else if (vector instanceof VarBinaryVector) {
             return VarBinaryWriter.forRow((VarBinaryVector) vector);
         } else if (vector instanceof DecimalVector) {
@@ -328,6 +334,8 @@ public final class ArrowUtils {
             return DoubleWriter.forArray((Float8Vector) vector);
         } else if (vector instanceof VarCharVector) {
             return VarCharWriter.forArray((VarCharVector) vector);
+        } else if (vector instanceof FixedSizeBinaryVector) {
+            return BinaryWriter.forArray((FixedSizeBinaryVector) vector);
         } else if (vector instanceof VarBinaryVector) {
             return VarBinaryWriter.forArray((VarBinaryVector) vector);
         } else if (vector instanceof DecimalVector) {
@@ -411,6 +419,8 @@ public final class ArrowUtils {
             return new ArrowDoubleColumnVector((Float8Vector) vector);
         } else if (vector instanceof VarCharVector) {
             return new ArrowVarCharColumnVector((VarCharVector) vector);
+        } else if (vector instanceof FixedSizeBinaryVector) {
+            return new ArrowBinaryColumnVector((FixedSizeBinaryVector) vector);
         } else if (vector instanceof VarBinaryVector) {
             return new ArrowVarBinaryColumnVector((VarBinaryVector) vector);
         } else if (vector instanceof DecimalVector) {
@@ -713,6 +723,11 @@ public final class ArrowUtils {
         @Override
         public ArrowType visit(VarCharType varCharType) {
             return ArrowType.Utf8.INSTANCE;
+        }
+
+        @Override
+        public ArrowType visit(BinaryType varCharType) {
+            return new ArrowType.FixedSizeBinary(varCharType.getLength());
         }
 
         @Override
