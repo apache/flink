@@ -52,7 +52,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * This test uses a custom non-serializable data type to to ensure that state serializability is
+ * This test uses a custom non-serializable data type to ensure that state serializability is
  * handled correctly.
  */
 @SuppressWarnings("serial")

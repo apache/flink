@@ -66,7 +66,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Stream {@link ExecNode} to to write data into an external sink defined by a {@link
+ * Stream {@link ExecNode} to write data into an external sink defined by a {@link
  * DynamicTableSink}.
  */
 @ExecNodeMetadata(

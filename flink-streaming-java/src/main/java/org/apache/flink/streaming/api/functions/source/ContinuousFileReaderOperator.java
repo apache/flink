@@ -539,7 +539,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
             checkpointedState.clear();
 
             throw new Exception(
-                    "Could not add timestamped file input splits to to operator "
+                    "Could not add timestamped file input splits to operator "
                             + "state backend of operator "
                             + getOperatorName()
                             + '.',

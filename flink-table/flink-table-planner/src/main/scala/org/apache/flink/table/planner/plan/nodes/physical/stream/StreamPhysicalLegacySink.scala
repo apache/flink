@@ -32,7 +32,7 @@ import org.apache.calcite.rel.hint.RelHint
 import java.util
 
 /**
- * Stream physical RelNode to to write data into an external sink defined by a [[TableSink]].
+ * Stream physical RelNode to write data into an external sink defined by a [[TableSink]].
  *
  * @tparam T
  *   The return type of the [[TableSink]].

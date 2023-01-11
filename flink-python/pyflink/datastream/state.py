@@ -193,7 +193,7 @@ class ListState(MergingState[T, Iterable[T]]):
     @abstractmethod
     def update(self, values: List[T]) -> None:
         """
-        Updating existing values to to the given list of values.
+        Updating existing values to the given list of values.
         """
         pass
 

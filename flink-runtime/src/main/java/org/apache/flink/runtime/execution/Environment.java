@@ -188,7 +188,7 @@ public interface Environment {
     TaskKvStateRegistry getTaskKvStateRegistry();
 
     /**
-     * Confirms that the invokable has successfully completed all steps it needed to to for the
+     * Confirms that the invokable has successfully completed all steps it needed to for the
      * checkpoint with the give checkpoint-ID. This method does not include any state in the
      * checkpoint.
      *

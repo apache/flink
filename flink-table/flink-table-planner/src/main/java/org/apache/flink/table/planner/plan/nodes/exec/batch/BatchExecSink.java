@@ -44,8 +44,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Batch {@link ExecNode} to to write data into an external sink defined by a {@link
- * DynamicTableSink}.
+ * Batch {@link ExecNode} to write data into an external sink defined by a {@link DynamicTableSink}.
  */
 public class BatchExecSink extends CommonExecSink implements BatchExecNode<Object> {
     public BatchExecSink(
