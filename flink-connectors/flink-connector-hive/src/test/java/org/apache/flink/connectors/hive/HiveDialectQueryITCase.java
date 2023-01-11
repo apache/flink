@@ -945,6 +945,7 @@ public class HiveDialectQueryITCase {
     public void testNullLiteralAsArgument() throws Exception {
         tableEnv.executeSql("create table test_ts(ts timestamp)");
         tableEnv.executeSql("create table t_bigint(ts bigint)");
+        tableEnv.executeSql("create table t_array(a_t array<bigint>)");
         Long testTimestamp = 1671058803926L;
         // timestamp's behavior is different between hive2 and hive3, so
         // use HiveShim in this test to hide such difference
@@ -971,9 +972,17 @@ public class HiveDialectQueryITCase {
             // verify it can cast to timestamp value correctly
             assertThat(result.toString())
                     .isEqualTo(String.format("[+I[%s], +I[null]]", expectDateTime));
+
+            // test cast null as bigint
+            tableEnv.executeSql("insert into t_array select array(cast(null as bigint))").await();
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from t_array").collect());
+            assertThat(result.toString()).isEqualTo("[+I[null]]");
         } finally {
             tableEnv.executeSql("drop table test_ts");
             tableEnv.executeSql("drop table t_bigint");
+            tableEnv.executeSql("drop table t_array");
         }
     }
 
