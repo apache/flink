@@ -76,7 +76,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
