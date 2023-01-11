@@ -235,7 +235,7 @@ public class HiveOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Enabling native aggregate function for hive dialect to use hash-agg strategy that can improve the aggregate performance.");
+                            "Enabling native aggregate function for hive dialect to use hash-agg strategy that can improve the aggregation performance.");
 
     // --------------------------------------------------------------------------------------------
     // Enums

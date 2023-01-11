@@ -88,8 +88,8 @@ public class HiveModule implements Module {
     private final String hiveVersion;
     private final HiveShim hiveShim;
     private Set<String> functionNames;
-    private final ClassLoader classLoader;
     private final ReadableConfig config;
+    private final ClassLoader classLoader;
 
     @VisibleForTesting
     public HiveModule() {
@@ -193,8 +193,7 @@ public class HiveModule implements Module {
         return hiveVersion;
     }
 
-    @VisibleForTesting
-    public boolean isNativeAggFunctionEnabled() {
+    private boolean isNativeAggFunctionEnabled() {
         return config.get(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED);
     }
 }

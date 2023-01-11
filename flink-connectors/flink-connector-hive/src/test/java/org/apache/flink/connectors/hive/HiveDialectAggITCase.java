@@ -28,6 +28,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -56,8 +57,6 @@ public class HiveDialectAggITCase {
         hiveCatalog.getHiveConf().setVar(HiveConf.ConfVars.HIVE_QUOTEDID_SUPPORT, "none");
         hiveCatalog.open();
         tableEnv = getTableEnvWithHiveCatalog();
-        // enable native hive agg function
-        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, true);
 
         // create tables
         tableEnv.executeSql("create table foo (x int, y int)");
@@ -71,11 +70,23 @@ public class HiveDialectAggITCase {
                 .commit();
     }
 
+    @Before
+    public void before() {
+        // enable native hive agg function
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, true);
+    }
+
     @Test
     public void testSumAggFunctionPlan() {
         // test explain
         String actualPlan = explainSql("select x, sum(y) from foo group by x");
         assertThat(actualPlan).isEqualTo(readFromResource("/explain/testSumAggFunctionPlan.out"));
+
+        // test fallback to hive sum udaf
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
+        String actualSortAggPlan = explainSql("select x, sum(y) from foo group by x");
+        assertThat(actualSortAggPlan)
+                .isEqualTo(readFromResource("/explain/testSumAggFunctionFallbackPlan.out"));
     }
 
     @Test
