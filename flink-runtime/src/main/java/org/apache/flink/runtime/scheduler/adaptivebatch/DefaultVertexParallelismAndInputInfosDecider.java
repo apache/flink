@@ -63,14 +63,6 @@ public class DefaultVertexParallelismAndInputInfosDecider
 
     private static final Logger LOG =
             LoggerFactory.getLogger(DefaultVertexParallelismAndInputInfosDecider.class);
-
-    /**
-     * The cap ratio of broadcast bytes to data volume per task. The cap ratio is 0.5 currently
-     * because we usually expect the broadcast dataset to be smaller than non-broadcast. We can make
-     * it configurable later if we see users requesting for it.
-     */
-    private static final double CAP_RATIO_OF_BROADCAST = 0.5;
-
     private final int maxParallelism;
     private final int minParallelism;
     private final long dataVolumePerTask;
@@ -158,17 +150,17 @@ public class DefaultVertexParallelismAndInputInfosDecider
     int decideParallelism(JobVertexID jobVertexId, List<BlockingResultInfo> consumedResults) {
         checkArgument(!consumedResults.isEmpty());
 
-        long broadcastBytes = getReasonableBroadcastBytes(jobVertexId, consumedResults);
-        long nonBroadcastBytes = getNonBroadcastBytes(consumedResults);
-
-        int parallelism =
-                (int) Math.ceil((double) nonBroadcastBytes / (dataVolumePerTask - broadcastBytes));
+        // Considering that the sizes of broadcast results are usually very small, we compute the
+        // parallelism only based on sizes of non-broadcast results
+        long totalBytes =
+                getNonBroadcastResultInfos(consumedResults).stream()
+                        .mapToLong(BlockingResultInfo::getNumBytesProduced)
+                        .sum();
+        int parallelism = (int) Math.ceil((double) totalBytes / dataVolumePerTask);
 
         LOG.debug(
-                "The size of broadcast data is {}, the size of non-broadcast data is {}, "
-                        + "the initially decided parallelism of job vertex {} is {}.",
-                new MemorySize(broadcastBytes),
-                new MemorySize(nonBroadcastBytes),
+                "The total size of non-broadcast data is {}, the initially decided parallelism of job vertex {} is {}.",
+                new MemorySize(totalBytes),
                 jobVertexId,
                 parallelism);
 
@@ -213,34 +205,31 @@ public class DefaultVertexParallelismAndInputInfosDecider
         checkArgument(!consumedResults.isEmpty());
         consumedResults.forEach(resultInfo -> checkState(!resultInfo.isPointwise()));
 
+        // Considering that the sizes of broadcast results are usually very small, we compute the
+        // parallelism and input infos only based on sizes of non-broadcast results
         final List<BlockingResultInfo> nonBroadcastResults =
                 getNonBroadcastResultInfos(consumedResults);
-        long broadcastBytes = getReasonableBroadcastBytes(jobVertexId, consumedResults);
         int subpartitionNum = checkAndGetSubpartitionNum(nonBroadcastResults);
 
-        long nonBroadcastDataVolumeLimit = dataVolumePerTask - broadcastBytes;
-        long[] nonBroadcastBytesBySubpartition = new long[subpartitionNum];
-        Arrays.fill(nonBroadcastBytesBySubpartition, 0L);
+        long[] bytesBySubpartition = new long[subpartitionNum];
+        Arrays.fill(bytesBySubpartition, 0L);
         for (BlockingResultInfo resultInfo : nonBroadcastResults) {
             List<Long> subpartitionBytes =
                     ((AllToAllBlockingResultInfo) resultInfo).getAggregatedSubpartitionBytes();
             for (int i = 0; i < subpartitionNum; ++i) {
-                nonBroadcastBytesBySubpartition[i] += subpartitionBytes.get(i);
+                bytesBySubpartition[i] += subpartitionBytes.get(i);
             }
         }
 
         // compute subpartition ranges
         List<IndexRange> subpartitionRanges =
-                computeSubpartitionRanges(
-                        nonBroadcastBytesBySubpartition, nonBroadcastDataVolumeLimit);
+                computeSubpartitionRanges(bytesBySubpartition, dataVolumePerTask);
 
         // if the parallelism is not legal, adjust to a legal parallelism
         if (!isLegalParallelism(subpartitionRanges.size())) {
             Optional<List<IndexRange>> adjustedSubpartitionRanges =
                     adjustToClosestLegalParallelism(
-                            nonBroadcastBytesBySubpartition,
-                            nonBroadcastDataVolumeLimit,
-                            subpartitionRanges.size());
+                            bytesBySubpartition, dataVolumePerTask, subpartitionRanges.size());
             if (!adjustedSubpartitionRanges.isPresent()) {
                 // can't find any legal parallelism, fall back to evenly distribute subpartitions
                 LOG.info(
@@ -397,46 +386,6 @@ public class DefaultVertexParallelismAndInputInfosDecider
             }
         }
         return count;
-    }
-
-    private long getNonBroadcastBytes(List<BlockingResultInfo> consumedResults) {
-        return getNonBroadcastResultInfos(consumedResults).stream()
-                .mapToLong(BlockingResultInfo::getNumBytesProduced)
-                .sum();
-    }
-
-    private long getReasonableBroadcastBytes(
-            JobVertexID jobVertexId, List<BlockingResultInfo> consumedResults) {
-        long broadcastBytes =
-                getBroadcastResultInfos(consumedResults).stream()
-                        .mapToLong(BlockingResultInfo::getNumBytesProduced)
-                        .sum();
-
-        long expectedMaxBroadcastBytes =
-                (long) Math.ceil((dataVolumePerTask * CAP_RATIO_OF_BROADCAST));
-
-        if (broadcastBytes > expectedMaxBroadcastBytes) {
-            LOG.info(
-                    "The size of broadcast data {} is larger than the expected maximum value {} ('{}' * {})."
-                            + " Use {} as the size of broadcast data to decide the parallelism of job vertex {}.",
-                    new MemorySize(broadcastBytes),
-                    new MemorySize(expectedMaxBroadcastBytes),
-                    JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK.key(),
-                    CAP_RATIO_OF_BROADCAST,
-                    new MemorySize(expectedMaxBroadcastBytes),
-                    jobVertexId);
-
-            broadcastBytes = expectedMaxBroadcastBytes;
-        }
-
-        return broadcastBytes;
-    }
-
-    private static List<BlockingResultInfo> getBroadcastResultInfos(
-            List<BlockingResultInfo> consumedResults) {
-        return consumedResults.stream()
-                .filter(BlockingResultInfo::isBroadcast)
-                .collect(Collectors.toList());
     }
 
     private static List<BlockingResultInfo> getNonBroadcastResultInfos(
