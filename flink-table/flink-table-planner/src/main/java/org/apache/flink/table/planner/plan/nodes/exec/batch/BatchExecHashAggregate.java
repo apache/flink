@@ -58,6 +58,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
     private final RowType aggInputRowType;
     private final boolean isMerge;
     private final boolean isFinal;
+    private final boolean supportAdaptiveLocalHashAgg;
 
     public BatchExecHashAggregate(
             ReadableConfig tableConfig,
@@ -67,6 +68,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
             RowType aggInputRowType,
             boolean isMerge,
             boolean isFinal,
+            boolean supportAdaptiveLocalHashAgg,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -83,6 +85,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         this.aggInputRowType = aggInputRowType;
         this.isMerge = isMerge;
         this.isFinal = isFinal;
+        this.supportAdaptiveLocalHashAgg = supportAdaptiveLocalHashAgg;
     }
 
     @SuppressWarnings("unchecked")
@@ -126,17 +129,17 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                     config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
                             .getBytes();
             generatedOperator =
-                    new HashAggCodeGenerator(
-                                    ctx,
-                                    planner.createRelBuilder(),
-                                    aggInfos,
-                                    inputRowType,
-                                    outputRowType,
-                                    grouping,
-                                    auxGrouping,
-                                    isMerge,
-                                    isFinal)
-                            .genWithKeys();
+                    HashAggCodeGenerator.genWithKeys(
+                            ctx,
+                            planner.createRelBuilder(),
+                            aggInfos,
+                            inputRowType,
+                            outputRowType,
+                            grouping,
+                            auxGrouping,
+                            isMerge,
+                            isFinal,
+                            supportAdaptiveLocalHashAgg);
         }
 
         return ExecNodeUtil.createOneInputTransformation(

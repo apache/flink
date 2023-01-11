@@ -203,7 +203,8 @@ trait BatchPhysicalAggRuleBase {
       auxGrouping: Array[Int],
       aggBufferTypes: Array[Array[DataType]],
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      isLocalHashAgg: Boolean): BatchPhysicalGroupAggregateBase = {
+      isLocalHashAgg: Boolean,
+      supportAdaptiveLocalHashAgg: Boolean): BatchPhysicalGroupAggregateBase = {
     val inputRowType = input.getRowType
     val aggFunctions = aggCallToAggFunction.map(_._2).toArray
 
@@ -231,6 +232,7 @@ trait BatchPhysicalAggRuleBase {
         inputRowType,
         grouping,
         auxGrouping,
+        supportAdaptiveLocalHashAgg,
         aggCallToAggFunction)
     } else {
       new BatchPhysicalLocalSortAggregate(

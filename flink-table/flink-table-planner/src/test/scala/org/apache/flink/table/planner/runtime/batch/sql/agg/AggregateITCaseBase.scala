@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
 import org.apache.flink.configuration.JobManagerOptions.SchedulerType
@@ -298,9 +298,16 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     val tableRows = tableData.map(toRow)
 
     val tupleTypeInfo = implicitly[TypeInformation[T]]
-    val fieldInfos = tupleTypeInfo.getGenericParameters.values()
-    import scala.collection.JavaConverters._
-    val rowTypeInfo = new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    val rowTypeInfo: RowTypeInfo = if (tupleTypeInfo.isTupleType) {
+      new RowTypeInfo(
+        tupleTypeInfo
+          .asInstanceOf[TupleTypeInfoBase[T]]
+          .getFieldTypes: _*)
+    } else {
+      val fieldInfos = tupleTypeInfo.getGenericParameters.values()
+      import scala.collection.JavaConverters._
+      new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    }
 
     newTableId += 1
     val tableName = "TestTableX" + newTableId
