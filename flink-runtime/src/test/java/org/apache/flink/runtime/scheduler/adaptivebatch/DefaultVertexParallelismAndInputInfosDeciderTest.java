@@ -118,6 +118,20 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     }
 
     @Test
+    void testDecideParallelismWithMaxSubpartitionLimitation() {
+        final DefaultVertexParallelismAndInputInfosDecider decider =
+                createDefaultVertexParallelismAndInputInfosDecider(1, 100, BYTE_256_MB);
+
+        BlockingResultInfo resultInfo1 = new TestingBlockingResultInfo(false, 1L, 1024, 1024);
+        BlockingResultInfo resultInfo2 = new TestingBlockingResultInfo(false, 1L, 512, 512);
+
+        int parallelism =
+                decider.decideParallelism(
+                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
+        assertThat(parallelism).isEqualTo(32);
+    }
+
+    @Test
     void testAllEdgesAllToAll() {
         final DefaultVertexParallelismAndInputInfosDecider decider =
                 createDefaultVertexParallelismAndInputInfosDecider(1, 10, 60L);
@@ -347,13 +361,49 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).isEmpty();
     }
 
+    @Test
+    void testEvenlyDistributeDataWithMaxSubpartitionLimitation() {
+        final DefaultVertexParallelismAndInputInfosDecider decider =
+                createDefaultVertexParallelismAndInputInfosDecider(1, 100, BYTE_256_MB);
+
+        long[] subpartitionBytes = new long[1024];
+        Arrays.fill(subpartitionBytes, 1L);
+        AllToAllBlockingResultInfo resultInfo =
+                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 1024, 1024, false);
+        for (int i = 0; i < 1024; ++i) {
+            resultInfo.recordPartitionInfo(i, new ResultPartitionBytes(subpartitionBytes));
+        }
+
+        ParallelismAndInputInfos parallelismAndInputInfos =
+                decider.decideParallelismAndInputInfosForVertex(
+                        new JobVertexID(), Collections.singletonList(resultInfo), -1);
+
+        assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(32);
+        List<IndexRange> subpartitionRanges = new ArrayList<>();
+        for (int i = 0; i < 32; ++i) {
+            subpartitionRanges.add(new IndexRange(i * 32, (i + 1) * 32 - 1));
+        }
+        checkAllToAllJobVertexInputInfo(
+                Iterables.getOnlyElement(
+                        parallelismAndInputInfos.getJobVertexInputInfos().values()),
+                new IndexRange(0, 1023),
+                subpartitionRanges);
+    }
+
     private static void checkAllToAllJobVertexInputInfo(
-            JobVertexInputInfo jobVertexInputInfo, List<IndexRange> subpartitionRange) {
+            JobVertexInputInfo jobVertexInputInfo, List<IndexRange> subpartitionRanges) {
+        checkAllToAllJobVertexInputInfo(
+                jobVertexInputInfo, new IndexRange(0, 0), subpartitionRanges);
+    }
+
+    private static void checkAllToAllJobVertexInputInfo(
+            JobVertexInputInfo jobVertexInputInfo,
+            IndexRange indexRange,
+            List<IndexRange> subpartitionRanges) {
         List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
-        for (int i = 0; i < subpartitionRange.size(); ++i) {
+        for (int i = 0; i < subpartitionRanges.size(); ++i) {
             executionVertexInputInfos.add(
-                    new ExecutionVertexInputInfo(
-                            i, new IndexRange(0, 0), subpartitionRange.get(i)));
+                    new ExecutionVertexInputInfo(i, indexRange, subpartitionRanges.get(i)));
         }
         assertThat(jobVertexInputInfo.getExecutionVertexInputInfos())
                 .containsExactlyInAnyOrderElementsOf(executionVertexInputInfos);
@@ -446,12 +496,20 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     private static class TestingBlockingResultInfo implements BlockingResultInfo {
 
         private final boolean isBroadcast;
-
         private final long producedBytes;
+        private final int numPartitions;
+        private final int numSubpartitions;
 
         private TestingBlockingResultInfo(boolean isBroadcast, long producedBytes) {
+            this(isBroadcast, producedBytes, MAX_PARALLELISM, MAX_PARALLELISM);
+        }
+
+        private TestingBlockingResultInfo(
+                boolean isBroadcast, long producedBytes, int numPartitions, int numSubpartitions) {
             this.isBroadcast = isBroadcast;
             this.producedBytes = producedBytes;
+            this.numPartitions = numPartitions;
+            this.numSubpartitions = numSubpartitions;
         }
 
         @Override
@@ -471,12 +529,12 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
         @Override
         public int getNumPartitions() {
-            return 0;
+            return numPartitions;
         }
 
         @Override
         public int getNumSubpartitions(int partitionIndex) {
-            return 0;
+            return numSubpartitions;
         }
 
         @Override
