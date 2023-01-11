@@ -47,6 +47,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nonnull;
 
@@ -360,7 +361,7 @@ public class AsyncWaitOperator<IN, OUT>
                 for (RetryableResultHandlerDelegator delegator : inFlightDelayRetryHandlers) {
                     assert delegator.delayedRetryTimer != null;
                     // cancel delayedRetryTimer timer first
-                    delegator.delayedRetryTimer.cancel(true);
+                    delegator.cancelRetryTimer();
 
                     // fire an attempt intermediately not rely on successfully canceling the retry
                     // timer for two reasons: 1. cancel retry timer can not be 100% safe 2. there's
@@ -418,6 +419,17 @@ public class AsyncWaitOperator<IN, OUT>
                 resultHandlerDelegator);
     }
 
+    /** Utility method to register timeout timer. */
+    private ScheduledFuture<?> registerTimer(
+            ProcessingTimeService processingTimeService,
+            long timeout,
+            ThrowingConsumer<Void, Exception> callback) {
+        final long timeoutTimestamp = timeout + processingTimeService.getCurrentProcessingTime();
+
+        return processingTimeService.registerTimer(
+                timeoutTimestamp, timestamp -> callback.accept(null));
+    }
+
     /** A delegator holds the real {@link ResultHandler} to handle retries. */
     private class RetryableResultHandlerDelegator implements ResultFuture<OUT> {
 
@@ -444,30 +456,23 @@ public class AsyncWaitOperator<IN, OUT>
             this.processingTimeService = processingTimeService;
         }
 
-        public void registerTimeout(long timeout) {
-            // must overwrite the registerTimeout here to control the callback logic
-            registerTimeout(processingTimeService, timeout, resultHandler);
+        private void registerTimeout(long timeout) {
+            resultHandler.timeoutTimer =
+                    registerTimer(processingTimeService, timeout, t -> timerTriggered());
         }
 
-        private void registerTimeout(
-                ProcessingTimeService processingTimeService,
-                long timeout,
-                ResultHandler resultHandler) {
-            final long timeoutTimestamp =
-                    timeout + processingTimeService.getCurrentProcessingTime();
-
-            resultHandler.timeoutTimer =
-                    processingTimeService.registerTimer(
-                            timeoutTimestamp, timestamp -> timerTriggered());
+        private void cancelRetryTimer() {
+            if (delayedRetryTimer != null) {
+                delayedRetryTimer.cancel(true);
+            }
         }
 
         /** Rewrite the timeout process to deal with retry state. */
         private void timerTriggered() throws Exception {
             if (!resultHandler.completed.get()) {
                 // cancel delayed retry timer first
-                if (delayedRetryTimer != null) {
-                    delayedRetryTimer.cancel(true);
-                }
+                cancelRetryTimer();
+
                 // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
                 retryAwaiting.set(false);
 
@@ -482,9 +487,8 @@ public class AsyncWaitOperator<IN, OUT>
             if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
                 processRetryInMailBox(results, null);
             } else {
-                if (delayedRetryTimer != null) {
-                    delayedRetryTimer.cancel(true);
-                }
+                cancelRetryTimer();
+
                 resultHandler.complete(results);
             }
         }
@@ -494,6 +498,8 @@ public class AsyncWaitOperator<IN, OUT>
             if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
                 processRetryInMailBox(null, error);
             } else {
+                cancelRetryTimer();
+
                 resultHandler.completeExceptionally(error);
             }
         }
@@ -636,12 +642,7 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void registerTimeout(ProcessingTimeService processingTimeService, long timeout) {
-            final long timeoutTimestamp =
-                    timeout + processingTimeService.getCurrentProcessingTime();
-
-            timeoutTimer =
-                    processingTimeService.registerTimer(
-                            timeoutTimestamp, timestamp -> timerTriggered());
+            timeoutTimer = registerTimer(processingTimeService, timeout, t -> timerTriggered());
         }
 
         private void timerTriggered() throws Exception {
