@@ -33,7 +33,7 @@ under the License.
 	<artifactId>flink-connector-aws-base</artifactId>
 	<name>Flink : Connectors : AWS Base</name>
 	<properties>
-		<aws.sdk.version>2.17.247</aws.sdk.version>
+		<aws.sdk.version>2.19.14</aws.sdk.version>
 	</properties>
 
 	<packaging>jar</packaging>
