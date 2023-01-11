@@ -536,12 +536,17 @@ public class OperationExecutor {
     public ResultFetcher callShowJobsOperation(
             OperationHandle operationHandle, ShowJobsOperation showJobsOperation)
             throws SqlExecutionException {
+        Duration clientTimeout =
+                Configuration.fromMap(sessionContext.getConfigMap())
+                        .get(ClientOptions.CLIENT_TIMEOUT);
         Collection<JobStatusMessage> jobs =
                 runClusterAction(
                         operationHandle,
                         clusterClient -> {
                             try {
-                                return clusterClient.listJobs().get();
+                                return clusterClient
+                                        .listJobs()
+                                        .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
                             } catch (Exception e) {
                                 throw new SqlExecutionException(
                                         "Failed to list jobs in the cluster.", e);
