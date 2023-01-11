@@ -62,7 +62,7 @@ public class AWSServicesTestUtils {
     private static final String SECRET_ACCESS_KEY = "secretAccessKey";
 
     public static S3Client createS3Client(String endpoint, SdkHttpClient httpClient) {
-        return createAwsSyncClient(endpoint, httpClient, S3Client.builder());
+        return createAwsSyncClient(endpoint, httpClient, S3Client.builder().forcePathStyle(true));
     }
 
     public static IamClient createIamClient(String endpoint, SdkHttpClient httpClient) {
