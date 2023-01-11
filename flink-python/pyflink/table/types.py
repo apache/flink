@@ -2360,8 +2360,6 @@ class DataTypes(object):
         :param length: int, the string representation length. It must have a value
                        between 1 and 2147483647(0x7fffffff) (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
-
-        .. note:: `CharType` is still not supported yet.
         """
         return CharType(length, nullable)
 
@@ -2409,8 +2407,6 @@ class DataTypes(object):
         :param length: int, the number of bytes. It must have a value between
                        1 and 2147483647(0x7fffffff) (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
-
-        .. note:: `BinaryType` is still not supported yet.
         """
         return BinaryType(length, nullable)
 
@@ -2423,7 +2419,6 @@ class DataTypes(object):
                        between 1 and 2147483647(0x7fffffff) (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
 
-        .. note:: The length limit must be 0x7fffffff(2147483647) currently.
         .. seealso:: :func:`~DataTypes.BYTES`
         """
         return VarBinaryType(length, nullable)

@@ -391,12 +391,45 @@ class UserDefinedFunctionTests(object):
                 'decimal_param is wrong value %s !' % decimal_param
             return decimal_param
 
+        @udf(result_type=DataTypes.BINARY(5))
+        def binary_func(binary_param):
+            assert len(binary_param) == 5
+            return binary_param
+
+        @udf(result_type=DataTypes.CHAR(7))
+        def char_func(char_param):
+            assert len(char_param) == 7
+            return char_param
+
+        @udf(result_type=DataTypes.VARCHAR(10))
+        def varchar_func(varchar_param):
+            assert len(varchar_param) <= 10
+            return varchar_param
+
         sink_table = generate_random_table_name()
         sink_table_ddl = f"""
             CREATE TABLE {sink_table}(
-            a BIGINT, b BIGINT, c TINYINT, d BOOLEAN, e SMALLINT, f INT, g FLOAT, h DOUBLE, i BYTES,
-            j STRING, k DATE, l TIME, m TIMESTAMP(3), n ARRAY<BIGINT>, o MAP<BIGINT, STRING>,
-            p DECIMAL(38, 18), q DECIMAL(38, 18)) WITH ('connector'='test-sink')
+                a BIGINT,
+                b BIGINT,
+                c TINYINT,
+                d BOOLEAN,
+                e SMALLINT,
+                f INT,
+                g FLOAT,
+                h DOUBLE,
+                i BYTES,
+                j STRING,
+                k DATE,
+                l TIME,
+                m TIMESTAMP(3),
+                n ARRAY<BIGINT>,
+                o MAP<BIGINT, STRING>,
+                p DECIMAL(38, 18),
+                q DECIMAL(38, 18),
+                r BINARY(5),
+                s CHAR(7),
+                t VARCHAR(10)
+            ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -408,7 +441,8 @@ class UserDefinedFunctionTests(object):
               datetime.time(hour=12, minute=0, second=0, microsecond=123000),
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [[1, 2, 3]],
               {1: 'flink', 2: 'pyflink'}, decimal.Decimal('1000000000000000000.05'),
-              decimal.Decimal('1000000000000000000.05999999999999999899999999999'))],
+              decimal.Decimal('1000000000000000000.05999999999999999899999999999'),
+              bytearray(b'flink'), 'pyflink', 'pyflink')],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -426,7 +460,10 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT()))),
                  DataTypes.FIELD("o", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())),
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
-                 DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18))]))
+                 DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18)),
+                 DataTypes.FIELD("r", DataTypes.BINARY(5)),
+                 DataTypes.FIELD("s", DataTypes.CHAR(7)),
+                 DataTypes.FIELD("t", DataTypes.VARCHAR(10))]))
 
         t.select(
             bigint_func(t.a),
@@ -445,7 +482,10 @@ class UserDefinedFunctionTests(object):
             array_func(t.n),
             map_func(t.o),
             decimal_func(t.p),
-            decimal_cut_func(t.q)) \
+            decimal_cut_func(t.q),
+            binary_func(t.r),
+            char_func(t.s),
+            varchar_func(t.t)) \
             .execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
@@ -454,7 +494,8 @@ class UserDefinedFunctionTests(object):
                             "[102, 108, 105, 110, 107], pyflink, 2014-09-13, 12:00:00.123, "
                             "2018-03-11T03:00:00.123, [1, 2, 3], "
                             "{1=flink, 2=pyflink}, 1000000000000000000.050000000000000000, "
-                            "1000000000000000000.059999999999999999]"])
+                            "1000000000000000000.059999999999999999, [102, 108, 105, 110, 107], "
+                            "pyflink, pyflink]"])
 
     def test_all_data_types(self):
         def boolean_func(bool_param):

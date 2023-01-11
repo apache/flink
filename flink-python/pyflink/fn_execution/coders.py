@@ -125,11 +125,11 @@ class LengthPrefixBaseCoder(ABC):
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DOUBLE:
             return DoubleType(field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARCHAR:
-            return VarCharType(0x7fffffff, field_type.nullable)
+            return VarCharType(field_type.var_char_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.BINARY:
             return BinaryType(field_type.binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
-            return VarBinaryType(0x7fffffff, field_type.nullable)
+            return VarBinaryType(field_type.var_binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
             return DecimalType(field_type.decimal_info.precision,
                                field_type.decimal_info.scale,
