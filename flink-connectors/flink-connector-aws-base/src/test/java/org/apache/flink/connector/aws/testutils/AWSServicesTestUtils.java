@@ -67,6 +67,7 @@ public class AWSServicesTestUtils {
         return S3AsyncClient.builder()
                 .httpClient(httpClient)
                 .region(Region.AP_SOUTHEAST_1)
+                .forcePathStyle(true)
                 .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(createDefaultCredentials())
                 .build();

@@ -33,7 +33,7 @@
 	<packaging>jar</packaging>
 
 	<properties>
-		<aws.sdk.version>2.17.247</aws.sdk.version>
+		<aws.sdk.version>2.19.14</aws.sdk.version>
 	</properties>
 
 	<dependencyManagement>
