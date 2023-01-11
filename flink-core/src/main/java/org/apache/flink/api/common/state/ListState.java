@@ -44,7 +44,7 @@ import java.util.List;
 public interface ListState<T> extends MergingState<T, Iterable<T>> {
 
     /**
-     * Updates the operator state accessible by {@link #get()} by updating existing values to to the
+     * Updates the operator state accessible by {@link #get()} by updating existing values to the
      * given list of values. The next time {@link #get()} is called (for the same state partition)
      * the returned state will represent the updated list.
      *

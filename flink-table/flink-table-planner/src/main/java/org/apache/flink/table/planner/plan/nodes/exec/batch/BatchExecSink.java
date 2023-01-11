@@ -35,8 +35,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import java.util.Collections;
 
 /**
- * Batch {@link ExecNode} to to write data into an external sink defined by a {@link
- * DynamicTableSink}.
+ * Batch {@link ExecNode} to write data into an external sink defined by a {@link DynamicTableSink}.
  */
 public class BatchExecSink extends CommonExecSink implements BatchExecNode<Object> {
     public BatchExecSink(

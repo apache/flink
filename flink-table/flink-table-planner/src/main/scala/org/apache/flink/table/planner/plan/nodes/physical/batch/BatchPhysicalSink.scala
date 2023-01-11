@@ -33,9 +33,7 @@ import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
-/**
- * Batch physical RelNode to to write data into an external sink defined by a [[DynamicTableSink]].
- */
+/** Batch physical RelNode to write data into an external sink defined by a [[DynamicTableSink]]. */
 class BatchPhysicalSink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

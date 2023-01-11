@@ -74,7 +74,7 @@ The dynamic partition columns must be specified last among the columns in the `S
 **Note:**
 
 In Hive, by default, users must specify at least one static partition in case of accidentally overwriting all partitions, and users can
-set the configuration `hive.exec.dynamic.partition.mode` to `nonstrict` to to allow all partitions to be dynamic.
+set the configuration `hive.exec.dynamic.partition.mode` to `nonstrict` to allow all partitions to be dynamic.
 
 But in Flink's Hive dialect, it'll always be `nonstrict` mode which means all partitions are allowed to be dynamic.
 {{< /hint >}}

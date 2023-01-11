@@ -47,7 +47,7 @@ class DefaultRelShuttle extends RelHomogeneousShuttle {
 }
 
 /**
- * Convert all [[QueryOperationCatalogViewTable]]s (including tables in [[RexSubQuery]]) to to a
+ * Convert all [[QueryOperationCatalogViewTable]]s (including tables in [[RexSubQuery]]) to a
  * relational expression.
  */
 class ExpandTableScanShuttle extends RelShuttleImpl {
