@@ -269,7 +269,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                         .stream()
                         .map(
                                 entry ->
-                                        FlinkFnApi.UserDefinedFunctions.JobParameter.newBuilder()
+                                        FlinkFnApi.JobParameter.newBuilder()
                                                 .setKey(entry.getKey())
                                                 .setValue(entry.getValue())
                                                 .build())

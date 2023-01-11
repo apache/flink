@@ -150,7 +150,7 @@ public enum ProtoUtils {
                         .stream()
                         .map(
                                 entry ->
-                                        FlinkFnApi.UserDefinedFunctions.JobParameter.newBuilder()
+                                        FlinkFnApi.JobParameter.newBuilder()
                                                 .setKey(entry.getKey())
                                                 .setValue(entry.getValue())
                                                 .build())
@@ -270,8 +270,7 @@ public enum ProtoUtils {
                                         .entrySet().stream()
                                         .map(
                                                 entry ->
-                                                        FlinkFnApi.UserDefinedDataStreamFunction
-                                                                .JobParameter.newBuilder()
+                                                        FlinkFnApi.JobParameter.newBuilder()
                                                                 .setKey(entry.getKey())
                                                                 .setValue(entry.getValue())
                                                                 .build())
@@ -280,8 +279,7 @@ public enum ProtoUtils {
                                 internalParameters.entrySet().stream()
                                         .map(
                                                 entry ->
-                                                        FlinkFnApi.UserDefinedDataStreamFunction
-                                                                .JobParameter.newBuilder()
+                                                        FlinkFnApi.JobParameter.newBuilder()
                                                                 .setKey(entry.getKey())
                                                                 .setValue(entry.getValue())
                                                                 .build())
