@@ -1163,6 +1163,7 @@ class FlinkRelMdHandlerTestBase {
       studentBatchScan.getRowType,
       Array(3),
       auxGrouping = Array(),
+      true,
       aggCallToAggFunction)
 
     val batchExchange1 = new BatchPhysicalExchange(
@@ -1428,6 +1429,7 @@ class FlinkRelMdHandlerTestBase {
       calcOnStudentScan.getRowType,
       Array(3),
       auxGrouping = Array(),
+      true,
       aggCallToAggFunction)
 
     val batchExchange1 = new BatchPhysicalExchange(
@@ -1580,6 +1582,7 @@ class FlinkRelMdHandlerTestBase {
       studentBatchScan.getRowType,
       Array(0),
       auxGrouping = Array(1, 4),
+      true,
       aggCallToAggFunction)
 
     val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)

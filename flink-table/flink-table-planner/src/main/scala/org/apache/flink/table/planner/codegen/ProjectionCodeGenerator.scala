@@ -19,11 +19,16 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
+import org.apache.flink.table.planner.functions.aggfunctions._
+import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
 import org.apache.flink.table.types.logical.RowType
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * CodeGenerator for projection, Take out some fields of [[RowData]] to generate a new [[RowData]].
@@ -122,6 +127,93 @@ object ProjectionCodeGenerator {
         """.stripMargin
 
     new GeneratedProjection(className, code, ctx.references.toArray, ctx.tableConfig)
+  }
+
+  /**
+   * If adaptive hash agg takes effect, and the sample result was to suppress local hash agg. In
+   * order to ensure that the data format transmitted downstream with doing local hash agg is
+   * consistent with the data format transmitted downstream without doing local hash agg, we need to
+   * do projection for grouping function value.
+   *
+   * <p> For example, for sql statement "select a, avg(b), count(c) from T group by a", if local
+   * hash agg suppressed and a row (1, 5, "a") comes to local hash agg, we will pass (1, 5, 1, 1) to
+   * downstream.
+   */
+  def generatedValueProjectionCode(
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      outClass: Class[_ <: RowData] = classOf[BinaryRowData],
+      inputTerm: String = DEFAULT_INPUT1_TERM,
+      aggInfos: Array[AggregateInfo],
+      outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
+      outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM): String = {
+    val fieldExprs: ArrayBuffer[GeneratedExpression] = ArrayBuffer()
+    aggInfos.map {
+      aggInfo =>
+        aggInfo.function match {
+          case _: SumAggFunction =>
+            fieldExprs += GenerateUtils.generateFieldAccess(
+              ctx,
+              inputType,
+              inputTerm,
+              aggInfo.agg.getArgList.get(0))
+          case _: MaxAggFunction | _: MinAggFunction =>
+            fieldExprs += GenerateUtils.generateFieldAccess(
+              ctx,
+              inputType,
+              inputTerm,
+              aggInfo.agg.getArgList.get(0))
+          case _: AvgAggFunction =>
+            fieldExprs += GenerateUtils.generateFieldAccess(
+              ctx,
+              inputType,
+              inputTerm,
+              aggInfo.agg.getArgList.get(0))
+            fieldExprs += GenerateUtils.generateFieldAccessForCountCol(
+              ctx,
+              inputTerm,
+              aggInfo.agg.getArgList.get(0))
+          case _: CountAggFunction =>
+            fieldExprs += GenerateUtils.generateFieldAccessForCountCol(
+              ctx,
+              inputTerm,
+              aggInfo.agg.getArgList.get(0))
+          case _: Count1AggFunction =>
+            fieldExprs += GenerateUtils.generateFieldAccessForCountOne(ctx)
+        }
+    }
+
+    val binaryRowWriter = CodeGenUtils.className[BinaryRowWriter]
+    val typeTerm = outClass.getCanonicalName
+    ctx.addReusableMember(s"$typeTerm $outRecordTerm= new $typeTerm(${fieldExprs.size});")
+    ctx.addReusableMember(
+      s"$binaryRowWriter $outRecordWriterTerm = new $binaryRowWriter($outRecordTerm);")
+
+    val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
+    val setFieldsCode = fieldExprs.zipWithIndex
+      .map {
+        case (fieldExpr, index) =>
+          val pos = fieldExprIdxToOutputRowPosMap.getOrElse(
+            index,
+            throw new CodeGenException(s"Illegal field expr index: $index"))
+          rowSetField(
+            ctx,
+            classOf[BinaryRowData],
+            outRecordTerm,
+            pos.toString,
+            fieldExpr,
+            Option(outRecordWriterTerm))
+      }
+      .mkString("\n")
+
+    val writer = outRecordWriterTerm
+    val resetWriter = s"$writer.reset();"
+    val completeWriter: String = s"$writer.complete();"
+    s"""
+       |$resetWriter
+       |$setFieldsCode
+       |$completeWriter
+        """.stripMargin
   }
 
   /** For java invoke. */

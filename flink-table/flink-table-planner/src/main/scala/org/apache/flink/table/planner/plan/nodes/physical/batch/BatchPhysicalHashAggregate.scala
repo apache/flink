@@ -161,6 +161,7 @@ class BatchPhysicalHashAggregate(
       FlinkTypeFactory.toLogicalRowType(aggInputRowType),
       isMerge,
       true, // isFinal is always true
+      false,
       InputProperty
         .builder()
         .requiredDistribution(requiredDistribution)

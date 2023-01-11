@@ -61,7 +61,8 @@ abstract class EnforceLocalAggRuleBase(operand: RelOptRuleOperand, description: 
 
   protected def createLocalAgg(
       completeAgg: BatchPhysicalGroupAggregateBase,
-      input: RelNode): BatchPhysicalGroupAggregateBase = {
+      input: RelNode,
+      canDoAdaptiveHashAgg: Boolean): BatchPhysicalGroupAggregateBase = {
     val cluster = completeAgg.getCluster
     val inputRowType = input.getRowType
 
@@ -94,7 +95,8 @@ abstract class EnforceLocalAggRuleBase(operand: RelOptRuleOperand, description: 
       auxGrouping,
       aggBufferTypes,
       aggCallToAggFunction,
-      isLocalHashAgg
+      isLocalHashAgg,
+      canDoAdaptiveHashAgg
     )
   }
 

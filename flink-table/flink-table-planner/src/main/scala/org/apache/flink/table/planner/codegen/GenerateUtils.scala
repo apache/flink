@@ -611,6 +611,32 @@ object GenerateUtils {
       generateInputFieldUnboxing(ctx, inputType, inputCode, inputCode)
   }
 
+  def generateFieldAccessForCountCol(
+      ctx: CodeGeneratorContext,
+      inputTerm: String,
+      index: Int): GeneratedExpression = {
+    val Seq(fieldTerm, nullTerm) =
+      ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
+
+    val inputCode =
+      s"""
+         |$nullTerm = $inputTerm.isNullAt($index);
+         |$fieldTerm = -1L;
+         |if (!$nullTerm) {
+         |  $fieldTerm = 1L;
+         |}
+           """.stripMargin.trim
+
+    GeneratedExpression(fieldTerm, nullTerm, inputCode, new BigIntType())
+  }
+
+  def generateFieldAccessForCountOne(ctx: CodeGeneratorContext): GeneratedExpression = {
+    val Seq(fieldTerm, nullTerm) =
+      ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
+    val inputCode = "$fieldTerm = 1L;"
+    GeneratedExpression(fieldTerm, nullTerm, inputCode, new BigIntType())
+  }
+
   /** Generates code for comparing two fields. */
   @tailrec
   def generateCompare(

@@ -926,6 +926,19 @@ object AggregateUtil extends Enumeration {
     aggInfos.isEmpty || supportMerge
   }
 
+  /** Return true if all aggregates can be projection in adaptive hash agg. False otherwise. */
+  def doAllAggSupportProjection(aggCalls: Seq[AggregateCall]): Boolean = {
+    aggCalls.forall {
+      aggCall =>
+        aggCall.getAggregation match {
+          case _: SqlCountAggFunction | _: SqlAvgAggFunction | _: SqlMinMaxAggFunction |
+              _: SqlSumAggFunction =>
+            true
+          case _ => false
+        }
+    }
+  }
+
   /** Return true if all aggregates can be split. False otherwise. */
   def doAllAggSupportSplit(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls.forall {
