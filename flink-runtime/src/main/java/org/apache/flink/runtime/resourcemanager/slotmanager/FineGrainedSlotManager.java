@@ -666,7 +666,9 @@ public class FineGrainedSlotManager implements SlotManager {
             }
         }
 
-        declareNeededResourcesWithDelay();
+        if (resourceAllocator.isSupported()) {
+            declareNeededResourcesWithDelay();
+        }
     }
 
     private void allocateSlotsAccordingTo(Map<JobID, Map<InstanceID, ResourceCounter>> result) {
