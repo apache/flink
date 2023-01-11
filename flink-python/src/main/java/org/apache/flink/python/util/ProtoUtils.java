@@ -134,6 +134,7 @@ public enum ProtoUtils {
     // function utilities
 
     public static FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto(
+            RuntimeContext runtimeContext,
             PythonFunctionInfo[] userDefinedFunctions,
             boolean isMetricEnabled,
             boolean isProfileEnabled) {
@@ -144,6 +145,16 @@ public enum ProtoUtils {
         }
         builder.setMetricEnabled(isMetricEnabled);
         builder.setProfileEnabled(isProfileEnabled);
+        builder.addAllJobParameters(
+                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap().entrySet()
+                        .stream()
+                        .map(
+                                entry ->
+                                        FlinkFnApi.UserDefinedFunctions.JobParameter.newBuilder()
+                                                .setKey(entry.getKey())
+                                                .setValue(entry.getValue())
+                                                .build())
+                        .collect(Collectors.toList()));
         return builder.build();
     }
 

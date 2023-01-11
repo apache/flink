@@ -37,8 +37,9 @@ class FunctionContext(object):
     and global job parameters, etc.
     """
 
-    def __init__(self, base_metric_group):
+    def __init__(self, base_metric_group, job_parameters):
         self._base_metric_group = base_metric_group
+        self._job_parameters = job_parameters
 
     def get_metric_group(self) -> MetricGroup:
         """
@@ -50,6 +51,18 @@ class FunctionContext(object):
             raise RuntimeError("Metric has not been enabled. You can enable "
                                "metric with the 'python.metric.enabled' configuration.")
         return self._base_metric_group
+
+    def get_job_parameter(self, key: str, default_value: str) -> str:
+        """
+        Gets the global job parameter value associated with the given key as a string.
+
+        :param key: The key pointing to the associated value.
+        :param default_value: The default value which is returned in case global job parameter is
+                              null or there is no value associated with the given key.
+
+        .. versionadded:: 1.17.0
+        """
+        return self._job_parameters[key] if key in self._job_parameters else default_value
 
 
 class UserDefinedFunction(abc.ABC):

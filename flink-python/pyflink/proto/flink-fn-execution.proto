@@ -61,10 +61,16 @@ message UserDefinedFunction {
 
 // A list of user-defined functions to be executed in a batch.
 message UserDefinedFunctions {
+  message JobParameter {
+    string key = 1;
+    string value = 2;
+  }
+
   repeated UserDefinedFunction udfs = 1;
   bool metric_enabled = 2;
   repeated OverWindow windows = 3;
   bool profile_enabled = 4;
+  repeated JobParameter job_parameters = 5;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation

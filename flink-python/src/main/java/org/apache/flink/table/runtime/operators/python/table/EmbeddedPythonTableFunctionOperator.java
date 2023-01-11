@@ -111,6 +111,7 @@ public class EmbeddedPythonTableFunctionOperator extends AbstractEmbeddedStatele
         interpreter.set(
                 "proto",
                 ProtoUtils.createUserDefinedFunctionsProto(
+                                getRuntimeContext(),
                                 new PythonFunctionInfo[] {tableFunction},
                                 config.get(PYTHON_METRIC_ENABLED),
                                 config.get(PYTHON_PROFILE_ENABLED))
