@@ -319,9 +319,9 @@ public class HiveParserRexNodeConverter {
 
         RexNode calciteLiteral;
         HiveShim hiveShim = HiveParserUtils.getSessionHiveShim();
-        // If value is null, the type should also be VOID.
+        // If value is null, return a null literal directly
         if (value == null) {
-            hiveTypeCategory = PrimitiveObjectInspector.PrimitiveCategory.VOID;
+            return rexBuilder.makeNullLiteral(calciteDataType);
         }
         // TODO: Verify if we need to use ConstantObjectInspector to unwrap data
         switch (hiveTypeCategory) {
