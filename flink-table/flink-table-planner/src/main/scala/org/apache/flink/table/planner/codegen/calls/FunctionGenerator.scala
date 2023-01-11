@@ -19,12 +19,15 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.configuration.{ExecutionOptions, ReadableConfig}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, FlinkTimestampWithPrecisionDynamicFunction}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
 import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
 import java.lang.reflect.Method
 
@@ -320,20 +323,8 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
       Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE))
   )
 
-  addSqlFunction(CURRENT_DATE, Seq(), new CurrentTimePointCallGen(false, isStreamingMode))
-
-  addSqlFunction(CURRENT_TIME, Seq(), new CurrentTimePointCallGen(false, isStreamingMode))
-
-  addSqlFunction(NOW, Seq(), new CurrentTimePointCallGen(false, isStreamingMode))
-
-  addSqlFunction(CURRENT_TIMESTAMP, Seq(), new CurrentTimePointCallGen(false, isStreamingMode))
-
   // CURRENT_ROW_TIMESTAMP evaluates in row-level
   addSqlFunction(CURRENT_ROW_TIMESTAMP, Seq(), new CurrentTimePointCallGen(false, true))
-
-  addSqlFunction(LOCALTIME, Seq(), new CurrentTimePointCallGen(true, isStreamingMode))
-
-  addSqlFunction(LOCALTIMESTAMP, Seq(), new CurrentTimePointCallGen(true, isStreamingMode))
 
   addSqlFunctionMethod(LOG2, Seq(DOUBLE), BuiltInMethods.LOG2)
 
@@ -543,6 +534,27 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
     IS_NOT_JSON_SCALAR,
     Seq(VARCHAR),
     new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)))
+
+  FlinkSqlOperatorTable
+    .dynamicFunctions(!isStreamingMode)
+    .forEach(
+      func => {
+        if (
+          func.getName == SqlStdOperatorTable.LOCALTIME.getName || func.getName == SqlStdOperatorTable.LOCALTIMESTAMP.getName
+        ) {
+          addSqlFunction(func, Seq(), new CurrentTimePointCallGen(true, isStreamingMode))
+        } else if (
+          func.getName == SqlStdOperatorTable.CURRENT_DATE.getName
+          || func.getName == SqlStdOperatorTable.CURRENT_TIME.getName
+          || func.getName == SqlStdOperatorTable.CURRENT_TIMESTAMP.getName
+          || func.getName == FlinkTimestampWithPrecisionDynamicFunction.NOW
+        ) {
+          addSqlFunction(func, Seq(), new CurrentTimePointCallGen(false, isStreamingMode))
+        } else {
+          throw new TableException(
+            s"Unsupported dynamic function ${func.getName} for FunctionGenerator")
+        }
+      })
 
   // ----------------------------------------------------------------------------------------------
 

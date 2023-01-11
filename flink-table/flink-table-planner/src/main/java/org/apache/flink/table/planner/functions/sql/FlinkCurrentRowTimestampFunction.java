@@ -24,19 +24,21 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlAbstractTimeFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.Objects;
 
 /**
- * Function that used to define SQL time function like LOCALTIMESTAMP, CURRENT_TIMESTAMP,
- * CURRENT_ROW_TIMESTAMP(), NOW() in Flink, the function support configuring the return type and the
+ * The function CURRENT_ROW_TIMESTAMP() in Flink which supports configuring the return type and the
  * precision of return type.
  */
 @Internal
-public class FlinkSqlTimestampFunction extends SqlAbstractTimeFunction {
+public class FlinkCurrentRowTimestampFunction extends SqlAbstractTimeFunction {
 
     private final SqlTypeName returnTypeName;
     private final int precision;
 
-    public FlinkSqlTimestampFunction(
+    public FlinkCurrentRowTimestampFunction(
             String functionName, SqlTypeName returnTypeName, int precision) {
         // access protected constructor
         super(functionName, returnTypeName);
@@ -50,7 +52,32 @@ public class FlinkSqlTimestampFunction extends SqlAbstractTimeFunction {
     }
 
     @Override
+    public boolean isDynamicFunction() {
+        return false;
+    }
+
+    @Override
     public boolean isDeterministic() {
         return false;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof FlinkCurrentRowTimestampFunction)) {
+            return false;
+        }
+        if (!obj.getClass().equals(this.getClass())) {
+            return false;
+        }
+        FlinkCurrentRowTimestampFunction other = (FlinkCurrentRowTimestampFunction) obj;
+        return this.getName().equals(other.getName())
+                && kind == other.kind
+                && this.precision == other.precision
+                && this.returnTypeName.equals(other.returnTypeName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(kind, this.getName(), precision, returnTypeName);
     }
 }

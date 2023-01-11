@@ -19,13 +19,16 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.functions.sql.FlinkTimestampWithPrecisionDynamicFunction;
 
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,220 +42,291 @@ import static org.apache.flink.table.planner.expressions.converter.ExpressionCon
  */
 @Internal
 public class DirectConvertRule implements CallExpressionConvertRule {
+    private static Map<Boolean, DirectConvertRule> cachedInstances = new HashMap<>();
 
-    private static final Map<FunctionDefinition, SqlOperator> DEFINITION_OPERATOR_MAP =
+    public static synchronized DirectConvertRule instance(boolean isBatchMode) {
+        DirectConvertRule instance = cachedInstances.get(isBatchMode);
+        if (instance == null) {
+            instance = new DirectConvertRule();
+            instance.initNonDynamicFunctions();
+            instance.initDynamicFunctions(isBatchMode);
+            cachedInstances.put(isBatchMode, instance);
+        }
+        return instance;
+    }
+
+    private final Map<FunctionDefinition, SqlOperator> definitionSqlOperatorHashMap =
             new HashMap<>();
 
-    static {
+    void initDynamicFunctions(boolean isBatchMode) {
+        FlinkSqlOperatorTable.dynamicFunctions(isBatchMode)
+                .forEach(
+                        func -> {
+                            if (func.getName()
+                                    .equalsIgnoreCase(SqlStdOperatorTable.CURRENT_DATE.getName())) {
+                                definitionSqlOperatorHashMap.put(
+                                        BuiltInFunctionDefinitions.CURRENT_DATE, func);
+                            } else if (func.getName()
+                                    .equalsIgnoreCase(SqlStdOperatorTable.CURRENT_TIME.getName())) {
+                                definitionSqlOperatorHashMap.put(
+                                        BuiltInFunctionDefinitions.CURRENT_TIME, func);
+                            } else if (func.getName()
+                                    .equalsIgnoreCase(SqlStdOperatorTable.LOCALTIME.getName())) {
+                                definitionSqlOperatorHashMap.put(
+                                        BuiltInFunctionDefinitions.LOCAL_TIME, func);
+                            } else if (func.getName()
+                                    .equalsIgnoreCase(
+                                            SqlStdOperatorTable.CURRENT_TIMESTAMP.getName())) {
+                                definitionSqlOperatorHashMap.put(
+                                        BuiltInFunctionDefinitions.CURRENT_TIMESTAMP, func);
+                            } else if (func.getName()
+                                    .equalsIgnoreCase(
+                                            SqlStdOperatorTable.LOCALTIMESTAMP.getName())) {
+                                definitionSqlOperatorHashMap.put(
+                                        BuiltInFunctionDefinitions.LOCAL_TIMESTAMP, func);
+                            } else if (func.getName()
+                                    .equalsIgnoreCase(
+                                            FlinkTimestampWithPrecisionDynamicFunction.NOW)) {
+                                definitionSqlOperatorHashMap.put(
+                                        BuiltInFunctionDefinitions.NOW, func);
+                            } else {
+                                throw new TableException(
+                                        String.format(
+                                                "Unsupported mapping for dynamic function: %s",
+                                                func.getName()));
+                            }
+                        });
+    }
+
+    void initNonDynamicFunctions() {
         // logic functions
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.AND, FlinkSqlOperatorTable.AND);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.OR, FlinkSqlOperatorTable.OR);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.NOT, FlinkSqlOperatorTable.NOT);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.IF, FlinkSqlOperatorTable.CASE);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.AND, FlinkSqlOperatorTable.AND);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.OR, FlinkSqlOperatorTable.OR);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.NOT, FlinkSqlOperatorTable.NOT);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.IF, FlinkSqlOperatorTable.CASE);
 
         // comparison functions
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.EQUALS, FlinkSqlOperatorTable.EQUALS);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.GREATER_THAN, FlinkSqlOperatorTable.GREATER_THAN);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
                 FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.LESS_THAN, FlinkSqlOperatorTable.LESS_THAN);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL,
                 FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.NOT_EQUALS, FlinkSqlOperatorTable.NOT_EQUALS);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.IS_NULL, FlinkSqlOperatorTable.IS_NULL);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.IS_NOT_NULL, FlinkSqlOperatorTable.IS_NOT_NULL);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.IS_TRUE, FlinkSqlOperatorTable.IS_TRUE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.IS_FALSE, FlinkSqlOperatorTable.IS_FALSE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.IS_NOT_TRUE, FlinkSqlOperatorTable.IS_NOT_TRUE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.IS_NOT_FALSE, FlinkSqlOperatorTable.IS_NOT_FALSE);
 
         // string functions
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.CHAR_LENGTH, FlinkSqlOperatorTable.CHAR_LENGTH);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.INIT_CAP, FlinkSqlOperatorTable.INITCAP);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LIKE, FlinkSqlOperatorTable.LIKE);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOWER, FlinkSqlOperatorTable.LOWER);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.LIKE, FlinkSqlOperatorTable.LIKE);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.LOWER, FlinkSqlOperatorTable.LOWER);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.LOWERCASE, FlinkSqlOperatorTable.LOWER);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SIMILAR, FlinkSqlOperatorTable.SIMILAR_TO);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SUBSTRING, FlinkSqlOperatorTable.SUBSTRING);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SUBSTR, FlinkSqlOperatorTable.SUBSTR);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UPPER, FlinkSqlOperatorTable.UPPER);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.UPPER, FlinkSqlOperatorTable.UPPER);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.UPPERCASE, FlinkSqlOperatorTable.UPPER);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.POSITION, FlinkSqlOperatorTable.POSITION);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.OVERLAY, FlinkSqlOperatorTable.OVERLAY);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.CONCAT, FlinkSqlOperatorTable.CONCAT_FUNCTION);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.CONCAT_WS, FlinkSqlOperatorTable.CONCAT_WS);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LPAD, FlinkSqlOperatorTable.LPAD);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.RPAD, FlinkSqlOperatorTable.RPAD);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.LPAD, FlinkSqlOperatorTable.LPAD);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.RPAD, FlinkSqlOperatorTable.RPAD);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REGEXP_EXTRACT, FlinkSqlOperatorTable.REGEXP_EXTRACT);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.FROM_BASE64, FlinkSqlOperatorTable.FROM_BASE64);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TO_BASE64, FlinkSqlOperatorTable.TO_BASE64);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ASCII, FlinkSqlOperatorTable.ASCII);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.CHR, FlinkSqlOperatorTable.CHR);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.ASCII, FlinkSqlOperatorTable.ASCII);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.CHR, FlinkSqlOperatorTable.CHR);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.DECODE, FlinkSqlOperatorTable.DECODE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.ENCODE, FlinkSqlOperatorTable.ENCODE);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LEFT, FlinkSqlOperatorTable.LEFT);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.RIGHT, FlinkSqlOperatorTable.RIGHT);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.INSTR, FlinkSqlOperatorTable.INSTR);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.LEFT, FlinkSqlOperatorTable.LEFT);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.RIGHT, FlinkSqlOperatorTable.RIGHT);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.INSTR, FlinkSqlOperatorTable.INSTR);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.LOCATE, FlinkSqlOperatorTable.LOCATE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.PARSE_URL, FlinkSqlOperatorTable.PARSE_URL);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UUID, FlinkSqlOperatorTable.UUID);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LTRIM, FlinkSqlOperatorTable.LTRIM);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.RTRIM, FlinkSqlOperatorTable.RTRIM);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.UUID, FlinkSqlOperatorTable.UUID);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.LTRIM, FlinkSqlOperatorTable.LTRIM);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.RTRIM, FlinkSqlOperatorTable.RTRIM);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REPEAT, FlinkSqlOperatorTable.REPEAT);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REGEXP, FlinkSqlOperatorTable.REGEXP);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REGEXP_REPLACE, FlinkSqlOperatorTable.REGEXP_REPLACE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REVERSE, FlinkSqlOperatorTable.REVERSE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SPLIT_INDEX, FlinkSqlOperatorTable.SPLIT_INDEX);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.STR_TO_MAP, FlinkSqlOperatorTable.STR_TO_MAP);
 
         // math functions
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.MINUS, FlinkSqlOperatorTable.MINUS);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.MINUS, FlinkSqlOperatorTable.MINUS);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.DIVIDE, FlinkSqlOperatorTable.DIVIDE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TIMES, FlinkSqlOperatorTable.MULTIPLY);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.FLOOR, FlinkSqlOperatorTable.FLOOR);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.CEIL, FlinkSqlOperatorTable.CEIL);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ABS, FlinkSqlOperatorTable.ABS);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.EXP, FlinkSqlOperatorTable.EXP);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOG10, FlinkSqlOperatorTable.LOG10);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOG2, FlinkSqlOperatorTable.LOG2);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LN, FlinkSqlOperatorTable.LN);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LOG, FlinkSqlOperatorTable.LOG);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.POWER, FlinkSqlOperatorTable.POWER);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.MOD, FlinkSqlOperatorTable.MOD);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.FLOOR, FlinkSqlOperatorTable.FLOOR);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.CEIL, FlinkSqlOperatorTable.CEIL);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.ABS, FlinkSqlOperatorTable.ABS);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.EXP, FlinkSqlOperatorTable.EXP);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.LOG10, FlinkSqlOperatorTable.LOG10);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.LOG2, FlinkSqlOperatorTable.LOG2);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.LN, FlinkSqlOperatorTable.LN);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.LOG, FlinkSqlOperatorTable.LOG);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.POWER, FlinkSqlOperatorTable.POWER);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.MOD, FlinkSqlOperatorTable.MOD);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.MINUS_PREFIX, FlinkSqlOperatorTable.UNARY_MINUS);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SIN, FlinkSqlOperatorTable.SIN);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.COS, FlinkSqlOperatorTable.COS);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SINH, FlinkSqlOperatorTable.SINH);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.TAN, FlinkSqlOperatorTable.TAN);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.TANH, FlinkSqlOperatorTable.TANH);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.COT, FlinkSqlOperatorTable.COT);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ASIN, FlinkSqlOperatorTable.ASIN);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ACOS, FlinkSqlOperatorTable.ACOS);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ATAN, FlinkSqlOperatorTable.ATAN);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ATAN2, FlinkSqlOperatorTable.ATAN2);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.COSH, FlinkSqlOperatorTable.COSH);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.SIN, FlinkSqlOperatorTable.SIN);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.COS, FlinkSqlOperatorTable.COS);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.SINH, FlinkSqlOperatorTable.SINH);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.TAN, FlinkSqlOperatorTable.TAN);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.TANH, FlinkSqlOperatorTable.TANH);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.COT, FlinkSqlOperatorTable.COT);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.ASIN, FlinkSqlOperatorTable.ASIN);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.ACOS, FlinkSqlOperatorTable.ACOS);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.ATAN, FlinkSqlOperatorTable.ATAN);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.ATAN2, FlinkSqlOperatorTable.ATAN2);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.COSH, FlinkSqlOperatorTable.COSH);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.DEGREES, FlinkSqlOperatorTable.DEGREES);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.RADIANS, FlinkSqlOperatorTable.RADIANS);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SIGN, FlinkSqlOperatorTable.SIGN);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ROUND, FlinkSqlOperatorTable.ROUND);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.PI, FlinkSqlOperatorTable.PI);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.E, FlinkSqlOperatorTable.E);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.RAND, FlinkSqlOperatorTable.RAND);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.SIGN, FlinkSqlOperatorTable.SIGN);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.ROUND, FlinkSqlOperatorTable.ROUND);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.PI, FlinkSqlOperatorTable.PI);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.E, FlinkSqlOperatorTable.E);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.RAND, FlinkSqlOperatorTable.RAND);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.RAND_INTEGER, FlinkSqlOperatorTable.RAND_INTEGER);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.BIN, FlinkSqlOperatorTable.BIN);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.HEX, FlinkSqlOperatorTable.HEX);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.BIN, FlinkSqlOperatorTable.BIN);
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.HEX, FlinkSqlOperatorTable.HEX);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TRUNCATE, FlinkSqlOperatorTable.TRUNCATE);
 
         // time functions
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.EXTRACT, FlinkSqlOperatorTable.EXTRACT);
-        DEFINITION_OPERATOR_MAP.put(
-                BuiltInFunctionDefinitions.CURRENT_DATE, FlinkSqlOperatorTable.CURRENT_DATE);
-        DEFINITION_OPERATOR_MAP.put(
-                BuiltInFunctionDefinitions.CURRENT_TIME, FlinkSqlOperatorTable.CURRENT_TIME);
-        DEFINITION_OPERATOR_MAP.put(
-                BuiltInFunctionDefinitions.CURRENT_TIMESTAMP,
-                FlinkSqlOperatorTable.CURRENT_TIMESTAMP);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.CURRENT_ROW_TIMESTAMP,
                 FlinkSqlOperatorTable.CURRENT_ROW_TIMESTAMP);
-        DEFINITION_OPERATOR_MAP.put(
-                BuiltInFunctionDefinitions.LOCAL_TIME, FlinkSqlOperatorTable.LOCALTIME);
-        DEFINITION_OPERATOR_MAP.put(
-                BuiltInFunctionDefinitions.LOCAL_TIMESTAMP, FlinkSqlOperatorTable.LOCALTIMESTAMP);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.DATE_FORMAT, FlinkSqlOperatorTable.DATE_FORMAT);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.CONVERT_TZ, FlinkSqlOperatorTable.CONVERT_TZ);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.FROM_UNIXTIME, FlinkSqlOperatorTable.FROM_UNIXTIME);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.UNIX_TIMESTAMP, FlinkSqlOperatorTable.UNIX_TIMESTAMP);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TO_DATE, FlinkSqlOperatorTable.TO_DATE);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ,
                 FlinkSqlOperatorTable.TO_TIMESTAMP_LTZ);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TO_TIMESTAMP, FlinkSqlOperatorTable.TO_TIMESTAMP);
 
         // catalog functions
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.CURRENT_DATABASE,
                 FlinkSqlOperatorTable.CURRENT_DATABASE);
 
         // collection
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.AT, FlinkSqlOperatorTable.ITEM);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.AT, FlinkSqlOperatorTable.ITEM);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.CARDINALITY, FlinkSqlOperatorTable.CARDINALITY);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.ORDER_DESC, FlinkSqlOperatorTable.DESC);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.ARRAY_ELEMENT, FlinkSqlOperatorTable.ELEMENT);
 
         // crypto hash
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.MD5, FlinkSqlOperatorTable.MD5);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SHA2, FlinkSqlOperatorTable.SHA2);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.MD5, FlinkSqlOperatorTable.MD5);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.SHA2, FlinkSqlOperatorTable.SHA2);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SHA224, FlinkSqlOperatorTable.SHA224);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SHA256, FlinkSqlOperatorTable.SHA256);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SHA384, FlinkSqlOperatorTable.SHA384);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SHA512, FlinkSqlOperatorTable.SHA512);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SHA1, FlinkSqlOperatorTable.SHA1);
-        DEFINITION_OPERATOR_MAP.put(
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.SHA1, FlinkSqlOperatorTable.SHA1);
+        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.STREAM_RECORD_TIMESTAMP,
                 FlinkSqlOperatorTable.STREAMRECORD_TIMESTAMP);
     }
 
     @Override
     public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
-        SqlOperator operator = DEFINITION_OPERATOR_MAP.get(call.getFunctionDefinition());
+        SqlOperator operator = definitionSqlOperatorHashMap.get(call.getFunctionDefinition());
         return Optional.ofNullable(operator)
                 .map(
                         op ->

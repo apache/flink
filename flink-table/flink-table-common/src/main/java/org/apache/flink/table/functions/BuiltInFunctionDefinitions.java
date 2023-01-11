@@ -1455,6 +1455,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("currentDatabase")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(STRING().notNull()))
+                    .notDeterministic()
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -1483,9 +1484,23 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(explicit(TIME().notNull()))
                     .build();
 
+    public static final BuiltInFunctionDefinition LOCAL_TIME =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("localTime")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(explicit(TIME().notNull()))
+                    .build();
+
     public static final BuiltInFunctionDefinition CURRENT_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentTimestamp")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
+                    .build();
+
+    public static final BuiltInFunctionDefinition NOW =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("now")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
                     .build();
@@ -1495,13 +1510,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("currentRowTimestamp")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
-                    .build();
-
-    public static final BuiltInFunctionDefinition LOCAL_TIME =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("localTime")
-                    .kind(SCALAR)
-                    .outputTypeStrategy(explicit(TIME().notNull()))
+                    .notDeterministic()
                     .build();
 
     public static final BuiltInFunctionDefinition LOCAL_TIMESTAMP =
