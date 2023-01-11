@@ -303,6 +303,9 @@ public class FineGrainedSlotManager implements SlotManager {
         if (resourceRequirements.getResourceRequirements().isEmpty()) {
             LOG.info("Clearing resource requirements of job {}", resourceRequirements.getJobId());
             jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
+            if (resourceAllocator.isSupported()) {
+                taskManagerTracker.clearPendingAllocationsOfJob(resourceRequirements.getJobId());
+            }
         } else {
             LOG.info(
                     "Received resource requirements from job {}: {}",
