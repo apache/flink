@@ -38,6 +38,7 @@ public class LookupFullCache implements LookupCache {
 
     private final CacheLoader cacheLoader;
     private final CacheReloadTrigger reloadTrigger;
+    private Configuration parameters = new Configuration();
 
     private transient volatile ReloadTriggerContext reloadTriggerContext;
     private transient volatile Throwable reloadFailCause;
@@ -50,6 +51,10 @@ public class LookupFullCache implements LookupCache {
         this.reloadTrigger = Preconditions.checkNotNull(reloadTrigger);
     }
 
+    public void setParameters(Configuration parameters) {
+        this.parameters = parameters;
+    }
+
     @Override
     public synchronized void open(CacheMetricGroup metricGroup) {
         if (hitCounter == null) {
@@ -58,24 +63,26 @@ public class LookupFullCache implements LookupCache {
         metricGroup.hitCounter(hitCounter);
         metricGroup.missCounter(new SimpleCounter()); // always zero
         cacheLoader.initializeMetrics(metricGroup);
-    }
 
-    public synchronized void open(Configuration parameters) throws Exception {
         if (reloadTriggerContext == null) {
-            cacheLoader.open(parameters);
-            reloadTriggerContext =
-                    new ReloadTriggerContext(
-                            cacheLoader,
-                            th -> {
-                                if (reloadFailCause == null) {
-                                    reloadFailCause = th;
-                                } else {
-                                    reloadFailCause.addSuppressed(th);
-                                }
-                            });
+            try {
+                cacheLoader.open(parameters);
+                reloadTriggerContext =
+                        new ReloadTriggerContext(
+                                cacheLoader,
+                                th -> {
+                                    if (reloadFailCause == null) {
+                                        reloadFailCause = th;
+                                    } else {
+                                        reloadFailCause.addSuppressed(th);
+                                    }
+                                });
 
-            reloadTrigger.open(reloadTriggerContext);
-            cacheLoader.awaitFirstLoad();
+                reloadTrigger.open(reloadTriggerContext);
+                cacheLoader.awaitFirstLoad();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to open lookup 'FULL' cache.", e);
+            }
         }
     }
 
@@ -109,7 +116,9 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public void close() throws Exception {
+        // in default triggers shutdowns scheduled thread pool used for periodic triggers of reloads
         reloadTrigger.close();
+        // shutdowns the reload thread and interrupts active reload task, if present
         cacheLoader.close();
     }
 }

@@ -50,7 +50,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -77,17 +76,19 @@ class InputFormatCacheLoaderTest {
     @ParameterizedTest
     @MethodSource("deltaNumSplits")
     void testReadWithDifferentSplits(int deltaNumSplits) throws Exception {
+        ConcurrentHashMap<RowData, Collection<RowData>> cache;
         try (InputFormatCacheLoader cacheLoader = createCacheLoader(deltaNumSplits)) {
             cacheLoader.initializeMetrics(UnregisteredMetricsGroup.createCacheMetricGroup());
             run(cacheLoader);
-            ConcurrentHashMap<RowData, Collection<RowData>> cache = cacheLoader.getCache();
+            cache = cacheLoader.getCache();
             assertCacheContent(cache);
             run(cacheLoader);
-            // new instance of cache after reload
-            assertThat(cacheLoader.getCache()).isNotSameAs(cache);
-            cacheLoader.close();
-            assertThat(cacheLoader.getCache().size()).isZero(); // cache is cleared after close
+            assertThat(cacheLoader.getCache())
+                    .as("A new instance of cache should be present after reload.")
+                    .isNotSameAs(cache);
+            cache = cacheLoader.getCache();
         }
+        assertThat(cache.size()).as("Cache should be cleared after close.").isZero();
     }
 
     @Test
@@ -131,6 +132,7 @@ class InputFormatCacheLoaderTest {
             InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
             cacheLoader.initializeMetrics(metricGroup);
             assertThatThrownBy(() -> run(cacheLoader)).hasRootCause(exception);
+            assertThat(metricGroup.loadCounter.getCount()).isEqualTo(0);
             assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(1);
         }
     }
@@ -157,11 +159,11 @@ class InputFormatCacheLoaderTest {
                 createCacheLoader(numSplits, DEFAULT_DELTA_NUM_SPLITS, reloadAction)) {
             cacheLoader.initializeMetrics(metricGroup);
             future = cacheLoader.reloadAsync();
-            reloadLatch.await(5000, TimeUnit.MILLISECONDS);
+            reloadLatch.await();
         }
         // try-with-resources calls #close, which should wait for the end of reload
         assertThat(future.isDone()).isTrue();
-        assertThat(metricGroup.loadCounter.getCount()).isEqualTo(1);
+        assertThat(metricGroup.loadCounter.getCount()).isEqualTo(0);
         assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
     }
 

@@ -72,7 +72,7 @@ public class InputFormatCacheLoader extends CacheLoader {
     }
 
     @Override
-    protected void updateCache() throws Exception {
+    protected boolean updateCache() throws Exception {
         InputSplit[] inputSplits = createInputSplits();
         int numSplits = inputSplits.length;
         int concurrencyLevel = getConcurrencyLevel(numSplits);
@@ -87,6 +87,7 @@ public class InputFormatCacheLoader extends CacheLoader {
                         .collect(Collectors.toCollection(ArrayDeque::new));
         // run first task and create concurrencyLevel - 1 threads to run remaining tasks
         ExecutorService cacheLoadTaskService = null;
+        boolean wasInterrupted;
         try {
             InputSplitCacheLoadTask firstTask = cacheLoadTasks.pop();
             CompletableFuture<?> otherTasksFuture = null;
@@ -106,9 +107,7 @@ public class InputFormatCacheLoader extends CacheLoader {
         } catch (InterruptedException ignored) { // we use interrupt to close reload threads
             Thread.currentThread().interrupt(); // restore interrupted status
         } finally {
-            if (Thread.interrupted()) {
-                LOG.info("Active lookup 'FULL' cache reload has been interrupted.");
-            }
+            wasInterrupted = Thread.interrupted();
             if (cacheLoadTaskService != null) {
                 // if main cache reload thread encountered an exception,
                 // it interrupts underlying InputSplitCacheLoadTasks threads
@@ -122,6 +121,7 @@ public class InputFormatCacheLoader extends CacheLoader {
             }
         }
         cache = newCache; // reassigning cache field is safe, because it's volatile
+        return !wasInterrupted;
     }
 
     private InputSplitCacheLoadTask createCacheLoadTask(

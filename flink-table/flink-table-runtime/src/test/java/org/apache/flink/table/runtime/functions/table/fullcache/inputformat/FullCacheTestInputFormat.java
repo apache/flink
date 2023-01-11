@@ -88,12 +88,12 @@ public class FullCacheTestInputFormat
             Optional<GeneratedProjection> generatedProjection,
             DataFormatConverters.RowConverter rowConverter) {
         // for integration tests
-        this.dataRows = dataRows;
-        this.projectable = generatedProjection.isPresent();
-        this.generatedProjection = generatedProjection.orElse(null);
-        this.rowConverter = rowConverter;
-        this.numSplits = DEFAULT_NUM_SPLITS;
-        this.deltaNumSplits = DEFAULT_DELTA_NUM_SPLITS;
+        this(
+                dataRows,
+                generatedProjection,
+                rowConverter,
+                DEFAULT_NUM_SPLITS,
+                DEFAULT_DELTA_NUM_SPLITS);
     }
 
     @Override

@@ -65,7 +65,8 @@ public abstract class CacheLoader implements AutoCloseable, Serializable {
 
     protected volatile boolean isStopped;
 
-    protected abstract void updateCache() throws Exception;
+    /** @return whether reload was successful and was not interrupted. */
+    protected abstract boolean updateCache() throws Exception;
 
     public void open(Configuration parameters) throws Exception {
         firstLoadLatch = new CountDownLatch(1);
@@ -111,13 +112,17 @@ public abstract class CacheLoader implements AutoCloseable, Serializable {
         try {
             LOG.info("Lookup 'FULL' cache loading triggered.");
             long start = System.currentTimeMillis();
-            updateCache();
+            boolean success = updateCache();
             latestLoadTimeMs = System.currentTimeMillis() - start;
-            loadCounter.inc();
-            LOG.info(
-                    "Lookup 'FULL' cache loading finished. Time elapsed - {} ms. Number of records - {}.",
-                    latestLoadTimeMs,
-                    cache.size());
+            if (success) {
+                loadCounter.inc();
+                LOG.info(
+                        "Lookup 'FULL' cache loading finished. Time elapsed - {} ms. Number of records - {}.",
+                        latestLoadTimeMs,
+                        cache.size());
+            } else {
+                LOG.info("Active lookup 'FULL' cache reload has been interrupted.");
+            }
             if (LOG.isDebugEnabled()) {
                 // 'if' guard statement prevents us from transforming cache to string
                 LOG.debug(

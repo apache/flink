@@ -107,12 +107,12 @@ public class CachingLookupFunction extends LookupFunction {
             numLoadFailuresCounter = new SimpleCounter();
             cacheMetricGroup.numLoadFailuresCounter(numLoadFailuresCounter);
         }
-        // Initialize cache and the delegating function
-        cache.open(cacheMetricGroup);
         if (cache instanceof LookupFullCache) {
             // TODO add Configuration into FunctionContext
-            ((LookupFullCache) cache).open(new Configuration());
+            ((LookupFullCache) cache).setParameters(new Configuration());
         }
+        // Initialize cache and the delegating function
+        cache.open(cacheMetricGroup);
         if (delegate != null) {
             delegate.open(context);
         }
