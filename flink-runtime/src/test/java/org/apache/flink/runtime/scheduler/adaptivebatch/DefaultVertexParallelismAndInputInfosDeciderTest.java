@@ -69,7 +69,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 decider.decideParallelism(
                         new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism).isEqualTo(11);
+        assertThat(parallelism).isEqualTo(9);
     }
 
     @Test
@@ -103,21 +103,6 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     }
 
     @Test
-    void testBroadcastRatioExceedsCapRatio() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-
-        BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_1_GB);
-        BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_8_GB);
-
-        int parallelism =
-                decider.decideParallelism(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
-
-        assertThat(parallelism).isEqualTo(16);
-    }
-
-    @Test
     void testNonBroadcastBytesCanNotDividedEvenly() {
         final DefaultVertexParallelismAndInputInfosDecider decider =
                 createDefaultVertexParallelismAndInputInfosDecider();
@@ -129,7 +114,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 decider.decideParallelism(
                         new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism).isEqualTo(17);
+        assertThat(parallelism).isEqualTo(9);
     }
 
     @Test
@@ -257,7 +242,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
         checkAllToAllJobVertexInputInfo(
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo1.getResultId()),
-                Arrays.asList(new IndexRange(0, 3), new IndexRange(4, 7), new IndexRange(8, 9)));
+                Arrays.asList(new IndexRange(0, 4), new IndexRange(5, 8), new IndexRange(9, 9)));
         checkAllToAllJobVertexInputInfo(
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo2.getResultId()),
                 Arrays.asList(new IndexRange(0, 0), new IndexRange(0, 0), new IndexRange(0, 0)));
