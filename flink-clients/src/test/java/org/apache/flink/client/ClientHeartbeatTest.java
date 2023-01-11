@@ -30,6 +30,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.WaitingCancelableInvokable;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -67,6 +68,7 @@ public class ClientHeartbeatTest {
     }
 
     @Test
+    @Disabled("Disable until FLINK-30629 is fixed.")
     void testJobRunningIfClientReportHeartbeat() throws Exception {
         JobClient jobClient = submitJob(createConfiguration(true));
 
