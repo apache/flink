@@ -28,6 +28,5 @@ public class Constants {
     public static final String SET_KEY = "key";
     public static final String SET_VALUE = "value";
     public static final String COMPLETION_CANDIDATES = "candidates";
-
     public static final String SAVEPOINT_PATH = "savepoint path";
 }
