@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -63,6 +64,17 @@ public class DefaultVertexParallelismAndInputInfosDecider
 
     private static final Logger LOG =
             LoggerFactory.getLogger(DefaultVertexParallelismAndInputInfosDecider.class);
+
+    /**
+     * The maximum number of subpartitions belonging to the same result that each task can consume.
+     * We currently need this limitation to avoid too many channels in a downstream task leading to
+     * poor performance.
+     *
+     * <p>TODO: Once we support one channel to consume multiple upstream subpartitions in the
+     * future, we can remove this limitation
+     */
+    private static final int MAX_NUM_SUBPARTITIONS_PER_TASK_CONSUME = 32768;
+
     private final int maxParallelism;
     private final int minParallelism;
     private final long dataVolumePerTask;
@@ -152,11 +164,23 @@ public class DefaultVertexParallelismAndInputInfosDecider
 
         // Considering that the sizes of broadcast results are usually very small, we compute the
         // parallelism only based on sizes of non-broadcast results
+        final List<BlockingResultInfo> nonBroadcastResults =
+                getNonBroadcastResultInfos(consumedResults);
+        if (nonBroadcastResults.isEmpty()) {
+            return minParallelism;
+        }
+
         long totalBytes =
-                getNonBroadcastResultInfos(consumedResults).stream()
+                nonBroadcastResults.stream()
                         .mapToLong(BlockingResultInfo::getNumBytesProduced)
                         .sum();
         int parallelism = (int) Math.ceil((double) totalBytes / dataVolumePerTask);
+        int minParallelismLimitedByMaxSubpartitions =
+                (int)
+                        Math.ceil(
+                                (double) getMaxNumSubpartitions(nonBroadcastResults)
+                                        / MAX_NUM_SUBPARTITIONS_PER_TASK_CONSUME);
+        parallelism = Math.max(parallelism, minParallelismLimitedByMaxSubpartitions);
 
         LOG.debug(
                 "The total size of non-broadcast data is {}, the initially decided parallelism of job vertex {} is {}.",
@@ -221,15 +245,24 @@ public class DefaultVertexParallelismAndInputInfosDecider
             }
         }
 
+        int maxNumPartitions = getMaxNumPartitions(nonBroadcastResults);
+        int maxRangeSize = MAX_NUM_SUBPARTITIONS_PER_TASK_CONSUME / maxNumPartitions;
         // compute subpartition ranges
         List<IndexRange> subpartitionRanges =
-                computeSubpartitionRanges(bytesBySubpartition, dataVolumePerTask);
+                computeSubpartitionRanges(bytesBySubpartition, dataVolumePerTask, maxRangeSize);
 
         // if the parallelism is not legal, adjust to a legal parallelism
         if (!isLegalParallelism(subpartitionRanges.size())) {
             Optional<List<IndexRange>> adjustedSubpartitionRanges =
                     adjustToClosestLegalParallelism(
-                            bytesBySubpartition, dataVolumePerTask, subpartitionRanges.size());
+                            dataVolumePerTask,
+                            subpartitionRanges.size(),
+                            Arrays.stream(bytesBySubpartition).min().getAsLong(),
+                            Arrays.stream(bytesBySubpartition).sum(),
+                            limit -> computeParallelism(bytesBySubpartition, limit, maxRangeSize),
+                            limit ->
+                                    computeSubpartitionRanges(
+                                            bytesBySubpartition, limit, maxRangeSize));
             if (!adjustedSubpartitionRanges.isPresent()) {
                 // can't find any legal parallelism, fall back to evenly distribute subpartitions
                 LOG.info(
@@ -268,26 +301,33 @@ public class DefaultVertexParallelismAndInputInfosDecider
      * Adjust the parallelism to the closest legal parallelism and return the computed subpartition
      * ranges.
      *
-     * @param bytesBySubpartition the bytes of subpartition
      * @param currentDataVolumeLimit current data volume limit
      * @param currentParallelism current parallelism
+     * @param minLimit the minimum data volume limit
+     * @param maxLimit the maximum data volume limit
+     * @param parallelismComputer a function to compute the parallelism according to the data volume
+     *     limit
+     * @param subpartitionRangesComputer a function to compute the subpartition ranges according to
+     *     the data volume limit
      * @return the computed subpartition ranges or {@link Optional#empty()} if we can't find any
      *     legal parallelism
      */
     private Optional<List<IndexRange>> adjustToClosestLegalParallelism(
-            long[] bytesBySubpartition, long currentDataVolumeLimit, int currentParallelism) {
+            long currentDataVolumeLimit,
+            int currentParallelism,
+            long minLimit,
+            long maxLimit,
+            Function<Long, Integer> parallelismComputer,
+            Function<Long, List<IndexRange>> subpartitionRangesComputer) {
         long adjustedDataVolumeLimit = currentDataVolumeLimit;
         if (currentParallelism < minParallelism) {
-            long minSubpartitionBytes = Arrays.stream(bytesBySubpartition).min().getAsLong();
             // Current parallelism is smaller than the user-specified lower-limit of parallelism ,
             // we need to adjust it to the closest/minimum possible legal parallelism. That is, we
             // need to find the maximum legal dataVolumeLimit.
             adjustedDataVolumeLimit =
                     BisectionSearchUtils.findMaxLegalValue(
-                            value ->
-                                    computeParallelism(bytesBySubpartition, value)
-                                            >= minParallelism,
-                            minSubpartitionBytes,
+                            value -> parallelismComputer.apply(value) >= minParallelism,
+                            minLimit,
                             currentDataVolumeLimit);
 
             // When we find the minimum possible legal parallelism, the dataVolumeLimit that can
@@ -295,33 +335,28 @@ public class DefaultVertexParallelismAndInputInfosDecider
             // this range to make the data distribution as even as possible (the smaller the
             // dataVolumeLimit, the more even the distribution)
             final long minPossibleLegalParallelism =
-                    computeParallelism(bytesBySubpartition, adjustedDataVolumeLimit);
+                    parallelismComputer.apply(adjustedDataVolumeLimit);
             adjustedDataVolumeLimit =
                     BisectionSearchUtils.findMinLegalValue(
                             value ->
-                                    computeParallelism(bytesBySubpartition, value)
-                                            == minPossibleLegalParallelism,
-                            minSubpartitionBytes,
+                                    parallelismComputer.apply(value) == minPossibleLegalParallelism,
+                            minLimit,
                             adjustedDataVolumeLimit);
 
         } else if (currentParallelism > maxParallelism) {
-            long totalBytes = Arrays.stream(bytesBySubpartition).sum();
             // Current parallelism is larger than the user-specified upper-limit of parallelism ,
             // we need to adjust it to the closest/maximum possible legal parallelism. That is, we
             // need to find the minimum legal dataVolumeLimit.
             adjustedDataVolumeLimit =
                     BisectionSearchUtils.findMinLegalValue(
-                            value ->
-                                    computeParallelism(bytesBySubpartition, value)
-                                            <= maxParallelism,
+                            value -> parallelismComputer.apply(value) <= maxParallelism,
                             currentDataVolumeLimit,
-                            totalBytes);
+                            maxLimit);
         }
 
-        int adjustedParallelism = computeParallelism(bytesBySubpartition, adjustedDataVolumeLimit);
+        int adjustedParallelism = parallelismComputer.apply(adjustedDataVolumeLimit);
         if (isLegalParallelism(adjustedParallelism)) {
-            return Optional.of(
-                    computeSubpartitionRanges(bytesBySubpartition, adjustedDataVolumeLimit));
+            return Optional.of(subpartitionRangesComputer.apply(adjustedDataVolumeLimit));
         } else {
             return Optional.empty();
         }
@@ -356,13 +391,15 @@ public class DefaultVertexParallelismAndInputInfosDecider
         return new ParallelismAndInputInfos(subpartitionRanges.size(), vertexInputInfos);
     }
 
-    private static List<IndexRange> computeSubpartitionRanges(long[] nums, long limit) {
+    private static List<IndexRange> computeSubpartitionRanges(
+            long[] nums, long limit, int maxRangeSize) {
         List<IndexRange> subpartitionRanges = new ArrayList<>();
         long tmpSum = 0;
         int startIndex = 0;
         for (int i = 0; i < nums.length; ++i) {
             long num = nums[i];
-            if (tmpSum == 0 || tmpSum + num <= limit) {
+            if (i == startIndex
+                    || (tmpSum + num <= limit && (i - startIndex + 1) <= maxRangeSize)) {
                 tmpSum += num;
             } else {
                 subpartitionRanges.add(new IndexRange(startIndex, i - 1));
@@ -374,18 +411,43 @@ public class DefaultVertexParallelismAndInputInfosDecider
         return subpartitionRanges;
     }
 
-    private static int computeParallelism(long[] nums, long limit) {
+    private static int computeParallelism(long[] nums, long limit, int maxRangeSize) {
         long tmpSum = 0;
+        int startIndex = 0;
         int count = 1;
-        for (long num : nums) {
-            if (tmpSum == 0 || tmpSum + num <= limit) {
+        for (int i = 0; i < nums.length; ++i) {
+            long num = nums[i];
+            if (i == startIndex
+                    || (tmpSum + num <= limit && (i - startIndex + 1) <= maxRangeSize)) {
                 tmpSum += num;
             } else {
+                startIndex = i;
                 tmpSum = num;
                 count += 1;
             }
         }
         return count;
+    }
+
+    private static int getMaxNumPartitions(List<BlockingResultInfo> consumedResults) {
+        checkArgument(!consumedResults.isEmpty());
+        return consumedResults.stream()
+                .mapToInt(BlockingResultInfo::getNumPartitions)
+                .max()
+                .getAsInt();
+    }
+
+    private static int getMaxNumSubpartitions(List<BlockingResultInfo> consumedResults) {
+        checkArgument(!consumedResults.isEmpty());
+        return consumedResults.stream()
+                .mapToInt(
+                        resultInfo ->
+                                IntStream.range(0, resultInfo.getNumPartitions())
+                                        .boxed()
+                                        .mapToInt(resultInfo::getNumSubpartitions)
+                                        .sum())
+                .max()
+                .getAsInt();
     }
 
     private static List<BlockingResultInfo> getNonBroadcastResultInfos(
