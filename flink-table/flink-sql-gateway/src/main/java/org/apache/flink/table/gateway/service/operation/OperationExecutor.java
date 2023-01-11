@@ -536,42 +536,36 @@ public class OperationExecutor {
     public ResultFetcher callShowJobsOperation(
             OperationHandle operationHandle, ShowJobsOperation showJobsOperation)
             throws SqlExecutionException {
-        try {
-            Collection<JobStatusMessage> jobs =
-                    runClusterAction(
-                            operationHandle,
-                            clusterClient -> {
-                                try {
-                                    return clusterClient.listJobs().get();
-                                } catch (Exception e) {
-                                    throw new FlinkException(e);
-                                }
-                            });
-            List<RowData> resultRows =
-                    jobs.stream()
-                            .map(
-                                    job ->
-                                            GenericRowData.of(
-                                                    StringData.fromString(
-                                                            job.getJobId().toString()),
-                                                    StringData.fromString(job.getJobName()),
-                                                    StringData.fromString(
-                                                            job.getJobState().toString()),
-                                                    DateTimeUtils.toTimestampData(
-                                                            job.getStartTime(), 3)))
-                            .collect(Collectors.toList());
-            return new ResultFetcher(
-                    operationHandle,
-                    ResolvedSchema.of(
-                            Column.physical(JOB_ID, DataTypes.STRING()),
-                            Column.physical(JOB_NAME, DataTypes.STRING()),
-                            Column.physical(STATUS, DataTypes.STRING()),
-                            Column.physical(
-                                    START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
-                    resultRows);
-        } catch (FlinkException | RuntimeException e) {
-            throw new SqlExecutionException("Failed to list jobs in the cluster.", e);
-        }
+        Collection<JobStatusMessage> jobs =
+                runClusterAction(
+                        operationHandle,
+                        clusterClient -> {
+                            try {
+                                return clusterClient.listJobs().get();
+                            } catch (Exception e) {
+                                throw new SqlExecutionException(
+                                        "Failed to list jobs in the cluster.", e);
+                            }
+                        });
+        List<RowData> resultRows =
+                jobs.stream()
+                        .map(
+                                job ->
+                                        GenericRowData.of(
+                                                StringData.fromString(job.getJobId().toString()),
+                                                StringData.fromString(job.getJobName()),
+                                                StringData.fromString(job.getJobState().toString()),
+                                                DateTimeUtils.toTimestampData(
+                                                        job.getStartTime(), 3)))
+                        .collect(Collectors.toList());
+        return new ResultFetcher(
+                operationHandle,
+                ResolvedSchema.of(
+                        Column.physical(JOB_ID, DataTypes.STRING()),
+                        Column.physical(JOB_NAME, DataTypes.STRING()),
+                        Column.physical(STATUS, DataTypes.STRING()),
+                        Column.physical(START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
+                resultRows);
     }
 
     /**
@@ -586,7 +580,7 @@ public class OperationExecutor {
      */
     private <ClusterID, Result> Result runClusterAction(
             OperationHandle handle, ClusterAction<ClusterID, Result> clusterAction)
-            throws FlinkException {
+            throws SqlExecutionException {
         final Configuration configuration = Configuration.fromMap(sessionContext.getConfigMap());
         final ClusterClientFactory<ClusterID> clusterClientFactory =
                 clusterClientServiceLoader.getClusterClientFactory(configuration);
@@ -599,6 +593,8 @@ public class OperationExecutor {
                 final ClusterClient<ClusterID> clusterClient =
                         clusterDescriptor.retrieve(clusterId).getClusterClient()) {
             return clusterAction.runAction(clusterClient);
+        } catch (FlinkException e) {
+            throw new SqlExecutionException("Failed to run cluster action.", e);
         }
     }
 
