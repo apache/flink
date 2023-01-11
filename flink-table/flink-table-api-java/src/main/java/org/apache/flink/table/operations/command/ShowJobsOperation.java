@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.operations.command;
 
-import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowOperation;
 
 /** Operation to describe a SHOW JOBS statement. */
-public class ShowJobsOperation implements Operation {
+public class ShowJobsOperation implements ShowOperation {
 
     @Override
     public String asSummaryString() {
