@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
@@ -263,6 +264,16 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
         }
         builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
         builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
+        builder.addAllJobParameters(
+                getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap().entrySet()
+                        .stream()
+                        .map(
+                                entry ->
+                                        FlinkFnApi.JobParameter.newBuilder()
+                                                .setKey(entry.getKey())
+                                                .setValue(entry.getValue())
+                                                .build())
+                        .collect(Collectors.toList()));
         // add windows
         for (int i = 0; i < lowerBoundary.length; i++) {
             FlinkFnApi.OverWindow.Builder windowBuilder = FlinkFnApi.OverWindow.newBuilder();

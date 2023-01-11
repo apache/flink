@@ -26,7 +26,7 @@ import pytz
 
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.expressions import call
-from pyflink.table.udf import ScalarFunction, udf
+from pyflink.table.udf import ScalarFunction, udf, FunctionContext
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBatchTableTestCase
@@ -41,11 +41,14 @@ class UserDefinedFunctionTests(object):
     def test_scalar_function(self):
         # test metric disabled.
         self.t_env.get_config().set('python.metric.enabled', 'false')
+        self.t_env.get_config().set('pipeline.global-job-parameters', 'subtract_value:2')
         # test lambda function
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
 
         # test Python ScalarFunction
         subtract_one = udf(SubtractOne(), result_type=DataTypes.BIGINT())
+
+        subtract_two = udf(SubtractWithParameters(), result_type=DataTypes.BIGINT())
 
         # test callable function
         add_one_callable = udf(CallablePlus(), result_type=DataTypes.BIGINT())
@@ -68,7 +71,7 @@ class UserDefinedFunctionTests(object):
         sink_table = generate_random_table_name()
         sink_table_ddl = f"""
             CREATE TABLE {sink_table}(a BIGINT, b BIGINT, c BIGINT, d BIGINT, e BIGINT, f BIGINT,
-             g BIGINT) WITH ('connector'='test-sink')
+             g BIGINT, h BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -76,11 +79,16 @@ class UserDefinedFunctionTests(object):
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where(add_one(t.b) <= 3).select(
-            add_one(t.a), subtract_one(t.b), add(t.a, t.c), add_one_callable(t.a),
-            add_one_partial(t.a), check_memory_limit(execution_mode), t.a) \
-            .execute_insert(sink_table).wait()
+            add_one(t.a),
+            subtract_one(t.b),
+            subtract_two(t.b),
+            add(t.a, t.c),
+            add_one_callable(t.a),
+            add_one_partial(t.a),
+            check_memory_limit(execution_mode),
+            t.a).execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["+I[2, 1, 4, 2, 2, 1, 1]", "+I[4, 0, 12, 4, 4, 1, 3]"])
+        self.assert_equals(actual, ["+I[2, 1, 0, 4, 2, 2, 1, 1]", "+I[4, 0, -1, 12, 4, 4, 1, 3]"])
 
     def test_chaining_scalar_function(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
@@ -1008,6 +1016,15 @@ class SubtractOne(ScalarFunction):
 
     def eval(self, i):
         return i - 1
+
+
+class SubtractWithParameters(ScalarFunction):
+
+    def open(self, function_context: FunctionContext):
+        self.subtract_value = int(function_context.get_job_parameter("subtract_value", "1"))
+
+    def eval(self, i):
+        return i - self.subtract_value
 
 
 class SubtractWithMetrics(ScalarFunction, unittest.TestCase):
