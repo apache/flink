@@ -182,11 +182,11 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
      */
     static class InternalRegion {
         /**
-         * {@link InternalRegion} is consists of immutable and variable parts. (firstBufferIndex,
-         * firstBufferOffset, numBuffer) are immutable part that have fixed size. The array of
-         * released is variable part. This field represents the size of fixed part.
+         * {@link InternalRegion} is consists of header and payload. (firstBufferIndex,
+         * firstBufferOffset, numBuffer) are immutable header part that have fixed size. The array
+         * of released is variable payload. This field represents the size of header.
          */
-        public static final int FIXED_SIZE = Integer.BYTES + Long.BYTES + Integer.BYTES;
+        public static final int HEADER_SIZE = Integer.BYTES + Long.BYTES + Integer.BYTES;
 
         private final int firstBufferIndex;
         private final long firstBufferOffset;
@@ -230,9 +230,9 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
             released[bufferIndex - firstBufferIndex] = true;
         }
 
-        /** Get the total size in bytes of this region, including immutable and variable part. */
+        /** Get the total size in bytes of this region, including header and payload. */
         int getSize() {
-            return FIXED_SIZE + numBuffers;
+            return HEADER_SIZE + numBuffers;
         }
 
         int getFirstBufferIndex() {

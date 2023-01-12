@@ -45,57 +45,57 @@ public class InternalRegionWriteReadUtils {
      * Write {@link InternalRegion} to {@link FileChannel}.
      *
      * @param channel the file's channel to write.
-     * @param fixedRegionBuffer the buffer to write {@link InternalRegion}'s fixed part.
+     * @param headerBuffer the buffer to write {@link InternalRegion}'s header.
      * @param region the region to be written to channel.
      */
     public static void writeRegionToFile(
-            FileChannel channel, ByteBuffer fixedRegionBuffer, InternalRegion region)
+            FileChannel channel, ByteBuffer headerBuffer, InternalRegion region)
             throws IOException {
-        // write fixed buffer.
-        fixedRegionBuffer.clear();
-        fixedRegionBuffer.putInt(region.getFirstBufferIndex());
-        fixedRegionBuffer.putInt(region.getNumBuffers());
-        fixedRegionBuffer.putLong(region.getFirstBufferOffset());
-        fixedRegionBuffer.flip();
+        // write header buffer.
+        headerBuffer.clear();
+        headerBuffer.putInt(region.getFirstBufferIndex());
+        headerBuffer.putInt(region.getNumBuffers());
+        headerBuffer.putLong(region.getFirstBufferOffset());
+        headerBuffer.flip();
 
-        // write variable buffer.
-        ByteBuffer variableBuffer = allocateAndConfigureBuffer(region.getNumBuffers());
+        // write payload buffer.
+        ByteBuffer payloadBuffer = allocateAndConfigureBuffer(region.getNumBuffers());
         boolean[] released = region.getReleased();
         for (boolean b : released) {
-            variableBuffer.put(b ? (byte) 1 : (byte) 0);
+            payloadBuffer.put(b ? (byte) 1 : (byte) 0);
         }
-        variableBuffer.flip();
+        payloadBuffer.flip();
 
         BufferReaderWriterUtil.writeBuffers(
                 channel,
-                fixedRegionBuffer.capacity() + variableBuffer.capacity(),
-                fixedRegionBuffer,
-                variableBuffer);
+                headerBuffer.capacity() + payloadBuffer.capacity(),
+                headerBuffer,
+                payloadBuffer);
     }
 
     /**
      * Read {@link InternalRegion} from {@link FileChannel}.
      *
      * @param channel the channel to read.
-     * @param fixedRegionBuffer the buffer to read {@link InternalRegion}'s fixed part.
+     * @param headerBuffer the buffer to read {@link InternalRegion}'s header.
      * @param position position to start read.
      * @return the {@link InternalRegion} that read from this channel.
      */
     public static InternalRegion readRegionFromFile(
-            FileChannel channel, ByteBuffer fixedRegionBuffer, long position) throws IOException {
-        fixedRegionBuffer.clear();
-        BufferReaderWriterUtil.readByteBufferFully(channel, fixedRegionBuffer, position);
-        fixedRegionBuffer.flip();
-        int firstBufferIndex = fixedRegionBuffer.getInt();
-        int numBuffers = fixedRegionBuffer.getInt();
-        long firstBufferOffset = fixedRegionBuffer.getLong();
-        ByteBuffer variablePart = allocateAndConfigureBuffer(numBuffers);
+            FileChannel channel, ByteBuffer headerBuffer, long position) throws IOException {
+        headerBuffer.clear();
+        BufferReaderWriterUtil.readByteBufferFully(channel, headerBuffer, position);
+        headerBuffer.flip();
+        int firstBufferIndex = headerBuffer.getInt();
+        int numBuffers = headerBuffer.getInt();
+        long firstBufferOffset = headerBuffer.getLong();
+        ByteBuffer payloadBuffer = allocateAndConfigureBuffer(numBuffers);
         BufferReaderWriterUtil.readByteBufferFully(
-                channel, variablePart, position + InternalRegion.FIXED_SIZE);
+                channel, payloadBuffer, position + InternalRegion.HEADER_SIZE);
         boolean[] released = new boolean[numBuffers];
-        variablePart.flip();
+        payloadBuffer.flip();
         for (int i = 0; i < numBuffers; i++) {
-            released[i] = variablePart.get() != 0;
+            released[i] = payloadBuffer.get() != 0;
         }
         return new InternalRegion(firstBufferIndex, firstBufferOffset, numBuffers, released);
     }

@@ -32,7 +32,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.UUID;
 
-import static org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion.FIXED_SIZE;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion.HEADER_SIZE;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.assertRegionEquals;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createSingleUnreleasedRegion;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,7 +54,7 @@ class InternalRegionWriteReadUtilsTest {
     @Test
     void testReadPrematureEndOfFile(@TempDir Path tmpPath) throws Exception {
         FileChannel channel = tmpFileChannel(tmpPath);
-        ByteBuffer buffer = InternalRegionWriteReadUtils.allocateAndConfigureBuffer(FIXED_SIZE);
+        ByteBuffer buffer = InternalRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
         InternalRegionWriteReadUtils.writeRegionToFile(
                 channel, buffer, createSingleUnreleasedRegion(0, 0L, 1));
         channel.truncate(channel.position() - 1);
@@ -67,7 +67,7 @@ class InternalRegionWriteReadUtilsTest {
     @Test
     void testWriteAndReadRegion(@TempDir Path tmpPath) throws Exception {
         FileChannel channel = tmpFileChannel(tmpPath);
-        ByteBuffer buffer = InternalRegionWriteReadUtils.allocateAndConfigureBuffer(FIXED_SIZE);
+        ByteBuffer buffer = InternalRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
         InternalRegion region = createSingleUnreleasedRegion(10, 100L, 1);
         InternalRegionWriteReadUtils.writeRegionToFile(channel, buffer, region);
         buffer.flip();
