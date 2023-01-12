@@ -38,7 +38,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The IT case for UPDATE clause. */
+/** The IT case for UPDATE clause in batch mode. */
 @RunWith(Parameterized.class)
 public class UpdateTableITCase extends BatchTestBase {
 

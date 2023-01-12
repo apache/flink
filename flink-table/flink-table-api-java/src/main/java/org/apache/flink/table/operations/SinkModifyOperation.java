@@ -43,6 +43,23 @@ public class SinkModifyOperation implements ModifyOperation {
     private final QueryOperation child;
     private final boolean overwrite;
     private final Map<String, String> dynamicOptions;
+    private final boolean isDelete;
+    private final boolean isUpdate;
+
+    public SinkModifyOperation(
+            ContextResolvedTable contextResolvedTable,
+            QueryOperation child,
+            boolean isDelete,
+            boolean isUpdate) {
+        this(
+                contextResolvedTable,
+                child,
+                Collections.emptyMap(),
+                false,
+                Collections.emptyMap(),
+                isDelete,
+                isUpdate);
+    }
 
     public SinkModifyOperation(ContextResolvedTable contextResolvedTable, QueryOperation child) {
         this(contextResolvedTable, child, Collections.emptyMap(), false, Collections.emptyMap());
@@ -54,11 +71,31 @@ public class SinkModifyOperation implements ModifyOperation {
             Map<String, String> staticPartitions,
             boolean overwrite,
             Map<String, String> dynamicOptions) {
+        this(
+                contextResolvedTable,
+                child,
+                staticPartitions,
+                overwrite,
+                dynamicOptions,
+                false,
+                false);
+    }
+
+    public SinkModifyOperation(
+            ContextResolvedTable contextResolvedTable,
+            QueryOperation child,
+            Map<String, String> staticPartitions,
+            boolean overwrite,
+            Map<String, String> dynamicOptions,
+            boolean isDelete,
+            boolean isUpdate) {
         this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.staticPartitions = staticPartitions;
         this.overwrite = overwrite;
         this.dynamicOptions = dynamicOptions;
+        this.isDelete = isDelete;
+        this.isUpdate = isUpdate;
     }
 
     public ContextResolvedTable getContextResolvedTable() {
@@ -75,6 +112,14 @@ public class SinkModifyOperation implements ModifyOperation {
 
     public Map<String, String> getDynamicOptions() {
         return dynamicOptions;
+    }
+
+    public boolean isDelete() {
+        return isDelete;
+    }
+
+    public boolean isUpdate() {
+        return isUpdate;
     }
 
     @Override

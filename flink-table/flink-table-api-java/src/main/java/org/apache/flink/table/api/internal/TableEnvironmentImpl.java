@@ -848,6 +848,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 executeInternal(ctasOperation.getCreateTableOperation());
                 mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
             } else {
+                if (modify instanceof SinkModifyOperation) {
+                    SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) modify;
+                    if (isStreamingMode
+                            && (sinkModifyOperation.isDelete() || sinkModifyOperation.isUpdate())) {
+                        throw new TableException(
+                                String.format(
+                                        "%s TABLE is not supported for streaming mode now.",
+                                        sinkModifyOperation.isDelete() ? "DELETE" : "UPDATE"));
+                    }
+                }
                 mapOperations.add(modify);
             }
         }

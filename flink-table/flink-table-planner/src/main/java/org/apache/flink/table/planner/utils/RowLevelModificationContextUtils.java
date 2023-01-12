@@ -21,7 +21,11 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 
-/** Utils for put/get in current thread. */
+/**
+ * Utils for putting/getting {@link RowLevelModificationScanContext}/{@link
+ * SupportsRowLevelModificationScan.RowLevelModificationType} in current thread, it enables to
+ * put/get them in different methods.
+ */
 public class RowLevelModificationContextUtils {
     private static final ThreadLocal<SupportsRowLevelModificationScan.RowLevelModificationType>
             modificationTypeThreadLocal = new ThreadLocal<>();
@@ -29,18 +33,16 @@ public class RowLevelModificationContextUtils {
     private static final ThreadLocal<RowLevelModificationScanContext> scanContextThreadLocal =
             new ThreadLocal<>();
 
-    public static void putRowLevelModificationType(
+    public static void setModificationType(
             SupportsRowLevelModificationScan.RowLevelModificationType rowLevelModificationType) {
         modificationTypeThreadLocal.set(rowLevelModificationType);
     }
 
-    public static SupportsRowLevelModificationScan.RowLevelModificationType
-            getRowLevelModificationType() {
+    public static SupportsRowLevelModificationScan.RowLevelModificationType getModificationType() {
         return modificationTypeThreadLocal.get();
     }
 
-    public static void putRowLevelModificationScanContext(
-            RowLevelModificationScanContext scanContext) {
+    public static void setScanContext(RowLevelModificationScanContext scanContext) {
         scanContextThreadLocal.set(scanContext);
     }
 

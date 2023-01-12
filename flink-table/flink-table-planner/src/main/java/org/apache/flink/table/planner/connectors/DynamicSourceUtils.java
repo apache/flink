@@ -568,7 +568,7 @@ public final class DynamicSourceUtils {
     }
 
     private static void prepareRowLevelModificationScan(DynamicTableSource dynamicTableSource) {
-        if (RowLevelModificationContextUtils.getRowLevelModificationType() != null
+        if (RowLevelModificationContextUtils.getModificationType() != null
                 && dynamicTableSource instanceof SupportsRowLevelModificationScan) {
             SupportsRowLevelModificationScan modificationScan =
                     (SupportsRowLevelModificationScan) dynamicTableSource;
@@ -576,9 +576,8 @@ public final class DynamicSourceUtils {
                     RowLevelModificationContextUtils.getScanContext();
             RowLevelModificationScanContext newScanContext =
                     modificationScan.applyRowLevelModificationScan(
-                            RowLevelModificationContextUtils.getRowLevelModificationType(),
-                            scanContext);
-            RowLevelModificationContextUtils.putRowLevelModificationScanContext(newScanContext);
+                            RowLevelModificationContextUtils.getModificationType(), scanContext);
+            RowLevelModificationContextUtils.setScanContext(newScanContext);
         }
     }
 

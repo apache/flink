@@ -1498,7 +1498,7 @@ public class SqlToOperationConverter {
     }
 
     private Operation convertDelete(SqlDelete sqlDelete) {
-        RowLevelModificationContextUtils.putRowLevelModificationType(
+        RowLevelModificationContextUtils.setModificationType(
                 SupportsRowLevelModificationScan.RowLevelModificationType.DELETE);
         RelRoot updateRelational = flinkPlanner.rel(sqlDelete);
         LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
@@ -1525,11 +1525,11 @@ public class SqlToOperationConverter {
         }
         // delete push down is not applicable, use row level delete
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
-        return new SinkModifyOperation(contextResolvedTable, queryOperation);
+        return new SinkModifyOperation(contextResolvedTable, queryOperation, true, false);
     }
 
     private Operation convertUpdate(SqlUpdate sqlUpdate) {
-        RowLevelModificationContextUtils.putRowLevelModificationType(
+        RowLevelModificationContextUtils.setModificationType(
                 SupportsRowLevelModificationScan.RowLevelModificationType.UPDATE);
         RelRoot updateRelational = flinkPlanner.rel(sqlUpdate);
         // get target sink table
@@ -1542,7 +1542,7 @@ public class SqlToOperationConverter {
         // get query
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
 
-        return new SinkModifyOperation(contextResolvedTable, queryOperation);
+        return new SinkModifyOperation(contextResolvedTable, queryOperation, false, true);
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {

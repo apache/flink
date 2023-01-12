@@ -168,6 +168,7 @@ public final class TestUpdateDeleteTableFactory
 
         if (helper.getOptions().get(SUPPORT_DELETE_PUSH_DOWN)) {
             return new TestTableSinkSupportDeletePushDown(
+                    context.getObjectIdentifier(),
                     context.getCatalogTable(),
                     helper.getOptions().get(REQUIRED_COLUMNS_FOR_DELETE),
                     helper.getOptions().get(REQUIRED_COLUMNS_FOR_UPDATE),
@@ -178,6 +179,7 @@ public final class TestUpdateDeleteTableFactory
                     dataId);
         } else {
             return new TestTableSink(
+                    context.getObjectIdentifier(),
                     context.getCatalogTable(),
                     helper.getOptions().get(REQUIRED_COLUMNS_FOR_DELETE),
                     helper.getOptions().get(REQUIRED_COLUMNS_FOR_UPDATE),
@@ -294,6 +296,7 @@ public final class TestUpdateDeleteTableFactory
     private static class TestTableSink
             implements DynamicTableSink, SupportsRowLevelDelete, SupportsRowLevelUpdate {
 
+        private final ObjectIdentifier objectIdentifier;
         private final List<String> requireColumnsForDelete;
         private final List<String> requireColumnsForUpdate;
         private final RowLevelDeleteMode deleteMode;
@@ -306,6 +309,7 @@ public final class TestUpdateDeleteTableFactory
         private boolean isUpdate;
 
         public TestTableSink(
+                ObjectIdentifier objectIdentifier,
                 ResolvedCatalogTable resolvedCatalogTable,
                 List<String> requireColumnsForDelete,
                 List<String> requireColumnsForUpdate,
@@ -314,6 +318,7 @@ public final class TestUpdateDeleteTableFactory
                 boolean onlyRequireUpdatedCol,
                 String dataId) {
             this(
+                    objectIdentifier,
                     resolvedCatalogTable,
                     requireColumnsForDelete,
                     requireColumnsForUpdate,
@@ -326,6 +331,7 @@ public final class TestUpdateDeleteTableFactory
         }
 
         public TestTableSink(
+                ObjectIdentifier objectIdentifier,
                 ResolvedCatalogTable resolvedCatalogTable,
                 List<String> requireColumnsForDelete,
                 List<String> requireColumnsForUpdate,
@@ -335,6 +341,7 @@ public final class TestUpdateDeleteTableFactory
                 String dataId,
                 boolean isDelete,
                 boolean isUpdate) {
+            this.objectIdentifier = objectIdentifier;
             this.resolvedCatalogTable = resolvedCatalogTable;
             this.requireColumnsForDelete = requireColumnsForDelete;
             this.requireColumnsForUpdate = requireColumnsForUpdate;
@@ -526,6 +533,7 @@ public final class TestUpdateDeleteTableFactory
         @Override
         public DynamicTableSink copy() {
             return new TestTableSink(
+                    objectIdentifier,
                     resolvedCatalogTable,
                     requireColumnsForDelete,
                     requireColumnsForUpdate,
@@ -542,6 +550,11 @@ public final class TestUpdateDeleteTableFactory
 
         @Override
         public RowLevelDeleteInfo applyRowLevelDelete(RowLevelModificationScanContext context) {
+            Preconditions.checkArgument(context instanceof TestScanContext);
+            TestScanContext scanContext = (TestScanContext) context;
+            Preconditions.checkArgument(
+                    scanContext.scanTables.contains(objectIdentifier),
+                    "The scan context should contains the object identifier for row-level delete.");
             this.isDelete = true;
             return new RowLevelDeleteInfo() {
                 @Override
@@ -566,6 +579,7 @@ public final class TestUpdateDeleteTableFactory
         @Override
         public RowLevelUpdateInfo applyRowLevelUpdate(
                 List<Column> updatedColumns, @Nullable RowLevelModificationScanContext context) {
+            checkScanContext(context);
             this.isUpdate = true;
             return new RowLevelUpdateInfo() {
 
@@ -587,6 +601,14 @@ public final class TestUpdateDeleteTableFactory
                 }
             };
         }
+
+        private void checkScanContext(RowLevelModificationScanContext context) {
+            Preconditions.checkArgument(context instanceof TestScanContext);
+            TestScanContext scanContext = (TestScanContext) context;
+            Preconditions.checkArgument(
+                    scanContext.scanTables.contains(objectIdentifier),
+                    "The scan context should contains the object identifier for row-level delete.");
+        }
     }
 
     private static class TestTableSinkSupportDeletePushDown extends TestTableSink
@@ -595,6 +617,7 @@ public final class TestUpdateDeleteTableFactory
         private final boolean onlyAcceptEmptyFilter;
 
         public TestTableSinkSupportDeletePushDown(
+                ObjectIdentifier objectIdentifier,
                 ResolvedCatalogTable resolvedCatalogTable,
                 List<String> requireColumnsForDelete,
                 List<String> requireColumnsForUpdate,
@@ -604,6 +627,7 @@ public final class TestUpdateDeleteTableFactory
                 boolean onlyAcceptEmptyFilter,
                 String dataId) {
             super(
+                    objectIdentifier,
                     resolvedCatalogTable,
                     requireColumnsForDelete,
                     requireColumnsForUpdate,

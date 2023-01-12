@@ -38,7 +38,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The IT case for DELETE clause. */
+/** The IT case for DELETE clause in batch mode. */
 @RunWith(Parameterized.class)
 public class DeleteTableITCase extends BatchTestBase {
 
