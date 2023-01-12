@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This class encapsulates represents a program, packaged in a jar file. It supplies functionality
+ * This class represents a program, packaged in a jar file. It supplies functionality
  * to extract nested libraries, search for the program entry point, and extract a program plan.
  */
 public class PackagedProgram implements AutoCloseable {
