@@ -53,7 +53,6 @@ public interface HsFileDataIndexSpilledRegionManager extends AutoCloseable {
         HsFileDataIndexSpilledRegionManager create(
                 int numSubpartitions,
                 Path indexFilePath,
-                int segmentSize,
                 BiConsumer<Integer, InternalRegion> cacheRegionConsumer);
     }
 }

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -73,7 +74,7 @@ class HsFileDataIndexSpilledRegionManagerImplTest {
             InternalRegion readRegion =
                     InternalRegionWriteReadUtils.readRegionFromFile(
                             indexFileChannel,
-                            allocateAndConfigureBuffer(InternalRegion.FIXED_SIZE),
+                            allocateAndConfigureBuffer(InternalRegion.HEADER_SIZE),
                             0L);
             assertRegionEquals(readRegion, region);
 
@@ -86,7 +87,7 @@ class HsFileDataIndexSpilledRegionManagerImplTest {
             InternalRegion readNewRegion =
                     InternalRegionWriteReadUtils.readRegionFromFile(
                             indexFileChannel,
-                            allocateAndConfigureBuffer(InternalRegion.FIXED_SIZE),
+                            allocateAndConfigureBuffer(InternalRegion.HEADER_SIZE),
                             0L);
             assertRegionEquals(readNewRegion, newRegion);
         }
@@ -107,7 +108,7 @@ class HsFileDataIndexSpilledRegionManagerImplTest {
             InternalRegion readRegion =
                     InternalRegionWriteReadUtils.readRegionFromFile(
                             indexFileChannel,
-                            allocateAndConfigureBuffer(InternalRegion.FIXED_SIZE),
+                            allocateAndConfigureBuffer(InternalRegion.HEADER_SIZE),
                             // offset is segment size instead of two regions size to prove that new
                             // segment is started.
                             segmentSize);
@@ -132,14 +133,14 @@ class HsFileDataIndexSpilledRegionManagerImplTest {
             InternalRegion readRegion1 =
                     InternalRegionWriteReadUtils.readRegionFromFile(
                             indexFileChannel,
-                            allocateAndConfigureBuffer(InternalRegion.FIXED_SIZE),
+                            allocateAndConfigureBuffer(InternalRegion.HEADER_SIZE),
                             0L);
             assertRegionEquals(readRegion1, region1);
 
             InternalRegion readRegion2 =
                     InternalRegionWriteReadUtils.readRegionFromFile(
                             indexFileChannel,
-                            allocateAndConfigureBuffer(InternalRegion.FIXED_SIZE),
+                            allocateAndConfigureBuffer(InternalRegion.HEADER_SIZE),
                             readRegion1.getSize());
             assertRegionEquals(readRegion2, region2);
         }
@@ -149,12 +150,12 @@ class HsFileDataIndexSpilledRegionManagerImplTest {
     void testFindRegionFirstBufferIndexInMultipleSegments() throws Exception {
         final int numBuffersPerRegion = 2;
         final int subpartition = 0;
-        CompletableFuture<InternalRegion> regionFuture = new CompletableFuture<>();
+        List<InternalRegion> loadedRegions = new ArrayList<>();
         try (HsFileDataIndexSpilledRegionManager spilledRegionManager =
                 createSpilledRegionManager(
                         // every segment can store two regions.
-                        (InternalRegion.FIXED_SIZE + numBuffersPerRegion) * 2,
-                        (ignore, region) -> regionFuture.complete(region))) {
+                        (InternalRegion.HEADER_SIZE + numBuffersPerRegion) * 2,
+                        (ignore, region) -> loadedRegions.add(region))) {
             // segment1: region1(0-2), region2(9-11), min:0, max: 11
             spilledRegionManager.appendOrOverwriteRegion(
                     subpartition, createSingleUnreleasedRegion(0, 0L, numBuffersPerRegion));
@@ -174,8 +175,9 @@ class HsFileDataIndexSpilledRegionManagerImplTest {
             // find target region
             long regionOffset = spilledRegionManager.findRegion(subpartition, 3, true);
             assertThat(regionOffset).isNotEqualTo(-1L);
-            assertThat(regionFuture).isCompleted();
-            assertRegionEquals(regionFuture.get(), targetRegion);
+            assertThat(loadedRegions).hasSize(2);
+            // target region must be put to the cache last.
+            assertRegionEquals(loadedRegions.get(1), targetRegion);
         }
     }
 
@@ -187,7 +189,7 @@ class HsFileDataIndexSpilledRegionManagerImplTest {
     private HsFileDataIndexSpilledRegionManager createSpilledRegionManager(
             int segmentSize, BiConsumer<Integer, InternalRegion> cacheRegionConsumer) {
         int numSubpartitions = 2;
-        return HsFileDataIndexSpilledRegionManagerImpl.Factory.INSTANCE.create(
-                numSubpartitions, indexFilePath, segmentSize, cacheRegionConsumer);
+        return new HsFileDataIndexSpilledRegionManagerImpl.Factory(segmentSize, Long.MAX_VALUE)
+                .create(numSubpartitions, indexFilePath, cacheRegionConsumer);
     }
 }

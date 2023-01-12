@@ -100,7 +100,6 @@ public class TestingFileDataIndexSpilledRegionManager
         public HsFileDataIndexSpilledRegionManager create(
                 int numSubpartitions,
                 Path indexFilePath,
-                int segmentSize,
                 BiConsumer<Integer, InternalRegion> cacheRegionConsumer) {
             TestingFileDataIndexSpilledRegionManager testingFileDataIndexSpilledRegionManager =
                     new TestingFileDataIndexSpilledRegionManager(
