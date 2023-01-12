@@ -83,6 +83,7 @@ import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowJars;
+import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
 import org.apache.flink.sql.parser.dql.SqlShowPartitions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
@@ -159,6 +160,7 @@ import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
+import org.apache.flink.table.operations.command.ShowJobsOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
@@ -358,6 +360,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertRemoveJar((SqlRemoveJar) validated));
         } else if (validated instanceof SqlShowJars) {
             return Optional.of(converter.convertShowJars((SqlShowJars) validated));
+        } else if (validated instanceof SqlShowJobs) {
+            return Optional.of(converter.convertShowJobs((SqlShowJobs) validated));
         } else if (validated instanceof RichSqlInsert) {
             return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
         } else if (validated instanceof SqlBeginStatementSet) {
@@ -1470,6 +1474,10 @@ public class SqlToOperationConverter {
                         "Unsupported partition value type: " + dataType.getLogicalType());
         }
         return new ValueLiteralExpression(value, dataType.notNull());
+    }
+
+    private Operation convertShowJobs(SqlShowJobs sqlStopJob) {
+        return new ShowJobsOperation();
     }
 
     private Operation convertStopJob(SqlStopJob sqlStopJob) {

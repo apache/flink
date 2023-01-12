@@ -107,6 +107,7 @@
     "org.apache.flink.sql.parser.dql.SqlUnloadModule"
     "org.apache.flink.sql.parser.expr.SqlUnresolvedTryCastFunction"
     "org.apache.flink.sql.parser.ddl.SqlStopJob"
+    "org.apache.flink.sql.parser.dql.SqlShowJobs"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
@@ -147,6 +148,7 @@
     "JAR"
     "JARS"
     "JOB"
+    "JOBS"
     "LOAD"
     "METADATA"
     "MODIFY"
@@ -294,8 +296,9 @@
     "ISOYEAR"
     "JAR"
     "JARS"
-    "JOB"
     "JAVA"
+    "JOB"
+    "JOBS"
     "JSON"
     "K"
     "KEY"
@@ -569,6 +572,7 @@
     "SqlReset()"
     "SqlAnalyzeTable()"
     "SqlStopJob()"
+    "SqlShowJobs()"
   ]
 
   # List of methods for parsing custom literals.

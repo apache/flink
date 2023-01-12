@@ -2366,6 +2366,19 @@ SqlNode SqlAnalyzeTable():
 }
 
 /**
+* Parse a "SHOW JOBS" statement.
+*/
+SqlShowJobs SqlShowJobs() :
+{
+}
+{
+    <SHOW> <JOBS>
+    {
+        return new SqlShowJobs(getPos());
+    }
+}
+
+/**
 * Parses a STOP JOB statement:
 * STOP JOB <JOB_ID> [<WITH SAVEPOINT>] [<WITH DRAIN>];
 */

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -121,7 +122,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     public static final MiniClusterExtension MINI_CLUSTER =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
+                            .setNumberTaskManagers(2)
                             .build());
 
     @RegisterExtension
@@ -454,6 +455,53 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         runGetOperationSchemaUntilOperationIsReadyOrError(
                 this::getDefaultResultSet,
                 task -> assertThat(task.get()).isEqualTo(getDefaultResultSet().getResultSchema()));
+    }
+
+    @Test
+    public void testShowJobsOperation(@InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
+
+        String pipelineName = "test-job";
+        configuration.setString(PipelineOptions.NAME, pipelineName);
+
+        // running jobs
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+        String insertSql = "INSERT INTO sink SELECT * FROM source;";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, configuration);
+        service.executeStatement(sessionHandle, sinkDdl, -1, configuration);
+
+        long timeOpStart = System.currentTimeMillis();
+        OperationHandle insertsOperationHandle =
+                service.executeStatement(sessionHandle, insertSql, -1, configuration);
+        String jobId =
+                fetchAllResults(sessionHandle, insertsOperationHandle)
+                        .get(0)
+                        .getString(0)
+                        .toString();
+
+        TestUtils.waitUntilAllTasksAreRunning(restClusterClient, JobID.fromHexString(jobId));
+        long timeOpSucceed = System.currentTimeMillis();
+
+        OperationHandle showJobsOperationHandle1 =
+                service.executeStatement(sessionHandle, "SHOW JOBS", -1, configuration);
+
+        List<RowData> result = fetchAllResults(sessionHandle, showJobsOperationHandle1);
+        RowData jobRow =
+                result.stream()
+                        .filter(row -> jobId.equals(row.getString(0).toString()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Test job " + jobId + " not found."));
+        assertThat(jobRow.getString(1).toString()).isEqualTo(pipelineName);
+        assertThat(jobRow.getString(2).toString()).isEqualTo("RUNNING");
+        assertThat(jobRow.getTimestamp(3, 3).getMillisecond())
+                .isBetween(timeOpStart, timeOpSucceed);
     }
 
     // --------------------------------------------------------------------------------------------
