@@ -43,6 +43,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -69,7 +70,7 @@ public class OperationManagerTest {
                         1L,
                         ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT())),
                         Collections.singletonList(GenericRowData.of(1L)),
-                        ResultSetImpl.DEFAULT_CONVERTER,
+                        SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
                         false,
                         null,
                         ResultKind.SUCCESS_WITH_CONTENT);

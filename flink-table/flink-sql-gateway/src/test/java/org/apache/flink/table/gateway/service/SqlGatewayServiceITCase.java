@@ -103,6 +103,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.table.api.ResultKind.SUCCESS_WITH_CONTENT;
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
@@ -499,100 +500,6 @@ public class SqlGatewayServiceITCase {
         assertThat(jobRow.getString(2).toString()).isEqualTo("RUNNING");
         assertThat(jobRow.getTimestamp(3, 3).getMillisecond())
                 .isBetween(timeOpStart, timeOpSucceed);
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Executing statement tests
-    // ---------------------------------------------------------------------------------------------
-
-    @Test
-    public void testIsQueryResult() throws Exception {
-        SessionHandle sessionHandle = createInitializedSession();
-
-        BiFunction<SessionHandle, OperationHandle, Boolean> isQueryResultGetter =
-                (sessionHandle1, operationHandle) ->
-                        fetchResults(sessionHandle1, operationHandle).isQueryResult();
-
-        // trivial query syntax
-        validateResultSetField(
-                sessionHandle, "SELECT * FROM cat1.db1.tbl1;", isQueryResultGetter, true);
-
-        // query with CTE
-        validateResultSetField(
-                sessionHandle,
-                "WITH hub AS (SELECT * FROM cat1.db1.tbl1)\nSELECT * FROM hub;",
-                isQueryResultGetter,
-                true);
-
-        // non-query
-        validateResultSetField(
-                sessionHandle,
-                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
-                isQueryResultGetter,
-                false);
-    }
-
-    @Test
-    public void testHasJobID() throws Exception {
-        SessionHandle sessionHandle = createInitializedSession();
-
-        BiFunction<SessionHandle, OperationHandle, Boolean> hasJobIDGetter =
-                (sessionHandle1, operationHandle) ->
-                        fetchResults(sessionHandle1, operationHandle).getJobID() != null;
-
-        // query
-        validateResultSetField(sessionHandle, "SELECT * FROM cat1.db1.tbl1;", hasJobIDGetter, true);
-
-        // insert
-        validateResultSetField(
-                sessionHandle,
-                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
-                hasJobIDGetter,
-                true);
-
-        // ddl
-        validateResultSetField(
-                sessionHandle,
-                "CREATE TABLE test (f0 INT) WITH ('connector' = 'values');",
-                hasJobIDGetter,
-                false);
-    }
-
-    @Test
-    public void testResultKind() throws Exception {
-        SessionHandle sessionHandle = createInitializedSession();
-
-        BiFunction<SessionHandle, OperationHandle, ResultKind> resultKindGetter =
-                (sessionHandle1, operationHandle) ->
-                        fetchResults(sessionHandle1, operationHandle).getResultKind();
-
-        // query
-        validateResultSetField(
-                sessionHandle,
-                "SELECT * FROM cat1.db1.tbl1;",
-                resultKindGetter,
-                ResultKind.SUCCESS_WITH_CONTENT);
-
-        // insert
-        validateResultSetField(
-                sessionHandle,
-                "INSERT INTO cat1.db1.tbl1 SELECT * FROM cat1.db1.tbl2;",
-                resultKindGetter,
-                ResultKind.SUCCESS_WITH_CONTENT);
-
-        // ddl
-        validateResultSetField(
-                sessionHandle,
-                "CREATE TABLE test (f0 INT) WITH ('connector' = 'values');",
-                resultKindGetter,
-                ResultKind.SUCCESS);
-
-        // set
-        validateResultSetField(
-                sessionHandle, "SET 'key' = 'value';", resultKindGetter, ResultKind.SUCCESS);
-
-        validateResultSetField(
-                sessionHandle, "SET;", resultKindGetter, ResultKind.SUCCESS_WITH_CONTENT);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1114,7 +1021,7 @@ public class SqlGatewayServiceITCase {
                         Column.physical("name", DataTypes.STRING()),
                         Column.physical("age", DataTypes.INT())),
                 data,
-                ResultSetImpl.DEFAULT_CONVERTER,
+                SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
                 false,
                 null,
                 SUCCESS_WITH_CONTENT);

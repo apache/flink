@@ -67,6 +67,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_COLUMNS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_FUNCTIONS_SCHEMA;
@@ -544,7 +545,7 @@ public class OperationExecutorFactory {
                 null,
                 schema,
                 data,
-                ResultSetImpl.DEFAULT_CONVERTER,
+                SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
                 false,
                 null,
                 ResultKind.SUCCESS_WITH_CONTENT);

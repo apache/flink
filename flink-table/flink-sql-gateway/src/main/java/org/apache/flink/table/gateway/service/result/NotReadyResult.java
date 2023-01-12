@@ -46,7 +46,8 @@ public class NotReadyResult implements ResultSet {
 
     @Override
     public ResolvedSchema getResultSchema() {
-        return ResolvedSchema.of(Collections.emptyList());
+        throw new UnsupportedOperationException(
+                "Don't know the schema for the result. Please continue fetching results until the result type is PAYLOAD or EOS.");
     }
 
     @Override

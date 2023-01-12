@@ -552,7 +552,7 @@ public class OperationExecutor {
                                                 DateTimeUtils.toTimestampData(
                                                         job.getStartTime(), 3)))
                         .collect(Collectors.toList());
-        return new ResultFetcher(
+        return ResultFetcher.fromResults(
                 operationHandle,
                 ResolvedSchema.of(
                         Column.physical(JOB_ID, DataTypes.STRING()),
@@ -570,7 +570,7 @@ public class OperationExecutor {
      * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
      * @param <ClusterID> type of the cluster id
      * @param <Result>> type of the result
-     * @throws FlinkException if something goes wrong
+     * @throws SqlExecutionException if something goes wrong
      */
     private <ClusterID, Result> Result runClusterAction(
             OperationHandle handle, ClusterAction<ClusterID, Result> clusterAction)

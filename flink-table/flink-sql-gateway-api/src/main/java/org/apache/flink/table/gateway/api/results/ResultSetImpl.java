@@ -31,14 +31,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
-
 /** An implementation of {@link ResultSet}. */
 @Internal
 public class ResultSetImpl implements ResultSet {
-
-    public static final RowDataToStringConverter DEFAULT_CONVERTER =
-            SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 
     private final ResultType resultType;
 

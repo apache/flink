@@ -44,6 +44,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
+
 /**
  * A fetcher to fetch result from submitted statement.
  *
@@ -122,7 +124,7 @@ public class ResultFetcher {
         this.resultSchema = resultSchema;
         this.bufferedResults.addAll(rows);
         this.resultStore = ResultStore.DUMMY_RESULT_STORE;
-        this.converter = ResultSetImpl.DEFAULT_CONVERTER;
+        this.converter = SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
         this.isQueryResult = false;
         this.jobID = jobID;
         this.resultKind = ResultKind.SUCCESS_WITH_CONTENT;
