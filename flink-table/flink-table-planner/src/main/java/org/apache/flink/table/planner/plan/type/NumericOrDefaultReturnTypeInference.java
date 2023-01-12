@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.type;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.calcite.sql.type.SqlTypeUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,11 +55,7 @@ public class NumericOrDefaultReturnTypeInference implements SqlReturnTypeInferen
         List<RelDataType> types = new ArrayList<>();
         for (int i = startTypeIdx; i < nOperands; i++) {
             RelDataType type = opBinding.getOperandType(i);
-            if (SqlTypeUtil.isNumeric(type)) {
-                types.add(type);
-            } else {
-                return opBinding.getOperandType(defaultTypeIdx);
-            }
+            types.add(type);
         }
         return opBinding.getTypeFactory().leastRestrictive(types);
     }

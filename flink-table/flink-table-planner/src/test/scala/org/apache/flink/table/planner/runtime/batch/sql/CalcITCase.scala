@@ -829,22 +829,22 @@ class CalcITCase extends BatchTestBase {
   }
 
   // TODO
-//  @Test
-//  def testUDFWithGetResultTypeFromLiteral(): Unit = {
-//    registerFunction("hashCode0", LiteralHashCode)
-//    registerFunction("hashCode1", LiteralHashCode)
-//    val data = Seq(row("a"), row("b"), row("c"))
-//    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
-//    checkResult(
-//      "SELECT hashCode0(text, 'int') FROM MyTable",
-//      Seq(row(97), row(98), row(99)
-//      ))
-//
-//    checkResult(
-//      "SELECT hashCode1(text, 'string') FROM MyTable",
-//      Seq(row("str97"), row("str98"), row("str99")
-//      ))
-//  }
+  //  @Test
+  //  def testUDFWithGetResultTypeFromLiteral(): Unit = {
+  //    registerFunction("hashCode0", LiteralHashCode)
+  //    registerFunction("hashCode1", LiteralHashCode)
+  //    val data = Seq(row("a"), row("b"), row("c"))
+  //    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
+  //    checkResult(
+  //      "SELECT hashCode0(text, 'int') FROM MyTable",
+  //      Seq(row(97), row(98), row(99)
+  //      ))
+  //
+  //    checkResult(
+  //      "SELECT hashCode1(text, 'string') FROM MyTable",
+  //      Seq(row("str97"), row("str98"), row("str99")
+  //      ))
+  //  }
 
   @Test
   def testInNonConstantValue(): Unit = {
@@ -1664,9 +1664,10 @@ class CalcITCase extends BatchTestBase {
 
     tEnv.createTemporaryView("myTable", source)
 
-    val query = """
-                  |select * from myTable where f0 in (1.0, 2.0, 3.0)
-                  |""".stripMargin
+    val query =
+      """
+        |select * from myTable where f0 in (1.0, 2.0, 3.0)
+        |""".stripMargin
 
     checkResult(
       query,
@@ -1835,6 +1836,11 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       "SELECT IF(a = '' OR a IS NULL, 'a', 'b') FROM MyTable",
       Seq(row('a'), row('b'), row('a')))
+  }
+
+  @Test
+  def testIfWithFixCharAndVarchar(): Unit = {
+    checkResult("SELECT IF(b > 10, 'ua', c) FROM Table3", data3.map(r => row(r.getField(2))))
   }
 
   @Test
