@@ -185,17 +185,13 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         // gives better throughput due to the bundle not getting cut on
         // every watermark. So we have implemented 2) below.
 
-        // advance the watermark and do not emit watermark to downstream operators
-        if (getTimeServiceManager().isPresent()) {
-            getTimeServiceManager().get().advanceWatermark(mark);
-        }
-
         if (mark.getTimestamp() == Long.MAX_VALUE) {
             invokeFinishBundle();
             processElementsOfCurrentKeyIfNeeded(null);
             advanceWatermark(mark);
             output.emitWatermark(mark);
         } else if (isBundleFinished()) {
+            advanceWatermark(mark);
             output.emitWatermark(mark);
         } else {
             // It is not safe to advance the output watermark yet, so add a hold on the current
