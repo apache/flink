@@ -143,6 +143,22 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         return createTopProject(relBuilder, multiJoin, finalPlan, fieldNames);
     }
 
+    /**
+     * Reorder all the inner join type input factors in the multiJoin.
+     *
+     * <p>The result contains the selected join order of each layer and is stored in a HashMap. The
+     * number of layers is equals to the number of inner join type input factors in the multiJoin.
+     * E.g. for inner join case ((A IJ B) IJ C):
+     *
+     * <p>The stored HashMap of first layer in the result list is: [(Set(0), JoinPlan(Set(0), A)),
+     * (Set(1), JoinPlan(Set(1), B)), (Set(2), JoinPlan(Set(2), C))].
+     *
+     * <p>The stored HashMap of second layer is [(Set(0, 1), JoinPlan(Set(0, 1), (A J B))), (Set(0,
+     * 2), JoinPlan(Set(0, 2), (A J C))), (Set(1, 2), JoinPlan(Set(1, 2), (B J C)))].
+     *
+     * <p>The stored HashMap of third layer is [(Set(1, 0, 2), JoinPlan(Set(1, 0, 2), ((B J A) J
+     * C)))].
+     */
     private static List<Map<Set<Integer>, JoinPlan>> reorderInnerJoin(
             RelBuilder relBuilder, LoptMultiJoin multiJoin) {
         int numJoinFactors = multiJoin.getNumJoinFactors();
@@ -152,8 +168,8 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         Map<Set<Integer>, JoinPlan> firstLevelJoinPlanMap = new LinkedHashMap<>();
         for (int i = 0; i < numJoinFactors; i++) {
             if (!multiJoin.isNullGenerating(i)) {
-                HashSet<Integer> set1 = new HashSet<>();
-                LinkedHashSet<Integer> set2 = new LinkedHashSet<>();
+                Set<Integer> set1 = new HashSet<>();
+                Set<Integer> set2 = new LinkedHashSet<>();
                 set1.add(i);
                 set2.add(i);
                 RelNode joinFactor = multiJoin.getJoinFactor(i);
@@ -211,7 +227,7 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         Set<Integer> set = new LinkedHashSet<>(bestPlan.factorIds);
         for (int index : remainIndexes) {
             RelNode rightNode = multiJoin.getJoinFactor(index);
-            Optional<Set<RexCall>> joinConditions =
+            Optional<List<RexCall>> joinConditions =
                     getJoinConditions(
                             bestPlan.factorIds, Collections.singleton(index), multiJoin, true);
 
@@ -220,13 +236,12 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
                 // will add cross join to top in method addCrossJoinToTop() separately.
                 continue;
             } else {
-                Set<RexCall> conditions = joinConditions.get();
-                List<RexNode> rexCalls = new ArrayList<>(conditions);
-                Set<RexCall> newCondition =
+                List<RexCall> conditions = joinConditions.get();
+                List<RexCall> newCondition =
                         convertToNewCondition(
                                 new ArrayList<>(set),
                                 Collections.singletonList(index),
-                                rexCalls,
+                                conditions,
                                 multiJoin);
 
                 // For full outer join, we return the full join type. However, for left outer join
@@ -406,15 +421,15 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
             return Optional.empty();
         }
 
-        Optional<Set<RexCall>> joinConditions =
+        Optional<List<RexCall>> joinConditions =
                 getJoinConditions(
                         leftSidePlan.factorIds, rightSidePlan.factorIds, multiJoin, false);
         if (!joinConditions.isPresent()) {
             return Optional.empty();
         }
 
-        Set<RexCall> conditions = joinConditions.get();
-        LinkedHashSet<Integer> newFactorIds = new LinkedHashSet<>();
+        List<RexCall> conditions = joinConditions.get();
+        Set<Integer> newFactorIds = new LinkedHashSet<>();
         JoinPlan newLeftSidePlan;
         JoinPlan newRightSidePlan;
         // put the deeper side on the left, tend to build a left-deep tree.
@@ -428,12 +443,11 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         newFactorIds.addAll(newLeftSidePlan.factorIds);
         newFactorIds.addAll(newRightSidePlan.factorIds);
 
-        List<RexNode> rexCalls = new ArrayList<>(conditions);
-        Set<RexCall> newCondition =
+        List<RexCall> newCondition =
                 convertToNewCondition(
                         new ArrayList<>(newLeftSidePlan.factorIds),
                         new ArrayList<>(newRightSidePlan.factorIds),
-                        rexCalls,
+                        conditions,
                         multiJoin);
 
         relBuilder.clear();
@@ -448,20 +462,19 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         return Optional.of(new JoinPlan(newFactorIds, newJoin));
     }
 
-    private static Set<RexCall> convertToNewCondition(
+    private static List<RexCall> convertToNewCondition(
             List<Integer> leftFactorIds,
             List<Integer> rightFactorIds,
-            List<RexNode> rexNodes,
+            List<RexCall> rexNodes,
             LoptMultiJoin multiJoin) {
         RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
-        Set<RexCall> newCondition = new HashSet<>();
-        for (RexNode cond : rexNodes) {
-            RexCall rexCond = (RexCall) cond;
+        List<RexCall> newCondition = new ArrayList<>();
+        for (RexCall rexCond : rexNodes) {
             List<RexNode> resultRexNode = new ArrayList<>();
             for (RexNode rexNode : rexCond.getOperands()) {
                 rexNode =
                         rexNode.accept(
-                                new JoinConditionShuffle(multiJoin, leftFactorIds, rightFactorIds));
+                                new JoinConditionShuttle(multiJoin, leftFactorIds, rightFactorIds));
                 resultRexNode.add(rexNode);
             }
             RexNode resultRex = rexBuilder.makeCall(rexCond.op, resultRexNode);
@@ -471,12 +484,12 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
         return newCondition;
     }
 
-    private static Optional<Set<RexCall>> getJoinConditions(
+    private static Optional<List<RexCall>> getJoinConditions(
             Set<Integer> leftSideFactorIds,
             Set<Integer> rightSideFactorIds,
             LoptMultiJoin multiJoin,
             boolean isOuterJoin) {
-        Set<RexCall> resultRexCall = new HashSet<>();
+        List<RexCall> resultRexCall = new ArrayList<>();
         List<RexNode> joinConditions = new ArrayList<>();
         if (isOuterJoin && !multiJoin.getMultiJoinRel().isFullOuterJoin()) {
             for (int i = 0; i < multiJoin.getNumJoinFactors(); i++) {
@@ -560,12 +573,12 @@ public class FlinkBushyJoinReorderRule extends RelRule<FlinkBushyJoinReorderRule
      * This class is used to convert the rexInputRef index of the join condition before building a
      * new join.
      */
-    private static class JoinConditionShuffle extends RexShuttle {
+    private static class JoinConditionShuttle extends RexShuttle {
         private final LoptMultiJoin multiJoin;
         private final List<Integer> leftFactorIds;
         private final List<Integer> rightFactorIds;
 
-        public JoinConditionShuffle(
+        public JoinConditionShuttle(
                 LoptMultiJoin multiJoin,
                 List<Integer> leftFactorIds,
                 List<Integer> rightFactorIds) {

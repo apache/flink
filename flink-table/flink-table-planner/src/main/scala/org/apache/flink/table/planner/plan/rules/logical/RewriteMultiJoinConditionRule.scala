@@ -57,7 +57,10 @@ class RewriteMultiJoinConditionRule
       .unwrapContext(multiJoin)
       .getTableConfig
       .get(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD)
-    (numJoinInputs > bushyTreeThreshold) && !multiJoin.isFullOuterJoin && isAllInnerJoin && equiJoinFilters.size > 1
+    (numJoinInputs > bushyTreeThreshold) &&
+    !multiJoin.isFullOuterJoin &&
+    isAllInnerJoin &&
+    equiJoinFilters.size > 1
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

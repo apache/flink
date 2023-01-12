@@ -223,6 +223,20 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
   }
 
   @Test
+  def testAllInnerJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a2 = a3
+         |   JOIN T4 ON a2 = a4
+         |   JOIN T5 ON a1 = a5
+         """.stripMargin
+    // can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testInnerAndLeftOuterJoin(): Unit = {
     val sql =
       s"""
@@ -230,7 +244,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
          |   JOIN T2 ON a1 = a2
          |   JOIN T3 ON a2 = a3
          |   LEFT OUTER JOIN T4 ON a1 = a4
-         |   JOIN T5 ON a4 = a5
+         |   JOIN T5 ON a1 = a5
          """.stripMargin
     // T1, T2, T3 T4 T5 can reorder.
     util.verifyRelPlan(sql)
@@ -273,7 +287,8 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
          |   LEFT OUTER JOIN T4 ON a1 = a4
          |   LEFT OUTER JOIN T5 ON a1 = a5
          """.stripMargin
-    // can reorder. Left outer join will be converted to one multi set by FlinkJoinToMultiJoinRule.
+    // can reorder. Left outer join will be converted to one multi
+    // set by FlinkJoinToMultiJoinRule.
     util.verifyRelPlan(sql)
   }
 
@@ -419,10 +434,11 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
   }
 
   @Test
-  def testInnerJoinWithCreatingABushyJoinTree(): Unit = {
+  def testInnerJoinWithBushyTypeJoinCondition(): Unit = {
     // This case is to test whether can build a bushy join tree.
-    // If variable isBushyJoinReorder is true, it can be built to a bushy join tree.
-    // Otherwise the join reorder tree is not bushy join tree.
+    // If variable isBushyJoinReorder is true, it can be built to
+    // a bushy join tree. Otherwise the join reorder tree is not bushy
+    // join tree.
     val sql =
       s"""
          |SELECT * FROM
