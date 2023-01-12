@@ -64,14 +64,15 @@ public class OperationManagerTest {
     public static void setUp() {
         operationManager = new OperationManager(EXECUTOR_SERVICE);
         defaultResultSet =
-                ResultSetImpl.newBuilder()
-                        .resultType(PAYLOAD)
-                        .nextToken(1L)
-                        .resolvedSchema(
-                                ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT())))
-                        .data(Collections.singletonList(GenericRowData.of(1L)))
-                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                        .build();
+                new ResultSetImpl(
+                        PAYLOAD,
+                        1L,
+                        ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT())),
+                        Collections.singletonList(GenericRowData.of(1L)),
+                        ResultSetImpl.DEFAULT_CONVERTER,
+                        false,
+                        null,
+                        ResultKind.SUCCESS_WITH_CONTENT);
     }
 
     @AfterAll

@@ -102,11 +102,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
+import static org.apache.flink.table.api.ResultKind.SUCCESS_WITH_CONTENT;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
-import static org.apache.flink.table.gateway.service.operation.OperationManager.NOT_READY_RESULT;
+import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
@@ -1105,15 +1106,18 @@ public class SqlGatewayServiceITCase {
                         GenericRowData.ofKind(INSERT, 2L, StringData.fromString("MySql"), null),
                         GenericRowData.ofKind(DELETE, 1, null, null),
                         GenericRowData.ofKind(UPDATE_AFTER, 2, null, 101));
-        return ResultSetImpl.newBuilder()
-                .resultType(PAYLOAD)
-                .resolvedSchema(
-                        ResolvedSchema.of(
-                                Column.physical("id", DataTypes.BIGINT()),
-                                Column.physical("name", DataTypes.STRING()),
-                                Column.physical("age", DataTypes.INT())))
-                .data(data)
-                .build();
+        return new ResultSetImpl(
+                PAYLOAD,
+                null,
+                ResolvedSchema.of(
+                        Column.physical("id", DataTypes.BIGINT()),
+                        Column.physical("name", DataTypes.STRING()),
+                        Column.physical("age", DataTypes.INT())),
+                data,
+                ResultSetImpl.DEFAULT_CONVERTER,
+                false,
+                null,
+                SUCCESS_WITH_CONTENT);
     }
 
     private void runGetOperationSchemaUntilOperationIsReadyOrError(

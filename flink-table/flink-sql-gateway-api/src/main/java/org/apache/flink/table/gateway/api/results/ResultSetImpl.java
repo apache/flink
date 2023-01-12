@@ -31,9 +31,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
+
 /** An implementation of {@link ResultSet}. */
 @Internal
 public class ResultSetImpl implements ResultSet {
+
+    public static final RowDataToStringConverter DEFAULT_CONVERTER =
+            SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 
     private final ResultType resultType;
 
@@ -47,14 +52,14 @@ public class ResultSetImpl implements ResultSet {
 
     @Nullable private final JobID jobID;
 
-    @Nullable private final ResultKind resultKind;
+    private final ResultKind resultKind;
 
-    private ResultSetImpl(
+    public ResultSetImpl(
             ResultType resultType,
             @Nullable Long nextToken,
             ResolvedSchema resultSchema,
             List<RowData> data,
-            @Nullable RowDataToStringConverter converter,
+            RowDataToStringConverter converter,
             boolean isQueryResult,
             @Nullable JobID jobID,
             ResultKind resultKind) {
@@ -146,78 +151,5 @@ public class ResultSetImpl implements ResultSet {
     public int hashCode() {
         return Objects.hash(
                 resultType, nextToken, resultSchema, data, isQueryResult, jobID, resultKind);
-    }
-
-    // -------------------------------------------------------------------------------------------
-    // Builder
-    // -------------------------------------------------------------------------------------------
-
-    public static Builder newBuilder() {
-        return new Builder();
-    }
-
-    /** Builder to build the {@link ResultSetImpl}. */
-    @Internal
-    public static class Builder {
-        private ResultType resultType;
-        @Nullable private Long nextToken;
-        private ResolvedSchema resultSchema;
-        private List<RowData> data;
-        @Nullable private RowDataToStringConverter converter;
-        private boolean isQueryResult;
-        @Nullable private JobID jobID;
-        @Nullable private ResultKind resultKind;
-
-        public Builder resultType(ResultType resultType) {
-            this.resultType = resultType;
-            return this;
-        }
-
-        public Builder nextToken(@Nullable Long nextToken) {
-            this.nextToken = nextToken;
-            return this;
-        }
-
-        public Builder resolvedSchema(ResolvedSchema resultSchema) {
-            this.resultSchema = resultSchema;
-            return this;
-        }
-
-        public Builder data(List<RowData> data) {
-            this.data = data;
-            return this;
-        }
-
-        public Builder converter(@Nullable RowDataToStringConverter converter) {
-            this.converter = converter;
-            return this;
-        }
-
-        public Builder isQueryResult(boolean isQueryResult) {
-            this.isQueryResult = isQueryResult;
-            return this;
-        }
-
-        public Builder jobID(@Nullable JobID jobID) {
-            this.jobID = jobID;
-            return this;
-        }
-
-        public Builder resultKind(@Nullable ResultKind resultKind) {
-            this.resultKind = resultKind;
-            return this;
-        }
-
-        public ResultSetImpl build() {
-            return new ResultSetImpl(
-                    resultType,
-                    nextToken,
-                    resultSchema,
-                    data,
-                    converter,
-                    isQueryResult,
-                    jobID,
-                    resultKind);
-        }
     }
 }

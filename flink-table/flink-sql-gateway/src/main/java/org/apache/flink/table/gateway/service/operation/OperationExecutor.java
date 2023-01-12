@@ -32,7 +32,6 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -49,8 +48,6 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
-import org.apache.flink.table.gateway.api.results.ResultSet;
-import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
@@ -269,21 +266,17 @@ public class OperationExecutor {
                 .getDefinition();
     }
 
-    public ResultSet getCompletionHints(String statement, int position) {
-        return ResultSetImpl.newBuilder()
-                .resultType(ResultSet.ResultType.EOS)
-                .resolvedSchema(
-                        ResolvedSchema.of(
-                                Column.physical(COMPLETION_CANDIDATES, DataTypes.STRING())))
-                .data(
-                        Arrays.stream(
-                                        getTableEnvironment()
-                                                .getParser()
-                                                .getCompletionHints(statement, position))
-                                .map(hint -> GenericRowData.of(StringData.fromString(hint)))
-                                .collect(Collectors.toList()))
-                .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                .build();
+    public ResultFetcher getCompletionHints(
+            OperationHandle operationHandle, String statement, int position) {
+        return ResultFetcher.fromResults(
+                operationHandle,
+                ResolvedSchema.of(Column.physical(COMPLETION_CANDIDATES, DataTypes.STRING())),
+                Arrays.stream(
+                                getTableEnvironment()
+                                        .getParser()
+                                        .getCompletionHints(statement, position))
+                        .map(hint -> GenericRowData.of(StringData.fromString(hint)))
+                        .collect(Collectors.toList()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -301,7 +294,7 @@ public class OperationExecutor {
             return callEndStatementSetOperation(tableEnv, handle);
         } else if (operation instanceof ModifyOperation) {
             sessionContext.addStatementSetOperation((ModifyOperation) operation);
-            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else {
             throw new SqlExecutionException(
                     "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.");
@@ -327,18 +320,7 @@ public class OperationExecutor {
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
         } else if (op instanceof QueryOperation) {
             TableResultInternal result = tableEnv.executeInternal(op);
-            return ResultFetcher.fromTableResult(
-                    handle,
-                    result,
-                    true,
-                    result.getJobClient()
-                            .orElseThrow(
-                                    () ->
-                                            new SqlExecutionException(
-                                                    String.format(
-                                                            "Can't get job client for the operation %s.",
-                                                            handle)))
-                            .getJobID());
+            return ResultFetcher.fromTableResult(handle, result, true);
         } else if (op instanceof StopJobOperation) {
             return callStopJobOperation(handle, (StopJobOperation) op);
         } else if (op instanceof ShowJobsOperation) {
@@ -353,7 +335,7 @@ public class OperationExecutor {
         if (setOp.getKey().isPresent() && setOp.getValue().isPresent()) {
             // set a property
             sessionContext.set(setOp.getKey().get().trim(), setOp.getValue().get().trim());
-            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
             // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
@@ -386,12 +368,12 @@ public class OperationExecutor {
             // reset all properties
             sessionContext.reset();
         }
-        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
     }
 
     private ResultFetcher callBeginStatementSetOperation(OperationHandle handle) {
         sessionContext.enableStatementSet();
-        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
     }
 
     private ResultFetcher callEndStatementSetOperation(
@@ -402,7 +384,7 @@ public class OperationExecutor {
 
         if (statementSetOperations.isEmpty()) {
             // there's no statement in the statement set, skip submitting
-            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else {
             return callModifyOperations(tableEnv, handle, statementSetOperations);
         }
@@ -433,7 +415,7 @@ public class OperationExecutor {
     private ResultFetcher callOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
         TableResultInternal result = tableEnv.executeInternal(op);
-        return ResultFetcher.fromTableResult(handle, result, false, null);
+        return ResultFetcher.fromTableResult(handle, result, false);
     }
 
     private Set<TableInfo> listTables(
@@ -536,7 +518,7 @@ public class OperationExecutor {
                     Collections.singletonList(
                             GenericRowData.of(StringData.fromString(savepoint.orElse("")))));
         } else {
-            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false, null);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         }
     }
 

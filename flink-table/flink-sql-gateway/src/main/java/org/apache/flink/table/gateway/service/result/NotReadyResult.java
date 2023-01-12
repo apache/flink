@@ -30,6 +30,10 @@ import java.util.List;
 /** To represent that the execution result is not ready to fetch. */
 public class NotReadyResult implements ResultSet {
 
+    public static final NotReadyResult NOT_READY_RESULT = new NotReadyResult();
+
+    private NotReadyResult() {}
+
     @Override
     public ResultType getResultType() {
         return ResultType.NOT_READY;
@@ -53,16 +57,18 @@ public class NotReadyResult implements ResultSet {
     @Override
     public boolean isQueryResult() {
         throw new UnsupportedOperationException(
-                "Can't know whether a NOT_READY_RESULT is for a query.");
+                "Don't know whether a NOT_READY_RESULT is for a query. Please continue fetching results until the result type is PAYLOAD or EOS.");
     }
 
     @Override
     public JobID getJobID() {
-        throw new UnsupportedOperationException("Can't get job ID from a NOT_READY_RESULT.");
+        throw new UnsupportedOperationException(
+                "Can't get job ID from a NOT_READY_RESULT. Please continue fetching results until the result type is PAYLOAD or EOS.");
     }
 
     @Override
     public ResultKind getResultKind() {
-        throw new UnsupportedOperationException("Can't get result kind from a NOT_READY_RESULT.");
+        throw new UnsupportedOperationException(
+                "Can't get result kind from a NOT_READY_RESULT. Please continue fetching results until the result type is PAYLOAD or EOS.");
     }
 }

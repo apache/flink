@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.endpoint.hive.util;
 
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -538,7 +539,15 @@ public class OperationExecutorFactory {
     }
 
     private static ResultSet buildResultSet(ResolvedSchema schema, List<RowData> data) {
-        return ResultSetImpl.newBuilder().resultType(EOS).resolvedSchema(schema).data(data).build();
+        return new ResultSetImpl(
+                EOS,
+                null,
+                schema,
+                data,
+                ResultSetImpl.DEFAULT_CONVERTER,
+                false,
+                null,
+                ResultKind.SUCCESS_WITH_CONTENT);
     }
 
     private static List<Type> getSupportedHiveType() {
