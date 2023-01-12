@@ -20,12 +20,14 @@ package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
@@ -41,6 +43,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,11 +65,15 @@ public class OperationManagerTest {
     public static void setUp() {
         operationManager = new OperationManager(EXECUTOR_SERVICE);
         defaultResultSet =
-                new ResultSet(
+                new ResultSetImpl(
                         PAYLOAD,
                         1L,
                         ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT())),
-                        Collections.singletonList(GenericRowData.of(1L)));
+                        Collections.singletonList(GenericRowData.of(1L)),
+                        SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
+                        false,
+                        null,
+                        ResultKind.SUCCESS_WITH_CONTENT);
     }
 
     @AfterAll

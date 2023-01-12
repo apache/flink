@@ -48,7 +48,6 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
-import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
@@ -91,6 +90,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
 import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_CANDIDATES;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_NAME;
@@ -266,10 +266,10 @@ public class OperationExecutor {
                 .getDefinition();
     }
 
-    public ResultSet getCompletionHints(String statement, int position) {
-        return new ResultSet(
-                ResultSet.ResultType.EOS,
-                null,
+    public ResultFetcher getCompletionHints(
+            OperationHandle operationHandle, String statement, int position) {
+        return ResultFetcher.fromResults(
+                operationHandle,
                 ResolvedSchema.of(Column.physical(COMPLETION_CANDIDATES, DataTypes.STRING())),
                 Arrays.stream(
                                 getTableEnvironment()
@@ -294,7 +294,7 @@ public class OperationExecutor {
             return callEndStatementSetOperation(tableEnv, handle);
         } else if (operation instanceof ModifyOperation) {
             sessionContext.addStatementSetOperation((ModifyOperation) operation);
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else {
             throw new SqlExecutionException(
                     "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.");
@@ -320,7 +320,7 @@ public class OperationExecutor {
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
         } else if (op instanceof QueryOperation) {
             TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
+            return ResultFetcher.fromTableResult(handle, result, true);
         } else if (op instanceof StopJobOperation) {
             return callStopJobOperation(handle, (StopJobOperation) op);
         } else if (op instanceof ShowJobsOperation) {
@@ -335,11 +335,11 @@ public class OperationExecutor {
         if (setOp.getKey().isPresent() && setOp.getValue().isPresent()) {
             // set a property
             sessionContext.set(setOp.getKey().get().trim(), setOp.getValue().get().trim());
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
             // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
-            return new ResultFetcher(
+            return ResultFetcher.fromResults(
                     handle,
                     ResolvedSchema.of(
                             Column.physical(SET_KEY, DataTypes.STRING()),
@@ -368,12 +368,12 @@ public class OperationExecutor {
             // reset all properties
             sessionContext.reset();
         }
-        return buildOkResultFetcher(handle);
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
     }
 
     private ResultFetcher callBeginStatementSetOperation(OperationHandle handle) {
         sessionContext.enableStatementSet();
-        return buildOkResultFetcher(handle);
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
     }
 
     private ResultFetcher callEndStatementSetOperation(
@@ -384,7 +384,7 @@ public class OperationExecutor {
 
         if (statementSetOperations.isEmpty()) {
             // there's no statement in the statement set, skip submitting
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else {
             return callModifyOperations(tableEnv, handle, statementSetOperations);
         }
@@ -395,30 +395,27 @@ public class OperationExecutor {
             OperationHandle handle,
             List<ModifyOperation> modifyOperations) {
         TableResultInternal result = tableEnv.executeInternal(modifyOperations);
-        return new ResultFetcher(
+        JobID jobID =
+                result.getJobClient()
+                        .orElseThrow(
+                                () ->
+                                        new SqlExecutionException(
+                                                String.format(
+                                                        "Can't get job client for the operation %s.",
+                                                        handle)))
+                        .getJobID();
+        return ResultFetcher.fromResults(
                 handle,
                 ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
                 Collections.singletonList(
-                        GenericRowData.of(
-                                StringData.fromString(
-                                        result.getJobClient()
-                                                .orElseThrow(
-                                                        () ->
-                                                                new SqlExecutionException(
-                                                                        String.format(
-                                                                                "Can't get job client for the operation %s.",
-                                                                                handle)))
-                                                .getJobID()
-                                                .toString()))));
+                        GenericRowData.of(StringData.fromString(jobID.toString()))),
+                jobID);
     }
 
     private ResultFetcher callOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
         TableResultInternal result = tableEnv.executeInternal(op);
-        return new ResultFetcher(
-                handle,
-                result.getResolvedSchema(),
-                CollectionUtil.iteratorToList(result.collectInternal()));
+        return ResultFetcher.fromTableResult(handle, result, false);
     }
 
     private Set<TableInfo> listTables(
@@ -515,22 +512,14 @@ public class OperationExecutor {
                     "Could not stop job " + jobId + " for operation " + handle + ".", e);
         }
         if (isWithSavepoint) {
-            return new ResultFetcher(
+            return ResultFetcher.fromResults(
                     handle,
                     ResolvedSchema.of(Column.physical(SAVEPOINT_PATH, DataTypes.STRING())),
                     Collections.singletonList(
                             GenericRowData.of(StringData.fromString(savepoint.orElse("")))));
         } else {
-            return buildOkResultFetcher(handle);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         }
-    }
-
-    private ResultFetcher buildOkResultFetcher(OperationHandle handle) {
-        return new ResultFetcher(
-                handle,
-                TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                CollectionUtil.iteratorToList(
-                        TableResultInternal.TABLE_RESULT_OK.collectInternal()));
     }
 
     public ResultFetcher callShowJobsOperation(
@@ -563,7 +552,7 @@ public class OperationExecutor {
                                                 DateTimeUtils.toTimestampData(
                                                         job.getStartTime(), 3)))
                         .collect(Collectors.toList());
-        return new ResultFetcher(
+        return ResultFetcher.fromResults(
                 operationHandle,
                 ResolvedSchema.of(
                         Column.physical(JOB_ID, DataTypes.STRING()),
@@ -581,7 +570,7 @@ public class OperationExecutor {
      * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
      * @param <ClusterID> type of the cluster id
      * @param <Result>> type of the result
-     * @throws FlinkException if something goes wrong
+     * @throws SqlExecutionException if something goes wrong
      */
     private <ClusterID, Result> Result runClusterAction(
             OperationHandle handle, ClusterAction<ClusterID, Result> clusterAction)

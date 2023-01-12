@@ -348,10 +348,10 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
             OperationManager operationManager = getSession(sessionHandle).getOperationManager();
             OperationHandle operationHandle =
                     operationManager.submitOperation(
-                            () ->
+                            handle ->
                                     getSession(sessionHandle)
                                             .createExecutor()
-                                            .getCompletionHints(statement, position));
+                                            .getCompletionHints(handle, statement, position));
             operationManager.awaitOperationTermination(operationHandle);
 
             ResultSet resultSet =

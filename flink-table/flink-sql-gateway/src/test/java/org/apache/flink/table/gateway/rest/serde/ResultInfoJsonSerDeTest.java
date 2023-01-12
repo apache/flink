@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -131,9 +130,11 @@ public class ResultInfoJsonSerDeTest {
                 rows.stream().map(this::convertToInternal).collect(Collectors.toList());
         ResolvedSchema testResolvedSchema = getTestResolvedSchema(getFields());
         ResultInfo testResultInfo =
-                ResultInfo.createResultInfo(
-                        new ResultSet(
-                                ResultSet.ResultType.PAYLOAD, 0L, testResolvedSchema, rowDataList));
+                new ResultInfo(
+                        testResolvedSchema.getColumns().stream()
+                                .map(ColumnInfo::toColumnInfo)
+                                .collect(Collectors.toList()),
+                        rowDataList);
 
         // test serialization & deserialization
         String result = OBJECT_MAPPER.writeValueAsString(testResultInfo);
