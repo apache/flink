@@ -275,16 +275,16 @@ public class NettyShuffleEnvironmentOptions {
     public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_SEGMENT_SIZE =
             key("taskmanager.network.hybrid-shuffle.spill-index-segment-size")
                     .intType()
-                    .defaultValue(256)
+                    .defaultValue(1024)
                     .withDescription(
-                            "Controls the segment size of hybrid spilled file data index.");
+                            "Controls the segment size(in bytes) of hybrid spilled file data index.");
 
     /** Max number of hybrid retained regions in memory. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Long> HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX =
             key("taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max")
                     .longType()
-                    .defaultValue(Long.MAX_VALUE)
+                    .defaultValue(1024 * 1024L)
                     .withDescription(
                             "Controls the max number of hybrid retained regions in memory.");
 

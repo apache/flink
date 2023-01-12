@@ -58,8 +58,8 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
                         numSubpartitions,
                         indexFilePath,
                         numRetainedInMemoryRegionsMax,
-                        spilledIndexSegmentSize,
-                        HsFileDataIndexSpilledRegionManagerImpl.Factory.INSTANCE);
+                        new HsFileDataIndexSpilledRegionManagerImpl.Factory(
+                                spilledIndexSegmentSize, numRetainedInMemoryRegionsMax));
     }
 
     @Override
