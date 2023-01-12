@@ -116,7 +116,7 @@ public abstract class SqlAlterTable extends SqlCall {
      *
      * @return true when IF EXISTS is specified.
      */
-    public boolean ignoreIfNotExists() {
+    public boolean isIfExists() {
         return ifExists;
     }
 

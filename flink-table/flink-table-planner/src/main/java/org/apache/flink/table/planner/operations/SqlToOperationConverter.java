@@ -481,7 +481,7 @@ public class SqlToOperationConverter {
         Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
-            if (sqlAlterTable.ignoreIfNotExists()) {
+            if (sqlAlterTable.isIfExists()) {
                 return new NopOperation();
             }
             throw new ValidationException(
@@ -499,7 +499,8 @@ public class SqlToOperationConverter {
                             ((SqlAlterTableRename) sqlAlterTable).fullNewTableName());
             ObjectIdentifier newTableIdentifier =
                     catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
-            return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
+            return new AlterTableRenameOperation(
+                    tableIdentifier, newTableIdentifier, sqlAlterTable.isIfExists());
         } else if (sqlAlterTable instanceof SqlAlterTableOptions) {
             return convertAlterTableOptions(
                     tableIdentifier,
@@ -607,7 +608,8 @@ public class SqlToOperationConverter {
                     changeOptions.entrySet().stream()
                             .map(entry -> TableChange.set(entry.getKey(), entry.getValue()))
                             .collect(Collectors.toList()),
-                    oldTable.copy(newOptions));
+                    oldTable.copy(newOptions),
+                    alterTableOptions.isIfExists());
         }
     }
 
@@ -630,7 +632,8 @@ public class SqlToOperationConverter {
         return new AlterTableChangeOperation(
                 tableIdentifier,
                 resetKeys.stream().map(TableChange::reset).collect(Collectors.toList()),
-                oldTable.copy(newOptions));
+                oldTable.copy(newOptions),
+                alterTableReset.isIfExists());
     }
 
     /**

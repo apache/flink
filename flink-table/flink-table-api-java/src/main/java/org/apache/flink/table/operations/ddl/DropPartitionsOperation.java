@@ -34,7 +34,7 @@ public class DropPartitionsOperation extends AlterTableOperation {
             ObjectIdentifier tableIdentifier,
             boolean ifExists,
             List<CatalogPartitionSpec> partitionSpecs) {
-        super(tableIdentifier);
+        super(tableIdentifier, false);
         this.ifExists = ifExists;
         this.partitionSpecs = partitionSpecs;
     }

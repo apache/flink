@@ -1241,7 +1241,8 @@ public class SqlToOperationConverterTest {
 
         // test alter table options
         checkAlterNonExistTable("alter table %s nonexistent set ('k1' = 'v1', 'K2' = 'V2')");
-        Operation operation = parse("alter table cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')");
+        Operation operation =
+                parse("alter table if exists cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')");
         Map<String, String> expectedOptions = new HashMap<>();
         expectedOptions.put("connector", "dummy");
         expectedOptions.put("k", "v");
@@ -1253,17 +1254,17 @@ public class SqlToOperationConverterTest {
                 expectedIdentifier,
                 expectedOptions,
                 Arrays.asList(TableChange.set("k1", "v1"), TableChange.set("K2", "V2")),
-                "ALTER TABLE cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2'");
+                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2'");
 
         // test alter table reset
         checkAlterNonExistTable("alter table %s nonexistent reset ('k')");
-        operation = parse("alter table cat1.db1.tb1 reset ('k')");
+        operation = parse("alter table if exists cat1.db1.tb1 reset ('k')");
         assertAlterTableOptions(
                 operation,
                 expectedIdentifier,
                 Collections.singletonMap("connector", "dummy"),
                 Collections.singletonList(TableChange.reset("k")),
-                "ALTER TABLE cat1.db1.tb1\n  RESET 'k'");
+                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  RESET 'k'");
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ('connector')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER TABLE RESET does not support changing 'connector'");
@@ -1649,10 +1650,11 @@ public class SqlToOperationConverterTest {
 
         // add a single column
         Operation operation =
-                parse("alter table tb1 add h double not null comment 'h is double not null'");
+                parse(
+                        "alter table if exists tb1 add h double not null comment 'h is double not null'");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1\n"
+                        "ALTER TABLE IF EXISTS cat1.db1.tb1\n"
                                 + "  ADD `h` DOUBLE NOT NULL COMMENT 'h is double not null' ");
         assertAlterTableSchema(
                 operation,

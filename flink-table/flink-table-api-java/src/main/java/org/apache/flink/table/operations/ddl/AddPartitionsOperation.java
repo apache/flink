@@ -38,7 +38,7 @@ public class AddPartitionsOperation extends AlterTableOperation {
             boolean ifNotExists,
             List<CatalogPartitionSpec> partitionSpecs,
             List<CatalogPartition> catalogPartitions) {
-        super(tableIdentifier);
+        super(tableIdentifier, false);
         this.ifNotExists = ifNotExists;
         this.partitionSpecs = partitionSpecs;
         this.catalogPartitions = catalogPartitions;
