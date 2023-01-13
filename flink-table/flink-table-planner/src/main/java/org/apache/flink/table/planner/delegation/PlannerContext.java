@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkConvertletTable;
+import org.apache.flink.table.planner.calcite.FlinkParserWrapper;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories;
@@ -233,7 +234,8 @@ public class PlannerContext {
     }
 
     /**
-     * Returns the SQL parser config for this environment including a custom Calcite configuration.
+     * Returns the SQLFlinkSqlParserFactories.create parser config for this environment including a
+     * custom Calcite configuration.
      */
     private SqlParser.Config getSqlParserConfig() {
         return JavaScalaConversionUtil.<SqlParser.Config>toJava(
@@ -244,7 +246,7 @@ public class PlannerContext {
                         () -> {
                             SqlConformance conformance = getSqlConformance();
                             return SqlParser.config()
-                                    .withParserFactory(FlinkSqlParserFactories.create(conformance))
+                                    .withParserFactory(FlinkParserWrapper.factory(conformance))
                                     .withConformance(conformance)
                                     .withLex(Lex.JAVA)
                                     .withIdentifierMaxLength(256);

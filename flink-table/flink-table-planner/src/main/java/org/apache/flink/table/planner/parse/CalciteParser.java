@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.parse;
 
-import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.planner.calcite.FlinkParserWrapper;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -108,15 +108,8 @@ public class CalciteParser {
      */
     public SqlIdentifier parseIdentifier(String identifier) throws SqlParserException {
         try {
-            SqlAbstractParserImpl flinkParser = createFlinkParser(identifier);
-            if (flinkParser instanceof FlinkSqlParserImpl) {
-                return ((FlinkSqlParserImpl) flinkParser).TableApiIdentifier();
-            } else if (flinkParser instanceof FlinkHiveSqlParserImpl) {
-                return ((FlinkHiveSqlParserImpl) flinkParser).TableApiIdentifier();
-            } else {
-                throw new IllegalArgumentException(
-                        "Unrecognized sql parser type " + flinkParser.getClass().getName());
-            }
+            FlinkParserWrapper flinkParser = createFlinkParserWrapper(identifier);
+            return flinkParser.tableApiIdentifier();
         } catch (Exception e) {
             throw new SqlParserException(
                     String.format("Invalid SQL identifier %s.", identifier), e);
@@ -130,7 +123,7 @@ public class CalciteParser {
      * <p>It is so that we can access specific parsing methods not accessible through the {@code
      * SqlParser}.
      */
-    private SqlAbstractParserImpl createFlinkParser(String expr) {
+    private FlinkParserWrapper createFlinkParserWrapper(String expr) {
         SourceStringReader reader = new SourceStringReader(expr);
         SqlAbstractParserImpl parser = config.parserFactory().getParser(reader);
         parser.setTabSize(1);
@@ -150,6 +143,6 @@ public class CalciteParser {
                 break;
         }
 
-        return parser;
+        return new FlinkParserWrapper(parser);
     }
 }

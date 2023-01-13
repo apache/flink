@@ -204,6 +204,20 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!--FLINK-30659 move sql-parser-hive package to connector hive-->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser-hive</artifactId>
+			<version>${project.version}</version>
+			<scope>runtime</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-core</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
