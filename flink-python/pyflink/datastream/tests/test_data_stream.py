@@ -1231,8 +1231,10 @@ class CommonDataStreamTests(PyFlinkTestCase):
         self.test_sink.clear()
 
     def assert_equals_sorted(self, expected, actual):
-        expected.sort()
-        actual.sort()
+        # otherwise, it may thrown exceptions such as the following:
+        # TypeError: '<' not supported between instances of 'NoneType' and 'str'
+        expected.sort(key=lambda x: str(x))
+        actual.sort(key=lambda x: str(x))
         self.assertEqual(expected, actual)
 
     def test_data_stream_name(self):
@@ -1494,6 +1496,22 @@ class CommonDataStreamTests(PyFlinkTestCase):
         ds = self.env.from_collection(test_data, type_info=Types.PRIMITIVE_ARRAY(Types.INT()))
         with ds.execute_and_collect() as results:
             actual = [r for r in results]
+            self.assert_equals_sorted(expected, actual)
+
+        test_data = [
+            (["test", "test"], [0.0, 0.0]),
+            ([None, ], [0.0, 0.0])
+        ]
+
+        ds = self.env.from_collection(
+            test_data,
+            type_info=Types.TUPLE(
+                [Types.OBJECT_ARRAY(Types.STRING()), Types.OBJECT_ARRAY(Types.DOUBLE())]
+            )
+        )
+        expected = test_data
+        with ds.execute_and_collect() as results:
+            actual = [result for result in results]
             self.assert_equals_sorted(expected, actual)
 
     def test_function_with_error(self):

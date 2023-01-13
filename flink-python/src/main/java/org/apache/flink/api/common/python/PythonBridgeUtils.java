@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -241,7 +242,7 @@ public final class PythonBridgeUtils {
         Pickler pickler = new Pickler();
         initialize();
         if (obj == null) {
-            return new byte[0];
+            return pickler.dumps(null);
         } else {
             if (dataType instanceof SqlTimeTypeInfo) {
                 SqlTimeTypeInfo<?> sqlTimeTypeInfo =
@@ -270,15 +271,19 @@ public final class PythonBridgeUtils {
                 }
                 return fieldBytes;
             } else if (dataType instanceof BasicArrayTypeInfo
-                    || dataType instanceof PrimitiveArrayTypeInfo) {
+                    || dataType instanceof PrimitiveArrayTypeInfo
+                    || dataType instanceof ObjectArrayTypeInfo) {
                 Object[] objects;
                 TypeInformation<?> elementType;
                 if (dataType instanceof BasicArrayTypeInfo) {
                     objects = (Object[]) obj;
                     elementType = ((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo();
-                } else {
+                } else if (dataType instanceof PrimitiveArrayTypeInfo) {
                     objects = primitiveArrayConverter(obj, dataType);
                     elementType = ((PrimitiveArrayTypeInfo<?>) dataType).getComponentType();
+                } else {
+                    objects = (Object[]) obj;
+                    elementType = ((ObjectArrayTypeInfo<?, ?>) dataType).getComponentInfo();
                 }
                 List<Object> serializedElements = new ArrayList<>(objects.length);
                 for (Object object : objects) {
