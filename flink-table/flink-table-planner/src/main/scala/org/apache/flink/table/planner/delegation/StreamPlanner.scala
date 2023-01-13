@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.api.{ExplainDetail, ExplainFormat, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
@@ -92,7 +92,14 @@ class StreamPlanner(
     transformations ++ planner.extraTransformations
   }
 
-  override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
+  override def explain(
+      operations: util.List[Operation],
+      format: ExplainFormat,
+      extraDetails: ExplainDetail*): String = {
+    if (format != ExplainFormat.TEXT) {
+      throw new UnsupportedOperationException(
+        s"Unsupported explain format [${format.getClass.getCanonicalName}]")
+    }
     val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new mutable.StringBuilder

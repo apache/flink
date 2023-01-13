@@ -718,7 +718,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         if (operations.isEmpty()) {
             return "";
         } else {
-            return planner.explain(operations, extraDetails);
+            return planner.explain(operations, format, extraDetails);
         }
     }
 
