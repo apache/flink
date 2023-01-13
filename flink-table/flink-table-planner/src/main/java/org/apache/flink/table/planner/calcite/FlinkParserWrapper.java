@@ -35,7 +35,7 @@ import java.lang.reflect.InvocationTargetException;
  */
 @Internal
 public class FlinkParserWrapper {
-    private static String FLINK_HIVE_SQL_PARSER_CLASS =
+    private static final String FLINK_HIVE_SQL_PARSER_CLASS =
             "org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl";
     private final SqlAbstractParserImpl parserImpl;
 
@@ -79,17 +79,13 @@ public class FlinkParserWrapper {
                                 .getDeclaredField("FACTORY")
                                 .get(null);
             } catch (ClassNotFoundException e) {
-                throw new RuntimeException(
-                        "Unable to load org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl",
-                        e);
+                throw new RuntimeException("Unable to load " + FLINK_HIVE_SQL_PARSER_CLASS, e);
             } catch (NoSuchFieldException e) {
                 throw new RuntimeException(
-                        "Unable to find FACTORY field in org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl",
-                        e);
+                        "Unable to find FACTORY field in " + FLINK_HIVE_SQL_PARSER_CLASS, e);
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(
-                        "Unable to access FACTORY field in org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl",
-                        e);
+                        "Unable to access FACTORY field in " + FLINK_HIVE_SQL_PARSER_CLASS, e);
             }
         } else {
             return FlinkSqlParserImpl.FACTORY;

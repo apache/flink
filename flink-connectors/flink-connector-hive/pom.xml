@@ -209,7 +209,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-parser-hive</artifactId>
 			<version>${project.version}</version>
-			<scope>runtime</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.calcite</groupId>
