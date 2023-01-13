@@ -23,6 +23,7 @@ import org.apache.flink.client.program.PerJobMiniClusterFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -30,7 +31,6 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.WaitingCancelableInvokable;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -68,7 +68,6 @@ public class ClientHeartbeatTest {
     }
 
     @Test
-    @Disabled("Disable until FLINK-30629 is fixed.")
     void testJobRunningIfClientReportHeartbeat() throws Exception {
         JobClient jobClient = submitJob(createConfiguration(true));
 
@@ -93,6 +92,9 @@ public class ClientHeartbeatTest {
 
     private Configuration createConfiguration(boolean shutdownOnAttachedExit) {
         Configuration configuration = new Configuration();
+        configuration.set(
+                Dispatcher.CLIENT_ALIVENESS_CHECK_DURATION,
+                Duration.ofMillis(clientHeartbeatTimeout));
         if (shutdownOnAttachedExit) {
             configuration.setBoolean(DeploymentOptions.ATTACHED, true);
             configuration.setBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED, true);

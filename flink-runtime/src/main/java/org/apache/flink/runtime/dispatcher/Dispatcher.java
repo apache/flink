@@ -27,6 +27,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -96,6 +98,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -125,11 +128,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         implements DispatcherGateway {
 
+    public static final ConfigOption<Duration> CLIENT_ALIVENESS_CHECK_DURATION =
+            ConfigOptions.key("internal.client-aliveness-check.interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1));
+
     public static final String DISPATCHER_NAME = "dispatcher";
 
     private static final int INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY = 16;
-
-    private static final long MAX_JOB_CLIENT_ALIVENESS_CHECK_INTERVAL = 60_000;
 
     private final Configuration configuration;
 
@@ -177,7 +183,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private final ResourceCleaner globalResourceCleaner;
 
     private final Time webTimeout;
+
     private final Map<JobID, Long> jobClientExpiredTimestamp = new HashMap<>();
+    private final Map<JobID, Long> uninitializedJobClientHeartbeatTimeout = new HashMap<>();
+    private final long jobClientAlivenessCheckInterval;
     private ScheduledFuture<?> jobClientAlivenessCheck;
 
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
@@ -294,6 +303,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 resourceCleanerFactory.createGlobalResourceCleaner(this.getMainThreadExecutor());
 
         this.webTimeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+
+        this.jobClientAlivenessCheckInterval =
+                configuration.get(CLIENT_ALIVENESS_CHECK_DURATION).toMillis();
     }
 
     // ------------------------------------------------------
@@ -388,8 +400,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     "Begin to detect the client's aliveness for job {}. The heartbeat timeout is {}",
                     jobID,
                     initialClientHeartbeatTimeout);
-            jobClientExpiredTimestamp.put(
-                    jobID, System.currentTimeMillis() + initialClientHeartbeatTimeout);
+            uninitializedJobClientHeartbeatTimeout.put(jobID, initialClientHeartbeatTimeout);
 
             if (jobClientAlivenessCheck == null) {
                 // Use the client heartbeat timeout as the check interval.
@@ -401,7 +412,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                 getMainThreadExecutor()
                                                         .execute(this::checkJobClientAliveness),
                                         0L,
-                                        initialClientHeartbeatTimeout,
+                                        jobClientAlivenessCheckInterval,
                                         TimeUnit.MILLISECONDS);
             }
         }
@@ -1080,6 +1091,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private void checkJobClientAliveness() {
+        setClientHeartbeatTimeoutForInitializedJob();
+
         long currentTimestamp = System.currentTimeMillis();
         Iterator<Map.Entry<JobID, Long>> iterator = jobClientExpiredTimestamp.entrySet().iterator();
         while (iterator.hasNext()) {
@@ -1097,6 +1110,22 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                 + "by 'client.heartbeat.timeout'",
                         jobID);
                 cancelJob(jobID, webTimeout);
+            }
+        }
+    }
+
+    private void setClientHeartbeatTimeoutForInitializedJob() {
+        Iterator<Map.Entry<JobID, Long>> iterator =
+                uninitializedJobClientHeartbeatTimeout.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<JobID, Long> entry = iterator.next();
+            JobID jobID = entry.getKey();
+            Optional<JobManagerRunner> jobManagerRunnerOptional = getJobManagerRunner(jobID);
+            if (!jobManagerRunnerOptional.isPresent()) {
+                iterator.remove();
+            } else if (jobManagerRunnerOptional.get().isInitialized()) {
+                jobClientExpiredTimestamp.put(jobID, System.currentTimeMillis() + entry.getValue());
+                iterator.remove();
             }
         }
     }
