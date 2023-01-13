@@ -33,7 +33,17 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;
@@ -49,8 +59,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 /** Class for unit tests to run on catalogs. */
 @ExtendWith(TestLoggerExtension.class)
@@ -118,7 +130,7 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, cd, false);
 
         assertThat(catalog.databaseExists(db1)).isTrue();
-        CatalogTestUtil.checkEquals(cd, catalog.getDatabase(db1));
+        checkEquals(cd, catalog.getDatabase(db1));
     }
 
     @Test
@@ -136,14 +148,14 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, cd1, false);
         List<String> dbs = catalog.listDatabases();
 
-        CatalogTestUtil.checkEquals(cd1, catalog.getDatabase(db1));
+        checkEquals(cd1, catalog.getDatabase(db1));
         assertThat(dbs).hasSize(2);
         assertThat(new HashSet<>(dbs))
                 .isEqualTo(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabase())));
 
         catalog.createDatabase(db1, createAnotherDb(), true);
 
-        CatalogTestUtil.checkEquals(cd1, catalog.getDatabase(db1));
+        checkEquals(cd1, catalog.getDatabase(db1));
         assertThat(dbs).containsExactlyInAnyOrder(db1, catalog.getDefaultDatabase());
     }
 
@@ -204,7 +216,7 @@ public abstract class CatalogTest {
                                 .entrySet()
                                 .containsAll(db.getProperties().entrySet()))
                 .isFalse();
-        CatalogTestUtil.checkEquals(newDb, catalog.getDatabase(db1));
+        checkEquals(newDb, catalog.getDatabase(db1));
     }
 
     @Test
@@ -241,7 +253,7 @@ public abstract class CatalogTest {
         CatalogTable table = createStreamingTable();
         catalog.createTable(path1, table, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
     }
 
     @Test
@@ -254,7 +266,7 @@ public abstract class CatalogTest {
 
         CatalogBaseTable tableCreated = catalog.getTable(path1);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) tableCreated);
+        checkEquals(table, (CatalogTable) tableCreated);
         assertThat(tableCreated.getDescription().isPresent()).isTrue();
         assertThat(tableCreated.getDescription().get()).isEqualTo(TEST_COMMENT);
 
@@ -274,7 +286,7 @@ public abstract class CatalogTest {
         CatalogTable table = createPartitionedTable();
         catalog.createTable(path1, table, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
         List<String> tables = catalog.listTables(db1);
 
@@ -311,11 +323,11 @@ public abstract class CatalogTest {
         CatalogTable table = createTable();
         catalog.createTable(path1, table, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
         catalog.createTable(path1, createAnotherTable(), true);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
     }
 
     @Test
@@ -376,13 +388,13 @@ public abstract class CatalogTest {
         CatalogTable table = createTable();
         catalog.createTable(path1, table, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
         CatalogTable newTable = createAnotherTable();
         catalog.alterTable(path1, newTable, false);
 
         assertThat(catalog.getTable(path1)).isNotEqualTo(table);
-        CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
+        checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 
         catalog.dropTable(path1, false);
 
@@ -390,13 +402,13 @@ public abstract class CatalogTest {
         CatalogView view = createView();
         catalog.createTable(path3, view, false);
 
-        CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path3));
+        checkEquals(view, (CatalogView) catalog.getTable(path3));
 
         CatalogView newView = createAnotherView();
         catalog.alterTable(path3, newView, false);
 
         assertThat(catalog.getTable(path3)).isNotEqualTo(view);
-        CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path3));
+        checkEquals(newView, (CatalogView) catalog.getTable(path3));
     }
 
     @Test
@@ -407,12 +419,12 @@ public abstract class CatalogTest {
         CatalogTable table = createPartitionedTable();
         catalog.createTable(path1, table, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
         CatalogTable newTable = createAnotherPartitionedTable();
         catalog.alterTable(path1, newTable, false);
 
-        CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
+        checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
     }
 
     @Test
@@ -452,11 +464,11 @@ public abstract class CatalogTest {
         CatalogTable table = createTable();
         catalog.createTable(path1, table, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
         catalog.renameTable(path1, t2, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
+        checkEquals(table, (CatalogTable) catalog.getTable(path3));
         assertThat(catalog.tableExists(path1)).isFalse();
     }
 
@@ -528,7 +540,7 @@ public abstract class CatalogTest {
         catalog.createTable(path1, view, false);
 
         assertThat(catalog.getTable(path1)).isInstanceOf(CatalogView.class);
-        CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+        checkEquals(view, (CatalogView) catalog.getTable(path1));
     }
 
     @Test
@@ -561,12 +573,12 @@ public abstract class CatalogTest {
         catalog.createTable(path1, view, false);
 
         assertThat(catalog.getTable(path1)).isInstanceOf(CatalogView.class);
-        CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+        checkEquals(view, (CatalogView) catalog.getTable(path1));
 
         catalog.createTable(path1, createAnotherView(), true);
 
         assertThat(catalog.getTable(path1)).isInstanceOf(CatalogView.class);
-        CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+        checkEquals(view, (CatalogView) catalog.getTable(path1));
     }
 
     @Test
@@ -588,13 +600,13 @@ public abstract class CatalogTest {
         CatalogView view = createView();
         catalog.createTable(path1, view, false);
 
-        CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+        checkEquals(view, (CatalogView) catalog.getTable(path1));
 
         CatalogView newView = createAnotherView();
         catalog.alterTable(path1, newView, false);
 
         assertThat(catalog.getTable(path1)).isInstanceOf(CatalogView.class);
-        CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path1));
+        checkEquals(newView, (CatalogView) catalog.getTable(path1));
     }
 
     @Test
@@ -824,8 +836,7 @@ public abstract class CatalogTest {
         assertThat(catalog.listPartitions(path1)).containsExactly(createPartitionSpec());
         assertThat(catalog.listPartitions(path1, createPartitionSpecSubset()))
                 .containsExactly(createPartitionSpec());
-        CatalogTestUtil.checkEquals(
-                createPartition(), catalog.getPartition(path1, createPartitionSpec()));
+        checkEquals(createPartition(), catalog.getPartition(path1, createPartitionSpec()));
 
         catalog.createPartition(path1, createAnotherPartitionSpec(), createPartition(), false);
 
@@ -833,8 +844,7 @@ public abstract class CatalogTest {
                 .isEqualTo(Arrays.asList(createPartitionSpec(), createAnotherPartitionSpec()));
         assertThat(catalog.listPartitions(path1, createPartitionSpecSubset()))
                 .isEqualTo(Arrays.asList(createPartitionSpec(), createAnotherPartitionSpec()));
-        CatalogTestUtil.checkEquals(
-                createPartition(), catalog.getPartition(path1, createAnotherPartitionSpec()));
+        checkEquals(createPartition(), catalog.getPartition(path1, createAnotherPartitionSpec()));
     }
 
     @Test
@@ -1003,7 +1013,7 @@ public abstract class CatalogTest {
 
         assertThat(catalog.listPartitions(path1)).containsExactly(createPartitionSpec());
         CatalogPartition cp = catalog.getPartition(path1, createPartitionSpec());
-        CatalogTestUtil.checkEquals(createPartition(), cp);
+        checkEquals(createPartition(), cp);
         assertThat(cp.getProperties().get("k")).isNull();
 
         CatalogPartition another = createPartition();
@@ -1015,7 +1025,7 @@ public abstract class CatalogTest {
 
         cp = catalog.getPartition(path1, createPartitionSpec());
 
-        CatalogTestUtil.checkEquals(another, cp);
+        checkEquals(another, cp);
         assertThat(cp.getProperties().get("k")).isEqualTo("v");
     }
 
@@ -1500,6 +1510,176 @@ public abstract class CatalogTest {
     }
 
     protected void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
-        CatalogTestUtil.checkEquals(cs1, cs2);
+        checkEquals(cs1.getColumnStatisticsData(), cs2.getColumnStatisticsData());
+        assertThat(cs2.getProperties()).isEqualTo(cs1.getProperties());
+    }
+
+    public void checkEquals(CatalogTable t1, CatalogTable t2) {
+        assertThat(t2.getTableKind()).isEqualTo(t1.getTableKind());
+        assertThat(t2.getSchema()).isEqualTo(t1.getSchema());
+        assertThat(t2.getComment()).isEqualTo(t1.getComment());
+        assertThat(t2.getPartitionKeys()).isEqualTo(t1.getPartitionKeys());
+        assertThat(t2.isPartitioned()).isEqualTo(t1.isPartitioned());
+
+        // Hive tables may have properties created by itself
+        // thus properties of Hive table is a super set of those in its corresponding Flink table
+        if (isHiveTable(t1.getOptions())) {
+            assertThat(
+                            t2.getOptions().keySet().stream()
+                                    .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)))
+                    .isTrue();
+            assertThat(t2.getOptions().entrySet().containsAll(t1.getOptions().entrySet())).isTrue();
+        } else {
+            assertThat(t2.getOptions()).isEqualTo(t1.getOptions());
+        }
+    }
+
+    protected void checkEquals(CatalogView v1, CatalogView v2) {
+        assertThat(v2.getTableKind()).isEqualTo(v1.getTableKind());
+        assertThat(v1.getSchema()).isEqualTo(v1.getSchema());
+        assertThat(v2.getComment()).isEqualTo(v1.getComment());
+        assertThat(v2.getOriginalQuery()).isEqualTo(v1.getOriginalQuery());
+        assertThat(v2.getExpandedQuery()).isEqualTo(v1.getExpandedQuery());
+
+        // Hive tables may have properties created by itself
+        // thus properties of Hive table is a super set of those in its corresponding Flink table
+        if (isHiveTable(v1.getOptions())) {
+            assertThat(
+                            v2.getOptions().keySet().stream()
+                                    .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)))
+                    .isTrue();
+            assertThat(v2.getOptions().entrySet().containsAll(v1.getOptions().entrySet())).isTrue();
+        } else {
+            assertThat(v2.getOptions()).isEqualTo(v1.getOptions());
+        }
+    }
+
+    protected void checkEquals(CatalogPartition p1, CatalogPartition p2) {
+        assertThat(p2.getClass()).isEqualTo(p1.getClass());
+        assertThat(p2.getComment()).isEqualTo(p1.getComment());
+
+        // Hive tables may have properties created by itself
+        // thus properties of Hive table is a super set of those in its corresponding Flink table
+        if (isHiveTable(p1.getProperties())) {
+            assertThat(p2.getProperties().entrySet().containsAll(p1.getProperties().entrySet()))
+                    .isTrue();
+        } else {
+            assertThat(p2.getProperties()).isEqualTo(p1.getProperties());
+        }
+    }
+
+    protected void checkEquals(TableStats ts1, TableStats ts2) {
+        assertThat(ts2.getRowCount()).isEqualTo(ts1.getRowCount());
+        assertThat(ts2.getColumnStats()).hasSize(ts1.getColumnStats().size());
+    }
+
+    public void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
+        assertThat(d2.getClass()).isEqualTo(d1.getClass());
+        assertThat(d2.getComment()).isEqualTo(d1.getComment());
+
+        // d2 should contain all properties of d1's, and may or may not contain extra properties
+        assertThat(d2.getProperties().entrySet().containsAll(d1.getProperties().entrySet()))
+                .isTrue();
+    }
+
+    protected void checkEquals(CatalogTableStatistics ts1, CatalogTableStatistics ts2) {
+        assertThat(ts2.getRowCount()).isEqualTo(ts1.getRowCount());
+        assertThat(ts2.getFileCount()).isEqualTo(ts1.getFileCount());
+        assertThat(ts2.getTotalSize()).isEqualTo(ts1.getTotalSize());
+        assertThat(ts2.getRawDataSize()).isEqualTo(ts1.getRawDataSize());
+        assertThat(ts2.getProperties()).isEqualTo(ts1.getProperties());
+    }
+
+    protected void checkEquals(
+            Map<String, CatalogColumnStatisticsDataBase> m1,
+            Map<String, CatalogColumnStatisticsDataBase> m2) {
+        assertThat(m2).hasSize(m1.size());
+        for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry : m2.entrySet()) {
+            assertThat(m1).containsKey(entry.getKey());
+            checkEquals(m2.get(entry.getKey()), entry.getValue());
+        }
+    }
+
+    private static void checkEquals(
+            CatalogColumnStatisticsDataBase v1, CatalogColumnStatisticsDataBase v2) {
+        assertThat(v2.getClass()).isEqualTo(v1.getClass());
+        if (v1 instanceof CatalogColumnStatisticsDataBoolean) {
+            checkEquals(
+                    (CatalogColumnStatisticsDataBoolean) v1,
+                    (CatalogColumnStatisticsDataBoolean) v2);
+        } else if (v1 instanceof CatalogColumnStatisticsDataLong) {
+            checkEquals((CatalogColumnStatisticsDataLong) v1, (CatalogColumnStatisticsDataLong) v2);
+        } else if (v1 instanceof CatalogColumnStatisticsDataBinary) {
+            checkEquals(
+                    (CatalogColumnStatisticsDataBinary) v1, (CatalogColumnStatisticsDataBinary) v2);
+        } else if (v1 instanceof CatalogColumnStatisticsDataDate) {
+            checkEquals((CatalogColumnStatisticsDataDate) v1, (CatalogColumnStatisticsDataDate) v2);
+        } else if (v1 instanceof CatalogColumnStatisticsDataString) {
+            checkEquals(
+                    (CatalogColumnStatisticsDataString) v1, (CatalogColumnStatisticsDataString) v2);
+        } else if (v1 instanceof CatalogColumnStatisticsDataDouble) {
+            checkEquals(
+                    (CatalogColumnStatisticsDataDouble) v1, (CatalogColumnStatisticsDataDouble) v2);
+        }
+    }
+
+    private static void checkEquals(
+            CatalogColumnStatisticsDataBoolean v1, CatalogColumnStatisticsDataBoolean v2) {
+        assertThat(v2.getFalseCount()).isEqualTo(v1.getFalseCount());
+        assertThat(v2.getTrueCount()).isEqualTo(v1.getTrueCount());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
+    }
+
+    private static void checkEquals(
+            CatalogColumnStatisticsDataLong v1, CatalogColumnStatisticsDataLong v2) {
+        assertThat(v2.getMin()).isEqualTo(v1.getMin());
+        assertThat(v2.getMax()).isEqualTo(v1.getMax());
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
+    }
+
+    private static void checkEquals(
+            CatalogColumnStatisticsDataDouble v1, CatalogColumnStatisticsDataDouble v2) {
+        assertThat(v2.getMin()).isCloseTo(v1.getMin(), within(0.05D));
+        assertThat(v2.getMax()).isCloseTo(v1.getMax(), within(0.05D));
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
+    }
+
+    private static void checkEquals(
+            CatalogColumnStatisticsDataString v1, CatalogColumnStatisticsDataString v2) {
+        assertThat(v2.getMaxLength()).isEqualTo(v1.getMaxLength());
+        assertThat(v2.getAvgLength()).isCloseTo(v1.getAvgLength(), within(0.05D));
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
+    }
+
+    private static void checkEquals(
+            CatalogColumnStatisticsDataBinary v1, CatalogColumnStatisticsDataBinary v2) {
+        assertThat(v2.getMaxLength()).isEqualTo(v1.getMaxLength());
+        assertThat(v2.getAvgLength()).isCloseTo(v1.getAvgLength(), within(0.05D));
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
+    }
+
+    private static void checkEquals(
+            CatalogColumnStatisticsDataDate v1, CatalogColumnStatisticsDataDate v2) {
+        checkEquals(v1.getMin(), v2.getMin());
+        checkEquals(v1.getMax(), v2.getMax());
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
+    }
+
+    private static void checkEquals(Date v1, Date v2) {
+        assertThat(v2.getDaysSinceEpoch()).isEqualTo(v1.getDaysSinceEpoch());
+    }
+
+    private static boolean isHiveTable(Map<String, String> properties) {
+        return "hive".equalsIgnoreCase(properties.get(FactoryUtil.CONNECTOR.key()));
     }
 }

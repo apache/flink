@@ -79,12 +79,12 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
         CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
         catalog.createPartition(path1, catalogPartitionSpec, catalogPartition, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+        checkEquals(table, (CatalogTable) catalog.getTable(path1));
         assertThat(catalog.partitionExists(path1, catalogPartitionSpec)).isTrue();
 
         catalog.renameTable(path1, t2, false);
 
-        CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
+        checkEquals(table, (CatalogTable) catalog.getTable(path3));
         assertThat(catalog.partitionExists(path3, catalogPartitionSpec)).isTrue();
         assertThat(catalog.tableExists(path1)).isFalse();
         assertThat(catalog.partitionExists(path1, catalogPartitionSpec)).isFalse();
@@ -99,17 +99,15 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
         CatalogTable table = createTable();
         catalog.createTable(path1, table, false);
 
-        CatalogTestUtil.checkEquals(
-                catalog.getTableStatistics(path1), CatalogTableStatistics.UNKNOWN);
-        CatalogTestUtil.checkEquals(
-                catalog.getTableColumnStatistics(path1), CatalogColumnStatistics.UNKNOWN);
+        checkEquals(catalog.getTableStatistics(path1), CatalogTableStatistics.UNKNOWN);
+        checkEquals(catalog.getTableColumnStatistics(path1), CatalogColumnStatistics.UNKNOWN);
 
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(5, 2, 100, 575);
         catalog.alterTableStatistics(path1, tableStatistics, false);
-        CatalogTestUtil.checkEquals(tableStatistics, catalog.getTableStatistics(path1));
+        checkEquals(tableStatistics, catalog.getTableStatistics(path1));
         CatalogColumnStatistics columnStatistics = createColumnStats();
         catalog.alterTableColumnStatistics(path1, columnStatistics, false);
-        CatalogTestUtil.checkEquals(columnStatistics, catalog.getTableColumnStatistics(path1));
+        checkEquals(columnStatistics, catalog.getTableColumnStatistics(path1));
 
         // Partition related
         catalog.createDatabase(db2, createDb(), false);
@@ -118,19 +116,17 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
         CatalogPartitionSpec partitionSpec = createPartitionSpec();
         catalog.createPartition(path2, partitionSpec, createPartition(), false);
 
-        CatalogTestUtil.checkEquals(
+        checkEquals(
                 catalog.getPartitionStatistics(path2, partitionSpec),
                 CatalogTableStatistics.UNKNOWN);
-        CatalogTestUtil.checkEquals(
+        checkEquals(
                 catalog.getPartitionColumnStatistics(path2, partitionSpec),
                 CatalogColumnStatistics.UNKNOWN);
 
         catalog.alterPartitionStatistics(path2, partitionSpec, tableStatistics, false);
-        CatalogTestUtil.checkEquals(
-                tableStatistics, catalog.getPartitionStatistics(path2, partitionSpec));
+        checkEquals(tableStatistics, catalog.getPartitionStatistics(path2, partitionSpec));
         catalog.alterPartitionColumnStatistics(path2, partitionSpec, columnStatistics, false);
-        CatalogTestUtil.checkEquals(
-                columnStatistics, catalog.getPartitionColumnStatistics(path2, partitionSpec));
+        checkEquals(columnStatistics, catalog.getPartitionColumnStatistics(path2, partitionSpec));
 
         // Clean up
         catalog.dropTable(path1, false);
@@ -157,7 +153,7 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
         // got statistic from catalog should be unknown since no statistic has been put into
         // partition
         for (CatalogTableStatistics statistics : catalogTableStatistics) {
-            CatalogTestUtil.checkEquals(statistics, CatalogTableStatistics.UNKNOWN);
+            checkEquals(statistics, CatalogTableStatistics.UNKNOWN);
         }
 
         // put statistic for partition
@@ -170,8 +166,8 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
         catalogTableStatistics =
                 catalog.bulkGetPartitionStatistics(
                         path1, Arrays.asList(partitionSpec, anotherPartitionSpec));
-        CatalogTestUtil.checkEquals(catalogTableStatistics.get(0), tableStatistics);
-        CatalogTestUtil.checkEquals(catalogTableStatistics.get(1), anotherTableStatistics);
+        checkEquals(catalogTableStatistics.get(0), tableStatistics);
+        checkEquals(catalogTableStatistics.get(1), anotherTableStatistics);
     }
 
     @Test
@@ -193,7 +189,7 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
         // got statistic from catalog should be unknown since no statistic has been put into
         // partition
         for (CatalogColumnStatistics statistics : catalogColumnStatistics) {
-            CatalogTestUtil.checkEquals(statistics, CatalogColumnStatistics.UNKNOWN);
+            checkEquals(statistics, CatalogColumnStatistics.UNKNOWN);
         }
 
         // put statistic for partition
@@ -205,7 +201,7 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
         catalogColumnStatistics =
                 catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecs);
         for (CatalogColumnStatistics statistics : catalogColumnStatistics) {
-            CatalogTestUtil.checkEquals(statistics, columnStatistics);
+            checkEquals(statistics, columnStatistics);
         }
     }
 

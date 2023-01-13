@@ -33,7 +33,6 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -294,7 +293,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         assertThat(catalog.listPartitions(path1)).containsExactly(createPartitionSpec());
         CatalogPartition cp = catalog.getPartition(path1, createPartitionSpec());
-        CatalogTestUtil.checkEquals(createPartition(), cp);
+        checkEquals(createPartition(), cp);
         assertThat(cp.getProperties().get("k")).isNull();
 
         CatalogPartition another = createPartition();
@@ -310,7 +309,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         cp = catalog.getPartition(path1, createPartitionSpec());
 
-        CatalogTestUtil.checkEquals(another, cp);
+        checkEquals(another, cp);
         assertThat(cp.getProperties().get("k")).isEqualTo("v");
     }
 
