@@ -54,7 +54,6 @@ class HsFileDataIndexCacheTest {
                         numSubpartitions,
                         indexFilePath,
                         numRetainedIndexEntry,
-                        SPILLED_INDEX_SEGMENT_SIZE,
                         TestingFileDataIndexSpilledRegionManager.Factory.INSTANCE);
         spilledRegionManager =
                 TestingFileDataIndexSpilledRegionManager.Factory.INSTANCE
@@ -83,7 +82,6 @@ class HsFileDataIndexCacheTest {
                         numSubpartitions,
                         indexFilePath,
                         numRetainedIndexEntry,
-                        SPILLED_INDEX_SEGMENT_SIZE,
                         TestingFileDataIndexSpilledRegionManager.Factory.INSTANCE);
         spilledRegionManager =
                 TestingFileDataIndexSpilledRegionManager.Factory.INSTANCE
@@ -124,7 +122,6 @@ class HsFileDataIndexCacheTest {
                         numSubpartitions,
                         indexFilePath,
                         numRetainedIndexEntry,
-                        SPILLED_INDEX_SEGMENT_SIZE,
                         TestingFileDataIndexSpilledRegionManager.Factory.INSTANCE);
         spilledRegionManager =
                 TestingFileDataIndexSpilledRegionManager.Factory.INSTANCE

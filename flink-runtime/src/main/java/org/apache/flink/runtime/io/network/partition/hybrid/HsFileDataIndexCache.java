@@ -74,7 +74,6 @@ public class HsFileDataIndexCache {
             int numSubpartitions,
             Path indexFilePath,
             long numRetainedInMemoryRegionsMax,
-            int spilledIndexSegmentSize,
             HsFileDataIndexSpilledRegionManager.Factory spilledRegionManagerFactory) {
         this.subpartitionFirstBufferIndexInternalRegions = new ArrayList<>(numSubpartitions);
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; ++subpartitionId) {
@@ -90,14 +89,23 @@ public class HsFileDataIndexCache {
                 spilledRegionManagerFactory.create(
                         numSubpartitions,
                         indexFilePath,
-                        spilledIndexSegmentSize,
                         (subpartition, region) -> {
-                            internalCache.put(
-                                    new CachedRegionKey(subpartition, region.getFirstBufferIndex()),
-                                    PLACEHOLDER);
-                            subpartitionFirstBufferIndexInternalRegions
-                                    .get(subpartition)
-                                    .put(region.getFirstBufferIndex(), region);
+                            if (!getCachedRegionContainsTargetBufferIndex(
+                                            subpartition, region.getFirstBufferIndex())
+                                    .isPresent()) {
+                                subpartitionFirstBufferIndexInternalRegions
+                                        .get(subpartition)
+                                        .put(region.getFirstBufferIndex(), region);
+                                internalCache.put(
+                                        new CachedRegionKey(
+                                                subpartition, region.getFirstBufferIndex()),
+                                        PLACEHOLDER);
+                            } else {
+                                // this is needed for cache entry remove algorithm like LRU.
+                                internalCache.getIfPresent(
+                                        new CachedRegionKey(
+                                                subpartition, region.getFirstBufferIndex()));
+                            }
                         });
     }
 
