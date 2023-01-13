@@ -199,6 +199,11 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             bundleFinishedCallback =
                     () -> {
                         try {
+                            // avoid invoking bundleFinishedCallback repeatedly in advanceWatermark
+                            // which will invoke finishBundle(which will finally invoke
+                            // bundleFinishedCallback)
+                            bundleFinishedCallback = null;
+
                             advanceWatermark(mark);
                             // at this point the bundle is finished, allow the watermark to pass
                             output.emitWatermark(mark);
