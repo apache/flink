@@ -27,6 +27,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowUtils;
 import org.apache.flink.util.CollectionUtil;
 
+import org.junit.jupiter.api.AfterEach;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,5 +55,10 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
         expectedList.sort(String::compareTo);
 
         assertThat(results).isEqualTo(expectedList);
+    }
+
+    @AfterEach
+    void tearDown() {
+        RowUtils.USE_LEGACY_TO_STRING = false;
     }
 }
