@@ -127,10 +127,6 @@ public class CliClient implements AutoCloseable {
 
     private List<ModifyOperation> statementSetOperations;
 
-    private static final int PLAIN_TERMINAL_WIDTH = 80;
-
-    private static final int PLAIN_TERMINAL_HEIGHT = 30;
-
     private final SqlMultiLineParser parser;
 
     /**
@@ -185,24 +181,6 @@ public class CliClient implements AutoCloseable {
         // check if terminal width can be determined
         // e.g. IntelliJ IDEA terminal supports only a plain terminal
         return terminal.getWidth() == 0 && terminal.getHeight() == 0;
-    }
-
-    public int getWidth() {
-        if (isPlainTerminal()) {
-            return PLAIN_TERMINAL_WIDTH;
-        }
-        return terminal.getWidth();
-    }
-
-    public int getHeight() {
-        if (isPlainTerminal()) {
-            return PLAIN_TERMINAL_HEIGHT;
-        }
-        return terminal.getHeight();
-    }
-
-    public Executor getExecutor() {
-        return executor;
     }
 
     /** Closes the CLI instance. */
@@ -532,15 +510,15 @@ public class CliClient implements AutoCloseable {
 
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
-                    new CliTableauResultView(terminal, executor, resultDesc)) {
+                    new CliTableauResultView(terminal, resultDesc)) {
                 tableauResultView.displayResults();
             }
         } else {
             final CliResultView<?> view;
             if (resultDesc.isMaterialized()) {
-                view = new CliTableResultView(this, resultDesc);
+                view = new CliTableResultView(terminal, resultDesc);
             } else {
-                view = new CliChangelogResultView(this, resultDesc);
+                view = new CliChangelogResultView(terminal, resultDesc);
             }
 
             // enter view
