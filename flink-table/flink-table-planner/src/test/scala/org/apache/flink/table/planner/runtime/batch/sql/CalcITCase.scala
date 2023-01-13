@@ -1838,6 +1838,11 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testIfWithFixCharAndVarchar(): Unit = {
+    checkResult("SELECT IF(b > 10, 'ua', c) FROM Table3", data3.map(r => row(r.getField(2))))
+  }
+
+  @Test
   def testFilterConditionWithCast(): Unit = {
     val dataId = TestValuesTableFactory.registerData(
       Seq(row(1, "true"), row(2, "false"), row(3, "invalid"), row(4, null)))
