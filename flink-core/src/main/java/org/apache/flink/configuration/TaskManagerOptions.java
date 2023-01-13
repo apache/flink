@@ -580,8 +580,8 @@ public class TaskManagerOptions {
                                     + "Can be used to avoid constant back and forth small adjustments.");
 
     /**
-     * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by
-     * sort-shuffle).
+     * Size of direct memory used by batch shuffle for shuffle data read (currently only used by
+     * sort-shuffle and hybrid shuffle).
      */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
     public static final ConfigOption<MemorySize> NETWORK_BATCH_SHUFFLE_READ_MEMORY =
@@ -590,7 +590,7 @@ public class TaskManagerOptions {
                     .defaultValue(MemorySize.parse("64m"))
                     .withDescription(
                             String.format(
-                                    "Size of memory used by blocking shuffle for shuffle data read "
+                                    "Size of memory used by batch shuffle for shuffle data read "
                                             + "(currently only used by sort-shuffle and hybrid shuffle)."
                                             + " Notes: 1) The memory is cut from '%s' so must be smaller than"
                                             + " that, which means you may also need to increase '%s' "
