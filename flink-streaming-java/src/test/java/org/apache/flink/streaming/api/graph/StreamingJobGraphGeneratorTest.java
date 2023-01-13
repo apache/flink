@@ -813,6 +813,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testExchangeModeHybridFull() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         // fromElements -> Map -> Print
         DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
 
@@ -852,6 +853,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testExchangeModeHybridSelective() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         // fromElements -> Map -> Print
         DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
 
@@ -1365,6 +1367,30 @@ class StreamingJobGraphGeneratorTest {
                                 tmConfig,
                                 ClassLoader.getSystemClassLoader()))
                 .isCloseTo(expectedBatchFrac, Offset.offset(delta));
+    }
+
+    @Test
+    void testHybridShuffleModeInNonBatchMode() {
+        Configuration configuration = new Configuration();
+        // set all edge to HYBRID_FULL result partition type.
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL);
+        configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.disableOperatorChaining();
+        DataStreamSource<Integer> source = env.fromElements(1, 2, 3);
+        final DataStream<Integer> partitioned =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new RebalancePartitioner<>(),
+                                StreamExchangeMode.HYBRID_FULL));
+        partitioned.addSink(new DiscardingSink<>());
+        StreamGraph streamGraph = env.getStreamGraph();
+        assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
