@@ -71,6 +71,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,13 +79,14 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
-import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Factory for {@link AdaptiveBatchScheduler}. */
 public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AdaptiveBatchSchedulerFactory.class);
 
     @Override
     public SchedulerNG createInstance(
@@ -263,10 +265,20 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
                 configuration
                         .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
-                        .orElse(
-                                enableSpeculativeExecution
-                                        ? ALL_PRODUCERS_FINISHED
-                                        : UNFINISHED_PRODUCERS);
+                        .orElseGet(
+                                () -> {
+                                    HybridPartitionDataConsumeConstraint defaultConstraint =
+                                            enableSpeculativeExecution
+                                                    ? ONLY_FINISHED_PRODUCERS
+                                                    : UNFINISHED_PRODUCERS;
+                                    LOG.info(
+                                            "Set {} to {} as it is not configured",
+                                            JobManagerOptions
+                                                    .HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT
+                                                    .key(),
+                                            defaultConstraint.name());
+                                    return defaultConstraint;
+                                });
         if (enableSpeculativeExecution) {
             Preconditions.checkState(
                     hybridPartitionDataConsumeConstraint != UNFINISHED_PRODUCERS,
