@@ -20,6 +20,7 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TablePipeline;
 import org.apache.flink.table.api.TableResult;
@@ -57,8 +58,8 @@ class TablePipelineImpl implements TablePipeline {
     }
 
     @Override
-    public String explain(ExplainDetail... extraDetails) {
-        return tableEnvironment.explainInternal(singletonList(operation), extraDetails);
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
+        return tableEnvironment.explainInternal(singletonList(operation), format, extraDetails);
     }
 
     @Override

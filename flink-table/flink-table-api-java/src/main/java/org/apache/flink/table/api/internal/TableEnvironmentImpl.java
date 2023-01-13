@@ -28,6 +28,7 @@ import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
@@ -689,7 +690,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public String explainSql(String statement, ExplainDetail... extraDetails) {
+    public String explainSql(
+            String statement, ExplainFormat format, ExplainDetail... extraDetails) {
         List<Operation> operations = getParser().parse(statement);
 
         if (operations.size() != 1) {
@@ -701,11 +703,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             operations =
                     new ArrayList<>(((StatementSetOperation) operations.get(0)).getOperations());
         }
-        return explainInternal(operations, extraDetails);
+        return explainInternal(operations, format, extraDetails);
     }
 
     @Override
-    public String explainInternal(List<Operation> operations, ExplainDetail... extraDetails) {
+    public String explainInternal(
+            List<Operation> operations, ExplainFormat format, ExplainDetail... extraDetails) {
         operations =
                 operations.stream()
                         .filter(o -> !(o instanceof NopOperation))
