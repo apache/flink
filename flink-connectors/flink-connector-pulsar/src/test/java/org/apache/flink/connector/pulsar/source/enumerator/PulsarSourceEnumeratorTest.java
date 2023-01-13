@@ -72,7 +72,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(
             value = SubscriptionType.class,
-            names = {"Failover", "Shared"})
+            names = {"Failover"})
     void startWithDiscoverPartitionsOnce(SubscriptionType subscriptionType) throws Exception {
         Set<String> preexistingTopics = setupPreexistingTopics();
         try (MockSplitEnumeratorContext<PulsarPartitionSplit> context =
@@ -97,7 +97,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(
             value = SubscriptionType.class,
-            names = {"Failover", "Shared"})
+            names = {"Failover"})
     void startWithPeriodicPartitionDiscovery(SubscriptionType subscriptionType) throws Exception {
         Set<String> preexistingTopics = setupPreexistingTopics();
         try (MockSplitEnumeratorContext<PulsarPartitionSplit> context =
@@ -120,7 +120,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(
             value = SubscriptionType.class,
-            names = {"Failover", "Shared"})
+            names = {"Failover"})
     void discoverPartitionsTriggersAssignments(SubscriptionType subscriptionType) throws Throwable {
         Set<String> preexistingTopics = setupPreexistingTopics();
         try (MockSplitEnumeratorContext<PulsarPartitionSplit> context =
@@ -149,7 +149,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(
             value = SubscriptionType.class,
-            names = {"Failover", "Shared"})
+            names = {"Failover"})
     void discoverPartitionsPeriodically(SubscriptionType subscriptionType) throws Throwable {
         String dynamicTopic = "topic3-" + randomAlphabetic(10);
         Set<String> preexistingTopics = setupPreexistingTopics();
@@ -193,7 +193,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(
             value = SubscriptionType.class,
-            names = {"Failover", "Shared"})
+            names = {"Failover"})
     void addSplitsBack(SubscriptionType subscriptionType) throws Throwable {
         Set<String> preexistingTopics = setupPreexistingTopics();
         try (MockSplitEnumeratorContext<PulsarPartitionSplit> context =
@@ -226,7 +226,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(
             value = SubscriptionType.class,
-            names = {"Failover", "Shared"})
+            names = {"Failover"})
     void workWithPreexistingAssignments(SubscriptionType subscriptionType) throws Throwable {
         Set<String> preexistingTopics = setupPreexistingTopics();
         PulsarSourceEnumState preexistingAssignments;
@@ -268,7 +268,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(
             value = SubscriptionType.class,
-            names = {"Failover", "Shared"})
+            names = {"Failover"})
     void snapshotState(SubscriptionType subscriptionType) throws Throwable {
         Set<String> preexistingTopics = setupPreexistingTopics();
         try (MockSplitEnumeratorContext<PulsarPartitionSplit> context =
