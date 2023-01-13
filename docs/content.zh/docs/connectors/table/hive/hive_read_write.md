@@ -420,7 +420,7 @@ CREATE TABLE kafka_table (
 ) WITH (...);
 
 -- streaming sql, insert into hive table
-INSERT INTO TABLE hive_table 
+INSERT INTO hive_table 
 SELECT user_id, order_amount, DATE_FORMAT(log_ts, 'yyyy-MM-dd'), DATE_FORMAT(log_ts, 'HH')
 FROM kafka_table;
 
