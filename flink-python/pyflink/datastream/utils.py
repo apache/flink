@@ -60,7 +60,10 @@ def convert_to_python_obj(data, type_info):
         pickle_bytes = gateway.jvm.PythonBridgeUtils. \
             getPickledBytesFromJavaObject(data, type_info.get_java_type_info())
         if isinstance(type_info, RowTypeInfo) or isinstance(type_info, TupleTypeInfo):
-            field_data = zip(list(pickle_bytes[1:]), type_info.get_field_types())
+            if isinstance(type_info, RowTypeInfo):
+                field_data = zip(list(pickle_bytes[1:]), type_info.get_field_types())
+            else:
+                field_data = zip(pickle_bytes, type_info.get_field_types())
             fields = []
             for data, field_type in field_data:
                 if len(data) == 0:
