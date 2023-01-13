@@ -1897,10 +1897,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testExplainPlanAdvice() {
+        String sql = "explain plan_advice select * from emps";
+        String expected = "EXPLAIN PLAN_ADVICE SELECT *\nFROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
     void testExplainAllDetails() {
-        String sql = "explain changelog_mode,json_execution_plan,estimated_cost select * from emps";
+        String sql =
+                "explain changelog_mode,json_execution_plan,estimated_cost,plan_advice select * from emps";
         String expected =
-                "EXPLAIN JSON_EXECUTION_PLAN, CHANGELOG_MODE, ESTIMATED_COST SELECT *\n"
+                "EXPLAIN JSON_EXECUTION_PLAN, CHANGELOG_MODE, PLAN_ADVICE, ESTIMATED_COST SELECT *\n"
                         + "FROM `EMPS`";
         this.sql(sql).ok(expected);
     }
