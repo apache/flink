@@ -85,7 +85,7 @@ public class HiveModule implements Module {
                                     "tumble_rowtime",
                                     "tumble_start")));
 
-    static final Set<String> FLINK_BUILT_IN_FUNC_FOR_HIVE =
+    static final Set<String> BUILTIN_NATIVE_AGG_FUNC =
             Collections.unmodifiableSet(new HashSet<>(Arrays.asList("sum", "min")));
 
     private final HiveFunctionDefinitionFactory factory;
@@ -146,9 +146,8 @@ public class HiveModule implements Module {
         FunctionDefinitionFactory.Context context = () -> classLoader;
 
         // We override some Hive's function by native implementation to supports hash-agg
-        if (isNativeAggFunctionEnabled()
-                && FLINK_BUILT_IN_FUNC_FOR_HIVE.contains(name.toLowerCase())) {
-            return getFlinkBuiltInFunction(name.toLowerCase(), context);
+        if (isNativeAggFunctionEnabled() && BUILTIN_NATIVE_AGG_FUNC.contains(name.toLowerCase())) {
+            return getBuiltInNativeAggFunction(name.toLowerCase());
         }
 
         // We override Hive's grouping function. Refer to the implementation for more details.
@@ -202,8 +201,7 @@ public class HiveModule implements Module {
         return config.get(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED);
     }
 
-    private Optional<FunctionDefinition> getFlinkBuiltInFunction(
-            String name, FunctionDefinitionFactory.Context context) {
+    private Optional<FunctionDefinition> getBuiltInNativeAggFunction(String name) {
         switch (name) {
             case "sum":
                 // We override Hive's sum function by native implementation to supports hash-agg
@@ -213,7 +211,8 @@ public class HiveModule implements Module {
                 return Optional.of(new HiveMinAggFunction());
             default:
                 throw new UnsupportedOperationException(
-                        "flink built-in hive function not support " + name + " yet!");
+                        String.format(
+                                "Built-in hive aggregate function doesn't support %s yet!", name));
         }
     }
 }
