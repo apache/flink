@@ -19,6 +19,7 @@
 package org.apache.flink.table.connector;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 
 /**
