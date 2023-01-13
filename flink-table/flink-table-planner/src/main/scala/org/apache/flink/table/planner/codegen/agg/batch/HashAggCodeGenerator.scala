@@ -106,7 +106,7 @@ object HashAggCodeGenerator {
 
     val valueProjectionCode =
       if (!isFinal && canDoAdaptiveHashAgg) {
-        ProjectionCodeGenerator.generatedValueProjectionCode(
+        ProjectionCodeGenerator.generatedAdaptiveHashAggValueProjectionCode(
           ctx,
           inputType,
           classOf[BinaryRowData],
@@ -233,8 +233,8 @@ object HashAggCodeGenerator {
       // from these conditions we know that it must be a distinct operation
       if (
         !isFinal &&
-        ctx.tableConfig.get(
-          HashAggCodeGenerator.TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_ENABLED) && canDoAdaptiveHashAgg
+        ctx.tableConfig.get(TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_ENABLED) &&
+        canDoAdaptiveHashAgg
       ) {
         val adaptiveDistinctCountTerm = CodeGenUtils.newName("distinctCount")
         val adaptiveTotalCountTerm = CodeGenUtils.newName("totalCount")
@@ -245,7 +245,7 @@ object HashAggCodeGenerator {
         ctx.addReusableLogger(loggerTerm, className)
 
         val samplePoint =
-          ctx.tableConfig.get(HashAggCodeGenerator.TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_SAMPLE_POINT)
+          ctx.tableConfig.get(TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_SAMPLE_POINT)
         // This variable is set to 0.5d
         val proportion = 0.5d
 

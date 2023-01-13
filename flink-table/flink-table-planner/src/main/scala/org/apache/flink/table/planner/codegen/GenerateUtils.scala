@@ -611,7 +611,11 @@ object GenerateUtils {
       generateInputFieldUnboxing(ctx, inputType, inputCode, inputCode)
   }
 
-  def generateFieldAccessForCountCol(
+  /**
+   * Do projection for grouping function 'count(col)' if adaptive hash agg takes effect.
+   * 'Count(col)' will be convert to 1L if col is not null and convert to 0L if col is null.
+   */
+  def generateFieldAccessForCountSpecificCol(
       ctx: CodeGeneratorContext,
       inputTerm: String,
       index: Int): GeneratedExpression = {
@@ -621,7 +625,7 @@ object GenerateUtils {
     val inputCode =
       s"""
          |$nullTerm = $inputTerm.isNullAt($index);
-         |$fieldTerm = -1L;
+         |$fieldTerm = 0L;
          |if (!$nullTerm) {
          |  $fieldTerm = 1L;
          |}
@@ -630,6 +634,10 @@ object GenerateUtils {
     GeneratedExpression(fieldTerm, nullTerm, inputCode, new BigIntType())
   }
 
+  /**
+   * Do projection for grouping function 'count(*)' or 'count()' if adaptive hash agg takes effect.
+   * 'Count()' will be convert to 1L and transmitted to downstream.
+   */
   def generateFieldAccessForCountOne(ctx: CodeGeneratorContext): GeneratedExpression = {
     val Seq(fieldTerm, nullTerm) =
       ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))

@@ -139,7 +139,7 @@ object ProjectionCodeGenerator {
    * hash agg suppressed and a row (1, 5, "a") comes to local hash agg, we will pass (1, 5, 1, 1) to
    * downstream.
    */
-  def generatedValueProjectionCode(
+  def generatedAdaptiveHashAggValueProjectionCode(
       ctx: CodeGeneratorContext,
       inputType: RowType,
       outClass: Class[_ <: RowData] = classOf[BinaryRowData],
@@ -169,12 +169,12 @@ object ProjectionCodeGenerator {
               inputType,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
-            fieldExprs += GenerateUtils.generateFieldAccessForCountCol(
+            fieldExprs += GenerateUtils.generateFieldAccessForCountSpecificCol(
               ctx,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
           case _: CountAggFunction =>
-            fieldExprs += GenerateUtils.generateFieldAccessForCountCol(
+            fieldExprs += GenerateUtils.generateFieldAccessForCountSpecificCol(
               ctx,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
