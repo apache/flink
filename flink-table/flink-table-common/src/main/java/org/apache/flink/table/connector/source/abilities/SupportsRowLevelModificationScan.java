@@ -20,6 +20,7 @@ package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.connector.source.ScanTableSource;
 
 import javax.annotation.Nullable;
