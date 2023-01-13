@@ -129,6 +129,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newStateCleanupRecord(0L, 10000L, "c1"));
 
         expectedOutput.add(new Watermark(10000L));
+        expectedOutput.add(new Watermark(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -222,6 +223,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newWindowRecord(10000L, 20000L, "c1", 2L));
         expectedOutput.add(newStateCleanupRecord(10000L, 20000L, "c1"));
 
+        expectedOutput.add(new Watermark(20000L));
         expectedOutput.add(new Watermark(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
