@@ -40,6 +40,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -48,6 +49,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -66,6 +68,8 @@ class ZooKeeperLeaderRetrievalTest {
     private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerExtension();
 
+    @TempDir private Path tempDir;
+
     private TestingServer testingServer;
 
     private Configuration config;
@@ -80,6 +84,7 @@ class ZooKeeperLeaderRetrievalTest {
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, tempDir.toString());
 
         highAvailabilityServices =
                 new ZooKeeperMultipleComponentLeaderElectionHaServices(
