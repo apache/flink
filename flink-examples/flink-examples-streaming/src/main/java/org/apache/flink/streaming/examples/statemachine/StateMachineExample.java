@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -44,7 +45,6 @@ import org.apache.flink.streaming.examples.statemachine.event.Alert;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
 import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorFunction;
 import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializationSchema;
-import org.apache.flink.streaming.examples.utils.ParameterTool;
 import org.apache.flink.util.Collector;
 
 import java.time.Duration;

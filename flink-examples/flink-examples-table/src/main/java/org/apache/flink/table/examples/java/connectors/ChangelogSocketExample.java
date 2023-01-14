@@ -19,19 +19,13 @@
 package org.apache.flink.table.examples.java.connectors;
 
 import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.util.CollectionUtil;
-
-import org.apache.commons.lang3.math.NumberUtils;
-
-import java.util.Arrays;
-import java.util.Map;
 
 /**
  * Example for implementing a custom {@link DynamicTableSource} and a {@link DecodingFormat}.
@@ -72,9 +66,9 @@ import java.util.Map;
 public final class ChangelogSocketExample {
 
     public static void main(String[] args) throws Exception {
-        Map<String, String> params = parseArgs(args);
-        final String hostname = params.getOrDefault("hostname", "localhost");
-        final String port = params.getOrDefault("port", "9999");
+        final ParameterTool params = ParameterTool.fromArgs(args);
+        final String hostname = params.get("hostname", "localhost");
+        final String port = params.get("port", "9999");
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // source only supports parallelism of 1
@@ -104,34 +98,5 @@ public final class ChangelogSocketExample {
         tEnv.toChangelogStream(result).print();
 
         env.execute();
-    }
-
-    private static Map<String, String> parseArgs(String[] args) {
-        final Map<String, String> map = CollectionUtil.newHashMapWithExpectedSize(args.length / 2);
-        int i = 0;
-        while (i < args.length) {
-            final String key = Utils.getKeyFromArgs(args, i);
-            if (key.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "The input " + Arrays.toString(args) + " contains an empty argument");
-            }
-
-            i += 1; // try to find the value
-
-            if (i >= args.length) {
-                map.put(key, "__NO_VALUE_KEY");
-            } else if (NumberUtils.isCreatable(args[i])) {
-                map.put(key, args[i]);
-                i += 1;
-            } else if (args[i].startsWith("--") || args[i].startsWith("-")) {
-                // the argument cannot be a negative number because we checked earlier
-                // -> the next argument is a parameter name
-                map.put(key, "__NO_VALUE_KEY");
-            } else {
-                map.put(key, args[i]);
-                i += 1;
-            }
-        }
-        return map;
     }
 }

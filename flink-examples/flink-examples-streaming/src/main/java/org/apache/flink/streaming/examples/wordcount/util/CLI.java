@@ -19,9 +19,9 @@ package org.apache.flink.streaming.examples.wordcount.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.examples.utils.ParameterTool;
 import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
@@ -43,7 +43,7 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
     public static final String EXECUTION_MODE = "execution-mode";
 
     public static CLI fromArgs(String[] args) throws Exception {
-        ParameterTool params = ParameterTool.fromArgs(args);
+        MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
         Path[] inputs = null;
         if (params.has(INPUT_KEY)) {
             inputs =
@@ -79,14 +79,14 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
     private final Path output;
     private final Duration discoveryInterval;
     private final RuntimeExecutionMode executionMode;
-    private final ParameterTool params;
+    private final MultipleParameterTool params;
 
     private CLI(
             Path[] inputs,
             Path output,
             Duration discoveryInterval,
             RuntimeExecutionMode executionMode,
-            ParameterTool params) {
+            MultipleParameterTool params) {
         this.inputs = inputs;
         this.output = output;
         this.discoveryInterval = discoveryInterval;
@@ -112,7 +112,7 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
 
     public OptionalInt getInt(String key) {
         if (params.has(key)) {
-            return OptionalInt.of(Integer.parseInt(params.get(key)));
+            return OptionalInt.of(params.getInt(key));
         }
 
         return OptionalInt.empty();
