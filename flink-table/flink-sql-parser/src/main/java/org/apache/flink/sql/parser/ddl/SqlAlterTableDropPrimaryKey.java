@@ -30,8 +30,8 @@ import java.util.List;
 public class SqlAlterTableDropPrimaryKey extends SqlAlterTable {
 
     public SqlAlterTableDropPrimaryKey(
-            SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
-        super(pos, tableName, ifExists);
+            SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
     }
 
     @Override

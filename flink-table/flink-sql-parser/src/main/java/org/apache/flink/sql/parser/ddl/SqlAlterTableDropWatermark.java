@@ -38,8 +38,9 @@ import java.util.List;
  */
 public class SqlAlterTableDropWatermark extends SqlAlterTable {
 
-    public SqlAlterTableDropWatermark(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
-        super(pos, tableName, ifExists);
+    public SqlAlterTableDropWatermark(
+            SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
     }
 
     @Override

@@ -49,21 +49,21 @@ public abstract class SqlAlterTable extends SqlCall {
 
     protected final SqlIdentifier tableIdentifier;
     protected final SqlNodeList partitionSpec;
-    protected final boolean ifExists;
+    protected final boolean ifTableExists;
 
     public SqlAlterTable(
             SqlParserPos pos,
             SqlIdentifier tableName,
             @Nullable SqlNodeList partitionSpec,
-            boolean ifExists) {
+            boolean ifTableExists) {
         super(pos);
         this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
         this.partitionSpec = partitionSpec;
-        this.ifExists = ifExists;
+        this.ifTableExists = ifTableExists;
     }
 
-    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
-        this(pos, tableName, null, ifExists);
+    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
+        this(pos, tableName, null, ifTableExists);
     }
 
     public SqlAlterTable(
@@ -83,7 +83,7 @@ public abstract class SqlAlterTable extends SqlCall {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("ALTER TABLE");
-        if (ifExists) {
+        if (ifTableExists) {
             writer.keyword("IF EXISTS");
         }
         tableIdentifier.unparse(writer, leftPrec, rightPrec);
@@ -116,8 +116,8 @@ public abstract class SqlAlterTable extends SqlCall {
      *
      * @return true when IF EXISTS is specified.
      */
-    public boolean isIfExists() {
-        return ifExists;
+    public boolean ifTableExists() {
+        return ifTableExists;
     }
 
     /** Alter table context. */

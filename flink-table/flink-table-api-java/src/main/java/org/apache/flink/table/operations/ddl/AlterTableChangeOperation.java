@@ -57,7 +57,9 @@ public class AlterTableChangeOperation extends AlterTableOperation {
                 tableChanges.stream().map(this::toString).collect(Collectors.joining(",\n"));
         return String.format(
                 "ALTER TABLE %s%s\n%s",
-                ignoreIfNotExists ? "IF EXISTS " : "", tableIdentifier.asSummaryString(), changes);
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
+                tableIdentifier.asSummaryString(),
+                changes);
     }
 
     private String toString(TableChange tableChange) {

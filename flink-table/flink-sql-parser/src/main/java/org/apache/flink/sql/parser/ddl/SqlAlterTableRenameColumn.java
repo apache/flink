@@ -40,8 +40,8 @@ public class SqlAlterTableRenameColumn extends SqlAlterTable {
             SqlIdentifier tableName,
             SqlIdentifier originColumnIdentifier,
             SqlIdentifier newColumnIdentifier,
-            boolean ifExists) {
-        super(pos, tableName, null, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, null, ifTableExists);
         this.originColumnIdentifier = originColumnIdentifier;
         this.newColumnIdentifier = newColumnIdentifier;
     }

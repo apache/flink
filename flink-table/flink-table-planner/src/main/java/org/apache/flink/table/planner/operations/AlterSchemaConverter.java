@@ -942,7 +942,7 @@ public class AlterSchemaConverter {
                         oldTable.getComment(),
                         oldTable.getPartitionKeys(),
                         oldTable.getOptions()),
-                alterTable.isIfExists());
+                alterTable.ifTableExists());
     }
 
     private static String getColumnName(SqlIdentifier identifier) {

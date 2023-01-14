@@ -56,7 +56,7 @@ public class AlterTableOptionsOperation extends AlterTableOperation {
                         .collect(Collectors.joining(", "));
         return String.format(
                 "ALTER %sTABLE %s SET (%s)",
-                ignoreIfNotExists ? "IF EXISTS " : "",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
                 tableIdentifier.asSummaryString(),
                 description);
     }

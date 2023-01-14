@@ -43,8 +43,8 @@ public class SqlAlterTableReset extends SqlAlterTable {
             SqlParserPos pos,
             SqlIdentifier tableName,
             SqlNodeList propertyKeyList,
-            boolean ifExists) {
-        super(pos, tableName, null, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, null, ifTableExists);
         this.propertyKeyList =
                 requireNonNull(propertyKeyList, "propertyKeyList should not be null");
     }
@@ -75,9 +75,5 @@ public class SqlAlterTableReset extends SqlAlterTable {
         }
         writer.newlineAndIndent();
         writer.endList(withFrame);
-    }
-
-    public String[] fullTableName() {
-        return tableIdentifier.names.toArray(new String[0]);
     }
 }

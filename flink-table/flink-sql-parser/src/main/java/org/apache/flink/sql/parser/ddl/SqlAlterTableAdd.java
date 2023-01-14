@@ -57,8 +57,8 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
             SqlNodeList addedColumns,
             List<SqlTableConstraint> constraint,
             @Nullable SqlWatermark sqlWatermark,
-            boolean ifExists) {
-        super(pos, tableName, addedColumns, constraint, sqlWatermark, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, addedColumns, constraint, sqlWatermark, ifTableExists);
     }
 
     @Override

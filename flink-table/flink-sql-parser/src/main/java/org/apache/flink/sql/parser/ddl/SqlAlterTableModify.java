@@ -57,8 +57,8 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
             SqlNodeList modifiedColumns,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark watermark,
-            boolean ifExists) {
-        super(pos, tableName, modifiedColumns, constraints, watermark, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, modifiedColumns, constraints, watermark, ifTableExists);
     }
 
     @Override

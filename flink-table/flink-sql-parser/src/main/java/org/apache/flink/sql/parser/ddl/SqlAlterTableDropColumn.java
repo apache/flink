@@ -48,8 +48,11 @@ public class SqlAlterTableDropColumn extends SqlAlterTable {
     private final SqlNodeList columnList;
 
     public SqlAlterTableDropColumn(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList, boolean ifExists) {
-        super(pos, tableName, ifExists);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList columnList,
+            boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
         this.columnList = columnList;
     }
 

@@ -39,12 +39,12 @@ public class SqlAlterTableCompact extends SqlAlterTable {
             SqlParserPos pos,
             SqlIdentifier tableName,
             @Nullable SqlNodeList partitionSpec,
-            boolean ifExists) {
-        super(pos, tableName, partitionSpec, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, partitionSpec, ifTableExists);
     }
 
-    public SqlAlterTableCompact(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
-        super(pos, tableName, ifExists);
+    public SqlAlterTableCompact(SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
     }
 
     @Override

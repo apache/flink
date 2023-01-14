@@ -43,7 +43,7 @@ public class AlterTableSchemaOperation extends AlterTableOperation {
     public String asSummaryString() {
         return String.format(
                 "ALTER TABLE %s%s SET SCHEMA %s",
-                ignoreIfNotExists ? "IF EXISTS " : "",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
                 tableIdentifier.asSummaryString(),
                 catalogTable.getUnresolvedSchema().toString());
     }

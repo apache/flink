@@ -140,10 +140,10 @@ public class OperationConverterUtils {
             // to minimize the edit distance, i.e., minimize the modification times, but it
             // still cannot provide a deterministic answer.
             return new AlterTableSchemaOperation(
-                    tableIdentifier, newTable, addReplaceColumns.isIfExists());
+                    tableIdentifier, newTable, addReplaceColumns.ifTableExists());
         } else {
             return new AlterTableChangeOperation(
-                    tableIdentifier, tableChanges, newTable, addReplaceColumns.isIfExists());
+                    tableIdentifier, tableChanges, newTable, addReplaceColumns.ifTableExists());
         }
     }
 

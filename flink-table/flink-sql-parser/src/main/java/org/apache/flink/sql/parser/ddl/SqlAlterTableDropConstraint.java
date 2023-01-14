@@ -37,14 +37,14 @@ public class SqlAlterTableDropConstraint extends SqlAlterTable {
      * @param pos Parser position
      * @param tableName Table name
      * @param constraintName Constraint name
-     * @param ifExists Whether IF EXISTS is specified
+     * @param ifTableExists Whether IF EXISTS is specified
      */
     public SqlAlterTableDropConstraint(
             SqlParserPos pos,
             SqlIdentifier tableName,
             SqlIdentifier constraintName,
-            boolean ifExists) {
-        super(pos, tableName, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
         this.constraintName = constraintName;
     }
 

@@ -481,7 +481,7 @@ public class SqlToOperationConverter {
         Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
-            if (sqlAlterTable.isIfExists()) {
+            if (sqlAlterTable.ifTableExists()) {
                 return new NopOperation();
             }
             throw new ValidationException(
@@ -500,7 +500,7 @@ public class SqlToOperationConverter {
             ObjectIdentifier newTableIdentifier =
                     catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
             return new AlterTableRenameOperation(
-                    tableIdentifier, newTableIdentifier, sqlAlterTable.isIfExists());
+                    tableIdentifier, newTableIdentifier, sqlAlterTable.ifTableExists());
         } else if (sqlAlterTable instanceof SqlAlterTableOptions) {
             return convertAlterTableOptions(
                     tableIdentifier,
@@ -548,7 +548,7 @@ public class SqlToOperationConverter {
                 partitions.add(new CatalogPartitionImpl(props, null));
             }
             return new AddPartitionsOperation(
-                    tableIdentifier, addPartitions.ifNotExists(), specs, partitions);
+                    tableIdentifier, addPartitions.ifPartitionNotExists(), specs, partitions);
         } else if (sqlAlterTable instanceof SqlDropPartitions) {
             SqlDropPartitions dropPartitions = (SqlDropPartitions) sqlAlterTable;
             List<CatalogPartitionSpec> specs = new ArrayList<>();
@@ -609,7 +609,7 @@ public class SqlToOperationConverter {
                             .map(entry -> TableChange.set(entry.getKey(), entry.getValue()))
                             .collect(Collectors.toList()),
                     oldTable.copy(newOptions),
-                    alterTableOptions.isIfExists());
+                    alterTableOptions.ifTableExists());
         }
     }
 
@@ -633,7 +633,7 @@ public class SqlToOperationConverter {
                 tableIdentifier,
                 resetKeys.stream().map(TableChange::reset).collect(Collectors.toList()),
                 oldTable.copy(newOptions),
-                alterTableReset.isIfExists());
+                alterTableReset.ifTableExists());
     }
 
     /**

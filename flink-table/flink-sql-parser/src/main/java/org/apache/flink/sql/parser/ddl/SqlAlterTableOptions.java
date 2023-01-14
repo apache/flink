@@ -40,8 +40,11 @@ public class SqlAlterTableOptions extends SqlAlterTable {
     private final SqlNodeList propertyList;
 
     public SqlAlterTableOptions(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList, boolean ifExists) {
-        this(pos, tableName, null, propertyList, ifExists);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList propertyList,
+            boolean ifTableExists) {
+        this(pos, tableName, null, propertyList, ifTableExists);
     }
 
     public SqlAlterTableOptions(
@@ -57,8 +60,8 @@ public class SqlAlterTableOptions extends SqlAlterTable {
             SqlIdentifier tableName,
             SqlNodeList partitionSpec,
             SqlNodeList propertyList,
-            boolean ifExists) {
-        super(pos, tableName, partitionSpec, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, partitionSpec, ifTableExists);
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
     }
 
@@ -82,9 +85,5 @@ public class SqlAlterTableOptions extends SqlAlterTable {
         }
         writer.newlineAndIndent();
         writer.endList(withFrame);
-    }
-
-    public String[] fullTableName() {
-        return tableIdentifier.names.toArray(new String[0]);
     }
 }

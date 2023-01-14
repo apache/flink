@@ -40,7 +40,7 @@ public class AlterTableRenameOperation extends AlterTableOperation {
     public String asSummaryString() {
         return String.format(
                 "ALTER TABLE %s%s RENAME TO %s",
-                ignoreIfNotExists ? "IF EXISTS " : "",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
                 tableIdentifier.asSummaryString(),
                 newTableIdentifier.asSummaryString());
     }

@@ -50,8 +50,8 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
             SqlNodeList columnList,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark sqlWatermark,
-            boolean ifExists) {
-        super(pos, tableName, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
         this.columnList = columnList;
         this.constraints = constraints;
         this.watermark = sqlWatermark;

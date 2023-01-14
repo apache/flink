@@ -41,14 +41,14 @@ public class SqlAlterTableAddConstraint extends SqlAlterTable {
      * @param tableID Table ID
      * @param constraint Table constraint
      * @param pos Parser position
-     * @param ifExists Whether IF EXISTS is specified
+     * @param ifTableExists Whether IF EXISTS is specified
      */
     public SqlAlterTableAddConstraint(
             SqlIdentifier tableID,
             SqlTableConstraint constraint,
             SqlParserPos pos,
-            boolean ifExists) {
-        super(pos, tableID, ifExists);
+            boolean ifTableExists) {
+        super(pos, tableID, ifTableExists);
         this.constraint = constraint;
     }
 
