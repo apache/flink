@@ -103,6 +103,9 @@ public class HiveMaxAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public void setArguments(CallContext callContext) {
         if (resultType == null) {
+            if (callContext.getArgumentDataTypes().size() != 1) {
+                throw new TableException("Exactly one argument is expected.");
+            }
             // check argument type firstly
             checkArgumentType(callContext.getArgumentDataTypes().get(0).getLogicalType());
             resultType = callContext.getArgumentDataTypes().get(0);
