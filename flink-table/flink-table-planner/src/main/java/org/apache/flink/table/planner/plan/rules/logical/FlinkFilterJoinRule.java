@@ -549,7 +549,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         @Value.Parameter
         Predicate getPredicate();
 
-        /** Sets {@link #getPredicate()} ()}. */
+        /** Sets {@link #getPredicate()}. */
         Config withPredicate(Predicate predicate);
     }
 }
