@@ -37,12 +37,10 @@ import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
-import org.apache.flink.table.gateway.api.session.FunctionCreator;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
-import org.apache.flink.table.module.Module;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -312,10 +310,13 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             // "Persistence Manager has been closed" in the later connection.
             hiveCatalog.open();
             // create hive module lazily
-            FunctionCreator<Module> hiveModuleCreator =
-                    (options, readableConfig, classLoader) ->
+            SessionEnvironment.ModuleCreator hiveModuleCreator =
+                    (readableConfig, classLoader) ->
                             FactoryUtil.createModule(
-                                    moduleName, options, readableConfig, classLoader);
+                                    moduleName,
+                                    Collections.emptyMap(),
+                                    readableConfig,
+                                    classLoader);
             // set variables to HiveConf and Session's conf
             Map<String, String> sessionConfig = new HashMap<>();
             sessionConfig.put(TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name());
@@ -326,8 +327,10 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                     service.openSession(
                             SessionEnvironment.newBuilder()
                                     .setSessionEndpointVersion(sessionVersion)
-                                    .registerCatalog(catalogName, hiveCatalog)
-                                    .registerModuleAtHead(moduleName, hiveModuleCreator)
+                                    .registerCatalogCreator(
+                                            catalogName,
+                                            (readableConfig, classLoader) -> hiveCatalog)
+                                    .registerModuleCreatorAtHead(moduleName, hiveModuleCreator)
                                     .setDefaultCatalog(catalogName)
                                     .addSessionConfig(sessionConfig)
                                     .build());

@@ -404,16 +404,14 @@ public class SessionContext {
         final ModuleManager moduleManager = new ModuleManager();
 
         environment
-                .getRegisteredModules()
+                .getRegisteredModuleCreators()
                 .forEach(
                         (moduleName, moduleCreator) -> {
                             Deque<String> moduleNames =
                                     new ArrayDeque<>(moduleManager.listModules());
                             moduleNames.addFirst(moduleName);
 
-                            Module module =
-                                    moduleCreator.create(
-                                            Collections.emptyMap(), readableConfig, classLoader);
+                            Module module = moduleCreator.create(readableConfig, classLoader);
                             moduleManager.loadModule(moduleName, module);
                             moduleManager.useModules(moduleNames.toArray(new String[0]));
                         });
@@ -436,13 +434,17 @@ public class SessionContext {
         Catalog defaultCatalog;
         if (environment.getDefaultCatalog().isPresent()) {
             defaultCatalogName = environment.getDefaultCatalog().get();
-            defaultCatalog = environment.getRegisteredCatalogs().get(defaultCatalogName);
+            defaultCatalog =
+                    environment
+                            .getRegisteredCatalogCreators()
+                            .get(defaultCatalogName)
+                            .create(configuration, userClassLoader);
         } else {
             EnvironmentSettings settings =
                     EnvironmentSettings.newInstance().withConfiguration(configuration).build();
             defaultCatalogName = settings.getBuiltInCatalogName();
 
-            if (environment.getRegisteredCatalogs().containsKey(defaultCatalogName)) {
+            if (environment.getRegisteredCatalogCreators().containsKey(defaultCatalogName)) {
                 throw new SqlGatewayException(
                         String.format(
                                 "The name of the registered catalog is conflicts with the built-in default catalog name: %s.",
@@ -460,11 +462,13 @@ public class SessionContext {
 
         // filter the default catalog out to avoid repeated registration
         environment
-                .getRegisteredCatalogs()
+                .getRegisteredCatalogCreators()
                 .forEach(
-                        (catalogName, catalog) -> {
+                        (catalogName, catalogCreator) -> {
                             if (!catalogName.equals(defaultCatalogName)) {
-                                catalogManager.registerCatalog(catalogName, catalog);
+                                catalogManager.registerCatalog(
+                                        catalogName,
+                                        catalogCreator.create(configuration, userClassLoader));
                             }
                         });
 
