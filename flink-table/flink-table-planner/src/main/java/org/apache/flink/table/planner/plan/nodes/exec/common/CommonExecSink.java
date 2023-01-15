@@ -48,10 +48,12 @@ import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -653,7 +655,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     /**
      * Get the target row-kind that the row data should change to, assuming the current row kind is
      * RowKind.INSERT. Return Optional.empty() if it doesn't need to change. Currently, it'll only
-     * consider row-level delete.
+     * consider row-level delete/update.
      */
     private Optional<RowKind> getTargetRowKind() {
         if (tableSinkSpec.getSinkAbilities() != null) {
@@ -663,6 +665,12 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     if (deleteSpec.getRowLevelDeleteMode()
                             == SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS) {
                         return Optional.of(RowKind.DELETE);
+                    }
+                } else if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
+                    RowLevelUpdateSpec updateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
+                    if (updateSpec.getRowLevelUpdateMode()
+                            == SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS) {
+                        return Optional.of(RowKind.UPDATE_AFTER);
                     }
                 }
             }

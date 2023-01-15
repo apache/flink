@@ -19,63 +19,70 @@
 package org.apache.flink.table.planner.plan.abilities.sink;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the row-level
- * delete mode to/from JSON, but also can delete existing data for {@link
- * org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete}.
+ * update mode & columns to/from JSON, but also can update existing data for {@link
+ * org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonTypeName("RowLevelDelete")
-public class RowLevelDeleteSpec implements SinkAbilitySpec {
-    public static final String FIELD_NAME_ROW_LEVEL_DELETE_MODE = "rowLevelDeleteMode";
+@JsonTypeName("RowLevelUpdate")
+public class RowLevelUpdateSpec implements SinkAbilitySpec {
+    public static final String FIELD_NAME_UPDATED_COLUMNS = "updatedColumns";
+    public static final String FIELD_NAME_ROW_LEVEL_UPDATE_MODE = "rowLevelUpdateMode";
 
-    @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE)
+    @JsonProperty(FIELD_NAME_UPDATED_COLUMNS)
     @Nonnull
-    private final SupportsRowLevelDelete.RowLevelDeleteMode rowLevelDeleteMode;
+    private final List<Column> updatedColumns;
+
+    @JsonProperty(FIELD_NAME_ROW_LEVEL_UPDATE_MODE)
+    @Nonnull
+    private final SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode;
 
     @JsonIgnore @Nullable private final RowLevelModificationScanContext scanContext;
 
     @JsonCreator
-    public RowLevelDeleteSpec(
-            @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE) @Nonnull
-                    SupportsRowLevelDelete.RowLevelDeleteMode rowLevelDeleteMode,
+    public RowLevelUpdateSpec(
+            @JsonProperty(FIELD_NAME_UPDATED_COLUMNS) @Nonnull List<Column> updatedColumns,
+            @JsonProperty(FIELD_NAME_ROW_LEVEL_UPDATE_MODE) @Nonnull
+                    SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode,
             @Nullable RowLevelModificationScanContext scanContext) {
-        this.rowLevelDeleteMode = Preconditions.checkNotNull(rowLevelDeleteMode);
+        this.updatedColumns = updatedColumns;
+        this.rowLevelUpdateMode = rowLevelUpdateMode;
         this.scanContext = scanContext;
     }
 
     @Override
     public void apply(DynamicTableSink tableSink) {
-        if (tableSink instanceof SupportsRowLevelDelete) {
-            ((SupportsRowLevelDelete) tableSink).applyRowLevelDelete(scanContext);
+        if (tableSink instanceof SupportsRowLevelUpdate) {
+            ((SupportsRowLevelUpdate) tableSink).applyRowLevelUpdate(updatedColumns, scanContext);
         } else {
             throw new TableException(
                     String.format(
-                            "%s does not support SupportsRowLevelDelete.",
+                            "%s does not support SupportsRowLevelUpdate.",
                             tableSink.getClass().getName()));
         }
     }
 
     @Nonnull
-    public SupportsRowLevelDelete.RowLevelDeleteMode getRowLevelDeleteMode() {
-        return rowLevelDeleteMode;
+    public SupportsRowLevelUpdate.RowLevelUpdateMode getRowLevelUpdateMode() {
+        return rowLevelUpdateMode;
     }
 
     @Override
@@ -86,13 +93,14 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        RowLevelDeleteSpec that = (RowLevelDeleteSpec) o;
-        return rowLevelDeleteMode == that.rowLevelDeleteMode
+        RowLevelUpdateSpec that = (RowLevelUpdateSpec) o;
+        return Objects.equals(updatedColumns, that.updatedColumns)
+                && rowLevelUpdateMode == that.rowLevelUpdateMode
                 && Objects.equals(scanContext, that.scanContext);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rowLevelDeleteMode, scanContext);
+        return Objects.hash(updatedColumns, rowLevelUpdateMode, scanContext);
     }
 }

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -40,6 +41,7 @@ import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
@@ -115,13 +117,33 @@ public class TestUpdateDeleteTableFactory
                     .defaultValue(SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS)
                     .withDescription("The delete mode for row level delete.");
 
+    private static final ConfigOption<SupportsRowLevelUpdate.RowLevelUpdateMode> UPDATE_MODE =
+            ConfigOptions.key("update-mode")
+                    .enumType(SupportsRowLevelUpdate.RowLevelUpdateMode.class)
+                    .defaultValue(SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS)
+                    .withDescription("The update mode for row level update.");
+
     private static final ConfigOption<List<String>> REQUIRED_COLUMNS_FOR_DELETE =
             ConfigOptions.key("required-columns-for-delete")
                     .stringType()
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "The columns' name for the required columns in row-level delete");
+                            "The columns' name for the required columns in row-level delete.");
+
+    private static final ConfigOption<List<String>> REQUIRED_COLUMNS_FOR_UPDATE =
+            ConfigOptions.key("required-columns-for-update")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription("The name for the required columns in row-level update.");
+
+    private static final ConfigOption<Boolean> ONLY_REQUIRE_UPDATED_COLUMNS_FOR_UPDATE =
+            ConfigOptions.key("only-require-updated-columns-for-update")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to only require the updated columns for update statement, require all columns by default.");
 
     private static final List<Column.MetadataColumn> META_COLUMNS =
             Arrays.asList(
@@ -145,27 +167,41 @@ public class TestUpdateDeleteTableFactory
         String dataId =
                 helper.getOptions().getOptional(DATA_ID).orElse(String.valueOf(idCounter.get()));
         SupportsRowLevelDelete.RowLevelDeleteMode deleteMode = helper.getOptions().get(DELETE_MODE);
-        List<String> requireCols = helper.getOptions().get(REQUIRED_COLUMNS_FOR_DELETE);
+        SupportsRowLevelUpdate.RowLevelUpdateMode updateMode = helper.getOptions().get(UPDATE_MODE);
+        List<String> requireColsForDelete = helper.getOptions().get(REQUIRED_COLUMNS_FOR_DELETE);
+        List<String> requireColsForUpdate = helper.getOptions().get(REQUIRED_COLUMNS_FOR_UPDATE);
+        boolean onlyRequireUpdatedColumns =
+                helper.getOptions().get(ONLY_REQUIRE_UPDATED_COLUMNS_FOR_UPDATE);
         if (helper.getOptions().get(MIX_DELETE)) {
             return new SupportsDeleteSink(
                     context.getObjectIdentifier(),
                     context.getCatalogTable(),
                     deleteMode,
+                    updateMode,
                     dataId,
-                    requireCols);
+                    requireColsForDelete,
+                    requireColsForUpdate,
+                    onlyRequireUpdatedColumns);
         } else {
             if (helper.getOptions().get(SUPPORT_DELETE_PUSH_DOWN)) {
                 return new SupportsDeletePushDownSink(
+                        context.getObjectIdentifier(),
+                        context.getCatalogTable(),
+                        updateMode,
                         dataId,
-                        helper.getOptions().get(ONLY_ACCEPT_EQUAL_PREDICATE),
-                        context.getCatalogTable());
+                        requireColsForUpdate,
+                        onlyRequireUpdatedColumns,
+                        helper.getOptions().get(ONLY_ACCEPT_EQUAL_PREDICATE));
             } else {
-                return new SupportsRowLevelDeleteSink(
+                return new SupportsRowLevelModificationSink(
                         context.getObjectIdentifier(),
                         context.getCatalogTable(),
                         deleteMode,
+                        updateMode,
                         dataId,
-                        requireCols);
+                        requireColsForDelete,
+                        requireColsForUpdate,
+                        onlyRequireUpdatedColumns);
             }
         }
     }
@@ -199,7 +235,10 @@ public class TestUpdateDeleteTableFactory
                         SUPPORT_DELETE_PUSH_DOWN,
                         MIX_DELETE,
                         DELETE_MODE,
-                        REQUIRED_COLUMNS_FOR_DELETE));
+                        UPDATE_MODE,
+                        REQUIRED_COLUMNS_FOR_DELETE,
+                        REQUIRED_COLUMNS_FOR_UPDATE,
+                        ONLY_REQUIRE_UPDATED_COLUMNS_FOR_UPDATE));
     }
 
     /** A test table source which supports reading metadata. */
@@ -220,7 +259,7 @@ public class TestUpdateDeleteTableFactory
 
         @Override
         public String asSummaryString() {
-            return "test table source";
+            return "TestTableSource";
         }
 
         @Override
@@ -280,32 +319,128 @@ public class TestUpdateDeleteTableFactory
         private final Set<ObjectIdentifier> scanTables = new HashSet<>();
     }
 
-    /** A common test sink. */
-    private static class TestSink implements DynamicTableSink {
+    /** A sink that supports row-level update. */
+    private static class SupportsRowLevelUpdateSink
+            implements DynamicTableSink, SupportsRowLevelUpdate {
+
+        protected final ObjectIdentifier tableIdentifier;
+        protected final ResolvedCatalogTable resolvedCatalogTable;
+        protected final RowLevelUpdateMode updateMode;
+        protected final List<String> requireColumnsForUpdate;
+        protected final boolean onlyRequireUpdatedColumns;
+        protected final String dataId;
+
+        protected boolean isUpdate;
+
+        public SupportsRowLevelUpdateSink(
+                ObjectIdentifier tableIdentifier,
+                ResolvedCatalogTable resolvedCatalogTable,
+                RowLevelUpdateMode updateMode,
+                String dataId,
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns) {
+            this(
+                    tableIdentifier,
+                    resolvedCatalogTable,
+                    updateMode,
+                    dataId,
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
+                    false);
+        }
+
+        public SupportsRowLevelUpdateSink(
+                ObjectIdentifier tableIdentifier,
+                ResolvedCatalogTable resolvedCatalogTable,
+                RowLevelUpdateMode updateMode,
+                String dataId,
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns,
+                boolean isUpdate) {
+            this.tableIdentifier = tableIdentifier;
+            this.resolvedCatalogTable = resolvedCatalogTable;
+            this.updateMode = updateMode;
+            this.dataId = dataId;
+            this.requireColumnsForUpdate = requireColumnsForUpdate;
+            this.onlyRequireUpdatedColumns = onlyRequireUpdatedColumns;
+            this.isUpdate = isUpdate;
+        }
 
         @Override
         public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-            return ChangelogMode.insertOnly();
+            return ChangelogMode.upsert();
         }
 
         @Override
         public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-            return null;
+            return new DataStreamSinkProvider() {
+
+                @Override
+                public DataStreamSink<?> consumeDataStream(
+                        ProviderContext providerContext, DataStream<RowData> dataStream) {
+                    return dataStream
+                            .addSink(
+                                    new UpdateDataSinkFunction(
+                                            dataId,
+                                            getPrimaryKeyFieldGetter(
+                                                    resolvedCatalogTable.getResolvedSchema()),
+                                            getAllFieldGetter(
+                                                    resolvedCatalogTable.getResolvedSchema()),
+                                            updateMode))
+                            .setParallelism(1);
+                }
+            };
         }
 
         @Override
         public DynamicTableSink copy() {
-            return new TestSink();
+            return new SupportsRowLevelUpdateSink(
+                    tableIdentifier,
+                    resolvedCatalogTable,
+                    updateMode,
+                    dataId,
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
+                    isUpdate);
         }
 
         @Override
         public String asSummaryString() {
-            return "Test Sink";
+            return "SupportsRowLevelUpdateSink";
+        }
+
+        @Override
+        public RowLevelUpdateInfo applyRowLevelUpdate(
+                List<Column> updatedColumns, @Nullable RowLevelModificationScanContext context) {
+            checkScanContext(context, tableIdentifier);
+            this.isUpdate = true;
+
+            return new RowLevelUpdateInfo() {
+
+                @Override
+                public Optional<List<Column>> requiredColumns() {
+                    List<Column> requiredCols = null;
+                    if (onlyRequireUpdatedColumns) {
+                        requiredCols = updatedColumns;
+                    } else if (requireColumnsForUpdate != null) {
+                        requiredCols =
+                                getRequiredColumns(
+                                        requireColumnsForUpdate,
+                                        resolvedCatalogTable.getResolvedSchema());
+                    }
+                    return Optional.ofNullable(requiredCols);
+                }
+
+                @Override
+                public RowLevelUpdateMode getRowLevelUpdateMode() {
+                    return updateMode;
+                }
+            };
         }
     }
 
-    /** A sink that supports delete push down. */
-    private static class SupportsRowLevelDeleteSink extends TestSink
+    /** A sink that supports row-level delete/update. */
+    private static class SupportsRowLevelModificationSink extends SupportsRowLevelUpdateSink
             implements SupportsRowLevelDelete {
 
         private final ObjectIdentifier tableIdentifier;
@@ -316,28 +451,47 @@ public class TestUpdateDeleteTableFactory
 
         private boolean isDelete;
 
-        public SupportsRowLevelDeleteSink(
+        public SupportsRowLevelModificationSink(
                 ObjectIdentifier tableIdentifier,
                 ResolvedCatalogTable resolvedCatalogTable,
                 RowLevelDeleteMode deleteMode,
+                RowLevelUpdateMode updateMode,
                 String dataId,
-                List<String> requireColumnsForDelete) {
+                List<String> requireColumnsForDelete,
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns) {
             this(
                     tableIdentifier,
                     resolvedCatalogTable,
                     deleteMode,
+                    updateMode,
                     dataId,
                     requireColumnsForDelete,
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
+                    false,
                     false);
         }
 
-        public SupportsRowLevelDeleteSink(
+        public SupportsRowLevelModificationSink(
                 ObjectIdentifier tableIdentifier,
                 ResolvedCatalogTable resolvedCatalogTable,
                 RowLevelDeleteMode deleteMode,
+                RowLevelUpdateMode updateMode,
                 String dataId,
                 List<String> requireColumnsForDelete,
-                boolean isDelete) {
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns,
+                boolean isDelete,
+                boolean isUpdate) {
+            super(
+                    tableIdentifier,
+                    resolvedCatalogTable,
+                    updateMode,
+                    dataId,
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
+                    isUpdate);
             this.tableIdentifier = tableIdentifier;
             this.resolvedCatalogTable = resolvedCatalogTable;
             this.deleteMode = deleteMode;
@@ -353,50 +507,56 @@ public class TestUpdateDeleteTableFactory
 
         @Override
         public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-            return new DataStreamSinkProvider() {
-                @Override
-                public DataStreamSink<?> consumeDataStream(
-                        ProviderContext providerContext, DataStream<RowData> dataStream) {
-                    return dataStream
-                            .addSink(
-                                    new DeleteDataSinkFunction(
-                                            dataId,
-                                            getAllFieldGetter(
-                                                    resolvedCatalogTable.getResolvedSchema()),
-                                            deleteMode))
-                            .setParallelism(1);
-                }
-            };
+            if (isUpdate) {
+                return super.getSinkRuntimeProvider(context);
+            } else {
+                return new DataStreamSinkProvider() {
+                    @Override
+                    public DataStreamSink<?> consumeDataStream(
+                            ProviderContext providerContext, DataStream<RowData> dataStream) {
+                        if (isDelete) {
+                            return dataStream
+                                    .addSink(
+                                            new DeleteDataSinkFunction(
+                                                    dataId,
+                                                    getAllFieldGetter(
+                                                            resolvedCatalogTable
+                                                                    .getResolvedSchema()),
+                                                    deleteMode))
+                                    .setParallelism(1);
+                        } else {
+                            // otherwise, do nothing
+                            return dataStream.addSink(new DiscardingSink<>());
+                        }
+                    }
+                };
+            }
         }
 
         @Override
         public DynamicTableSink copy() {
-            return new SupportsRowLevelDeleteSink(
+            return new SupportsRowLevelModificationSink(
                     tableIdentifier,
                     resolvedCatalogTable,
                     deleteMode,
+                    updateMode,
                     dataId,
                     requireColumnsForDelete,
-                    isDelete);
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
+                    isDelete,
+                    isUpdate);
         }
 
         @Override
         public String asSummaryString() {
-            return "support row-level delete sink";
+            return "SupportsRowLevelModificationSink";
         }
 
         @Override
         public RowLevelDeleteInfo applyRowLevelDelete(
                 @Nullable RowLevelModificationScanContext context) {
-            // the context should contain the object identifier of the table to be written
-            Preconditions.checkArgument(context instanceof TestScanContext);
-            TestScanContext scanContext = (TestScanContext) context;
-            Preconditions.checkArgument(
-                    scanContext.scanTables.contains(tableIdentifier),
-                    String.format(
-                            "The scan context should contains the object identifier for table %s in row-level delete.",
-                            tableIdentifier));
-
+            checkScanContext(context, tableIdentifier);
             this.isDelete = true;
             return new RowLevelDeleteInfo() {
                 @Override
@@ -480,8 +640,8 @@ public class TestUpdateDeleteTableFactory
         }
     }
 
-    /** A sink that supports delete push down. */
-    public static class SupportsDeletePushDownSink extends TestSink
+    /** A sink that supports delete push down and row-level update. */
+    public static class SupportsDeletePushDownSink extends SupportsRowLevelUpdateSink
             implements SupportsDeletePushDown {
 
         private final String dataId;
@@ -493,9 +653,20 @@ public class TestUpdateDeleteTableFactory
         private List<Tuple2<String, Object>> equalPredicates;
 
         public SupportsDeletePushDownSink(
+                ObjectIdentifier tableIdentifier,
+                ResolvedCatalogTable resolvedCatalogTable,
+                RowLevelUpdateMode updateMode,
                 String dataId,
-                boolean onlyAcceptEqualPredicate,
-                ResolvedCatalogTable resolvedCatalogTable) {
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns,
+                boolean onlyAcceptEqualPredicate) {
+            super(
+                    tableIdentifier,
+                    resolvedCatalogTable,
+                    updateMode,
+                    dataId,
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns);
             this.dataId = dataId;
             this.onlyAcceptEqualPredicate = onlyAcceptEqualPredicate;
             this.resolvedCatalogTable = resolvedCatalogTable;
@@ -506,7 +677,13 @@ public class TestUpdateDeleteTableFactory
         @Override
         public DynamicTableSink copy() {
             return new SupportsDeletePushDownSink(
-                    dataId, onlyAcceptEqualPredicate, resolvedCatalogTable);
+                    tableIdentifier,
+                    resolvedCatalogTable,
+                    updateMode,
+                    dataId,
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
+                    onlyAcceptEqualPredicate);
         }
 
         @Override
@@ -594,22 +771,28 @@ public class TestUpdateDeleteTableFactory
         return true;
     }
 
-    /** A sink that supports both delete push down and row-level delete. */
-    private static class SupportsDeleteSink extends SupportsRowLevelDeleteSink
+    /** A sink that supports both delete push down and row-level delete/update. */
+    private static class SupportsDeleteSink extends SupportsRowLevelModificationSink
             implements SupportsDeletePushDown {
 
         public SupportsDeleteSink(
                 ObjectIdentifier tableIdentifier,
                 ResolvedCatalogTable resolvedCatalogTable,
                 SupportsRowLevelDelete.RowLevelDeleteMode deleteMode,
+                SupportsRowLevelUpdate.RowLevelUpdateMode updateMode,
                 String dataId,
-                List<String> requireColumnsForDelete) {
+                List<String> requireColumnsForDelete,
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns) {
             super(
                     tableIdentifier,
                     resolvedCatalogTable,
                     deleteMode,
+                    updateMode,
                     dataId,
-                    requireColumnsForDelete);
+                    requireColumnsForDelete,
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns);
         }
 
         @Override
@@ -627,6 +810,109 @@ public class TestUpdateDeleteTableFactory
             }
             return Optional.empty();
         }
+    }
+
+    /** The sink for update existing data. */
+    private static class UpdateDataSinkFunction extends RichSinkFunction<RowData> {
+        private final String dataId;
+        private final RowData.FieldGetter[] primaryKeyFieldGetters;
+        private final RowData.FieldGetter[] allFieldGetters;
+        private final SupportsRowLevelUpdate.RowLevelUpdateMode updateMode;
+        private transient RowData[] oldRows;
+        private transient List<Tuple2<Integer, RowData>> updatedRows;
+        private transient List<RowData> allNewRows;
+
+        public UpdateDataSinkFunction(
+                String dataId,
+                RowData.FieldGetter[] primaryKeyFieldGetters,
+                RowData.FieldGetter[] allFieldGetters,
+                SupportsRowLevelUpdate.RowLevelUpdateMode updateMode) {
+            this.dataId = dataId;
+            this.primaryKeyFieldGetters = primaryKeyFieldGetters;
+            this.updateMode = updateMode;
+            this.allFieldGetters = allFieldGetters;
+        }
+
+        @Override
+        public void open(Configuration parameters) {
+            oldRows = registeredRowData.get(dataId).toArray(new RowData[0]);
+            updatedRows = new ArrayList<>();
+            allNewRows = new ArrayList<>();
+        }
+
+        @Override
+        public void invoke(RowData value, Context context) {
+            if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS) {
+                consumeUpdatedRows(value);
+            } else if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS) {
+                consumeAllRows(value);
+            } else {
+                throw new TableException("Unknown update mode " + updateMode);
+            }
+        }
+
+        private void consumeUpdatedRows(RowData updatedRow) {
+            Preconditions.checkArgument(
+                    updatedRow.getRowKind() == RowKind.UPDATE_AFTER,
+                    "The RowKind for the updated rows should be " + RowKind.UPDATE_AFTER);
+
+            for (int i = 0; i < oldRows.length; i++) {
+                if (equal(oldRows[i], updatedRow, primaryKeyFieldGetters)) {
+                    updatedRows.add(new Tuple2<>(i, copyRowData(updatedRow, allFieldGetters)));
+                }
+            }
+        }
+
+        private void consumeAllRows(RowData rowData) {
+            Preconditions.checkArgument(
+                    rowData.getRowKind() == RowKind.INSERT,
+                    "The RowKind for the updated rows should be " + RowKind.INSERT);
+            allNewRows.add(copyRowData(rowData, allFieldGetters));
+        }
+
+        @Override
+        public void finish() throws Exception {
+            if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS) {
+                commitForUpdatedRows();
+            } else if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS) {
+                commitForAllRows();
+            } else {
+                throw new TableException("Unknown update mode " + updateMode);
+            }
+        }
+
+        private void commitForUpdatedRows() {
+            List<RowData> newRows = Arrays.asList(oldRows);
+            for (Tuple2<Integer, RowData> updatedRow : updatedRows) {
+                newRows.set(updatedRow.f0, updatedRow.f1);
+            }
+            registeredRowData.put(dataId, newRows);
+        }
+
+        private void commitForAllRows() {
+            registeredRowData.put(dataId, allNewRows);
+        }
+    }
+
+    private static void checkScanContext(
+            RowLevelModificationScanContext context, ObjectIdentifier tableIdentifier) {
+        // the context should contain the object identifier of the table to be written
+        Preconditions.checkArgument(context instanceof TestScanContext);
+        TestScanContext scanContext = (TestScanContext) context;
+        Preconditions.checkArgument(
+                scanContext.scanTables.contains(tableIdentifier),
+                "The scan context should contains the object identifier for row-level modification.");
+    }
+
+    private static RowData.FieldGetter[] getPrimaryKeyFieldGetter(ResolvedSchema resolvedSchema) {
+        int[] indexes = resolvedSchema.getPrimaryKeyIndexes();
+        RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[indexes.length];
+        List<DataType> dataTypes = resolvedSchema.getColumnDataTypes();
+        for (int i = 0; i < fieldGetters.length; i++) {
+            int colIndex = indexes[i];
+            fieldGetters[i] = createFieldGetter(dataTypes.get(colIndex).getLogicalType(), colIndex);
+        }
+        return fieldGetters;
     }
 
     private static RowData.FieldGetter[] getAllFieldGetter(ResolvedSchema resolvedSchema) {

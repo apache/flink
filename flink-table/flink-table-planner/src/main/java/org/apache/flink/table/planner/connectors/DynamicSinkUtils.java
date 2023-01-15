@@ -43,6 +43,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
@@ -54,6 +55,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
@@ -86,6 +88,7 @@ import org.apache.calcite.rex.RexUtil;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -216,9 +219,11 @@ public final class DynamicSinkUtils {
         List<SinkAbilitySpec> sinkAbilitySpecs = new ArrayList<>();
 
         boolean isDelete = false;
+        boolean isUpdate = false;
         if (input instanceof LogicalTableModify) {
             LogicalTableModify tableModify = (LogicalTableModify) input;
             isDelete = tableModify.getOperation() == TableModify.Operation.DELETE;
+            isUpdate = tableModify.getOperation() == TableModify.Operation.UPDATE;
         }
 
         // 1. prepare table sink
@@ -241,14 +246,24 @@ public final class DynamicSinkUtils {
                             dataTypeFactory,
                             typeFactory,
                             sinkAbilitySpecs);
+        } else if (isUpdate) {
+            input =
+                    convertUpdate(
+                            (LogicalTableModify) input,
+                            sink,
+                            contextResolvedTable,
+                            tableDebugName,
+                            dataTypeFactory,
+                            typeFactory,
+                            sinkAbilitySpecs);
         }
 
         sinkAbilitySpecs.forEach(spec -> spec.apply(sink));
 
         // 2. validate the query schema to the sink's table schema and apply cast if possible
         RelNode query = input;
-        // skip validate and implicit cast when it's delete as it been done before
-        if (!isDelete) {
+        // skip validate and implicit cast when it's delete/update since it has been done before
+        if (!isDelete && !isUpdate) {
             query =
                     validateSchemaAndApplyImplicitCast(
                             input, schema, tableDebugName, dataTypeFactory, typeFactory);
@@ -403,6 +418,57 @@ public final class DynamicSinkUtils {
         }
     }
 
+    private static RelNode convertUpdate(
+            LogicalTableModify tableModify,
+            DynamicTableSink sink,
+            ContextResolvedTable contextResolvedTable,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
+        if (!(sink instanceof SupportsRowLevelUpdate)) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Can't perform update operation of the table %s because the corresponding dynamic table sink has not yet implemented %s.",
+                            tableDebugName, SupportsRowLevelUpdate.class.getName()));
+        }
+        SupportsRowLevelUpdate supportsRowLevelUpdate = (SupportsRowLevelUpdate) sink;
+        ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
+        List<Column> updatedColumns = getUpdatedColumns(tableModify, resolvedSchema);
+        RowLevelModificationScanContext context = RowLevelModificationContextUtils.getScanContext();
+        SupportsRowLevelUpdate.RowLevelUpdateInfo updateInfo =
+                supportsRowLevelUpdate.applyRowLevelUpdate(updatedColumns, context);
+        if (updateInfo.getRowLevelUpdateMode()
+                        != SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS
+                && updateInfo.getRowLevelUpdateMode()
+                        != SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS) {
+            throw new IllegalArgumentException(
+                    "Unknown update mode:" + updateInfo.getRowLevelUpdateMode());
+        }
+        sinkAbilitySpecs.add(
+                new RowLevelUpdateSpec(
+                        updatedColumns, updateInfo.getRowLevelUpdateMode(), context));
+        return convertToRowLevelUpdate(
+                tableModify,
+                contextResolvedTable,
+                updateInfo,
+                tableDebugName,
+                dataTypeFactory,
+                typeFactory);
+    }
+
+    private static List<Column> getUpdatedColumns(
+            LogicalTableModify tableModify, ResolvedSchema resolvedSchema) {
+        List<Column> updatedColumns = new ArrayList<>();
+        List<String> updatedColumnNames = tableModify.getUpdateColumnList();
+        for (Column column : resolvedSchema.getColumns()) {
+            if (updatedColumnNames.contains(column.getName())) {
+                updatedColumns.add(column);
+            }
+        }
+        return updatedColumns;
+    }
+
     /** Convert tableModify node to a rel node representing for row-level delete. */
     private static RelNode convertToRowLevelDelete(
             LogicalTableModify tableModify,
@@ -538,6 +604,111 @@ public final class DynamicSinkUtils {
             relNode = relNode.getInput(0);
         }
         return (LogicalTableScan) relNode;
+    }
+
+    /** Convert tableModify node to a RelNode representing for row-level update. */
+    private static RelNode convertToRowLevelUpdate(
+            LogicalTableModify tableModify,
+            ContextResolvedTable contextResolvedTable,
+            SupportsRowLevelUpdate.RowLevelUpdateInfo rowLevelUpdateInfo,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory) {
+        // get the required columns
+        ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
+        Optional<List<Column>> optionalColumns = rowLevelUpdateInfo.requiredColumns();
+        List<Column> requiredColumns = optionalColumns.orElse(resolvedSchema.getColumns());
+        // get the root table scan which we may need rewrite it
+        LogicalTableScan tableScan = getSourceTableScan(tableModify);
+        Tuple2<List<Integer>, List<MetadataColumn>> colsIndexAndExtraMetaCols =
+                getRequireColumnsIndexAndExtraMetaCols(tableScan, requiredColumns, resolvedSchema);
+        List<Integer> updatedIndexes = colsIndexAndExtraMetaCols.f0;
+        List<MetadataColumn> metadataColumns = colsIndexAndExtraMetaCols.f1;
+        // if meta columns size is greater than 0, we need to modify the underlying
+        // LogicalTableScan to make it can read meta column
+        int originColsCount = resolvedSchema.getColumnCount();
+        if (metadataColumns.size() > 0) {
+            resolvedSchema =
+                    addExtraMetaCols(
+                            tableModify, tableScan, tableDebugName, metadataColumns, typeFactory);
+        }
+
+        return projectColumnsForUpdate(
+                tableModify,
+                originColsCount,
+                resolvedSchema,
+                updatedIndexes,
+                rowLevelUpdateInfo.getRowLevelUpdateMode(),
+                tableDebugName,
+                dataTypeFactory,
+                typeFactory);
+    }
+
+    // create a project only select the required column or expression for update
+    private static RelNode projectColumnsForUpdate(
+            LogicalTableModify tableModify,
+            int originColsCount,
+            ResolvedSchema resolvedSchema,
+            List<Integer> updatedIndexes,
+            SupportsRowLevelUpdate.RowLevelUpdateMode updateMode,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory) {
+        RexBuilder rexBuilder = tableModify.getCluster().getRexBuilder();
+        // the updated columns, whose order is same to user's update clause
+        List<String> updatedColumnNames = tableModify.getUpdateColumnList();
+        List<RexNode> newRexNodeList = new ArrayList<>();
+        List<String> newFieldNames = new ArrayList<>();
+        List<DataType> updateTargetDataTypes = new ArrayList<>();
+        Project project = (Project) (tableModify.getInput());
+
+        LogicalFilter filter = null;
+        // if the update mode is all rows, we need to know the filter to rewrite
+        // the update expression to IF(filter, updated_expr, col_expr)
+        if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS
+                && project.getInput() instanceof LogicalFilter) {
+            filter = (LogicalFilter) project.getInput();
+        }
+
+        // the rex nodes for the project are like: index for all col, update expressions for the
+        // updated columns
+        List<RexNode> oldRexNodes = project.getProjects();
+        for (int index : updatedIndexes) {
+            String colName = resolvedSchema.getColumnNames().get(index);
+            // if the updated cols contain the col to be selected, the updated expression should
+            // be in the project node
+            if (updatedColumnNames.contains(colName)) {
+                // get the index of the updated column in all updated columns
+                int i = updatedColumnNames.indexOf(colName);
+                // get the update expression
+                RexNode rexNode = oldRexNodes.get(originColsCount + i);
+                if (filter != null) {
+                    rexNode =
+                            rexBuilder.makeCall(
+                                    FlinkSqlOperatorTable.IF,
+                                    Arrays.asList(
+                                            filter.getCondition(),
+                                            rexNode,
+                                            rexBuilder.makeInputRef(project.getInput(), index)));
+                }
+                newRexNodeList.add(rexNode);
+            } else {
+                newRexNodeList.add(rexBuilder.makeInputRef(project.getInput(), index));
+            }
+            newFieldNames.add(colName);
+            updateTargetDataTypes.add(resolvedSchema.getColumnDataTypes().get(index));
+        }
+
+        project =
+                project.copy(
+                        project.getTraitSet(),
+                        // if filter is not null, we need to remove the filter in the plan since we
+                        // have rewritten the expression to IF(filter, updated_expr, col_expr)
+                        filter != null ? filter.getInput() : project.getInput(),
+                        newRexNodeList,
+                        RexUtil.createStructType(typeFactory, newRexNodeList, newFieldNames, null));
+        return validateSchemaAndApplyImplicitCast(
+                project, updateTargetDataTypes, tableDebugName, dataTypeFactory, typeFactory);
     }
 
     /**

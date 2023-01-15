@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,18 +18,11 @@
 
 package org.apache.flink.table.planner.operations;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableColumn.ComputedColumn;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
@@ -37,11 +30,8 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
-import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -49,39 +39,12 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.factories.TestManagedTableFactory;
-import org.apache.flink.table.operations.BeginStatementSetOperation;
-import org.apache.flink.table.operations.DeleteFromFilterOperation;
-import org.apache.flink.table.operations.EndStatementSetOperation;
-import org.apache.flink.table.operations.ExplainOperation;
-import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
-import org.apache.flink.table.operations.ShowModulesOperation;
-import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
-import org.apache.flink.table.operations.StatementSetOperation;
-import org.apache.flink.table.operations.UnloadModuleOperation;
-import org.apache.flink.table.operations.UseCatalogOperation;
-import org.apache.flink.table.operations.UseDatabaseOperation;
-import org.apache.flink.table.operations.UseModulesOperation;
-import org.apache.flink.table.operations.command.AddJarOperation;
-import org.apache.flink.table.operations.command.ClearOperation;
-import org.apache.flink.table.operations.command.HelpOperation;
-import org.apache.flink.table.operations.command.QuitOperation;
-import org.apache.flink.table.operations.command.RemoveJarOperation;
-import org.apache.flink.table.operations.command.ResetOperation;
-import org.apache.flink.table.operations.command.SetOperation;
-import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -92,46 +55,30 @@ import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
-import org.apache.flink.table.planner.delegation.ParserImpl;
-import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
-import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.parse.CalciteParser;
-import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
-import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
@@ -140,104 +87,9 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-/** Test cases for {@link SqlToOperationConverter}. */
-public class SqlToOperationConverterTest {
-    private final boolean isStreamingMode = false;
-    private final TableConfig tableConfig = TableConfig.getDefault();
-    private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
-    private final CatalogManager catalogManager =
-            CatalogManagerMocks.preparedCatalogManager()
-                    .defaultCatalog("builtin", catalog)
-                    .config(
-                            Configuration.fromMap(
-                                    Collections.singletonMap(
-                                            ExecutionOptions.RUNTIME_MODE.key(),
-                                            RuntimeExecutionMode.BATCH.name())))
-                    .build();
-
-    private final PlannerMocks plannerMocks =
-            PlannerMocks.newBuilder()
-                    .withBatchMode(true)
-                    .withTableConfig(tableConfig)
-                    .withCatalogManager(catalogManager)
-                    .withRootSchema(
-                            asRootSchema(
-                                    new CatalogManagerCalciteSchema(
-                                            catalogManager, isStreamingMode)))
-                    .build();
-    private final PlannerContext plannerContext = plannerMocks.getPlannerContext();
-    private final FunctionCatalog functionCatalog = plannerMocks.getFunctionCatalog();
-
-    private final Supplier<FlinkPlannerImpl> plannerSupplier = plannerContext::createFlinkPlanner;
-
-    private final Parser parser =
-            new ParserImpl(
-                    catalogManager,
-                    plannerSupplier,
-                    () -> plannerSupplier.get().parser(),
-                    plannerContext.getRexFactory());
-
-    @BeforeEach
-    public void before() throws TableAlreadyExistException, DatabaseNotExistException {
-        catalogManager.initSchemaResolver(
-                isStreamingMode,
-                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser));
-
-        final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
-        final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
-        final TableSchema tableSchema =
-                TableSchema.builder()
-                        .field("a", DataTypes.BIGINT())
-                        .field("b", DataTypes.VARCHAR(Integer.MAX_VALUE))
-                        .field("c", DataTypes.INT())
-                        .field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
-                        .build();
-        Map<String, String> options = new HashMap<>();
-        options.put("connector", "COLLECTION");
-        final CatalogTable catalogTable = new CatalogTableImpl(tableSchema, options, "");
-        catalog.createTable(path1, catalogTable, true);
-        catalog.createTable(path2, catalogTable, true);
-    }
-
-    @AfterEach
-    public void after() throws TableNotExistException {
-        final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
-        final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
-        catalog.dropTable(path1, true);
-        catalog.dropTable(path2, true);
-    }
-
-    @Test
-    public void testUseCatalog() {
-        final String sql = "USE CATALOG cat1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(UseCatalogOperation.class);
-        assertThat(((UseCatalogOperation) operation).getCatalogName()).isEqualTo("cat1");
-        assertThat(operation.asSummaryString()).isEqualTo("USE CATALOG cat1");
-    }
-
-    @Test
-    public void testUseDatabase() {
-        final String sql1 = "USE db1";
-        Operation operation1 = parse(sql1);
-        assertThat(operation1).isInstanceOf(UseDatabaseOperation.class);
-        assertThat(((UseDatabaseOperation) operation1).getCatalogName()).isEqualTo("builtin");
-        assertThat(((UseDatabaseOperation) operation1).getDatabaseName()).isEqualTo("db1");
-
-        final String sql2 = "USE cat1.db1";
-        Operation operation2 = parse(sql2);
-        assertThat(operation2).isInstanceOf(UseDatabaseOperation.class);
-        assertThat(((UseDatabaseOperation) operation2).getCatalogName()).isEqualTo("cat1");
-        assertThat(((UseDatabaseOperation) operation2).getDatabaseName()).isEqualTo("db1");
-    }
-
-    @Test
-    public void testUseDatabaseWithException() {
-        final String sql = "USE cat1.db1.tbl1";
-        assertThatThrownBy(() -> parse(sql)).isInstanceOf(ValidationException.class);
-    }
+/** Test cases for the DDL statements for {@link SqlToOperationConverter}. */
+public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestBase {
 
     @Test
     public void testCreateDatabase() {
@@ -326,122 +178,6 @@ public class SqlToOperationConverterTest {
                 .isEqualTo("db1_comment");
         assertThat(alterDatabaseOperation.getCatalogDatabase().getProperties())
                 .isEqualTo(properties);
-    }
-
-    @Test
-    public void testLoadModule() {
-        final String sql = "LOAD MODULE dummy WITH ('k1' = 'v1', 'k2' = 'v2')";
-        final String expectedModuleName = "dummy";
-        final Map<String, String> expectedOptions = new HashMap<>();
-        expectedOptions.put("k1", "v1");
-        expectedOptions.put("k2", "v2");
-
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(LoadModuleOperation.class);
-        final LoadModuleOperation loadModuleOperation = (LoadModuleOperation) operation;
-
-        assertThat(loadModuleOperation.getModuleName()).isEqualTo(expectedModuleName);
-        assertThat(loadModuleOperation.getOptions()).isEqualTo(expectedOptions);
-    }
-
-    @Test
-    public void testUnloadModule() {
-        final String sql = "UNLOAD MODULE dummy";
-        final String expectedModuleName = "dummy";
-
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(UnloadModuleOperation.class);
-
-        final UnloadModuleOperation unloadModuleOperation = (UnloadModuleOperation) operation;
-
-        assertThat(unloadModuleOperation.getModuleName()).isEqualTo(expectedModuleName);
-    }
-
-    @Test
-    public void testUseOneModule() {
-        final String sql = "USE MODULES dummy";
-        final List<String> expectedModuleNames = Collections.singletonList("dummy");
-
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(UseModulesOperation.class);
-
-        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
-
-        assertThat(useModulesOperation.getModuleNames()).isEqualTo(expectedModuleNames);
-        assertThat(useModulesOperation.asSummaryString()).isEqualTo("USE MODULES: [dummy]");
-    }
-
-    @Test
-    public void testUseMultipleModules() {
-        final String sql = "USE MODULES x, y, z";
-        final List<String> expectedModuleNames = Arrays.asList("x", "y", "z");
-
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(UseModulesOperation.class);
-
-        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
-
-        assertThat(useModulesOperation.getModuleNames()).isEqualTo(expectedModuleNames);
-        assertThat(useModulesOperation.asSummaryString()).isEqualTo("USE MODULES: [x, y, z]");
-    }
-
-    @Test
-    public void testShowModules() {
-        final String sql = "SHOW MODULES";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowModulesOperation.class);
-        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
-
-        assertThat(showModulesOperation.requireFull()).isFalse();
-        assertThat(showModulesOperation.asSummaryString()).isEqualTo("SHOW MODULES");
-    }
-
-    @Test
-    public void testShowTables() {
-        final String sql = "SHOW TABLES from cat1.db1 not like 't%'";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowTablesOperation.class);
-
-        ShowTablesOperation showTablesOperation = (ShowTablesOperation) operation;
-        assertThat(showTablesOperation.getCatalogName()).isEqualTo("cat1");
-        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db1");
-        assertThat(showTablesOperation.getPreposition()).isEqualTo("FROM");
-        assertThat(showTablesOperation.isUseLike()).isTrue();
-        assertThat(showTablesOperation.isNotLike()).isTrue();
-
-        final String sql2 = "SHOW TABLES in db2";
-        showTablesOperation = (ShowTablesOperation) parse(sql2);
-        assertThat(showTablesOperation.getCatalogName()).isEqualTo("builtin");
-        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db2");
-        assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
-        assertThat(showTablesOperation.isUseLike()).isFalse();
-        assertThat(showTablesOperation.isNotLike()).isFalse();
-
-        final String sql3 = "SHOW TABLES";
-        showTablesOperation = (ShowTablesOperation) parse(sql3);
-        assertThat(showTablesOperation.getCatalogName()).isNull();
-        assertThat(showTablesOperation.getDatabaseName()).isNull();
-        assertThat(showTablesOperation.getPreposition()).isNull();
-    }
-
-    @Test
-    public void testShowFullModules() {
-        final String sql = "SHOW FULL MODULES";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowModulesOperation.class);
-        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
-
-        assertThat(showModulesOperation.requireFull()).isTrue();
-        assertThat(showModulesOperation.asSummaryString()).isEqualTo("SHOW FULL MODULES");
-    }
-
-    @Test
-    public void testShowFunctions() {
-        final String sql1 = "SHOW FUNCTIONS";
-        assertShowFunctions(sql1, sql1, FunctionScope.ALL);
-
-        final String sql2 = "SHOW USER FUNCTIONS";
-        assertShowFunctions(sql2, sql2, FunctionScope.USER);
     }
 
     @Test
@@ -582,30 +318,6 @@ public class SqlToOperationConverterTest {
                         + "a.b-c-d.e-f.g=ada, "
                         + "a.b-c-d.e-f1231.g=ada}";
         assertThat(sortedProperties.toString()).isEqualTo(expected);
-    }
-
-    @Test
-    public void testExplainWithSelect() {
-        final String sql = "explain select * from t1";
-        checkExplainSql(sql);
-    }
-
-    @Test
-    public void testExplainWithInsert() {
-        final String sql = "explain insert into t2 select * from t1";
-        checkExplainSql(sql);
-    }
-
-    @Test
-    public void testExplainWithUnion() {
-        final String sql = "explain select * from t1 union select * from t2";
-        checkExplainSql(sql);
-    }
-
-    @Test
-    public void testExplainWithExplainDetails() {
-        String sql = "explain changelog_mode, estimated_cost, json_execution_plan select * from t1";
-        checkExplainSql(sql);
     }
 
     @Test
@@ -893,46 +605,6 @@ public class SqlToOperationConverterTest {
                                 + " ROW<`tmstmp` TIMESTAMP(3)>.");
     }
 
-    @Test
-    public void testSqlInsertWithStaticPartition() {
-        final String sql = "insert into t1 partition(a=1) select b, c, d from t2";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
-        SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) operation;
-        final Map<String, String> expectedStaticPartitions = new HashMap<>();
-        expectedStaticPartitions.put("a", "1");
-        assertThat(sinkModifyOperation.getStaticPartitions()).isEqualTo(expectedStaticPartitions);
-    }
-
-    @Test
-    public void testSqlInsertWithDynamicTableOptions() {
-        final String sql =
-                "insert into t1 /*+ OPTIONS('k1'='v1', 'k2'='v2') */\n"
-                        + "select a, b, c, d from t2";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
-        SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) operation;
-        Map<String, String> dynamicOptions = sinkModifyOperation.getDynamicOptions();
-        assertThat(dynamicOptions).isNotNull();
-        assertThat(dynamicOptions.size()).isEqualTo(2);
-        assertThat(dynamicOptions.toString()).isEqualTo("{k1=v1, k2=v2}");
-    }
-
-    @Test
-    public void testDynamicTableWithInvalidOptions() {
-        final String sql = "select * from t1 /*+ OPTIONS('opt1', 'opt2') */";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        assertThatThrownBy(() -> parse(sql, planner, parser))
-                .isInstanceOf(AssertionError.class)
-                .hasMessageContaining(
-                        "Hint [OPTIONS] only support " + "non empty key value options");
-    }
-
     @Test // TODO: tweak the tests when FLINK-13604 is fixed.
     public void testCreateTableWithFullDataTypes() {
         final List<TestItem> testItems =
@@ -1128,9 +800,9 @@ public class SqlToOperationConverterTest {
                         });
         String[] columnExpressions =
                 catalogTable.getSchema().getTableColumns().stream()
-                        .filter(ComputedColumn.class::isInstance)
-                        .map(ComputedColumn.class::cast)
-                        .map(ComputedColumn::getExpression)
+                        .filter(TableColumn.ComputedColumn.class::isInstance)
+                        .map(TableColumn.ComputedColumn.class::cast)
+                        .map(TableColumn.ComputedColumn::getExpression)
                         .toArray(String[]::new);
         String[] expected =
                 new String[] {
@@ -2477,272 +2149,6 @@ public class SqlToOperationConverterTest {
         assertThat(operation).isInstanceOf(CreateViewOperation.class);
     }
 
-    @Test
-    public void testBeginStatementSet() {
-        final String sql = "BEGIN STATEMENT SET";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(BeginStatementSetOperation.class);
-        final BeginStatementSetOperation beginStatementSetOperation =
-                (BeginStatementSetOperation) operation;
-
-        assertThat(beginStatementSetOperation.asSummaryString()).isEqualTo("BEGIN STATEMENT SET");
-    }
-
-    @Test
-    public void testEnd() {
-        final String sql = "END";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(EndStatementSetOperation.class);
-        final EndStatementSetOperation endStatementSetOperation =
-                (EndStatementSetOperation) operation;
-
-        assertThat(endStatementSetOperation.asSummaryString()).isEqualTo("END");
-    }
-
-    @Test
-    public void testSqlRichExplainWithSelect() {
-        final String sql = "explain plan for select a, b, c, d from t2";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(ExplainOperation.class);
-    }
-
-    @Test
-    public void testSqlRichExplainWithInsert() {
-        final String sql = "explain plan for insert into t1 select a, b, c, d from t2";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(ExplainOperation.class);
-    }
-
-    @Test
-    public void testSqlRichExplainWithStatementSet() {
-        final String sql =
-                "explain plan for statement set begin "
-                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
-                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
-                        + "end";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(ExplainOperation.class);
-    }
-
-    @Test
-    public void testExplainDetailsWithSelect() {
-        final String sql =
-                "explain estimated_cost, changelog_mode, plan_advice select a, b, c, d from t2";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        assertExplainDetails(parse(sql, planner, parser));
-    }
-
-    @Test
-    public void testExplainDetailsWithInsert() {
-        final String sql =
-                "explain estimated_cost, changelog_mode, plan_advice insert into t1 select a, b, c, d from t2";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        assertExplainDetails(parse(sql, planner, parser));
-    }
-
-    @Test
-    public void testExplainDetailsWithStatementSet() {
-        final String sql =
-                "explain estimated_cost, changelog_mode, plan_advice statement set begin "
-                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
-                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
-                        + "end";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        assertExplainDetails(parse(sql, planner, parser));
-    }
-
-    private void assertExplainDetails(Operation operation) {
-        Set<String> expectedDetail = new HashSet<>();
-        expectedDetail.add(ExplainDetail.ESTIMATED_COST.toString());
-        expectedDetail.add(ExplainDetail.CHANGELOG_MODE.toString());
-        expectedDetail.add(ExplainDetail.PLAN_ADVICE.toString());
-        assertThat(operation)
-                .asInstanceOf(type(ExplainOperation.class))
-                .satisfies(
-                        explain ->
-                                assertThat(explain.getExplainDetails()).isEqualTo(expectedDetail));
-    }
-
-    @Test
-    public void testSqlExecuteWithStatementSet() {
-        final String sql =
-                "execute statement set begin "
-                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
-                        + "insert into t1 select a, b, c, d from t2 where a > 2;"
-                        + "end";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(StatementSetOperation.class);
-    }
-
-    @Test
-    public void testSqlExecuteWithInsert() {
-        final String sql = "execute insert into t1 select a, b, c, d from t2 where a > 1";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
-    }
-
-    @Test
-    public void testSqlExecuteWithSelect() {
-        final String sql = "execute select a, b, c, d from t2 where a > 1";
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        Operation operation = parse(sql, planner, parser);
-        assertThat(operation).isInstanceOf(QueryOperation.class);
-    }
-
-    @Test
-    public void testAddJar() {
-        Arrays.asList(
-                        "./test.\njar",
-                        "file:///path/to/whatever",
-                        "../test-jar.jar",
-                        "/root/test.jar",
-                        "test\\ jar.jar",
-                        "oss://path/helloworld.go")
-                .forEach(
-                        jarPath -> {
-                            AddJarOperation operation =
-                                    (AddJarOperation)
-                                            parser.parse(String.format("ADD JAR '%s'", jarPath))
-                                                    .get(0);
-                            assertThat(operation.getPath()).isEqualTo(jarPath);
-                        });
-    }
-
-    @Test
-    public void testRemoveJar() {
-        Arrays.asList(
-                        "./test.\njar",
-                        "file:///path/to/whatever",
-                        "../test-jar.jar",
-                        "/root/test.jar",
-                        "test\\ jar.jar",
-                        "oss://path/helloworld.go")
-                .forEach(
-                        jarPath -> {
-                            RemoveJarOperation operation =
-                                    (RemoveJarOperation)
-                                            parser.parse(String.format("REMOVE JAR '%s'", jarPath))
-                                                    .get(0);
-                            assertThat(operation.getPath()).isEqualTo(jarPath);
-                        });
-    }
-
-    @Test
-    public void testShowJars() {
-        final String sql = "SHOW JARS";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowJarsOperation.class);
-        final ShowJarsOperation showModulesOperation = (ShowJarsOperation) operation;
-        assertThat(showModulesOperation.asSummaryString()).isEqualTo("SHOW JARS");
-    }
-
-    @Test
-    public void testSet() {
-        Operation operation1 = parse("SET");
-        assertThat(operation1).isInstanceOf(SetOperation.class);
-        SetOperation setOperation1 = (SetOperation) operation1;
-        assertThat(setOperation1.getKey()).isNotPresent();
-        assertThat(setOperation1.getValue()).isNotPresent();
-
-        Operation operation2 = parse("SET 'test-key' = 'test-value'");
-        assertThat(operation2).isInstanceOf(SetOperation.class);
-        SetOperation setOperation2 = (SetOperation) operation2;
-        assertThat(setOperation2.getKey()).hasValue("test-key");
-        assertThat(setOperation2.getValue()).hasValue("test-value");
-    }
-
-    @Test
-    public void testReset() {
-        Operation operation1 = parse("RESET");
-        assertThat(operation1).isInstanceOf(ResetOperation.class);
-        assertThat(((ResetOperation) operation1).getKey()).isNotPresent();
-
-        Operation operation2 = parse("RESET 'test-key'");
-        assertThat(operation2).isInstanceOf(ResetOperation.class);
-        assertThat(((ResetOperation) operation2).getKey()).isPresent();
-        assertThat(((ResetOperation) operation2).getKey()).hasValue("test-key");
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"SET", "SET;", "SET ;", "SET\t;", "SET\n;"})
-    public void testSetCommands(String command) {
-        ExtendedParser extendedParser = new ExtendedParser();
-        assertThat(extendedParser.parse(command)).get().isInstanceOf(SetOperation.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;"})
-    public void testHelpCommands(String command) {
-        ExtendedParser extendedParser = new ExtendedParser();
-        assertThat(extendedParser.parse(command)).get().isInstanceOf(HelpOperation.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;"})
-    public void testClearCommands(String command) {
-        ExtendedParser extendedParser = new ExtendedParser();
-        assertThat(extendedParser.parse(command)).get().isInstanceOf(ClearOperation.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(
-            strings = {
-                "QUIT;", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT;", "EXIT ;", "EXIT\t;",
-                "EXIT\n;", "EXIT ; "
-            })
-    public void testQuitCommands(String command) {
-        ExtendedParser extendedParser = new ExtendedParser();
-        assertThat(extendedParser.parse(command)).get().isInstanceOf(QuitOperation.class);
-    }
-
-    @Test
-    public void testDelete() throws Exception {
-        Map<String, String> options = new HashMap<>();
-        options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("a", DataTypes.INT().notNull())
-                                .column("c", DataTypes.STRING().notNull())
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        options);
-        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("builtin", "default", "test_delete");
-        catalogManager.createTable(catalogTable, tableIdentifier, false);
-
-        // no filter in delete statement
-        Operation operation = parse("DELETE FROM test_delete");
-        checkDeleteFromFilterOperation(operation, "[]");
-
-        // with filters in delete statement
-        operation = parse("DELETE FROM test_delete where a = 1 and c = '123'");
-        checkDeleteFromFilterOperation(operation, "[equals(a, 1), equals(c, '123')]");
-
-        // with filter = false after reduced in delete statement
-        operation = parse("DELETE FROM test_delete where a = 1 + 6 and a = 2");
-        checkDeleteFromFilterOperation(operation, "[false]");
-
-        operation = parse("DELETE FROM test_delete where a = (select count(*) from test_delete)");
-        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
-        SinkModifyOperation modifyOperation = (SinkModifyOperation) operation;
-        assertThat(modifyOperation.isDelete()).isTrue();
-    }
-
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {
@@ -2755,64 +2161,6 @@ public class SqlToOperationConverterTest {
             testItem.withExpectedType(args[1]);
         }
         return testItem;
-    }
-
-    private void checkExplainSql(String sql) {
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        SqlNode node = parser.parse(sql);
-        assertThat(node).isInstanceOf(SqlRichExplain.class);
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
-        assertThat(operation).isInstanceOf(ExplainOperation.class);
-    }
-
-    private void assertShowFunctions(
-            String sql, String expectedSummary, FunctionScope expectedScope) {
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowFunctionsOperation.class);
-
-        final ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
-
-        assertThat(showFunctionsOperation.getFunctionScope()).isEqualTo(expectedScope);
-        assertThat(showFunctionsOperation.asSummaryString()).isEqualTo(expectedSummary);
-    }
-
-    private void assertAlterTableOptions(
-            Operation operation,
-            ObjectIdentifier expectedIdentifier,
-            Map<String, String> expectedOptions,
-            List<TableChange> expectedChanges,
-            String expectedSummary) {
-        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
-        final AlterTableChangeOperation alterTableOptionsOperation =
-                (AlterTableChangeOperation) operation;
-        assertThat(alterTableOptionsOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
-        assertThat(alterTableOptionsOperation.getNewTable().getOptions())
-                .isEqualTo(expectedOptions);
-        assertThat(expectedChanges).isEqualTo(alterTableOptionsOperation.getTableChanges());
-        assertThat(alterTableOptionsOperation.asSummaryString()).isEqualTo(expectedSummary);
-    }
-
-    private void assertAlterTableSchema(
-            Operation operation, ObjectIdentifier expectedIdentifier, Schema expectedSchema) {
-        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
-        final AlterTableChangeOperation alterTableChangeOperation =
-                (AlterTableChangeOperation) operation;
-        assertThat(alterTableChangeOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
-        assertThat(alterTableChangeOperation.getNewTable().getUnresolvedSchema())
-                .isEqualTo(expectedSchema);
-    }
-
-    private Operation parse(String sql, FlinkPlannerImpl planner, CalciteParser parser) {
-        SqlNode node = parser.parse(sql);
-        return SqlToOperationConverter.convert(planner, catalogManager, node).get();
-    }
-
-    private Operation parse(String sql) {
-        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        SqlNode node = parser.parse(sql);
-        return SqlToOperationConverter.convert(planner, catalogManager, node).get();
     }
 
     private void prepareNonManagedTable(boolean hasConstraint) throws Exception {
@@ -2897,14 +2245,30 @@ public class SqlToOperationConverterTest {
         catalogManager.createTable(catalogTable, tableIdentifier, true);
     }
 
-    private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
-        tableConfig.setSqlDialect(sqlDialect);
-        return plannerContext.createFlinkPlanner();
+    private void assertAlterTableOptions(
+            Operation operation,
+            ObjectIdentifier expectedIdentifier,
+            Map<String, String> expectedOptions,
+            List<TableChange> expectedChanges,
+            String expectedSummary) {
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
+        final AlterTableChangeOperation alterTableOptionsOperation =
+                (AlterTableChangeOperation) operation;
+        assertThat(alterTableOptionsOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableOptionsOperation.getNewTable().getOptions())
+                .isEqualTo(expectedOptions);
+        assertThat(expectedChanges).isEqualTo(alterTableOptionsOperation.getTableChanges());
+        assertThat(alterTableOptionsOperation.asSummaryString()).isEqualTo(expectedSummary);
     }
 
-    private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
-        tableConfig.setSqlDialect(sqlDialect);
-        return plannerContext.createCalciteParser();
+    private void assertAlterTableSchema(
+            Operation operation, ObjectIdentifier expectedIdentifier, Schema expectedSchema) {
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
+        final AlterTableChangeOperation alterTableChangeOperation =
+                (AlterTableChangeOperation) operation;
+        assertThat(alterTableChangeOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableChangeOperation.getNewTable().getUnresolvedSchema())
+                .isEqualTo(expectedSchema);
     }
 
     private void checkAlterNonExistTable(String sqlTemplate) {
@@ -2937,15 +2301,6 @@ public class SqlToOperationConverterTest {
                 .containsEntry(
                         TestManagedTableFactory.ENRICHED_KEY,
                         TestManagedTableFactory.ENRICHED_VALUE);
-    }
-
-    private static void checkDeleteFromFilterOperation(
-            Operation operation, String expectedFilters) {
-        assertThat(operation).isInstanceOf(DeleteFromFilterOperation.class);
-        DeleteFromFilterOperation deleteFromFiltersOperation =
-                (DeleteFromFilterOperation) operation;
-        List<ResolvedExpression> filters = deleteFromFiltersOperation.getFilters();
-        assertThat(filters.toString()).isEqualTo(expectedFilters);
     }
 
     // ~ Inner Classes ----------------------------------------------------------
