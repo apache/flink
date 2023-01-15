@@ -301,7 +301,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "row_format",
+        "mandatory" : true
+      } ]
     },
     "request" : {
       "type" : "object",
@@ -318,6 +321,15 @@
           "type" : "string"
         },
         "nextResultUri" : {
+          "type" : "string"
+        },
+        "isQueryResult" : {
+          "type" : "boolean"
+        },
+        "jobID" : {
+          "type" : "string"
+        },
+        "resultKind" : {
           "type" : "string"
         }
       }
