@@ -580,10 +580,10 @@ public class SqlToOperationConverter {
             ObjectIdentifier tableIdentifier,
             CatalogTable oldTable,
             SqlAlterTableOptions alterTableOptions) {
-        Map<String, String> setOptions =
+        Map<String, String> changeOptions =
                 OperationConverterUtils.extractProperties(alterTableOptions.getPropertyList());
-        if (setOptions.isEmpty()) {
-            throw new ValidationException("ALTER TABLE SET does not support empty key.");
+        if (changeOptions.isEmpty()) {
+            throw new ValidationException("ALTER TABLE SET does not support empty option.");
         }
 
         LinkedHashMap<String, String> partitionKVs = alterTableOptions.getPartitionKVs();
@@ -601,15 +601,13 @@ public class SqlToOperationConverter {
                                                             partitionSpec.getPartitionSpec(),
                                                             tableIdentifier)));
             Map<String, String> newProps = new HashMap<>(catalogPartition.getProperties());
-            newProps.putAll(setOptions);
+            newProps.putAll(changeOptions);
             return new AlterPartitionPropertiesOperation(
                     tableIdentifier,
                     partitionSpec,
                     new CatalogPartitionImpl(newProps, catalogPartition.getComment()));
         } else {
             // it's altering a table
-            Map<String, String> changeOptions =
-                    OperationConverterUtils.extractProperties(alterTableOptions.getPropertyList());
             Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
             newOptions.putAll(changeOptions);
             return new AlterTableChangeOperation(
