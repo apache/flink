@@ -24,6 +24,7 @@ import org.apache.flink.table.gateway.rest.serde.ResultInfoJsonDeserializer;
 import org.apache.flink.table.gateway.rest.serde.ResultInfoJsonSerializer;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -31,11 +32,15 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 import javax.annotation.Nullable;
 
 /** {@link ResponseBody} for executing a statement. */
+@JsonIgnoreProperties("queryResult")
 public class FetchResultsResponseBody implements ResponseBody {
 
     private static final String FIELD_RESULT_TYPE = "resultType";
     private static final String FIELD_RESULTS = "results";
     private static final String FIELD_NEXT_RESULT_URI = "nextResultUri";
+    private static final String FIELD_IS_QUERY_RESULT = "isQueryResult";
+    private static final String FIELD_JOB_ID = "jobID";
+    private static final String FIELD_RESULT_KIND = "resultKind";
 
     @JsonProperty(FIELD_RESULTS)
     @JsonSerialize(using = ResultInfoJsonSerializer.class)
@@ -49,14 +54,31 @@ public class FetchResultsResponseBody implements ResponseBody {
     @Nullable
     private final String nextResultUri;
 
+    @JsonProperty(FIELD_IS_QUERY_RESULT)
+    private final boolean isQueryResult;
+
+    @JsonProperty(FIELD_JOB_ID)
+    @Nullable
+    private final String jobID;
+
+    @JsonProperty(FIELD_RESULT_KIND)
+    @Nullable
+    private final String resultKind;
+
     @JsonCreator
     public FetchResultsResponseBody(
             @JsonProperty(FIELD_RESULTS) ResultInfo results,
             @JsonProperty(FIELD_RESULT_TYPE) String resultType,
-            @Nullable @JsonProperty(FIELD_NEXT_RESULT_URI) String nextResultUri) {
+            @Nullable @JsonProperty(FIELD_NEXT_RESULT_URI) String nextResultUri,
+            @JsonProperty(FIELD_IS_QUERY_RESULT) boolean isQueryResult,
+            @JsonProperty(FIELD_JOB_ID) String jobID,
+            @Nullable @JsonProperty(FIELD_RESULT_KIND) String resultKind) {
         this.results = results;
         this.resultType = resultType;
         this.nextResultUri = nextResultUri;
+        this.isQueryResult = isQueryResult;
+        this.jobID = jobID;
+        this.resultKind = resultKind;
     }
 
     public ResultInfo getResults() {
@@ -70,5 +92,30 @@ public class FetchResultsResponseBody implements ResponseBody {
     @Nullable
     public String getNextResultUri() {
         return nextResultUri;
+    }
+
+    public boolean isQueryResult() {
+        return isQueryResult;
+    }
+
+    @Nullable
+    public String getJobID() {
+        return jobID;
+    }
+
+    public String getResultKind() {
+        return resultKind;
+    }
+
+    @Nullable
+    public Long parseToken() {
+        if (nextResultUri == null || nextResultUri.length() == 0) {
+            return null;
+        }
+        String[] split = nextResultUri.split("/");
+        // remove query string
+        String s = split[split.length - 1];
+        s = s.replaceAll("\\?.*", "");
+        return Long.valueOf(s);
     }
 }

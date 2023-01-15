@@ -23,6 +23,8 @@ import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonToRowDataConverters;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CollectionUtil;
 
@@ -43,6 +45,7 @@ import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_CO
 import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_DATA;
 import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_FIELDS;
 import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KIND;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_ROW_FORMAT;
 
 /**
  * Json deserializer for {@link ResultInfo}.
@@ -74,25 +77,43 @@ public class ResultInfoJsonDeserializer extends StdDeserializer<ResultInfo> {
                                 .treeToValue(
                                         node.get(FIELD_NAME_COLUMN_INFOS), ColumnInfo[].class));
 
-        // generate converters for all fields of each row
-        List<JsonToRowDataConverters.JsonToRowDataConverter> converters =
-                columnInfos.stream()
-                        .map(ColumnInfo::getLogicalType)
-                        .map(TO_ROW_DATA_CONVERTERS::createConverter)
-                        .collect(Collectors.toList());
+        // deserialize RowFormat
+        RowFormat rowFormat =
+                RowFormat.valueOf(node.get(FIELD_NAME_ROW_FORMAT).asText().toUpperCase());
 
         // deserialize rows
-        List<RowData> data = deserializeData((ArrayNode) node.get(FIELD_NAME_DATA), converters);
+        List<RowData> data =
+                deserializeData((ArrayNode) node.get(FIELD_NAME_DATA), columnInfos, rowFormat);
 
-        return new ResultInfo(columnInfos, data);
+        return new ResultInfo(columnInfos, data, rowFormat);
     }
 
     private List<RowData> deserializeData(
-            ArrayNode serializedRows,
-            List<JsonToRowDataConverters.JsonToRowDataConverter> converters) {
+            ArrayNode serializedRows, List<ColumnInfo> columnInfos, RowFormat rowFormat) {
+        // generate converters for all fields of each row
+        List<JsonToRowDataConverters.JsonToRowDataConverter> converters =
+                buildToRowDataConverters(columnInfos, rowFormat);
+
         List<RowData> data = new ArrayList<>();
         serializedRows.forEach(rowDataNode -> data.add(convertToRowData(rowDataNode, converters)));
         return data;
+    }
+
+    private List<JsonToRowDataConverters.JsonToRowDataConverter> buildToRowDataConverters(
+            List<ColumnInfo> columnInfos, RowFormat rowFormat) {
+        if (rowFormat == RowFormat.JSON) {
+            return columnInfos.stream()
+                    .map(ColumnInfo::getLogicalType)
+                    .map(TO_ROW_DATA_CONVERTERS::createConverter)
+                    .collect(Collectors.toList());
+        } else {
+            return IntStream.range(0, columnInfos.size())
+                    .mapToObj(
+                            i ->
+                                    (JsonToRowDataConverters.JsonToRowDataConverter)
+                                            jsonNode -> StringData.fromString(jsonNode.asText()))
+                    .collect(Collectors.toList());
+        }
     }
 
     private GenericRowData convertToRowData(

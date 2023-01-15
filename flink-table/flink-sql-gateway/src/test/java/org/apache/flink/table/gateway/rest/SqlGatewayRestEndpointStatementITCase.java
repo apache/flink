@@ -37,9 +37,10 @@ import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.message.session.SessionMessageParameters;
 import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementRequestBody;
 import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementResponseBody;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessageParameters;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
-import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
@@ -176,14 +177,15 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
     FetchResultsResponseBody fetchResults(
             SessionHandle sessionHandle, OperationHandle operationHandle, Long token)
             throws Exception {
-        FetchResultsTokenParameters fetchResultsTokenParameters =
-                new FetchResultsTokenParameters(sessionHandle, operationHandle, token);
+        FetchResultsMessageParameters fetchResultsMessageParameters =
+                new FetchResultsMessageParameters(
+                        sessionHandle, operationHandle, token, RowFormat.JSON);
         CompletableFuture<FetchResultsResponseBody> response =
                 restClient.sendRequest(
                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort(),
                         fetchResultsHeaders,
-                        fetchResultsTokenParameters,
+                        fetchResultsMessageParameters,
                         EmptyRequestBody.getInstance());
         return response.get();
     }
@@ -238,18 +240,9 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
             FetchResultsResponseBody fetchResultsResponseBody =
                     fetchResults(sessionHandle, operationHandle, token);
 
-            String nextResultUri = fetchResultsResponseBody.getNextResultUri();
-            token = parseTokenFromUri(nextResultUri);
+            token = fetchResultsResponseBody.parseToken();
 
             fetchedRows = fetchResultsResponseBody.getResults().getData().iterator();
         }
-    }
-
-    private static Long parseTokenFromUri(String uri) {
-        if (uri == null || uri.length() == 0) {
-            return null;
-        }
-        String[] split = uri.split("/");
-        return Long.valueOf(split[split.length - 1]);
     }
 }

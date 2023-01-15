@@ -30,27 +30,34 @@ import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessageParameters;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
-import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsRowFormatQueryParameter;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenPathParameter;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
 
 /** Handler to fetch results. */
 public class FetchResultsHandler
         extends AbstractSqlGatewayRestHandler<
-                EmptyRequestBody, FetchResultsResponseBody, FetchResultsTokenParameters> {
+                EmptyRequestBody, FetchResultsResponseBody, FetchResultsMessageParameters> {
 
     public FetchResultsHandler(
             SqlGatewayService service,
             Map<String, String> responseHeaders,
-            MessageHeaders<EmptyRequestBody, FetchResultsResponseBody, FetchResultsTokenParameters>
+            MessageHeaders<
+                            EmptyRequestBody,
+                            FetchResultsResponseBody,
+                            FetchResultsMessageParameters>
                     messageHeaders) {
         super(service, responseHeaders, messageHeaders);
     }
@@ -63,17 +70,27 @@ public class FetchResultsHandler
         OperationHandle operationHandle =
                 request.getPathParameter(OperationHandleIdPathParameter.class);
         Long token = request.getPathParameter(FetchResultsTokenPathParameter.class);
+        RowFormat rowFormat =
+                request.getQueryParameter(FetchResultsRowFormatQueryParameter.class).get(0);
 
         // Get the statement results
-        @Nullable ResultSet resultSet;
-        @Nullable String resultType;
+        ResultSet resultSet;
+        String resultType;
         Long nextToken;
+        boolean isQueryResult = false;
+        String jobID = null;
+        String resultKind = null;
 
         try {
             resultSet =
                     service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
             nextToken = resultSet.getNextToken();
             resultType = resultSet.getResultType().toString();
+            if (resultSet != NOT_READY_RESULT) {
+                isQueryResult = resultSet.isQueryResult();
+                jobID = Objects.toString(resultSet.getJobID(), null);
+                resultKind = resultSet.getResultKind().name();
+            }
         } catch (Exception e) {
             throw new SqlGatewayException(e);
         }
@@ -84,10 +101,16 @@ public class FetchResultsHandler
                         version.name().toLowerCase(),
                         sessionHandle.getIdentifier().toString(),
                         operationHandle.getIdentifier().toString(),
-                        nextToken);
+                        nextToken,
+                        rowFormat.name());
 
         return CompletableFuture.completedFuture(
                 new FetchResultsResponseBody(
-                        ResultInfo.createResultInfo(resultSet), resultType, nextResultUri));
+                        ResultInfo.createResultInfo(resultSet, rowFormat),
+                        resultType,
+                        nextResultUri,
+                        isQueryResult,
+                        jobID,
+                        resultKind));
     }
 }

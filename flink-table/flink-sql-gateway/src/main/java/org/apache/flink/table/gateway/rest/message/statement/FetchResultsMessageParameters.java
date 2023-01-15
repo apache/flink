@@ -25,13 +25,14 @@ import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/** {@link MessagePathParameter} for fetching results. */
-public class FetchResultsTokenParameters extends MessageParameters {
+/** {@link MessageParameters} for fetching results. */
+public class FetchResultsMessageParameters extends MessageParameters {
 
     private final SessionHandleIdPathParameter sessionHandleIdPathParameter =
             new SessionHandleIdPathParameter();
@@ -42,15 +43,22 @@ public class FetchResultsTokenParameters extends MessageParameters {
     private final FetchResultsTokenPathParameter fetchResultsTokenPathParameter =
             new FetchResultsTokenPathParameter();
 
-    public FetchResultsTokenParameters() {
+    private final FetchResultsRowFormatQueryParameter fetchResultsRowFormatQueryParameter =
+            new FetchResultsRowFormatQueryParameter();
+
+    public FetchResultsMessageParameters() {
         // nothing to resolve
     }
 
-    public FetchResultsTokenParameters(
-            SessionHandle sessionHandle, OperationHandle operationHandle, Long token) {
+    public FetchResultsMessageParameters(
+            SessionHandle sessionHandle,
+            OperationHandle operationHandle,
+            Long token,
+            RowFormat rowFormat) {
         sessionHandleIdPathParameter.resolve(sessionHandle);
         operationHandleIdPathParameter.resolve(operationHandle);
         fetchResultsTokenPathParameter.resolve(token);
+        fetchResultsRowFormatQueryParameter.resolve(Collections.singletonList(rowFormat));
     }
 
     @Override
@@ -63,6 +71,6 @@ public class FetchResultsTokenParameters extends MessageParameters {
 
     @Override
     public Collection<MessageQueryParameter<?>> getQueryParameters() {
-        return Collections.emptyList();
+        return Collections.singletonList(fetchResultsRowFormatQueryParameter);
     }
 }

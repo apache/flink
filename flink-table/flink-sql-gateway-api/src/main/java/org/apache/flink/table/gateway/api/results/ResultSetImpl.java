@@ -88,6 +88,10 @@ public class ResultSetImpl implements ResultSet {
         return data;
     }
 
+    public RowDataToStringConverter getConverter() {
+        return converter;
+    }
+
     @Override
     public boolean isQueryResult() {
         return isQueryResult;
