@@ -2710,7 +2710,7 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testDeletePushDown() throws Exception {
+    public void testDelete() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
         CatalogTable catalogTable =
@@ -2722,31 +2722,25 @@ public class SqlToOperationConverterTest {
                         null,
                         Collections.emptyList(),
                         options);
-        ObjectIdentifier tableIdentifier =
-                ObjectIdentifier.of("builtin", "default", "test_push_down");
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("builtin", "default", "test_delete");
         catalogManager.createTable(catalogTable, tableIdentifier, false);
 
         // no filter in delete statement
-        Operation operation = parse("DELETE FROM test_push_down");
+        Operation operation = parse("DELETE FROM test_delete");
         checkDeleteFromFilterOperation(operation, "[]");
 
         // with filters in delete statement
-        operation = parse("DELETE FROM test_push_down where a = 1 and c = '123'");
+        operation = parse("DELETE FROM test_delete where a = 1 and c = '123'");
         checkDeleteFromFilterOperation(operation, "[equals(a, 1), equals(c, '123')]");
 
         // with filter = false after reduced in delete statement
-        operation = parse("DELETE FROM test_push_down where a = 1 + 6 and a = 2");
+        operation = parse("DELETE FROM test_delete where a = 1 + 6 and a = 2");
         checkDeleteFromFilterOperation(operation, "[false]");
 
-        assertThatThrownBy(
-                        () ->
-                                parse(
-                                        "DELETE FROM test_push_down where a = (select count(*) from test_push_down)"))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage(
-                        String.format(
-                                "Only delete push down is supported currently, but the delete statement can't pushed to table sink %s.",
-                                tableIdentifier.asSerializableString()));
+        operation = parse("DELETE FROM test_delete where a = (select count(*) from test_delete)");
+        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
+        SinkModifyOperation modifyOperation = (SinkModifyOperation) operation;
+        assertThat(modifyOperation.isDelete()).isTrue();
     }
 
     // ~ Tool Methods ----------------------------------------------------------

@@ -34,5 +34,12 @@ public class DeleteTableITCase extends StreamingTestBase {
         assertThatThrownBy(() -> tEnv().executeSql("DELETE FROM t"))
                 .isInstanceOf(TableException.class)
                 .hasMessage("DELETE statement is not supported for streaming mode now.");
+
+        tEnv().executeSql(
+                        "CREATE TABLE t1 (a int) WITH ('connector' = 'test-update-delete', "
+                                + "'support-delete-push-down' = 'false')");
+        assertThatThrownBy(() -> tEnv().executeSql("DELETE FROM t1"))
+                .isInstanceOf(TableException.class)
+                .hasMessage("DELETE statement is not supported for streaming mode now.");
     }
 }

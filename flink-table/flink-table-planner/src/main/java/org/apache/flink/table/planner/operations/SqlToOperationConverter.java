@@ -120,6 +120,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -194,6 +195,7 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
@@ -285,6 +287,7 @@ public class SqlToOperationConverter {
     /** Convert a validated sql node to Operation. */
     private static Optional<Operation> convertValidatedSqlNode(
             FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
+        beforeConversion();
         SqlToOperationConverter converter =
                 new SqlToOperationConverter(flinkPlanner, catalogManager);
         if (validated instanceof SqlCreateCatalog) {
@@ -416,6 +419,11 @@ public class SqlToOperationConverter {
     }
 
     // ~ Tools ------------------------------------------------------------------
+
+    private static void beforeConversion() {
+        // clear row-level modification context
+        RowLevelModificationContextUtils.clearContext();
+    }
 
     /** Convert DROP TABLE statement. */
     private Operation convertDropTable(SqlDropTable sqlDropTable) {
@@ -1501,6 +1509,9 @@ public class SqlToOperationConverter {
     }
 
     private Operation convertDelete(SqlDelete sqlDelete) {
+        // set it's delete
+        RowLevelModificationContextUtils.setModificationType(
+                SupportsRowLevelModificationScan.RowLevelModificationType.DELETE);
         RelRoot updateRelational = flinkPlanner.rel(sqlDelete);
         LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
         UnresolvedIdentifier unresolvedTableIdentifier =
@@ -1528,12 +1539,10 @@ public class SqlToOperationConverter {
                 }
             }
         }
-
-        // otherwise, delete push down is not applicable, throw unsupported exception
-        throw new UnsupportedOperationException(
-                String.format(
-                        "Only delete push down is supported currently, but the delete statement can't pushed to table sink %s.",
-                        unresolvedTableIdentifier.asSummaryString()));
+        // delete push down is not applicable, use row-level delete
+        PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        return new SinkModifyOperation(
+                contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.DELETE);
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {

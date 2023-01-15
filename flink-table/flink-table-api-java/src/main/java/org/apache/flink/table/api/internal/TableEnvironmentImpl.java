@@ -721,7 +721,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else {
             if (operations.size() > 1
                     && operations.stream().anyMatch(this::isRowLevelModification)) {
-                throw new TableException("Only single UPDATE/DELETE statement is supported.");
+                throw new TableException(
+                        "Unsupported SQL query! Only accept a single SQL statement of type DELETE, UPDATE.");
             }
             return planner.explain(operations, format, extraDetails);
         }
@@ -784,6 +785,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         if (operations.size() != 1
                 || !(operations.get(0) instanceof ModifyOperation)
+                || isRowLevelModification(operations.get(0))
                 || operations.get(0) instanceof CreateTableASOperation) {
             throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
         }
@@ -859,7 +861,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     if (operations.size() > 1) {
                         throw new TableException(
                                 String.format(
-                                        "Only single %s statement is supported.", modifyType));
+                                        "Unsupported SQL query! Only accept a single SQL statement of type %s.",
+                                        modifyType));
                     }
                     if (isStreamingMode) {
                         throw new TableException(
