@@ -75,7 +75,7 @@ public class SqlAddHivePartitions extends SqlAddPartitions {
         tableIdentifier.unparse(writer, leftPrec, rightPrec);
         writer.newlineAndIndent();
         writer.keyword("ADD");
-        if (ifNotExists()) {
+        if (ifPartitionNotExists()) {
             writer.keyword("IF NOT EXISTS");
         }
         int opLeftPrec = getOperator().getLeftPrec();

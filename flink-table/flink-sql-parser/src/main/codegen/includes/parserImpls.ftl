@@ -590,6 +590,7 @@ SqlAlterTable SqlAlterTable() :
     SqlParserPos startPos;
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
+    boolean ifExists = false;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
@@ -601,6 +602,7 @@ SqlAlterTable SqlAlterTable() :
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
+        ifExists = IfExistsOpt()
         tableIdentifier = CompoundIdentifier()
     (
         LOOKAHEAD(2)
@@ -610,7 +612,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableRename(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        newTableIdentifier);
+                        newTableIdentifier,
+                        ifExists);
         }
     |
         <RENAME>
@@ -622,7 +625,8 @@ SqlAlterTable SqlAlterTable() :
                     startPos.plus(getPos()),
                     tableIdentifier,
                     originColumnIdentifier,
-                    newColumnIdentifier);
+                    newColumnIdentifier,
+                    ifExists);
         }
     |
         <RESET>
@@ -631,7 +635,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableReset(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        propertyKeyList);
+                        propertyKeyList,
+                        ifExists);
         }
     |
         <SET>
@@ -640,7 +645,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        propertyList);
+                        propertyList,
+                        ifExists);
         }
     |
         <ADD>
@@ -660,7 +666,8 @@ SqlAlterTable SqlAlterTable() :
                         tableIdentifier,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
-                        ctx.watermark);
+                        ctx.watermark,
+                        ifExists);
         }
     |
         <MODIFY>
@@ -680,7 +687,8 @@ SqlAlterTable SqlAlterTable() :
                         tableIdentifier,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
-                        ctx.watermark);
+                        ctx.watermark,
+                        ifExists);
         }
 
     |
@@ -693,7 +701,8 @@ SqlAlterTable SqlAlterTable() :
                             tableIdentifier,
                             new SqlNodeList(
                                 Collections.singletonList(columnName),
-                                getPos()));
+                                getPos()),
+                            ifExists);
             }
         |
             { Pair<SqlNodeList, SqlNodeList> columnWithTypePair = null; }
@@ -701,26 +710,30 @@ SqlAlterTable SqlAlterTable() :
                 return new SqlAlterTableDropColumn(
                             startPos.plus(getPos()),
                             tableIdentifier,
-                            columnWithTypePair.getKey());
+                            columnWithTypePair.getKey(),
+                            ifExists);
             }
         |
             <PRIMARY> <KEY> {
                 return new SqlAlterTableDropPrimaryKey(
                         startPos.plus(getPos()),
-                        tableIdentifier);
+                        tableIdentifier,
+                        ifExists);
             }
         |
             <CONSTRAINT> constraintName = SimpleIdentifier() {
                 return new SqlAlterTableDropConstraint(
                             startPos.plus(getPos()),
                             tableIdentifier,
-                            constraintName);
+                            constraintName,
+                            ifExists);
             }
         |
             <WATERMARK> {
                 return new SqlAlterTableDropWatermark(
                             startPos.plus(getPos()),
-                            tableIdentifier);
+                            tableIdentifier,
+                            ifExists);
             }
         )
     |
@@ -732,7 +745,7 @@ SqlAlterTable SqlAlterTable() :
         ]
         <COMPACT>
         {
-            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec);
+            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec, ifExists);
         }
     )
 }

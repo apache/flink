@@ -48,7 +48,7 @@ public class SqlAddReplaceColumns extends SqlAlterTable {
             SqlNodeList newColumns,
             boolean replace,
             @Nullable SqlNodeList properties) {
-        super(pos, tableName);
+        super(pos, tableName, false);
         this.newColumns = newColumns;
         this.replace = replace;
         this.properties = properties;

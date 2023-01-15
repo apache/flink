@@ -33,8 +33,11 @@ import java.util.stream.Collectors;
 public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
 
-    public AlterTableOptionsOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
-        super(tableIdentifier);
+    public AlterTableOptionsOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogTable catalogTable,
+            boolean ignoreIfNotExists) {
+        super(tableIdentifier, ignoreIfNotExists);
         this.catalogTable = catalogTable;
     }
 
@@ -52,6 +55,9 @@ public class AlterTableOptionsOperation extends AlterTableOperation {
                                                 entry.getKey(), entry.getValue()))
                         .collect(Collectors.joining(", "));
         return String.format(
-                "ALTER TABLE %s SET (%s)", tableIdentifier.asSummaryString(), description);
+                "ALTER %sTABLE %s SET (%s)",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
+                tableIdentifier.asSummaryString(),
+                description);
     }
 }

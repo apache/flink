@@ -132,6 +132,7 @@ import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -484,6 +485,9 @@ public class SqlToOperationConverter {
         Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+            if (sqlAlterTable.ifTableExists()) {
+                return new NopOperation();
+            }
             throw new ValidationException(
                     String.format(
                             "Table %s doesn't exist or is a temporary table.", tableIdentifier));
@@ -499,7 +503,8 @@ public class SqlToOperationConverter {
                             ((SqlAlterTableRename) sqlAlterTable).fullNewTableName());
             ObjectIdentifier newTableIdentifier =
                     catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
-            return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
+            return new AlterTableRenameOperation(
+                    tableIdentifier, newTableIdentifier, sqlAlterTable.ifTableExists());
         } else if (sqlAlterTable instanceof SqlAlterTableOptions) {
             return convertAlterTableOptions(
                     tableIdentifier,
@@ -547,7 +552,7 @@ public class SqlToOperationConverter {
                 partitions.add(new CatalogPartitionImpl(props, null));
             }
             return new AddPartitionsOperation(
-                    tableIdentifier, addPartitions.ifNotExists(), specs, partitions);
+                    tableIdentifier, addPartitions.ifPartitionNotExists(), specs, partitions);
         } else if (sqlAlterTable instanceof SqlDropPartitions) {
             SqlDropPartitions dropPartitions = (SqlDropPartitions) sqlAlterTable;
             List<CatalogPartitionSpec> specs = new ArrayList<>();
@@ -607,7 +612,8 @@ public class SqlToOperationConverter {
                     changeOptions.entrySet().stream()
                             .map(entry -> TableChange.set(entry.getKey(), entry.getValue()))
                             .collect(Collectors.toList()),
-                    oldTable.copy(newOptions));
+                    oldTable.copy(newOptions),
+                    alterTableOptions.ifTableExists());
         }
     }
 
@@ -630,7 +636,8 @@ public class SqlToOperationConverter {
         return new AlterTableChangeOperation(
                 tableIdentifier,
                 resetKeys.stream().map(TableChange::reset).collect(Collectors.toList()),
-                oldTable.copy(newOptions));
+                oldTable.copy(newOptions),
+                alterTableReset.ifTableExists());
     }
 
     /**

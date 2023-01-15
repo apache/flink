@@ -981,14 +981,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     catalog.renameTable(
                             alterTableRenameOp.getTableIdentifier().toObjectPath(),
                             alterTableRenameOp.getNewTableIdentifier().getObjectName(),
-                            false);
+                            alterTableRenameOp.ignoreIfTableNotExists());
                 } else if (alterTableOperation instanceof AlterTableOptionsOperation) {
                     AlterTableOptionsOperation alterTablePropertiesOp =
                             (AlterTableOptionsOperation) operation;
                     catalogManager.alterTable(
                             alterTablePropertiesOp.getCatalogTable(),
                             alterTablePropertiesOp.getTableIdentifier(),
-                            false);
+                            alterTablePropertiesOp.ignoreIfTableNotExists());
                 } else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
                     AlterPartitionPropertiesOperation alterPartPropsOp =
                             (AlterPartitionPropertiesOperation) operation;
@@ -996,35 +996,39 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterPartPropsOp.getTableIdentifier().toObjectPath(),
                             alterPartPropsOp.getPartitionSpec(),
                             alterPartPropsOp.getCatalogPartition(),
-                            false);
+                            alterPartPropsOp.ignoreIfTableNotExists());
                 } else if (alterTableOperation instanceof AlterTableSchemaOperation) {
                     AlterTableSchemaOperation alterTableSchemaOperation =
                             (AlterTableSchemaOperation) alterTableOperation;
                     catalogManager.alterTable(
                             alterTableSchemaOperation.getCatalogTable(),
                             alterTableSchemaOperation.getTableIdentifier(),
-                            false);
+                            alterTableSchemaOperation.ignoreIfTableNotExists());
                 } else if (alterTableOperation instanceof AddPartitionsOperation) {
                     AddPartitionsOperation addPartitionsOperation =
                             (AddPartitionsOperation) alterTableOperation;
                     List<CatalogPartitionSpec> specs = addPartitionsOperation.getPartitionSpecs();
                     List<CatalogPartition> partitions =
                             addPartitionsOperation.getCatalogPartitions();
-                    boolean ifNotExists = addPartitionsOperation.ifNotExists();
                     ObjectPath tablePath =
                             addPartitionsOperation.getTableIdentifier().toObjectPath();
                     for (int i = 0; i < specs.size(); i++) {
                         catalog.createPartition(
-                                tablePath, specs.get(i), partitions.get(i), ifNotExists);
+                                tablePath,
+                                specs.get(i),
+                                partitions.get(i),
+                                addPartitionsOperation.ignoreIfPartitionExists());
                     }
                 } else if (alterTableOperation instanceof DropPartitionsOperation) {
                     DropPartitionsOperation dropPartitionsOperation =
                             (DropPartitionsOperation) alterTableOperation;
                     ObjectPath tablePath =
                             dropPartitionsOperation.getTableIdentifier().toObjectPath();
-                    boolean ifExists = dropPartitionsOperation.ifExists();
                     for (CatalogPartitionSpec spec : dropPartitionsOperation.getPartitionSpecs()) {
-                        catalog.dropPartition(tablePath, spec, ifExists);
+                        catalog.dropPartition(
+                                tablePath,
+                                spec,
+                                dropPartitionsOperation.ignoreIfPartitionNotExists());
                     }
                 } else if (alterTableOperation instanceof AlterTableChangeOperation) {
                     AlterTableChangeOperation alterTableChangeOperation =
@@ -1033,7 +1037,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterTableChangeOperation.getNewTable(),
                             alterTableChangeOperation.getTableChanges(),
                             alterTableChangeOperation.getTableIdentifier(),
-                            false);
+                            alterTableChangeOperation.ignoreIfTableNotExists());
                 }
                 return TableResultImpl.TABLE_RESULT_OK;
             } catch (TableAlreadyExistException | TableNotExistException e) {

@@ -31,7 +31,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * SqlNode to describe ALTER TABLE table_name DROP column clause.
+ * SqlNode to describe ALTER TABLE [IF EXISTS] table_name DROP column clause.
  *
  * <p>Example: DDL like the below for drop column.
  *
@@ -48,8 +48,11 @@ public class SqlAlterTableDropColumn extends SqlAlterTable {
     private final SqlNodeList columnList;
 
     public SqlAlterTableDropColumn(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList) {
-        super(pos, tableName);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList columnList,
+            boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
         this.columnList = columnList;
     }
 

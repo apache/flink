@@ -139,9 +139,11 @@ public class OperationConverterUtils {
             // So we don't translate with TableChanges here. One workaround is
             // to minimize the edit distance, i.e., minimize the modification times, but it
             // still cannot provide a deterministic answer.
-            return new AlterTableSchemaOperation(tableIdentifier, newTable);
+            return new AlterTableSchemaOperation(
+                    tableIdentifier, newTable, addReplaceColumns.ifTableExists());
         } else {
-            return new AlterTableChangeOperation(tableIdentifier, tableChanges, newTable);
+            return new AlterTableChangeOperation(
+                    tableIdentifier, tableChanges, newTable, addReplaceColumns.ifTableExists());
         }
     }
 
@@ -185,7 +187,8 @@ public class OperationConverterUtils {
                         newSchema,
                         catalogTable.getPartitionKeys(),
                         newProperties,
-                        catalogTable.getComment()));
+                        catalogTable.getComment()),
+                false);
         // TODO: handle watermark and constraints
     }
 

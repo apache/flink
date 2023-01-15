@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * SqlNode to describe ALTER TABLE table_name MODIFY column/constraint/watermark clause.
+ * SqlNode to describe ALTER TABLE [IF EXISTS] table_name MODIFY column/constraint/watermark clause.
  *
  * <p>Example: DDL like the below for modify column/constraint/watermark.
  *
@@ -56,8 +56,9 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
             SqlIdentifier tableName,
             SqlNodeList modifiedColumns,
             List<SqlTableConstraint> constraints,
-            @Nullable SqlWatermark watermark) {
-        super(pos, tableName, modifiedColumns, constraints, watermark);
+            @Nullable SqlWatermark watermark,
+            boolean ifTableExists) {
+        super(pos, tableName, modifiedColumns, constraints, watermark, ifTableExists);
     }
 
     @Override

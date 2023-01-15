@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * SqlNode to describe ALTER TABLE table_name DROP watermark clause.
+ * SqlNode to describe ALTER TABLE [IF EXISTS] table_name DROP watermark clause.
  *
  * <p>Example: DDL like the below for drop watermark.
  *
@@ -38,8 +38,9 @@ import java.util.List;
  */
 public class SqlAlterTableDropWatermark extends SqlAlterTable {
 
-    public SqlAlterTableDropWatermark(SqlParserPos pos, SqlIdentifier tableName) {
-        super(pos, tableName);
+    public SqlAlterTableDropWatermark(
+            SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
     }
 
     @Override

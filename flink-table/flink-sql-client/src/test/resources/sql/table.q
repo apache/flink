@@ -44,6 +44,10 @@ alter table non_exist rename to non_exist2;
 org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`non_exist` doesn't exist or is a temporary table.
 !error
 
+alter table if exists non_exist rename to non_exist2;
+[INFO] Execute statement succeed.
+!info
+
 # ==========================================================================
 # test create table
 # ==========================================================================

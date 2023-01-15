@@ -431,8 +431,9 @@ public interface Catalog {
      * @param tablePath path of the table.
      * @param partitionSpec partition spec of the partition
      * @param partition the partition to add.
-     * @param ignoreIfExists flag to specify behavior if a table with the given name already exists:
-     *     if set to false, it throws a TableAlreadyExistException, if set to true, nothing happens.
+     * @param ignoreIfExists flag to specify behavior if a partition with the given name already
+     *     exists: if set to false, it throws a PartitionAlreadyExistsException, if set to true,
+     *     nothing happens.
      * @throws TableNotExistException thrown if the target table does not exist
      * @throws TableNotPartitionedException thrown if the target table is not partitioned
      * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid
@@ -453,7 +454,7 @@ public interface Catalog {
      *
      * @param tablePath path of the table.
      * @param partitionSpec partition spec of the partition to drop
-     * @param ignoreIfNotExists flag to specify behavior if the database does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the partition does not exist: if set to
      *     false, throw an exception, if set to true, nothing happens.
      * @throws PartitionNotExistException thrown if the target partition does not exist
      * @throws CatalogException in case of any runtime exception
@@ -468,7 +469,7 @@ public interface Catalog {
      * @param tablePath path of the table
      * @param partitionSpec partition spec of the partition
      * @param newPartition new partition to replace the old one
-     * @param ignoreIfNotExists flag to specify behavior if the database does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the partition does not exist: if set to
      *     false, throw an exception, if set to true, nothing happens.
      * @throws PartitionNotExistException thrown if the target partition does not exist
      * @throws CatalogException in case of any runtime exception

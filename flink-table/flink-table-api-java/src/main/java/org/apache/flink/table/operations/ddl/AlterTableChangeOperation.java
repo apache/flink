@@ -36,8 +36,9 @@ public class AlterTableChangeOperation extends AlterTableOperation {
     public AlterTableChangeOperation(
             ObjectIdentifier tableIdentifier,
             List<TableChange> tableChanges,
-            CatalogTable newTable) {
-        super(tableIdentifier);
+            CatalogTable newTable,
+            boolean ignoreIfNotExists) {
+        super(tableIdentifier, ignoreIfNotExists);
         this.tableChanges = Collections.unmodifiableList(tableChanges);
         this.newTable = newTable;
     }
@@ -54,7 +55,11 @@ public class AlterTableChangeOperation extends AlterTableOperation {
     public String asSummaryString() {
         String changes =
                 tableChanges.stream().map(this::toString).collect(Collectors.joining(",\n"));
-        return String.format("ALTER TABLE %s\n%s", tableIdentifier.asSummaryString(), changes);
+        return String.format(
+                "ALTER TABLE %s%s\n%s",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
+                tableIdentifier.asSummaryString(),
+                changes);
     }
 
     private String toString(TableChange tableChange) {

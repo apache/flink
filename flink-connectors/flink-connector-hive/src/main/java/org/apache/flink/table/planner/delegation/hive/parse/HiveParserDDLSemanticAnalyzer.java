@@ -1501,7 +1501,8 @@ public class HiveParserDDLSemanticAnalyzer {
                     newProps.entrySet().stream()
                             .map(entry -> TableChange.set(entry.getKey(), entry.getValue()))
                             .collect(Collectors.toList()),
-                    oldTable.copy(props));
+                    oldTable.copy(props),
+                    false);
         }
     }
 
@@ -1879,7 +1880,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return expectView
                 ? new AlterViewRenameOperation(objectIdentifier, parseObjectIdentifier(targetName))
                 : new AlterTableRenameOperation(
-                        objectIdentifier, parseObjectIdentifier(targetName));
+                        objectIdentifier, parseObjectIdentifier(targetName), false);
     }
 
     private Operation convertAlterTableChangeCol(
@@ -1979,7 +1980,8 @@ public class HiveParserDDLSemanticAnalyzer {
                 tableIdentifier,
                 tableChanges,
                 new CatalogTableImpl(
-                        newSchema, oldTable.getPartitionKeys(), props, oldTable.getComment()));
+                        newSchema, oldTable.getPartitionKeys(), props, oldTable.getComment()),
+                false);
     }
 
     private Operation convertAlterTableModifyCols(
@@ -2033,10 +2035,8 @@ public class HiveParserDDLSemanticAnalyzer {
         return new AlterTableSchemaOperation(
                 tableIdentifier,
                 new CatalogTableImpl(
-                        builder.build(),
-                        oldTable.getPartitionKeys(),
-                        props,
-                        oldTable.getComment()));
+                        builder.build(), oldTable.getPartitionKeys(), props, oldTable.getComment()),
+                false);
     }
 
     private static void setWatermarkAndPK(TableSchema.Builder builder, TableSchema schema) {

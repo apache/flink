@@ -27,8 +27,11 @@ public class AlterTableSchemaOperation extends AlterTableOperation {
     // the CatalogTable with the updated schema
     private final CatalogTable catalogTable;
 
-    public AlterTableSchemaOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
-        super(tableIdentifier);
+    public AlterTableSchemaOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogTable catalogTable,
+            boolean ignoreIfNotExists) {
+        super(tableIdentifier, ignoreIfNotExists);
         this.catalogTable = catalogTable;
     }
 
@@ -39,7 +42,9 @@ public class AlterTableSchemaOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         return String.format(
-                "ALTER TABLE %s SET SCHEMA %s",
-                tableIdentifier.asSummaryString(), catalogTable.getUnresolvedSchema().toString());
+                "ALTER TABLE %s%s SET SCHEMA %s",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
+                tableIdentifier.asSummaryString(),
+                catalogTable.getUnresolvedSchema().toString());
     }
 }

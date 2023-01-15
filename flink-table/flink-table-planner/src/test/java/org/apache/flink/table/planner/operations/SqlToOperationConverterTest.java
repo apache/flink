@@ -58,6 +58,7 @@ import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -1225,8 +1226,8 @@ public class SqlToOperationConverterTest {
         final ObjectIdentifier expectedIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
         final ObjectIdentifier expectedNewIdentifier = ObjectIdentifier.of("cat1", "db1", "tb2");
         // test rename table converter
-        for (int i = 0; i < renameTableSqls.length; i++) {
-            Operation operation = parse(renameTableSqls[i]);
+        for (String renameTableSql : renameTableSqls) {
+            Operation operation = parse(renameTableSql);
             assertThat(operation).isInstanceOf(AlterTableRenameOperation.class);
             final AlterTableRenameOperation alterTableRenameOperation =
                     (AlterTableRenameOperation) operation;
@@ -1235,8 +1236,13 @@ public class SqlToOperationConverterTest {
             assertThat(alterTableRenameOperation.getNewTableIdentifier())
                     .isEqualTo(expectedNewIdentifier);
         }
+        // test alter nonexistent table
+        checkAlterNonExistTable("alter table %s nonexistent rename to tb2");
+
         // test alter table options
-        Operation operation = parse("alter table cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')");
+        checkAlterNonExistTable("alter table %s nonexistent set ('k1' = 'v1', 'K2' = 'V2')");
+        Operation operation =
+                parse("alter table if exists cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')");
         Map<String, String> expectedOptions = new HashMap<>();
         expectedOptions.put("connector", "dummy");
         expectedOptions.put("k", "v");
@@ -1248,16 +1254,17 @@ public class SqlToOperationConverterTest {
                 expectedIdentifier,
                 expectedOptions,
                 Arrays.asList(TableChange.set("k1", "v1"), TableChange.set("K2", "V2")),
-                "ALTER TABLE cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2'");
+                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2'");
 
         // test alter table reset
-        operation = parse("alter table cat1.db1.tb1 reset ('k')");
+        checkAlterNonExistTable("alter table %s nonexistent reset ('k')");
+        operation = parse("alter table if exists cat1.db1.tb1 reset ('k')");
         assertAlterTableOptions(
                 operation,
                 expectedIdentifier,
                 Collections.singletonMap("connector", "dummy"),
                 Collections.singletonList(TableChange.reset("k")),
-                "ALTER TABLE cat1.db1.tb1\n  RESET 'k'");
+                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  RESET 'k'");
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ('connector')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER TABLE RESET does not support changing 'connector'");
@@ -1378,6 +1385,7 @@ public class SqlToOperationConverterTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Failed to execute ALTER TABLE statement.\nThe column `a` is used as the partition keys.");
+        checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
     }
 
     @Test
@@ -1417,6 +1425,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 drop ts"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("The column `ts` is referenced by watermark expression.");
+        checkAlterNonExistTable("alter table %s nonexistent drop a");
     }
 
     @Test
@@ -1465,6 +1474,8 @@ public class SqlToOperationConverterTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "The base table does not define a primary key constraint named 'ct2'. Available constraint name: ['ct1'].");
+        checkAlterNonExistTable("alter table %s nonexistent drop primary key");
+        checkAlterNonExistTable("alter table %s nonexistent drop constraint ct");
     }
 
     @Test
@@ -1499,6 +1510,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 drop watermark"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("The base table does not define any watermark strategy.");
+        checkAlterNonExistTable("alter table %s nonexistent drop watermark");
     }
 
     @Test
@@ -1536,9 +1548,7 @@ public class SqlToOperationConverterTest {
                         "Partition column 'dt' not defined in the table schema. Table `cat1`.`db1`.`tb1` is not partitioned.");
 
         // alter a non-existed table
-        assertThatThrownBy(() -> parse("alter table tb2 compact"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("Table `cat1`.`db1`.`tb2` doesn't exist or is a temporary table.");
+        checkAlterNonExistTable("alter table %s nonexistent compact");
 
         checkAlterTableCompact(parse("alter table tb1 compact"), Collections.emptyMap());
     }
@@ -1627,6 +1637,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 add (e.f3 string after e.f1)"))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("Alter nested row type e.f3 is not supported yet.");
+        checkAlterNonExistTable("alter table %s nonexistent add a bigint not null");
     }
 
     @Test
@@ -1639,10 +1650,11 @@ public class SqlToOperationConverterTest {
 
         // add a single column
         Operation operation =
-                parse("alter table tb1 add h double not null comment 'h is double not null'");
+                parse(
+                        "alter table if exists tb1 add h double not null comment 'h is double not null'");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER TABLE cat1.db1.tb1\n"
+                        "ALTER TABLE IF EXISTS cat1.db1.tb1\n"
                                 + "  ADD `h` DOUBLE NOT NULL COMMENT 'h is double not null' ");
         assertAlterTableSchema(
                 operation,
@@ -1815,6 +1827,7 @@ public class SqlToOperationConverterTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Invalid primary key 'PK_g'. Column 'g' is not a physical column.");
+        checkAlterNonExistTable("alter table %s nonexistent add primary key(x) not enforced");
     }
 
     @Test
@@ -1923,6 +1936,7 @@ public class SqlToOperationConverterTest {
                         "The base table has already defined the watermark strategy "
                                 + "`ts` AS ts - interval '5' seconds. "
                                 + "You might want to drop it before adding a new one.");
+        checkAlterNonExistTable("alter table %s nonexistent add watermark for ts as ts");
     }
 
     @Test
@@ -2080,6 +2094,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb2 modify (e.f0 string after e.f1)"))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("Alter nested row type e.f0 is not supported yet.");
+        checkAlterNonExistTable("alter table %s nonexistent modify a int first");
     }
 
     @Test
@@ -2273,6 +2288,8 @@ public class SqlToOperationConverterTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Invalid primary key 'ct'. Column 'g' is not a physical column.");
+        checkAlterNonExistTable(
+                "alter table %s nonexistent modify constraint ct primary key(a) not enforced");
     }
 
     @Test
@@ -2354,6 +2371,7 @@ public class SqlToOperationConverterTest {
                         "Invalid data type of time field for watermark definition. "
                                 + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), the supported precision 'p' is from 0 to 3, "
                                 + "but the time field type is STRING");
+        checkAlterNonExistTable("alter table %s nonexistent modify watermark for ts as ts");
     }
 
     @Test
@@ -2848,6 +2866,15 @@ public class SqlToOperationConverterTest {
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return plannerContext.createCalciteParser();
+    }
+
+    private void checkAlterNonExistTable(String sqlTemplate) {
+        assertThat(parse(String.format(sqlTemplate, "if exists ")))
+                .isInstanceOf(NopOperation.class);
+        assertThatThrownBy(() -> parse(String.format(sqlTemplate, "")))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Table `cat1`.`db1`.`nonexistent` doesn't exist or is a temporary table.");
     }
 
     private void checkAlterTableCompact(Operation operation, Map<String, String> staticPartitions) {
