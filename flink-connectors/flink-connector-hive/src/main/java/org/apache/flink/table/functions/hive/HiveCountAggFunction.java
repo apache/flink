@@ -39,7 +39,7 @@ public class HiveCountAggFunction extends HiveDeclarativeAggregateFunction {
 
     private final UnresolvedReferenceExpression count = unresolvedRef("count");
     private Integer arguments;
-    private boolean count1;
+    private boolean countLiteral;
 
     @Override
     public int operandCount() {
@@ -68,8 +68,8 @@ public class HiveCountAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public Expression[] accumulateExpressions() {
-        // count(*) and count(1) mean that count all elements
-        if (arguments == 0 || count1) {
+        // count(*) and count(literal) mean that count all elements
+        if (arguments == 0 || countLiteral) {
             return new Expression[] {/* count = */ plus(count, literal(1L))};
         }
 
@@ -108,8 +108,8 @@ public class HiveCountAggFunction extends HiveDeclarativeAggregateFunction {
         if (arguments == null) {
             arguments = callContext.getArgumentDataTypes().size();
             if (arguments == 1) {
-                // If the argument is literal 1 indicates use count(1)
-                count1 = callContext.isArgumentLiteral(0);
+                // If the argument is literal indicates use count(literal)
+                countLiteral = callContext.isArgumentLiteral(0);
             }
         }
     }
