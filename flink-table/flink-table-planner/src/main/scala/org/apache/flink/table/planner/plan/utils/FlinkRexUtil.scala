@@ -23,12 +23,14 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
@@ -39,7 +41,7 @@ import org.apache.calcite.util._
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
 import java.util
-import java.util.Optional
+import java.util.{Optional, TimeZone}
 import java.util.function.Predicate
 
 import scala.collection.JavaConversions._
@@ -633,6 +635,31 @@ object FlinkRexUtil {
     }
     val projects = rexProgram.getProjectList.map(rexProgram.expandLocalRef)
     projects.forall(isDeterministicInStreaming)
+  }
+
+  /**
+   * Return convertible rex nodes and unconverted rex nodes extracted from the filter expression.
+   */
+  def extractPredicates(
+      inputNames: Array[String],
+      filterExpression: RexNode,
+      rel: RelNode,
+      rexBuilder: RexBuilder): (Array[RexNode], Array[RexNode]) = {
+    val context = ShortcutUtils.unwrapContext(rel)
+    val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(rel);
+    val converter =
+      new RexNodeToExpressionConverter(
+        rexBuilder,
+        inputNames,
+        context.getFunctionCatalog,
+        context.getCatalogManager,
+        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)));
+
+    RexNodeExtractor.extractConjunctiveConditions(
+      filterExpression,
+      maxCnfNodeCount,
+      rexBuilder,
+      converter);
   }
 }
 

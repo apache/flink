@@ -52,9 +52,11 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -96,6 +98,7 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
+import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
@@ -2706,6 +2709,46 @@ public class SqlToOperationConverterTest {
         assertThat(extendedParser.parse(command)).get().isInstanceOf(QuitOperation.class);
     }
 
+    @Test
+    public void testDeletePushDown() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.INT().notNull())
+                                .column("c", DataTypes.STRING().notNull())
+                                .build(),
+                        null,
+                        Collections.emptyList(),
+                        options);
+        ObjectIdentifier tableIdentifier =
+                ObjectIdentifier.of("builtin", "default", "test_push_down");
+        catalogManager.createTable(catalogTable, tableIdentifier, false);
+
+        // no filter in delete statement
+        Operation operation = parse("DELETE FROM test_push_down");
+        checkDeleteFromFilterOperation(operation, "[]");
+
+        // with filters in delete statement
+        operation = parse("DELETE FROM test_push_down where a = 1 and c = '123'");
+        checkDeleteFromFilterOperation(operation, "[equals(a, 1), equals(c, '123')]");
+
+        // with filter = false after reduced in delete statement
+        operation = parse("DELETE FROM test_push_down where a = 1 + 6 and a = 2");
+        checkDeleteFromFilterOperation(operation, "[false]");
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "DELETE FROM test_push_down where a = (select count(*) from test_push_down)"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage(
+                        String.format(
+                                "Only delete push down is supported currently, but the delete statement can't pushed to table sink %s.",
+                                tableIdentifier.asSerializableString()));
+    }
+
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {
@@ -2900,6 +2943,15 @@ public class SqlToOperationConverterTest {
                 .containsEntry(
                         TestManagedTableFactory.ENRICHED_KEY,
                         TestManagedTableFactory.ENRICHED_VALUE);
+    }
+
+    private static void checkDeleteFromFilterOperation(
+            Operation operation, String expectedFilters) {
+        assertThat(operation).isInstanceOf(DeleteFromFilterOperation.class);
+        DeleteFromFilterOperation deleteFromFiltersOperation =
+                (DeleteFromFilterOperation) operation;
+        List<ResolvedExpression> filters = deleteFromFiltersOperation.getFilters();
+        assertThat(filters.toString()).isEqualTo(expectedFilters);
     }
 
     // ~ Inner Classes ----------------------------------------------------------
