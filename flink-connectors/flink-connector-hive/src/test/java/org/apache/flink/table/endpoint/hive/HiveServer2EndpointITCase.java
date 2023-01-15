@@ -38,6 +38,7 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceImpl;
+import org.apache.flink.table.gateway.service.result.NotReadyResult;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
@@ -114,7 +115,6 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYN
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationHandle;
-import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
 import static org.apache.hive.service.rpc.thrift.TProtocolVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -816,7 +816,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 sessionHandle,
                                 () -> {
                                     latch.await();
-                                    return NOT_READY_RESULT;
+                                    return NotReadyResult.INSTANCE;
                                 });
         manipulateOp.accept(
                 toTOperationHandle(sessionHandle, operationHandle, TOperationType.UNKNOWN));

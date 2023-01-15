@@ -29,8 +29,11 @@ import org.apache.flink.table.gateway.rest.message.session.SessionMessageParamet
 import org.apache.flink.table.gateway.rest.message.statement.CompleteStatementRequestBody;
 import org.apache.flink.table.gateway.rest.message.statement.CompleteStatementResponseBody;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -43,20 +46,25 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class StatementRelatedITCase extends RestAPIITCaseBase {
 
-    @Test
-    public void testCompleteStatement() throws Exception {
+    private SessionHandle sessionHandle;
+    private SessionMessageParameters sessionMessageParameters;
+    private @TempDir Path tempDir;
+
+    @BeforeEach
+    public void setUp() throws Exception {
         CompletableFuture<OpenSessionResponseBody> response =
                 sendRequest(
                         OpenSessionHeaders.getInstance(),
                         EmptyMessageParameters.getInstance(),
                         new OpenSessionRequestBody(null, null));
 
-        SessionHandle sessionHandle =
-                new SessionHandle(UUID.fromString(response.get().getSessionHandle()));
+        sessionHandle = new SessionHandle(UUID.fromString(response.get().getSessionHandle()));
 
-        SessionMessageParameters sessionMessageParameters =
-                new SessionMessageParameters(sessionHandle);
+        sessionMessageParameters = new SessionMessageParameters(sessionHandle);
+    }
 
+    @Test
+    public void testCompleteStatement() throws Exception {
         CompletableFuture<CompleteStatementResponseBody> completeStatementResponse =
                 sendRequest(
                         CompleteStatementHeaders.getINSTANCE(),

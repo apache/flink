@@ -23,6 +23,7 @@ import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -38,29 +39,36 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_COLUMN_INFOS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_DATA;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_FIELDS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KIND;
-
 /**
- * Json serializer for {@link ResultInfo}.
+ * Serializer for {@link ResultInfo}.
  *
- * @see ResultInfoJsonDeserializer for the reverse operation.
+ * @see ResultInfoDeserializer for the reverse operation.
  */
 @Internal
-public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
+public class ResultInfoSerializer extends StdSerializer<ResultInfo> {
+
+    // Columns
+    public static final String FIELD_NAME_COLUMN_INFOS = "columns";
+
+    // RowData
+    public static final String FIELD_NAME_DATA = "data";
+    public static final String FIELD_NAME_KIND = "kind";
+    public static final String FIELD_NAME_FIELDS = "fields";
+
+    // RowFormat
+    public static final String FIELD_NAME_ROW_FORMAT = "rowFormat";
 
     private static final long serialVersionUID = 1L;
 
-    public ResultInfoJsonSerializer() {
+    public ResultInfoSerializer() {
         super(ResultInfo.class);
     }
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
-                    TimestampFormat.ISO_8601, JsonFormatOptions.MapNullKeyMode.LITERAL, "");
+                    TimestampFormat.ISO_8601, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
 
     @Override
     public void serialize(
@@ -74,8 +82,12 @@ public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
         serializerProvider.defaultSerializeField(
                 FIELD_NAME_COLUMN_INFOS, resultInfo.getColumnInfos(), jsonGenerator);
 
+        // serialize RowFormat
+        serializerProvider.defaultSerializeField(
+                FIELD_NAME_ROW_FORMAT, resultInfo.getRowFormat(), jsonGenerator);
+
         // serialize data
-        serializeData(resultInfo.getData(), buildToJsonConverters(resultInfo), jsonGenerator);
+        serializeData(resultInfo.getData(), buildRowDataConverters(resultInfo), jsonGenerator);
 
         jsonGenerator.writeEndObject();
     }
@@ -110,29 +122,49 @@ public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
         return serializedRowData;
     }
 
-    /** Composes the FieldGetter and RowDataToJsonConverter. */
-    private List<Function<RowData, JsonNode>> buildToJsonConverters(ResultInfo resultInfo) {
-        List<RowDataToJsonConverters.RowDataToJsonConverter> converters =
-                resultInfo.getColumnInfos().stream()
-                        .map(ColumnInfo::getLogicalType)
-                        .map(TO_JSON_CONVERTERS::createConverter)
-                        .collect(Collectors.toList());
-
+    private List<Function<RowData, JsonNode>> buildRowDataConverters(ResultInfo resultInfo) {
+        RowFormat rowFormat = resultInfo.getRowFormat();
         List<RowData.FieldGetter> fieldGetters = resultInfo.getFieldGetters();
+        if (rowFormat == RowFormat.JSON) {
+            List<RowDataToJsonConverters.RowDataToJsonConverter> converters =
+                    resultInfo.getColumnInfos().stream()
+                            .map(ColumnInfo::getLogicalType)
+                            .map(TO_JSON_CONVERTERS::createConverter)
+                            .collect(Collectors.toList());
 
-        return IntStream.range(0, converters.size())
-                .mapToObj(
-                        i ->
-                                (Function<RowData, JsonNode>)
-                                        rowData ->
-                                                converters
-                                                        .get(i)
-                                                        .convert(
-                                                                OBJECT_MAPPER,
-                                                                null,
-                                                                fieldGetters
-                                                                        .get(i)
-                                                                        .getFieldOrNull(rowData)))
-                .collect(Collectors.toList());
+            return IntStream.range(0, converters.size())
+                    .mapToObj(
+                            i ->
+                                    (Function<RowData, JsonNode>)
+                                            rowData ->
+                                                    converters
+                                                            .get(i)
+                                                            .convert(
+                                                                    OBJECT_MAPPER,
+                                                                    null,
+                                                                    fieldGetters
+                                                                            .get(i)
+                                                                            .getFieldOrNull(
+                                                                                    rowData)))
+                    .collect(Collectors.toList());
+        } else if (rowFormat == RowFormat.PLAIN_TEXT) {
+            return IntStream.range(0, resultInfo.getColumnInfos().size())
+                    .mapToObj(
+                            i ->
+                                    (Function<RowData, JsonNode>)
+                                            rowData -> {
+                                                Object value =
+                                                        fieldGetters.get(i).getFieldOrNull(rowData);
+                                                return value == null
+                                                        ? OBJECT_MAPPER.getNodeFactory().nullNode()
+                                                        : OBJECT_MAPPER
+                                                                .getNodeFactory()
+                                                                .textNode(value.toString());
+                                            })
+                    .collect(Collectors.toList());
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Unknown row format: %s.", rowFormat));
+        }
     }
 }

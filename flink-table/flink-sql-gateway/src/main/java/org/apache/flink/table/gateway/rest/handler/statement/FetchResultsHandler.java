@@ -19,6 +19,8 @@
 package org.apache.flink.table.gateway.rest.handler.statement;
 
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
@@ -30,14 +32,17 @@ import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultResponseBodyImpl;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessageParameters;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
-import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsRowFormatQueryParameter;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenPathParameter;
+import org.apache.flink.table.gateway.rest.message.statement.NotReadyFetchResultResponse;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -45,49 +50,64 @@ import java.util.concurrent.CompletableFuture;
 /** Handler to fetch results. */
 public class FetchResultsHandler
         extends AbstractSqlGatewayRestHandler<
-                EmptyRequestBody, FetchResultsResponseBody, FetchResultsTokenParameters> {
+                EmptyRequestBody, FetchResultsResponseBody, FetchResultsMessageParameters> {
 
     public FetchResultsHandler(
             SqlGatewayService service,
             Map<String, String> responseHeaders,
-            MessageHeaders<EmptyRequestBody, FetchResultsResponseBody, FetchResultsTokenParameters>
+            MessageHeaders<
+                            EmptyRequestBody,
+                            FetchResultsResponseBody,
+                            FetchResultsMessageParameters>
                     messageHeaders) {
         super(service, responseHeaders, messageHeaders);
     }
 
     @Override
     protected CompletableFuture<FetchResultsResponseBody> handleRequest(
-            SqlGatewayRestAPIVersion version, @Nonnull HandlerRequest<EmptyRequestBody> request) {
+            SqlGatewayRestAPIVersion version, @Nonnull HandlerRequest<EmptyRequestBody> request)
+            throws RestHandlerException {
         // Parse the parameters
         SessionHandle sessionHandle = request.getPathParameter(SessionHandleIdPathParameter.class);
         OperationHandle operationHandle =
                 request.getPathParameter(OperationHandleIdPathParameter.class);
         Long token = request.getPathParameter(FetchResultsTokenPathParameter.class);
+        RowFormat rowFormat =
+                HandlerRequestUtils.getQueryParameter(
+                        request, FetchResultsRowFormatQueryParameter.class, RowFormat.JSON);
 
         // Get the statement results
-        @Nullable ResultSet resultSet;
-        @Nullable String resultType;
-        Long nextToken;
-
+        ResultSet resultSet;
         try {
             resultSet =
                     service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
-            nextToken = resultSet.getNextToken();
-            resultType = resultSet.getResultType().toString();
         } catch (Exception e) {
             throw new SqlGatewayException(e);
         }
 
-        // Build the response
+        ResultSet.ResultType resultType = resultSet.getResultType();
+        Long nextToken = resultSet.getNextToken();
         String nextResultUri =
                 FetchResultsHeaders.buildNextUri(
-                        version.name().toLowerCase(),
+                        version,
                         sessionHandle.getIdentifier().toString(),
                         operationHandle.getIdentifier().toString(),
-                        nextToken);
+                        nextToken,
+                        rowFormat);
 
-        return CompletableFuture.completedFuture(
-                new FetchResultsResponseBody(
-                        ResultInfo.createResultInfo(resultSet), resultType, nextResultUri));
+        // Build the response
+        if (resultType == ResultSet.ResultType.NOT_READY) {
+            return CompletableFuture.completedFuture(
+                    new NotReadyFetchResultResponse(nextResultUri));
+        } else {
+            return CompletableFuture.completedFuture(
+                    new FetchResultResponseBodyImpl(
+                            resultType,
+                            resultSet.isQueryResult(),
+                            resultSet.getJobID(),
+                            resultSet.getResultKind(),
+                            ResultInfo.createResultInfo(resultSet, rowFormat),
+                            nextResultUri));
+        }
     }
 }

@@ -54,6 +54,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
+import org.apache.flink.table.gateway.service.result.NotReadyResult;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
@@ -108,7 +109,6 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
-import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
@@ -288,7 +288,7 @@ public class SqlGatewayServiceITCase {
 
         startRunningLatch.await();
         assertThat(fetchResults(service, sessionHandle, operationHandle))
-                .isEqualTo(NOT_READY_RESULT);
+                .isEqualTo(NotReadyResult.INSTANCE);
         endRunningLatch.countDown();
     }
 

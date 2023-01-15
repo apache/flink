@@ -16,60 +16,58 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.service.result;
+package org.apache.flink.table.gateway.rest.message.statement;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 
-import java.util.Collections;
-import java.util.List;
+import javax.annotation.Nullable;
 
-/** To represent that the execution result is not ready to fetch. */
-public class NotReadyResult implements ResultSet {
+/** The {@link FetchResultsResponseBody} indicates the results is not ready. */
+public class NotReadyFetchResultResponse implements FetchResultsResponseBody {
 
-    public static final NotReadyResult INSTANCE = new NotReadyResult();
+    private final String nextResultUri;
 
-    private NotReadyResult() {}
-
-    @Override
-    public ResultType getResultType() {
-        return ResultType.NOT_READY;
+    public NotReadyFetchResultResponse(String nextResultUri) {
+        this.nextResultUri = nextResultUri;
     }
 
     @Override
-    public Long getNextToken() {
-        return 0L;
+    public ResultInfo getResults() {
+        throw new SqlGatewayException(
+                "The result is not ready. Please fetch results until the result type is PAYLOAD or EOS.");
     }
 
     @Override
-    public ResolvedSchema getResultSchema() {
-        throw new UnsupportedOperationException(
-                "Don't know the schema for the result. Please continue fetching results until the result type is PAYLOAD or EOS.");
+    public ResultSet.ResultType getResultType() {
+        return ResultSet.ResultType.NOT_READY;
     }
 
+    @Nullable
     @Override
-    public List<RowData> getData() {
-        return Collections.emptyList();
+    public String getNextResultUri() {
+        return nextResultUri;
     }
 
     @Override
     public boolean isQueryResult() {
-        throw new UnsupportedOperationException(
+        throw new SqlGatewayException(
                 "Don't know whether a NOT_READY_RESULT is for a query. Please continue fetching results until the result type is PAYLOAD or EOS.");
     }
 
+    @Nullable
     @Override
     public JobID getJobID() {
-        throw new UnsupportedOperationException(
-                "Can't get job ID from a NOT_READY_RESULT. Please continue fetching results until the result type is PAYLOAD or EOS.");
+        throw new SqlGatewayException(
+                "Don't know the Job ID with NOT_READY_RESULT. Please continue fetching results until the result type is PAYLOAD or EOS.");
     }
 
     @Override
     public ResultKind getResultKind() {
-        throw new UnsupportedOperationException(
-                "Can't get result kind from a NOT_READY_RESULT. Please continue fetching results until the result type is PAYLOAD or EOS.");
+        throw new SqlGatewayException(
+                "Don't know the ResultKind with NOT_READY_RESULT. Please continue fetching results until the result type is PAYLOAD or EOS.");
     }
 }

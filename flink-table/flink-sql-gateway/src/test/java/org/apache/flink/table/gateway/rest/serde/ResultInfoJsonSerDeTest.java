@@ -22,8 +22,13 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
+import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -33,7 +38,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.Si
 
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -45,7 +52,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +60,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -76,7 +83,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZON
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link ResultInfoJsonSerializer} and {@link ResultInfoJsonDeserializer}. */
+/** Tests for {@link ResultInfoSerializer} and {@link ResultInfoDeserializer}. */
 public class ResultInfoJsonSerDeTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Row testRow = initRow();
@@ -84,69 +91,75 @@ public class ResultInfoJsonSerDeTest {
     @BeforeAll
     public static void setUp() {
         SimpleModule simpleModule = new SimpleModule();
-        simpleModule.addSerializer(ResultInfo.class, new ResultInfoJsonSerializer());
-        simpleModule.addDeserializer(ResultInfo.class, new ResultInfoJsonDeserializer());
+        simpleModule.addSerializer(ResultInfo.class, new ResultInfoSerializer());
+        simpleModule.addDeserializer(ResultInfo.class, new ResultInfoDeserializer());
         OBJECT_MAPPER.registerModule(simpleModule);
     }
 
-    @Test
-    public void testResultInfoSerDeWithSingleRow() throws Exception {
-        serDeTest(Collections.singletonList(testRow));
+    @ParameterizedTest
+    @EnumSource(RowFormat.class)
+    public void testResultInfoSerDeWithSingleRow(RowFormat rowFormat) throws Exception {
+        serDeTest(Collections.singletonList(testRow), rowFormat);
     }
 
-    @Test
-    public void testResultInfoSerDeWithMultiRowData() throws Exception {
-        List<Row> rows = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            rows.add(testRow);
-        }
-        serDeTest(rows);
+    @ParameterizedTest
+    @EnumSource(RowFormat.class)
+    public void testResultInfoSerDeWithMultiRowData(RowFormat rowFormat) throws Exception {
+        serDeTest(Collections.nCopies(10, testRow), rowFormat);
     }
 
-    @Test
-    public void testResultInfoSerDeWithNullValues() throws Exception {
-        List<Row> rows = new ArrayList<>();
-        List<Integer> positions = new ArrayList<>();
-        for (int i = 0; i < 18; i++) {
-            positions.add(new Random().nextInt(18));
-        }
-        for (int i = 0; i < 10; i++) {
-            rows.add(getTestRowDataWithNullValues(initRow(), positions));
-        }
-        serDeTest(rows);
+    @ParameterizedTest
+    @EnumSource(RowFormat.class)
+    public void testResultInfoSerDeWithNullValues(RowFormat rowFormat) throws Exception {
+        List<Integer> positions =
+                IntStream.range(0, 18)
+                        .mapToObj(i -> new Random().nextInt(18))
+                        .collect(Collectors.toList());
+
+        serDeTest(
+                Collections.nCopies(10, getTestRowDataWithNullValues(initRow(), positions)),
+                rowFormat);
     }
 
-    @Test
-    public void testDeserializationFromJson() throws Exception {
-        URL url = ResultInfoJsonSerDeTest.class.getClassLoader().getResource("resultInfo.txt");
+    @ParameterizedTest
+    @ValueSource(strings = {"result_info_json_format.txt", "result_info_plain_text_format.txt"})
+    public void testDeserializationFromJson(String fileName) throws Exception {
+        URL url = ResultInfoJsonSerDeTest.class.getClassLoader().getResource(fileName);
         String input =
                 IOUtils.toString(Preconditions.checkNotNull(url), StandardCharsets.UTF_8).trim();
         ResultInfo deserializedResult = OBJECT_MAPPER.readValue(input, ResultInfo.class);
         assertThat(OBJECT_MAPPER.writeValueAsString(deserializedResult)).isEqualTo(input);
     }
 
-    private void serDeTest(List<Row> rows) throws IOException {
-        List<RowData> rowDataList =
+    private void serDeTest(List<Row> rows, RowFormat rowFormat) throws IOException {
+        List<RowData> rowDatas =
                 rows.stream().map(this::convertToInternal).collect(Collectors.toList());
+        if (rowFormat == RowFormat.PLAIN_TEXT) {
+            rowDatas =
+                    rowDatas.stream()
+                            .map(this::toPlainTextFormatRowData)
+                            .collect(Collectors.toList());
+        }
+
         ResolvedSchema testResolvedSchema = getTestResolvedSchema(getFields());
         ResultInfo testResultInfo =
                 new ResultInfo(
                         testResolvedSchema.getColumns().stream()
                                 .map(ColumnInfo::toColumnInfo)
                                 .collect(Collectors.toList()),
-                        rowDataList);
+                        rowDatas,
+                        rowFormat);
 
         // test serialization & deserialization
         String result = OBJECT_MAPPER.writeValueAsString(testResultInfo);
         ResultInfo resultInfo = OBJECT_MAPPER.readValue(result, ResultInfo.class);
 
+        // validate schema
         assertThat(resultInfo.getResultSchema().toString())
                 .isEqualTo(testResultInfo.getResultSchema().toString());
 
-        List<RowData> data = resultInfo.getData();
-        for (int i = 0; i < data.size(); i++) {
-            assertThat(convertToExternal(data.get(i), ROW(getFields()))).isEqualTo(rows.get(i));
-        }
+        // validate data
+        assertDataWithFormat(resultInfo.getData(), rows, rowFormat);
     }
 
     private static Row initRow() {
@@ -268,5 +281,43 @@ public class ResultInfoJsonSerDeTest {
         DataFormatConverters.DataFormatConverter<GenericRowData, Row> converter =
                 DataFormatConverters.getConverterForDataType(ROW(getFields()));
         return converter.toInternal(row);
+    }
+
+    private RowData toPlainTextFormatRowData(RowData rowData) {
+        RowDataToStringConverter converter =
+                new RowDataToStringConverterImpl(
+                        getTestResolvedSchema(getFields()).toPhysicalRowDataType(),
+                        DateTimeUtils.UTC_ZONE.toZoneId(),
+                        ResultInfoJsonSerDeTest.class.getClassLoader(),
+                        false);
+
+        StringData[] plainText =
+                Arrays.stream(converter.convert(rowData))
+                        .map(StringData::fromString)
+                        .toArray(StringData[]::new);
+
+        return GenericRowData.ofKind(rowData.getRowKind(), (Object[]) plainText);
+    }
+
+    private void assertDataWithFormat(
+            List<RowData> expected, List<Row> actual, RowFormat rowFormat) {
+        if (rowFormat == RowFormat.JSON) {
+            for (int i = 0; i < expected.size(); i++) {
+                assertThat(convertToExternal(expected.get(i), ROW(getFields())))
+                        .isEqualTo(actual.get(i));
+            }
+        } else {
+            for (int i = 0; i < expected.size(); i++) {
+                assertPlainTextFormatData(
+                        expected.get(i),
+                        toPlainTextFormatRowData(convertToInternal(actual.get(i))));
+            }
+        }
+    }
+
+    private void assertPlainTextFormatData(RowData expected, RowData actual) {
+        for (int i = 0; i < expected.getArity(); i++) {
+            assertThat(expected.getString(i)).isEqualTo(actual.getString(i));
+        }
     }
 }

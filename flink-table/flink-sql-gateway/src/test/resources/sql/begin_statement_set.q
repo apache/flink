@@ -73,17 +73,6 @@ create table StreamingTable2 (
 1 row in set
 !ok
 
-# test only to verify the test job id.
-SET '$internal.pipeline.job-id' = 'c6d2eb2ade68485fb4d1848294150861';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
-
 BEGIN STATEMENT SET;
 !output
 +--------+
@@ -136,23 +125,8 @@ INSERT INTO StreamingTable2 SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'),
 
 END;
 !output
-+----------------------------------+
-|                           job id |
-+----------------------------------+
-| c6d2eb2ade68485fb4d1848294150861 |
-+----------------------------------+
-1 row in set
-!ok
-
-RESET '$internal.pipeline.job-id';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+Job ID:
+!info
 
 SELECT * FROM StreamingTable;
 !output
@@ -217,17 +191,6 @@ create table BatchTable (
 1 row in set
 !ok
 
-# test only to verify the test job id.
-SET '$internal.pipeline.job-id' = 'e66a9bbf66c04a41b4d687e26c8296a0';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
-
 BEGIN STATEMENT SET;
 !output
 +--------+
@@ -260,23 +223,8 @@ INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 
 
 END;
 !output
-+----------------------------------+
-|                           job id |
-+----------------------------------+
-| e66a9bbf66c04a41b4d687e26c8296a0 |
-+----------------------------------+
-1 row in set
-!ok
-
-RESET '$internal.pipeline.job-id';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+Job ID:
+!info
 
 SELECT * FROM BatchTable;
 !output

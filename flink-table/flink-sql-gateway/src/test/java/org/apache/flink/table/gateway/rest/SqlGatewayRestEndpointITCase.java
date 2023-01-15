@@ -70,8 +70,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getBaseConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getFlinkConfig;
 import static org.apache.flink.table.gateway.rest.util.TestingRestClient.getTestingRestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
