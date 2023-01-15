@@ -2743,6 +2743,35 @@ public class SqlToOperationConverterTest {
         assertThat(modifyOperation.isDelete()).isTrue();
     }
 
+    @Test
+    public void testUpdate() throws Exception {
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.INT().notNull())
+                                .column("b", DataTypes.BIGINT().nullable())
+                                .column("c", DataTypes.STRING().notNull())
+                                .build(),
+                        null,
+                        Collections.emptyList(),
+                        options);
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("builtin", "default", "test_update");
+        catalogManager.createTable(catalogTable, tableIdentifier, false);
+
+        Operation operation = parse("UPDATE test_update SET a = 1, c = '123'");
+        checkUpdateOperation(operation);
+
+        operation = parse("UPDATE test_update SET a = 1, c = '123' WHERE a = 3");
+        checkUpdateOperation(operation);
+
+        operation =
+                parse(
+                        "UPDATE test_update SET a = 1, c = '123' WHERE b = 2 and a = (select count(*) from test_update)");
+        checkUpdateOperation(operation);
+    }
+
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {
@@ -2946,6 +2975,12 @@ public class SqlToOperationConverterTest {
                 (DeleteFromFilterOperation) operation;
         List<ResolvedExpression> filters = deleteFromFiltersOperation.getFilters();
         assertThat(filters.toString()).isEqualTo(expectedFilters);
+    }
+
+    private static void checkUpdateOperation(Operation operation) {
+        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
+        SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) operation;
+        assertThat(sinkModifyOperation.isUpdate()).isTrue();
     }
 
     // ~ Inner Classes ----------------------------------------------------------
