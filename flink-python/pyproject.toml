@@ -21,12 +21,12 @@ requires = [
     "packaging==20.5; platform_machine=='arm64'",  # macos M1
     "setuptools>=18.0",
     "wheel",
-    "apache-beam==2.38.0",
+    "apache-beam==2.43.0",
     "cython==0.29.24"
 ]
 
 [tool.cibuildwheel]
-build = ["cp36-*", "cp37-*", "cp38-*", "cp39-*"]
+build = ["cp37-*", "cp38-*", "cp39-*", "cp310-*"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]

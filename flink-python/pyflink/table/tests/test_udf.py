@@ -17,11 +17,9 @@
 ################################################################################
 import datetime
 import os
-import sys
 import unittest
 import uuid
 
-import pytest
 import pytz
 
 from pyflink.common import Row
@@ -909,7 +907,6 @@ class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
     pass
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class PyFlinkEmbeddedThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     def setUp(self):
         super(PyFlinkEmbeddedThreadTests, self).setUp()

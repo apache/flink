@@ -25,11 +25,11 @@ import time
 import unittest
 
 import grpc
-from apache_beam.portability.api.beam_provision_api_pb2 import (ProvisionInfo,
-                                                                GetProvisionInfoResponse)
-from apache_beam.portability.api.beam_provision_api_pb2_grpc import (
-    ProvisionServiceServicer, add_ProvisionServiceServicer_to_server)
 from concurrent import futures
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 \
+    import ProvisionInfo, GetProvisionInfoResponse
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc \
+    import ProvisionServiceServicer, add_ProvisionServiceServicer_to_server
 from google.protobuf import json_format
 
 from pyflink.java_gateway import get_gateway

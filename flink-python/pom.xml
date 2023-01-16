@@ -116,7 +116,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.2.6</version>
+			<version>0.3.0</version>
 		</dependency>
 
 		<!-- Protobuf dependencies -->
