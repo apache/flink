@@ -97,6 +97,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -1367,7 +1368,8 @@ class JobMasterTest {
             // finish the producer task
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(executionAttemptId, ExecutionState.FINISHED))
+                            SchedulerTestingUtils.createFinishedTaskExecutionState(
+                                    executionAttemptId))
                     .get();
 
             // request the state of the result partition of the producer
@@ -1947,12 +1949,11 @@ class JobMasterTest {
             // 1 slot reserved, 1 slot free
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(
+                            SchedulerTestingUtils.createFinishedTaskExecutionState(
                                     getExecutions(jobMasterGateway)
                                             .iterator()
                                             .next()
-                                            .getAttemptId(),
-                                    ExecutionState.FINISHED))
+                                            .getAttemptId()))
                     .get();
 
             BlockedNode blockedNode =
@@ -2163,8 +2164,10 @@ class JobMasterTest {
     private JobGraph producerConsumerJobGraph() {
         final JobVertex producer = new JobVertex("Producer");
         producer.setInvokableClass(NoOpInvokable.class);
+        producer.setParallelism(1);
         final JobVertex consumer = new JobVertex("Consumer");
         consumer.setInvokableClass(NoOpInvokable.class);
+        consumer.setParallelism(1);
 
         consumer.connectNewDataSetAsInput(
                 producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);

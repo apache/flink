@@ -225,8 +225,6 @@ class SpeculativeSchedulerITCase {
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
 
         // for speculative execution
-        configuration.set(
-                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
         configuration.set(JobManagerOptions.SPECULATIVE_ENABLED, true);
         // for testing, does not block node by default
         if (!configuration.contains(JobManagerOptions.BLOCK_SLOW_NODE_DURATION)) {

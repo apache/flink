@@ -220,6 +220,7 @@ public class StreamingJobGraphGenerator {
     private JobGraph createJobGraph() {
         preValidate();
         jobGraph.setJobType(streamGraph.getJobType());
+        jobGraph.setDynamic(streamGraph.isDynamic());
 
         jobGraph.enableApproximateLocalRecovery(
                 streamGraph.getCheckpointConfig().isApproximateLocalRecoveryEnabled());
@@ -1105,7 +1106,7 @@ public class StreamingJobGraphGenerator {
             if (partitioner instanceof ForwardForConsecutiveHashPartitioner
                     || partitioner instanceof ForwardForUnspecifiedPartitioner) {
                 checkState(
-                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        streamGraph.isDynamic(),
                         String.format(
                                 "%s should only be used in dynamic graph.",
                                 partitioner.getClass().getSimpleName()));
@@ -1116,14 +1117,14 @@ public class StreamingJobGraphGenerator {
             StreamPartitioner<?> partitioner = edge.getPartitioner();
             if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
                 checkState(
-                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        streamGraph.isDynamic(),
                         "ForwardForConsecutiveHashPartitioner should only be used in dynamic graph.");
                 edge.setPartitioner(
                         ((ForwardForConsecutiveHashPartitioner<?>) partitioner)
                                 .getHashPartitioner());
             } else if (partitioner instanceof ForwardForUnspecifiedPartitioner) {
                 checkState(
-                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        streamGraph.isDynamic(),
                         "ForwardForUnspecifiedPartitioner should only be used in dynamic graph.");
                 edge.setPartitioner(new RescalePartitioner<>());
             }
@@ -1287,9 +1288,7 @@ public class StreamingJobGraphGenerator {
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && arePartitionerAndExchangeModeChainable(
-                        edge.getPartitioner(),
-                        edge.getExchangeMode(),
-                        streamGraph.getExecutionConfig().isDynamicGraph())
+                        edge.getPartitioner(), edge.getExchangeMode(), streamGraph.isDynamic())
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 && streamGraph.isChainingEnabled())) {
 

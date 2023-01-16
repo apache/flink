@@ -51,7 +51,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
 
         final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                        configuration, JobType.BATCH);
+                        configuration, JobType.BATCH, true);
 
         assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
                 .isInstanceOf(DefaultSchedulerFactory.class);
@@ -66,7 +66,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
 
         final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                        configuration, JobType.STREAMING);
+                        configuration, JobType.STREAMING, false);
 
         assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
                 .isInstanceOf(AdaptiveSchedulerFactory.class);

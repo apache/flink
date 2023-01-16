@@ -139,6 +139,8 @@ public class StreamGraph implements Pipeline {
 
     private final List<JobStatusHook> jobStatusHooks = new ArrayList<>();
 
+    private boolean dynamic;
+
     public StreamGraph(
             ExecutionConfig executionConfig,
             CheckpointConfig checkpointConfig,
@@ -689,9 +691,7 @@ public class StreamGraph implements Pipeline {
         if (partitioner == null
                 && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
             partitioner =
-                    executionConfig.isDynamicGraph()
-                            ? new ForwardForUnspecifiedPartitioner<>()
-                            : new ForwardPartitioner<>();
+                    dynamic ? new ForwardForUnspecifiedPartitioner<>() : new ForwardPartitioner<>();
         } else if (partitioner == null) {
             partitioner = new RebalancePartitioner<Object>();
         }
@@ -749,6 +749,14 @@ public class StreamGraph implements Pipeline {
         if (getStreamNode(vertexID) != null) {
             getStreamNode(vertexID).setParallelism(parallelism);
         }
+    }
+
+    public boolean isDynamic() {
+        return dynamic;
+    }
+
+    public void setDynamic(boolean dynamic) {
+        this.dynamic = dynamic;
     }
 
     public void setMaxParallelism(int vertexID, int maxParallelism) {

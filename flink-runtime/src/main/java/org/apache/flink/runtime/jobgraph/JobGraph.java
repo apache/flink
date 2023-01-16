@@ -89,6 +89,8 @@ public class JobGraph implements Serializable {
 
     private JobType jobType = JobType.BATCH;
 
+    private boolean dynamic;
+
     /**
      * Whether approximate local recovery is enabled. This flag will be removed together with legacy
      * scheduling strategies.
@@ -223,6 +225,14 @@ public class JobGraph implements Serializable {
 
     public JobType getJobType() {
         return jobType;
+    }
+
+    public void setDynamic(boolean dynamic) {
+        this.dynamic = dynamic;
+    }
+
+    public boolean isDynamic() {
+        return dynamic;
     }
 
     public void enableApproximateLocalRecovery(boolean enabled) {
