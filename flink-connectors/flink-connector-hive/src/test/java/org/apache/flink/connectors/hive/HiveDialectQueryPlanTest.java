@@ -1,0 +1,92 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.connectors.hive;
+
+import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
+import org.apache.flink.util.CollectionUtil;
+
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Test hive query plan. */
+public class HiveDialectQueryPlanTest {
+
+    private static HiveCatalog hiveCatalog;
+    private static TableEnvironment tableEnv;
+
+    @BeforeClass
+    public static void setup() throws Exception {
+        hiveCatalog = HiveTestUtils.createHiveCatalog();
+        // required by query like "src.`[k].*` from src"
+        hiveCatalog.getHiveConf().setVar(HiveConf.ConfVars.HIVE_QUOTEDID_SUPPORT, "none");
+        hiveCatalog.open();
+        tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        // create tables
+        tableEnv.executeSql("create table foo (x int, y int)");
+        HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "foo")
+                .addRow(new Object[] {1, 1})
+                .addRow(new Object[] {2, 2})
+                .addRow(new Object[] {3, 3})
+                .addRow(new Object[] {4, 4})
+                .addRow(new Object[] {5, 5})
+                .commit();
+    }
+
+    @Test
+    public void testSumAggFunctionPlan() {
+        // test explain
+        String actualPlan = explainSql("select x, sum(y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testSumAggFunctionPlan.out"));
+    }
+
+    @Test
+    public void testMinAggFunctionPlan() {
+        // test explain
+        String actualPlan = explainSql("select x, min(y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMinAggFunctionPlan.out"));
+    }
+
+    private String explainSql(String sql) {
+        return (String)
+                CollectionUtil.iteratorToList(tableEnv.executeSql("explain " + sql).collect())
+                        .get(0)
+                        .getField(0);
+    }
+}

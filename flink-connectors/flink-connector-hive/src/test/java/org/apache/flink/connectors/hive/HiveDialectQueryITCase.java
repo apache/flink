@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -38,6 +39,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
+import org.apache.hadoop.hive.ql.exec.UDFArgumentTypeException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -987,13 +989,6 @@ public class HiveDialectQueryITCase {
     }
 
     @Test
-    public void testSumAggFunctionPlan() {
-        // test explain
-        String actualPlan = explainSql("select x, sum(y) from foo group by x");
-        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testSumAggFunctionPlan.out"));
-    }
-
-    @Test
     public void testSimpleSumAggFunction() throws Exception {
         tableEnv.executeSql(
                 "create table test_sum(x string, y string, z int, d decimal(10,5), e float, f double)");
@@ -1072,13 +1067,6 @@ public class HiveDialectQueryITCase {
     }
 
     @Test
-    public void testMinAggFunctionPlan() {
-        // test explain
-        String actualPlan = explainSql("select x, min(y) from foo group by x");
-        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMinAggFunctionPlan.out"));
-    }
-
-    @Test
     public void testMinAggFunction() throws Exception {
         tableEnv.executeSql(
                 "create table test_min(a int, b boolean, x string, y string, z int, d decimal(10,5), e float, f double, ts timestamp, dt date, bar binary)");
@@ -1089,67 +1077,96 @@ public class HiveDialectQueryITCase {
                                 + "(2, true, NULL, NULL, 4, 4.45, 4.7, 4.8, '2021-08-10 16:26:33.4','2021-08-01', 'data4')")
                 .await();
 
-        // test max with all elements are null
+        // test min with all elements are null
         List<Row> result =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(x) from test_min").collect());
         assertThat(result.toString()).isEqualTo("[+I[null]]");
 
-        // test max with some elements are null
+        // test min with some elements are null
         List<Row> result2 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(y) from test_min").collect());
         assertThat(result2.toString()).isEqualTo("[+I[2]]");
 
-        // test max with some elements repeated
+        // test min with some elements repeated
         List<Row> result3 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(z) from test_min").collect());
         assertThat(result3.toString()).isEqualTo("[+I[1]]");
 
-        // test max with decimal type
+        // test min with decimal type
         List<Row> result4 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(d) from test_min").collect());
         assertThat(result4.toString()).isEqualTo("[+I[1.11000]]");
 
-        // test max with float type
+        // test min with float type
         List<Row> result5 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(e) from test_min").collect());
         assertThat(result5.toString()).isEqualTo("[+I[1.2]]");
 
-        // test max with double type
+        // test min with double type
         List<Row> result6 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(f) from test_min").collect());
         assertThat(result6.toString()).isEqualTo("[+I[1.3]]");
 
-        // test max with boolean type
+        // test min with boolean type
         List<Row> result7 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(b) from test_min").collect());
         assertThat(result7.toString()).isEqualTo("[+I[false]]");
 
-        // test max with timestamp type
+        // test min with timestamp type
         List<Row> result8 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(ts) from test_min").collect());
         assertThat(result8.toString()).isEqualTo("[+I[2021-08-04T16:26:33.400]]");
 
-        // test max with date type
+        // test min with date type
         List<Row> result9 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(dt) from test_min").collect());
         assertThat(result9.toString()).isEqualTo("[+I[2021-08-01]]");
 
-        // test max with binary type
+        // test min with binary type
         List<Row> result10 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select min(bar) from test_min").collect());
         assertThat(result10.toString()).isEqualTo("[+I[[100, 97, 116, 97, 49]]]");
 
         tableEnv.executeSql("drop table test_min");
+
+        // test min with unsupported data type
+        tableEnv.executeSql(
+                "create table test_min_not_support_type(a array<int>,m map<int, string>,s struct<f1:int,f2:string>)");
+        // test min with row type
+        String expectedRowMessage =
+                "Hive native min aggregate function does not support type: 'ROW' now. Please re-check the data type.";
+        assertSqlException(
+                "select min(s) from test_min_not_support_type",
+                TableException.class,
+                expectedRowMessage);
+
+        // test min with array type
+        String expectedArrayMessage =
+                "Hive native min aggregate function does not support type: 'ARRAY' now. Please re-check the data type.";
+        assertSqlException(
+                "select min(a) from test_min_not_support_type",
+                TableException.class,
+                expectedArrayMessage);
+
+        // test min with map type, hive also does not support map type comparisons.
+        String expectedMapMessage =
+                "Cannot support comparison of map<> type or complex type containing map<>.";
+        assertSqlException(
+                "select min(m) from test_min_not_support_type",
+                UDFArgumentTypeException.class,
+                expectedMapMessage);
+
+        tableEnv.executeSql("drop table test_min_not_support_type");
     }
 
     private void runQFile(File qfile) throws Exception {
