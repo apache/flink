@@ -320,10 +320,14 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
             Iterator<RowData> iterator)
             throws Exception {
         if (type.equals(StatementType.EXPLAIN) || type.equals(StatementType.SHOW_CREATE)) {
+            StringBuilder sb = new StringBuilder();
+            while (iterator.hasNext()) {
+                sb.append(iterator.next().getString(0).toString());
+            }
             return Tag.OK.addTag(
                     replaceStreamNodeId(
                                     replaceNodeIdInOperator(
-                                            iterator.next().getString(0).toString()))
+                                            sb.toString()))
                             + "\n");
         } else if (schema.getColumn(0)
                 .map(col -> col.getName().equals(Constants.JOB_ID))
