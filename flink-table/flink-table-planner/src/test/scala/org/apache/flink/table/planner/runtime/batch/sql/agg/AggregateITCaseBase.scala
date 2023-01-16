@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableException, Types}
 import org.apache.flink.table.data.DecimalDataUtils
@@ -29,8 +29,6 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
-
-import scala.collection.Seq
 
 /** Aggregate IT case base class. */
 abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
@@ -296,9 +294,16 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     val tableRows = tableData.map(toRow)
 
     val tupleTypeInfo = implicitly[TypeInformation[T]]
-    val fieldInfos = tupleTypeInfo.getGenericParameters.values()
-    import scala.collection.JavaConverters._
-    val rowTypeInfo = new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    val rowTypeInfo: RowTypeInfo = if (tupleTypeInfo.isTupleType) {
+      new RowTypeInfo(
+        tupleTypeInfo
+          .asInstanceOf[TupleTypeInfoBase[T]]
+          .getFieldTypes: _*)
+    } else {
+      val fieldInfos = tupleTypeInfo.getGenericParameters.values()
+      import scala.collection.JavaConverters._
+      new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    }
 
     newTableId += 1
     val tableName = "TestTableX" + newTableId

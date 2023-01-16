@@ -25,7 +25,7 @@ import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.{JBoolean, JLong}
+import org.apache.flink.table.planner.{JBoolean, JDouble, JLong}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, OperatorCodeGenerator, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
@@ -47,18 +47,26 @@ object HashAggCodeGenerator {
   // It is a experimental config, will may be removed later.
   @Experimental
   val TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_ENABLED: ConfigOption[JBoolean] =
-    key("table.exec.adaptive.local-hash-agg.enabled")
+    key("table.exec.adaptive-local-hash-agg.enabled")
       .booleanType()
       .defaultValue(Boolean.box(true))
       .withDescription("Whether to enable adaptive local hash agg")
 
   @Experimental
   val TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_SAMPLE_POINT: ConfigOption[JLong] =
-    key("table.exec.adaptive.local-hash-agg.sample-point")
+    key("table.exec.adaptive-local-hash-agg.sample-threshold")
       .longType()
       .defaultValue(Long.box(5000000L))
       .withDescription("If adaptive local hash agg is enabled, "
         + "the proportion of distinct value will be checked after reading this number of records")
+
+  @Experimental
+  val TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_LIMIT_DISTINCT_RATIO: ConfigOption[JDouble] =
+    key("table.exec.adaptive-local-hash-agg.limit-distinct-ratio")
+      .doubleType()
+      .defaultValue(0.5d)
+      .withDescription("If adaptive distinct is enabled, local aggregation will be suppressed " +
+        "if the ratio of distinct keys is higher than this value after sample point")
 
   def genWithKeys(
       ctx: CodeGeneratorContext,
@@ -246,8 +254,8 @@ object HashAggCodeGenerator {
 
         val samplePoint =
           ctx.tableConfig.get(TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_SAMPLE_POINT)
-        // This variable is set to 0.5d
-        val proportion = 0.5d
+        val limitDistinctRatio =
+          ctx.tableConfig.get(TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_LIMIT_DISTINCT_RATIO)
 
         (
           s"$adaptiveDistinctCountTerm++;",
@@ -256,8 +264,8 @@ object HashAggCodeGenerator {
              |if ($adaptiveTotalCountTerm == $samplePoint) {
              |  $loggerTerm.info("Local hash agg checkpoint reached, sample point = " +
              |    $samplePoint + ", distinct = " + $adaptiveDistinctCountTerm + ", total = " +
-             |    $adaptiveTotalCountTerm + ", limit = " + $proportion);
-             |  if ((double) $adaptiveDistinctCountTerm / $adaptiveTotalCountTerm > $proportion) {
+             |    $adaptiveTotalCountTerm + ", limit distinct ratio = " + $limitDistinctRatio);
+             |  if ((double) $adaptiveDistinctCountTerm / $adaptiveTotalCountTerm > $limitDistinctRatio) {
              |    $loggerTerm.info("Local hash agg suppressed");
              |    $localAggSuppressedTerm = true;
              |  }
