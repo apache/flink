@@ -17,7 +17,7 @@ setuptools>=18.0
 wheel
 apache-beam==2.38.0
 cython==0.29.24
-py4j==0.10.9.3
+py4j==0.10.9.7
 python-dateutil==2.8.0
 cloudpickle==2.1.0
 avro-python3>=1.8.1,!=1.9.2,<1.10.0
