@@ -27,8 +27,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowUtils;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.jupiter.api.AfterEach;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,19 +44,21 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
 
     @Override
     protected void assertEquals(String query, List<String> expectedList) {
-        RowUtils.USE_LEGACY_TO_STRING = true;
         List<Row> rows = CollectionUtil.iteratorToList(tEnv.executeSql(query).collect());
-        List<String> results = rows.stream().map(Row::toString).collect(Collectors.toList());
+        List<String> results;
+        try {
+            // As Setting RowUtils.USE_LEGACY_TO_STRING equals true, we only compare the content in
+            // results, which will not include result rowKind.
+            RowUtils.USE_LEGACY_TO_STRING = true;
+            results = rows.stream().map(Row::toString).collect(Collectors.toList());
+        } finally {
+            RowUtils.USE_LEGACY_TO_STRING = false;
+        }
 
         results = new ArrayList<>(results);
         results.sort(String::compareTo);
         expectedList.sort(String::compareTo);
 
         assertThat(results).isEqualTo(expectedList);
-    }
-
-    @AfterEach
-    void tearDown() {
-        RowUtils.USE_LEGACY_TO_STRING = false;
     }
 }
