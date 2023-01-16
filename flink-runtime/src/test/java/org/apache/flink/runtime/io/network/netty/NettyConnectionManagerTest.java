@@ -118,8 +118,7 @@ public class NettyConnectionManagerTest {
         NettyConnectionManager connectionManager;
         {
             NettyConfig config =
-                    new NettyConfig(
-                            InetAddress.getLocalHost(), 0, 1024, 1337, flinkConfig);
+                    new NettyConfig(InetAddress.getLocalHost(), 0, 1024, 1337, flinkConfig);
 
             connectionManager = createNettyConnectionManager(config);
             connectionManager.start();
