@@ -409,7 +409,8 @@ public class OperationExecutor {
                 ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
                 Collections.singletonList(
                         GenericRowData.of(StringData.fromString(jobID.toString()))),
-                jobID);
+                jobID,
+                result.getResultKind());
     }
 
     private ResultFetcher callOperation(
