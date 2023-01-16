@@ -25,7 +25,6 @@ import org.apache.flink.connector.file.table.stream.compact.CompactMessages.Coor
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.InputFile;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -56,6 +55,7 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
     private final SupplierWithException<FileSystem, IOException> fsFactory;
     private final long compactAverageSize;
     private final long compactTargetSize;
+    private final StreamRecord<CoordinatorOutput> element = new StreamRecord<>(null);
 
     private transient FileSystem fs;
     // the mapping from written partitions to the corresponding files.
@@ -71,8 +71,7 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
     }
 
     @Override
-    public void initializeState(StateInitializationContext context) throws Exception {
-        super.initializeState(context);
+    public void open() throws Exception {
         fs = fsFactory.get();
         inputFiles = new HashMap<>();
     }
@@ -99,12 +98,19 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
         }
     }
 
+    @Override
+    public void close() throws Exception {
+        inputFiles.clear();
+    }
+
     private void compactPartitionFiles(String partition, List<Path> paths) throws IOException {
+        if (paths.isEmpty()) {
+            return;
+        }
         int unitId = 0;
         final Map<Path, Long> filesSize = getFilesSize(fs, paths);
         // calculate the average size of these files
-        AverageSize averageSize = getAverageSize(filesSize);
-        if (averageSize.isLessThan(compactAverageSize)) {
+        if (getAverageSize(filesSize) < compactAverageSize) {
             // we should compact
             // get the written files corresponding to the partition
             Function<Path, Long> sizeFunc = filesSize::get;
@@ -113,13 +119,13 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
             for (List<Path> compactUnit : compactUnits) {
                 // emit the compact units containing the files path
                 output.collect(
-                        new StreamRecord<>(new CompactionUnit(unitId++, partition, compactUnit)));
+                        element.replace(new CompactionUnit(unitId++, partition, compactUnit)));
             }
         } else {
             // no need to merge these files, emit each single file to downstream for committing
             for (Path path : paths) {
                 output.collect(
-                        new StreamRecord<>(
+                        element.replace(
                                 new CompactionUnit(
                                         unitId++, partition, Collections.singletonList(path))));
             }
@@ -127,35 +133,21 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
     }
 
     private Map<Path, Long> getFilesSize(FileSystem fs, List<Path> paths) throws IOException {
-        Map<Path, Long> filesStatus = new HashMap<>();
+        Map<Path, Long> filesSize = new HashMap<>();
         for (Path path : paths) {
             long len = fs.getFileStatus(path).getLen();
-            filesStatus.put(path, len);
+            filesSize.put(path, len);
         }
-        return filesStatus;
+        return filesSize;
     }
 
-    private AverageSize getAverageSize(Map<Path, Long> filesSize) {
+    private double getAverageSize(Map<Path, Long> filesSize) {
         int numFiles = 0;
         long totalSz = 0;
         for (Map.Entry<Path, Long> fileSize : filesSize.entrySet()) {
             numFiles += 1;
             totalSz += fileSize.getValue();
         }
-        return new AverageSize(totalSz, numFiles);
-    }
-
-    private static class AverageSize {
-        private final long totalSz;
-        private final int numFiles;
-
-        private AverageSize(long totalSz, int numFiles) {
-            this.totalSz = totalSz;
-            this.numFiles = numFiles;
-        }
-
-        private boolean isLessThan(long averageSize) {
-            return numFiles > 0 && totalSz / numFiles < averageSize;
-        }
+        return totalSz / (numFiles * 1.0);
     }
 }

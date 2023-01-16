@@ -128,12 +128,17 @@ public class BatchPartitionCommitterSink extends RichSinkFunction<CompactOutput>
                             policies);
             committer.commitPartitionsWithFiles(partitionsFiles);
         } catch (Exception e) {
-            throw new TableException("Exception in finalizeGlobal", e);
+            throw new TableException("Exception in finish", e);
         } finally {
             try {
                 fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
             } catch (IOException ignore) {
             }
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        partitionsFiles.clear();
     }
 }

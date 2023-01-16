@@ -65,10 +65,14 @@ public interface PartitionWriter<T> {
 
     /** Listener for partition writer. */
     interface PartitionWriterListener {
+
         /**
-         * Notifies a new file has been created.
+         * Notifies a new file has been opened.
          *
-         * @param partition The partition for the newly created file.
+         * <p>Note that this does not mean that the file has been created in the file system. It is
+         * only created logically and the actual file will be generated after it is committed.
+         *
+         * @param partition The partition for the newly opened file.
          * @param file The newly created file.
          */
         void onFileOpen(String partition, Path file);

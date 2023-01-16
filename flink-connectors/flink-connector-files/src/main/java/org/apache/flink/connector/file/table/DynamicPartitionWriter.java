@@ -42,11 +42,7 @@ public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
 
     public DynamicPartitionWriter(
             Context<T> context, PartitionTempFileManager manager, PartitionComputer<T> computer) {
-        this.context = context;
-        this.manager = manager;
-        this.computer = computer;
-        this.formats = new HashMap<>();
-        this.writerListener = new DefaultPartitionWriterListener();
+        this(context, manager, computer, new DefaultPartitionWriterListener());
     }
 
     public DynamicPartitionWriter(

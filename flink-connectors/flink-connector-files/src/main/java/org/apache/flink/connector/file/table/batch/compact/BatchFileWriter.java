@@ -121,4 +121,13 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
 
     @Override
     public void endInput() throws Exception {}
+
+    @Override
+    public void close() throws Exception {
+        try {
+            writer.close();
+        } catch (Exception e) {
+            throw new TableException("Exception in close", e);
+        }
+    }
 }

@@ -47,11 +47,7 @@ public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
             PartitionTempFileManager manager,
             PartitionComputer<T> computer,
             LinkedHashMap<String, String> staticPartitions) {
-        this.context = context;
-        this.manager = manager;
-        this.computer = computer;
-        this.staticPartitions = staticPartitions;
-        this.writerListener = new DefaultPartitionWriterListener();
+        this(context, manager, computer, staticPartitions, new DefaultPartitionWriterListener());
     }
 
     public SingleDirectoryWriter(
@@ -72,11 +68,11 @@ public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
         if (format == null) {
             String partition = generatePartitionPath(staticPartitions);
             Path path =
-                    staticPartitions.size() == 0
+                    staticPartitions.isEmpty()
                             ? manager.createPartitionDir()
                             : manager.createPartitionDir(partition);
             format = context.createNewOutputFormat(path);
-            writerListener.onFileOpen(generatePartitionPath(staticPartitions), path);
+            writerListener.onFileOpen(partition, path);
         }
         format.writeRecord(computer.projectColumnsToWrite(in));
     }

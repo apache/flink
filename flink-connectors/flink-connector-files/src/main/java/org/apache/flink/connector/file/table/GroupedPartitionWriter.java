@@ -43,10 +43,7 @@ public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
 
     public GroupedPartitionWriter(
             Context<T> context, PartitionTempFileManager manager, PartitionComputer<T> computer) {
-        this.context = context;
-        this.manager = manager;
-        this.computer = computer;
-        this.writerListener = new DefaultPartitionWriterListener();
+        this(context, manager, computer, new DefaultPartitionWriterListener());
     }
 
     public GroupedPartitionWriter(

@@ -26,7 +26,6 @@ import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connector.file.table.stream.compact.CompactWriter;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -77,8 +76,7 @@ public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutpu
     }
 
     @Override
-    public void initializeState(StateInitializationContext context) throws Exception {
-        super.initializeState(context);
+    public void open() throws Exception {
         fileSystem = fsFactory.get();
         compactedFiles = new HashMap<>();
     }
@@ -123,6 +121,11 @@ public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutpu
     public void endInput() throws Exception {
         // emit the compacted files to downstream
         output.collect(new StreamRecord<>(new CompactOutput(compactedFiles)));
+    }
+
+    @Override
+    public void close() throws Exception {
+        compactedFiles.clear();
     }
 
     private static Path createCompactedFile(List<Path> uncompactedFiles, int attemptNumber) {
