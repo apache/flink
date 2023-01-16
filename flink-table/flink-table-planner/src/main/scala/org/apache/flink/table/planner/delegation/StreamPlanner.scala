@@ -113,7 +113,12 @@ class StreamPlanner(
         sb.append(System.lineSeparator)
     }
 
-    sb.append("== Optimized Physical Plan ==")
+    val withAdvice = extraDetails.contains(ExplainDetail.PLAN_ADVICE)
+    if (withAdvice) {
+      sb.append("== Optimized Physical Plan With Advice ==")
+    } else {
+      sb.append("== Optimized Physical Plan ==")
+    }
     sb.append(System.lineSeparator)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -126,6 +131,11 @@ class StreamPlanner(
         sb.append(
           FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
         sb.append(System.lineSeparator)
+    }
+    if (withAdvice) {
+      // TODO: append advice
+      sb.append("No available advice...\n")
+      sb.append(System.lineSeparator)
     }
 
     sb.append("== Optimized Execution Plan ==")

@@ -16,30 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.table.planner.analyze;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.plan.nodes.FlinkRelNode;
 
-/** ExplainDetail defines the types of details for explain result. */
-@PublicEvolving
-public enum ExplainDetail {
-    /**
-     * The cost information on physical rel node estimated by optimizer. e.g. TableSourceScan(...,
-     * cumulative cost = {1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 network, 0.0 memory}
-     */
-    ESTIMATED_COST,
+import org.apache.calcite.rel.RelNode;
 
-    /**
-     * The changelog mode produced by a physical rel node. e.g. GroupAggregate(...,
-     * changelogMode=[I,UA,D])
-     */
-    CHANGELOG_MODE,
+import java.util.List;
+import java.util.Optional;
 
-    /** The execution plan in json format of the program. */
-    JSON_EXECUTION_PLAN,
+/**
+ * Plan analyzer analyzes the optimized physical plan and provide potential risk warnings and
+ * optimization advice.
+ */
+@Internal
+public interface PlanAnalyzer {
+    /** Analyze the optimized {@link RelNode} and return {@link AnalyzedResult}. */
+    Optional<AnalyzedResult> analyze(FlinkRelNode rel);
 
-    /**
-     * The potential risk warnings and SQL optimizer tuning advice analyzed from the physical plan.
-     */
-    PLAN_ADVICE
+    /** The analyzed {@link PlanAdvice} with a list of applicable {@link RelNode} ids. */
+    @Internal
+    interface AnalyzedResult {
+
+        PlanAdvice getAdvice();
+
+        List<Integer> getTargetIds();
+    }
 }

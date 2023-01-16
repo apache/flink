@@ -108,6 +108,10 @@ class BatchPlanner(
       throw new UnsupportedOperationException(
         s"Unsupported explain format [${format.getClass.getCanonicalName}]")
     }
+    if (extraDetails.contains(ExplainDetail.PLAN_ADVICE)) {
+      throw new UnsupportedOperationException(
+        "EXPLAIN PLAN_ADVICE is not supported under batch mode.")
+    }
     val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new mutable.StringBuilder

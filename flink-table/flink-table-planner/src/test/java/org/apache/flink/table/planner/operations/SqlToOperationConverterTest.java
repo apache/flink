@@ -2529,7 +2529,8 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testExplainDetailsWithSelect() {
-        final String sql = "explain estimated_cost, changelog_mode select a, b, c, d from t2";
+        final String sql =
+                "explain estimated_cost, changelog_mode, plan_advice select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         assertExplainDetails(parse(sql, planner, parser));
@@ -2538,7 +2539,7 @@ public class SqlToOperationConverterTest {
     @Test
     public void testExplainDetailsWithInsert() {
         final String sql =
-                "explain estimated_cost, changelog_mode insert into t1 select a, b, c, d from t2";
+                "explain estimated_cost, changelog_mode, plan_advice insert into t1 select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         assertExplainDetails(parse(sql, planner, parser));
@@ -2547,7 +2548,7 @@ public class SqlToOperationConverterTest {
     @Test
     public void testExplainDetailsWithStatementSet() {
         final String sql =
-                "explain estimated_cost, changelog_mode statement set begin "
+                "explain estimated_cost, changelog_mode, plan_advice statement set begin "
                         + "insert into t1 select a, b, c, d from t2 where a > 1;"
                         + "insert into t1 select a, b, c, d from t2 where a > 2;"
                         + "end";
@@ -2560,6 +2561,7 @@ public class SqlToOperationConverterTest {
         Set<String> expectedDetail = new HashSet<>();
         expectedDetail.add(ExplainDetail.ESTIMATED_COST.toString());
         expectedDetail.add(ExplainDetail.CHANGELOG_MODE.toString());
+        expectedDetail.add(ExplainDetail.PLAN_ADVICE.toString());
         assertThat(operation)
                 .asInstanceOf(type(ExplainOperation.class))
                 .satisfies(
