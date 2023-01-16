@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -162,10 +161,6 @@ class AdaptiveBatchSchedulerTest {
         JobVertex source2 = jobVertexIterator.next();
         JobVertex sink = jobVertexIterator.next();
 
-        Configuration configuration = new Configuration();
-        configuration.set(
-                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
-
         final TestingJobMasterPartitionTracker partitionTracker =
                 new TestingJobMasterPartitionTracker();
         partitionTracker.setIsPartitionTrackedFunction(ignore -> true);
@@ -175,7 +170,6 @@ class AdaptiveBatchSchedulerTest {
                 new DefaultSchedulerBuilder(
                                 jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                         .setDelayExecutor(taskRestartExecutor)
-                        .setJobMasterConfiguration(configuration)
                         .setPartitionTracker(partitionTracker)
                         .setRestartBackoffTimeStrategy(
                                 new FixedDelayRestartBackoffTimeStrategy
@@ -407,14 +401,9 @@ class AdaptiveBatchSchedulerTest {
             VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
             int defaultMaxParallelism)
             throws Exception {
-        Configuration configuration = new Configuration();
-        configuration.set(
-                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
-
         return new DefaultSchedulerBuilder(
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                 .setDelayExecutor(taskRestartExecutor)
-                .setJobMasterConfiguration(configuration)
                 .setVertexParallelismAndInputInfosDecider(vertexParallelismAndInputInfosDecider)
                 .setDefaultMaxParallelism(defaultMaxParallelism)
                 .buildAdaptiveBatchJobScheduler();

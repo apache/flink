@@ -197,7 +197,7 @@ public class JobMasterBuilder {
                 slotPoolServiceSchedulerFactory != null
                         ? slotPoolServiceSchedulerFactory
                         : DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                                configuration, jobGraph.getJobType()),
+                                configuration, jobGraph.getJobType(), jobGraph.isDynamic()),
                 jobManagerSharedServices != null
                         ? jobManagerSharedServices
                         : new TestingJobManagerSharedServicesBuilder().build(),

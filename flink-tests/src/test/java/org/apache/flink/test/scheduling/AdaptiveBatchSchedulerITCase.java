@@ -103,8 +103,6 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
         final Configuration configuration = new Configuration();
         configuration.setString(RestOptions.BIND_PORT, "0");
         configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
-        configuration.set(
-                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
         configuration.setInteger(
                 JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM,
                 DEFAULT_MAX_PARALLELISM);

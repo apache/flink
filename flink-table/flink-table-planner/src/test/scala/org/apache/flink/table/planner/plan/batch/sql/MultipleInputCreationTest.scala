@@ -22,7 +22,8 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.scala._
-import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -33,7 +34,8 @@ import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 
 @RunWith(classOf[Parameterized])
-class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTestBase {
+class MultipleInputCreationTest(shuffleMode: BatchShuffleMode, schedulerType: SchedulerType)
+  extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -44,6 +46,7 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
     util.addTableSource[(Int, Long, String, Int)]("z", 'g, 'h, 'i, 'nz)
     util.addDataStream[(Int, Long, String)]("t", 'a, 'b, 'c)
     util.tableConfig.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode)
+    util.tableConfig.set(JobManagerOptions.SCHEDULER, schedulerType)
   }
 
   @Test
@@ -353,7 +356,12 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
 object MultipleInputCreationTest {
 
-  @Parameters(name = "shuffleMode: {0}")
-  def parameters: Array[BatchShuffleMode] =
-    Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
+  @Parameters(name = "shuffleMode: {0}, schedulerType: {1}")
+  def parameters(): Array[Array[java.lang.Object]] = {
+    Array(
+      Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, SchedulerType.AdaptiveBatch),
+      Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, SchedulerType.Default),
+      Array(BatchShuffleMode.ALL_EXCHANGES_PIPELINED, SchedulerType.Default)
+    )
+  }
 }

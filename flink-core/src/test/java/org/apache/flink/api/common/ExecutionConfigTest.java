@@ -273,15 +273,14 @@ public class ExecutionConfigTest {
     }
 
     @Test
-    public void testLoadingIsDynamicGraphFromConfiguration() {
-        testLoadingIsDynamicGraphFromConfiguration(
-                JobManagerOptions.SchedulerType.AdaptiveBatch, true);
-        testLoadingIsDynamicGraphFromConfiguration(JobManagerOptions.SchedulerType.Default, false);
-        testLoadingIsDynamicGraphFromConfiguration(JobManagerOptions.SchedulerType.Adaptive, false);
+    public void testLoadingSchedulerTypeFromConfiguration() {
+        testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.AdaptiveBatch);
+        testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.Default);
+        testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.Adaptive);
     }
 
-    private void testLoadingIsDynamicGraphFromConfiguration(
-            JobManagerOptions.SchedulerType schedulerType, boolean expectIsDynamicGraph) {
+    private void testLoadingSchedulerTypeFromConfiguration(
+            JobManagerOptions.SchedulerType schedulerType) {
         Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER, schedulerType);
 
@@ -289,7 +288,7 @@ public class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration.isDynamicGraph()).isEqualTo(expectIsDynamicGraph);
+        assertThat(configFromConfiguration.getSchedulerType().get()).isEqualTo(schedulerType);
     }
 
     @Test

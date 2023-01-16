@@ -48,6 +48,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -469,8 +470,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     @Internal
-    public boolean isDynamicGraph() {
-        return configuration.get(JobManagerOptions.SCHEDULER) == SchedulerType.AdaptiveBatch;
+    public Optional<SchedulerType> getSchedulerType() {
+        return configuration.getOptional(JobManagerOptions.SCHEDULER);
     }
 
     /**
