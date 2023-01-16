@@ -272,9 +272,6 @@ under the License.
 						<configuration>
 							<!-- Enforce single threaded execution due to port conflicts with the mini yarn cluster -->
 							<forkCount>1</forkCount>
-							<!-- Some plugin has a nasty side-effect that sets the working directory to
-							.../flink-yarn-tests/target during integration tests, which is rather unusual -->
-							<workingDirectory>../</workingDirectory>
 						</configuration>
 					</execution>
 				</executions>

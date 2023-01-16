@@ -1883,7 +1883,6 @@ under the License.
 							<shadeTestJar>false</shadeTestJar>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
-							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<!-- Filters MUST be appended; merging filters does not work properly, see MSHADE-305 -->
 							<filters combine.children="append">
 								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
@@ -1970,6 +1969,22 @@ under the License.
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
 						</compilerArgs>
+					</configuration>
+				</plugin>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-clean-plugin</artifactId>
+					<version>3.1.0</version>
+					<configuration>
+						<filesets>
+							<fileset>
+								<directory>${project.basedir}</directory>
+								<includes>
+									<include>dependency-reduced-pom.xml</include>
+								</includes>
+							</fileset>
+						</filesets>
 					</configuration>
 				</plugin>
 
