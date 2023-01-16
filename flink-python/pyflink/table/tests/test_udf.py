@@ -23,6 +23,7 @@ import unittest
 import pytest
 import pytz
 
+from pyflink.common import Row
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
@@ -787,6 +788,48 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]
         lines.sort()
         self.assertEqual(lines, ['1,2', '2,3', '3,4'])
+
+    def test_udf_with_rowtime_arguments(self):
+        from pyflink.common import WatermarkStrategy
+        from pyflink.common.typeinfo import Types
+        from pyflink.common.watermark_strategy import TimestampAssigner
+        from pyflink.datastream import StreamExecutionEnvironment
+        from pyflink.table import Schema, StreamTableEnvironment
+
+        class MyTimestampAssigner(TimestampAssigner):
+
+            def extract_timestamp(self, value, record_timestamp) -> int:
+                return int(value[0])
+
+        env = StreamExecutionEnvironment.get_execution_environment()
+        t_env = StreamTableEnvironment.create(env)
+
+        ds = env.from_collection(
+            [(1, 42, "a"), (2, 5, "a"), (3, 1000, "c"), (100, 1000, "c")],
+            Types.ROW_NAMED(["a", "b", "c"], [Types.LONG(), Types.INT(), Types.STRING()]))
+
+        ds = ds.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps()
+            .with_timestamp_assigner(MyTimestampAssigner()))
+
+        table = t_env.from_data_stream(
+            ds,
+            Schema.new_builder()
+                  .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)")
+                  .watermark("rowtime", "SOURCE_WATERMARK()")
+                  .build())
+
+        @udf(result_type=DataTypes.ROW([DataTypes.FIELD('f1', DataTypes.INT())]))
+        def inc(input_row):
+            return Row(input_row.b)
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a'], [DataTypes.INT()])
+        t_env.register_table_sink("Results", table_sink)
+        table.map(inc).execute_insert("Results").wait()
+
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ['+I[42]', '+I[5]', '+I[1000]', '+I[1000]'])
 
 
 class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
