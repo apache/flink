@@ -38,6 +38,10 @@ public class HybridShuffleConfiguration {
 
     private static final long DEFAULT_BUFFER_POLL_SIZE_CHECK_INTERVAL_MS = 1000;
 
+    private static final long DEFAULT_NUM_RETAINED_IN_MEMORY_REGIONS_MAX = Long.MAX_VALUE;
+
+    private static final int DEFAULT_SPILLED_INDEX_SEGMENT_SIZE = 256;
+
     private static final SpillingStrategyType DEFAULT_SPILLING_STRATEGY_NAME =
             SpillingStrategyType.FULL;
 
@@ -48,6 +52,12 @@ public class HybridShuffleConfiguration {
     private final int maxRequestedBuffers;
 
     private final SpillingStrategyType spillingStrategyType;
+
+    private final long numRetainedInMemoryRegionsMax;
+
+    private final int spilledIndexSegmentSize;
+
+    private final long bufferPoolSizeCheckIntervalMs;
 
     // ----------------------------------------
     //        Selective Spilling Strategy
@@ -65,8 +75,6 @@ public class HybridShuffleConfiguration {
 
     private final float fullStrategyReleaseBufferRatio;
 
-    private final long bufferPoolSizeCheckIntervalMs;
-
     private HybridShuffleConfiguration(
             int maxBuffersReadAhead,
             Duration bufferRequestTimeout,
@@ -77,7 +85,9 @@ public class HybridShuffleConfiguration {
             float fullStrategyReleaseThreshold,
             float fullStrategyReleaseBufferRatio,
             SpillingStrategyType spillingStrategyType,
-            long bufferPoolSizeCheckIntervalMs) {
+            long bufferPoolSizeCheckIntervalMs,
+            long numRetainedInMemoryRegionsMax,
+            int spilledIndexSegmentSize) {
         this.maxBuffersReadAhead = maxBuffersReadAhead;
         this.bufferRequestTimeout = bufferRequestTimeout;
         this.maxRequestedBuffers = maxRequestedBuffers;
@@ -89,6 +99,8 @@ public class HybridShuffleConfiguration {
         this.fullStrategyReleaseBufferRatio = fullStrategyReleaseBufferRatio;
         this.spillingStrategyType = spillingStrategyType;
         this.bufferPoolSizeCheckIntervalMs = bufferPoolSizeCheckIntervalMs;
+        this.numRetainedInMemoryRegionsMax = numRetainedInMemoryRegionsMax;
+        this.spilledIndexSegmentSize = spilledIndexSegmentSize;
     }
 
     public static Builder builder(int numSubpartitions, int numBuffersPerRequest) {
@@ -159,6 +171,16 @@ public class HybridShuffleConfiguration {
         return bufferPoolSizeCheckIntervalMs;
     }
 
+    /** Segment size of hybrid spilled file data index. */
+    public int getSpilledIndexSegmentSize() {
+        return spilledIndexSegmentSize;
+    }
+
+    /** Max number of hybrid retained regions in memory. */
+    public long getNumRetainedInMemoryRegionsMax() {
+        return numRetainedInMemoryRegionsMax;
+    }
+
     /** Type of {@link HsSpillingStrategy}. */
     public enum SpillingStrategyType {
         FULL,
@@ -186,6 +208,10 @@ public class HybridShuffleConfiguration {
         private long bufferPoolSizeCheckIntervalMs = DEFAULT_BUFFER_POLL_SIZE_CHECK_INTERVAL_MS;
 
         private SpillingStrategyType spillingStrategyType = DEFAULT_SPILLING_STRATEGY_NAME;
+
+        private long numRetainedInMemoryRegionsMax = DEFAULT_NUM_RETAINED_IN_MEMORY_REGIONS_MAX;
+
+        private int spilledIndexSegmentSize = DEFAULT_SPILLED_INDEX_SEGMENT_SIZE;
 
         private final int numSubpartitions;
 
@@ -244,6 +270,16 @@ public class HybridShuffleConfiguration {
             return this;
         }
 
+        public Builder setNumRetainedInMemoryRegionsMax(long numRetainedInMemoryRegionsMax) {
+            this.numRetainedInMemoryRegionsMax = numRetainedInMemoryRegionsMax;
+            return this;
+        }
+
+        public Builder setSpilledIndexSegmentSize(int spilledIndexSegmentSize) {
+            this.spilledIndexSegmentSize = spilledIndexSegmentSize;
+            return this;
+        }
+
         public HybridShuffleConfiguration build() {
             return new HybridShuffleConfiguration(
                     maxBuffersReadAhead,
@@ -255,7 +291,9 @@ public class HybridShuffleConfiguration {
                     fullStrategyReleaseThreshold,
                     fullStrategyReleaseBufferRatio,
                     spillingStrategyType,
-                    bufferPoolSizeCheckIntervalMs);
+                    bufferPoolSizeCheckIntervalMs,
+                    numRetainedInMemoryRegionsMax,
+                    spilledIndexSegmentSize);
         }
     }
 }

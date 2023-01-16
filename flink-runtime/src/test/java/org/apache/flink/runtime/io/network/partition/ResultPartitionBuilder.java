@@ -85,6 +85,10 @@ public class ResultPartitionBuilder {
 
     private int maxOverdraftBuffersPerGate = 5;
 
+    private int hybridShuffleSpilledIndexSegmentSize = 256;
+
+    private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
+
     public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
         this.partitionIndex = partitionIndex;
         return this;
@@ -218,6 +222,19 @@ public class ResultPartitionBuilder {
         return this;
     }
 
+    public ResultPartitionBuilder setHybridShuffleNumRetainedInMemoryRegionsMax(
+            long hybridShuffleNumRetainedInMemoryRegionsMax) {
+        this.hybridShuffleNumRetainedInMemoryRegionsMax =
+                hybridShuffleNumRetainedInMemoryRegionsMax;
+        return this;
+    }
+
+    public ResultPartitionBuilder setHybridShuffleSpilledIndexSegmentSize(
+            int hybridShuffleSpilledIndexSegmentSize) {
+        this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
+        return this;
+    }
+
     public ResultPartition build() {
         ResultPartitionFactory resultPartitionFactory =
                 new ResultPartitionFactory(
@@ -236,7 +253,9 @@ public class ResultPartitionBuilder {
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
                         sslEnabled,
-                        maxOverdraftBuffersPerGate);
+                        maxOverdraftBuffersPerGate,
+                        hybridShuffleSpilledIndexSegmentSize,
+                        hybridShuffleNumRetainedInMemoryRegionsMax);
 
         SupplierWithException<BufferPool, IOException> factory =
                 bufferPoolFactory.orElseGet(
