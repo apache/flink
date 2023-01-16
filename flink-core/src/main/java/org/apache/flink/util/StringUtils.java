@@ -94,8 +94,7 @@ public final class StringUtils {
      */
     public static byte[] hexStringToByte(final String hex) {
         final byte[] bts = new byte[hex.length() / 2];
-        final int len = bts.length;
-        for (int i = 0; i < len; i++) {
+        for (int i = 0; i < bts.length; i++) {
             bts[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
         }
         return bts;
