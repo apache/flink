@@ -94,7 +94,8 @@ public final class StringUtils {
      */
     public static byte[] hexStringToByte(final String hex) {
         final byte[] bts = new byte[hex.length() / 2];
-        for (int i = 0; i < bts.length; i++) {
+        final int len = bts.length;
+        for (int i = 0; i < len; i++) {
             bts[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
         }
         return bts;
@@ -124,7 +125,7 @@ public final class StringUtils {
         int len = str.length();
         StringBuilder sb = new StringBuilder();
 
-        for (int i = 0; i < len; i += 1) {
+        for (int i = 0; i < len; i++) {
             char c = str.charAt(i);
             switch (c) {
                 case '\b':
@@ -163,7 +164,7 @@ public final class StringUtils {
         int len = rnd.nextInt(maxLength - minLength + 1) + minLength;
 
         char[] data = new char[len];
-        for (int i = 0; i < data.length; i++) {
+        for (int i = 0; i < len; i++) {
             data[i] = (char) (rnd.nextInt(0x7fff) + 1);
         }
         return new String(data);
@@ -187,7 +188,7 @@ public final class StringUtils {
         char[] data = new char[len];
         int diff = maxValue - minValue + 1;
 
-        for (int i = 0; i < data.length; i++) {
+        for (int i = 0; i < len; i++) {
             data[i] = (char) (rnd.nextInt(diff) + minValue);
         }
         return new String(data);
