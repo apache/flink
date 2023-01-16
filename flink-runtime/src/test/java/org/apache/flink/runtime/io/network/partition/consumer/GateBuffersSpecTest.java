@@ -28,7 +28,6 @@ import org.junit.runners.Parameterized;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUitls.getEffectiveMaxRequiredBuffersPerGate;
-import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUitls.isPipelineResultPartition;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GateBuffersSpec}. */
@@ -171,12 +170,12 @@ class GateBuffersSpecTest {
                 .isEqualTo(targetTotalBuffersPerGate);
     }
 
-    private GateBuffersSpec createGateBuffersSpec(
+    private static GateBuffersSpec createGateBuffersSpec(
             int numInputChannels, ResultPartitionType partitionType) {
         return createGateBuffersSpec(numInputChannels, partitionType, 2);
     }
 
-    private GateBuffersSpec createGateBuffersSpec(
+    private static GateBuffersSpec createGateBuffersSpec(
             int numInputChannels,
             ResultPartitionType partitionType,
             int numExclusiveBuffersPerChannel) {
@@ -188,9 +187,14 @@ class GateBuffersSpecTest {
                 numInputChannels);
     }
 
-    private Optional<Integer> getMaxRequiredBuffersPerGate(ResultPartitionType partitionType) {
+    private static Optional<Integer> getMaxRequiredBuffersPerGate(
+            ResultPartitionType partitionType) {
         return isPipelineResultPartition(partitionType)
                 ? Optional.of(InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
                 : Optional.of(InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
+    }
+
+    private static boolean isPipelineResultPartition(ResultPartitionType partitionType) {
+        return partitionType.isPipelinedOrPipelinedBoundedResultPartition();
     }
 }

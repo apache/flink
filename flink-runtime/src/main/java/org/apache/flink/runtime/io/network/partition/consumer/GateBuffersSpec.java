@@ -18,17 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-
 /**
- * Calculate the buffers specs(the exclusive buffers per channel, min/max optional buffers per gate)
- * based on the configurations, result partition type, and the number of channels.
- *
- * <p>The threshold is configured by {@link
- * NettyShuffleEnvironmentOptions#NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE}. If the option is not
- * configured, the threshold for Batch jobs is {@link
- * InputGateSpecUitls#DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH} and the threshold for
- * Streaming jobs is {@link InputGateSpecUitls#DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM}.
+ * The buffer specs of the {@link InputGate} include exclusive buffers per channel, required/total
+ * floating buffers and the target of total buffers.
  */
 public class GateBuffersSpec {
 

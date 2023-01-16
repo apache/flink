@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
 import java.util.Optional;
@@ -76,12 +77,13 @@ public class InputGateSpecUitls {
                 targetTotalBuffersPerGate);
     }
 
-    public static int getEffectiveMaxRequiredBuffersPerGate(
+    @VisibleForTesting
+    static int getEffectiveMaxRequiredBuffersPerGate(
             ResultPartitionType partitionType,
             Optional<Integer> configuredMaxRequiredBuffersPerGate) {
         return configuredMaxRequiredBuffersPerGate.orElseGet(
                 () ->
-                        isPipelineResultPartition(partitionType)
+                        partitionType.isPipelinedOrPipelinedBoundedResultPartition()
                                 ? DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
                                 : DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
     }
@@ -92,7 +94,7 @@ public class InputGateSpecUitls {
      * value to ensure that the number of required buffers per gate is not more than the given
      * requiredBuffersPerGate.}.
      */
-    public static int getExclusiveBuffersPerChannel(
+    private static int getExclusiveBuffersPerChannel(
             int configuredNetworkBuffersPerChannel,
             int numInputChannels,
             int requiredBuffersPerGate) {
@@ -103,12 +105,12 @@ public class InputGateSpecUitls {
                 (requiredBuffersPerGate - 1) / numInputChannels);
     }
 
-    public static int getRequiredBuffersTargetPerGate(
+    private static int getRequiredBuffersTargetPerGate(
             int numInputChannels, int configuredNetworkBuffersPerChannel) {
         return numInputChannels * configuredNetworkBuffersPerChannel + 1;
     }
 
-    public static int getTotalBuffersTargetPerGate(
+    private static int getTotalBuffersTargetPerGate(
             int numInputChannels,
             int configuredNetworkBuffersPerChannel,
             int configuredFloatingBuffersPerGate) {
@@ -116,13 +118,8 @@ public class InputGateSpecUitls {
                 + configuredFloatingBuffersPerGate;
     }
 
-    public static int getEffectiveExclusiveBuffersPerGate(
+    private static int getEffectiveExclusiveBuffersPerGate(
             int numInputChannels, int effectiveExclusiveBuffersPerChannel) {
         return effectiveExclusiveBuffersPerChannel * numInputChannels;
-    }
-
-    public static boolean isPipelineResultPartition(ResultPartitionType partitionType) {
-        return partitionType.isPipelinedOrPipelinedBoundedResultPartition()
-                || partitionType == ResultPartitionType.PIPELINED_APPROXIMATE;
     }
 }
