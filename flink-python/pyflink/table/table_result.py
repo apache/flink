@@ -141,7 +141,7 @@ class TableResult(object):
 
         .. versionadded:: 1.11.0
         """
-        return TableSchema(j_table_schema=self._j_table_result.getTableSchema())
+        return TableSchema(j_table_schema=self._get_java_table_schema())
 
     def get_result_kind(self) -> ResultKind:
         """
@@ -189,7 +189,7 @@ class TableResult(object):
 
         .. versionadded:: 1.12.0
         """
-        field_data_types = self._j_table_result.getTableSchema().getFieldDataTypes()
+        field_data_types = self._get_java_table_schema().getFieldDataTypes()
 
         j_iter = self._j_table_result.collect()
 
@@ -217,6 +217,10 @@ class TableResult(object):
         .. versionadded:: 1.11.0
         """
         self._j_table_result.print()
+
+    def _get_java_table_schema(self):
+        TableSchema = get_gateway().jvm.org.apache.flink.table.api.TableSchema
+        return TableSchema.fromResolvedSchema(self._j_table_result.getResolvedSchema())
 
 
 class CloseableIterator(object):
