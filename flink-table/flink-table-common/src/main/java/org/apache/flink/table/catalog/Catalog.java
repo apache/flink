@@ -548,7 +548,7 @@ public interface Catalog {
      * Drop a function. Function name should be handled in a case insensitive way.
      *
      * @param functionPath path of the function to be dropped
-     * @param ignoreIfNotExists plag to specify behavior if the function does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the function does not exist: if set to
      *     false, throw an exception if set to true, nothing happens
      * @throws FunctionNotExistException if the function does not exist
      * @throws CatalogException in case of any runtime exception
