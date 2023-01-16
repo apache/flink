@@ -111,7 +111,11 @@ public class ResultInfoDeserializer extends StdDeserializer<ResultInfo> {
                     .mapToObj(
                             i ->
                                     (JsonToRowDataConverters.JsonToRowDataConverter)
-                                            jsonNode -> StringData.fromString(jsonNode.asText()))
+                                            jsonNode ->
+                                                    jsonNode.isNull()
+                                                            ? null
+                                                            : StringData.fromString(
+                                                                    jsonNode.asText()))
                     .collect(Collectors.toList());
         } else {
             throw new UnsupportedOperationException(

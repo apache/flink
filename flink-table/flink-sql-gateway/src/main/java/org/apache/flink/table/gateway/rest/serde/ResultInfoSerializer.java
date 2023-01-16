@@ -35,7 +35,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -148,16 +147,15 @@ public class ResultInfoSerializer extends StdSerializer<ResultInfo> {
                     .mapToObj(
                             i ->
                                     (Function<RowData, JsonNode>)
-                                            rowData ->
-                                                    OBJECT_MAPPER
-                                                            .getNodeFactory()
-                                                            .textNode(
-                                                                    Objects.toString(
-                                                                            fieldGetters
-                                                                                    .get(i)
-                                                                                    .getFieldOrNull(
-                                                                                            rowData),
-                                                                            null)))
+                                            rowData -> {
+                                                Object value =
+                                                        fieldGetters.get(i).getFieldOrNull(rowData);
+                                                return value == null
+                                                        ? OBJECT_MAPPER.getNodeFactory().nullNode()
+                                                        : OBJECT_MAPPER
+                                                                .getNodeFactory()
+                                                                .textNode(value.toString());
+                                            })
                     .collect(Collectors.toList());
         } else {
             throw new UnsupportedOperationException(
