@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.python.env.AbstractPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
-import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 
 import pemja.core.PythonInterpreterConfig;
 
@@ -59,13 +58,6 @@ public class EmbeddedPythonEnvironmentManager extends AbstractPythonEnvironmentM
         } else {
             throw new RuntimeException(
                     String.format("Unsupported execution mode %s.", executionMode));
-        }
-
-        String pythonVersion =
-                PythonEnvironmentManagerUtils.getPythonVersion(dependencyInfo.getPythonExec());
-
-        if (pythonVersion.compareTo("3.7") < 0) {
-            throw new RuntimeException("`THREAD` execution mode only supports Python 3.7+");
         }
 
         if (env.containsKey("FLINK_TESTING")) {

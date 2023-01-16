@@ -17,7 +17,7 @@ See bundled license files for details.
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
 
-- cloudpickle:2.1.0
+- cloudpickle:2.2.0
 - net.sf.py4j:py4j:0.10.9.7
 
 This project bundles the following dependencies under SIL OFL 1.1 license (https://opensource.org/licenses/OFL-1.1).

@@ -34,7 +34,7 @@ under the License.
 向量化用户自定义函数的定义，与[非向量化用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}})具有相似的方式，
 用户只需要在调用 `udf` 或者 `udaf` 装饰器时添加一个额外的参数 `func_type="pandas"`，将其标记为一个向量化用户自定义函数即可。
 
-**注意:** 要执行 Python 向量化自定义函数，客户端和集群端都需要安装 Python 3.6 以上版本(3.6、3.7 或 3.8)，并安装 PyFlink。
+**注意:** 要执行 Python 向量化自定义函数，客户端和集群端都需要安装 Python 3.7 以上版本(3.7、3.8、3.9 或 3.10)，并安装 PyFlink。
 
 ## 向量化标量函数
 

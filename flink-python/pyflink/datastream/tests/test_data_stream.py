@@ -18,12 +18,9 @@
 import datetime
 import decimal
 import os
-import sys
 import uuid
 from collections import defaultdict
 from typing import Tuple
-
-import pytest
 
 from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
@@ -1152,7 +1149,6 @@ class ProcessDataStreamBatchTests(DataStreamBatchTests, ProcessDataStreamTests,
         self.assert_equals_sorted(expected, results)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTestCase):
     def setUp(self):
         super(EmbeddedDataStreamStreamTests, self).setUp()
@@ -1209,7 +1205,6 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
         self.assert_equals_sorted(expected, results)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedDataStreamBatchTests(DataStreamBatchTests, PyFlinkBatchTestCase):
     def setUp(self):
         super(EmbeddedDataStreamBatchTests, self).setUp()

@@ -448,7 +448,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import uuid
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
-            f.write("cloudpickle==2.1.0")
+            f.write("cloudpickle==2.2.0")
         self.env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
