@@ -96,13 +96,10 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
 
     @Test
     public void testFetchPlainTextResult() throws Exception {
-        // SET 'table.dml-sync' = 'true';
         sendRequest(
                 ConfigureSessionHeaders.getINSTANCE(),
                 sessionMessageParameters,
                 new ConfigureSessionRequestBody("SET 'table.dml-sync' = 'true';", null));
-
-        // create table
         sendRequest(
                         ConfigureSessionHeaders.getINSTANCE(),
                         sessionMessageParameters,
@@ -120,7 +117,6 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
                                 -1L))
                 .get();
 
-        // insert value
         ExecuteStatementResponseBody executeStatementResponseBody =
                 sendRequest(
                                 ExecuteStatementHeaders.getInstance(),
@@ -140,7 +136,7 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
 
         assertThat(fetchResultsResponseBody.getJobID()).isNotNull();
         assertThat(fetchResultsResponseBody.getResultKind())
-                .isEqualTo(ResultKind.SUCCESS_WITH_CONTENT.name());
+                .isEqualTo(ResultKind.SUCCESS_WITH_CONTENT);
         assertThat(fetchResultsResponseBody.isQueryResult()).isFalse();
 
         // do query
@@ -159,7 +155,7 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
 
         assertThat(fetchResultsResponseBody.getJobID()).isNotNull();
         assertThat(fetchResultsResponseBody.getResultKind())
-                .isEqualTo(ResultKind.SUCCESS_WITH_CONTENT.name());
+                .isEqualTo(ResultKind.SUCCESS_WITH_CONTENT);
         assertThat(fetchResultsResponseBody.isQueryResult()).isTrue();
 
         List<RowData> data = new ArrayList<>(fetchResultsResponseBody.getResults().getData());
@@ -168,7 +164,7 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
         while (nextToken != null) {
             fetchResultsResponseBody =
                     sendRequest(
-                                    FetchResultsHeaders.getInstance(),
+                                    FetchResultsHeaders.getDefaultInstance(),
                                     new FetchResultsMessageParameters(
                                             sessionHandle,
                                             operationHandle,
@@ -198,12 +194,12 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
         do {
             response =
                     sendRequest(
-                                    FetchResultsHeaders.getInstance(),
+                                    FetchResultsHeaders.getDefaultInstance(),
                                     new FetchResultsMessageParameters(
                                             sessionHandle, operationHandle, 0L, rowFormat),
                                     EmptyRequestBody.getInstance())
                             .get();
-        } while (response.getResultType().equals(NOT_READY.name()));
+        } while (response.getResultType().equals(NOT_READY));
 
         return response;
     }

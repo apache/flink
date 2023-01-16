@@ -26,11 +26,11 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 @PublicEvolving
 public enum RowFormat {
     /**
-     * Indicates to serialize the RowData to JSON format, which contains original LogicalType
-     * information, so it can be deserialized back to RowData. This is the default row format.
+     * Serialize the RowData with JSON format. With the structure expression, the serialized value
+     * can be deseriali
      */
     JSON,
 
-    /** Indicates to serialize the RowData to SQL-compliant, plain strings. */
+    /** Serialize the RowData to SQL-compliant, plain strings. */
     PLAIN_TEXT
 }

@@ -31,7 +31,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
@@ -48,30 +47,24 @@ import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KI
 import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_ROW_FORMAT;
 
 /**
- * Json serializer for {@link ResultInfo}.
+ * Serializer for {@link ResultInfo}.
  *
- * <p>Note: the null value is converted to literal "".
- *
- * @see ResultInfoJsonDeserializer for the reverse operation.
+ * @see ResultInfoDeserializer for the reverse operation.
  */
 @Internal
-public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
+public class ResultInfoSerializer extends StdSerializer<ResultInfo> {
 
     private static final long serialVersionUID = 1L;
 
-    public ResultInfoJsonSerializer() {
+    public ResultInfoSerializer() {
         super(ResultInfo.class);
     }
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private static final String NULL_LITERAL = "";
-
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
-                    TimestampFormat.ISO_8601,
-                    JsonFormatOptions.MapNullKeyMode.LITERAL,
-                    NULL_LITERAL);
+                    TimestampFormat.ISO_8601, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
 
     @Override
     public void serialize(
@@ -86,10 +79,11 @@ public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
                 FIELD_NAME_COLUMN_INFOS, resultInfo.getColumnInfos(), jsonGenerator);
 
         // serialize RowFormat
-        jsonGenerator.writeStringField(FIELD_NAME_ROW_FORMAT, resultInfo.getRowFormat().name());
+        serializerProvider.defaultSerializeField(
+                FIELD_NAME_ROW_FORMAT, resultInfo.getRowFormat(), jsonGenerator);
 
         // serialize data
-        serializeData(resultInfo.getData(), buildToJsonConverters(resultInfo), jsonGenerator);
+        serializeData(resultInfo.getData(), buildRowDataConverters(resultInfo), jsonGenerator);
 
         jsonGenerator.writeEndObject();
     }
@@ -124,20 +118,15 @@ public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
         return serializedRowData;
     }
 
-    /**
-     * If the required row format is PLAIN_TEXT, extract the string from RowData and fill it into a
-     * {@link TextNode}. Else if is JSON, composes the FieldGetter and RowDataToJsonConverter.
-     */
-    private List<Function<RowData, JsonNode>> buildToJsonConverters(ResultInfo resultInfo) {
+    private List<Function<RowData, JsonNode>> buildRowDataConverters(ResultInfo resultInfo) {
         RowFormat rowFormat = resultInfo.getRowFormat();
+        List<RowData.FieldGetter> fieldGetters = resultInfo.getFieldGetters();
         if (rowFormat == RowFormat.JSON) {
             List<RowDataToJsonConverters.RowDataToJsonConverter> converters =
                     resultInfo.getColumnInfos().stream()
                             .map(ColumnInfo::getLogicalType)
                             .map(TO_JSON_CONVERTERS::createConverter)
                             .collect(Collectors.toList());
-
-            List<RowData.FieldGetter> fieldGetters = resultInfo.getFieldGetters();
 
             return IntStream.range(0, converters.size())
                     .mapToObj(
@@ -154,7 +143,7 @@ public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
                                                                             .getFieldOrNull(
                                                                                     rowData)))
                     .collect(Collectors.toList());
-        } else {
+        } else if (rowFormat == RowFormat.PLAIN_TEXT) {
             return IntStream.range(0, resultInfo.getColumnInfos().size())
                     .mapToObj(
                             i ->
@@ -164,9 +153,15 @@ public class ResultInfoJsonSerializer extends StdSerializer<ResultInfo> {
                                                             .getNodeFactory()
                                                             .textNode(
                                                                     Objects.toString(
-                                                                            rowData.getString(i),
-                                                                            NULL_LITERAL)))
+                                                                            fieldGetters
+                                                                                    .get(i)
+                                                                                    .getFieldOrNull(
+                                                                                            rowData),
+                                                                            null)))
                     .collect(Collectors.toList());
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Unknown row format: %s.", rowFormat));
         }
     }
 }

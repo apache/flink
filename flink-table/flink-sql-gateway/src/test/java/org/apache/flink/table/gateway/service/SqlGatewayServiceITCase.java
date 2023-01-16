@@ -108,7 +108,7 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
-import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
+import static org.apache.flink.table.gateway.service.result.NotReadyResult.INSTANCE;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
@@ -288,7 +288,7 @@ public class SqlGatewayServiceITCase {
 
         startRunningLatch.await();
         assertThat(fetchResults(service, sessionHandle, operationHandle))
-                .isEqualTo(NOT_READY_RESULT);
+                .isEqualTo(INSTANCE);
         endRunningLatch.countDown();
     }
 

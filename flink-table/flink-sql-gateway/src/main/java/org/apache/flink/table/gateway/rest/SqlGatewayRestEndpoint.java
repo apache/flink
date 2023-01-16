@@ -167,10 +167,18 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
         handlers.add(Tuple2.of(ExecuteStatementHeaders.getInstance(), executeStatementHandler));
 
         // Fetch results
-        FetchResultsHandler fetchResultsHandler =
-                new FetchResultsHandler(
-                        service, responseHeaders, FetchResultsHeaders.getInstance());
-        handlers.add(Tuple2.of(FetchResultsHeaders.getInstance(), fetchResultsHandler));
+        handlers.add(
+                Tuple2.of(
+                        FetchResultsHeaders.getDefaultInstance(),
+                        new FetchResultsHandler(
+                                service,
+                                responseHeaders,
+                                FetchResultsHeaders.getDefaultInstance())));
+        handlers.add(
+                Tuple2.of(
+                        FetchResultsHeaders.getInstanceV1(),
+                        new FetchResultsHandler(
+                                service, responseHeaders, FetchResultsHeaders.getInstanceV1())));
     }
 
     @Override

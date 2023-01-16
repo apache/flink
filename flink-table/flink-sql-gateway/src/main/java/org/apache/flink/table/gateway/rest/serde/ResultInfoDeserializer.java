@@ -48,16 +48,16 @@ import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KI
 import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_ROW_FORMAT;
 
 /**
- * Json deserializer for {@link ResultInfo}.
+ * Deserializer for {@link ResultInfo}.
  *
- * @see ResultInfoJsonSerializer for the reverse operation.
+ * @see ResultInfoSerializer for the reverse operation.
  */
 @Internal
-public class ResultInfoJsonDeserializer extends StdDeserializer<ResultInfo> {
+public class ResultInfoDeserializer extends StdDeserializer<ResultInfo> {
 
     private static final long serialVersionUID = 1L;
 
-    public ResultInfoJsonDeserializer() {
+    public ResultInfoDeserializer() {
         super(ResultInfo.class);
     }
 
@@ -106,13 +106,16 @@ public class ResultInfoJsonDeserializer extends StdDeserializer<ResultInfo> {
                     .map(ColumnInfo::getLogicalType)
                     .map(TO_ROW_DATA_CONVERTERS::createConverter)
                     .collect(Collectors.toList());
-        } else {
+        } else if (rowFormat == RowFormat.PLAIN_TEXT) {
             return IntStream.range(0, columnInfos.size())
                     .mapToObj(
                             i ->
                                     (JsonToRowDataConverters.JsonToRowDataConverter)
                                             jsonNode -> StringData.fromString(jsonNode.asText()))
                     .collect(Collectors.toList());
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Unknown row format: %s.", rowFormat));
         }
     }
 

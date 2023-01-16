@@ -18,101 +18,44 @@
 
 package org.apache.flink.table.gateway.rest.message.statement;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.rest.serde.FetchResultResponseBodyDeserializer;
+import org.apache.flink.table.gateway.rest.serde.FetchResultsResponseBodySerializer;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
-import org.apache.flink.table.gateway.rest.serde.ResultInfoJsonDeserializer;
-import org.apache.flink.table.gateway.rest.serde.ResultInfoJsonSerializer;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import javax.annotation.Nullable;
 
 /** {@link ResponseBody} for executing a statement. */
-@JsonIgnoreProperties("queryResult")
-public class FetchResultsResponseBody implements ResponseBody {
+@JsonSerialize(using = FetchResultsResponseBodySerializer.class)
+@JsonDeserialize(using = FetchResultResponseBodyDeserializer.class)
+public interface FetchResultsResponseBody extends ResponseBody {
 
-    private static final String FIELD_RESULT_TYPE = "resultType";
-    private static final String FIELD_RESULTS = "results";
-    private static final String FIELD_NEXT_RESULT_URI = "nextResultUri";
-    private static final String FIELD_IS_QUERY_RESULT = "isQueryResult";
-    private static final String FIELD_JOB_ID = "jobID";
-    private static final String FIELD_RESULT_KIND = "resultKind";
+    ResultInfo getResults();
 
-    @JsonProperty(FIELD_RESULTS)
-    @JsonSerialize(using = ResultInfoJsonSerializer.class)
-    @JsonDeserialize(using = ResultInfoJsonDeserializer.class)
-    private final ResultInfo results;
-
-    @JsonProperty(FIELD_RESULT_TYPE)
-    private final String resultType;
-
-    @JsonProperty(FIELD_NEXT_RESULT_URI)
-    @Nullable
-    private final String nextResultUri;
-
-    @JsonProperty(FIELD_IS_QUERY_RESULT)
-    private final boolean isQueryResult;
-
-    @JsonProperty(FIELD_JOB_ID)
-    @Nullable
-    private final String jobID;
-
-    @JsonProperty(FIELD_RESULT_KIND)
-    @Nullable
-    private final String resultKind;
-
-    @JsonCreator
-    public FetchResultsResponseBody(
-            @JsonProperty(FIELD_RESULTS) ResultInfo results,
-            @JsonProperty(FIELD_RESULT_TYPE) String resultType,
-            @Nullable @JsonProperty(FIELD_NEXT_RESULT_URI) String nextResultUri,
-            @JsonProperty(FIELD_IS_QUERY_RESULT) boolean isQueryResult,
-            @JsonProperty(FIELD_JOB_ID) String jobID,
-            @Nullable @JsonProperty(FIELD_RESULT_KIND) String resultKind) {
-        this.results = results;
-        this.resultType = resultType;
-        this.nextResultUri = nextResultUri;
-        this.isQueryResult = isQueryResult;
-        this.jobID = jobID;
-        this.resultKind = resultKind;
-    }
-
-    public ResultInfo getResults() {
-        return results;
-    }
-
-    public String getResultType() {
-        return resultType;
-    }
+    ResultSet.ResultType getResultType();
 
     @Nullable
-    public String getNextResultUri() {
-        return nextResultUri;
-    }
+    String getNextResultUri();
 
-    public boolean isQueryResult() {
-        return isQueryResult;
-    }
+    boolean isQueryResult();
 
     @Nullable
-    public String getJobID() {
-        return jobID;
-    }
+    JobID getJobID();
 
-    public String getResultKind() {
-        return resultKind;
-    }
+    ResultKind getResultKind();
 
     @Nullable
-    public Long parseToken() {
-        if (nextResultUri == null || nextResultUri.length() == 0) {
+    default Long parseToken() {
+        if (getNextResultUri() == null || getNextResultUri().length() == 0) {
             return null;
         }
-        String[] split = nextResultUri.split("/");
+        String[] split = getNextResultUri().split("/");
         // remove query string
         String s = split[split.length - 1];
         s = s.replaceAll("\\?.*", "");

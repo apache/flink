@@ -45,7 +45,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
+import static org.apache.flink.table.gateway.service.result.NotReadyResult.INSTANCE;
 
 /** Manager for the {@link Operation}. */
 @Internal
@@ -348,7 +348,7 @@ public class OperationManager {
             } else if (currentStatus == OperationStatus.RUNNING
                     || currentStatus == OperationStatus.PENDING
                     || currentStatus == OperationStatus.INITIALIZED) {
-                return NOT_READY_RESULT;
+                return INSTANCE;
             } else {
                 throw new SqlGatewayException(
                         String.format(

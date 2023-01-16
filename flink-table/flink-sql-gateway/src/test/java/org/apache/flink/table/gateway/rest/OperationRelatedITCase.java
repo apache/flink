@@ -44,7 +44,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
+import static org.apache.flink.table.gateway.service.result.NotReadyResult.INSTANCE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -129,7 +129,7 @@ class OperationRelatedITCase extends RestAPIITCaseBase {
                                         TimeUnit.SECONDS.sleep(10);
                                     } catch (InterruptedException ignored) {
                                     }
-                                    return NOT_READY_RESULT;
+                                    return INSTANCE;
                                 });
         assertThat(operationHandle).isNotNull();
         return Arrays.asList(sessionHandleId, operationHandle.getIdentifier().toString());

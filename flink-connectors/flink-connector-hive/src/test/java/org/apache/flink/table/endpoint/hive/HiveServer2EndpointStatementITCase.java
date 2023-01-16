@@ -53,7 +53,6 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 
@@ -82,7 +81,7 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
         connection.close();
     }
 
-    public static Stream<String> listHiveSqlTests() throws Exception {
+    public static List<String> listHiveSqlTests() throws Exception {
         return listTestSpecInTheSameModule("endpoint");
     }
 

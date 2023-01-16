@@ -83,7 +83,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZON
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link ResultInfoJsonSerializer} and {@link ResultInfoJsonDeserializer}. */
+/** Tests for {@link ResultInfoSerializer} and {@link ResultInfoDeserializer}. */
 public class ResultInfoJsonSerDeTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Row testRow = initRow();
@@ -91,8 +91,8 @@ public class ResultInfoJsonSerDeTest {
     @BeforeAll
     public static void setUp() {
         SimpleModule simpleModule = new SimpleModule();
-        simpleModule.addSerializer(ResultInfo.class, new ResultInfoJsonSerializer());
-        simpleModule.addDeserializer(ResultInfo.class, new ResultInfoJsonDeserializer());
+        simpleModule.addSerializer(ResultInfo.class, new ResultInfoSerializer());
+        simpleModule.addDeserializer(ResultInfo.class, new ResultInfoDeserializer());
         OBJECT_MAPPER.registerModule(simpleModule);
     }
 
@@ -132,12 +132,12 @@ public class ResultInfoJsonSerDeTest {
     }
 
     private void serDeTest(List<Row> rows, RowFormat rowFormat) throws IOException {
-        List<RowData> rowDataList =
+        List<RowData> rowDatas =
                 rows.stream().map(this::convertToInternal).collect(Collectors.toList());
         if (rowFormat == RowFormat.PLAIN_TEXT) {
-            rowDataList =
-                    rowDataList.stream()
-                            .map(rowData -> toPlainTextFormatRowData(rowData, null))
+            rowDatas =
+                    rowDatas.stream()
+                            .map(this::toPlainTextFormatRowData)
                             .collect(Collectors.toList());
         }
 
@@ -147,7 +147,7 @@ public class ResultInfoJsonSerDeTest {
                         testResolvedSchema.getColumns().stream()
                                 .map(ColumnInfo::toColumnInfo)
                                 .collect(Collectors.toList()),
-                        rowDataList,
+                        rowDatas,
                         rowFormat);
 
         // test serialization & deserialization
@@ -283,7 +283,7 @@ public class ResultInfoJsonSerDeTest {
         return converter.toInternal(row);
     }
 
-    private RowData toPlainTextFormatRowData(RowData rowData, String nullLiteral) {
+    private RowData toPlainTextFormatRowData(RowData rowData) {
         RowDataToStringConverter converter =
                 new RowDataToStringConverterImpl(
                         getTestResolvedSchema(getFields()).toPhysicalRowDataType(),
@@ -295,10 +295,6 @@ public class ResultInfoJsonSerDeTest {
                 Arrays.stream(converter.convert(rowData))
                         .map(StringData::fromString)
                         .toArray(StringData[]::new);
-
-        IntStream.range(0, rowData.getArity())
-                .filter(rowData::isNullAt)
-                .forEach(i -> plainText[i] = StringData.fromString(nullLiteral));
 
         return GenericRowData.ofKind(rowData.getRowKind(), (Object[]) plainText);
     }
@@ -314,7 +310,7 @@ public class ResultInfoJsonSerDeTest {
             for (int i = 0; i < expected.size(); i++) {
                 assertPlainTextFormatData(
                         expected.get(i),
-                        toPlainTextFormatRowData(convertToInternal(actual.get(i)), ""));
+                        toPlainTextFormatRowData(convertToInternal(actual.get(i))));
             }
         }
     }

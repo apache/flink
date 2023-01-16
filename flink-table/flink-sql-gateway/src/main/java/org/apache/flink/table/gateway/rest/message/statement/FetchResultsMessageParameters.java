@@ -26,6 +26,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,8 +47,10 @@ public class FetchResultsMessageParameters extends MessageParameters {
     private final FetchResultsRowFormatQueryParameter fetchResultsRowFormatQueryParameter =
             new FetchResultsRowFormatQueryParameter();
 
-    public FetchResultsMessageParameters() {
-        // nothing to resolve
+    private final SqlGatewayRestAPIVersion version;
+
+    public FetchResultsMessageParameters(SqlGatewayRestAPIVersion version) {
+        this.version = version;
     }
 
     public FetchResultsMessageParameters(
@@ -55,6 +58,7 @@ public class FetchResultsMessageParameters extends MessageParameters {
             OperationHandle operationHandle,
             Long token,
             RowFormat rowFormat) {
+        this.version = SqlGatewayRestAPIVersion.getDefaultVersion();
         sessionHandleIdPathParameter.resolve(sessionHandle);
         operationHandleIdPathParameter.resolve(operationHandle);
         fetchResultsTokenPathParameter.resolve(token);
@@ -71,6 +75,10 @@ public class FetchResultsMessageParameters extends MessageParameters {
 
     @Override
     public Collection<MessageQueryParameter<?>> getQueryParameters() {
-        return Collections.singletonList(fetchResultsRowFormatQueryParameter);
+        if (version == SqlGatewayRestAPIVersion.V1) {
+            return Collections.emptyList();
+        } else {
+            return Collections.singletonList(fetchResultsRowFormatQueryParameter);
+        }
     }
 }

@@ -22,12 +22,17 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,15 +41,17 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.gateway.service.result.NotReadyResult.NOT_READY_RESULT;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /**
  * A {@code ResultInfo} contains information of a {@link ResultSet}. It is designed for transferring
  * the information of ResultSet via REST. For its serialization and deserialization, See:
  *
- * <p>{@link ResultInfoJsonSerializer} and {@link ResultInfoJsonDeserializer}
+ * <p>{@link ResultInfoSerializer} and {@link ResultInfoDeserializer}
  */
 @Internal
+@JsonSerialize(using = ResultInfoSerializer.class)
+@JsonDeserialize(using = ResultInfoDeserializer.class)
 public class ResultInfo {
 
     // Columns
@@ -62,17 +69,14 @@ public class ResultInfo {
     private final List<RowData> data;
     private final RowFormat rowFormat;
 
-    public ResultInfo(List<ColumnInfo> columnInfos, List<RowData> data, RowFormat rowFormat) {
+    ResultInfo(List<ColumnInfo> columnInfos, List<RowData> data, RowFormat rowFormat) {
         this.columnInfos = columnInfos;
         this.data = data;
         this.rowFormat = rowFormat;
     }
 
     public static ResultInfo createResultInfo(ResultSet resultSet, RowFormat rowFormat) {
-        if (resultSet == NOT_READY_RESULT) {
-            return new ResultInfo(Collections.emptyList(), Collections.emptyList(), rowFormat);
-        }
-
+        Preconditions.checkArgument(resultSet.getResultType() != ResultSet.ResultType.NOT_READY);
         List<RowData> data = resultSet.getData();
 
         switch (rowFormat) {
@@ -99,29 +103,78 @@ public class ResultInfo {
                 rowFormat);
     }
 
+    /** Get the column info of the data. */
     public List<ColumnInfo> getColumnInfos() {
         return Collections.unmodifiableList(columnInfos);
     }
 
+    /** Get the data. */
     public List<RowData> getData() {
         return data;
     }
 
+    /** Get the row format about the data. */
     public RowFormat getRowFormat() {
         return rowFormat;
     }
 
-    public List<RowData.FieldGetter> getFieldGetters() {
-        List<LogicalType> columnTypes =
-                columnInfos.stream().map(ColumnInfo::getLogicalType).collect(Collectors.toList());
-        return IntStream.range(0, columnTypes.size())
-                .mapToObj(i -> RowData.createFieldGetter(columnTypes.get(i), i))
-                .collect(Collectors.toList());
+    /**
+     * Create the {@link FieldGetter} to get column value in the results.
+     *
+     * <p>With {@code JSON} format, it uses the {@link ResolvedSchema} to build the getters.
+     * However, it uses {@link StringData}'s {@link FieldGetter} to get the column values.
+     */
+    public List<FieldGetter> getFieldGetters() {
+        if (rowFormat == RowFormat.JSON) {
+            List<LogicalType> columnTypes =
+                    columnInfos.stream()
+                            .map(ColumnInfo::getLogicalType)
+                            .collect(Collectors.toList());
+            return IntStream.range(0, columnTypes.size())
+                    .mapToObj(i -> RowData.createFieldGetter(columnTypes.get(i), i))
+                    .collect(Collectors.toList());
+        } else {
+            return IntStream.range(0, columnInfos.size())
+                    .mapToObj(i -> RowData.createFieldGetter(STRING_TYPE, i))
+                    .collect(Collectors.toList());
+        }
     }
 
+    /** Get the schemas of the results. */
     public ResolvedSchema getResultSchema() {
         return ResolvedSchema.of(
                 columnInfos.stream().map(ColumnInfo::toColumn).collect(Collectors.toList()));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ResultInfo)) {
+            return false;
+        }
+        ResultInfo that = (ResultInfo) o;
+        return Objects.equals(columnInfos, that.columnInfos)
+                && Objects.equals(data, that.data)
+                && rowFormat == that.rowFormat;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(columnInfos, data, rowFormat);
+    }
+
+    @Override
+    public String toString() {
+        return "ResultInfo{"
+                + "columnInfos="
+                + columnInfos
+                + ", data="
+                + data
+                + ", rowFormat="
+                + rowFormat
+                + '}';
     }
 
     private static RowData convertToPlainText(RowData rowData, RowDataToStringConverter converter) {
@@ -135,30 +188,5 @@ public class ResultInfo {
         return GenericRowData.ofKind(
                 rowData.getRowKind(),
                 Arrays.stream(plainTexts).map(StringData::fromString).toArray());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(columnInfos, data);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof ResultInfo)) {
-            return false;
-        }
-        ResultInfo that = (ResultInfo) o;
-        return Objects.equals(columnInfos, that.columnInfos) && Objects.equals(data, that.data);
-    }
-
-    @Override
-    public String toString() {
-        return String.format(
-                "ResultInfo{\n  columnInfos=[%s],\n  rows=[%s]\n}",
-                columnInfos.stream().map(Object::toString).collect(Collectors.joining(",")),
-                data.stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 }

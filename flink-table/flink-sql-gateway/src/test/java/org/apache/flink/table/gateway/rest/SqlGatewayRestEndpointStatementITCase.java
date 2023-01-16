@@ -45,13 +45,18 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -59,9 +64,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.gateway.rest.util.TestingRestClient.getTestingRestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -71,7 +80,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in statement
  * related cases.
  */
-class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementITCase {
+@ExtendWith(ParameterizedTestExtension.class)
+public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementITCase {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(SqlGatewayRestEndpointStatementITCase.class);
 
     @RegisterExtension
     @Order(3)
@@ -83,7 +96,7 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
             ExecuteStatementHeaders.getInstance();
     private static SessionMessageParameters sessionMessageParameters;
     private static final FetchResultsHeaders fetchResultsHeaders =
-            FetchResultsHeaders.getInstance();
+            FetchResultsHeaders.getDefaultInstance();
     private static final int OPERATION_WAIT_SECONDS = 100;
 
     private static final String PATTERN1 = "Caused by: ";
@@ -104,6 +117,17 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
     @AfterAll
     public static void cleanUp() throws Exception {
         restClient.shutdown();
+    }
+
+    @Parameters(name = "parameters={0}")
+    public static List<TestParameters> parameters() throws Exception {
+        return listFlinkSqlTests().stream()
+                .flatMap(
+                        path ->
+                                Stream.of(
+                                        new RestTestParameters(path, RowFormat.JSON),
+                                        new RestTestParameters(path, RowFormat.PLAIN_TEXT)))
+                .collect(Collectors.toList());
     }
 
     @BeforeEach
@@ -154,11 +178,8 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
         ResultInfo resultInfo = fetchResultsResponseBody.getResults();
         assertThat(resultInfo).isNotNull();
 
-        String resultType = fetchResultsResponseBody.getResultType();
-        assertThat(
-                        Arrays.asList(
-                                ResultSet.ResultType.PAYLOAD.name(),
-                                ResultSet.ResultType.EOS.name()))
+        ResultSet.ResultType resultType = fetchResultsResponseBody.getResultType();
+        assertThat(Arrays.asList(ResultSet.ResultType.PAYLOAD, ResultSet.ResultType.EOS))
                 .contains(resultType);
 
         ResolvedSchema resultSchema = resultInfo.getResultSchema();
@@ -166,11 +187,13 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
         return toString(
                 StatementType.match(statement),
                 resultSchema,
-                new RowDataToStringConverterImpl(
-                        resultSchema.toPhysicalRowDataType(),
-                        DateTimeUtils.UTC_ZONE.toZoneId(),
-                        SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
-                        false),
+                ((RestTestParameters) parameters).getRowFormat() == RowFormat.JSON
+                        ? new RowDataToStringConverterImpl(
+                                resultSchema.toPhysicalRowDataType(),
+                                DateTimeUtils.UTC_ZONE.toZoneId(),
+                                SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
+                                false)
+                        : SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
                 new RowDataIterator(sessionHandle, operationHandle));
     }
 
@@ -179,7 +202,10 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
             throws Exception {
         FetchResultsMessageParameters fetchResultsMessageParameters =
                 new FetchResultsMessageParameters(
-                        sessionHandle, operationHandle, token, RowFormat.JSON);
+                        sessionHandle,
+                        operationHandle,
+                        token,
+                        ((RestTestParameters) parameters).getRowFormat());
         CompletableFuture<FetchResultsResponseBody> response =
                 restClient.sendRequest(
                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
@@ -204,6 +230,31 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
                 .equals(RuntimeExecutionMode.STREAMING);
     }
 
+    private static class RestTestParameters extends TestParameters {
+
+        private final RowFormat rowFormat;
+
+        public RestTestParameters(String sqlPath, RowFormat rowFormat) {
+            super(sqlPath);
+            this.rowFormat = rowFormat;
+        }
+
+        public RowFormat getRowFormat() {
+            return rowFormat;
+        }
+
+        @Override
+        public String toString() {
+            return "RestTestParameters{"
+                    + "sqlPath='"
+                    + sqlPath
+                    + '\''
+                    + ", rowFormat="
+                    + rowFormat
+                    + '}';
+        }
+    }
+
     private class RowDataIterator implements Iterator<RowData> {
 
         private final SessionHandle sessionHandle;
@@ -225,10 +276,11 @@ class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementI
                 try {
                     fetch();
                 } catch (Exception ignored) {
+                    LOG.error("Failed to fetch results.", ignored);
                 }
             }
 
-            return token != null;
+            return fetchedRows.hasNext();
         }
 
         @Override
