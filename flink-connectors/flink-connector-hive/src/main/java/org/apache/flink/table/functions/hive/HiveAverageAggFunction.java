@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.math.BigDecimal;
 
@@ -113,6 +114,9 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public void setArguments(CallContext callContext) {
         if (resultType == null) {
+            if (callContext.getArgumentDataTypes().size() != 1) {
+                throw new TableException("Exactly one argument is expected.");
+            }
             DataType argsType = callContext.getArgumentDataTypes().get(0);
             resultType = initResultType(argsType);
             sumResultType = initSumResultType(argsType);
@@ -131,18 +135,24 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
             case VARCHAR:
                 return DataTypes.DOUBLE();
             case DECIMAL:
-                // The avg result type has 4 more integer digits and 4 more decimal digits,
-                // following spark and hive
-                int precision =
-                        Math.min(MAX_PRECISION, getPrecision(argsType.getLogicalType()) + 4);
-                int scale = Math.min(38, getScale(argsType.getLogicalType()) + 4);
-                return DataTypes.DECIMAL(precision, scale);
+                return getResultTypeForDecimal(argsType.getLogicalType());
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
             default:
                 throw new TableException(
                         String.format(
-                                "Avg aggregate function does not support type: '%s'. Please re-check the data type.",
-                                argsType.getLogicalType().getTypeRoot()));
+                                "Only numeric or string type arguments are accepted but %s is passed.",
+                                argsType));
         }
+    }
+
+    private DataType getResultTypeForDecimal(LogicalType decimalType) {
+        int precision = getPrecision(decimalType);
+        int scale = getScale(decimalType);
+
+        int intPart = precision - scale;
+        // The avg() result type has the same number of integer digits and 4 more decimal digits.
+        scale = Math.min(scale + 4, MAX_SCALE - intPart);
+        return DataTypes.DECIMAL(intPart + scale, scale);
     }
 
     private DataType initSumResultType(DataType argsType) {
@@ -157,16 +167,24 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
             case VARCHAR:
                 return DataTypes.DOUBLE();
             case DECIMAL:
-                // The intermediate sum field has 10 more integer digits with the same scale.
-                int precision =
-                        Math.min(MAX_PRECISION, getPrecision(argsType.getLogicalType()) + 10);
-                return DataTypes.DECIMAL(precision, getScale(argsType.getLogicalType()));
+                return getSumResultTypeForDecimal(argsType.getLogicalType());
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
             default:
                 throw new TableException(
                         String.format(
-                                "Avg aggregate function does not support type: '%s'. Please re-check the data type.",
-                                argsType.getLogicalType().getTypeRoot()));
+                                "Only numeric or string type arguments are accepted but %s is passed.",
+                                argsType));
         }
+    }
+
+    private DataType getSumResultTypeForDecimal(LogicalType decimalType) {
+        int precision = getPrecision(decimalType);
+        int scale = getScale(decimalType);
+
+        int intPart = precision - scale;
+        // The intermediate sum field has 10 more integer digits with the same scale.
+        intPart = Math.min(intPart + 10, MAX_PRECISION - scale);
+        return DataTypes.DECIMAL(intPart + scale, scale);
     }
 
     private DataType getSumResultType() {
@@ -183,9 +201,9 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
 
     private ValueLiteralExpression sumInitialValue() {
         if (getSumResultType().getLogicalType().is(DECIMAL)) {
-            return literal(BigDecimal.ZERO, getSumResultType().notNull());
+            return literal(BigDecimal.ZERO, getSumResultType());
         } else {
-            return literal(0D, getSumResultType().notNull());
+            return literal(0D, getSumResultType());
         }
     }
 }

@@ -50,6 +50,8 @@ import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIV
 @Internal
 public abstract class HiveDeclarativeAggregateFunction extends DeclarativeAggregateFunction {
 
+    protected static final int MAX_SCALE = 38;
+
     /**
      * Set input arguments for the function if need some inputs to infer the aggBuffer type and
      * result type. Otherwise, just implements it do nothing.

@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -996,12 +997,12 @@ public class HiveDialectQueryITCase {
     @Test
     public void testAvgAggFunction() throws Exception {
         tableEnv.executeSql(
-                "create table test_avg(a int, x string, y string, z int, f bigint, d decimal(20, 5), e double)");
+                "create table test_avg(a int, x string, y string, z int, f bigint, d decimal(20, 5), d2 decimal(37, 20), e double, ts timestamp)");
         tableEnv.executeSql(
-                        "insert into test_avg values (1, NULL, '2', 1, 2, 2.22, 2.3), "
-                                + "(1, NULL, 'b', 2, NULL, 3.33, 3.4), "
-                                + "(2, NULL, '4', 1, 2, 4.55, 4.5), "
-                                + "(2, NULL, NULL, 4, 3, 5.66, 5.2)")
+                        "insert into test_avg values (1, NULL, '2', 1, 2, 2.22, NULL, 2.3, '2021-08-04 16:26:33.4'), "
+                                + "(1, NULL, 'b', 2, NULL, 3.33, NULL, 3.4, '2021-08-07 16:26:33.4'), "
+                                + "(2, NULL, '4', 1, 2, 4.55, NULL, 4.5, '2021-08-08 16:26:33.4'), "
+                                + "(2, NULL, NULL, 4, 3, 5.66, NULL, 5.2, '2021-08-09 16:26:33.4')")
                 .await();
 
         // test avg all element is null
@@ -1028,19 +1029,38 @@ public class HiveDialectQueryITCase {
                         tableEnv.executeSql("select avg(d) from test_avg").collect());
         assertThat(result4.toString()).isEqualTo("[+I[3.940000000]]");
 
-        // test avg distinct
+        // test avg decimal with null element
         List<Row> result5 =
                 CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(d2) from test_avg").collect());
+        assertThat(result5.toString()).isEqualTo("[+I[null]]");
+
+        // test avg distinct
+        List<Row> result6 =
+                CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select avg(distinct z) from test_avg").collect());
-        assertThat(result5.toString()).isEqualTo("[+I[2.3333333333333335]]");
+        assertThat(result6.toString()).isEqualTo("[+I[2.3333333333333335]]");
 
         // test avg with group key
-        List<Row> result6 =
+        List<Row> result7 =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql(
                                         "select a, avg(y), avg(z), avg(f) from test_avg group by a")
                                 .collect());
-        assertThat(result6.toString()).isEqualTo("[+I[1, 2.0, 1.5, 2.0], +I[2, 4.0, 2.5, 2.5]]");
+        assertThat(result7.toString()).isEqualTo("[+I[1, 2.0, 1.5, 2.0], +I[2, 4.0, 2.5, 2.5]]");
+
+        // test unsupported type
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select avg(ts)from test_avg")
+                                                .collect()))
+                .rootCause()
+                .satisfiesAnyOf(
+                        anyCauseMatches(
+                                "Only numeric or string type arguments are accepted but TIMESTAMP(9) is passed."));
+
+        tableEnv.executeSql("drop table test_avg");
     }
 
     private void runQFile(File qfile) throws Exception {
