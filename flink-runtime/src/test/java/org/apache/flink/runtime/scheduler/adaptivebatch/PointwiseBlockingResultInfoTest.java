@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
@@ -37,6 +38,20 @@ class PointwiseBlockingResultInfoTest {
         resultInfo.recordPartitionInfo(1, new ResultPartitionBytes(new long[] {64L, 64L}));
 
         assertThat(resultInfo.getNumBytesProduced()).isEqualTo(192L);
+    }
+
+    @Test
+    void testGetNumBytesProducedWithIndexRange() {
+        PointwiseBlockingResultInfo resultInfo =
+                new PointwiseBlockingResultInfo(new IntermediateDataSetID(), 2, 2);
+        resultInfo.recordPartitionInfo(0, new ResultPartitionBytes(new long[] {32L, 64L}));
+        resultInfo.recordPartitionInfo(1, new ResultPartitionBytes(new long[] {128L, 256L}));
+
+        IndexRange partitionIndexRange = new IndexRange(0, 0);
+        IndexRange subpartitionIndexRange = new IndexRange(0, 1);
+
+        assertThat(resultInfo.getNumBytesProduced(partitionIndexRange, subpartitionIndexRange))
+                .isEqualTo(96L);
     }
 
     @Test

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResultInfo;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 
@@ -38,6 +39,16 @@ public interface BlockingResultInfo extends IntermediateResultInfo {
      * @return the num of bytes produced by the producer
      */
     long getNumBytesProduced();
+
+    /**
+     * Return the aggregated num of bytes according to the index range for partition and
+     * subpartition.
+     *
+     * @param partitionIndexRange range of the index of the consumed partition.
+     * @param subpartitionIndexRange range of the index of the consumed subpartition.
+     * @return aggregated bytes according to the index ranges.
+     */
+    long getNumBytesProduced(IndexRange partitionIndexRange, IndexRange subpartitionIndexRange);
 
     /**
      * Record the information of the result partition.

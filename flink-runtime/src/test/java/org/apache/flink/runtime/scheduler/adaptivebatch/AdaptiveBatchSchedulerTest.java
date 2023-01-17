@@ -118,6 +118,9 @@ class AdaptiveBatchSchedulerTest {
 
         // check that the jobGraph is updated
         assertThat(sink.getParallelism()).isEqualTo(10);
+
+        // check aggregatedInputDataBytes of each ExecutionVertex calculated.
+        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex);
     }
 
     @Test
@@ -146,6 +149,9 @@ class AdaptiveBatchSchedulerTest {
 
         // check that the jobGraph is updated
         assertThat(sink.getParallelism()).isEqualTo(SOURCE_PARALLELISM_1);
+
+        // check aggregatedInputDataBytes of each ExecutionVertex calculated.
+        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex);
     }
 
     @Test
@@ -278,6 +284,19 @@ class AdaptiveBatchSchedulerTest {
             AdaptiveBatchScheduler scheduler, JobVertex jobVertex) {
         return scheduler.getBlockingResultInfo(
                 getOnlyElement(jobVertex.getProducedDataSets()).getId());
+    }
+
+    private void checkAggregatedInputDataBytesIsCalculated(
+            ExecutionJobVertex sinkExecutionJobVertex) {
+        final ExecutionVertex[] executionVertices = sinkExecutionJobVertex.getTaskVertices();
+        long totalInputBytes = 0;
+        for (ExecutionVertex ev : executionVertices) {
+            long executionInputBytes = ev.getInputBytes();
+            assertThat(executionInputBytes).isNotEqualTo(-1);
+            totalInputBytes += executionInputBytes;
+        }
+
+        assertThat(totalInputBytes).isEqualTo(26_000L);
     }
 
     private void triggerFailedByPartitionNotFound(

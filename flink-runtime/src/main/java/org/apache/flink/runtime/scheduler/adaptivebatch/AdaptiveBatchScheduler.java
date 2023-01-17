@@ -32,7 +32,9 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
@@ -76,7 +78,10 @@ import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.HYBRID_FULL;
+import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.HYBRID_SELECTIVE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -208,6 +213,16 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
     }
 
     @Override
+    public void allocateSlotsAndDeploy(final List<ExecutionVertexID> verticesToDeploy) {
+        List<ExecutionVertex> executionVertices =
+                verticesToDeploy.stream()
+                        .map(this::getExecutionVertex)
+                        .collect(Collectors.toList());
+        enrichInputBytesForExecutionVertices(executionVertices);
+        super.allocateSlotsAndDeploy(verticesToDeploy);
+    }
+
+    @Override
     protected void resetForNewExecution(final ExecutionVertexID executionVertexId) {
         final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
         if (executionVertex.getExecutionState() == ExecutionState.FINISHED) {
@@ -325,6 +340,34 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         }
 
         return parallelismAndInputInfos;
+    }
+
+    private void enrichInputBytesForExecutionVertices(List<ExecutionVertex> executionVertices) {
+        for (ExecutionVertex ev : executionVertices) {
+            List<IntermediateResult> intermediateResults = ev.getJobVertex().getInputs();
+            boolean hasHybridEdge =
+                    intermediateResults.stream()
+                            .anyMatch(
+                                    ir ->
+                                            ir.getResultType() == HYBRID_FULL
+                                                    || ir.getResultType() == HYBRID_SELECTIVE);
+            if (intermediateResults.isEmpty() || hasHybridEdge) {
+                continue;
+            }
+            long inputBytes = 0;
+            for (IntermediateResult intermediateResult : intermediateResults) {
+                ExecutionVertexInputInfo inputInfo =
+                        ev.getExecutionVertexInputInfo(intermediateResult.getId());
+                IndexRange partitionIndexRange = inputInfo.getPartitionIndexRange();
+                IndexRange subpartitionIndexRange = inputInfo.getSubpartitionIndexRange();
+                BlockingResultInfo blockingResultInfo =
+                        checkNotNull(getBlockingResultInfo(intermediateResult.getId()));
+                inputBytes +=
+                        blockingResultInfo.getNumBytesProduced(
+                                partitionIndexRange, subpartitionIndexRange);
+            }
+            ev.setInputBytes(inputBytes);
+        }
     }
 
     private void changeJobVertexParallelism(ExecutionJobVertex jobVertex, int parallelism) {

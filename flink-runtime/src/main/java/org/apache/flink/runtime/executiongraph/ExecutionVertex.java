@@ -60,6 +60,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ExecutionVertex
         implements AccessExecutionVertex, Archiveable<ArchivedExecutionVertex> {
 
+    public static final long NUM_BYTES_UNKNOWN = -1;
+
     public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
 
     // --------------------------------------------------------------------------------------------
@@ -85,6 +87,8 @@ public class ExecutionVertex
     final ArrayList<InputSplit> inputSplits;
 
     private int nextAttemptNumber;
+
+    private long inputBytes;
 
     /** This field holds the allocation id of the last successful assignment. */
     @Nullable private TaskManagerLocation lastAssignedLocation;
@@ -141,6 +145,8 @@ public class ExecutionVertex
 
         this.nextAttemptNumber = initialAttemptCount;
 
+        this.inputBytes = NUM_BYTES_UNKNOWN;
+
         this.timeout = timeout;
         this.inputSplits = new ArrayList<>();
 
@@ -167,6 +173,14 @@ public class ExecutionVertex
                 .getJobVertexInputInfo(getJobvertexId(), resultId)
                 .getExecutionVertexInputInfos()
                 .get(subTaskIndex);
+    }
+
+    public void setInputBytes(long inputBytes) {
+        this.inputBytes = inputBytes;
+    }
+
+    public long getInputBytes() {
+        return inputBytes;
     }
 
     public Execution getPartitionProducer() {
