@@ -25,17 +25,14 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactionUnit;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorOutput;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.EndCompaction;
-import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.connector.file.table.utils.CompactFileUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
-import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
@@ -43,13 +40,11 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -130,8 +125,21 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                     getRuntimeContext().getIndexOfThisSubtask())) {
                 String partition = unit.getPartition();
                 List<Path> paths = unit.getPaths();
+                // create a target file to compact to
+                Path targetPath = createCompactedFile(paths);
+                // do compaction
+                CompactFileUtils.doCompact(
+                        fileSystem,
+                        partition,
+                        paths,
+                        targetPath,
+                        getContainingTask()
+                                .getEnvironment()
+                                .getTaskManagerInfo()
+                                .getConfiguration(),
+                        readerFactory,
+                        writerFactory);
 
-                doCompact(partition, paths);
                 this.partitions.add(partition);
 
                 // Only after the current checkpoint is successfully executed can delete
@@ -188,105 +196,6 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
             }
         }
         outOfDateMetas.clear();
-    }
-
-    /**
-     * Do Compaction: - Target file exists, do nothing. - Can do compaction: - Single file, do
-     * atomic renaming, there are optimizations for FileSystem. - Multiple file, do reading and
-     * writing.
-     */
-    private void doCompact(String partition, List<Path> paths) throws IOException {
-        if (paths.size() == 0) {
-            return;
-        }
-
-        Map<Path, Long> inputMap = new HashMap<>();
-        for (Path path : paths) {
-            inputMap.put(path, fileSystem.getFileStatus(path).getLen());
-        }
-
-        Path target = createCompactedFile(paths);
-        if (fileSystem.exists(target)) {
-            return;
-        }
-
-        checkExist(paths);
-
-        long startMillis = System.currentTimeMillis();
-
-        boolean success = false;
-        if (paths.size() == 1) {
-            // optimizer for single file
-            success = doSingleFileMove(paths.get(0), target);
-        }
-
-        if (!success) {
-            doMultiFilesCompact(partition, paths, target);
-        }
-
-        Map<Path, Long> targetMap = new HashMap<>();
-        targetMap.put(target, fileSystem.getFileStatus(target).getLen());
-
-        double costSeconds = ((double) (System.currentTimeMillis() - startMillis)) / 1000;
-        LOG.info(
-                "Compaction time cost is '{}S', output per file as following format: name=size(byte), target file is '{}', input files are '{}'",
-                costSeconds,
-                targetMap,
-                inputMap);
-    }
-
-    private boolean doSingleFileMove(Path src, Path dst) throws IOException {
-        // We can not rename, because we need to keep original file for failover
-        RecoverableWriter writer;
-        try {
-            writer = fileSystem.createRecoverableWriter();
-        } catch (UnsupportedOperationException ignore) {
-            // Some writer not support RecoverableWriter, so fallback to per record moving.
-            // For example, see the constructor of HadoopRecoverableWriter. Although it not support
-            // RecoverableWriter, but HadoopPathBasedBulkFormatBuilder can support streaming
-            // writing.
-            return false;
-        }
-
-        RecoverableFsDataOutputStream out = writer.open(dst);
-        try (FSDataInputStream in = fileSystem.open(src)) {
-            IOUtils.copyBytes(in, out, false);
-        } catch (Throwable t) {
-            out.close();
-            throw t;
-        }
-        out.closeForCommit().commit();
-        return true;
-    }
-
-    private void doMultiFilesCompact(String partition, List<Path> files, Path dst)
-            throws IOException {
-        Configuration config =
-                getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
-        CompactWriter<T> writer =
-                writerFactory.create(CompactContext.create(config, fileSystem, partition, dst));
-
-        for (Path path : files) {
-            try (CompactReader<T> reader =
-                    readerFactory.create(
-                            CompactContext.create(config, fileSystem, partition, path))) {
-                T record;
-                while ((record = reader.read()) != null) {
-                    writer.write(record);
-                }
-            }
-        }
-
-        // commit immediately
-        writer.commit();
-    }
-
-    private void checkExist(List<Path> candidates) throws IOException {
-        for (Path path : candidates) {
-            if (!fileSystem.exists(path)) {
-                throw new IOException("Compaction file not exist: " + path);
-            }
-        }
     }
 
     private static Path createCompactedFile(List<Path> uncompactedFiles) {

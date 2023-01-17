@@ -55,11 +55,12 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
     private final SupplierWithException<FileSystem, IOException> fsFactory;
     private final long compactAverageSize;
     private final long compactTargetSize;
-    private final StreamRecord<CoordinatorOutput> element = new StreamRecord<>(null);
 
     private transient FileSystem fs;
     // the mapping from written partitions to the corresponding files.
     private transient Map<String, List<Path>> inputFiles;
+
+    private transient StreamRecord<CoordinatorOutput> element;
 
     public BatchCompactCoordinator(
             SupplierWithException<FileSystem, IOException> fsFactory,
@@ -74,6 +75,7 @@ public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorO
     public void open() throws Exception {
         fs = fsFactory.get();
         inputFiles = new HashMap<>();
+        element = new StreamRecord<>(null);
     }
 
     @Override

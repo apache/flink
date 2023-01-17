@@ -24,6 +24,7 @@ import org.apache.flink.connector.file.table.stream.compact.CompactMessages.Comp
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorOutput;
 import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connector.file.table.stream.compact.CompactWriter;
+import org.apache.flink.connector.file.table.utils.CompactFileUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
