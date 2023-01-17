@@ -30,9 +30,9 @@ public class FetchResultResponseBodyImpl implements FetchResultsResponseBody {
 
     private final ResultInfo results;
     private final ResultSet.ResultType resultType;
-    private final String nextResultUri;
+    @Nullable private final String nextResultUri;
     private final boolean isQueryResult;
-    private final JobID jobID;
+    @Nullable private final JobID jobID;
     private final ResultKind resultKind;
 
     public FetchResultResponseBodyImpl(

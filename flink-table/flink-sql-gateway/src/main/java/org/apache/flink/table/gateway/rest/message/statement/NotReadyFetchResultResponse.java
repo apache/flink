@@ -38,7 +38,7 @@ public class NotReadyFetchResultResponse implements FetchResultsResponseBody {
     @Override
     public ResultInfo getResults() {
         throw new SqlGatewayException(
-                "The result is not ready. Please fetch results until the result type is PAYLOAD or EOS");
+                "The result is not ready. Please fetch results until the result type is PAYLOAD or EOS.");
     }
 
     @Override
