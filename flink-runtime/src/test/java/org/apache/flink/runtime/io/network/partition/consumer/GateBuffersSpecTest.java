@@ -27,7 +27,7 @@ import org.junit.runners.Parameterized;
 
 import java.util.Optional;
 
-import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUitls.getEffectiveMaxRequiredBuffersPerGate;
+import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.getEffectiveMaxRequiredBuffersPerGate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GateBuffersSpec}. */
@@ -146,8 +146,8 @@ class GateBuffersSpecTest {
                 getEffectiveMaxRequiredBuffersPerGate(partitionType, emptyConfig);
         int expectEffectiveMaxRequiredBuffers =
                 isPipelineResultPartition(partitionType)
-                        ? InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
-                        : InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH;
+                        ? InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
+                        : InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH;
         assertThat(effectiveMaxRequiredBuffers).isEqualTo(expectEffectiveMaxRequiredBuffers);
 
         Optional<Integer> configuredMaxRequiredBuffers = Optional.of(100);
@@ -179,7 +179,7 @@ class GateBuffersSpecTest {
             int numInputChannels,
             ResultPartitionType partitionType,
             int numExclusiveBuffersPerChannel) {
-        return InputGateSpecUitls.createGateBuffersSpec(
+        return InputGateSpecUtils.createGateBuffersSpec(
                 getMaxRequiredBuffersPerGate(partitionType),
                 numExclusiveBuffersPerChannel,
                 8,
@@ -190,8 +190,8 @@ class GateBuffersSpecTest {
     private static Optional<Integer> getMaxRequiredBuffersPerGate(
             ResultPartitionType partitionType) {
         return isPipelineResultPartition(partitionType)
-                ? Optional.of(InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
-                : Optional.of(InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
+                ? Optional.of(InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
+                : Optional.of(InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
     }
 
     private static boolean isPipelineResultPartition(ResultPartitionType partitionType) {
