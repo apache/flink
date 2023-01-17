@@ -130,8 +130,7 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
                 throw new TableException(
                         String.format(
                                 "Native hive sum aggregate function does not support type: '%s'. Please set option '%s' to false.",
-                                argsType.getLogicalType().getTypeRoot(),
-                                TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
+                                argsType, TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
             default:
                 throw new TableException(
                         String.format(
