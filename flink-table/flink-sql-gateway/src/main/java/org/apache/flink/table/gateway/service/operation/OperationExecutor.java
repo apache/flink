@@ -32,6 +32,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -409,7 +410,8 @@ public class OperationExecutor {
                 ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
                 Collections.singletonList(
                         GenericRowData.of(StringData.fromString(jobID.toString()))),
-                jobID);
+                jobID,
+                ResultKind.SUCCESS_WITH_CONTENT);
     }
 
     private ResultFetcher callOperation(

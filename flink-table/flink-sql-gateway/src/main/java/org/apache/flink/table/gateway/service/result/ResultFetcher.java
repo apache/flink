@@ -120,7 +120,8 @@ public class ResultFetcher {
             OperationHandle operationHandle,
             ResolvedSchema resultSchema,
             List<RowData> rows,
-            @Nullable JobID jobID) {
+            @Nullable JobID jobID,
+            ResultKind resultKind) {
         this.operationHandle = operationHandle;
         this.resultSchema = resultSchema;
         this.bufferedResults.addAll(rows);
@@ -128,7 +129,7 @@ public class ResultFetcher {
         this.converter = SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
         this.isQueryResult = false;
         this.jobID = jobID;
-        this.resultKind = ResultKind.SUCCESS_WITH_CONTENT;
+        this.resultKind = resultKind;
     }
 
     public static ResultFetcher fromTableResult(
@@ -159,21 +160,24 @@ public class ResultFetcher {
                     operationHandle,
                     tableResult.getResolvedSchema(),
                     CollectionUtil.iteratorToList(tableResult.collectInternal()),
-                    null);
+                    null,
+                    tableResult.getResultKind());
         }
     }
 
     public static ResultFetcher fromResults(
             OperationHandle operationHandle, ResolvedSchema resultSchema, List<RowData> results) {
-        return fromResults(operationHandle, resultSchema, results, null);
+        return fromResults(
+                operationHandle, resultSchema, results, null, ResultKind.SUCCESS_WITH_CONTENT);
     }
 
     public static ResultFetcher fromResults(
             OperationHandle operationHandle,
             ResolvedSchema resultSchema,
             List<RowData> results,
-            @Nullable JobID jobID) {
-        return new ResultFetcher(operationHandle, resultSchema, results, jobID);
+            @Nullable JobID jobID,
+            ResultKind resultKind) {
+        return new ResultFetcher(operationHandle, resultSchema, results, jobID, resultKind);
     }
 
     public void close() {
