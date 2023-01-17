@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
@@ -61,14 +60,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
             List<IndexedInputGate> inputGates1,
             List<IndexedInputGate> inputGates2,
             Function<Integer, StreamPartitioner<?>> gatePartitioners) {
-
-        // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing
-        // behavior of choosing an input every time a record is emitted. This behavior is good for
-        // fairness between input consumption. But it can reduce throughput due to added control
-        // flow cost on the per-record code path.
-        for (StreamTaskSourceInput<?> input : operatorChain.getSourceTaskInputs()) {
-            input.disableEmitNextLoop();
-        }
 
         // create an input instance for each input
         checkpointBarrierHandler =
@@ -112,5 +103,14 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
                         gatePartitioners,
                         getEnvironment().getTaskInfo());
+    }
+
+    // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing
+    // behavior of choosing an input every time a record is emitted. This behavior is good for
+    // fairness between input consumption. But it can reduce throughput due to added control
+    // flow cost on the per-record code path.
+    @Override
+    public CanEmitBatchOfRecordsChecker getCanEmitBatchOfRecords() {
+        return () -> false;
     }
 }

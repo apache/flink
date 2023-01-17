@@ -170,7 +170,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private int numSplits;
     private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
     private final Set<String> currentlyPausedSplits = new HashSet<>();
-    private boolean isEmitNextLoopDisabled = false;
 
     private enum OperatingMode {
         READING,
@@ -412,9 +411,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (operatingMode != OperatingMode.READING) {
             return emitNextNotReading(output);
         }
-        if (isEmitNextLoopDisabled) {
-            return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
-        }
 
         InputStatus status;
         do {
@@ -570,11 +566,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
         }
-    }
-
-    // Configure SourceOperator#emitNext to emit at most one record to the given DataOutput.
-    public void disableEmitNextLoop() {
-        isEmitNextLoopDisabled = true;
     }
 
     private void handleAddSplitsEvent(AddSplitEvent<SplitT> event) {
