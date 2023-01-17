@@ -80,7 +80,7 @@ public class CliChangelogResultView
                         false,
                         true));
         this.collectResult = collectResult;
-        if (isPlainTerminal()) {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             refreshInterval = DEFAULT_REFRESH_INTERVAL_PLAIN;
         } else {
             refreshInterval = DEFAULT_REFRESH_INTERVAL;

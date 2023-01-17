@@ -365,7 +365,7 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
     }
 
     public void clearTerminal() {
-        if (isPlainTerminal()) {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             for (int i = 0; i < 200; i++) { // large number of empty lines
                 terminal.writer().println();
             }
@@ -374,23 +374,17 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
         }
     }
 
-    protected boolean isPlainTerminal() {
-        // check if terminal width can be determined
-        // e.g. IntelliJ IDEA terminal supports only a plain terminal
-        return terminal.getWidth() == 0 && terminal.getHeight() == 0;
-    }
-
     // --------------------------------------------------------------------------------------------
 
     public int getTerminalWidth() {
-        if (isPlainTerminal()) {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             return PLAIN_TERMINAL_WIDTH;
         }
         return terminal.getWidth();
     }
 
     public int getTerminalHeight() {
-        if (isPlainTerminal()) {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             return PLAIN_TERMINAL_HEIGHT;
         }
         return terminal.getHeight();

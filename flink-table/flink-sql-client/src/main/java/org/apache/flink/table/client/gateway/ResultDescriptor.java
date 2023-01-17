@@ -49,19 +49,20 @@ public class ResultDescriptor {
 
     @SuppressWarnings("unchecked")
     public <T extends DynamicResult> T createResult() {
-        if (config.get(EXECUTION_RESULT_MODE).equals(CHANGELOG)
-                && config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)) {
+        ResultMode resultMode = config.get(EXECUTION_RESULT_MODE);
+        boolean isStreaming = config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING);
+        if (resultMode.equals(CHANGELOG) && !isStreaming) {
             throw new SqlExecutionException(
                     "Results of batch queries can only be served in table or tableau mode.");
         }
 
-        switch (config.get(EXECUTION_RESULT_MODE)) {
+        switch (resultMode) {
             case CHANGELOG:
             case TABLEAU:
                 return (T) new ChangelogCollectResult(tableResult);
             case TABLE:
                 Integer maxRows = config.get(EXECUTION_MAX_TABLE_RESULT_ROWS);
-                if (config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING)) {
+                if (isStreaming) {
                     return (T) new MaterializedCollectStreamResult(tableResult, maxRows);
                 } else {
                     return (T) new MaterializedCollectBatchResult(tableResult, maxRows);
@@ -70,7 +71,7 @@ public class ResultDescriptor {
                 throw new SqlExecutionException(
                         String.format(
                                 "Unknown value '%s' for option '%s'.",
-                                config.get(EXECUTION_RESULT_MODE), EXECUTION_RESULT_MODE.key()));
+                                resultMode, EXECUTION_RESULT_MODE.key()));
         }
     }
 

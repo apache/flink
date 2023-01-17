@@ -115,11 +115,7 @@ public class CliTableauResultView implements AutoCloseable {
 
     private void checkAndCleanUpQuery(boolean cleanUpQuery) {
         if (cleanUpQuery) {
-            try {
-                collectResult.close();
-            } catch (Exception e) {
-                // ignore further exceptions
-            }
+            collectResult.close();
         }
     }
 

@@ -78,7 +78,7 @@ public class CliInputView extends CliView<CliInputView.InputOperation, String> {
         keys.bind(RIGHT, key(terminal, Capability.key_right));
         keys.bind(BACKSPACE, del());
 
-        if (isPlainTerminal()) {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             keys.bind(ENTER, "\r", "$");
             keys.bind(QUIT, key(terminal, Capability.key_exit), "!");
         } else {

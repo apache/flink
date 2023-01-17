@@ -235,7 +235,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
         }
     }
 
-    abstract void cleanUpQuery() throws Exception;
+    abstract void cleanUpQuery();
 
     // --------------------------------------------------------------------------------------------
 
@@ -299,14 +299,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 
             if (cleanUpQuery) {
                 // cancel table program
-                try {
-                    // the cancellation happens in the refresh thread in order to keep the main
-                    // thread
-                    // responsive at all times; esp. if the cluster is not available
-                    cleanUpQuery();
-                } catch (Exception e) {
-                    // ignore further exceptions
-                }
+                cleanUpQuery();
             }
         }
     }

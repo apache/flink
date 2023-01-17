@@ -168,19 +168,13 @@ public class CliClient implements AutoCloseable {
     }
 
     public void clearTerminal() {
-        if (isPlainTerminal()) {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             for (int i = 0; i < 200; i++) { // large number of empty lines
                 terminal.writer().println();
             }
         } else {
             terminal.puts(InfoCmp.Capability.clear_screen);
         }
-    }
-
-    public boolean isPlainTerminal() {
-        // check if terminal width can be determined
-        // e.g. IntelliJ IDEA terminal supports only a plain terminal
-        return terminal.getWidth() == 0 && terminal.getHeight() == 0;
     }
 
     /** Closes the CLI instance. */
