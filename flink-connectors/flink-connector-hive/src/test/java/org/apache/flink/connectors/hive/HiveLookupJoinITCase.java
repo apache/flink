@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -376,6 +377,31 @@ public class HiveLookupJoinITCase {
                                         + " join bounded_table for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
         assertEquals("[+I[1, a], +I[2, b], +I[3, c]]", results.toString());
+    }
+
+    @Test
+    public void testLookupJoinPartitionTableWithLookUpSourceProjectPushDown() throws Exception {
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        batchEnv.useCatalog(hiveCatalog.getName());
+        batchEnv.executeSql(
+                        "insert overwrite bounded_partition_table values "
+                                + "(1,'a',08,2019,'08','01'),"
+                                + "(1,'a',10,2020,'08','31'),"
+                                + "(2,'a',21,2020,'08','31'),"
+                                + "(2,'b',22,2020,'08','31')")
+                .await();
+
+        TableImpl flinkTable =
+                (TableImpl)
+                        tableEnv.sqlQuery(
+                                "select p.x, p.y, b.pt_year, b.pt_mon, b.pt_day from "
+                                        + " default_catalog.default_database.probe as p"
+                                        + " join bounded_partition_table for system_time as of p.p as b on p.x=b.x and p.y=b.y");
+        List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
+        assertEquals(
+                "[+I[1, a, 2019, 08, 01], +I[1, a, 2020, 08, 31], +I[2, b, 2020, 08, 31]]",
+                results.toString());
     }
 
     @Test
