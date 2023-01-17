@@ -543,6 +543,12 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         }
 
         @Override
+        public long getNumBytesProduced(
+                IndexRange partitionIndexRange, IndexRange subpartitionIndexRange) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void recordPartitionInfo(int partitionIndex, ResultPartitionBytes partitionBytes) {}
 
         @Override

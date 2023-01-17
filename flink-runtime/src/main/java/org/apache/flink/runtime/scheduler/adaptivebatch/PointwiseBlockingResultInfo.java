@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.util.Arrays;
@@ -59,5 +60,31 @@ public class PointwiseBlockingResultInfo extends AbstractBlockingResultInfo {
         return subpartitionBytesByPartitionIndex.values().stream()
                 .flatMapToLong(Arrays::stream)
                 .reduce(0L, Long::sum);
+    }
+
+    @Override
+    public long getNumBytesProduced(
+            IndexRange partitionIndexRange, IndexRange subpartitionIndexRange) {
+        long inputBytes = 0;
+        for (int i = partitionIndexRange.getStartIndex();
+                i <= partitionIndexRange.getEndIndex();
+                ++i) {
+            checkState(
+                    subpartitionBytesByPartitionIndex.get(i) != null,
+                    "Partition index %s is not ready.",
+                    i);
+            checkState(
+                    subpartitionIndexRange.getEndIndex()
+                            < subpartitionBytesByPartitionIndex.get(i).length,
+                    "Subpartition end index %s is out of range of partition %s.",
+                    subpartitionIndexRange.getEndIndex(),
+                    i);
+            for (int j = subpartitionIndexRange.getStartIndex();
+                    j <= subpartitionIndexRange.getEndIndex();
+                    ++j) {
+                inputBytes += subpartitionBytesByPartitionIndex.get(i)[j];
+            }
+        }
+        return inputBytes;
     }
 }
