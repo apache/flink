@@ -136,7 +136,7 @@ The non-deterministic functions are executed at runtime (in clusters, evaluated 
 For more information see [System (Built-in) Function Determinism]( {{< ref "docs/dev/table/functions/udfs" >}}#system-built-in-function-determinism).
 
 ## 3. Determinism In Streaming Processing
-A core difference between streaming and batch is the unboundedness of the data. Flink SQL abstracts streaming processing as the [continuous query on dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables- amp-continuous-queries).
+A core difference between streaming and batch is the unboundedness of the data. Flink SQL abstracts streaming processing as the [continuous query on dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries).
 So the dynamic function in the batch query example is equivalent to a non-deterministic function in a streaming processing(where logically every change in the base table triggers the query to be executed).
 If the `clicks` log table in the example is from a Kafka topic that is continuously written, the same query in stream mode will return `CURRENT_TIMESTAMP` that will change over time
 ```sql
