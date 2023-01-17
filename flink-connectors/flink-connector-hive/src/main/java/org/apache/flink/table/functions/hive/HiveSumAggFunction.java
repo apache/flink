@@ -129,7 +129,7 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 throw new TableException(
                         String.format(
-                                "Native hive sum aggregate function does not support type: '%s'. Please set option '%s' to false.",
+                                "Native hive sum aggregate function does not support type: %s. Please set option '%s' to false.",
                                 argsType, TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
             default:
                 throw new TableException(

@@ -153,7 +153,7 @@ public class HiveDialectAggITCase {
                 .rootCause()
                 .satisfiesAnyOf(
                         anyCauseMatches(
-                                "Native hive sum aggregate function does not support type: 'TIMESTAMP_WITHOUT_TIME_ZONE'. "
+                                "Native hive sum aggregate function does not support type: TIMESTAMP(9). "
                                         + "Please set option 'table.exec.hive.native-agg-function.enabled' to false."));
 
         tableEnv.executeSql("drop table test_sum");
