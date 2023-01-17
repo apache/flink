@@ -119,6 +119,21 @@ abstract class AggregateTestBase extends TableTestBase {
   }
 
   @Test
+  def testCountStartWithProjectPushDown(): Unit = {
+    // the test values table source supports projection push down by default
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values'
+                               | ,'bounded' = 'true'
+                               |)
+                               |""".stripMargin)
+    util.verifyRelPlanWithType("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
   def testCannotCountOnMultiFields(): Unit = {
     val sql = "SELECT b, COUNT(a, c) FROM MyTable1 GROUP BY b"
     thrown.expect(classOf[TableException])

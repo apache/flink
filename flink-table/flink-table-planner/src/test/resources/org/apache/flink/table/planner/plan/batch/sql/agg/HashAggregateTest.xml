@@ -598,6 +598,68 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCountStartWithProjectPushDown[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]]), rowType=[RecordType(VARCHAR(2147483647) id, BIGINT cnt)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
+      +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id]), rowType=[RecordType(VARCHAR(2147483647) id)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStartWithProjectPushDown[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]]), rowType=[RecordType(VARCHAR(2147483647) id, BIGINT cnt)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
++- Exchange(distribution=[single]), rowType=[RecordType(INTEGER $f0)]
+   +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id]), rowType=[RecordType(VARCHAR(2147483647) id)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStartWithProjectPushDown[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]]), rowType=[RecordType(VARCHAR(2147483647) id, BIGINT cnt)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
++- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
+      +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id]), rowType=[RecordType(VARCHAR(2147483647) id)]
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupAggregate[aggStrategy=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a]]>

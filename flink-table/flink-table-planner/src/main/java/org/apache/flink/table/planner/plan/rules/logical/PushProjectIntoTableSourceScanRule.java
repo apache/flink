@@ -51,6 +51,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.tools.RelBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -139,10 +140,24 @@ public class PushProjectIntoTableSourceScanRule
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
         final ResolvedSchema schema = sourceTable.contextResolvedTable().getResolvedSchema();
         final RowType producedType = createProducedType(schema, sourceTable.tableSource());
-        final NestedSchema projectedSchema =
+        NestedSchema projectedSchema =
                 NestedProjectionUtil.build(
                         getProjections(project, scan),
                         typeFactory.buildRelNodeRowType(producedType));
+        // we can not perform an empty column query to the table scan, just choose the first column
+        // in such case
+        if (projectedSchema.columns().isEmpty()) {
+            RelBuilder relBuilder = call.builder();
+            relBuilder.push(scan);
+            RexNode selectFirstColumn = relBuilder.field(0);
+            relBuilder.project(selectFirstColumn);
+            LogicalProject newProject = (LogicalProject) relBuilder.build();
+            projectedSchema =
+                    NestedProjectionUtil.build(
+                            getProjections(newProject, scan),
+                            typeFactory.buildRelNodeRowType(producedType));
+        }
+
         if (!supportsNestedProjection) {
             for (NestedColumn column : projectedSchema.columns().values()) {
                 column.markLeaf();
