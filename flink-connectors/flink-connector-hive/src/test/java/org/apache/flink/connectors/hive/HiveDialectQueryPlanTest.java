@@ -27,9 +27,11 @@ import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,21 +47,11 @@ public class HiveDialectQueryPlanTest {
         // required by query like "src.`[k].*` from src"
         hiveCatalog.getHiveConf().setVar(HiveConf.ConfVars.HIVE_QUOTEDID_SUPPORT, "none");
         hiveCatalog.open();
-        tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
-        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-        tableEnv.useCatalog(hiveCatalog.getName());
-
-        // automatically load hive module in hive-compatible mode
-        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
-        CoreModule coreModule = CoreModule.INSTANCE;
-        for (String loaded : tableEnv.listModules()) {
-            tableEnv.unloadModule(loaded);
-        }
-        tableEnv.loadModule("hive", hiveModule);
-        tableEnv.loadModule("core", coreModule);
+        tableEnv = getTableEnvWithHiveCatalog();
 
         // create tables
         tableEnv.executeSql("create table foo (x int, y int)");
+
         HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "foo")
                 .addRow(new Object[] {1, 1})
                 .addRow(new Object[] {2, 2})
@@ -69,11 +61,23 @@ public class HiveDialectQueryPlanTest {
                 .commit();
     }
 
+    @Before
+    public void before() {
+        // enable native hive agg function
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, true);
+    }
+
     @Test
     public void testSumAggFunctionPlan() {
         // test explain
         String actualPlan = explainSql("select x, sum(y) from foo group by x");
         assertThat(actualPlan).isEqualTo(readFromResource("/explain/testSumAggFunctionPlan.out"));
+
+        // test fallback to hive sum udaf
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
+        String actualSortAggPlan = explainSql("select x, sum(y) from foo group by x");
+        assertThat(actualSortAggPlan)
+                .isEqualTo(readFromResource("/explain/testSumAggFunctionFallbackPlan.out"));
     }
 
     @Test
@@ -81,6 +85,12 @@ public class HiveDialectQueryPlanTest {
         // test explain
         String actualPlan = explainSql("select x, min(y) from foo group by x");
         assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMinAggFunctionPlan.out"));
+
+        // test fallback to hive min udaf
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
+        String actualSortAggPlan = explainSql("select x, min(y) from foo group by x");
+        assertThat(actualSortAggPlan)
+                .isEqualTo(readFromResource("/explain/testMinAggFunctionFallbackPlan.out"));
     }
 
     private String explainSql(String sql) {
@@ -88,5 +98,24 @@ public class HiveDialectQueryPlanTest {
                 CollectionUtil.iteratorToList(tableEnv.executeSql("explain " + sql).collect())
                         .get(0)
                         .getField(0);
+    }
+
+    private static TableEnvironment getTableEnvWithHiveCatalog() {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule =
+                new HiveModule(
+                        hiveCatalog.getHiveVersion(),
+                        tableEnv.getConfig(),
+                        Thread.currentThread().getContextClassLoader());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+        return tableEnv;
     }
 }
