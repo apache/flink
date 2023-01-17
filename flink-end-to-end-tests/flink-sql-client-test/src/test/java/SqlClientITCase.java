@@ -290,10 +290,18 @@ public class SqlClientITCase {
         File tempOutputFile = new File(tempDir, "records.out");
         String tempOutputFilepath = tempOutputFile.toString();
         GenericContainer<?> taskManager = flink.getTaskManagers().get(0);
-        Thread.sleep(5000); // prevent NotFoundException: Status 404
-        taskManager.copyFileFromContainer(resultFilePath, tempOutputFilepath);
-
-        int numberOfResultRecords = UpsertTestFileUtil.getNumberOfRecords(tempOutputFile);
+        int numberOfResultRecords;
+        while (true) {
+            Thread.sleep(50); // prevent NotFoundException: Status 404
+            try {
+                taskManager.copyFileFromContainer(resultFilePath, tempOutputFilepath);
+                numberOfResultRecords = UpsertTestFileUtil.getNumberOfRecords(tempOutputFile);
+                if (numberOfResultRecords == expectedNumberOfRecords) {
+                    break;
+                }
+            } catch (Exception ignored) {
+            }
+        }
         assertThat(numberOfResultRecords).isEqualTo(expectedNumberOfRecords);
     }
 
