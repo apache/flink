@@ -26,8 +26,8 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 @PublicEvolving
 public enum RowFormat {
     /**
-     * Serialize the RowData with JSON format. With the structure expression, the serialized value
-     * can be deseriali
+     * Serialize the RowData with JSON format. The serialized value can be deserialized by means of
+     * structural expressions.
      */
     JSON,
 

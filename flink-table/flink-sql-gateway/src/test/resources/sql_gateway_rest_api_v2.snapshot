@@ -302,7 +302,7 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "row_format",
+        "key" : "rowFormat",
         "mandatory" : true
       } ]
     },

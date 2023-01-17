@@ -27,35 +27,10 @@ CREATE TABLE dummy (
 1 row in set
 !ok
 
-SET $internal.pipeline.job-id = 879d95431dd5516bf93a44c9e0fdf3b5;
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
-
 INSERT INTO dummy VALUES (1);
 !output
-+----------------------------------+
-|                           job id |
-+----------------------------------+
-| 879d95431dd5516bf93a44c9e0fdf3b5 |
-+----------------------------------+
-1 row in set
-!ok
-
-RESET $internal.pipeline.job-id;
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+Job ID:
+!info
 
 # ==========================================================================
 # test all types
@@ -87,37 +62,12 @@ CREATE TABLE hive_types_table (
 1 row in set
 !ok
 
-SET $internal.pipeline.job-id = 40eadf85976ed00808ff1c6b20e8d616;
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
-
 INSERT INTO hive_types_table
 SELECT true, 1, 2, 3, 4, 5.0, 6.0, 7.1111, 'Hello World', 'Flink Hive', '2112-12-12 00:00:05.006', '2002-12-13', 'byte', MAP('a', 'b'), ARRAY(1)
 FROM dummy LIMIT 1;
 !output
-+----------------------------------+
-|                           job id |
-+----------------------------------+
-| 40eadf85976ed00808ff1c6b20e8d616 |
-+----------------------------------+
-1 row in set
-!ok
-
-RESET $internal.pipeline.job-id;
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+Job ID:
+!info
 
 SELECT * FROM hive_types_table;
 !output

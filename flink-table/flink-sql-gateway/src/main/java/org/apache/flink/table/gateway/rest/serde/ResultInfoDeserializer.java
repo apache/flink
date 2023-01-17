@@ -41,11 +41,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_COLUMN_INFOS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_DATA;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_FIELDS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KIND;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_ROW_FORMAT;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfoSerializer.FIELD_NAME_COLUMN_INFOS;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfoSerializer.FIELD_NAME_DATA;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfoSerializer.FIELD_NAME_FIELDS;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfoSerializer.FIELD_NAME_KIND;
+import static org.apache.flink.table.gateway.rest.serde.ResultInfoSerializer.FIELD_NAME_ROW_FORMAT;
 
 /**
  * Deserializer for {@link ResultInfo}.

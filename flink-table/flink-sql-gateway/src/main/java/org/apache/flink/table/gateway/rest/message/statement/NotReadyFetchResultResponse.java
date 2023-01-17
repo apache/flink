@@ -26,6 +26,7 @@ import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 
 import javax.annotation.Nullable;
 
+/** The {@link FetchResultsResponseBody} indicates the results is not ready. */
 public class NotReadyFetchResultResponse implements FetchResultsResponseBody {
 
     private final String nextResultUri;

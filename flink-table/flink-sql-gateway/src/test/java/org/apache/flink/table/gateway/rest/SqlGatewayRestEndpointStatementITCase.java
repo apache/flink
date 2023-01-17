@@ -42,17 +42,16 @@ import org.apache.flink.table.gateway.rest.message.statement.FetchResultsRespons
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -80,7 +79,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in statement
  * related cases.
  */
-@ExtendWith(ParameterizedTestExtension.class)
 public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementITCase {
 
     private static final Logger LOG =
@@ -292,8 +290,9 @@ public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewaySta
             FetchResultsResponseBody fetchResultsResponseBody =
                     fetchResults(sessionHandle, operationHandle, token);
 
-            token = fetchResultsResponseBody.parseToken();
-
+            token =
+                    SqlGatewayRestEndpointTestUtils.parseToken(
+                            fetchResultsResponseBody.getNextResultUri());
             fetchedRows = fetchResultsResponseBody.getResults().getData().iterator();
         }
     }

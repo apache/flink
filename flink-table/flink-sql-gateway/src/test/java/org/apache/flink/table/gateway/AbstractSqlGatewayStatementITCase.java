@@ -30,6 +30,7 @@ import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.commons.io.IOUtils;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -70,6 +72,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base ITCase tests for statements. */
+@ExtendWith(ParameterizedTestExtension.class)
 public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase {
 
     private static final Logger LOG =
@@ -122,7 +125,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
 
     @TestTemplate
     public void testFlinkSqlStatements() throws Exception {
-        resetSessionForFlinkSqlStatements();
+        prepareEnvironment();
         runTest(parameters.getSqlPath());
     }
 
@@ -161,6 +164,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
     // Utility
     // -------------------------------------------------------------------------------------------
 
+    /** Parameters of the test spec. */
     protected static class TestParameters {
 
         protected final String sqlPath;
@@ -295,7 +299,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
         assertThat(String.join("", runStatements(testSqlStatements))).isEqualTo(in);
     }
 
-    protected void resetSessionForFlinkSqlStatements() throws Exception {}
+    protected void prepareEnvironment() throws Exception {}
 
     /**
      * Returns printed results for each ran SQL statements.

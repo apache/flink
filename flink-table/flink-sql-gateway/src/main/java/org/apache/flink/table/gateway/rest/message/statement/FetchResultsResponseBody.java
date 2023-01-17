@@ -49,16 +49,4 @@ public interface FetchResultsResponseBody extends ResponseBody {
     JobID getJobID();
 
     ResultKind getResultKind();
-
-    @Nullable
-    default Long parseToken() {
-        if (getNextResultUri() == null || getNextResultUri().length() == 0) {
-            return null;
-        }
-        String[] split = getNextResultUri().split("/");
-        // remove query string
-        String s = split[split.length - 1];
-        s = s.replaceAll("\\?.*", "");
-        return Long.valueOf(s);
-    }
 }

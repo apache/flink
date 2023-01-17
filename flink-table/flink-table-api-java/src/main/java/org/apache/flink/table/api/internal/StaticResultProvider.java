@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -51,7 +52,7 @@ public class StaticResultProvider implements ResultProvider {
                     } else if (Boolean.FALSE.equals(value)) {
                         results[i] = "FALSE";
                     } else {
-                        results[i] = value == null ? null : "" + value;
+                        results[i] = value == null ? PrintStyle.NULL_VALUE : "" + value;
                     }
                 }
                 return results;

@@ -39,12 +39,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_COLUMN_INFOS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_DATA;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_FIELDS;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_KIND;
-import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_ROW_FORMAT;
-
 /**
  * Serializer for {@link ResultInfo}.
  *
@@ -52,6 +46,17 @@ import static org.apache.flink.table.gateway.rest.serde.ResultInfo.FIELD_NAME_RO
  */
 @Internal
 public class ResultInfoSerializer extends StdSerializer<ResultInfo> {
+
+    // Columns
+    public static final String FIELD_NAME_COLUMN_INFOS = "columns";
+
+    // RowData
+    public static final String FIELD_NAME_DATA = "data";
+    public static final String FIELD_NAME_KIND = "kind";
+    public static final String FIELD_NAME_FIELDS = "fields";
+
+    // RowFormat
+    public static final String FIELD_NAME_ROW_FORMAT = "rowFormat";
 
     private static final long serialVersionUID = 1L;
 

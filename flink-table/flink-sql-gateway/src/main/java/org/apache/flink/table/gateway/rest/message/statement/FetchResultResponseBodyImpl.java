@@ -25,6 +25,7 @@ import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 
 import javax.annotation.Nullable;
 
+/** The implementation of the {@link FetchResultsResponseBody} with ready results. */
 public class FetchResultResponseBodyImpl implements FetchResultsResponseBody {
 
     private final ResultInfo results;

@@ -54,17 +54,6 @@ import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 @JsonDeserialize(using = ResultInfoDeserializer.class)
 public class ResultInfo {
 
-    // Columns
-    public static final String FIELD_NAME_COLUMN_INFOS = "columns";
-
-    // RowData
-    public static final String FIELD_NAME_DATA = "data";
-    public static final String FIELD_NAME_KIND = "kind";
-    public static final String FIELD_NAME_FIELDS = "fields";
-
-    // RowFormat
-    public static final String FIELD_NAME_ROW_FORMAT = "rowFormat";
-
     private final List<ColumnInfo> columnInfos;
     private final List<RowData> data;
     private final RowFormat rowFormat;

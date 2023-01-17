@@ -26,7 +26,7 @@ import org.apache.flink.table.gateway.rest.util.RowFormat;
  */
 public class FetchResultsRowFormatQueryParameter extends MessageQueryParameter<RowFormat> {
 
-    public static final String KEY = "row_format";
+    public static final String KEY = "rowFormat";
 
     public FetchResultsRowFormatQueryParameter() {
         super(KEY, MessageParameterRequisiteness.MANDATORY);
@@ -44,6 +44,6 @@ public class FetchResultsRowFormatQueryParameter extends MessageQueryParameter<R
 
     @Override
     public String getDescription() {
-        return "The row format to identify the serialization format of RowData.";
+        return "The row format to serialize the RowData.";
     }
 }

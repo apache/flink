@@ -32,8 +32,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getBaseConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getFlinkConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A simple {@link Extension} that manages the lifecycle of the {@link SqlGatewayRestEndpoint}. */
