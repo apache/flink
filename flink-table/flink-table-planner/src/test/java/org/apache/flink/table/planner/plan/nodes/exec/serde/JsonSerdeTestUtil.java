@@ -66,7 +66,7 @@ class JsonSerdeTestUtil {
 
     static SerdeContext configuredSerdeContext(
             CatalogManager catalogManager, TableConfig tableConfig) {
-        final PlannerContext plannerContext =
+        final PlannerContext plannerContextImpl =
                 PlannerMocks.newBuilder()
                         .withCatalogManager(catalogManager)
                         .withTableConfig(tableConfig)
@@ -75,10 +75,10 @@ class JsonSerdeTestUtil {
                         .build()
                         .getPlannerContext();
         return new SerdeContext(
-                new ParserImpl(null, null, plannerContext::createCalciteParser, null),
-                plannerContext.getFlinkContext(),
-                plannerContext.getTypeFactory(),
-                plannerContext.createFrameworkConfig().getOperatorTable());
+                new ParserImpl(null, null, plannerContextImpl::createCalciteParser, null),
+                plannerContextImpl.getFlinkContext(),
+                plannerContextImpl.getTypeFactory(),
+                plannerContextImpl.createFrameworkConfig().getOperatorTable());
     }
 
     static String toJson(SerdeContext serdeContext, Object object) throws IOException {

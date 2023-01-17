@@ -71,7 +71,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
 
     public HiveOperationExecutor(CatalogManager catalogManager, PlannerContext plannerContext) {
         this.catalogManager = catalogManager;
-        tableConfig = plannerContext.getFlinkContext().getTableConfig();
+        this.tableConfig = plannerContext.getFlinkContext().getTableConfig();
         this.hiveVariables = tableConfig.get(HiveInternalOptions.HIVE_VARIABLES);
     }
 

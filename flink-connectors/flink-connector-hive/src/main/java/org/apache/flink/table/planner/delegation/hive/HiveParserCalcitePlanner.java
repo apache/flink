@@ -184,7 +184,7 @@ public class HiveParserCalcitePlanner {
     private final CatalogManager catalogManager;
     private final FlinkCalciteCatalogReader catalogReader;
     private final FlinkPlannerImpl flinkPlanner;
-    private final PlannerContext plannerContext;
+    private final PlannerContext plannerContextImpl;
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
     private final SqlFunctionConverter funcConverter;
@@ -202,21 +202,24 @@ public class HiveParserCalcitePlanner {
 
     public HiveParserCalcitePlanner(
             HiveParserQueryState queryState,
-            PlannerContext plannerContext,
+            PlannerContext plannerContextImpl,
             FlinkCalciteCatalogReader catalogReader,
             FrameworkConfig frameworkConfig,
             CatalogManager catalogManager)
             throws SemanticException {
         this.catalogManager = catalogManager;
         this.catalogReader = catalogReader;
-        flinkPlanner = plannerContext.createFlinkPlanner();
-        this.plannerContext = plannerContext;
+        flinkPlanner = plannerContextImpl.createFlinkPlanner();
+        this.plannerContextImpl = plannerContextImpl;
         this.frameworkConfig = frameworkConfig;
         this.hiveConf = queryState.getConf();
         this.semanticAnalyzer =
                 new HiveParserSemanticAnalyzer(
-                        queryState, frameworkConfig, plannerContext.getCluster(), catalogManager);
-        this.cluster = plannerContext.getCluster();
+                        queryState,
+                        frameworkConfig,
+                        plannerContextImpl.getCluster(),
+                        catalogManager);
+        this.cluster = plannerContextImpl.getCluster();
         this.funcConverter =
                 new SqlFunctionConverter(
                         cluster, frameworkConfig.getOperatorTable(), catalogReader.nameMatcher());
@@ -2606,7 +2609,7 @@ public class HiveParserCalcitePlanner {
         // create correlate node
         if (correlUse == null) {
             correlRel =
-                    plannerContext
+                    plannerContextImpl
                             .createRelBuilder()
                             .push(input)
                             .push(tableFunctionScan)

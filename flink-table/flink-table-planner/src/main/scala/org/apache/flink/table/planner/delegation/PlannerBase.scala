@@ -110,7 +110,7 @@ abstract class PlannerBase(
 
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
-    new PlannerContext(
+    new PlannerContextImpl(
       !isStreamingMode,
       tableConfig,
       moduleManager,

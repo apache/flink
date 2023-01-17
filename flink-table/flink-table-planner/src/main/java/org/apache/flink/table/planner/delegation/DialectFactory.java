@@ -58,13 +58,15 @@ public interface DialectFactory extends Factory {
     /** Default implementation for {@link Context}. */
     class DefaultParserContext implements Context {
         private final CatalogManager catalogManager;
-        private final PlannerContext plannerContext;
+        private final PlannerContext plannerContextImpl;
         private final Executor executor;
 
         public DefaultParserContext(
-                CatalogManager catalogManager, PlannerContext plannerContext, Executor executor) {
+                CatalogManager catalogManager,
+                PlannerContext plannerContextImpl,
+                Executor executor) {
             this.catalogManager = catalogManager;
-            this.plannerContext = plannerContext;
+            this.plannerContextImpl = plannerContextImpl;
             this.executor = executor;
         }
 
@@ -75,7 +77,7 @@ public interface DialectFactory extends Factory {
 
         @Override
         public PlannerContext getPlannerContext() {
-            return plannerContext;
+            return plannerContextImpl;
         }
 
         @Override

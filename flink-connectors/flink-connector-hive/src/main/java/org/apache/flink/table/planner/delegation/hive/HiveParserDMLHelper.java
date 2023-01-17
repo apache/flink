@@ -44,8 +44,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserDirectoryDe
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
+import org.apache.flink.table.planner.delegation.hive.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalScriptTransform;
 import org.apache.flink.table.types.DataType;
@@ -97,15 +97,15 @@ import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants
 /** A helper class to handle DMLs in hive dialect. */
 public class HiveParserDMLHelper {
 
-    private final PlannerContext plannerContext;
+    private final PlannerContext plannerContextImpl;
     private final SqlFunctionConverter funcConverter;
     private final CatalogManager catalogManager;
 
     public HiveParserDMLHelper(
-            PlannerContext plannerContext,
+            PlannerContext plannerContextImpl,
             SqlFunctionConverter funcConverter,
             CatalogManager catalogManager) {
-        this.plannerContext = plannerContext;
+        this.plannerContextImpl = plannerContextImpl;
         this.funcConverter = funcConverter;
         this.catalogManager = catalogManager;
     }
@@ -151,7 +151,7 @@ public class HiveParserDMLHelper {
                         (SingleRel) queryRelNode, destTable, destSchema, staticPartSpec.keySet());
 
         // track each target col and its expected type
-        RelDataTypeFactory typeFactory = plannerContext.getTypeFactory();
+        RelDataTypeFactory typeFactory = plannerContextImpl.getTypeFactory();
         LinkedHashMap<String, RelDataType> targetColToCalcType = new LinkedHashMap<>();
         List<TypeInfo> targetHiveTypes = new ArrayList<>();
         TableSchema tableSchema =
@@ -238,7 +238,7 @@ public class HiveParserDMLHelper {
         // add type conversions
         queryRelNode =
                 addTypeConversions(
-                        plannerContext.getCluster().getRexBuilder(),
+                        plannerContextImpl.getCluster().getRexBuilder(),
                         queryRelNode,
                         new ArrayList<>(targetColToCalcType.values()),
                         targetHiveTypes,
@@ -454,7 +454,10 @@ public class HiveParserDMLHelper {
             }
             shiftedCollations.add(fieldCollation);
         }
-        return plannerContext.getCluster().traitSet().canonize(RelCollations.of(shiftedCollations));
+        return plannerContextImpl
+                .getCluster()
+                .traitSet()
+                .canonize(RelCollations.of(shiftedCollations));
     }
 
     static RelNode addTypeConversions(
@@ -705,7 +708,8 @@ public class HiveParserDMLHelper {
                                                                 col))),
                                 false);
                 updatedIndices.add(
-                        HiveParserTypeConverter.convert(hiveType, plannerContext.getTypeFactory()));
+                        HiveParserTypeConverter.convert(
+                                hiveType, plannerContextImpl.getTypeFactory()));
             } else {
                 updatedIndices.add(index);
             }
@@ -776,7 +780,10 @@ public class HiveParserDMLHelper {
             fieldCollation = fieldCollation.withFieldIndex(newIndex);
             updatedCollations.add(fieldCollation);
         }
-        return plannerContext.getCluster().traitSet().canonize(RelCollations.of(updatedCollations));
+        return plannerContextImpl
+                .getCluster()
+                .traitSet()
+                .canonize(RelCollations.of(updatedCollations));
     }
 
     private List<Integer> updateDistKeys(List<Integer> distKeys, List<Object> updatedIndices) {
@@ -834,7 +841,7 @@ public class HiveParserDMLHelper {
             Map<String, String> staticPartSpec,
             CatalogTable destTable,
             Map<String, RelDataType> targetColToType) {
-        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        RexBuilder rexBuilder = plannerContextImpl.getCluster().getRexBuilder();
         List<RexNode> originRexNodes =
                 IntStream.range(0, logicalScriptTransform.getRowType().getFieldCount())
                         .mapToObj(i -> rexBuilder.makeInputRef(logicalScriptTransform, i))
@@ -855,7 +862,7 @@ public class HiveParserDMLHelper {
             CatalogTable destTable,
             Map<String, RelDataType> targetColToType) {
         List<RexNode> extendedRexNodes = new ArrayList<>(originRexNodes);
-        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        RexBuilder rexBuilder = plannerContextImpl.getCluster().getRexBuilder();
         int numDynmPart = destTable.getPartitionKeys().size() - staticPartSpec.size();
         int insertIndex = originRexNodes.size() - numDynmPart;
         for (Map.Entry<String, String> spec : staticPartSpec.entrySet()) {
@@ -897,7 +904,7 @@ public class HiveParserDMLHelper {
                             destSchemaSize, selectSize));
         }
         List<RexNode> exprs = new ArrayList<>(updatedIndices.size());
-        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        RexBuilder rexBuilder = plannerContextImpl.getCluster().getRexBuilder();
         for (Object object : updatedIndices) {
             if (object instanceof Integer) {
                 exprs.add(rexBuilder.makeInputRef(input, (Integer) object));

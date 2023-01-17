@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.calcite
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NothingTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
@@ -45,7 +46,7 @@ import java.util
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
+@PublicEvolving
 /**
  * Flink specific type factory that represents the interface between Flink's [[LogicalType]] and
  * Calcite's [[RelDataType]].

@@ -164,17 +164,18 @@ public class SqlToOperationConverterTest {
                                     new CatalogManagerCalciteSchema(
                                             catalogManager, isStreamingMode)))
                     .build();
-    private final PlannerContext plannerContext = plannerMocks.getPlannerContext();
+    private final PlannerContext plannerContextImpl = plannerMocks.getPlannerContext();
     private final FunctionCatalog functionCatalog = plannerMocks.getFunctionCatalog();
 
-    private final Supplier<FlinkPlannerImpl> plannerSupplier = plannerContext::createFlinkPlanner;
+    private final Supplier<FlinkPlannerImpl> plannerSupplier =
+            plannerContextImpl::createFlinkPlanner;
 
     private final Parser parser =
             new ParserImpl(
                     catalogManager,
                     plannerSupplier,
                     () -> plannerSupplier.get().parser(),
-                    plannerContext.getRexFactory());
+                    plannerContextImpl.getRexFactory());
 
     @BeforeEach
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -2860,12 +2861,12 @@ public class SqlToOperationConverterTest {
 
     private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
-        return plannerContext.createFlinkPlanner();
+        return plannerContextImpl.createFlinkPlanner();
     }
 
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
-        return plannerContext.createCalciteParser();
+        return plannerContextImpl.createCalciteParser();
     }
 
     private void checkAlterNonExistTable(String sqlTemplate) {

@@ -46,9 +46,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link ExpressionConverter}. */
 public class ExpressionConverterTest {
 
-    private final PlannerContext plannerContext = PlannerMocks.create().getPlannerContext();
+    private final PlannerContext plannerContextImpl = PlannerMocks.create().getPlannerContext();
     private final ExpressionConverter converter =
-            new ExpressionConverter(plannerContext.createRelBuilder());
+            new ExpressionConverter(plannerContextImpl.createRelBuilder());
 
     @Test
     public void testLiteral() {

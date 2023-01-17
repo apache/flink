@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.PlannerContextImpl;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
@@ -54,7 +55,7 @@ public class PlannerMocks {
     private final CatalogManager catalogManager;
     private final FunctionCatalog functionCatalog;
     private final TableConfig tableConfig;
-    private final PlannerContext plannerContext;
+    private final PlannerContext plannerContextImpl;
 
     @SuppressWarnings("rawtypes")
     private PlannerMocks(
@@ -72,8 +73,8 @@ public class PlannerMocks {
         this.functionCatalog =
                 new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
-        this.plannerContext =
-                new PlannerContext(
+        this.plannerContextImpl =
+                new PlannerContextImpl(
                         isBatchMode,
                         tableConfig,
                         moduleManager,
@@ -87,13 +88,13 @@ public class PlannerMocks {
                         traitDefs,
                         PlannerMocks.class.getClassLoader());
 
-        this.planner = plannerContext.createFlinkPlanner();
+        this.planner = plannerContextImpl.createFlinkPlanner();
         this.parser =
                 new ParserImpl(
                         catalogManager,
                         () -> planner,
                         planner::parser,
-                        plannerContext.getRexFactory());
+                        plannerContextImpl.getRexFactory());
 
         catalogManager.initSchemaResolver(
                 true,
@@ -129,7 +130,7 @@ public class PlannerMocks {
     }
 
     public PlannerContext getPlannerContext() {
-        return plannerContext;
+        return plannerContextImpl;
     }
 
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {

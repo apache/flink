@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.{JDouble, JLong}
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
-import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.delegation.{PlannerContext, PlannerContextImpl}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.util.Preconditions
