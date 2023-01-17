@@ -84,6 +84,10 @@ public class InputGateSpecUtils {
         return configuredMaxRequiredBuffersPerGate.orElseGet(
                 () ->
                         partitionType.isPipelinedOrPipelinedBoundedResultPartition()
+                                        // hybrid partition may calculate a backlog that is larger
+                                        // than the accurate value. If all buffers are floating, it
+                                        // will seriously affect the performance.
+                                        || partitionType.isHybridResultPartition()
                                 ? DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
                                 : DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
     }
