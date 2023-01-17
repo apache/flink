@@ -53,7 +53,7 @@ class RelTreeWriterImpl(
 
   val NODE_LEVEL_ADVICE = new util.HashMap[Integer, util.List[PlanAdvice]]()
 
-  val QUERY_LEVEL_ADVICE = new util.ArrayList[PlanAdvice]()
+  val QUERY_LEVEL_ADVICE = new util.LinkedHashSet[PlanAdvice]()
 
   val NEXT_ADVICE_ID = new AtomicInteger(1)
 

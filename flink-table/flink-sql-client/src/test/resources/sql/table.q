@@ -1134,19 +1134,50 @@ Calc(select=[user, product])
 
 !ok
 
+# test explain select with PLAN_ADVICE
+explain plan_advice select sum(`amount`) as revenue, count(distinct `user`) as buyer_cnt from orders;
+== Abstract Syntax Tree ==
+LogicalAggregate(group=[{}], revenue=[SUM($0)], buyer_cnt=[COUNT(DISTINCT $1)])
++- LogicalProject(amount=[$2], user=[$0])
+   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalProject(user=[$0], product=[$1], amount=[$2], ts=[$3], ptime=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+
+== Optimized Physical Plan With Advice ==
+GroupAggregate(advice=[1], select=[SUM(amount) AS revenue, COUNT(DISTINCT user) AS buyer_cnt])
++- Exchange(distribution=[single])
+   +- Calc(select=[amount, user])
+      +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
+         +- Calc(select=[amount, user, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+
+== Optimized Execution Plan ==
+GroupAggregate(select=[SUM(amount) AS revenue, COUNT(DISTINCT user) AS buyer_cnt])
++- Exchange(distribution=[single])
+   +- Calc(select=[amount, user])
+      +- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
+         +- Calc(select=[amount, user, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
+
+!ok
+
 # test explain select with all details
-explain changelog_mode, estimated_cost, json_execution_plan select `user`, product from orders;
+explain changelog_mode, estimated_cost, plan_advice, json_execution_plan select `user`, product from orders;
 == Abstract Syntax Tree ==
 LogicalProject(user=[$0], product=[$1])
 +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($3, 1000:INTERVAL SECOND)])
    +- LogicalProject(user=[$0], product=[$1], amount=[$2], ts=[$3], ptime=[PROCTIME()])
       +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
 
-== Optimized Physical Plan ==
+== Optimized Physical Plan With Advice ==
 Calc(select=[user, product], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {4.0E8 rows, 2.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
 +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {3.0E8 rows, 2.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
    +- Calc(select=[user, product, ts], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {2.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
       +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {1.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
+
+No available advice...
 
 == Optimized Execution Plan ==
 Calc(select=[user, product])

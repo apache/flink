@@ -32,5 +32,6 @@ import java.util.List;
 public class FlinkStreamPlanAnalyzers {
 
     public static final List<PlanAnalyzer> ANALYZERS =
-            ImmutableList.of(GroupAggregationAnalyzer.INSTANCE);
+            ImmutableList.of(
+                    GroupAggregationAnalyzer.INSTANCE, NonDeterministicUpdateAnalyzer.INSTANCE);
 }
