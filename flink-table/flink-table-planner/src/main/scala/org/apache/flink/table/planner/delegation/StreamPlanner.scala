@@ -126,16 +126,21 @@ class StreamPlanner(
       SqlExplainLevel.DIGEST_ATTRIBUTES
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
-    optimizedRelNodes.foreach {
-      rel =>
-        sb.append(
-          FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
-        sb.append(System.lineSeparator)
-    }
     if (withAdvice) {
-      // TODO: append advice
-      sb.append("No available advice...\n")
-      sb.append(System.lineSeparator)
+      sb.append(
+        FlinkRelOptUtil
+          .toString(
+            optimizedRelNodes,
+            explainLevel,
+            withChangelogTraits = withChangelogTraits,
+            withAdvice = true))
+    } else {
+      optimizedRelNodes.foreach {
+        rel =>
+          sb.append(
+            FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
+          sb.append(System.lineSeparator)
+      }
     }
 
     sb.append("== Optimized Execution Plan ==")

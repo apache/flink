@@ -1001,6 +1001,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     if (expectedPlans.contains(PlanKind.OPT_REL)) {
       assertEqualsOrExpand("optimized rel plan", optimizedRelPlan, expand = false)
     }
+    // check optimized rel plan with available advice
+    if (expectedPlans.contains(PlanKind.OPT_REL_WITH_ADVICE)) {
+      assertEqualsOrExpand("optimized rel plan with advice", optimizedRelPlan, expand = false)
+    }
     // check optimized exec plan
     if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
       assertEqualsOrExpand("optimized exec plan", optimizedExecPlan, expand = false)
@@ -1034,18 +1038,28 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
 
+    val withAdvice = extraDetails.contains(ExplainDetail.PLAN_ADVICE)
     val optimizedPlan = optimizedRels.head match {
       case _: RelNode =>
-        optimizedRels
-          .map {
-            rel =>
-              FlinkRelOptUtil.toString(
-                rel,
-                detailLevel = explainLevel,
-                withChangelogTraits = withChangelogTraits,
-                withRowType = withRowType)
-          }
-          .mkString("\n")
+        if (withAdvice) {
+          FlinkRelOptUtil.toString(
+            optimizedRels,
+            detailLevel = explainLevel,
+            withChangelogTraits = withChangelogTraits,
+            withAdvice = true)
+        } else {
+          optimizedRels
+            .map {
+              rel =>
+                FlinkRelOptUtil.toString(
+                  rel,
+                  detailLevel = explainLevel,
+                  withChangelogTraits = withChangelogTraits,
+                  withRowType = withRowType)
+            }
+            .mkString("\n")
+        }
+
       case o =>
         throw new TableException(
           "The expected optimized plan is RelNode plan, " +
@@ -1606,6 +1620,9 @@ object PlanKind extends Enumeration {
 
   /** Optimized Rel Plan */
   val OPT_REL: Value = Value("OPT_REL")
+
+  /** Optimized Rel Plan with Available Advice */
+  val OPT_REL_WITH_ADVICE: Value = Value("OPT_REL_WITH_ADVICE")
 
   /** Optimized Execution Plan */
   val OPT_EXEC: Value = Value("OPT_EXEC")
