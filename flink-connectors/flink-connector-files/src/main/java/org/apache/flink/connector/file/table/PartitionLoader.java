@@ -75,9 +75,18 @@ public class PartitionLoader implements Closeable {
         this.policies = policies;
     }
 
-    /** Load a single partition. */
+    /**
+     * Load a single partition.
+     *
+     * @param partSpec the specification for the single partition
+     * @param srcPaths the paths for the files used to load to the single partition
+     * @param srcPathIsDir whether the every path in {@param srcPaths} is directory or not. If true,
+     *     it will load the files under the directory of the every path. If false, every path in
+     *     {@param srcPaths} is considered as single file, and it will load the single file for
+     *     every path.
+     */
     public void loadPartition(
-            LinkedHashMap<String, String> partSpec, List<Path> srcDirs, boolean srcPathIsDir)
+            LinkedHashMap<String, String> partSpec, List<Path> srcPaths, boolean srcPathIsDir)
             throws Exception {
         Optional<Path> pathFromMeta = metaStore.getPartition(partSpec);
         Path path =
@@ -87,14 +96,22 @@ public class PartitionLoader implements Closeable {
                                         metaStore.getLocationPath(),
                                         generatePartitionPath(partSpec)));
 
-        overwriteAndMoveFiles(srcDirs, path, srcPathIsDir);
+        overwriteAndMoveFiles(srcPaths, path, srcPathIsDir);
         commitPartition(partSpec, path);
     }
 
-    /** Load a non-partition files to output path. */
-    public void loadNonPartition(List<Path> srcDirs, boolean srcPathIsDir) throws Exception {
+    /**
+     * Load a non-partition files to output path.
+     *
+     * @param srcPaths the paths for the files used to load to the single partition
+     * @param srcPathIsDir whether the every path in {@param srcPaths} is directory or not. If true,
+     *     it will load the files under the directory of the every path. If false, every path in
+     *     {@param srcPaths} is considered as single file, and it will load the single file for
+     *     every path.
+     */
+    public void loadNonPartition(List<Path> srcPaths, boolean srcPathIsDir) throws Exception {
         Path tableLocation = metaStore.getLocationPath();
-        overwriteAndMoveFiles(srcDirs, tableLocation, srcPathIsDir);
+        overwriteAndMoveFiles(srcPaths, tableLocation, srcPathIsDir);
         commitPartition(new LinkedHashMap<>(), tableLocation);
         metaStore.finishWritingTable(tableLocation);
     }

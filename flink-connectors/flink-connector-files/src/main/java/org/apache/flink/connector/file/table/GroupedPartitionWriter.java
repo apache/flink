@@ -67,7 +67,7 @@ public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
 
             Path path = manager.createPartitionDir(partition);
             currentFormat = context.createNewOutputFormat(path);
-            writerListener.onFileOpen(partition, path);
+            writerListener.onFileOpened(partition, path);
             currentPartition = partition;
         }
         currentFormat.writeRecord(computer.projectColumnsToWrite(in));

@@ -67,7 +67,7 @@ public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
             Path path = manager.createPartitionDir(partition);
             format = context.createNewOutputFormat(path);
             formats.put(partition, format);
-            writerListener.onFileOpen(partition, path);
+            writerListener.onFileOpened(partition, path);
         }
         format.writeRecord(computer.projectColumnsToWrite(in));
     }

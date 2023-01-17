@@ -139,6 +139,7 @@ public class BatchPartitionCommitterSink extends RichSinkFunction<CompactOutput>
 
     @Override
     public void close() throws Exception {
+        staticPartitions.clear();
         partitionsFiles.clear();
     }
 }

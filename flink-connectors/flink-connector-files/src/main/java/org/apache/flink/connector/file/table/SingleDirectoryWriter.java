@@ -72,7 +72,7 @@ public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
                             ? manager.createPartitionDir()
                             : manager.createPartitionDir(partition);
             format = context.createNewOutputFormat(path);
-            writerListener.onFileOpen(partition, path);
+            writerListener.onFileOpened(partition, path);
         }
         format.writeRecord(computer.projectColumnsToWrite(in));
     }

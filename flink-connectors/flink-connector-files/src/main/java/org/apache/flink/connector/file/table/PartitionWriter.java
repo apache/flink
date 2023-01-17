@@ -75,14 +75,14 @@ public interface PartitionWriter<T> {
          * @param partition The partition for the newly opened file.
          * @param file The newly created file.
          */
-        void onFileOpen(String partition, Path file);
+        void onFileOpened(String partition, Path file);
     }
 
     /** Default implementation for PartitionWriterListener. */
     class DefaultPartitionWriterListener implements PartitionWriterListener {
 
         @Override
-        public void onFileOpen(String partition, Path file) {
+        public void onFileOpened(String partition, Path file) {
             // do nothing
         }
     }

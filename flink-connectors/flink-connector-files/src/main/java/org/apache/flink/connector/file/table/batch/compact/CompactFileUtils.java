@@ -28,6 +28,8 @@ import org.apache.flink.core.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +44,7 @@ public class CompactFileUtils {
      * Do Compaction: - Target file exists, do nothing. Otherwise, it'll read the input files and
      * write the target file to achieve compaction purpose.
      */
-    public static <T> Path doCompact(
+    public static @Nullable <T> Path doCompact(
             FileSystem fileSystem,
             String partition,
             List<Path> paths,
