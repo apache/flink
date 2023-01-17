@@ -31,6 +31,7 @@ import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.CollectionUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,9 +135,8 @@ public class ResultFetcher {
             OperationHandle operationHandle,
             TableResultInternal tableResult,
             boolean isQueryResult) {
-        JobID jobID = null;
         if (isQueryResult) {
-            jobID =
+            JobID jobID =
                     tableResult
                             .getJobClient()
                             .orElseThrow(
@@ -146,16 +146,21 @@ public class ResultFetcher {
                                                             "Can't get job client for the operation %s.",
                                                             operationHandle)))
                             .getJobID();
+            return new ResultFetcher(
+                    operationHandle,
+                    tableResult.getResolvedSchema(),
+                    tableResult.collectInternal(),
+                    tableResult.getRowDataToStringConverter(),
+                    isQueryResult,
+                    jobID,
+                    tableResult.getResultKind());
+        } else {
+            return new ResultFetcher(
+                    operationHandle,
+                    tableResult.getResolvedSchema(),
+                    CollectionUtil.iteratorToList(tableResult.collectInternal()),
+                    null);
         }
-
-        return new ResultFetcher(
-                operationHandle,
-                tableResult.getResolvedSchema(),
-                tableResult.collectInternal(),
-                tableResult.getRowDataToStringConverter(),
-                isQueryResult,
-                jobID,
-                tableResult.getResultKind());
     }
 
     public static ResultFetcher fromResults(
