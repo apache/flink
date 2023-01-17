@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
@@ -55,11 +54,12 @@ import static org.junit.Assert.assertTrue;
 /** Tests for {@link NettyPartitionRequestClient}. */
 @RunWith(Parameterized.class)
 public class NettyPartitionRequestClientTest {
-    @Parameterized.Parameter public boolean connectionReuseEnabled;
+    @Parameterized.Parameter
+    public boolean connectionReuseEnabled;
 
     @Parameterized.Parameters(name = "connection reuse enabled = {0}")
     public static Object[] parameters() {
-        return new Object[][] {new Object[] {true}, new Object[] {false}};
+        return new Object[][]{new Object[]{true}, new Object[]{false}};
     }
 
     @Test
@@ -285,20 +285,17 @@ public class NettyPartitionRequestClientTest {
     private NettyPartitionRequestClient createPartitionRequestClient(
             Channel tcpChannel, NetworkClientHandler clientHandler, boolean connectionReuseEnabled)
             throws Exception {
-        try (NetUtils.Port availablePort = NetUtils.getAvailablePort()) {
-            int port = availablePort.getPort();
-            ConnectionID connectionID =
-                    new ConnectionID(
-                            ResourceID.generate(), new InetSocketAddress("localhost", port), 0);
-            NettyConfig config =
-                    new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
-            NettyClient nettyClient = new NettyClient(config);
-            PartitionRequestClientFactory partitionRequestClientFactory =
-                    new PartitionRequestClientFactory(nettyClient, connectionReuseEnabled);
+        ConnectionID connectionID =
+                new ConnectionID(
+                        ResourceID.generate(), new InetSocketAddress("localhost", 0), 0);
+        NettyConfig config =
+                new NettyConfig(InetAddress.getLocalHost(), 0, 1024, 1, new Configuration());
+        NettyClient nettyClient = new NettyClient(config);
+        PartitionRequestClientFactory partitionRequestClientFactory =
+                new PartitionRequestClientFactory(nettyClient, connectionReuseEnabled);
 
-            return new NettyPartitionRequestClient(
-                    tcpChannel, clientHandler, connectionID, partitionRequestClientFactory);
-        }
+        return new NettyPartitionRequestClient(
+                tcpChannel, clientHandler, connectionID, partitionRequestClientFactory);
     }
 
     /**
@@ -307,6 +304,7 @@ public class NettyPartitionRequestClientTest {
      *
      * @param channel the channel to execute tasks for
      * @param deadline maximum timestamp in ms to stop waiting further
+     *
      * @throws InterruptedException
      */
     void runAllScheduledPendingTasks(EmbeddedChannel channel, long deadline)

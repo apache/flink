@@ -45,7 +45,6 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -255,13 +254,11 @@ public class ClientTest extends TestLogger {
 
         Client<KvStateInternalRequest, KvStateResponse> client = null;
 
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+        try {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            int availablePort = port.getPort();
-
             InetSocketAddress serverAddress =
-                    new InetSocketAddress(InetAddress.getLocalHost(), availablePort);
+                    new InetSocketAddress(InetAddress.getLocalHost(), 0);
 
             KvStateInternalRequest request =
                     new KvStateInternalRequest(new KvStateID(), new byte[0]);

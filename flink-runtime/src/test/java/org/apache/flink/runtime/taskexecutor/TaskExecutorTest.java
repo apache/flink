@@ -109,7 +109,6 @@ import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
@@ -2244,10 +2243,7 @@ public class TaskExecutorTest extends TestLogger {
 
     @Test(timeout = 10000L)
     public void testLogNotFoundHandling() throws Throwable {
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-            int dataPort = port.getPort();
-
-            configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+            configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, 0);
             configuration.setInteger(
                     NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
             configuration.setInteger(
@@ -2270,7 +2266,6 @@ public class TaskExecutorTest extends TestLogger {
                             containsString("The file LOG does not exist on the TaskExecutor."));
                 }
             }
-        }
     }
 
     @Test(timeout = 10000L)
