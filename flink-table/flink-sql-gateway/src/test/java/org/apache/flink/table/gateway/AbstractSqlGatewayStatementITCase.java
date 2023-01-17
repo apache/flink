@@ -325,10 +325,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 sb.append(iterator.next().getString(0).toString());
             }
             return Tag.OK.addTag(
-                    replaceStreamNodeId(
-                                    replaceNodeIdInOperator(
-                                            sb.toString()))
-                            + "\n");
+                    replaceStreamNodeId(replaceNodeIdInOperator(sb.toString())) + "\n");
         } else if (schema.getColumn(0)
                 .map(col -> col.getName().equals(Constants.JOB_ID))
                 .orElse(false)) {
