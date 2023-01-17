@@ -97,11 +97,6 @@ public abstract class MaterializedCollectResultBase extends CollectResultBase
     }
 
     @Override
-    public final boolean isMaterialized() {
-        return true;
-    }
-
-    @Override
     public TypedResult<Integer> snapshot(int pageSize) {
         if (pageSize < 1) {
             throw new SqlExecutionException("Page size must be greater than 0.");

@@ -40,6 +40,8 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
+import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -180,8 +182,7 @@ class LocalExecutorITCase {
             assertThat(desc.isMaterialized()).isFalse();
 
             final List<String> actualResults =
-                    retrieveChangelogResult(
-                            executor, desc.getResultId(), desc.getRowDataStringConverter());
+                    retrieveChangelogResult(desc.createResult(), desc.getRowDataStringConverter());
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("[47, Hello World, ABC]");
@@ -232,7 +233,7 @@ class LocalExecutorITCase {
 
                 final List<String> actualResults =
                         retrieveChangelogResult(
-                                executor, desc.getResultId(), desc.getRowDataStringConverter());
+                                desc.createResult(), desc.getRowDataStringConverter());
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
@@ -337,8 +338,7 @@ class LocalExecutorITCase {
             assertThat(desc.isMaterialized()).isTrue();
 
             final List<String> actualResults =
-                    retrieveTableResult(
-                            executor, desc.getResultId(), desc.getRowDataStringConverter());
+                    retrieveTableResult(desc.createResult(), desc.getRowDataStringConverter());
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("[47, ABC]");
@@ -387,8 +387,7 @@ class LocalExecutorITCase {
                 assertThat(desc.isMaterialized()).isTrue();
 
                 final List<String> actualResults =
-                        retrieveTableResult(
-                                executor, desc.getResultId(), desc.getRowDataStringConverter());
+                        retrieveTableResult(desc.createResult(), desc.getRowDataStringConverter());
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
@@ -482,8 +481,7 @@ class LocalExecutorITCase {
             assertThat(desc.isMaterialized()).isTrue();
 
             final List<String> actualResults =
-                    retrieveTableResult(
-                            executor, desc.getResultId(), desc.getRowDataStringConverter());
+                    retrieveTableResult(desc.createResult(), desc.getRowDataStringConverter());
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
@@ -493,20 +491,20 @@ class LocalExecutorITCase {
     }
 
     private List<String> retrieveTableResult(
-            Executor executor, String resultID, RowDataToStringConverter rowDataToStringConverter)
+            MaterializedResult materializedResult,
+            RowDataToStringConverter rowDataToStringConverter)
             throws InterruptedException {
 
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<Integer> result = executor.snapshotResult(resultID, 2);
+            final TypedResult<Integer> result = materializedResult.snapshot(2);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 actualResults.clear();
                 IntStream.rangeClosed(1, result.getPayload())
                         .forEach(
                                 (page) -> {
-                                    for (RowData row :
-                                            executor.retrieveResultPage(resultID, page)) {
+                                    for (RowData row : materializedResult.retrievePage(page)) {
                                         actualResults.add(
                                                 StringUtils.arrayAwareToString(
                                                         rowDataToStringConverter.convert(row)));
@@ -521,13 +519,13 @@ class LocalExecutorITCase {
     }
 
     private List<String> retrieveChangelogResult(
-            Executor executor, String resultID, RowDataToStringConverter rowDataToStringConverter)
+            ChangelogCollectResult collectResult, RowDataToStringConverter rowDataToStringConverter)
             throws InterruptedException {
 
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<List<RowData>> result = executor.retrieveResultChanges(resultID);
+            final TypedResult<List<RowData>> result = collectResult.retrieveChanges();
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 for (RowData row : result.getPayload()) {
                     actualResults.add(

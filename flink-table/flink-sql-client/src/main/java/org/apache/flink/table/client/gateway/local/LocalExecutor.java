@@ -35,14 +35,9 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.context.ExecutionContext;
 import org.apache.flink.table.client.gateway.context.SessionContext;
-import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
-import org.apache.flink.table.client.gateway.local.result.DynamicResult;
-import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -64,7 +59,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Executor that performs the Flink communication locally. The calls are blocking depending on the
@@ -75,7 +69,6 @@ public class LocalExecutor implements Executor {
     private static final Logger LOG = LoggerFactory.getLogger(LocalExecutor.class);
 
     // result maintenance
-    private final ResultStore resultStore;
     private final DefaultContext defaultContext;
     private SessionContext sessionContext;
 
@@ -83,7 +76,6 @@ public class LocalExecutor implements Executor {
 
     /** Creates a local executor for submitting table programs and retrieving results. */
     public LocalExecutor(DefaultContext defaultContext) {
-        this.resultStore = new ResultStore();
         this.defaultContext = defaultContext;
         this.clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
     }
@@ -101,16 +93,6 @@ public class LocalExecutor implements Executor {
 
     @Override
     public void closeSession() throws SqlExecutionException {
-        resultStore
-                .getResults()
-                .forEach(
-                        (resultId) -> {
-                            try {
-                                cancelQuery(resultId);
-                            } catch (Throwable t) {
-                                // ignore any throwable to keep the clean up running
-                            }
-                        });
         // Remove the session's ExecutionContext from contextMap and close it.
         if (sessionContext != null) {
             sessionContext.close();
@@ -213,81 +195,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public ResultDescriptor executeQuery(QueryOperation query) throws SqlExecutionException {
-        final TableResultInternal tableResult = executeOperation(query);
-        final SessionContext context = sessionContext;
-        final ReadableConfig config = context.getReadableConfig();
-        final DynamicResult result = resultStore.createResult(config, tableResult);
-        checkArgument(tableResult.getJobClient().isPresent());
-        String jobId = tableResult.getJobClient().get().getJobID().toString();
-        // store the result under the JobID
-        resultStore.storeResult(jobId, result);
-        return new ResultDescriptor(
-                jobId,
-                tableResult.getResolvedSchema(),
-                result.isMaterialized(),
-                config,
-                tableResult.getRowDataToStringConverter());
-    }
-
-    @Override
-    public TypedResult<List<RowData>> retrieveResultChanges(String resultId)
-            throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
-        if (result == null) {
-            throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
-        }
-        if (result.isMaterialized()) {
-            throw new SqlExecutionException("Invalid result retrieval mode.");
-        }
-        return ((ChangelogResult) result).retrieveChanges();
-    }
-
-    @Override
-    public TypedResult<Integer> snapshotResult(String resultId, int pageSize)
-            throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
-        if (result == null) {
-            throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
-        }
-        if (!result.isMaterialized()) {
-            throw new SqlExecutionException("Invalid result retrieval mode.");
-        }
-        return ((MaterializedResult) result).snapshot(pageSize);
-    }
-
-    @Override
-    public List<RowData> retrieveResultPage(String resultId, int page)
-            throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
-        if (result == null) {
-            throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
-        }
-        if (!result.isMaterialized()) {
-            throw new SqlExecutionException("Invalid result retrieval mode.");
-        }
-        return ((MaterializedResult) result).retrievePage(page);
-    }
-
-    @Override
-    public void cancelQuery(String resultId) throws SqlExecutionException {
-        final DynamicResult result = resultStore.getResult(resultId);
-        if (result == null) {
-            throw new SqlExecutionException(
-                    "Could not find a result with result identifier '" + resultId + "'.");
-        }
-
-        // stop retrieval and remove the result
-        LOG.info("Cancelling job {} and result retrieval.", resultId);
-        try {
-            // this operator will also stop flink job
-            result.close();
-        } catch (Throwable t) {
-            throw new SqlExecutionException("Could not cancel the query execution", t);
-        }
-        resultStore.removeResult(resultId);
+        return new ResultDescriptor(executeOperation(query), sessionContext.getReadableConfig());
     }
 
     @Override

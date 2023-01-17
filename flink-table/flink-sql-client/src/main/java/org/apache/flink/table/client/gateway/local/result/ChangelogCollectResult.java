@@ -40,11 +40,6 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
     }
 
     @Override
-    public boolean isMaterialized() {
-        return false;
-    }
-
-    @Override
     public TypedResult<List<RowData>> retrieveChanges() {
         synchronized (resultLock) {
             // retrieval thread is alive return a record if available

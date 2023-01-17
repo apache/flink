@@ -36,10 +36,8 @@ import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.context.SessionContext;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -621,29 +619,6 @@ class CliClientTest {
                 }
             }
             return null;
-        }
-
-        @Override
-        public TypedResult<List<RowData>> retrieveResultChanges(String resultId)
-                throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public TypedResult<Integer> snapshotResult(String resultId, int pageSize)
-                throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public List<RowData> retrieveResultPage(String resultId, int page)
-                throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public void cancelQuery(String resultId) throws SqlExecutionException {
-            // nothing to do
         }
 
         @Override
