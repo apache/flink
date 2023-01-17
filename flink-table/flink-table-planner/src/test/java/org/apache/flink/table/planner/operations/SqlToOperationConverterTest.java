@@ -103,6 +103,7 @@ import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.planner.utils.SqlToOperationConverterTestUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
@@ -178,6 +179,8 @@ public class SqlToOperationConverterTest {
                     plannerSupplier,
                     () -> plannerSupplier.get().parser(),
                     plannerContext.getRexFactory());
+    private final SqlToOperationConverterTestUtils converterTestUtils =
+            new SqlToOperationConverterTestUtils(catalogManager);
 
     @BeforeEach
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -1279,7 +1282,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableRenameColumn() throws Exception {
-        prepareTable("tb1", false, false, true, 3);
+        converterTestUtils.prepareTable("tb1", false, false, true, 3);
         // rename pk column c
         Operation operation = parse("alter table tb1 rename c to c1");
         assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
@@ -1393,7 +1396,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testFailedToAlterTableDropColumn() throws Exception {
-        prepareTable("tb1", false, false, true, 3);
+        converterTestUtils.prepareTable("tb1", false, false, true, 3);
 
         // drop a nonexistent column
         assertThatThrownBy(() -> parse("alter table tb1 drop x"))
@@ -2849,81 +2852,17 @@ public class SqlToOperationConverterTest {
     }
 
     private void prepareNonManagedTable(String tableName, int numOfPkFields) throws Exception {
-        prepareTable(tableName, false, false, false, numOfPkFields);
+        converterTestUtils.prepareTable(tableName, false, false, false, numOfPkFields);
     }
 
     private void prepareNonManagedTable(String tableName, boolean hasWatermark) throws Exception {
-        prepareTable(tableName, false, false, hasWatermark, 0);
+        converterTestUtils.prepareTable(tableName, false, false, hasWatermark, 0);
     }
 
     private void prepareManagedTable(boolean hasPartition) throws Exception {
         TestManagedTableFactory.MANAGED_TABLES.put(
                 ObjectIdentifier.of("cat1", "db1", "tb1"), new AtomicReference<>());
-        prepareTable("tb1", true, hasPartition, false, 0);
-    }
-
-    private void prepareTable(
-            String tableName,
-            boolean managedTable,
-            boolean hasPartition,
-            boolean hasWatermark,
-            int numOfPkFields)
-            throws Exception {
-        Catalog catalog = new GenericInMemoryCatalog("default", "default");
-        if (!catalogManager.getCatalog("cat1").isPresent()) {
-            catalogManager.registerCatalog("cat1", catalog);
-        }
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-        Schema.Builder builder =
-                Schema.newBuilder()
-                        .column("a", DataTypes.INT().notNull())
-                        .column("b", DataTypes.BIGINT().notNull())
-                        .column("c", DataTypes.STRING().notNull())
-                        .withComment("column comment")
-                        .columnByExpression("d", "a*(b+2 + a*b)")
-                        .column(
-                                "e",
-                                DataTypes.ROW(
-                                        DataTypes.STRING(),
-                                        DataTypes.INT(),
-                                        DataTypes.ROW(
-                                                DataTypes.DOUBLE(),
-                                                DataTypes.ARRAY(DataTypes.FLOAT()))))
-                        .columnByExpression("f", "e.f1 + e.f2.f0")
-                        .columnByMetadata("g", DataTypes.STRING(), null, true)
-                        .column("ts", DataTypes.TIMESTAMP(3))
-                        .withComment("just a comment");
-        Map<String, String> options = new HashMap<>();
-        options.put("k", "v");
-        if (!managedTable) {
-            options.put("connector", "dummy");
-        }
-        if (numOfPkFields == 0) {
-            // do nothing
-        } else if (numOfPkFields == 1) {
-            builder.primaryKeyNamed("ct1", "a");
-        } else if (numOfPkFields == 2) {
-            builder.primaryKeyNamed("ct1", "a", "b");
-        } else if (numOfPkFields == 3) {
-            builder.primaryKeyNamed("ct1", "a", "b", "c");
-        } else {
-            throw new IllegalArgumentException(
-                    String.format("Don't support to set pk with %s fields.", numOfPkFields));
-        }
-
-        if (hasWatermark) {
-            builder.watermark("ts", "ts - interval '5' seconds");
-        }
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        builder.build(),
-                        "a table",
-                        hasPartition ? Arrays.asList("b", "c") : Collections.emptyList(),
-                        Collections.unmodifiableMap(options));
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", tableName);
-        catalogManager.createTable(catalogTable, tableIdentifier, true);
+        converterTestUtils.prepareTable("tb1", true, hasPartition, false, 0);
     }
 
     private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
