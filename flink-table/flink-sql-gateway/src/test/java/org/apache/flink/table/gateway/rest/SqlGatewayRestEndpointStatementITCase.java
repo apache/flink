@@ -47,6 +47,7 @@ import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.StringUtils;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -216,6 +217,9 @@ public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewaySta
 
     @Override
     protected String stringifyException(Throwable t) {
+        if (StringUtils.isNullOrWhitespaceOnly(t.getMessage())) {
+            return t.getClass().getCanonicalName();
+        }
         String message = t.getMessage();
         String[] splitExceptions = message.split(PATTERN1);
         return splitExceptions[splitExceptions.length - 1].split(PATTERN2)[0];
