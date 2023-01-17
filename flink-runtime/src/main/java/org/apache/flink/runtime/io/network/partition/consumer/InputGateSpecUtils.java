@@ -27,7 +27,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utils to manage the specs of the {@link InputGate}, for example, {@link GateBuffersSpec}. */
-public class InputGateSpecUitls {
+public class InputGateSpecUtils {
 
     public static final int DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH = 1000;
 

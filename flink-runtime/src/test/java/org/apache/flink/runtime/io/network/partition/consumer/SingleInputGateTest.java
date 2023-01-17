@@ -1223,9 +1223,9 @@ public class SingleInputGateTest extends InputGateTestBase {
         Optional<Integer> expectMaxRequiredBuffersPerGate =
                 isPipeline
                         ? Optional.of(
-                                InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
+                                InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
                         : Optional.of(
-                                InputGateSpecUitls.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
+                                InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
         nettyShuffleEnvironmentBuilder.setMaxRequiredBuffersPerGate(
                 expectMaxRequiredBuffersPerGate);
         NettyShuffleEnvironment netEnv = nettyShuffleEnvironmentBuilder.build();

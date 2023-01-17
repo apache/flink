@@ -56,7 +56,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUitls.createGateBuffersSpec;
+import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.createGateBuffersSpec;
 import static org.apache.flink.runtime.shuffle.ShuffleUtils.applyWithShuffleTypeCheck;
 
 /** Factory for {@link SingleInputGate} to use in {@link NettyShuffleEnvironment}. */

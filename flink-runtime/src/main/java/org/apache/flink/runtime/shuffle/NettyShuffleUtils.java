@@ -28,7 +28,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUitls.createGateBuffersSpec;
+import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.createGateBuffersSpec;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
