@@ -87,7 +87,7 @@ public class HiveModule implements Module {
                                     "tumble_start")));
 
     static final Set<String> BUILTIN_NATIVE_AGG_FUNC =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList("sum", "min")));
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList("sum", "count", "min")));
 
     private final HiveFunctionDefinitionFactory factory;
     private final String hiveVersion;
@@ -151,10 +151,6 @@ public class HiveModule implements Module {
             return getBuiltInNativeAggFunction(name.toLowerCase());
         }
 
-        if (name.equalsIgnoreCase("count")) {
-            return Optional.of(new HiveCountAggFunction());
-        }
-
         // We override Hive's grouping function. Refer to the implementation for more details.
         if (name.equalsIgnoreCase("grouping")) {
             return Optional.of(
@@ -211,6 +207,9 @@ public class HiveModule implements Module {
             case "sum":
                 // We override Hive's sum function by native implementation to supports hash-agg
                 return Optional.of(new HiveSumAggFunction());
+            case "count":
+                // We override Hive's sum function by native implementation to supports hash-agg
+                return Optional.of(new HiveCountAggFunction());
             case "min":
                 // We override Hive's min function by native implementation to supports hash-agg
                 return Optional.of(new HiveMinAggFunction());
