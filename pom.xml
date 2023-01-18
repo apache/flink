@@ -1122,6 +1122,13 @@ under the License.
 								<skip>true</skip>
 							</configuration>
 						</plugin>
+						<plugin>
+							<groupId>org.cyclonedx</groupId>
+							<artifactId>cyclonedx-maven-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
 					</plugins>
 				</pluginManagement>
 			</build>
