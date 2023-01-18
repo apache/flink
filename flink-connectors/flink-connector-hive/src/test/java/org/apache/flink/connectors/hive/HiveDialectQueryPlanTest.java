@@ -109,6 +109,20 @@ public class HiveDialectQueryPlanTest {
                 .isEqualTo(readFromResource("/explain/testMinAggFunctionFallbackPlan.out"));
     }
 
+    @Test
+    public void testMaxAggFunctionPlan() {
+        // test explain
+        String sql = "select x, max(y) from foo group by x";
+        String actualPlan = explainSql(sql);
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMaxAggFunctionPlan.out"));
+
+        // test fallback to hive max udaf
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
+        String actualSortAggPlan = explainSql(sql);
+        assertThat(actualSortAggPlan)
+                .isEqualTo(readFromResource("/explain/testMaxAggFunctionFallbackPlan.out"));
+    }
+
     private String explainSql(String sql) {
         return (String)
                 CollectionUtil.iteratorToList(tableEnv.executeSql("explain " + sql).collect())

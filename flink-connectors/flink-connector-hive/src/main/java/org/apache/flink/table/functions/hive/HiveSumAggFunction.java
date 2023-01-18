@@ -106,6 +106,7 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public void setArguments(CallContext callContext) {
         if (resultType == null) {
+            checkArgumentCount(callContext.getArgumentDataTypes());
             resultType = initResultType(callContext.getArgumentDataTypes().get(0));
         }
     }

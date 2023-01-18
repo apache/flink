@@ -23,8 +23,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.greaterThan;
@@ -103,25 +101,11 @@ public class HiveMaxAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public void setArguments(CallContext callContext) {
         if (resultType == null) {
-            if (callContext.getArgumentDataTypes().size() != 1) {
-                throw new TableException("Exactly one argument is expected.");
-            }
+            checkArgumentCount(callContext.getArgumentDataTypes());
             // check argument type firstly
-            checkArgumentType(callContext.getArgumentDataTypes().get(0).getLogicalType());
+            checkMinMaxArgumentType(
+                    callContext.getArgumentDataTypes().get(0).getLogicalType(), "max");
             resultType = callContext.getArgumentDataTypes().get(0);
-        }
-    }
-
-    private void checkArgumentType(LogicalType logicalType) {
-        // Flink doesn't support to compare nested type now, so here can't support it, see
-        // ScalarOperatorGens#generateComparison for more detail
-        if (logicalType.is(LogicalTypeRoot.ARRAY)
-                || logicalType.is(LogicalTypeRoot.MAP)
-                || logicalType.is(LogicalTypeRoot.ROW)) {
-            throw new TableException(
-                    String.format(
-                            "Hive native max aggregate function does not support type: '%s' now. Please re-check the data type.",
-                            logicalType.getTypeRoot()));
         }
     }
 }
