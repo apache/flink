@@ -24,14 +24,15 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Class for measuring the throughput based on incoming data size and measurement period. */
 public class ThroughputCalculator {
-    private static final long NOT_TRACKED = -1;
+    private boolean not_tracked = true;
+
     private final Clock clock;
     private static final long MILLIS_IN_SECOND = 1000;
     private long currentThroughput;
 
     private long currentAccumulatedDataSize;
     private long currentMeasurementTime;
-    private long measurementStartTime = NOT_TRACKED;
+    private long measurementStartTime = 0L;
 
     public ThroughputCalculator(Clock clock) {
         this.clock = clock;
@@ -39,33 +40,35 @@ public class ThroughputCalculator {
 
     public void incomingDataSize(long receivedDataSize) {
         // Force resuming measurement.
-        if (measurementStartTime == NOT_TRACKED) {
-            measurementStartTime = clock.absoluteTimeMillis();
+        if (not_tracked) {
+            measurementStartTime = clock.relativeTimeMillis();
+            not_tracked = false;
         }
         currentAccumulatedDataSize += receivedDataSize;
     }
 
     /** Mark when the time should not be taken into account. */
     public void pauseMeasurement() {
-        if (measurementStartTime != NOT_TRACKED) {
-            currentMeasurementTime += clock.absoluteTimeMillis() - measurementStartTime;
+        if (!not_tracked) {
+            currentMeasurementTime += clock.relativeTimeNanos() - measurementStartTime;
         }
-        measurementStartTime = NOT_TRACKED;
+        not_tracked = true;
     }
 
     /** Mark when the time should be included to the throughput calculation. */
     public void resumeMeasurement() {
-        if (measurementStartTime == NOT_TRACKED) {
-            measurementStartTime = clock.absoluteTimeMillis();
+        if (not_tracked) {
+            measurementStartTime = clock.relativeTimeNanos();
+            not_tracked = false;
         }
     }
 
     /** @return Calculated throughput based on the collected data for the last period. */
     public long calculateThroughput() {
-        if (measurementStartTime != NOT_TRACKED) {
-            long absoluteTimeMillis = clock.absoluteTimeMillis();
-            currentMeasurementTime += absoluteTimeMillis - measurementStartTime;
-            measurementStartTime = absoluteTimeMillis;
+        if (!not_tracked) {
+            long relativeTimeMillis = clock.relativeTimeMillis();
+            currentMeasurementTime += relativeTimeMillis - measurementStartTime;
+            measurementStartTime = relativeTimeMillis;
         }
 
         long throughput = calculateThroughput(currentAccumulatedDataSize, currentMeasurementTime);
