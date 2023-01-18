@@ -63,6 +63,12 @@
             <td>The desired context from your Kubernetes config file used to configure the Kubernetes client for interacting with the cluster. This could be helpful if one has multiple contexts configured and wants to administrate different Flink clusters on different Kubernetes clusters/contexts.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.decorator.exclude</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of the Kubernetes step decorator class names to be excluded from the JM/TM factories</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.decorator.hadoop-conf-mount.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

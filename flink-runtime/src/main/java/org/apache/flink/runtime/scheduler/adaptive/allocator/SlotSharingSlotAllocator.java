@@ -29,7 +29,9 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.util.CircleIterator;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.runtime.util.SortingFunction;
 
 import javax.annotation.Nonnull;
 
@@ -51,13 +53,20 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private final FreeSlotFunction freeSlotFunction;
     private final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
 
+    private final SortingFunction slotOrderFunction;
+
     private SlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
-            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
+            boolean enableSlotOrderOptimization) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
         this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
+        this.slotOrderFunction =
+                enableSlotOrderOptimization
+                        ? CircleIterator.sortFunction(SlotInfo::getTaskManagerLocation)
+                        : ArrayList::new;
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
@@ -65,7 +74,19 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             FreeSlotFunction freeSlotFunction,
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
         return new SlotSharingSlotAllocator(
-                reserveSlot, freeSlotFunction, isSlotAvailableAndFreeFunction);
+                reserveSlot, freeSlotFunction, isSlotAvailableAndFreeFunction, false);
+    }
+
+    public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
+            ReserveSlotFunction reserveSlot,
+            FreeSlotFunction freeSlotFunction,
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
+            boolean enableSlotOrderOptimization) {
+        return new SlotSharingSlotAllocator(
+                reserveSlot,
+                freeSlotFunction,
+                isSlotAvailableAndFreeFunction,
+                enableSlotOrderOptimization);
     }
 
     @Override
@@ -138,7 +159,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                     parallelism,
                                     slotAssigner.assignSlots(
                                             jobInformation,
-                                            slots,
+                                            slotOrderFunction.sort(slots),
                                             parallelism,
                                             jobAllocationsInformation));
                         });

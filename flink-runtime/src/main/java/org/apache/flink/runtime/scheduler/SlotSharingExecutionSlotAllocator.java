@@ -31,12 +31,15 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequest;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.util.CircleIterator;
+import org.apache.flink.runtime.util.SortingFunction;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -79,6 +82,8 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
     private final Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever;
 
+    private final SortingFunction<ExecutionSlotSharingGroup> slotSharingGroupOrderFunction;
+
     SlotSharingExecutionSlotAllocator(
             PhysicalSlotProvider slotProvider,
             boolean slotWillBeOccupiedIndefinitely,
@@ -86,7 +91,8 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
             SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory,
             PhysicalSlotRequestBulkChecker bulkChecker,
             Time allocationTimeout,
-            Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever) {
+            Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever,
+            boolean enableSlotAllocateOrderOptimization) {
         this.slotProvider = checkNotNull(slotProvider);
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
         this.slotSharingStrategy = checkNotNull(slotSharingStrategy);
@@ -95,8 +101,11 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
         this.allocationTimeout = checkNotNull(allocationTimeout);
         this.resourceProfileRetriever = checkNotNull(resourceProfileRetriever);
         this.sharedSlots = new IdentityHashMap<>();
-
         this.slotProvider.disableBatchSlotRequestTimeoutCheck();
+        this.slotSharingGroupOrderFunction =
+                enableSlotAllocateOrderOptimization
+                        ? CircleIterator.sortFunction(ExecutionSlotSharingGroup::getJobVertexIds)
+                        : ArrayList::new;
     }
 
     @Override
@@ -160,8 +169,10 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                         .collect(
                                 Collectors.groupingBy(
                                         slotSharingStrategy::getExecutionSlotSharingGroup));
+        List<ExecutionSlotSharingGroup> slotSharingGroups =
+                slotSharingGroupOrderFunction.sort(executionsByGroup.keySet());
         Map<ExecutionSlotSharingGroup, SharedSlot> slots =
-                executionsByGroup.keySet().stream()
+                slotSharingGroups.stream()
                         .map(group -> getOrAllocateSharedSlot(group, sharedSlotProfileRetriever))
                         .collect(
                                 Collectors.toMap(

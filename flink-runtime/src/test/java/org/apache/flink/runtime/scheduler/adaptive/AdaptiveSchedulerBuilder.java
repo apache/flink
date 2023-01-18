@@ -207,7 +207,7 @@ public class AdaptiveSchedulerBuilder {
                 declarativeSlotPool,
                 slotAllocator == null
                         ? AdaptiveSchedulerFactory.createSlotSharingSlotAllocator(
-                                declarativeSlotPool)
+                                declarativeSlotPool, jobMasterConfiguration)
                         : slotAllocator,
                 executorService,
                 userCodeLoader,

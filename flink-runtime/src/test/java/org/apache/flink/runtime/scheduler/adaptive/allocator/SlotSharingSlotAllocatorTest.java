@@ -29,6 +29,8 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInfor
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.topology.VertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
@@ -52,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the {@link SlotSharingSlotAllocator}. */
 public class SlotSharingSlotAllocatorTest extends TestLogger {
@@ -316,6 +319,79 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         assertThat(allocated.get(allocation1)).contains(vertex1.getJobVertexID());
         assertThat(allocated.get(allocation1)).contains(vertex2.getJobVertexID());
         assertThat(allocated.get(allocation2)).contains(vertex3.getJobVertexID());
+    }
+
+    @Test
+    public void testDetermineParallelismEnableOptimizeOrder() {
+        final SlotSharingSlotAllocator slotAllocator =
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        true);
+
+        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+        JobInformation.VertexInformation operatorA =
+                new TestVertexInformation(new JobVertexID(), 4, slotSharingGroup);
+        JobInformation.VertexInformation operatorB =
+                new TestVertexInformation(new JobVertexID(), 8, slotSharingGroup);
+
+        final JobInformation jobInformation =
+                new TestJobInformation(Arrays.asList(operatorA, operatorB));
+
+        final int taskManagers = 4;
+        final int ys = 2;
+        Collection<SlotInfo> slots = new ArrayList<>();
+        for (int i = 0; i < taskManagers; ++i) {
+            TaskManagerLocation taskManager = new LocalTaskManagerLocation();
+            for (int j = 0; j < ys; ++j) {
+                TestSlotInfo testSlotInfo = new TestSlotInfo();
+                testSlotInfo.setTaskManagerLocation(taskManager);
+                slots.add(testSlotInfo);
+            }
+        }
+
+        Optional<JobSchedulingPlan> jobSchedulingPlan =
+                slotAllocator.determineParallelismAndCalculateAssignment(
+                        jobInformation,
+                        slots,
+                        new JobAllocationsInformation(Collections.emptyMap()));
+
+        Collection<JobSchedulingPlan.SlotAssignment> assignments =
+                jobSchedulingPlan.get().getSlotAssignments();
+
+        Map<TaskManagerLocation, List<ExecutionVertexID>> distribution = new HashMap<>();
+        for (JobSchedulingPlan.SlotAssignment assignment : assignments) {
+            TaskManagerLocation taskManager = assignment.getSlotInfo().getTaskManagerLocation();
+            Collection<ExecutionVertexID> executionVertexIds =
+                    ((ExecutionSlotSharingGroup) assignment.getTarget())
+                            .getContainedExecutionVertices();
+            distribution
+                    .computeIfAbsent(taskManager, (key) -> new ArrayList<>())
+                    .addAll(executionVertexIds);
+        }
+
+        for (Map.Entry<TaskManagerLocation, List<ExecutionVertexID>> entry :
+                distribution.entrySet()) {
+            List<ExecutionVertexID> executionVertexIds = entry.getValue();
+            long parallelismA =
+                    executionVertexIds.stream()
+                            .filter(
+                                    vertex ->
+                                            vertex.getJobVertexId()
+                                                    .equals(operatorA.getJobVertexID()))
+                            .count();
+            long parallelismB =
+                    executionVertexIds.stream()
+                            .filter(
+                                    vertex ->
+                                            vertex.getJobVertexId()
+                                                    .equals(operatorB.getJobVertexID()))
+                            .count();
+            // Every TaskManager contains 1 operatorA and 2 operatorB.
+            assertEquals(1, parallelismA);
+            assertEquals(2, parallelismB);
+        }
     }
 
     private static Collection<SlotInfo> getSlots(int count) {

@@ -717,6 +717,14 @@ public class JobManagerOptions {
                                                             code(UNFINISHED_PRODUCERS.name())))
                                             .build());
 
+    public static final ConfigOption<Boolean> SLOT_ALLOCATE_ORDER_OPTIMIZATION =
+            key("jobmanager.scheduler.slot-allocation-optimization.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Flag indicating whether to enable the slot allocation optimization for DefaultScheduler and AdaptiveScheduler. "
+                                    + "It will distribute subtasks across as many TaskManagers as possible.");
+
     // ---------------------------------------------------------------------------------------------
 
     private JobManagerOptions() {

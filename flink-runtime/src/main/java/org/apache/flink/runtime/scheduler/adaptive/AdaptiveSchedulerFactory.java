@@ -107,7 +107,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 jobGraph.getJobID());
 
         final SlotSharingSlotAllocator slotAllocator =
-                createSlotSharingSlotAllocator(declarativeSlotPool);
+                createSlotSharingSlotAllocator(declarativeSlotPool, jobMasterConfiguration);
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -149,10 +149,15 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
-            DeclarativeSlotPool declarativeSlotPool) {
+            DeclarativeSlotPool declarativeSlotPool, Configuration jobMasterConfiguration) {
+
+        final boolean enableSlotAllocateOrderOptimization =
+                jobMasterConfiguration.getBoolean(
+                        JobManagerOptions.SLOT_ALLOCATE_ORDER_OPTIMIZATION);
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
-                declarativeSlotPool::containsFreeSlot);
+                declarativeSlotPool::containsFreeSlot,
+                enableSlotAllocateOrderOptimization);
     }
 }

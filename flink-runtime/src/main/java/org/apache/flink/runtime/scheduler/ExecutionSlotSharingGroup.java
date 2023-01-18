@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Represents execution vertices that will run the same shared slot. */
 class ExecutionSlotSharingGroup {
@@ -51,6 +53,12 @@ class ExecutionSlotSharingGroup {
 
     Set<ExecutionVertexID> getExecutionVertexIds() {
         return Collections.unmodifiableSet(executionVertexIds);
+    }
+
+    Set<JobVertexID> getJobVertexIds() {
+        return executionVertexIds.stream()
+                .map(ExecutionVertexID::getJobVertexId)
+                .collect(Collectors.toSet());
     }
 
     @Override

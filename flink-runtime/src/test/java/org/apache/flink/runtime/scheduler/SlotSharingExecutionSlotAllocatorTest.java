@@ -24,6 +24,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -33,6 +35,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulk;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -44,6 +48,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,12 +56,14 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test suite for {@link SlotSharingExecutionSlotAllocator}. */
 class SlotSharingExecutionSlotAllocatorTest {
@@ -454,6 +461,83 @@ class SlotSharingExecutionSlotAllocatorTest {
         assertThat(context.getSlotProvider().isBatchSlotRequestTimeoutCheckEnabled()).isFalse();
     }
 
+    @Test
+    public void testAllocatePhysicalSlotEnableOrderOptimization() throws Exception {
+        AllocationContext.Builder build =
+                AllocationContext.newBuilder().withSlotAllocationOptimizationEnabled(true);
+
+        JobVertexID operatorA = new JobVertexID();
+        JobVertexID operatorB = new JobVertexID();
+
+        // Specify operatorA parallelism 4
+        // Specify operatorB parallelism 8
+        List<ExecutionVertexID> executionVertexIds = new ArrayList<>();
+        for (int i = 0; i < 4; ++i) {
+            ExecutionVertexID executionVertexId1 = new ExecutionVertexID(operatorA, i);
+            ExecutionVertexID executionVertexId2 = new ExecutionVertexID(operatorB, i);
+            build.addGroup(executionVertexId1, executionVertexId2);
+            executionVertexIds.add(executionVertexId1);
+            executionVertexIds.add(executionVertexId2);
+        }
+
+        for (int i = 4; i < 8; ++i) {
+            ExecutionVertexID executionVertexId = new ExecutionVertexID(operatorB, i);
+            build.addGroup(executionVertexId);
+            executionVertexIds.add(executionVertexId);
+        }
+
+        // Create 4 TaskMangers with 2 slots.
+        final int taskManagers = 4;
+        final int ys = 2;
+        final List<TestingPhysicalSlot> physicalSlots = new LinkedList<>();
+        for (int i = 0; i < taskManagers; ++i) {
+            TaskManagerLocation taskManager = new LocalTaskManagerLocation();
+            SimpleAckingTaskManagerGateway gateway = new SimpleAckingTaskManagerGateway();
+            for (int j = 0; j < ys; ++j) {
+                TestingPhysicalSlot physicalSlot =
+                        new TestingPhysicalSlot(
+                                new AllocationID(), taskManager, gateway, ResourceProfile.UNKNOWN);
+                physicalSlots.add(physicalSlot);
+            }
+        }
+
+        TestingPhysicalSlotProvider physicalSlotProvider =
+                TestingPhysicalSlotProvider.create(
+                        (resourceProfile) ->
+                                CompletableFuture.completedFuture(physicalSlots.remove(0)));
+
+        build.withPhysicalSlotProvider(physicalSlotProvider);
+        AllocationContext context = build.build();
+
+        List<ExecutionSlotAssignment> assignments =
+                context.allocateSlotsFor(executionVertexIds.toArray(new ExecutionVertexID[0]));
+
+        Map<TaskManagerLocation, List<ExecutionVertexID>> distribution = new HashMap<>();
+        for (ExecutionSlotAssignment assignment : assignments) {
+            LogicalSlot slot = assignment.getLogicalSlotFuture().get(10, TimeUnit.SECONDS);
+            TaskManagerLocation taskManager = slot.getTaskManagerLocation();
+            distribution
+                    .computeIfAbsent(taskManager, (key) -> new ArrayList<>())
+                    .add(assignment.getExecutionAttemptId().getExecutionVertexId());
+        }
+
+        for (Map.Entry<TaskManagerLocation, List<ExecutionVertexID>> entry :
+                distribution.entrySet()) {
+            List<ExecutionVertexID> vertexIds = entry.getValue();
+            long parallelismA =
+                    vertexIds.stream()
+                            .filter(vertex -> vertex.getJobVertexId().equals(operatorA))
+                            .count();
+            long parallelismB =
+                    vertexIds.stream()
+                            .filter(vertex -> vertex.getJobVertexId().equals(operatorB))
+                            .count();
+            // Every TaskManager contains 1 operatorA and 2 operatorB.
+            assertEquals(1, parallelismA);
+            assertEquals(2, parallelismB);
+        }
+    }
+
     private static List<ExecutionVertexID> getAssignIds(
             Collection<ExecutionSlotAssignment> assignments) {
         return assignments.stream()
@@ -541,6 +625,8 @@ class SlotSharingExecutionSlotAllocatorTest {
             private TestingPhysicalSlotProvider physicalSlotProvider =
                     TestingPhysicalSlotProvider.createWithInfiniteSlotCreation();
 
+            private boolean slotAllocationOptimizationEnabled = false;
+
             private Builder addGroup(ExecutionVertexID... group) {
                 groups.put(group, ResourceProfile.UNKNOWN);
                 return this;
@@ -569,6 +655,12 @@ class SlotSharingExecutionSlotAllocatorTest {
                 return this;
             }
 
+            private Builder withSlotAllocationOptimizationEnabled(
+                    boolean slotAllocationOptimizationEnabled) {
+                this.slotAllocationOptimizationEnabled = slotAllocationOptimizationEnabled;
+                return this;
+            }
+
             private AllocationContext build() {
                 TestingSharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory =
                         new TestingSharedSlotProfileRetrieverFactory();
@@ -582,7 +674,8 @@ class SlotSharingExecutionSlotAllocatorTest {
                                 sharedSlotProfileRetrieverFactory,
                                 bulkChecker,
                                 ALLOCATION_TIMEOUT,
-                                executionVertexID -> RESOURCE_PROFILE);
+                                executionVertexID -> RESOURCE_PROFILE,
+                                slotAllocationOptimizationEnabled);
                 return new AllocationContext(
                         physicalSlotProvider,
                         slotSharingStrategy,

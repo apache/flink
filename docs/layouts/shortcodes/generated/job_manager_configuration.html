@@ -165,6 +165,12 @@
             <td>Determines which scheduler implementation is used to schedule tasks. Accepted values are:<ul><li>'Default': Default scheduler</li><li>'Adaptive': Adaptive scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler">here</a>.</li><li>'AdaptiveBatch': Adaptive batch scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler">here</a>.</li></ul><br /><br />Possible values:<ul><li>"Default"</li><li>"Adaptive"</li><li>"AdaptiveBatch"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>jobmanager.scheduler.slot-allocation-optimization.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether to enable the slot allocation optimization for DefaultScheduler and AdaptiveScheduler. It will distribute subtasks across as many TaskManagers as possible.</td>
+        </tr>
+        <tr>
             <td><h5>jobstore.cache-size</h5></td>
             <td style="word-wrap: break-word;">52428800</td>
             <td>Long</td>

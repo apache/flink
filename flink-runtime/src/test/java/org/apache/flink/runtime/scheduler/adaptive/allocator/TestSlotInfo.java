@@ -29,6 +29,8 @@ public class TestSlotInfo implements SlotInfo {
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
 
+    private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+
     public TestSlotInfo() {
         this(new AllocationID(), ResourceProfile.ANY);
     }
@@ -53,7 +55,7 @@ public class TestSlotInfo implements SlotInfo {
 
     @Override
     public TaskManagerLocation getTaskManagerLocation() {
-        return new LocalTaskManagerLocation();
+        return taskManagerLocation;
     }
 
     @Override
@@ -69,5 +71,9 @@ public class TestSlotInfo implements SlotInfo {
     @Override
     public boolean willBeOccupiedIndefinitely() {
         return false;
+    }
+
+    public void setTaskManagerLocation(TaskManagerLocation location) {
+        this.taskManagerLocation = location;
     }
 }
