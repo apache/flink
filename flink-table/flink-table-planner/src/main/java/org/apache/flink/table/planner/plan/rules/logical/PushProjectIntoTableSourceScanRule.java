@@ -51,7 +51,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
-import org.apache.calcite.tools.RelBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -147,14 +146,13 @@ public class PushProjectIntoTableSourceScanRule
         // we can not perform an empty column query to the table scan, just choose the first column
         // in such case
         if (projectedSchema.columns().isEmpty()) {
-            RelBuilder relBuilder = call.builder();
-            relBuilder.push(scan);
-            RexNode selectFirstColumn = relBuilder.field(0);
-            relBuilder.project(selectFirstColumn);
-            LogicalProject newProject = (LogicalProject) relBuilder.build();
+            if (scan.getRowType().getFieldCount() == 0) {
+                return;
+            }
+            RexInputRef firstFieldRef = RexInputRef.of(0, scan.getRowType());
             projectedSchema =
                     NestedProjectionUtil.build(
-                            getProjections(newProject, scan),
+                            Collections.singletonList(firstFieldRef),
                             typeFactory.buildRelNodeRowType(producedType));
         }
 

@@ -132,7 +132,7 @@ LogicalProject(EXPR$0=[1])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[1])
-+- LogicalTableScan(table=[[default_catalog, default_database, T3, metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, T3, metadata=[m1]]])
 ]]>
     </Resource>
   </TestCase>
