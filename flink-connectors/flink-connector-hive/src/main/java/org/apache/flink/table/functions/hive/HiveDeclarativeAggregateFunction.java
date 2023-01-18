@@ -63,7 +63,7 @@ public abstract class HiveDeclarativeAggregateFunction extends DeclarativeAggreg
                 .build();
     }
 
-    protected void checkArgumentCount(List<DataType> arguments) {
+    protected void checkArgumentNum(List<DataType> arguments) {
         if (arguments.size() != 1) {
             throw new TableException("Exactly one argument is expected.");
         }

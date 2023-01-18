@@ -103,7 +103,7 @@ public class HiveMinAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public void setArguments(CallContext callContext) {
         if (resultType == null) {
-            checkArgumentCount(callContext.getArgumentDataTypes());
+            checkArgumentNum(callContext.getArgumentDataTypes());
             // check argument type firstly
             checkMinMaxArgumentType(
                     callContext.getArgumentDataTypes().get(0).getLogicalType(), "min");
