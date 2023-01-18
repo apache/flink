@@ -149,8 +149,7 @@ public class IPv6HostnamesITCase extends TestLogger {
                             try (NetUtils.Port port = NetUtils.getAvailablePort()) {
                                 final RpcService rpcService =
                                         RpcSystem.load()
-                                                .remoteServiceBuilder(
-                                                        new Configuration(), null, "8000-10000")
+                                                .localServiceBuilder(new Configuration())
                                                 .withBindAddress(addr.getHostAddress())
                                                 .withBindPort(port.getPort())
                                                 .createAndStart();
