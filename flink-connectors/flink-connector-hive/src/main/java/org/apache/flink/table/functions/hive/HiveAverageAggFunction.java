@@ -21,7 +21,6 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.DataType;
@@ -30,11 +29,11 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import java.math.BigDecimal;
 
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.hiveAggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
@@ -85,7 +84,10 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
         // cast the operand to sum needed type
         Expression tryCastOperand = tryCast(operand(0), typeLiteral(getSumResultType()));
         return new Expression[] {
-            /* sum = */ ifThenElse(isNull(tryCastOperand), sum, adjustedPlus(sum, tryCastOperand)),
+            /* sum = */ ifThenElse(
+                    isNull(tryCastOperand),
+                    sum,
+                    adjustedPlus(getSumResultType(), sum, tryCastOperand)),
             /* count = */ ifThenElse(isNull(tryCastOperand), count, plus(count, literal(1L))),
         };
     }
@@ -98,7 +100,7 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ adjustedPlus(sum, mergeOperand(sum)),
+            /* sum = */ adjustedPlus(getSumResultType(), sum, mergeOperand(sum)),
             /* count = */ plus(count, mergeOperand(count))
         };
     }
@@ -137,6 +139,10 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
             case DECIMAL:
                 return getResultTypeForDecimal(argsType.getLogicalType());
             case TIMESTAMP_WITHOUT_TIME_ZONE:
+                throw new TableException(
+                        String.format(
+                                "Native hive avg aggregate function does not support type: %s. Please set option '%s' to false.",
+                                argsType, TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
             default:
                 throw new TableException(
                         String.format(
@@ -189,14 +195,6 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
 
     private DataType getSumResultType() {
         return sumResultType;
-    }
-
-    private UnresolvedCallExpression adjustedPlus(Expression arg1, Expression arg2) {
-        if (getSumResultType().getLogicalType().is(DECIMAL)) {
-            return hiveAggDecimalPlus(arg1, arg2);
-        } else {
-            return plus(arg1, arg2);
-        }
     }
 
     private ValueLiteralExpression sumInitialValue() {
