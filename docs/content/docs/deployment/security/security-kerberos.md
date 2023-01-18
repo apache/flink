@@ -169,7 +169,7 @@ The following options provides more fine-grained control for this feature:
 <table class="table">
 <tr><th>Property Name</th><th>Default</th><th>Meaning</th></tr>
 <tr>
-  <td><code>security.kerberos.token.provider.${service}.enabled</code></td>
+  <td><code>security.delegation.token.provider.${service}.enabled</code></td>
   <td><code>true</code></td>
   <td>
     Controls whether to obtain credentials for services when security is enabled.
