@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
@@ -74,7 +74,7 @@ public abstract class MaterializedCollectResultBase extends CollectResultBase
     private boolean isLastSnapshot;
 
     public MaterializedCollectResultBase(
-            TableResultInternal tableResult, int maxRowCount, int overcommitThreshold) {
+            ClientResult tableResult, int maxRowCount, int overcommitThreshold) {
         super(tableResult);
 
         if (maxRowCount <= 0) {

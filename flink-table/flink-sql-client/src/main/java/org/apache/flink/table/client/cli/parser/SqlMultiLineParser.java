@@ -20,7 +20,6 @@ package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.operations.Operation;
 
 import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
@@ -44,11 +43,11 @@ public class SqlMultiLineParser extends DefaultParser {
     /** Sql command parser. */
     private final SqlCommandParser parser;
     /** Exception caught in parsing. */
-    private Throwable parseException = null;
-    /** Operation parsed. */
-    private Operation parsedOperation = null;
+    private SqlExecutionException parseException = null;
     /** Command read from terminal. */
     private String command;
+    /** Parsed statement type. */
+    private StatementType statementType;
 
     public SqlMultiLineParser(SqlCommandParser parser) {
         this.parser = parser;
@@ -67,8 +66,7 @@ public class SqlMultiLineParser extends DefaultParser {
         try {
             command = line;
             parseException = null;
-            // try to parse the line read
-            parsedOperation = parser.parseCommand(line).orElse(null);
+            statementType = parser.parseStatement(command).orElse(null);
         } catch (SqlExecutionException e) {
             if (e.getCause() instanceof SqlParserEOFException) {
                 throw new EOFError(-1, -1, "The statement is incomplete.", NEW_LINE_PROMPT);
@@ -77,6 +75,7 @@ public class SqlMultiLineParser extends DefaultParser {
             parseException = e;
             throw new SyntaxError(-1, -1, e.getMessage());
         }
+
         return parseInternal(line, cursor, context);
     }
 
@@ -104,16 +103,11 @@ public class SqlMultiLineParser extends DefaultParser {
                 parsedLine.rawWordLength());
     }
 
-    /**
-     * Gets operation parsed from current command read by LineReader. If the command read is
-     * invalid, throw the exception from parser so that we can print details of the exception in
-     * client.
-     */
-    public Optional<Operation> getParsedOperation() throws Throwable {
+    public Optional<StatementType> getStatementType() throws SqlExecutionException {
         if (parseException != null) {
             throw parseException;
         }
-        return Optional.ofNullable(parsedOperation);
+        return Optional.ofNullable(statementType);
     }
 
     public String getCommand() {

@@ -73,6 +73,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,17 +163,21 @@ public class OperationExecutor {
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
         // Instantiate the TableEnvironment lazily
-        TableEnvironmentInternal tableEnv = getTableEnvironment();
-        List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
-        if (parsedOperations.size() > 1) {
-            throw new UnsupportedOperationException(
-                    "Unsupported SQL statement! Execute statement only accepts a single SQL statement or "
-                            + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(
+                        sessionContext.getSessionState().resourceManager.getUserClassLoader())) {
+            TableEnvironmentInternal tableEnv = getTableEnvironment();
+            List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
+            if (parsedOperations.size() > 1) {
+                throw new UnsupportedOperationException(
+                        "Unsupported SQL statement! Execute statement only accepts a single SQL statement or "
+                                + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
+            }
+            Operation op = parsedOperations.get(0);
+            return sessionContext.isStatementSetState()
+                    ? executeOperationInStatementSetState(tableEnv, handle, op)
+                    : executeOperation(tableEnv, handle, op);
         }
-        Operation op = parsedOperations.get(0);
-        return sessionContext.isStatementSetState()
-                ? executeOperationInStatementSetState(tableEnv, handle, op)
-                : executeOperation(tableEnv, handle, op);
     }
 
     public String getCurrentCatalog() {
@@ -345,13 +350,14 @@ public class OperationExecutor {
                             Column.physical(SET_KEY, DataTypes.STRING()),
                             Column.physical(SET_VALUE, DataTypes.STRING())),
                     CollectionUtil.iteratorToList(
-                            configMap.entrySet().stream()
+                            configMap.keySet().stream()
+                                    .sorted()
                                     .map(
-                                            entry ->
+                                            key ->
                                                     GenericRowData.of(
-                                                            StringData.fromString(entry.getKey()),
+                                                            StringData.fromString(key),
                                                             StringData.fromString(
-                                                                    entry.getValue())))
+                                                                    configMap.get(key))))
                                     .map(RowData.class::cast)
                                     .iterator()));
         } else {

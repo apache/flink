@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 
@@ -38,7 +38,7 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
 
     @VisibleForTesting
     public MaterializedCollectStreamResult(
-            TableResultInternal tableResult, int maxRowCount, int overcommitThreshold) {
+            ClientResult tableResult, int maxRowCount, int overcommitThreshold) {
         super(tableResult, maxRowCount, overcommitThreshold);
 
         final int initialCapacity =
@@ -48,7 +48,7 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
         retrievalThread.start();
     }
 
-    public MaterializedCollectStreamResult(TableResultInternal tableResult, int maxRowCount) {
+    public MaterializedCollectStreamResult(ClientResult tableResult, int maxRowCount) {
         this(tableResult, maxRowCount, computeMaterializedTableOvercommit(maxRowCount));
     }
 

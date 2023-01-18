@@ -26,22 +26,6 @@ public enum StatementType {
     CLEAR,
     /** Command to print help message. */
     HELP,
-    /** Command to set session configuration property. */
-    SET,
-    /** Command to reset session configuration property or reset all properties. */
-    RESET,
-    /** 'EXPLAIN' SQL statement. */
-    EXPLAIN,
-    /** 'SHOW CREATE TABLE/VIEW' SQL statement. */
-    SHOW_CREATE,
-    /** 'BEGIN STATEMENT SET;' SQL statement. */
-    BEGIN_STATEMENT_SET,
-    /** 'END;' SQL statement. */
-    END,
-    /** 'REMOVE JAR' SQL statement. */
-    REMOVE_JAR,
-    /** 'SELECT' SQL statement. */
-    SELECT,
-    /** Type not covered by any other type value. */
+
     OTHER
 }

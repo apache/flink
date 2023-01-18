@@ -39,6 +39,10 @@ public class ConfigureSessionRequestBody implements RequestBody {
     @Nullable
     private final Long timeout;
 
+    public ConfigureSessionRequestBody(String statement) {
+        this(statement, null);
+    }
+
     public ConfigureSessionRequestBody(
             @JsonProperty(FIELD_NAME_STATEMENT) String statement,
             @Nullable @JsonProperty(FIELD_NAME_EXECUTION_TIMEOUT) Long timeout) {

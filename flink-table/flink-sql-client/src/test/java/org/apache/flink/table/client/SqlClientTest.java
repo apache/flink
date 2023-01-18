@@ -179,7 +179,7 @@ class SqlClientTest {
 
         String[] args = new String[] {"-i", initFile};
         String output = runSqlClient(args, "SET;\nQUIT;\n");
-        assertThat(output).contains("'key' = 'value'");
+        assertThat(output).contains("key", "value");
     }
 
     @Test

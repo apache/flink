@@ -182,7 +182,7 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
 
         CompletableFuture<EmptyResponseBody> response =
                 sendRequest(
-                        ConfigureSessionHeaders.getINSTANCE(),
+                        ConfigureSessionHeaders.getInstance(),
                         sessionMessageParameters,
                         configureSessionRequestBody);
         response.get();

@@ -19,11 +19,10 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.cli.utils.TestTableResult;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -44,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MaterializedCollectStreamResultTest extends BaseMaterializedResultTest {
 
     @Test
-    void testSnapshot() throws Exception {
+    void testSnapshot() {
         final ResolvedSchema schema =
                 ResolvedSchema.physical(
                         new String[] {"f0", "f1"},
@@ -57,7 +56,7 @@ class MaterializedCollectStreamResultTest extends BaseMaterializedResultTest {
 
         try (TestMaterializedCollectStreamResult result =
                 new TestMaterializedCollectStreamResult(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
+                        CliClientTestUtils.createTestClient(schema),
                         Integer.MAX_VALUE,
                         createInternalBinaryRowDataConverter(schema.toPhysicalRowDataType()))) {
             result.isRetrieving = true;
@@ -121,7 +120,7 @@ class MaterializedCollectStreamResultTest extends BaseMaterializedResultTest {
     }
 
     @Test
-    void testLimitedSnapshot() throws Exception {
+    void testLimitedSnapshot() {
         final ResolvedSchema schema =
                 ResolvedSchema.physical(
                         new String[] {"f0", "f1"},
@@ -136,7 +135,7 @@ class MaterializedCollectStreamResultTest extends BaseMaterializedResultTest {
         // with 3 rows overcommitment
         try (TestMaterializedCollectStreamResult result =
                 new TestMaterializedCollectStreamResult(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
+                        CliClientTestUtils.createTestClient(schema),
                         2,
                         3,
                         createInternalBinaryRowDataConverter(schema.toPhysicalRowDataType()))) {
@@ -199,7 +198,7 @@ class MaterializedCollectStreamResultTest extends BaseMaterializedResultTest {
         public boolean isRetrieving;
 
         public TestMaterializedCollectStreamResult(
-                TableResultInternal tableResult,
+                ClientResult tableResult,
                 int maxRowCount,
                 int overcommitThreshold,
                 Function<Row, BinaryRowData> converter) {
@@ -208,9 +207,7 @@ class MaterializedCollectStreamResultTest extends BaseMaterializedResultTest {
         }
 
         public TestMaterializedCollectStreamResult(
-                TableResultInternal tableResult,
-                int maxRowCount,
-                Function<Row, BinaryRowData> converter) {
+                ClientResult tableResult, int maxRowCount, Function<Row, BinaryRowData> converter) {
             super(tableResult, maxRowCount);
             this.converter = converter;
         }

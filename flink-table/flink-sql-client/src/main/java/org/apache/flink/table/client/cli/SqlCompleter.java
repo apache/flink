@@ -35,7 +35,7 @@ import java.util.List;
 public class SqlCompleter implements Completer {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlCompleter.class);
-    private Executor executor;
+    private final Executor executor;
 
     public SqlCompleter(Executor executor) {
         this.executor = executor;

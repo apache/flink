@@ -16,24 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.cli.parser;
+package org.apache.flink.table.gateway.rest.util;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpoint;
 
-import java.util.Optional;
+import javax.annotation.Nullable;
 
-/** SqlClient command parser. */
-@Internal
-public interface SqlCommandParser {
+/** Utils for the {@link SqlGatewayRestEndpoint}. */
+public class SqlGatewayRestEndpointUtils {
 
-    /**
-     * Parses given statement.
-     *
-     * @param statement the sql client input to evaluate.
-     * @return the optional value of {@link StatementType} parsed. It would be empty when the
-     *     statement is "" or ";".
-     * @throws SqlExecutionException if any error happen while parsing or validating the statement.
-     */
-    Optional<StatementType> parseStatement(String statement);
+    /** Parse token from the result uri. */
+    public static @Nullable Long parseToken(@Nullable String nextResultUri) {
+        if (nextResultUri == null || nextResultUri.length() == 0) {
+            return null;
+        }
+        String[] split = nextResultUri.split("/");
+        // remove query string
+        String s = split[split.length - 1];
+        s = s.replaceAll("\\?.*", "");
+        return Long.valueOf(s);
+    }
 }

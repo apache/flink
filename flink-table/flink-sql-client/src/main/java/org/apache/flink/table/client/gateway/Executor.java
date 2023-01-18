@@ -19,102 +19,24 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.operations.ModifyOperation;
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.QueryOperation;
 
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 /** A gateway for communicating with Flink and other external systems. */
 public interface Executor {
 
-    /** Starts the executor and ensures that its is ready for commands to be executed. */
-    void start() throws SqlExecutionException;
+    void openSession(@Nullable String sessionId);
 
-    /**
-     * Open a new session by using the given session id.
-     *
-     * @param sessionId session identifier.
-     * @throws SqlExecutionException if any error happen
-     */
-    void openSession(@Nullable String sessionId) throws SqlExecutionException;
+    void closeSession();
 
-    /**
-     * Close the resources of session for given session id.
-     *
-     * @throws SqlExecutionException if any error happen
-     */
-    void closeSession() throws SqlExecutionException;
+    void configureSession(String statement);
 
-    /**
-     * Returns a copy of {@link Map} of all session configurations that are defined by the executor
-     * and the session.
-     *
-     * <p>Both this method and {@link #getSessionConfig()} return the same configuration set, but
-     * different return type.
-     */
-    Map<String, String> getSessionConfigMap() throws SqlExecutionException;
+    ReadableConfig getSessionConfig();
 
-    /**
-     * Returns a {@link ReadableConfig} of all session configurations that are defined by the
-     * executor and the session.
-     *
-     * <p>Both this method and {@link #getSessionConfigMap()} return the same configuration set, but
-     * different return type.
-     */
-    ReadableConfig getSessionConfig() throws SqlExecutionException;
-
-    /**
-     * Reset all the properties for the given session identifier.
-     *
-     * @throws SqlExecutionException if any error happen.
-     */
-    void resetSessionProperties() throws SqlExecutionException;
-
-    /**
-     * Reset given key's the session property for default value, if key is not defined in config
-     * file, then remove it.
-     *
-     * @param key of need to reset the session property
-     * @throws SqlExecutionException if any error happen.
-     */
-    void resetSessionProperty(String key) throws SqlExecutionException;
-
-    /**
-     * Set given key's session property to the specific value.
-     *
-     * @param key of the session property
-     * @param value of the session property
-     * @throws SqlExecutionException if any error happen.
-     */
-    void setSessionProperty(String key, String value) throws SqlExecutionException;
-
-    /** Parse a SQL statement to {@link Operation}. */
-    Operation parseStatement(String statement) throws SqlExecutionException;
+    ClientResult executeStatement(String statement);
 
     /** Returns a list of completion hints for the given statement at the given position. */
     List<String> completeStatement(String statement, int position);
-
-    /** Executes an operation, and return {@link TableResult} as execution result. */
-    TableResultInternal executeOperation(Operation operation) throws SqlExecutionException;
-
-    /** Executes modify operations, and return {@link TableResult} as execution result. */
-    TableResultInternal executeModifyOperations(List<ModifyOperation> operations)
-            throws SqlExecutionException;
-
-    /** Submits a Flink SQL query job (detached) and returns the result descriptor. */
-    ResultDescriptor executeQuery(QueryOperation query) throws SqlExecutionException;
-
-    /** Remove the JAR resource from the classloader with specified session. */
-    void removeJar(String jarPath);
-
-    /** Stops a job in the specified session. */
-    Optional<String> stopJob(String jobId, boolean isWithSavepoint, boolean isWithDrain)
-            throws SqlExecutionException;
 }

@@ -20,10 +20,8 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -31,27 +29,30 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.config.ResultMode;
-import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ClientExecutor;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.utils.UserDefinedFunctions;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.TestUtils;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
@@ -62,7 +63,11 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -71,7 +76,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -83,8 +87,8 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Contains basic tests for the {@link LocalExecutor}. */
-class LocalExecutorITCase {
+/** Contains basic tests for the {@link ClientExecutor}. */
+class ClientExecutorITCase {
 
     private static final int NUM_TMS = 2;
     private static final int NUM_SLOTS_PER_TM = 2;
@@ -104,13 +108,23 @@ class LocalExecutorITCase {
                                     .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
                                     .build());
 
-    private static ClusterClient<?> clusterClient;
+    @RegisterExtension
+    @Order(3)
+    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
+            new SqlGatewayServiceExtension(MINI_CLUSTER_RESOURCE::getClientConfiguration);
+
+    @RegisterExtension
+    @Order(4)
+    private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
+            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
+
+    private static RestClusterClient<?> clusterClient;
 
     // a generated UDF jar used for testing classloading of dependencies
     private static URL udfDependency;
 
     @BeforeAll
-    static void setup(@InjectClusterClient ClusterClient<?> injectedClusterClient)
+    static void setup(@InjectClusterClient RestClusterClient<?> injectedClusterClient)
             throws Exception {
         clusterClient = injectedClusterClient;
         File udfJar =
@@ -137,7 +151,7 @@ class LocalExecutorITCase {
 
     @Test
     void testCompleteStatement() {
-        final Executor executor = createLocalExecutor();
+        final ClientExecutor executor = createLocalExecutor();
         executor.openSession("test-session");
         initSession(executor, Collections.emptyMap());
 
@@ -167,7 +181,7 @@ class LocalExecutorITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final LocalExecutor executor =
+        final ClientExecutor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
         executor.openSession("test-session");
 
@@ -208,7 +222,7 @@ class LocalExecutorITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final LocalExecutor executor =
+        final ClientExecutor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
         executor.openSession("test-session");
 
@@ -326,7 +340,7 @@ class LocalExecutorITCase {
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
-        final Executor executor =
+        final ClientExecutor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
@@ -366,7 +380,7 @@ class LocalExecutorITCase {
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
-        final Executor executor =
+        final ClientExecutor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
@@ -404,7 +418,7 @@ class LocalExecutorITCase {
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
         configMap.put(TableConfigOptions.TABLE_DML_SYNC.key(), "false");
 
-        final LocalExecutor executor =
+        final ClientExecutor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
@@ -414,21 +428,26 @@ class LocalExecutorITCase {
         final String insert = "INSERT INTO snk SELECT a FROM src;";
 
         try {
-            executor.executeOperation(executor.parseStatement(srcDdl));
-            executor.executeOperation(executor.parseStatement(snkDdl));
-            TableResult result = executor.executeOperation(executor.parseStatement(insert));
-            JobClient jobClient = result.getJobClient().get();
-            JobID jobId = jobClient.getJobID();
+            executor.configureSession(srcDdl);
+            executor.configureSession(snkDdl);
+            ClientResult result = executor.executeStatement(insert);
+            JobID jobID = result.getJobId();
 
             // wait till the job turns into running status or the test times out
-            JobStatus jobStatus;
-            do {
-                Thread.sleep(2_000L);
-                jobStatus = jobClient.getJobStatus().get();
-            } while (jobStatus != JobStatus.RUNNING);
-
-            Optional<String> savepoint = executor.stopJob(jobId.toString(), true, true);
-            assertThat(savepoint).isPresent();
+            TestUtils.waitUntilAllTasksAreRunning(clusterClient, jobID);
+            StringData savepointPath =
+                    CollectionUtil.iteratorToList(
+                                    executor.executeStatement(
+                                            String.format("STOP JOB '%s' WITH SAVEPOINT", jobID)))
+                            .get(0)
+                            .getString(0);
+            assertThat(
+                            Files.exists(
+                                    Paths.get(
+                                            URI.create(
+                                                    Preconditions.checkNotNull(savepointPath)
+                                                            .toString()))))
+                    .isTrue();
         } finally {
             executor.closeSession();
         }
@@ -438,26 +457,30 @@ class LocalExecutorITCase {
     // Helper method
     // --------------------------------------------------------------------------------------------
 
-    private ResultDescriptor executeQuery(Executor executor, String query) {
-        Operation operation = executor.parseStatement(query);
-        return executor.executeQuery((QueryOperation) operation);
+    private ResultDescriptor executeQuery(ClientExecutor executor, String query) {
+        return new ResultDescriptor(executor.executeStatement(query), executor.getSessionConfig());
     }
 
-    private LocalExecutor createLocalExecutor() {
+    private ClientExecutor createLocalExecutor() {
         return createLocalExecutor(Collections.emptyList(), new Configuration());
     }
 
-    private LocalExecutor createLocalExecutor(List<URL> dependencies, Configuration configuration) {
+    private ClientExecutor createLocalExecutor(
+            List<URL> dependencies, Configuration configuration) {
         configuration.addAll(clusterClient.getFlinkConfiguration());
         DefaultContext defaultContext =
                 new DefaultContext(
-                        dependencies, configuration, Collections.singletonList(new DefaultCLI()));
-        return new LocalExecutor(defaultContext);
+                        dependencies,
+                        configuration,
+                        InetSocketAddress.createUnresolved(
+                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
+        return new ClientExecutor(defaultContext);
     }
 
-    private void initSession(Executor executor, Map<String, String> replaceVars) {
+    private void initSession(ClientExecutor executor, Map<String, String> replaceVars) {
         for (String sql : getInitSQL(replaceVars)) {
-            executor.executeOperation(executor.parseStatement(sql));
+            executor.configureSession(sql);
         }
     }
 
@@ -468,7 +491,7 @@ class LocalExecutorITCase {
             List<String> expectedResults)
             throws Exception {
 
-        final LocalExecutor executor =
+        final ClientExecutor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");

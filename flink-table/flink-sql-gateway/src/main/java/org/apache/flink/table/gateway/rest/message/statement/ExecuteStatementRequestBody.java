@@ -46,6 +46,10 @@ public class ExecuteStatementRequestBody implements RequestBody {
     @Nullable
     private final Map<String, String> executionConfig;
 
+    public ExecuteStatementRequestBody(String statement) {
+        this(statement, 0L, null);
+    }
+
     public ExecuteStatementRequestBody(
             @JsonProperty(FIELD_NAME_STATEMENT) String statement,
             @Nullable @JsonProperty(FIELD_NAME_EXECUTION_TIMEOUT) Long timeout,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -354,10 +355,19 @@ public final class CliStrings {
                 && !t.getCause().getMessage().isEmpty()) {
             t = t.getCause();
         }
+
         if (isVerbose) {
-            return messageError(message, ExceptionUtils.stringifyException(t));
-        } else {
             return messageError(message, t.getClass().getName() + ": " + t.getMessage());
+        } else {
+            if (t instanceof RestClientException) {
+                // TODO: Remove this after RestClientException supports to get RootCause.
+                String[] splitExceptions = t.getMessage().split("Caused by: ");
+                return messageError(
+                        message,
+                        splitExceptions[splitExceptions.length - 1].split("\tat ")[0].trim());
+            } else {
+                return messageError(message, ExceptionUtils.stringifyException(t));
+            }
         }
     }
 

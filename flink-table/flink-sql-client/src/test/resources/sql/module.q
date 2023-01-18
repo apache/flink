@@ -17,7 +17,7 @@
 
 # set tableau result mode
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
@@ -67,7 +67,6 @@ Was expecting one of:
     <HYPHENATED_IDENTIFIER> ...
     <IDENTIFIER> ...
     <UNICODE_QUOTED_IDENTIFIER> ...
-
 !error
 
 # load hive module with module name capitalized

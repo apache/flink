@@ -18,11 +18,11 @@
 # set default streaming mode and tableau result mode
 
 SET 'execution.runtime-mode' = 'streaming';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
@@ -72,7 +72,7 @@ Received a total of 4 rows
 # ==========================================================================
 
 SET 'table.local-time-zone' = 'Asia/Shanghai';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SELECT TIME '20:12:11' as time0,
@@ -94,7 +94,7 @@ Received a total of 2 rows
 !ok
 
 SET 'table.local-time-zone' = 'UTC';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SELECT TIME '20:12:11' as time0,
@@ -144,7 +144,7 @@ Received a total of 4 rows
 !ok
 
 SET 'sql-client.display.max-column-width' = '10';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SELECT * from testUserData;
@@ -160,7 +160,7 @@ Received a total of 4 rows
 !ok
 
 SET 'sql-client.display.max-column-width' = '40';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SELECT * from testUserData;
@@ -181,7 +181,7 @@ DROP TEMPORARY VIEW testUserData;
 !info
 
 SET 'sql-client.display.max-column-width' = '30';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
@@ -189,7 +189,7 @@ SET 'sql-client.display.max-column-width' = '30';
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SELECT id, COUNT(*) as cnt, COUNT(DISTINCT str) as uv

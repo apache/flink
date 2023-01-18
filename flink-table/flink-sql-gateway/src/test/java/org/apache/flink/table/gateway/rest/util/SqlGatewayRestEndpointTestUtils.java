@@ -21,8 +21,6 @@ package org.apache.flink.table.gateway.rest.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
 
-import javax.annotation.Nullable;
-
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getSqlGatewayOptionPrefix;
 import static org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory.IDENTIFIER;
@@ -63,17 +61,5 @@ public class SqlGatewayRestEndpointTestUtils {
                     getSqlGatewayRestOptionFullName(SqlGatewayRestOptions.PORT.key()), portRange);
         }
         return config;
-    }
-
-    /** Parse token from the result uri. */
-    public static @Nullable Long parseToken(@Nullable String nextResultUri) {
-        if (nextResultUri == null || nextResultUri.length() == 0) {
-            return null;
-        }
-        String[] split = nextResultUri.split("/");
-        // remove query string
-        String s = split[split.length - 1];
-        s = s.replaceAll("\\?.*", "");
-        return Long.valueOf(s);
     }
 }

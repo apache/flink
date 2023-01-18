@@ -22,15 +22,14 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
+import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
@@ -185,8 +184,7 @@ class CliTableauResultViewTest {
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
 
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         TestChangelogResult collectResult =
                 new TestChangelogResult(
                         () -> TypedResult.payload(data.subList(0, data.size() / 2)),
@@ -234,8 +232,7 @@ class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         TestChangelogResult collectResult =
                 new TestChangelogResult(
                         () -> TypedResult.payload(data.subList(0, data.size() / 2)),
@@ -268,8 +265,7 @@ class CliTableauResultViewTest {
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
 
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         TestChangelogResult testChangelogResult = new TestChangelogResult(TypedResult::endOfStream);
         CliTableauResultView view =
                 new CliTableauResultView(terminal, resultDescriptor, testChangelogResult);
@@ -288,8 +284,7 @@ class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         TestChangelogResult changelogResult =
                 new TestChangelogResult(
                         () -> {
@@ -312,8 +307,7 @@ class CliTableauResultViewTest {
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
 
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         TestChangelogResult collectResult =
                 new TestChangelogResult(
                         () -> TypedResult.payload(data.subList(0, data.size() / 2)),
@@ -367,8 +361,7 @@ class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         TestChangelogResult collectResult = new TestChangelogResult(TypedResult::endOfStream);
 
         CliTableauResultView view =
@@ -404,8 +397,7 @@ class CliTableauResultViewTest {
                                         streamingData.subList(0, streamingData.size() / 2)),
                         TypedResult::empty);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         CliTableauResultView view =
                 new CliTableauResultView(terminal, resultDescriptor, collectResult);
 
@@ -448,8 +440,7 @@ class CliTableauResultViewTest {
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         TestChangelogResult changelogResult =
                 new TestChangelogResult(
                         () -> {

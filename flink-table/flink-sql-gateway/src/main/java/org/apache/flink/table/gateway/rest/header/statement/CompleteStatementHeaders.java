@@ -84,7 +84,7 @@ public class CompleteStatementHeaders
         return Collections.singleton(SqlGatewayRestAPIVersion.V2);
     }
 
-    public static CompleteStatementHeaders getINSTANCE() {
+    public static CompleteStatementHeaders getInstance() {
         return INSTANCE;
     }
 

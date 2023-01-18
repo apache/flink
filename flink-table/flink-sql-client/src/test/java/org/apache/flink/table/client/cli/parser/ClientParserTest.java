@@ -28,18 +28,12 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
-import static org.apache.flink.table.client.cli.parser.StatementType.BEGIN_STATEMENT_SET;
 import static org.apache.flink.table.client.cli.parser.StatementType.CLEAR;
-import static org.apache.flink.table.client.cli.parser.StatementType.END;
-import static org.apache.flink.table.client.cli.parser.StatementType.EXPLAIN;
 import static org.apache.flink.table.client.cli.parser.StatementType.HELP;
 import static org.apache.flink.table.client.cli.parser.StatementType.OTHER;
 import static org.apache.flink.table.client.cli.parser.StatementType.QUIT;
-import static org.apache.flink.table.client.cli.parser.StatementType.SELECT;
-import static org.apache.flink.table.client.cli.parser.StatementType.SHOW_CREATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -56,8 +50,8 @@ public class ClientParserTest {
     @ParameterizedTest
     @MethodSource("positiveCases")
     public void testParseStatement(TestSpec testData) {
-        Optional<StatementType> type = clientParser.parseStatement(testData.statement);
-        assertThat(type.orElse(null)).isEqualTo(testData.type);
+        StatementType type = clientParser.parseStatement(testData.statement).orElse(null);
+        assertThat(type).isEqualTo(testData.type);
     }
 
     @ParameterizedTest
@@ -71,16 +65,16 @@ public class ClientParserTest {
 
     private static List<TestSpec> positiveCases() {
         return Arrays.asList(
-                TestSpec.of(";", OTHER),
+                TestSpec.of(";", null),
                 TestSpec.of("; ;", OTHER),
                 // comment and multi lines tests
-                TestSpec.of("SHOW --ignore;\n CREATE TABLE tbl;", SHOW_CREATE),
-                TestSpec.of("SHOW\n create\t TABLE `tbl`;", SHOW_CREATE),
+                TestSpec.of("SHOW --ignore;\n CREATE TABLE tbl;", OTHER),
+                TestSpec.of("SHOW\n create\t TABLE `tbl`;", OTHER),
                 TestSpec.of("SHOW -- create\n TABLES;", OTHER),
                 // special characters tests
-                TestSpec.of("SELECT * FROM `tbl`;", SELECT),
-                TestSpec.of("SHOW /* ignore */ CREATE TABLE \"tbl\";", SHOW_CREATE),
-                TestSpec.of("SELECT '\\';", SELECT),
+                TestSpec.of("SELECT * FROM `tbl`;", OTHER),
+                TestSpec.of("SHOW /* ignore */ CREATE TABLE \"tbl\";", OTHER),
+                TestSpec.of("SELECT '\\';", OTHER),
                 // normal tests
                 TestSpec.of("quit;", QUIT), // non case sensitive test
                 TestSpec.of("QUIT;", QUIT),
@@ -88,27 +82,26 @@ public class ClientParserTest {
                 TestSpec.of("QuIt;", QUIT),
                 TestSpec.of("clear;", CLEAR),
                 TestSpec.of("help;", HELP),
-                TestSpec.of("EXPLAIN PLAN FOR 'what_ever';", EXPLAIN),
-                TestSpec.of("SHOW CREATE TABLE(what_ever);", SHOW_CREATE),
-                TestSpec.of("SHOW CREATE VIEW (what_ever);", SHOW_CREATE),
-                TestSpec.of("SHOW CREATE syntax_error;", SHOW_CREATE),
+                TestSpec.of("EXPLAIN PLAN FOR 'what_ever';", OTHER),
+                TestSpec.of("SHOW CREATE TABLE(what_ever);", OTHER),
+                TestSpec.of("SHOW CREATE VIEW (what_ever);", OTHER),
+                TestSpec.of("SHOW CREATE syntax_error;", OTHER),
                 TestSpec.of("SHOW TABLES;", OTHER),
-                TestSpec.of("BEGIN STATEMENT SET;", BEGIN_STATEMENT_SET),
+                TestSpec.of("BEGIN STATEMENT SET;", OTHER),
                 TestSpec.of("BEGIN statement;", OTHER),
-                TestSpec.of("END;", END),
+                TestSpec.of("END;", OTHER),
                 TestSpec.of("END statement;", OTHER),
                 // statement set tests
                 TestSpec.of(EXECUTE_STATEMENT_SET, OTHER),
-                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET, EXPLAIN),
-                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;", EXPLAIN),
+                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET, OTHER),
+                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;", OTHER),
                 TestSpec.of(EXECUTE_STATEMENT_SET + "\nEND;", OTHER),
-                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET + "\nEND;", EXPLAIN),
-                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;\nEND;", EXPLAIN));
+                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET + "\nEND;", OTHER),
+                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;\nEND;", OTHER));
     }
 
     private static List<String> negativeCases() {
-        return Arrays.asList(
-                "", "\n", " ", "-- comment;", "SHOW TABLES -- comment;", "SHOW TABLES");
+        return Arrays.asList("-- comment;", "SHOW TABLES -- comment;", "SHOW TABLES");
     }
 
     /** Used to load generated data. */
