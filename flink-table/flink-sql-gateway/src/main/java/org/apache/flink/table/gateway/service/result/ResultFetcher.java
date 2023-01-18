@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -152,7 +153,7 @@ public class ResultFetcher {
                     tableResult.getResolvedSchema(),
                     tableResult.collectInternal(),
                     tableResult.getRowDataToStringConverter(),
-                    isQueryResult,
+                    true,
                     jobID,
                     tableResult.getResultKind());
         } else {
@@ -160,7 +161,7 @@ public class ResultFetcher {
                     operationHandle,
                     tableResult.getResolvedSchema(),
                     CollectionUtil.iteratorToList(tableResult.collectInternal()),
-                    null,
+                    tableResult.getJobClient().map(JobClient::getJobID).orElse(null),
                     tableResult.getResultKind());
         }
     }
