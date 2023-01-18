@@ -517,33 +517,46 @@ case.
 {{< tabs "8c79e7ba-e4c4-4892-9aab-d2e958b75c0e" >}}
 {{< tab "Java" >}}
 ```java
-FlinkKafkaConsumer<MyType> kafkaSource = new FlinkKafkaConsumer<>("myTopic", schema, props);
-kafkaSource.assignTimestampsAndWatermarks(
-        WatermarkStrategy
-                .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
+KafkaSource<String> kafkaSource = KafkaSource.<String>builder()
+    .setBootstrapServers(brokers)
+    .setTopics("my-topic")
+    .setGroupId("my-group")
+    .setStartingOffsets(OffsetsInitializer.earliest())
+    .setValueOnlyDeserializer(new SimpleStringSchema())
+    .build();
 
-DataStream<MyType> stream = env.addSource(kafkaSource);
+DataStream<String> stream = env.fromSource(
+    kafkaSource, WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(20)), "mySource");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val kafkaSource = new FlinkKafkaConsumer[MyType]("myTopic", schema, props)
-kafkaSource.assignTimestampsAndWatermarks(
-  WatermarkStrategy
-    .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
+val kafkaSource: KafkaSource[String] = KafkaSource.builder[String]()
+    .setBootstrapServers("brokers")
+    .setTopics("my-topic")
+    .setGroupId("my-group")
+    .setStartingOffsets(OffsetsInitializer.earliest())
+    .setValueOnlyDeserializer(new SimpleStringSchema)
+    .build()
 
-val stream: DataStream[MyType] = env.addSource(kafkaSource)
+val stream = env.fromSource(
+    kafkaSource, WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(20)), "mySource")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-kafka_source = FlinkKafkaConsumer("timer-stream-source", schema, props)
+kafka_source = KafkaSource.builder()
+    .set_bootstrap_servers(brokers)
+    .set_topics("my-topic")
+    .set_group_id("my-group")
+    .set_starting_offsets(KafkaOffsetsInitializer.earliest())
+    .set_value_only_deserializer(SimpleStringSchema())
+    .build()
 
-stream = env
-    .add_source(kafka_source)
-    .assign_timestamps_and_watermarks(
-        WatermarkStrategy
-            .for_bounded_out_of_orderness(Duration.of_seconds(20)))
+stream = env.from_source(
+    source=kafka_source,
+    watermark_strategy=WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(20)),
+    source_name="kafka_source")
 ```
 {{< /tab >}}
 {{< /tabs >}}
