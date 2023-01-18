@@ -77,10 +77,12 @@ public abstract class HiveDeclarativeAggregateFunction extends DeclarativeAggreg
                 || logicalType.is(LogicalTypeRoot.ROW)) {
             throw new TableException(
                     String.format(
-                            "Native hive %s aggregate function does not support type: %s. Please set option '%s' to false.",
+                            "Native hive %s aggregate function does not support type: %s. "
+                                    + "Please set option '%s' to false to fall back to Hive's own %s function.",
                             functionName,
                             logicalType.getTypeRoot(),
-                            TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
+                            TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key(),
+                            functionName));
         }
     }
 

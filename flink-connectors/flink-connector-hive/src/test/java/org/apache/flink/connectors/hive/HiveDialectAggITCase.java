@@ -38,7 +38,6 @@ import org.junit.rules.TemporaryFolder;
 import java.util.List;
 
 import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
-import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -128,16 +127,10 @@ public class HiveDialectAggITCase {
         assertThat(result7.toString()).isEqualTo("[+I[6.0, 10]]");
 
         // test unsupported timestamp type
-        assertThatThrownBy(
-                        () ->
-                                CollectionUtil.iteratorToList(
-                                        tableEnv.executeSql("select sum(ts) from test_sum")
-                                                .collect()))
-                .rootCause()
-                .satisfiesAnyOf(
-                        anyCauseMatches(
-                                "Native hive sum aggregate function does not support type: TIMESTAMP(9). "
-                                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false."));
+        String expectedMessage =
+                "Native hive sum aggregate function does not support type: TIMESTAMP(9). "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own sum function.";
+        assertSqlException("select sum(ts) from test_sum", TableException.class, expectedMessage);
 
         tableEnv.executeSql("drop table test_sum");
     }
@@ -303,7 +296,8 @@ public class HiveDialectAggITCase {
                 "create table test_min_not_support_type(a array<int>,m map<int, string>,s struct<f1:int,f2:string>)");
         // test min with row type
         String expectedRowMessage =
-                "Native hive min aggregate function does not support type: ROW. Please set option 'table.exec.hive.native-agg-function.enabled' to false.";
+                "Native hive min aggregate function does not support type: ROW. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own min function.";
         assertSqlException(
                 "select min(s) from test_min_not_support_type",
                 TableException.class,
@@ -311,7 +305,8 @@ public class HiveDialectAggITCase {
 
         // test min with array type
         String expectedArrayMessage =
-                "Native hive min aggregate function does not support type: ARRAY. Please set option 'table.exec.hive.native-agg-function.enabled' to false.";
+                "Native hive min aggregate function does not support type: ARRAY. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own min function.";
         assertSqlException(
                 "select min(a) from test_min_not_support_type",
                 TableException.class,
@@ -406,7 +401,8 @@ public class HiveDialectAggITCase {
                 "create table test_max_not_support_type(a array<int>,m map<int, string>,s struct<f1:int,f2:string>)");
         // test max with row type
         String expectedRowMessage =
-                "Native hive max aggregate function does not support type: ROW. Please set option 'table.exec.hive.native-agg-function.enabled' to false.";
+                "Native hive max aggregate function does not support type: ROW. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own max function.";
         assertSqlException(
                 "select max(s) from test_max_not_support_type",
                 TableException.class,
@@ -414,7 +410,8 @@ public class HiveDialectAggITCase {
 
         // test max with array type
         String expectedArrayMessage =
-                "Native hive max aggregate function does not support type: ARRAY. Please set option 'table.exec.hive.native-agg-function.enabled' to false.";
+                "Native hive max aggregate function does not support type: ARRAY. "
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own max function.";
         assertSqlException(
                 "select max(a) from test_max_not_support_type",
                 TableException.class,
