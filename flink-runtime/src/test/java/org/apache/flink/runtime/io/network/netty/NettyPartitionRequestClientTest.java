@@ -54,12 +54,11 @@ import static org.junit.Assert.assertTrue;
 /** Tests for {@link NettyPartitionRequestClient}. */
 @RunWith(Parameterized.class)
 public class NettyPartitionRequestClientTest {
-    @Parameterized.Parameter
-    public boolean connectionReuseEnabled;
+    @Parameterized.Parameter public boolean connectionReuseEnabled;
 
     @Parameterized.Parameters(name = "connection reuse enabled = {0}")
     public static Object[] parameters() {
-        return new Object[][]{new Object[]{true}, new Object[]{false}};
+        return new Object[][] {new Object[] {true}, new Object[] {false}};
     }
 
     @Test
@@ -286,8 +285,7 @@ public class NettyPartitionRequestClientTest {
             Channel tcpChannel, NetworkClientHandler clientHandler, boolean connectionReuseEnabled)
             throws Exception {
         ConnectionID connectionID =
-                new ConnectionID(
-                        ResourceID.generate(), new InetSocketAddress("localhost", 0), 0);
+                new ConnectionID(ResourceID.generate(), new InetSocketAddress("localhost", 0), 0);
         NettyConfig config =
                 new NettyConfig(InetAddress.getLocalHost(), 0, 1024, 1, new Configuration());
         NettyClient nettyClient = new NettyClient(config);
@@ -304,7 +302,6 @@ public class NettyPartitionRequestClientTest {
      *
      * @param channel the channel to execute tasks for
      * @param deadline maximum timestamp in ms to stop waiting further
-     *
      * @throws InterruptedException
      */
     void runAllScheduledPendingTasks(EmbeddedChannel channel, long deadline)

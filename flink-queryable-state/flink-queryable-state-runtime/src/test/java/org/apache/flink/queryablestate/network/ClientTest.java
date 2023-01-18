@@ -257,8 +257,7 @@ public class ClientTest extends TestLogger {
         try {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            InetSocketAddress serverAddress =
-                    new InetSocketAddress(InetAddress.getLocalHost(), 0);
+            InetSocketAddress serverAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
 
             KvStateInternalRequest request =
                     new KvStateInternalRequest(new KvStateID(), new byte[0]);

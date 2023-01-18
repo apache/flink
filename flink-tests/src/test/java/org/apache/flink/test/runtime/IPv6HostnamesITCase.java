@@ -33,6 +33,7 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AssumptionViolatedException;
@@ -145,13 +146,16 @@ public class IPv6HostnamesITCase extends TestLogger {
 
                             // test whether Akka's netty can bind to the address
                             log.info("Testing whether Akka can use " + addr);
-                            final RpcService rpcService =
-                                    RpcSystem.load()
-                                            .localServiceBuilder(new Configuration())
-                                            .withBindAddress(addr.getHostAddress())
-                                            .withBindPort(0)
-                                            .createAndStart();
-                            rpcService.closeAsync().get();
+                            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+                                final RpcService rpcService =
+                                        RpcSystem.load()
+                                                .remoteServiceBuilder(
+                                                        new Configuration(), null, "8000-10000")
+                                                .withBindAddress(addr.getHostAddress())
+                                                .withBindPort(port.getPort())
+                                                .createAndStart();
+                                rpcService.closeAsync().get();
+                            }
 
                             log.info("Using address " + addr);
                             return (Inet6Address) addr;
