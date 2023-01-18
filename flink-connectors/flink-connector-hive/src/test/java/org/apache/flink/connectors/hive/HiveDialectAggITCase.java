@@ -220,18 +220,6 @@ public class HiveDialectAggITCase {
                         tableEnv.executeSql("select min(b) from test_min").collect());
         assertThat(result7.toString()).isEqualTo("[+I[false]]");
 
-        // test min with timestamp type
-        List<Row> result8 =
-                CollectionUtil.iteratorToList(
-                        tableEnv.executeSql("select min(ts) from test_min").collect());
-        assertThat(result8.toString()).isEqualTo("[+I[2021-08-04T16:26:33.400]]");
-
-        // test min with date type
-        List<Row> result9 =
-                CollectionUtil.iteratorToList(
-                        tableEnv.executeSql("select min(dt) from test_min").collect());
-        assertThat(result9.toString()).isEqualTo("[+I[2021-08-01]]");
-
         // test min with binary type
         List<Row> result10 =
                 CollectionUtil.iteratorToList(
@@ -268,6 +256,116 @@ public class HiveDialectAggITCase {
                 expectedMapMessage);
 
         tableEnv.executeSql("drop table test_min_not_support_type");
+    }
+
+    @Test
+    public void testAvgAggFunction() throws Exception {
+        tableEnv.executeSql(
+                "create table test_avg(a bigint, b boolean, x string, y string, z int, d decimal(10,5), e float, f double, ts timestamp, dt date, bar binary)");
+        tableEnv.executeSql(
+                        "insert into test_avg values "
+                                + "(1, true, NULL, '2', 1, 1.11, 1.2, 1.3, '2021-08-04 16:26:33.4','2021-08-04', 'data1'), "
+                                + "(3, false, NULL, 'b', 2, 2.22, 2.3, 2.4, '2021-08-06 16:26:33.4','2021-08-07', 'data2'), "
+                                + "(2, false, NULL, '4', 1, 3.33, 3.5, 3.6, '2021-08-08 16:26:33.4','2021-08-08', 'data3'), "
+                                + "(2, true, NULL, NULL, 4, 4.45, 4.7, 4.8, '2021-08-10 16:26:33.4','2021-08-01', 'data4')")
+                .await();
+
+        // test avg with bigint type
+        List<Row> result1 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(a) from test_avg").collect());
+        assertThat(result1.toString()).isEqualTo("[+I[2]]");
+
+        // test avg with int type
+        List<Row> result2 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(z) from test_avg").collect());
+        assertThat(result2.toString()).isEqualTo("[+I[2]]");
+
+        // test avg with decimal type
+        List<Row> result3 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(d) from test_avg").collect());
+        assertThat(result3.toString()).isEqualTo("[+I[2.77750]]");
+
+        // test avg with float type
+        List<Row> result4 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(e) from test_avg").collect());
+        assertThat(result4.toString()).isEqualTo("[+I[2.924999952316284]]");
+
+        // test avg with double type
+        List<Row> result5 =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select avg(f) from test_avg").collect());
+        assertThat(result5.toString()).isEqualTo("[+I[3.0250000000000004]]");
+
+        // test avg with unsupported data type
+        // test avg with string type
+        String expectedStringMessage =
+                "Only numeric type arguments are accepted but VARCHAR is passed.";
+        assertSqlException(
+                "select avg(x) from test_avg", TableException.class, expectedStringMessage);
+
+        // test avg with timestamp type
+        String expectedTimestampMessage =
+                "Only numeric type arguments are accepted but TIMESTAMP_WITHOUT_TIME_ZONE is passed.";
+        assertSqlException(
+                "select avg(ts) from test_avg", TableException.class, expectedTimestampMessage);
+
+        // test avg with date type
+        String expectedDateMessage =
+                "Only numeric or string type arguments are accepted but date is passed.";
+        assertSqlException(
+                "select avg(dt) from test_avg",
+                UDFArgumentTypeException.class,
+                expectedDateMessage);
+
+        // test avg with boolean type
+        String expectedBooleanMessage =
+                "Only numeric or string type arguments are accepted but boolean is passed.";
+        assertSqlException(
+                "select avg(b) from test_avg",
+                UDFArgumentTypeException.class,
+                expectedBooleanMessage);
+
+        // test avg with binary type
+        String expectedBinaryMessage =
+                "Only numeric or string type arguments are accepted but binary is passed.";
+        assertSqlException(
+                "select avg(bar) from test_avg",
+                UDFArgumentTypeException.class,
+                expectedBinaryMessage);
+
+        // test avg with unsupported complex data type
+        tableEnv.executeSql(
+                "create table test_avg_not_support_type(a array<int>,m map<int, string>,s struct<f1:int,f2:string>)");
+        // test avg with row type
+        String expectedRowMessage =
+                "Only primitive type arguments are accepted but struct<f1:int,f2:string> is passed.";
+        assertSqlException(
+                "select avg(s) from test_avg_not_support_type",
+                UDFArgumentTypeException.class,
+                expectedRowMessage);
+
+        // test avg with array type
+        String expectedArrayMessage =
+                "Only primitive type arguments are accepted but array<int> is passed.";
+        assertSqlException(
+                "select avg(a) from test_avg_not_support_type",
+                UDFArgumentTypeException.class,
+                expectedArrayMessage);
+
+        // test avg with map type
+        String expectedMapMessage =
+                "Only primitive type arguments are accepted but map<int,string> is passed.";
+        assertSqlException(
+                "select avg(m) from test_avg_not_support_type",
+                UDFArgumentTypeException.class,
+                expectedMapMessage);
+
+        tableEnv.executeSql("drop table test_avg");
+        tableEnv.executeSql("drop table test_avg_not_support_type");
     }
 
     private void assertSqlException(

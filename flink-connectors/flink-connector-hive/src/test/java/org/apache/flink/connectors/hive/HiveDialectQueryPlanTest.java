@@ -93,6 +93,19 @@ public class HiveDialectQueryPlanTest {
                 .isEqualTo(readFromResource("/explain/testMinAggFunctionFallbackPlan.out"));
     }
 
+    @Test
+    public void testAvgAggFunctionPlan() {
+        // test explain
+        String actualPlan = explainSql("select x, avg(y) from foo group by x");
+        assertThat(actualPlan).isEqualTo(readFromResource("/explain/testAvgAggFunctionPlan.out"));
+
+        // test fallback to hive avg udaf
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED, false);
+        String actualSortAggPlan = explainSql("select x, avg(y) from foo group by x");
+        assertThat(actualSortAggPlan)
+                .isEqualTo(readFromResource("/explain/testAvgAggFunctionFallbackPlan.out"));
+    }
+
     private String explainSql(String sql) {
         return (String)
                 CollectionUtil.iteratorToList(tableEnv.executeSql("explain " + sql).collect())
