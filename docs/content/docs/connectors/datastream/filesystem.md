@@ -1198,7 +1198,7 @@ by subsequent successful checkpoints, the `FileSink` will refuse to resume and w
 in-progress file.
 
 <span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports five filesystems: 
-HDFS, S3, OSS, ABS and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+HDFS, S3, OSS, ABFS and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 #### BATCH-specific
 
