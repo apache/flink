@@ -22,13 +22,14 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Set Operations
+# 集合操作
+
 {{< label Batch >}} {{< label Streaming >}}
 
 ## UNION
 
-`UNION` and `UNION ALL` return the rows that are found in either table.
-`UNION` takes only distinct rows while `UNION ALL` does not remove duplicates from the result rows.
+`UNION` 和 `UNION ALL` 返回两个表中的数据.
+`UNION` 会去重,`UNION ALL`不会去重.
 
 ```sql
 Flink SQL> create view t1(s) as values ('c'), ('a'), ('b'), ('b'), ('c');
@@ -64,8 +65,8 @@ Flink SQL> (SELECT s FROM t1) UNION ALL (SELECT s FROM t2);
 
 ## INTERSECT
 
-`INTERSECT` and `INTERSECT ALL` return the rows that are found in both tables.
-`INTERSECT` takes only distinct rows while `INTERSECT ALL` does not remove duplicates from the result rows.
+`INTERSECT` 和 `INTERSECT ALL` 返回两个表中共有的数据.
+`INTERSECT` 会去重,`INTERSECT ALL`不会去重.
 
 ```sql
 Flink SQL> (SELECT s FROM t1) INTERSECT (SELECT s FROM t2);
@@ -88,8 +89,8 @@ Flink SQL> (SELECT s FROM t1) INTERSECT ALL (SELECT s FROM t2);
 
 ## EXCEPT
 
-`EXCEPT` and `EXCEPT ALL` return the rows that are found in one table but not the other.
-`EXCEPT` takes only distinct rows while `EXCEPT ALL` does not remove duplicates from the result rows.
+`EXCEPT` 和 `EXCEPT ALL` 返回在一个表中存在,但在其他表中不存在数据.
+`EXCEPT` 会去重,`EXCEPT ALL`不会去重.
 
 ```sql
 Flink SQL> (SELECT s FROM t1) EXCEPT (SELECT s FROM t2);
@@ -110,8 +111,7 @@ Flink SQL> (SELECT s FROM t1) EXCEPT ALL (SELECT s FROM t2);
 
 ## IN
 
-Returns true if an expression exists in a given table sub-query. The sub-query table must
-consist of one column. This column must have the same data type as the expression.
+如果表达式(可以是列,也可以是函数等)存在于子查询的结果中,则返回true.子查询的表结果必须由一列组成.此列必须与表达式具有相同的数据类型.
 
 ```sql
 SELECT user, amount
@@ -121,7 +121,8 @@ WHERE product IN (
 )
 ```
 
-The optimizer rewrites the IN condition into a join and group operation. For streaming queries, the required state for computing the query result might grow infinitely depending on the number of distinct input rows. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
+优化器会把`IN`条件重写为join和group操作.
+对于流式查询,用于计算查询结果的状态可能无限膨胀.状态的大小取决于分组的数量以及聚合函数的数量和类型.例如:`MIN`/`MAX`的状态是重量级的,`COUNT`是轻量级的.可以提供一个合适的状态time-to-live(TTL)配置来防止状态过大.注意:这可能会影响查询结果的正确性.详情参见:[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).
 
 ## EXISTS
 
@@ -133,8 +134,9 @@ WHERE product EXISTS (
 )
 ```
 
-Returns true if the sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation.
+如果子查询返回至少一行,则为true.只支持能被重写为join和group的操作.
 
-The optimizer rewrites the `EXISTS` operation into a join and group operation. For streaming queries, the required state for computing the query result might grow infinitely depending on the number of distinct input rows. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
+优化器会把`EXIST`重写为join和group操作.
+对于流式查询,用于计算查询结果的状态可能无限膨胀.状态的大小取决于分组的数量以及聚合函数的数量和类型.例如:`MIN`/`MAX`的状态是重量级的,`COUNT`是轻量级的.可以提供一个合适的状态time-to-live(TTL)配置来防止状态过大.注意:这可能会影响查询结果的正确性.详情参见:[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).
 
 {{< top >}}
