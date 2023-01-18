@@ -65,7 +65,6 @@ under the License.
 								</includes>
 								<excludes>
 									<!-- These dependencies are not required. -->
-									<exclude>com.carrotsearch:hppc</exclude>
 									<exclude>com.tdunning:t-digest</exclude>
 									<exclude>joda-time:joda-time</exclude>
 									<exclude>net.sf.jopt-simple:jopt-simple</exclude>
@@ -141,6 +140,10 @@ under the License.
 								<relocation>
 									<pattern>com.github.mustachejava</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch6.shaded.com.github.mustachejava</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.carrotsearch.hppc</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.com.carrotsearch.hppc</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
