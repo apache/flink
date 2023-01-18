@@ -224,7 +224,7 @@ data:
   ...
 ```
 
-Moreover, you have to start the JobManager and TaskManager pods with a service account which has the permissions to create, edit, delete ConfigMaps.
+Moreover, you have to start the JobManager and TaskManager pods with a service account which has the permissions to create, edit, delete and watch ConfigMaps.
 See [how to configure service accounts for pods](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) for more information.
 
 When High-Availability is enabled, Flink will use its own HA-services for service discovery.
@@ -557,7 +557,7 @@ spec:
           mountPath: /opt/flink/conf
         securityContext:
           runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
-      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete ConfigMaps
+      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete and watch ConfigMaps
       volumes:
       - name: flink-config-volume
         configMap:
@@ -716,7 +716,7 @@ spec:
               mountPath: /opt/flink/usrlib
           securityContext:
             runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
-      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete ConfigMaps
+      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete and watch ConfigMaps
       volumes:
         - name: flink-config-volume
           configMap:
