@@ -36,8 +36,10 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Collections;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -48,22 +50,23 @@ public class DefaultContext {
 
     private final Configuration flinkConfig;
 
-    public DefaultContext(Configuration flinkConfig, List<CustomCommandLine> commandLines) {
+    public DefaultContext(
+            Configuration flinkConfig,
+            List<CustomCommandLine> commandLines,
+            List<URL> dependencies) {
         this.flinkConfig = flinkConfig;
         // initialize default file system
         FileSystem.initialize(
                 flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
         Options commandLineOptions = collectCommandLineOptions(commandLines);
+
         try {
             CommandLine deploymentCommandLine =
                     CliFrontendParser.parse(commandLineOptions, new String[] {}, true);
             flinkConfig.addAll(
                     createExecutionConfig(
-                            deploymentCommandLine,
-                            commandLineOptions,
-                            commandLines,
-                            Collections.emptyList()));
+                            deploymentCommandLine, commandLineOptions, commandLines, dependencies));
         } catch (Exception e) {
             throw new SqlGatewayException(
                     "Could not load available CLI with Environment Deployment entry.", e);
@@ -146,6 +149,24 @@ public class DefaultContext {
         List<CustomCommandLine> commandLines =
                 CliFrontend.loadCustomCommandLines(configuration, flinkConfigDir);
 
-        return new DefaultContext(configuration, commandLines);
+        final List<URL> dependencies = new ArrayList<>();
+        // add python dependencies by default
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                dependencies.add(location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            LOG.warn("Failed to find flink-python jar." + e);
+        }
+
+        return new DefaultContext(configuration, commandLines, dependencies);
     }
 }

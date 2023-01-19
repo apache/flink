@@ -57,7 +57,10 @@ public class SessionManagerTest extends TestLogger {
         conf.set(SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_MAX_NUM, 3);
         sessionManager =
                 new SessionManager(
-                        new DefaultContext(conf, Collections.singletonList(new DefaultCLI())));
+                        new DefaultContext(
+                                conf,
+                                Collections.singletonList(new DefaultCLI()),
+                                Collections.emptyList()));
         sessionManager.start();
     }
 
