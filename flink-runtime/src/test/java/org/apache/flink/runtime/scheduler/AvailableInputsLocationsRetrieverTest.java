@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
@@ -68,15 +71,20 @@ class AvailableInputsLocationsRetrieverTest {
     }
 
     @Test
-    void testConsumedResultPartitionsProducers() {
+    void testGetConsumedPartitionGroupAndProducers() {
         TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
         InputsLocationsRetriever availableInputsLocationsRetriever =
                 new AvailableInputsLocationsRetriever(originalLocationRetriever);
-        Collection<Collection<ExecutionVertexID>> producers =
-                availableInputsLocationsRetriever.getConsumedResultPartitionsProducers(EV2);
-        assertThat(producers).hasSize(1);
-        Collection<ExecutionVertexID> resultProducers = producers.iterator().next();
-        assertThat(resultProducers).containsExactly(EV1);
+
+        ConsumedPartitionGroup consumedPartitionGroup =
+                Iterables.getOnlyElement(
+                        (availableInputsLocationsRetriever.getConsumedPartitionGroups(EV2)));
+        assertThat(consumedPartitionGroup).hasSize(1);
+
+        Collection<ExecutionVertexID> producers =
+                availableInputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                        consumedPartitionGroup);
+        assertThat(producers).containsExactly(EV1);
     }
 
     private static TestingInputsLocationsRetriever getOriginalLocationRetriever() {

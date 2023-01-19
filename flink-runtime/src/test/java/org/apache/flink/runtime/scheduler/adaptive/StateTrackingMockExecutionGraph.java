@@ -43,11 +43,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
+import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.JobVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -311,6 +313,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public IntermediateResultPartition getResultPartitionOrThrow(IntermediateResultPartitionID id) {
         throw new UnsupportedOperationException();
     }
 

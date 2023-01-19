@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -123,6 +124,15 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     long getNumberOfRestarts();
 
     Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults();
+
+    /**
+     * Gets the intermediate result partition by the given partition ID, or throw an exception if
+     * the partition is not found.
+     *
+     * @param id of the intermediate result partition
+     * @return intermediate result partition
+     */
+    IntermediateResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID id);
 
     /**
      * Merges all accumulator results from the tasks previously executed in the Executions.

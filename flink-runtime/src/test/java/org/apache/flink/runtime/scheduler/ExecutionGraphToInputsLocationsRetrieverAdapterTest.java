@@ -24,23 +24,27 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.IterableUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,16 +56,23 @@ class ExecutionGraphToInputsLocationsRetrieverAdapterTest {
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
-    /** Tests that can get the producers of consumed result partitions. */
     @Test
-    void testGetConsumedResultPartitionsProducers() throws Exception {
+    void testGetConsumedPartitionGroupsAndProducers() throws Exception {
         final JobVertex producer1 = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex producer2 = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex consumer = ExecutionGraphTestUtils.createNoOpVertex(1);
-        consumer.connectNewDataSetAsInput(
-                producer1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        consumer.connectNewDataSetAsInput(
-                producer2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        final IntermediateDataSet dataSet1 =
+                consumer.connectNewDataSetAsInput(
+                                producer1,
+                                DistributionPattern.ALL_TO_ALL,
+                                ResultPartitionType.PIPELINED)
+                        .getSource();
+        final IntermediateDataSet dataSet2 =
+                consumer.connectNewDataSetAsInput(
+                                producer2,
+                                DistributionPattern.ALL_TO_ALL,
+                                ResultPartitionType.PIPELINED)
+                        .getSource();
 
         final ExecutionGraph eg =
                 ExecutionGraphTestUtils.createExecutionGraph(
@@ -73,20 +84,39 @@ class ExecutionGraphToInputsLocationsRetrieverAdapterTest {
         ExecutionVertexID evIdOfProducer2 = new ExecutionVertexID(producer2.getID(), 0);
         ExecutionVertexID evIdOfConsumer = new ExecutionVertexID(consumer.getID(), 0);
 
-        Collection<Collection<ExecutionVertexID>> producersOfProducer1 =
-                inputsLocationsRetriever.getConsumedResultPartitionsProducers(evIdOfProducer1);
-        Collection<Collection<ExecutionVertexID>> producersOfProducer2 =
-                inputsLocationsRetriever.getConsumedResultPartitionsProducers(evIdOfProducer2);
-        Collection<Collection<ExecutionVertexID>> producersOfConsumer =
-                inputsLocationsRetriever.getConsumedResultPartitionsProducers(evIdOfConsumer);
+        Collection<ConsumedPartitionGroup> consumedPartitionGroupsOfProducer1 =
+                inputsLocationsRetriever.getConsumedPartitionGroups(evIdOfProducer1);
+        Collection<ConsumedPartitionGroup> consumedPartitionGroupsOfProducer2 =
+                inputsLocationsRetriever.getConsumedPartitionGroups(evIdOfProducer2);
+        Collection<ConsumedPartitionGroup> consumedPartitionGroupsOfConsumer =
+                inputsLocationsRetriever.getConsumedPartitionGroups(evIdOfConsumer);
 
-        assertThat(producersOfProducer1).isEmpty();
-        assertThat(producersOfProducer2).isEmpty();
-        assertThat(producersOfConsumer).hasSize(2);
-        assertThat(producersOfConsumer)
-                .containsExactlyInAnyOrder(
-                        Collections.singletonList(evIdOfProducer1),
-                        Collections.singletonList(evIdOfProducer2));
+        IntermediateResultPartitionID partitionId1 =
+                new IntermediateResultPartitionID(dataSet1.getId(), 0);
+        IntermediateResultPartitionID partitionId2 =
+                new IntermediateResultPartitionID(dataSet2.getId(), 0);
+        assertThat(consumedPartitionGroupsOfProducer1).isEmpty();
+        assertThat(consumedPartitionGroupsOfProducer2).isEmpty();
+        assertThat(consumedPartitionGroupsOfConsumer).hasSize(2);
+        assertThat(
+                        consumedPartitionGroupsOfConsumer.stream()
+                                .flatMap(IterableUtils::toStream)
+                                .collect(Collectors.toSet()))
+                .containsExactlyInAnyOrder(partitionId1, partitionId2);
+
+        for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroupsOfConsumer) {
+            if (consumedPartitionGroup.getFirst().equals(partitionId1)) {
+                assertThat(
+                                inputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                                        consumedPartitionGroup))
+                        .containsExactly(evIdOfProducer1);
+            } else {
+                assertThat(
+                                inputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                                        consumedPartitionGroup))
+                        .containsExactly(evIdOfProducer2);
+            }
+        }
     }
 
     /** Tests that it will get empty task manager location if vertex is not scheduled. */

@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -511,9 +512,16 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
 
         @Override
-        public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(
+        public Collection<ConsumedPartitionGroup> getConsumedPartitionGroups(
                 ExecutionVertexID executionVertexId) {
-            return inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
+            return inputsLocationsRetriever.getConsumedPartitionGroups(executionVertexId);
+        }
+
+        @Override
+        public Collection<ExecutionVertexID> getProducersOfConsumedPartitionGroup(
+                ConsumedPartitionGroup consumedPartitionGroup) {
+            return inputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                    consumedPartitionGroup);
         }
 
         @Override
