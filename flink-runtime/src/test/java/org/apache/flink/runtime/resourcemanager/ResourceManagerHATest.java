@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.util.TestLogger;
 
@@ -47,12 +48,11 @@ public class ResourceManagerHATest extends TestLogger {
             resourceManagerService.start();
 
             final UUID leaderId = UUID.randomUUID();
-            resourceManagerService.isLeader(leaderId);
+            final LeaderInformation confirmedLeaderInformation =
+                    resourceManagerService.isLeader(leaderId).join();
 
             // after grant leadership, verify resource manager is started with the fencing token
-            assertEquals(
-                    leaderId,
-                    leaderElectionService.getConfirmationFuture().get().getLeaderSessionId());
+            assertEquals(leaderId, confirmedLeaderInformation.getLeaderSessionID());
             assertTrue(resourceManagerService.getResourceManagerFencingToken().isPresent());
             assertEquals(
                     leaderId,

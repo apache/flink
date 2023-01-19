@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceProce
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -168,7 +169,7 @@ class JobMasterServiceLeadershipRunnerTest {
 
         leaderElectionService.notLeader();
 
-        final CompletableFuture<UUID> leaderFuture =
+        final CompletableFuture<LeaderInformation> leaderFuture =
                 leaderElectionService.isLeader(UUID.randomUUID());
 
         // the new leadership should wait first for the suspension to happen
@@ -537,7 +538,7 @@ class JobMasterServiceLeadershipRunnerTest {
 
         jobManagerRunner.start();
 
-        final CompletableFuture<UUID> leaderFuture =
+        final CompletableFuture<LeaderInformation> leaderFuture =
                 leaderElectionService.isLeader(UUID.randomUUID());
 
         leaderElectionService.notLeader();
@@ -761,8 +762,12 @@ class JobMasterServiceLeadershipRunnerTest {
             currentLeaderDriver.isLeader();
 
             while (currentLeaderDriver.getLeaderInformation().getLeaderSessionID() == null
-                    || !defaultLeaderElectionService.hasLeadership(
-                            currentLeaderDriver.getLeaderInformation().getLeaderSessionID())) {
+                    || !jobManagerRunner
+                            .getLeaderElection()
+                            .hasLeadership(
+                                    currentLeaderDriver
+                                            .getLeaderInformation()
+                                            .getLeaderSessionID())) {
                 Thread.sleep(100);
             }
 

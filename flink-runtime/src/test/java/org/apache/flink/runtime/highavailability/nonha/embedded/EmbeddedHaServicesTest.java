@@ -20,6 +20,7 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
@@ -79,9 +80,15 @@ public class EmbeddedHaServicesTest extends TestLogger {
         LeaderElectionService leaderElectionServiceDifferentJobId =
                 embeddedHaServices.getJobManagerLeaderElectionService(jobId2);
 
-        leaderElectionService1.start(leaderContender1);
-        leaderElectionService2.start(leaderContender2);
-        leaderElectionServiceDifferentJobId.start(leaderContenderDifferentJobId);
+        LeaderElection leaderElection1 = leaderElectionService1.createLeaderElection();
+        leaderElection1.startLeaderElection(leaderContender1);
+
+        LeaderElection leaderElection2 = leaderElectionService2.createLeaderElection();
+        leaderElection2.startLeaderElection(leaderContender2);
+
+        LeaderElection leaderElectionDifferentJobId =
+                leaderElectionServiceDifferentJobId.createLeaderElection();
+        leaderElectionDifferentJobId.startLeaderElection(leaderContenderDifferentJobId);
 
         ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
         ArgumentCaptor<UUID> leaderIdArgumentCaptor2 = ArgumentCaptor.forClass(UUID.class);
@@ -106,8 +113,11 @@ public class EmbeddedHaServicesTest extends TestLogger {
         LeaderElectionService leaderElectionService2 =
                 embeddedHaServices.getResourceManagerLeaderElectionService();
 
-        leaderElectionService1.start(leaderContender1);
-        leaderElectionService2.start(leaderContender2);
+        LeaderElection leaderElection1 = leaderElectionService1.createLeaderElection();
+        leaderElection1.startLeaderElection(leaderContender1);
+
+        LeaderElection leaderElection2 = leaderElectionService2.createLeaderElection();
+        leaderElection2.startLeaderElection(leaderContender2);
 
         ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
         ArgumentCaptor<UUID> leaderIdArgumentCaptor2 = ArgumentCaptor.forClass(UUID.class);
@@ -141,11 +151,12 @@ public class EmbeddedHaServicesTest extends TestLogger {
         TestingLeaderContender leaderContender = new TestingLeaderContender();
 
         leaderRetrievalService.start(leaderRetrievalListener);
-        leaderElectionService.start(leaderContender);
+        LeaderElection leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(leaderContender);
 
         final UUID leaderId = leaderContender.getLeaderSessionFuture().get();
 
-        leaderElectionService.confirmLeadership(leaderId, ADDRESS);
+        leaderElection.confirmLeadership(leaderId, ADDRESS);
 
         final LeaderConnectionInfo leaderConnectionInfo =
                 leaderRetrievalListener.getLeaderConnectionInfoFuture().get();
@@ -175,24 +186,25 @@ public class EmbeddedHaServicesTest extends TestLogger {
                 embeddedHaServices.getDispatcherLeaderElectionService();
         final TestingLeaderContender leaderContender = new TestingLeaderContender();
 
-        dispatcherLeaderElectionService.start(leaderContender);
+        LeaderElection leaderElection = dispatcherLeaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(leaderContender);
 
         final UUID oldLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
 
-        assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(true));
+        assertThat(leaderElection.hasLeadership(oldLeaderSessionId), is(true));
 
         embeddedHaServices.getDispatcherLeaderService().revokeLeadership().get();
-        assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(false));
+        assertThat(leaderElection.hasLeadership(oldLeaderSessionId), is(false));
 
         embeddedHaServices.getDispatcherLeaderService().grantLeadership();
         final UUID newLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
 
-        assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+        assertThat(leaderElection.hasLeadership(newLeaderSessionId), is(true));
 
-        dispatcherLeaderElectionService.confirmLeadership(oldLeaderSessionId, ADDRESS);
-        dispatcherLeaderElectionService.confirmLeadership(newLeaderSessionId, ADDRESS);
+        leaderElection.confirmLeadership(oldLeaderSessionId, ADDRESS);
+        leaderElection.confirmLeadership(newLeaderSessionId, ADDRESS);
 
-        assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+        assertThat(leaderElection.hasLeadership(newLeaderSessionId), is(true));
 
         leaderContender.tryRethrowException();
     }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
@@ -55,7 +56,8 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
 
             final TestingLeaderContender contender = new TestingLeaderContender();
 
-            leaderElectionService.start(contender);
+            final LeaderElection leaderElection = leaderElectionService.createLeaderElection();
+            leaderElection.startLeaderElection(contender);
             leaderElectionService.stop();
 
             try {
@@ -87,7 +89,8 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
 
             final TestingLeaderContender contender = new TestingLeaderContender();
 
-            leaderElectionService.start(contender);
+            final LeaderElection leaderElection = leaderElectionService.createLeaderElection();
+            leaderElection.startLeaderElection(contender);
 
             // wait for the leadership
             contender.getLeaderSessionFuture().get();

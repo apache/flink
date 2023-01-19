@@ -20,8 +20,8 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -249,13 +249,10 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
         final UUID leaderSessionId = UUID.randomUUID();
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
-            testingLeaderElectionService.isLeader(leaderSessionId);
+            CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                    testingLeaderElectionService.isLeader(leaderSessionId);
 
-            final CompletableFuture<LeaderConnectionInfo> confirmationFuture =
-                    testingLeaderElectionService.getConfirmationFuture();
-
-            final LeaderConnectionInfo leaderConnectionInfo = confirmationFuture.get();
-            assertThat(leaderConnectionInfo.getLeaderSessionId(), is(leaderSessionId));
+            assertThat(confirmedLeaderInformation.get().getLeaderSessionID(), is(leaderSessionId));
         }
     }
 
@@ -272,18 +269,16 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
                 TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
-            testingLeaderElectionService.isLeader(leaderSessionId);
+            final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                    testingLeaderElectionService.isLeader(leaderSessionId);
 
             testingLeaderElectionService.notLeader();
 
             // complete the confirmation future after losing the leadership
             contenderConfirmationFuture.complete("leader address");
 
-            final CompletableFuture<LeaderConnectionInfo> leaderElectionConfirmationFuture =
-                    testingLeaderElectionService.getConfirmationFuture();
-
             try {
-                leaderElectionConfirmationFuture.get(5L, TimeUnit.MILLISECONDS);
+                confirmedLeaderInformation.get(5L, TimeUnit.MILLISECONDS);
                 fail("No valid leader should exist.");
             } catch (TimeoutException expected) {
             }
