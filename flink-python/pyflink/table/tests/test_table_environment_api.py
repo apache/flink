@@ -77,7 +77,7 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
         result = t.select(t.a + 1, t.b, t.c)
 
         actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
-                                ExplainDetail.JSON_EXECUTION_PLAN)
+                                ExplainDetail.JSON_EXECUTION_PLAN, ExplainDetail.PLAN_ADVICE)
 
         assert isinstance(actual, str)
 
