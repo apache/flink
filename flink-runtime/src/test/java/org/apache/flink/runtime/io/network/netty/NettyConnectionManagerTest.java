@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -48,11 +47,11 @@ public class NettyConnectionManagerTest {
         // Expected number of arenas and threads
         int numberOfSlots = 2;
         NettyConnectionManager connectionManager;
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+        {
             NettyConfig config =
                     new NettyConfig(
                             InetAddress.getLocalHost(),
-                            port.getPort(),
+                            0,
                             1024,
                             numberOfSlots,
                             new Configuration());
@@ -117,11 +116,9 @@ public class NettyConnectionManagerTest {
         flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
 
         NettyConnectionManager connectionManager;
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-
+        {
             NettyConfig config =
-                    new NettyConfig(
-                            InetAddress.getLocalHost(), port.getPort(), 1024, 1337, flinkConfig);
+                    new NettyConfig(InetAddress.getLocalHost(), 0, 1024, 1337, flinkConfig);
 
             connectionManager = createNettyConnectionManager(config);
             connectionManager.start();
