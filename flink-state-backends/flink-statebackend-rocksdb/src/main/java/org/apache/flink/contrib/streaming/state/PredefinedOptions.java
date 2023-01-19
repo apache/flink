@@ -48,10 +48,8 @@ import java.util.Map;
 public enum PredefinedOptions {
 
     /**
-     * Default options for all settings, except that writes are not forced to the disk.
+     * Default options for all settings.
      *
-     * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
-     * to sync data to stable storage.
      *
      * <p>There are no specified options here.
      */
@@ -72,8 +70,6 @@ public enum PredefinedOptions {
      *   <li>setMaxOpenFiles(-1)
      * </ul>
      *
-     * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
-     * to sync data to stable storage.
      */
     SPINNING_DISK_OPTIMIZED(
             new HashMap<ConfigOption<?>, Object>() {
@@ -110,8 +106,6 @@ public enum PredefinedOptions {
      *   <li>BlockBasedTableConfig.setBlockSize(128 KBytes)
      * </ul>
      *
-     * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
-     * to sync data to stable storage.
      */
     SPINNING_DISK_OPTIMIZED_HIGH_MEM(
             new HashMap<ConfigOption<?>, Object>() {
@@ -148,8 +142,6 @@ public enum PredefinedOptions {
      *   <li>setMaxOpenFiles(-1)
      * </ul>
      *
-     * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
-     * to sync data to stable storage.
      */
     FLASH_SSD_OPTIMIZED(
             new HashMap<ConfigOption<?>, Object>() {
