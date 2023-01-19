@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.NoOpTransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -90,13 +91,22 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         INSTANCE;
 
         @Override
-        public void start(final LeaderContender contender) throws Exception {}
+        public LeaderElection createLeaderElection() {
+            return NoOpLeaderElection.INSTANCE;
+        }
 
         @Override
-        public void stop() throws Exception {}
+        public void stop() {}
+    }
+
+    private enum NoOpLeaderElection implements LeaderElection {
+        INSTANCE;
 
         @Override
-        public void confirmLeadership(final UUID leaderSessionID, final String leaderAddress) {}
+        public void startLeaderElection(LeaderContender contender) {}
+
+        @Override
+        public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
 
         @Override
         public boolean hasLeadership(UUID leaderSessionId) {

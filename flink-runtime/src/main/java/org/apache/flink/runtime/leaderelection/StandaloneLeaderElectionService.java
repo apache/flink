@@ -29,12 +29,12 @@ import java.util.UUID;
  * grants him the leadership upon start up. Furthermore, there is no communication needed between
  * multiple standalone leader election services.
  */
-public class StandaloneLeaderElectionService implements LeaderElectionService {
+public class StandaloneLeaderElectionService extends AbstractLeaderElectionService {
 
     private LeaderContender contender = null;
 
     @Override
-    public void start(LeaderContender newContender) throws Exception {
+    protected void register(LeaderContender newContender) throws Exception {
         if (contender != null) {
             // Service was already started
             throw new IllegalArgumentException(
@@ -56,10 +56,10 @@ public class StandaloneLeaderElectionService implements LeaderElectionService {
     }
 
     @Override
-    public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
+    protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
 
     @Override
-    public boolean hasLeadership(UUID leaderSessionId) {
+    protected boolean hasLeadership(UUID leaderSessionId) {
         return (contender != null
                 && HighAvailabilityServices.DEFAULT_LEADER_ID.equals(leaderSessionId));
     }

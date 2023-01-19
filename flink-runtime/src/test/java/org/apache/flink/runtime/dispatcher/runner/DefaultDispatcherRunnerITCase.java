@@ -46,12 +46,12 @@ import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.TestingJobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.BlobServerExtension;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -156,17 +156,18 @@ class DefaultDispatcherRunnerITCase {
 
     private DispatcherGateway electLeaderAndRetrieveGateway(UUID firstLeaderSessionId)
             throws InterruptedException, java.util.concurrent.ExecutionException {
-        dispatcherLeaderElectionService.isLeader(firstLeaderSessionId);
-        final LeaderConnectionInfo leaderConnectionInfo =
-                dispatcherLeaderElectionService.getConfirmationFuture().get();
-
-        return rpcServiceExtensionWrapper
-                .getCustomExtension()
-                .getTestingRpcService()
-                .connect(
-                        leaderConnectionInfo.getAddress(),
-                        DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()),
-                        DispatcherGateway.class)
+        return dispatcherLeaderElectionService
+                .isLeader(firstLeaderSessionId)
+                .thenCompose(
+                        leaderInformation ->
+                                rpcServiceExtensionWrapper
+                                        .getCustomExtension()
+                                        .getTestingRpcService()
+                                        .connect(
+                                                leaderInformation.getLeaderAddress(),
+                                                DispatcherId.fromUuid(
+                                                        leaderInformation.getLeaderSessionID()),
+                                                DispatcherGateway.class))
                 .get();
     }
 
@@ -204,14 +205,17 @@ class DefaultDispatcherRunnerITCase {
 
                 LOG.info("Re-grant leadership second time.");
                 final UUID leaderSessionId = UUID.randomUUID();
-                final CompletableFuture<UUID> leaderFuture =
+                final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
                         dispatcherLeaderElectionService.isLeader(leaderSessionId);
-                assertThat(leaderFuture).isNotDone();
+                assertThat(confirmedLeaderInformation).isNotDone();
 
                 LOG.info("Complete the termination of the first job manager runner.");
                 testingJobManagerRunner.completeTerminationFuture();
 
-                assertThat(leaderFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS))
+                assertThat(
+                                confirmedLeaderInformation
+                                        .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
+                                        .getLeaderSessionID())
                         .isEqualTo(leaderSessionId);
 
                 // Wait for job to recover...

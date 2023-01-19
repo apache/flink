@@ -108,21 +108,15 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                         .build();
 
         resourceManagerService.start();
-        resourceManagerService.isLeader(UUID.randomUUID());
+        resourceManagerService.isLeader(UUID.randomUUID()).join();
 
-        leaderElectionService
-                .getConfirmationFuture()
-                .thenRun(
-                        () -> {
-                            resourceManagerGateway =
-                                    resourceManagerService
-                                            .getResourceManagerGateway()
-                                            .orElseThrow(
-                                                    () ->
-                                                            new AssertionError(
-                                                                    "RM not available after confirming leadership."));
-                        })
-                .get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+        resourceManagerGateway =
+                resourceManagerService
+                        .getResourceManagerGateway()
+                        .orElseThrow(
+                                () ->
+                                        new AssertionError(
+                                                "RM not available after confirming leadership."));
     }
 
     @After

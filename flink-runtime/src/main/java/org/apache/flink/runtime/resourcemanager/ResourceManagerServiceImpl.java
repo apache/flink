@@ -26,6 +26,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -57,6 +58,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     private final ResourceManagerProcessContext rmProcessContext;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElection leaderElection;
+
     private final FatalErrorHandler fatalErrorHandler;
     private final Executor ioExecutor;
 
@@ -118,7 +121,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         LOG.info("Starting resource manager service.");
 
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(this);
     }
 
     @Override
@@ -267,7 +271,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                 .thenAcceptAsync(
                         (isStillLeader) -> {
                             if (isStillLeader) {
-                                leaderElectionService.confirmLeadership(
+                                leaderElection.confirmLeadership(
                                         newLeaderSessionID, newLeaderResourceManager.getAddress());
                             }
                         },

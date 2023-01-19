@@ -21,6 +21,7 @@ package org.apache.flink.runtime.highavailability.nonha.standalone;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -74,8 +75,11 @@ public class StandaloneHaServicesTest extends TestLogger {
         LeaderElectionService rmLeaderElectionService =
                 standaloneHaServices.getResourceManagerLeaderElectionService();
 
-        jmLeaderElectionService.start(jmLeaderContender);
-        rmLeaderElectionService.start(rmLeaderContender);
+        final LeaderElection jmLeaderElection = jmLeaderElectionService.createLeaderElection();
+        jmLeaderElection.startLeaderElection(jmLeaderContender);
+
+        final LeaderElection rmLeaderElection = rmLeaderElectionService.createLeaderElection();
+        rmLeaderElection.startLeaderElection(rmLeaderContender);
 
         verify(jmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
         verify(rmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));

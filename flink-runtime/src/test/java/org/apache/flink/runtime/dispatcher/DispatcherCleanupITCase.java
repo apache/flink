@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -181,12 +182,13 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         dispatcher.start();
 
         toTerminate.add(dispatcher);
-        leaderElectionService.isLeader(UUID.randomUUID());
+        final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                leaderElectionService.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-        waitForJobToFinish(leaderElectionService, dispatcherGateway, jobId);
+        waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
 
         successfulCleanupLatch.await();
 
@@ -294,12 +296,13 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         dispatcher.start();
 
         toTerminate.add(dispatcher);
-        leaderElectionService.isLeader(UUID.randomUUID());
+        final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                leaderElectionService.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-        waitForJobToFinish(leaderElectionService, dispatcherGateway, jobId);
+        waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
         firstCleanupTriggered.await();
 
         assertThat(
@@ -349,12 +352,12 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     private void waitForJobToFinish(
-            TestingLeaderElectionService leaderElectionService,
+            CompletableFuture<LeaderInformation> confirmedLeaderInformation,
             DispatcherGateway dispatcherGateway,
             JobID jobId)
             throws Exception {
         final JobMasterGateway jobMasterGateway =
-                connectToLeadingJobMaster(leaderElectionService).get();
+                connectToLeadingJobMaster(confirmedLeaderInformation).get();
         try (final JobMasterTester tester =
                 new JobMasterTester(rpcService, jobId, jobMasterGateway)) {
             final CompletableFuture<List<TaskDeploymentDescriptor>> descriptorsFuture =
@@ -393,15 +396,13 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     }
 
     private static CompletableFuture<JobMasterGateway> connectToLeadingJobMaster(
-            TestingLeaderElectionService leaderElectionService) {
-        return leaderElectionService
-                .getConfirmationFuture()
-                .thenCompose(
-                        leaderConnectionInfo ->
-                                rpcService.connect(
-                                        leaderConnectionInfo.getAddress(),
-                                        JobMasterId.fromUuidOrNull(
-                                                leaderConnectionInfo.getLeaderSessionId()),
-                                        JobMasterGateway.class));
+            CompletableFuture<LeaderInformation> confirmedLeaderInformation) {
+        return confirmedLeaderInformation.thenCompose(
+                leaderConnectionInfo ->
+                        rpcService.connect(
+                                leaderConnectionInfo.getLeaderAddress(),
+                                JobMasterId.fromUuidOrNull(
+                                        leaderConnectionInfo.getLeaderSessionID()),
+                                JobMasterGateway.class));
     }
 }
