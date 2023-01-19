@@ -19,11 +19,8 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.BatchShuffleMode;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.table.EmptyMetaStoreFactory;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
@@ -134,7 +131,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private final String hiveVersion;
     private final HiveShim hiveShim;
     private final boolean dynamicGroupingEnabled;
-    private final BatchShuffleMode batchShuffleMode;
 
     private LinkedHashMap<String, String> staticPartitionSpec = new LinkedHashMap<>();
     private boolean overwrite = false;
@@ -156,7 +152,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_THREAD_NUM),
-                flinkConf.get(ExecutionOptions.BATCH_SHUFFLE_MODE),
                 jobConf,
                 identifier,
                 table,
@@ -169,7 +164,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             boolean dynamicGroupingEnabled,
             boolean autoGatherStatistic,
             int gatherStatsThreadNum,
-            BatchShuffleMode batchShuffleMode,
             JobConf jobConf,
             ObjectIdentifier identifier,
             CatalogTable table,
@@ -179,7 +173,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         this.dynamicGroupingEnabled = dynamicGroupingEnabled;
         this.autoGatherStatistic = autoGatherStatistic;
         this.gatherStatsThreadNum = gatherStatsThreadNum;
-        this.batchShuffleMode = batchShuffleMode;
         this.jobConf = jobConf;
         this.identifier = identifier;
         this.catalogTable = table;
@@ -383,13 +376,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         catalogTable.getOptions().forEach(conf::setString);
         boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
-            if (batchShuffleMode != BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
-                throw new UnsupportedOperationException(
-                        String.format(
-                                "Auto compaction for Hive sink in batch mode is not supported when the %s is not %s.",
-                                ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
-                                BatchShuffleMode.ALL_EXCHANGES_BLOCKING));
-            }
             Optional<Integer> compactParallelismOptional =
                     conf.getOptional(FileSystemConnectorOptions.COMPACTION_PARALLELISM);
             int compactParallelism = compactParallelismOptional.orElse(sinkParallelism);
@@ -470,7 +456,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
         DataStream<CoordinatorInput> writerDataStream =
                 dataStream
-                        .map((MapFunction<RowData, Row>) value -> (Row) converter.toExternal(value))
+                        .map(value -> (Row) converter.toExternal(value))
                         .setParallelism(sinkParallelism)
                         .transform(
                                 "batch_compact_writer",
@@ -599,7 +585,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
-        return BatchSink.createBatchNoAutoCompactSink(
+        return BatchSink.createBatchNoCompactSink(
                 dataStream, converter, builder.build(), sinkParallelism);
     }
 
@@ -816,7 +802,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         dynamicGroupingEnabled,
                         autoGatherStatistic,
                         gatherStatsThreadNum,
-                        batchShuffleMode,
                         jobConf,
                         identifier,
                         catalogTable,

@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.table.batch;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.FileSystemOutputFormat;
@@ -54,14 +53,13 @@ import java.util.LinkedHashMap;
 public class BatchSink {
     private BatchSink() {}
 
-    public static DataStreamSink<Row> createBatchNoAutoCompactSink(
+    public static DataStreamSink<Row> createBatchNoCompactSink(
             DataStream<RowData> dataStream,
             DynamicTableSink.DataStructureConverter converter,
             FileSystemOutputFormat<Row> fileSystemOutputFormat,
-            final int parallelism)
-            throws IOException {
+            final int parallelism) {
         return dataStream
-                .map((MapFunction<RowData, Row>) value -> (Row) converter.toExternal(value))
+                .map(value -> ((Row) converter.toExternal(value)))
                 .setParallelism(parallelism)
                 .writeUsingOutputFormat(fileSystemOutputFormat)
                 .setParallelism(parallelism);
@@ -84,8 +82,7 @@ public class BatchSink {
             final long compactTargetSize,
             boolean isToLocal,
             boolean overwrite,
-            final int compactParallelism)
-            throws IOException {
+            final int compactParallelism) {
         SupplierWithException<FileSystem, IOException> fsSupplier =
                 (SupplierWithException<FileSystem, IOException> & Serializable)
                         () -> fsFactory.create(tmpPath.toUri());

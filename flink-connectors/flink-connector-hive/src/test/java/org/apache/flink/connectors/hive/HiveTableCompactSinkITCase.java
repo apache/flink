@@ -18,9 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.api.common.BatchShuffleMode;
-import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -43,7 +40,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** IT case for Hive table compaction in batch mode. */
 public class HiveTableCompactSinkITCase {
@@ -193,43 +189,6 @@ public class HiveTableCompactSinkITCase {
         assertThat(result.toString())
                 .isEqualTo(
                         "[+I[k1, v1, 1], +I[k2, v2, 1], +I[k3, v3, 2], +I[k4, v4, 2], +I[k5, v5, 1]]");
-    }
-
-    @Test
-    public void testCompactInNoBlockingMode() throws Exception {
-        // create a environment with non-blocking mode
-        tableEnv = createNoBlockingModeTableEnv();
-        tableEnv.executeSql(
-                "CREATE TABLE src ("
-                        + " key string,"
-                        + " value string"
-                        + ") partitioned by (p int) TBLPROPERTIES ("
-                        + " 'auto-compaction' = 'true', "
-                        + " 'compaction.small-files.avg-size' = '9b', "
-                        + " 'sink.parallelism' = '4'" // set sink parallelism = 8
-                        + ")");
-        assertThatThrownBy(
-                        () ->
-                                tableEnv.executeSql(
-                                        "insert into src values ('k1', 'v1', 1), ('k2', 'v2', 1),"
-                                                + "('k3', 'v3', 2), ('k4', 'v4', 2), ('k5', 'v5', 1)"))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage(
-                        String.format(
-                                "Auto compaction for Hive sink in batch mode is not supported when the %s is not %s.",
-                                ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
-                                BatchShuffleMode.ALL_EXCHANGES_BLOCKING));
-    }
-
-    private TableEnvironment createNoBlockingModeTableEnv() {
-        EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
-        settings.getConfiguration()
-                .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED);
-        TableEnvironment tEnv = TableEnvironment.create(settings);
-        tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
-        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-        tEnv.useCatalog(hiveCatalog.getName());
-        return tEnv;
     }
 
     private List<Path> listDataFiles(Path path) throws Exception {

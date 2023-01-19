@@ -591,8 +591,6 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
   </tbody>
 </table>
 
-**注意：** 在批模式下，只有当为 [execution.batch-shuffle-mode]({{< ref "docs/deployment/config" >}}#execution.batch-shuffle-mode) (默认为 `ALL_EXCHANGES_BLOCKING`) 为 `ALL_EXCHANGES_BLOCKING` 的时候，写 Hive 表才支持自动合并小文件。
-
 ## 格式
 
 Flink 对 Hive 的集成已经在如下的文件格式进行了测试：

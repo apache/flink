@@ -622,8 +622,6 @@ threshold configured, Flink will then try to compact these files to files with a
   </tbody>
 </table>
 
-**NOTE**: Auto compaction for Hive sink in batch mode is only support when the [execution.batch-shuffle-mode]({{< ref "docs/deployment/config" >}}#execution.batch-shuffle-mode) (`ALL_EXCHANGES_BLOCKING` by default) is `ALL_EXCHANGES_BLOCKING`.
-
 ## Formats
 
 Flink's Hive integration has been tested against the following file formats:
