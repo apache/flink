@@ -26,9 +26,12 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.runtime.utils.JoinReorderITCaseBase;
+import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
 import org.apache.flink.table.planner.runtime.utils.TestingRetractSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
+
+import org.junit.jupiter.api.AfterEach;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +44,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class JoinReorderITCase extends JoinReorderITCaseBase {
 
     private StreamExecutionEnvironment env;
+
+    @AfterEach
+    public void after() {
+        super.after();
+        StreamTestSink.clear();
+    }
 
     @Override
     protected TableEnvironment getTableEnvironment() {
