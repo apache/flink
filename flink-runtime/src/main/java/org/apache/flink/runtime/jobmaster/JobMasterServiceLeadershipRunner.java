@@ -167,7 +167,9 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     public void start() throws Exception {
         LOG.debug("Start leadership runner for job {}.", getJobID());
         leaderElectionService.startLeaderElectionBackend();
-        leaderElection = leaderElectionService.createLeaderElection(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.register(this);
+        leaderElection.startLeaderElection();
     }
 
     // TODO: remove

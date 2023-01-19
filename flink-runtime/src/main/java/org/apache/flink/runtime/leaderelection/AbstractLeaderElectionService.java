@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
+
 import java.util.UUID;
 
 public abstract class AbstractLeaderElectionService implements LeaderElectionService {
     @Override
-    public LeaderElection createLeaderElection(LeaderContender contender) throws Exception {
-        register(contender);
+    public LeaderElection createLeaderElection() {
         return new LeaderElectionImpl(this);
     }
 
@@ -36,9 +39,22 @@ public abstract class AbstractLeaderElectionService implements LeaderElectionSer
     private static class LeaderElectionImpl implements LeaderElectionService.LeaderElection {
 
         private final AbstractLeaderElectionService parentService;
+        @Nullable private LeaderContender leaderContender;
 
         public LeaderElectionImpl(AbstractLeaderElectionService parentService) {
             this.parentService = parentService;
+        }
+
+        @Override
+        public void register(LeaderContender contender) {
+            this.leaderContender = contender;
+        }
+
+        @Override
+        public void startLeaderElection() throws Exception {
+            Preconditions.checkState(
+                    leaderContender != null, "No LeaderContender was registered, yet.");
+            parentService.register(leaderContender);
         }
 
         @Override

@@ -80,11 +80,22 @@ public class EmbeddedHaServicesTest extends TestLogger {
                 embeddedHaServices.getJobManagerLeaderElectionService(jobId2);
 
         leaderElectionService1.startLeaderElectionBackend();
-        leaderElectionService1.createLeaderElection(leaderContender1);
+        LeaderElectionService.LeaderElection leaderElection1 =
+                leaderElectionService1.createLeaderElection();
+        leaderElection1.register(leaderContender1);
+        leaderElection1.startLeaderElection();
+
         leaderElectionService2.startLeaderElectionBackend();
-        leaderElectionService2.createLeaderElection(leaderContender2);
+        LeaderElectionService.LeaderElection leaderElection2 =
+                leaderElectionService2.createLeaderElection();
+        leaderElection2.register(leaderContender2);
+        leaderElection2.startLeaderElection();
+
         leaderElectionServiceDifferentJobId.startLeaderElectionBackend();
-        leaderElectionServiceDifferentJobId.createLeaderElection(leaderContenderDifferentJobId);
+        LeaderElectionService.LeaderElection leaderElectionDifferentJobId =
+                leaderElectionServiceDifferentJobId.createLeaderElection();
+        leaderElectionDifferentJobId.register(leaderContenderDifferentJobId);
+        leaderElectionDifferentJobId.startLeaderElection();
 
         ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
         ArgumentCaptor<UUID> leaderIdArgumentCaptor2 = ArgumentCaptor.forClass(UUID.class);
@@ -110,9 +121,16 @@ public class EmbeddedHaServicesTest extends TestLogger {
                 embeddedHaServices.getResourceManagerLeaderElectionService();
 
         leaderElectionService1.startLeaderElectionBackend();
-        leaderElectionService1.createLeaderElection(leaderContender1);
+        LeaderElectionService.LeaderElection leaderElection1 =
+                leaderElectionService1.createLeaderElection();
+        leaderElection1.register(leaderContender1);
+        leaderElection1.startLeaderElection();
+
         leaderElectionService2.startLeaderElectionBackend();
-        leaderElectionService2.createLeaderElection(leaderContender2);
+        LeaderElectionService.LeaderElection leaderElection2 =
+                leaderElectionService2.createLeaderElection();
+        leaderElection2.register(leaderContender2);
+        leaderElection2.startLeaderElection();
 
         ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
         ArgumentCaptor<UUID> leaderIdArgumentCaptor2 = ArgumentCaptor.forClass(UUID.class);
@@ -148,7 +166,9 @@ public class EmbeddedHaServicesTest extends TestLogger {
         leaderRetrievalService.start(leaderRetrievalListener);
         leaderElectionService.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection =
-                leaderElectionService.createLeaderElection(leaderContender);
+                leaderElectionService.createLeaderElection();
+        leaderElection.register(leaderContender);
+        leaderElection.startLeaderElection();
 
         final UUID leaderId = leaderContender.getLeaderSessionFuture().get();
 
@@ -184,7 +204,9 @@ public class EmbeddedHaServicesTest extends TestLogger {
 
         dispatcherLeaderElectionService.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection =
-                dispatcherLeaderElectionService.createLeaderElection(leaderContender);
+                dispatcherLeaderElectionService.createLeaderElection();
+        leaderElection.register(leaderContender);
+        leaderElection.startLeaderElection();
 
         final UUID oldLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
 

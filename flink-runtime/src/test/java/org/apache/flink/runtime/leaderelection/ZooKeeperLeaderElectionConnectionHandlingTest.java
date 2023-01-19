@@ -147,7 +147,10 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
 
             final TestingContender contender = new TestingContender();
             leaderElectionService.startLeaderElectionBackend();
-            leaderElectionService.createLeaderElection(contender);
+            LeaderElectionService.LeaderElection leaderElection =
+                    leaderElectionService.createLeaderElection();
+            leaderElection.register(contender);
+            leaderElection.startLeaderElection();
 
             contender.awaitGrantLeadership();
 

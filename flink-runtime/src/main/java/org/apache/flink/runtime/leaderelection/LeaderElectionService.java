@@ -43,7 +43,7 @@ public interface LeaderElectionService extends AutoCloseable {
      */
     void startLeaderElectionBackend() throws Exception;
 
-    LeaderElection createLeaderElection(LeaderContender contender) throws Exception;
+    LeaderElection createLeaderElection();
 
     /**
      * Stops the leader election service. Stopping the {@code LeaderElectionService} will trigger
@@ -54,6 +54,12 @@ public interface LeaderElectionService extends AutoCloseable {
     void close() throws Exception;
 
     interface LeaderElection {
+
+        /** Registers the {@link LeaderContender} with the {@code LeaderElection}. */
+        void register(LeaderContender contender);
+
+        /** Establishes the connection with the {@link LeaderElectionService}. */
+        void startLeaderElection() throws Exception;
 
         /**
          * Confirms that the {@link LeaderContender} has accepted the leadership identified by the

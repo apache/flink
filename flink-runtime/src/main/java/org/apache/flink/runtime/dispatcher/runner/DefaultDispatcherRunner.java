@@ -77,7 +77,9 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
     void start() throws Exception {
         leaderElectionService.startLeaderElectionBackend();
-        leaderElection = leaderElectionService.createLeaderElection(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.register(this);
+        leaderElection.startLeaderElection();
     }
 
     @Override
