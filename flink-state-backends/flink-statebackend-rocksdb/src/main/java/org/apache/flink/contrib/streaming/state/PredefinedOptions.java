@@ -70,16 +70,19 @@ public enum PredefinedOptions {
      *   <li>setMaxOpenFiles(-1)
      * </ul>
      *
+     * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
+     * to sync data to stable storage.
      */
+
     SPINNING_DISK_OPTIMIZED(
             new HashMap<ConfigOption<?>, Object>() {
                 private static final long serialVersionUID = 1L;
 
                 {
-                    put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
-                    put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
                     put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
                     put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
+                    put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
+                    put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
                 }
             }),
 
@@ -94,37 +97,41 @@ public enum PredefinedOptions {
      * <p>The following options are set:
      *
      * <ul>
-     *   <li>setLevelCompactionDynamicLevelBytes(true)
-     *   <li>setTargetFileSizeBase(256 MBytes)
-     *   <li>setMaxBytesForLevelBase(1 GByte)
-     *   <li>setWriteBufferSize(64 MBytes)
-     *   <li>setMaxBackgroundJobs(4)
-     *   <li>setMinWriteBufferNumberToMerge(3)
-     *   <li>setMaxWriteBufferNumber(4)
-     *   <li>setMaxOpenFiles(-1)
      *   <li>BlockBasedTableConfig.setBlockCacheSize(256 MBytes)
      *   <li>BlockBasedTableConfig.setBlockSize(128 KBytes)
+     *   <li>BlockBasedTableConfig.setFilterPolicy(BloomFilter( {@link
+     *       RocksDBConfigurableOptions#BLOOM_FILTER_BITS_PER_KEY}, {@link
+     *       RocksDBConfigurableOptions#BLOOM_FILTER_BLOCK_BASED_MODE})
+     *   <li>setLevelCompactionDynamicLevelBytes(true)
+     *   <li>setMaxBackgroundJobs(4)
+     *   <li>setMaxBytesForLevelBase(1 GByte)
+     *   <li>setMaxOpenFiles(-1)
+     *   <li>setMaxWriteBufferNumber(4)
+     *   <li>setMinWriteBufferNumberToMerge(3)
+     *   <li>setTargetFileSizeBase(256 MBytes)
+     *   <li>setWriteBufferSize(64 MBytes)
      * </ul>
      *
+     * <p>Enabling use of a Bloom filter here is equivalent to setting {@link
+     * RocksDBConfigurableOptions#USE_BLOOM_FILTER}.
      */
     SPINNING_DISK_OPTIMIZED_HIGH_MEM(
             new HashMap<ConfigOption<?>, Object>() {
                 private static final long serialVersionUID = 1L;
 
                 {
-                    put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
-                    put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
-                    put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
+                    put(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, MemorySize.parse("256mb"));
+                    put(RocksDBConfigurableOptions.BLOCK_SIZE, MemorySize.parse("128kb"));
                     put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
+                    put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
+                    put(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, MemorySize.parse("1gb"));
+                    put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
+                    put(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, 4);
+                    put(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, 3);
                     put(
                             RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE,
                             MemorySize.parse("256mb"));
-                    put(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, MemorySize.parse("1gb"));
                     put(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE, MemorySize.parse("64mb"));
-                    put(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, 3);
-                    put(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, 4);
-                    put(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, MemorySize.parse("256mb"));
-                    put(RocksDBConfigurableOptions.BLOCK_SIZE, MemorySize.parse("128kb"));
                     put(RocksDBConfigurableOptions.USE_BLOOM_FILTER, true);
                 }
             }),
@@ -141,7 +148,6 @@ public enum PredefinedOptions {
      *   <li>setMaxBackgroundJobs(4)
      *   <li>setMaxOpenFiles(-1)
      * </ul>
-     *
      */
     FLASH_SSD_OPTIMIZED(
             new HashMap<ConfigOption<?>, Object>() {
