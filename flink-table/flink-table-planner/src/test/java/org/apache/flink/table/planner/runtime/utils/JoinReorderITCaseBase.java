@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -141,6 +142,11 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
                 new ObjectPath(tEnv.getCurrentDatabase(), "T4"),
                 new CatalogTableStatistics(100, 1, 1, 1),
                 false);
+    }
+
+    @AfterEach
+    public void after() {
+        TestValuesTableFactory.clearAllData();
     }
 
     @ParameterizedTest(name = "Is bushy join reorder: {0}")

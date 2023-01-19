@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql.join;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -26,9 +27,13 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.runtime.utils.JoinReorderITCaseBase;
+import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
 import org.apache.flink.table.planner.runtime.utils.TestingRetractSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +46,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class JoinReorderITCase extends JoinReorderITCaseBase {
 
     private StreamExecutionEnvironment env;
+
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
+        // This conf is aims to fix IOException due to timeout occurring while requesting exclusive
+        // NetworkBuffer (see https://issues.apache.org/jira/browse/FLINK-30727).
+        tEnv.getConfig().getConfiguration().set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.4f);
+    }
+
+    @AfterEach
+    public void after() {
+        super.after();
+        StreamTestSink.clear();
+    }
 
     @Override
     protected TableEnvironment getTableEnvironment() {
@@ -57,8 +76,7 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
         streamTableEnvironment
                 .toRetractStream(table, Row.class)
                 .map(JavaScalaConversionUtil::toScala, TypeInformation.of(Tuple2.class))
-                .addSink((SinkFunction) sink)
-                .setParallelism(1);
+                .addSink((SinkFunction) sink);
         try {
             env.execute();
         } catch (Exception e) {
