@@ -564,12 +564,12 @@ The Hive sink also supports file compactions, which allows applications to reduc
 
 #### Stream Mode
 
-In stream mode, the behavior is same to `FileSystem` sink. Please refer to [File Compaction]({{< ref "docs/connectors/table/filesystem" >}}#file-compaction) for more details.
+In stream mode, the behavior is the same as `FileSystem` sink. Please refer to [File Compaction]({{< ref "docs/connectors/table/filesystem" >}}#file-compaction) for more details.
 
 #### Batch Mode
 
 When it's in batch mode and auto compaction is enabled, after finishing writing files, Flink will calculate the average size of written files for each partition. And if the average size is less than the
-threshold configured, Flink will then try to compact these files to files with a target size. The following is the table's options for file compactions.
+configured threshold, then Flink will try to compact these files to files with a target size. The following are the table's options for file compaction.
 
 <table class="table table-bordered">
   <thead>
@@ -615,8 +615,8 @@ threshold configured, Flink will then try to compact these files to files with a
         <td>Integer</td>
         <td>
         The parallelism to compact files. If not set, it will use the <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink-parallelism">sink parallelism</a>.
-        When use <a href="{{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler">adaptive batch scheduler</a>, the parallelism may be small, which will cause taking much time to finish compaction.
-        In such case, please remember to set this value to a bigger value manually.
+        When using <a href="{{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler">adaptive batch scheduler</a>, the parallelism of the compact operator deduced by the scheduler may be small, which will cause taking much time to finish compaction.
+        In such a case, please remember to set this option to a bigger value manually.
         </td>
     </tr>
   </tbody>

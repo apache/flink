@@ -538,7 +538,7 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
 
 #### Batch Mode
 
-在批模式，并且自动合并小文件已经开启的情况下，在结束写 Hive 表后，Flink 会计算每个分区下的文件平均大小，如果文件的平均大小小于用户指定的一个阈值，Flink 则会将这些文件合并成指定大小的文件。下面是文件合并涉及到的参数：
+在批模式，并且自动合并小文件已经开启的情况下，在结束写 Hive 表后，Flink 会计算每个分区下文件的平均大小，如果文件的平均大小小于用户指定的一个阈值，Flink 则会将这些文件合并成指定大小的文件。下面是文件合并涉及到的参数：
 
 <table class="table table-bordered">
   <thead>
