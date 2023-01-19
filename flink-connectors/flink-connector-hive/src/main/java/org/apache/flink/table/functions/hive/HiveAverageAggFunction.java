@@ -52,7 +52,7 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
     private final UnresolvedReferenceExpression sum = unresolvedRef("sum");
     private final UnresolvedReferenceExpression count = unresolvedRef("count");
     private DataType resultType;
-    private DataType sumResultType;
+    private DataType bufferedSumType;
 
     @Override
     public int operandCount() {
@@ -66,7 +66,7 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public DataType[] getAggBufferTypes() {
-        return new DataType[] {getSumResultType(), DataTypes.BIGINT()};
+        return new DataType[] {getBufferedSumType(), DataTypes.BIGINT()};
     }
 
     @Override
@@ -82,12 +82,12 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         // cast the operand to sum needed type
-        Expression tryCastOperand = tryCast(operand(0), typeLiteral(getSumResultType()));
+        Expression tryCastOperand = tryCast(operand(0), typeLiteral(getBufferedSumType()));
         return new Expression[] {
             /* sum = */ ifThenElse(
                     isNull(tryCastOperand),
                     sum,
-                    adjustedPlus(getSumResultType(), sum, tryCastOperand)),
+                    adjustedPlus(getBufferedSumType(), sum, tryCastOperand)),
             /* count = */ ifThenElse(isNull(tryCastOperand), count, plus(count, literal(1L))),
         };
     }
@@ -100,7 +100,7 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ adjustedPlus(getSumResultType(), sum, mergeOperand(sum)),
+            /* sum = */ adjustedPlus(getBufferedSumType(), sum, mergeOperand(sum)),
             /* count = */ plus(count, mergeOperand(count))
         };
     }
@@ -121,7 +121,7 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
             }
             DataType argsType = callContext.getArgumentDataTypes().get(0);
             resultType = initResultType(argsType);
-            sumResultType = initSumResultType(argsType);
+            bufferedSumType = initBufferedSumType(argsType);
         }
     }
 
@@ -141,7 +141,8 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 throw new TableException(
                         String.format(
-                                "Native hive avg aggregate function does not support type: %s. Please set option '%s' to false.",
+                                "Native hive avg aggregate function does not support type: %s. "
+                                        + "Please set option '%s' to false to fall back to Hive's own avg function.",
                                 argsType, TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
             default:
                 throw new TableException(
@@ -156,12 +157,12 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
         int scale = getScale(decimalType);
 
         int intPart = precision - scale;
-        // The avg() result type has the same number of integer digits and 4 more decimal digits.
+        // The avg result type has the same number of integer digits and 4 more decimal digits.
         scale = Math.min(scale + 4, MAX_SCALE - intPart);
         return DataTypes.DECIMAL(intPart + scale, scale);
     }
 
-    private DataType initSumResultType(DataType argsType) {
+    private DataType initBufferedSumType(DataType argsType) {
         switch (argsType.getLogicalType().getTypeRoot()) {
             case TINYINT:
             case SMALLINT:
@@ -173,8 +174,13 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
             case VARCHAR:
                 return DataTypes.DOUBLE();
             case DECIMAL:
-                return getSumResultTypeForDecimal(argsType.getLogicalType());
+                return getBufferedSumTypeForDecimal(argsType.getLogicalType());
             case TIMESTAMP_WITHOUT_TIME_ZONE:
+                throw new TableException(
+                        String.format(
+                                "Native hive avg aggregate function does not support type: %s. "
+                                        + "Please set option '%s' to false to fall back to Hive's own avg function.",
+                                argsType, TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key()));
             default:
                 throw new TableException(
                         String.format(
@@ -183,7 +189,7 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
         }
     }
 
-    private DataType getSumResultTypeForDecimal(LogicalType decimalType) {
+    private DataType getBufferedSumTypeForDecimal(LogicalType decimalType) {
         int precision = getPrecision(decimalType);
         int scale = getScale(decimalType);
 
@@ -193,15 +199,15 @@ public class HiveAverageAggFunction extends HiveDeclarativeAggregateFunction {
         return DataTypes.DECIMAL(intPart + scale, scale);
     }
 
-    private DataType getSumResultType() {
-        return sumResultType;
+    private DataType getBufferedSumType() {
+        return bufferedSumType;
     }
 
     private ValueLiteralExpression sumInitialValue() {
-        if (getSumResultType().getLogicalType().is(DECIMAL)) {
-            return literal(BigDecimal.ZERO, getSumResultType());
+        if (getBufferedSumType().getLogicalType().is(DECIMAL)) {
+            return literal(BigDecimal.ZERO, getBufferedSumType());
         } else {
-            return literal(0D, getSumResultType());
+            return literal(0D, getBufferedSumType());
         }
     }
 }

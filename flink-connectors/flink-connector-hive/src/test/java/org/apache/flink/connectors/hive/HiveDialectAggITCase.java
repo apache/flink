@@ -276,7 +276,7 @@ public class HiveDialectAggITCase {
         // test unsupported type
         String expectedMessage =
                 "Native hive avg aggregate function does not support type: TIMESTAMP(9). "
-                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false.";
+                        + "Please set option 'table.exec.hive.native-agg-function.enabled' to false to fall back to Hive's own avg function.";
         assertSqlException("select avg(ts)from test_avg", TableException.class, expectedMessage);
 
         tableEnv.executeSql("drop table test_avg");
