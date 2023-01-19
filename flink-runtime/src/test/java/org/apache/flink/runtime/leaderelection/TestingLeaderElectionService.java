@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public class TestingLeaderElectionService extends AbstractLeaderElectionService {
 
+    private String contenderID = null;
     private LeaderContender contender = null;
     private boolean hasLeadership = false;
     private CompletableFuture<LeaderConnectionInfo> confirmationFuture = null;
@@ -52,7 +53,8 @@ public class TestingLeaderElectionService extends AbstractLeaderElectionService 
     }
 
     @Override
-    public synchronized void register(LeaderContender contender) {
+    public synchronized void register(String contenderID, LeaderContender contender) {
+        this.contenderID = contenderID;
         this.contender = contender;
 
         if (hasLeadership) {
@@ -66,6 +68,7 @@ public class TestingLeaderElectionService extends AbstractLeaderElectionService 
             contender.revokeLeadership();
         }
 
+        contenderID = null;
         contender = null;
         hasLeadership = false;
         issuedLeaderSessionId = null;
@@ -74,15 +77,18 @@ public class TestingLeaderElectionService extends AbstractLeaderElectionService 
     }
 
     @Override
-    protected synchronized void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+    protected synchronized void confirmLeadership(
+            String contenderID, UUID leaderSessionID, String leaderAddress) {
         if (confirmationFuture != null) {
             confirmationFuture.complete(new LeaderConnectionInfo(leaderSessionID, leaderAddress));
         }
     }
 
     @Override
-    protected synchronized boolean hasLeadership(UUID leaderSessionId) {
-        return hasLeadership && leaderSessionId.equals(issuedLeaderSessionId);
+    protected synchronized boolean hasLeadership(String contenderID, UUID leaderSessionId) {
+        return contenderID.equals(this.contenderID)
+                && hasLeadership
+                && leaderSessionId.equals(issuedLeaderSessionId);
     }
 
     public synchronized CompletableFuture<UUID> isLeader(UUID leaderSessionID) {

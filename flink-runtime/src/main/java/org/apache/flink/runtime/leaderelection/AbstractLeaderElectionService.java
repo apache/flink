@@ -33,11 +33,13 @@ public abstract class AbstractLeaderElectionService implements LeaderElectionSer
         return new LeaderElectionImpl(this, contenderID);
     }
 
-    protected abstract void register(LeaderContender contender) throws Exception;
+    protected abstract void register(String contenderID, LeaderContender contender)
+            throws Exception;
 
-    protected abstract void confirmLeadership(UUID leaderSessionID, String leaderAddress);
+    protected abstract void confirmLeadership(
+            String contenderID, UUID leaderSessionID, String leaderAddress);
 
-    protected abstract boolean hasLeadership(UUID leaderSessionId);
+    protected abstract boolean hasLeadership(String contenderID, UUID leaderSessionId);
 
     private static class LeaderElectionImpl implements LeaderElectionService.LeaderElection {
 
@@ -59,17 +61,17 @@ public abstract class AbstractLeaderElectionService implements LeaderElectionSer
         public void startLeaderElection() throws Exception {
             Preconditions.checkState(
                     leaderContender != null, "No LeaderContender was registered, yet.");
-            parentService.register(leaderContender);
+            parentService.register(contenderID, leaderContender);
         }
 
         @Override
         public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-            parentService.confirmLeadership(leaderSessionID, leaderAddress);
+            parentService.confirmLeadership(contenderID, leaderSessionID, leaderAddress);
         }
 
         @Override
         public boolean hasLeadership(UUID leaderSessionId) {
-            return parentService.hasLeadership(leaderSessionId);
+            return parentService.hasLeadership(contenderID, leaderSessionId);
         }
     }
 }

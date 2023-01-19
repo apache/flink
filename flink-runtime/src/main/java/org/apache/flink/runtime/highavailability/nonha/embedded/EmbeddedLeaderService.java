@@ -438,6 +438,7 @@ public class EmbeddedLeaderService {
 
     private class EmbeddedLeaderElectionService extends AbstractLeaderElectionService {
 
+        String contenderID;
         volatile LeaderContender contender;
 
         volatile boolean isLeader;
@@ -448,8 +449,10 @@ public class EmbeddedLeaderService {
         public void startLeaderElectionBackend() throws Exception {}
 
         @Override
-        protected void register(LeaderContender contender) throws Exception {
+        protected void register(String contenderID, LeaderContender contender) throws Exception {
             checkNotNull(contender);
+            checkNotNull(contenderID);
+            this.contenderID = contenderID;
             addContender(this, contender);
         }
 
@@ -459,15 +462,20 @@ public class EmbeddedLeaderService {
         }
 
         @Override
-        protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+        protected void confirmLeadership(
+                String contenderID, UUID leaderSessionID, String leaderAddress) {
             checkNotNull(leaderSessionID);
             checkNotNull(leaderAddress);
+            checkState(contenderID.equals(this.contenderID));
+
             confirmLeader(this, leaderSessionID, leaderAddress);
         }
 
         @Override
-        protected boolean hasLeadership(UUID leaderSessionId) {
-            return isLeader && leaderSessionId.equals(currentLeaderSessionId);
+        protected boolean hasLeadership(String contenderID, UUID leaderSessionId) {
+            return contenderID.equals(this.contenderID)
+                    && isLeader
+                    && leaderSessionId.equals(currentLeaderSessionId);
         }
 
         void shutdown(Exception cause) {
@@ -476,6 +484,7 @@ public class EmbeddedLeaderService {
                 isLeader = false;
                 contender.revokeLeadership();
                 contender = null;
+                contenderID = null;
             }
         }
     }

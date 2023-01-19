@@ -31,19 +31,23 @@ import java.util.UUID;
  */
 public class StandaloneLeaderElectionService extends AbstractLeaderElectionService {
 
+    private String contenderID;
     private LeaderContender contender = null;
 
     @Override
     public void startLeaderElectionBackend() throws Exception {}
 
     @Override
-    protected void register(LeaderContender newContender) throws Exception {
+    protected void register(String contenderID, LeaderContender newContender) throws Exception {
+        Preconditions.checkArgument(
+                this.contenderID == null, "There is already a contender registered.");
         if (contender != null) {
             // Service was already started
             throw new IllegalArgumentException(
                     "Leader election service cannot be started multiple times.");
         }
 
+        this.contenderID = contenderID;
         contender = Preconditions.checkNotNull(newContender);
 
         // directly grant leadership to the given contender
@@ -59,11 +63,19 @@ public class StandaloneLeaderElectionService extends AbstractLeaderElectionServi
     }
 
     @Override
-    protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
+    protected void confirmLeadership(
+            String contenderID, UUID leaderSessionID, String leaderAddress) {
+        Preconditions.checkState(
+                contenderID.equals(this.contenderID),
+                "The passed contender ID {} does not match the registered contender ID {}.",
+                contenderID,
+                this.contenderID);
+    }
 
     @Override
-    protected boolean hasLeadership(UUID leaderSessionId) {
-        return (contender != null
+    protected boolean hasLeadership(String contenderID, UUID leaderSessionId) {
+        return (contenderID.equals(this.contenderID)
+                && contender != null
                 && HighAvailabilityServices.DEFAULT_LEADER_ID.equals(leaderSessionId));
     }
 }

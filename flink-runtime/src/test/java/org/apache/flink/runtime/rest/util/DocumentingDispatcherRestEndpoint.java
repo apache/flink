@@ -93,16 +93,18 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         public void startLeaderElectionBackend() throws Exception {}
 
         @Override
-        protected void register(final LeaderContender contender) throws Exception {}
+        protected void register(String contenderID, final LeaderContender contender)
+                throws Exception {}
 
         @Override
         public void close() throws Exception {}
 
         @Override
-        protected void confirmLeadership(final UUID leaderSessionID, final String leaderAddress) {}
+        protected void confirmLeadership(
+                String contenderID, final UUID leaderSessionID, final String leaderAddress) {}
 
         @Override
-        protected boolean hasLeadership(UUID leaderSessionId) {
+        protected boolean hasLeadership(String contenderID, UUID leaderSessionId) {
             return false;
         }
     }

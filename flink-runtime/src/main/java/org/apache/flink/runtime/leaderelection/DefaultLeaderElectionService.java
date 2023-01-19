@@ -46,6 +46,9 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private final LeaderElectionDriverFactory leaderElectionDriverFactory;
 
+    @GuardedBy("lock")
+    private volatile String contenderID;
+
     /** The leader contender which applies for leadership. */
     @GuardedBy("lock")
     // @Nullable is commented-out to avoid having multiple warnings spread over this class
@@ -93,12 +96,15 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected void register(LeaderContender contender) throws Exception {
+    protected void register(String contenderID, LeaderContender contender) throws Exception {
         checkNotNull(contender, "Contender must not be null.");
         Preconditions.checkState(leaderContender == null, "Contender was already set.");
+        Preconditions.checkState(
+                this.contenderID == null, "There shouldn't be any contenderID set, yet.");
 
         synchronized (lock) {
             running = true;
+            this.contenderID = contenderID;
             leaderContender = contender;
             LOG.info("Starting DefaultLeaderElectionService with {}.", leaderElectionDriver);
         }
@@ -120,13 +126,13 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+    protected void confirmLeadership(String contenderID, UUID leaderSessionID, String leaderAddress) {
         LOG.debug("Confirm leader session ID {} for leader {}.", leaderSessionID, leaderAddress);
 
         checkNotNull(leaderSessionID);
 
         synchronized (lock) {
-            if (hasLeadership(leaderSessionID)) {
+            if (hasLeadership(contenderID, leaderSessionID)) {
                 if (running) {
                     confirmLeaderInformation(leaderSessionID, leaderAddress);
                 } else {
@@ -152,10 +158,11 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected boolean hasLeadership(UUID leaderSessionId) {
+    protected boolean hasLeadership(String contenderID, UUID leaderSessionId) {
         synchronized (lock) {
             if (running) {
-                return leaderElectionDriver.hasLeadership()
+                return contenderID.equals(this.contenderID)
+                        && leaderElectionDriver.hasLeadership()
                         && leaderSessionId.equals(issuedLeaderSessionID);
             } else {
                 LOG.debug("hasLeadership is called after the service is stopped, returning false.");
