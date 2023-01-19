@@ -43,13 +43,15 @@ import java.util.Map;
  * <p>The {@code PredefinedOptions} are designed to cope with different situations. If some
  * configurations should be enabled unconditionally, they are not included in any of the pre-defined
  * options. Please check {@link RocksDBResourceContainer#createBaseCommonDBOptions()} and {@link
- * RocksDBResourceContainer#createBaseCommonColumnOptions()} for common settings.
+ * RocksDBResourceContainer#createBaseCommonColumnOptions()} for common settings. Note that
+ * setUseFsync(false) is set by default irrespective of the {@code PredefinedOptions} setting.
+ * Because Flink does not rely on RocksDB data on disk for recovery, there is no need to sync data
+ * to stable storage.
  */
 public enum PredefinedOptions {
 
     /**
      * Default options for all settings.
-     *
      *
      * <p>There are no specified options here.
      */
@@ -69,11 +71,7 @@ public enum PredefinedOptions {
      *   <li>setMaxBackgroundJobs(4)
      *   <li>setMaxOpenFiles(-1)
      * </ul>
-     *
-     * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
-     * to sync data to stable storage.
      */
-
     SPINNING_DISK_OPTIMIZED(
             new HashMap<ConfigOption<?>, Object>() {
                 private static final long serialVersionUID = 1L;
