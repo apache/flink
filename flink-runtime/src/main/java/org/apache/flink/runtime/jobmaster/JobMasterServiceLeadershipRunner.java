@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
@@ -81,6 +82,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     private final JobMasterServiceProcessFactory jobMasterServiceProcessFactory;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElectionService.LeaderElection leaderElection;
 
     private final JobResultStore jobResultStore;
 
@@ -164,7 +166,13 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @Override
     public void start() throws Exception {
         LOG.debug("Start leadership runner for job {}.", getJobID());
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.start(this);
+    }
+
+    // TODO: remove
+    @VisibleForTesting
+    public LeaderElectionService.LeaderElection getLeaderElection() {
+        return leaderElection;
     }
 
     @Override
@@ -333,8 +341,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                             synchronized (lock) {
                                 if (isValidLeader(leaderSessionId)) {
                                     LOG.debug("Confirm leadership {}.", leaderSessionId);
-                                    leaderElectionService.confirmLeadership(
-                                            leaderSessionId, address);
+                                    leaderElection.confirmLeadership(leaderSessionId, address);
                                 } else {
                                     LOG.trace(
                                             "Ignore confirming leadership because the leader {} is no longer valid.",
@@ -497,7 +504,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     @GuardedBy("lock")
     private boolean isValidLeader(UUID expectedLeaderId) {
-        return isRunning() && leaderElectionService.hasLeadership(expectedLeaderId);
+        return isRunning() && leaderElection.hasLeadership(expectedLeaderId);
     }
 
     private <T> void forwardIfValidLeader(

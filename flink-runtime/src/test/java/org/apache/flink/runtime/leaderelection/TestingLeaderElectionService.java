@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
  * Test {@link LeaderElectionService} implementation which directly forwards isLeader and notLeader
  * calls to the contender.
  */
-public class TestingLeaderElectionService implements LeaderElectionService {
+public class TestingLeaderElectionService extends AbstractLeaderElectionService {
 
     private LeaderContender contender = null;
     private boolean hasLeadership = false;
@@ -46,7 +46,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
     }
 
     @Override
-    public synchronized void start(LeaderContender contender) {
+    public synchronized void register(LeaderContender contender) {
         Preconditions.checkState(!getStartFuture().isDone());
 
         this.contender = contender;
@@ -72,14 +72,14 @@ public class TestingLeaderElectionService implements LeaderElectionService {
     }
 
     @Override
-    public synchronized void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+    protected synchronized void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
         if (confirmationFuture != null) {
             confirmationFuture.complete(new LeaderConnectionInfo(leaderSessionID, leaderAddress));
         }
     }
 
     @Override
-    public synchronized boolean hasLeadership(UUID leaderSessionId) {
+    protected synchronized boolean hasLeadership(UUID leaderSessionId) {
         return hasLeadership && leaderSessionId.equals(issuedLeaderSessionId);
     }
 

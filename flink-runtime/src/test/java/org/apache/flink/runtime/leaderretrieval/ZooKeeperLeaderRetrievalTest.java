@@ -160,7 +160,7 @@ class ZooKeeperLeaderRetrievalTest {
                 TestingContender wrongLeaderAddressContender =
                         new TestingContender(wrongAddress, faultyLeaderElectionService);
 
-                faultyLeaderElectionService.start(wrongLeaderAddressContender);
+                wrongLeaderAddressContender.startLeaderElection();
 
                 FindConnectingAddress findConnectingAddress =
                         new FindConnectingAddress(
@@ -183,7 +183,7 @@ class ZooKeeperLeaderRetrievalTest {
 
                 faultyLeaderElectionService.stop();
 
-                leaderElectionService.start(correctLeaderAddressContender);
+                correctLeaderAddressContender.startLeaderElection();
 
                 thread.join();
 

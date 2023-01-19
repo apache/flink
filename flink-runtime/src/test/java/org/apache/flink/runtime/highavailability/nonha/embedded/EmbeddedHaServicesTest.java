@@ -141,11 +141,12 @@ public class EmbeddedHaServicesTest extends TestLogger {
         TestingLeaderContender leaderContender = new TestingLeaderContender();
 
         leaderRetrievalService.start(leaderRetrievalListener);
-        leaderElectionService.start(leaderContender);
+        LeaderElectionService.LeaderElection leaderElection =
+                leaderElectionService.start(leaderContender);
 
         final UUID leaderId = leaderContender.getLeaderSessionFuture().get();
 
-        leaderElectionService.confirmLeadership(leaderId, ADDRESS);
+        leaderElection.confirmLeadership(leaderId, ADDRESS);
 
         final LeaderConnectionInfo leaderConnectionInfo =
                 leaderRetrievalListener.getLeaderConnectionInfoFuture().get();
@@ -175,24 +176,25 @@ public class EmbeddedHaServicesTest extends TestLogger {
                 embeddedHaServices.getDispatcherLeaderElectionService();
         final TestingLeaderContender leaderContender = new TestingLeaderContender();
 
-        dispatcherLeaderElectionService.start(leaderContender);
+        LeaderElectionService.LeaderElection leaderElection =
+                dispatcherLeaderElectionService.start(leaderContender);
 
         final UUID oldLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
 
-        assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(true));
+        assertThat(leaderElection.hasLeadership(oldLeaderSessionId), is(true));
 
         embeddedHaServices.getDispatcherLeaderService().revokeLeadership().get();
-        assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(false));
+        assertThat(leaderElection.hasLeadership(oldLeaderSessionId), is(false));
 
         embeddedHaServices.getDispatcherLeaderService().grantLeadership();
         final UUID newLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
 
-        assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+        assertThat(leaderElection.hasLeadership(newLeaderSessionId), is(true));
 
-        dispatcherLeaderElectionService.confirmLeadership(oldLeaderSessionId, ADDRESS);
-        dispatcherLeaderElectionService.confirmLeadership(newLeaderSessionId, ADDRESS);
+        leaderElection.confirmLeadership(oldLeaderSessionId, ADDRESS);
+        leaderElection.confirmLeadership(newLeaderSessionId, ADDRESS);
 
-        assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+        assertThat(leaderElection.hasLeadership(newLeaderSessionId), is(true));
 
         leaderContender.tryRethrowException();
     }

@@ -104,13 +104,12 @@ class DefaultLeaderElectionServiceTest {
                             final UUID currentLeaderSessionId =
                                     leaderElectionService.getLeaderSessionID();
                             assertThat(currentLeaderSessionId).isNotNull();
-                            assertThat(leaderElectionService.hasLeadership(currentLeaderSessionId))
+                            assertThat(leaderElection.hasLeadership(currentLeaderSessionId))
                                     .isTrue();
-                            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()))
-                                    .isFalse();
+                            assertThat(leaderElection.hasLeadership(UUID.randomUUID())).isFalse();
 
                             leaderElectionService.stop();
-                            assertThat(leaderElectionService.hasLeadership(currentLeaderSessionId))
+                            assertThat(leaderElection.hasLeadership(currentLeaderSessionId))
                                     .isFalse();
                         });
             }
@@ -203,7 +202,7 @@ class DefaultLeaderElectionServiceTest {
                             assertThat(currentLeaderSessionId).isNotNull();
 
                             // Old confirm call should be ignored.
-                            leaderElectionService.confirmLeadership(UUID.randomUUID(), TEST_URL);
+                            leaderElection.confirmLeadership(UUID.randomUUID(), TEST_URL);
                             assertThat(leaderElectionService.getLeaderSessionID())
                                     .isEqualTo(currentLeaderSessionId);
                         });
@@ -260,8 +259,8 @@ class DefaultLeaderElectionServiceTest {
 
         final TestingContender testingContender =
                 new TestingContender(TEST_URL, leaderElectionService);
+        testingContender.startLeaderElection();
 
-        leaderElectionService.start(testingContender);
         final TestingLeaderElectionDriver currentLeaderDriver =
                 Preconditions.checkNotNull(
                         testingLeaderElectionDriverFactory.getCurrentLeaderDriver());
@@ -288,10 +287,12 @@ class DefaultLeaderElectionServiceTest {
         final TestingContender testingContender =
                 new TestingContender(TEST_URL, leaderElectionService);
 
+        LeaderElectionService.LeaderElection leaderElection;
+
         TestingLeaderElectionDriver testingLeaderElectionDriver;
 
         void runTest(RunnableWithException testMethod) throws Exception {
-            leaderElectionService.start(testingContender);
+            leaderElection = testingContender.startLeaderElection();
 
             testingLeaderElectionDriver =
                     testingLeaderElectionDriverFactory.getCurrentLeaderDriver();

@@ -37,8 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * LeaderElectionDriver}, we could perform a leader election for the contender, and then persist the
  * leader information to various storage.
  */
-public class DefaultLeaderElectionService
-        implements LeaderElectionService, LeaderElectionEventHandler {
+public class DefaultLeaderElectionService extends AbstractLeaderElectionService
+        implements LeaderElectionEventHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 
@@ -81,7 +81,7 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    public final void start(LeaderContender contender) throws Exception {
+    protected void register(LeaderContender contender) throws Exception {
         checkNotNull(contender, "Contender must not be null.");
         Preconditions.checkState(leaderContender == null, "Contender was already set.");
 
@@ -113,7 +113,7 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+    protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
         LOG.debug("Confirm leader session ID {} for leader {}.", leaderSessionID, leaderAddress);
 
         checkNotNull(leaderSessionID);
@@ -145,7 +145,7 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    public boolean hasLeadership(UUID leaderSessionId) {
+    protected boolean hasLeadership(UUID leaderSessionId) {
         synchronized (lock) {
             if (running) {
                 return leaderElectionDriver.hasLeadership()

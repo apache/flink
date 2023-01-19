@@ -86,22 +86,21 @@ public class LeaderElectionTest {
         final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
 
         try {
-            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID())).isFalse();
-
-            leaderElectionService.start(manualLeaderContender);
+            LeaderElectionService.LeaderElection leaderElection =
+                    leaderElectionService.start(manualLeaderContender);
 
             final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isTrue();
-            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID())).isFalse();
+            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
+            assertThat(leaderElection.hasLeadership(UUID.randomUUID())).isFalse();
 
-            leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
+            leaderElection.confirmLeadership(leaderSessionId, "foobar");
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isTrue();
+            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
 
             leaderElectionService.stop();
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isFalse();
+            assertThat(leaderElection.hasLeadership(leaderSessionId)).isFalse();
         } finally {
             manualLeaderContender.rethrowError();
         }

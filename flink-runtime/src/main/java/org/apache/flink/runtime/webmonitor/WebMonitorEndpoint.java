@@ -203,6 +203,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     private final MetricFetcher metricFetcher;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElectionService.LeaderElection leaderElection;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -1027,7 +1028,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     @Override
     public void startInternal() throws Exception {
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.start(this);
         startExecutionGraphCacheCleanupTask();
 
         if (hasWebUI) {
@@ -1093,7 +1094,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),
                 leaderSessionID);
-        leaderElectionService.confirmLeadership(leaderSessionID, getRestBaseUrl());
+        leaderElection.confirmLeadership(leaderSessionID, getRestBaseUrl());
     }
 
     @Override

@@ -192,7 +192,7 @@ class ZooKeeperLeaderElectionTest {
 
                 LOG.debug("Start leader election service for contender #{}.", i);
 
-                leaderElectionService[i].start(contenders[i]);
+                contenders[i].startLeaderElection();
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)";
@@ -280,7 +280,7 @@ class ZooKeeperLeaderElectionTest {
                         new TestingContender(
                                 LEADER_ADDRESS + "_" + i + "_0", leaderElectionService[i]);
 
-                leaderElectionService[i].start(contenders[i]);
+                contenders[i].startLeaderElection();
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)" + "_" + "(\\d+)";
@@ -310,7 +310,7 @@ class ZooKeeperLeaderElectionTest {
                                     LEADER_ADDRESS + "_" + index + "_" + (lastTry + 1),
                                     leaderElectionService[index]);
 
-                    leaderElectionService[index].start(contenders[index]);
+                    contenders[index].startLeaderElection();
                 } else {
                     throw new Exception("Did not find the leader's index.");
                 }

@@ -58,6 +58,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     private final ResourceManagerProcessContext rmProcessContext;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElectionService.LeaderElection leaderElection;
+
     private final FatalErrorHandler fatalErrorHandler;
     private final Executor ioExecutor;
 
@@ -118,7 +120,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         LOG.info("Starting resource manager service.");
 
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.start(this);
     }
 
     @Override
@@ -267,7 +269,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                 .thenAcceptAsync(
                         (isStillLeader) -> {
                             if (isStillLeader) {
-                                leaderElectionService.confirmLeadership(
+                                leaderElection.confirmLeadership(
                                         newLeaderSessionID, newLeaderResourceManager.getAddress());
                             }
                         },
