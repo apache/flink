@@ -29,6 +29,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -36,8 +37,10 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Collections;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -55,15 +58,31 @@ public class DefaultContext {
                 flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
         Options commandLineOptions = collectCommandLineOptions(commandLines);
+
+        final List<URL> dependencies = new ArrayList<>();
+        // add python dependencies by default
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                dependencies.add(location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            throw new SqlExecutionException("Failed to find flink-python jar.", e);
+        }
+
         try {
             CommandLine deploymentCommandLine =
                     CliFrontendParser.parse(commandLineOptions, new String[] {}, true);
             flinkConfig.addAll(
                     createExecutionConfig(
-                            deploymentCommandLine,
-                            commandLineOptions,
-                            commandLines,
-                            Collections.emptyList()));
+                            deploymentCommandLine, commandLineOptions, commandLines, dependencies));
         } catch (Exception e) {
             throw new SqlGatewayException(
                     "Could not load available CLI with Environment Deployment entry.", e);
