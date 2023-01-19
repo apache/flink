@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
@@ -120,7 +121,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         LOG.info("Starting resource manager service.");
 
-        leaderElection = leaderElectionService.start(this);
+        leaderElectionService.startLeaderElectionBackend();
+        leaderElection = leaderElectionService.createLeaderElection(this);
     }
 
     @Override
@@ -269,6 +271,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                 .thenAcceptAsync(
                         (isStillLeader) -> {
                             if (isStillLeader) {
+                                Preconditions.checkState(leaderElection != null);
                                 leaderElection.confirmLeadership(
                                         newLeaderSessionID, newLeaderResourceManager.getAddress());
                             }

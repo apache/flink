@@ -425,6 +425,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
         // make sure RM started, before proceeding the next step
         assertRmStarted();
+        assertTrue(leaderElectionService.hasContenderRegistered());
         assertFalse(leaderElectionService.isStopped());
 
         // close service
@@ -432,6 +433,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
         // should stop RM and leader election
         assertTrue(terminateRmFuture.isDone());
+        assertFalse(leaderElectionService.hasContenderRegistered());
         assertTrue(leaderElectionService.isStopped());
     }
 

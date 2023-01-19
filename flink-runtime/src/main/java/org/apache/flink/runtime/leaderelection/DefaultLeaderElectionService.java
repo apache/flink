@@ -81,6 +81,18 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
+    public void startLeaderElectionBackend() throws Exception {
+        synchronized (lock) {
+            leaderElectionDriver =
+                    leaderElectionDriverFactory.createLeaderElectionDriver(
+                            // TODO: FLINK-26522 - leaderContenderDescription is only used within
+                            // the ZooKeeperLeaderElectionDriver for when the connection is lost
+                            // This can be removed later on by the contender ID
+                            this, new LeaderElectionFatalErrorHandler(), "unused");
+        }
+    }
+
+    @Override
     protected void register(LeaderContender contender) throws Exception {
         checkNotNull(contender, "Contender must not be null.");
         Preconditions.checkState(leaderContender == null, "Contender was already set.");
@@ -88,11 +100,6 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         synchronized (lock) {
             running = true;
             leaderContender = contender;
-            leaderElectionDriver =
-                    leaderElectionDriverFactory.createLeaderElectionDriver(
-                            this,
-                            new LeaderElectionFatalErrorHandler(),
-                            leaderContender.getDescription());
             LOG.info("Starting DefaultLeaderElectionService with {}.", leaderElectionDriver);
         }
     }

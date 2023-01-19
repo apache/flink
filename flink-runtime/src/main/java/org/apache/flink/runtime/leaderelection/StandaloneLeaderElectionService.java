@@ -34,6 +34,9 @@ public class StandaloneLeaderElectionService extends AbstractLeaderElectionServi
     private LeaderContender contender = null;
 
     @Override
+    public void startLeaderElectionBackend() throws Exception {}
+
+    @Override
     protected void register(LeaderContender newContender) throws Exception {
         if (contender != null) {
             // Service was already started

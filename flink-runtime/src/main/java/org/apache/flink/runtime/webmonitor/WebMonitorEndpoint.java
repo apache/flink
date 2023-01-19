@@ -1028,7 +1028,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     @Override
     public void startInternal() throws Exception {
-        leaderElection = leaderElectionService.start(this);
+        leaderElectionService.startLeaderElectionBackend();
+        leaderElection = leaderElectionService.createLeaderElection(this);
         startExecutionGraphCacheCleanupTask();
 
         if (hasWebUI) {
@@ -1090,6 +1091,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     @Override
     public void grantLeadership(final UUID leaderSessionID) {
+        Preconditions.checkState(leaderElection != null);
         log.info(
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),

@@ -445,6 +445,9 @@ public class EmbeddedLeaderService {
         volatile boolean running;
 
         @Override
+        public void startLeaderElectionBackend() throws Exception {}
+
+        @Override
         protected void register(LeaderContender contender) throws Exception {
             checkNotNull(contender);
             addContender(this, contender);

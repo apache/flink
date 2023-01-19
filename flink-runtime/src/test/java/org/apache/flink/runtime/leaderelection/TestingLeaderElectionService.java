@@ -46,16 +46,18 @@ public class TestingLeaderElectionService extends AbstractLeaderElectionService 
     }
 
     @Override
-    public synchronized void register(LeaderContender contender) {
+    public void startLeaderElectionBackend() {
         Preconditions.checkState(!getStartFuture().isDone());
+        startFuture.complete(null);
+    }
 
+    @Override
+    public synchronized void register(LeaderContender contender) {
         this.contender = contender;
 
         if (hasLeadership) {
             contender.grantLeadership(issuedLeaderSessionId);
         }
-
-        startFuture.complete(null);
     }
 
     @Override
@@ -124,7 +126,11 @@ public class TestingLeaderElectionService extends AbstractLeaderElectionService 
         return startFuture;
     }
 
+    public synchronized boolean hasContenderRegistered() {
+        return contender != null;
+    }
+
     public synchronized boolean isStopped() {
-        return contender == null;
+        return !startFuture.isDone();
     }
 }

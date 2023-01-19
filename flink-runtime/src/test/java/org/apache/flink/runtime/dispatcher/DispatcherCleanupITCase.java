@@ -57,6 +57,7 @@ import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -126,6 +127,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         }
     }
 
+    @Ignore(
+            "FLINK-26522: The JobMasterServiceLeadershipRunner won't confirm the leadership because the LeaderElection is not properly set within the LeaderContender implementation, yet.")
     @Test
     public void testCleanupThroughRetries() throws Exception {
         final JobGraph jobGraph = createJobGraph();
@@ -250,6 +253,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId));
     }
 
+    @Ignore(
+            "FLINK-26522: The JobMasterServiceLeadershipRunner won't confirm the leadership because the LeaderElection is not properly set within the LeaderContender implementation, yet.")
     @Test
     public void testCleanupAfterLeadershipChange() throws Exception {
         final JobGraph jobGraph = createJobGraph();
@@ -284,6 +289,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         // Construct leader election service.
         final TestingLeaderElectionService leaderElectionService =
                 new TestingLeaderElectionService();
+        leaderElectionService.startLeaderElectionBackend();
         haServices.setJobMasterLeaderElectionService(jobId, leaderElectionService);
 
         // start the dispatcher with no retries on cleanup

@@ -166,7 +166,8 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @Override
     public void start() throws Exception {
         LOG.debug("Start leadership runner for job {}.", getJobID());
-        leaderElection = leaderElectionService.start(this);
+        leaderElectionService.startLeaderElectionBackend();
+        leaderElection = leaderElectionService.createLeaderElection(this);
     }
 
     // TODO: remove
@@ -504,7 +505,9 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     @GuardedBy("lock")
     private boolean isValidLeader(UUID expectedLeaderId) {
-        return isRunning() && leaderElection.hasLeadership(expectedLeaderId);
+        return isRunning()
+                && leaderElection != null
+                && leaderElection.hasLeadership(expectedLeaderId);
     }
 
     private <T> void forwardIfValidLeader(

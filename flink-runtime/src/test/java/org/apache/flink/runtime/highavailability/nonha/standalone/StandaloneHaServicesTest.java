@@ -74,8 +74,10 @@ public class StandaloneHaServicesTest extends TestLogger {
         LeaderElectionService rmLeaderElectionService =
                 standaloneHaServices.getResourceManagerLeaderElectionService();
 
-        jmLeaderElectionService.start(jmLeaderContender);
-        rmLeaderElectionService.start(rmLeaderContender);
+        jmLeaderElectionService.startLeaderElectionBackend();
+        jmLeaderElectionService.createLeaderElection(jmLeaderContender);
+        rmLeaderElectionService.startLeaderElectionBackend();
+        rmLeaderElectionService.createLeaderElection(rmLeaderContender);
 
         verify(jmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
         verify(rmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));

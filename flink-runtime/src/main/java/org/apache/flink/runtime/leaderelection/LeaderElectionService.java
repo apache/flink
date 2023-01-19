@@ -36,12 +36,14 @@ import java.util.UUID;
 public interface LeaderElectionService extends AutoCloseable {
 
     /**
-     * Starts the leader election service. This method can only be called once.
+     * Initializes any resources that are necessary to make the {@code LeaderElectionService}
+     * operate properly.
      *
-     * @param contender LeaderContender which applies for the leadership
-     * @throws Exception
+     * @throws Exception if an error appears during the initialization.
      */
-    LeaderElection start(LeaderContender contender) throws Exception;
+    void startLeaderElectionBackend() throws Exception;
+
+    LeaderElection createLeaderElection(LeaderContender contender) throws Exception;
 
     /**
      * Stops the leader election service. Stopping the {@code LeaderElectionService} will trigger

@@ -22,7 +22,7 @@ import java.util.UUID;
 
 public abstract class AbstractLeaderElectionService implements LeaderElectionService {
     @Override
-    public LeaderElection start(LeaderContender contender) throws Exception {
+    public LeaderElection createLeaderElection(LeaderContender contender) throws Exception {
         register(contender);
         return new LeaderElectionImpl(this);
     }

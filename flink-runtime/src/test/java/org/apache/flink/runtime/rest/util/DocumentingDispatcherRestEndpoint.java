@@ -90,6 +90,9 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         private static final NoOpElectionService INSTANCE = new NoOpElectionService();
 
         @Override
+        public void startLeaderElectionBackend() throws Exception {}
+
+        @Override
         protected void register(final LeaderContender contender) throws Exception {}
 
         @Override

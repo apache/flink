@@ -55,7 +55,8 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
 
             final TestingLeaderContender contender = new TestingLeaderContender();
 
-            leaderElectionService.start(contender);
+            leaderElectionService.startLeaderElectionBackend();
+            leaderElectionService.createLeaderElection(contender);
             leaderElectionService.close();
 
             try {
@@ -87,7 +88,8 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
 
             final TestingLeaderContender contender = new TestingLeaderContender();
 
-            leaderElectionService.start(contender);
+            leaderElectionService.startLeaderElectionBackend();
+            leaderElectionService.createLeaderElection(contender);
 
             // wait for the leadership
             contender.getLeaderSessionFuture().get();
