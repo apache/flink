@@ -27,7 +27,7 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.cli.parser.ClientParser;
+import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
 import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.ClientResult;
@@ -302,12 +302,9 @@ class CliClientTest {
         InputStream inputStream = new ByteArrayInputStream("SELECT 1;\nHELP;\n ".getBytes());
         OutputStream outputStream = new ByteArrayOutputStream(248);
 
-        try (CliClient client =
-                new CliClient(
-                        () -> TerminalUtils.createDumbTerminal(inputStream, outputStream),
-                        mockExecutor,
-                        historyFilePath,
-                        null)) {
+        try (Terminal terminal = TerminalUtils.createDumbTerminal(inputStream, outputStream);
+                CliClient client =
+                        new CliClient(() -> terminal, mockExecutor, historyFilePath, null)) {
             Thread thread =
                     new Thread(
                             () -> {
@@ -322,7 +319,7 @@ class CliClientTest {
                 Thread.sleep(10);
             }
 
-            client.getTerminal().raise(Terminal.Signal.INT);
+            terminal.raise(Terminal.Signal.INT);
             CommonTestUtils.waitUntilCondition(
                     () -> outputStream.toString().contains(CliStrings.MESSAGE_HELP));
         }
@@ -352,7 +349,7 @@ class CliClientTest {
         mockExecutor.openSession(SESSION_ID);
 
         final SqlCompleter completer = new SqlCompleter(mockExecutor);
-        final SqlMultiLineParser parser = new SqlMultiLineParser(new ClientParser());
+        final SqlMultiLineParser parser = new SqlMultiLineParser(new SqlCommandParserImpl());
 
         try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();

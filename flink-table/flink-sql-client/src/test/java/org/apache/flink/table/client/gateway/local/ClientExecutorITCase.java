@@ -32,8 +32,9 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.config.ResultMode;
-import org.apache.flink.table.client.gateway.ClientExecutor;
 import org.apache.flink.table.client.gateway.ClientResult;
+import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
@@ -87,8 +88,8 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Contains basic tests for the {@link ClientExecutor}. */
-class ClientExecutorITCase {
+/** Contains basic tests for the {@link ExecutorImpl}. */
+class ExecutorImplITCase {
 
     private static final int NUM_TMS = 2;
     private static final int NUM_SLOTS_PER_TM = 2;
@@ -151,7 +152,7 @@ class ClientExecutorITCase {
 
     @Test
     void testCompleteStatement() {
-        final ClientExecutor executor = createLocalExecutor();
+        final Executor executor = createLocalExecutor();
         executor.openSession("test-session");
         initSession(executor, Collections.emptyMap());
 
@@ -181,7 +182,7 @@ class ClientExecutorITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final ClientExecutor executor =
+        final Executor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
         executor.openSession("test-session");
 
@@ -222,7 +223,7 @@ class ClientExecutorITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final ClientExecutor executor =
+        final Executor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
         executor.openSession("test-session");
 
@@ -340,7 +341,7 @@ class ClientExecutorITCase {
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
-        final ClientExecutor executor =
+        final Executor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
@@ -380,7 +381,7 @@ class ClientExecutorITCase {
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
-        final ClientExecutor executor =
+        final Executor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
@@ -418,7 +419,7 @@ class ClientExecutorITCase {
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
         configMap.put(TableConfigOptions.TABLE_DML_SYNC.key(), "false");
 
-        final ClientExecutor executor =
+        final Executor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
@@ -457,16 +458,15 @@ class ClientExecutorITCase {
     // Helper method
     // --------------------------------------------------------------------------------------------
 
-    private ResultDescriptor executeQuery(ClientExecutor executor, String query) {
+    private ResultDescriptor executeQuery(Executor executor, String query) {
         return new ResultDescriptor(executor.executeStatement(query), executor.getSessionConfig());
     }
 
-    private ClientExecutor createLocalExecutor() {
+    private Executor createLocalExecutor() {
         return createLocalExecutor(Collections.emptyList(), new Configuration());
     }
 
-    private ClientExecutor createLocalExecutor(
-            List<URL> dependencies, Configuration configuration) {
+    private Executor createLocalExecutor(List<URL> dependencies, Configuration configuration) {
         configuration.addAll(clusterClient.getFlinkConfiguration());
         DefaultContext defaultContext =
                 new DefaultContext(
@@ -475,10 +475,10 @@ class ClientExecutorITCase {
                         InetSocketAddress.createUnresolved(
                                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
                                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
-        return new ClientExecutor(defaultContext);
+        return new ExecutorImpl(defaultContext);
     }
 
-    private void initSession(ClientExecutor executor, Map<String, String> replaceVars) {
+    private void initSession(Executor executor, Map<String, String> replaceVars) {
         for (String sql : getInitSQL(replaceVars)) {
             executor.configureSession(sql);
         }
@@ -491,7 +491,7 @@ class ClientExecutorITCase {
             List<String> expectedResults)
             throws Exception {
 
-        final ClientExecutor executor =
+        final Executor executor =
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");

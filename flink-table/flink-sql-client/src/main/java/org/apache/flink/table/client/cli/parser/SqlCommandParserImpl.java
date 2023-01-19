@@ -33,22 +33,23 @@ import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.IDENT
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SEMICOLON;
 
 /**
- * ClientParser uses {@link FlinkSqlParserImplTokenManager} to do lexical analysis. It cannot
- * recognize special hive keywords yet because Hive has a slightly different vocabulary compared to
- * Flink's, which causes the ClientParser misunderstanding some Hive's keywords to IDENTIFIER. But
- * the ClientParser is only responsible to check whether the statement is completed or not and only
- * cares about a few statements. So it's acceptable to tolerate the inaccuracy here.
+ * The {@link SqlCommandParserImpl} uses {@link FlinkSqlParserImplTokenManager} to do lexical
+ * analysis. It cannot recognize special hive keywords yet because Hive has a slightly different
+ * vocabulary compared to Flink's, which causes the The {@link SqlCommandParserImpl}
+ * misunderstanding some Hive's keywords to IDENTIFIER. But the ClientParser is only responsible to
+ * check whether the statement is completed or not and only cares about a few statements. So it's
+ * acceptable to tolerate the inaccuracy here.
  */
-public class ClientParser implements SqlCommandParser {
+public class SqlCommandParserImpl implements SqlCommandParser {
 
-    public Optional<StatementType> parseStatement(String statement) throws SqlExecutionException {
+    public Optional<Command> parseStatement(String statement) throws SqlExecutionException {
         // normalize
         statement = statement.trim();
         // meet empty statement, e.g ";\n"
         if (statement.isEmpty() || statement.equals(";")) {
             return Optional.empty();
         } else {
-            return Optional.of(getStatementType(new TokenIterator(statement.trim())));
+            return Optional.of(getCommand(new TokenIterator(statement.trim())));
         }
     }
 
@@ -94,17 +95,17 @@ public class ClientParser implements SqlCommandParser {
         }
     }
 
-    private StatementType getStatementType(TokenIterator tokens) {
+    private Command getCommand(TokenIterator tokens) {
         if (!tokens.hasNext()) {
             continueReadInput();
         }
         Token firstToken = tokens.scan(0);
-        StatementType type;
+        Command type;
         if (firstToken.kind == IDENTIFIER) {
             // it means the token is not a reserved keyword, potentially a client command
             type = getPotentialCommandType(firstToken.image);
         } else {
-            type = StatementType.OTHER;
+            type = Command.OTHER;
         }
 
         checkIncompleteStatement(tokens);
@@ -122,17 +123,17 @@ public class ClientParser implements SqlCommandParser {
         return token.kind == kind;
     }
 
-    private StatementType getPotentialCommandType(String image) {
+    private Command getPotentialCommandType(String image) {
         switch (image.toUpperCase()) {
             case "QUIT":
             case "EXIT":
-                return StatementType.QUIT;
+                return Command.QUIT;
             case "CLEAR":
-                return StatementType.CLEAR;
+                return Command.CLEAR;
             case "HELP":
-                return StatementType.HELP;
+                return Command.HELP;
             default:
-                return StatementType.OTHER;
+                return Command.OTHER;
         }
     }
 

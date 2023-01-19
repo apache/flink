@@ -22,7 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
-import org.apache.flink.table.client.gateway.ClientExecutor;
+import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalContextUtils;
@@ -88,7 +89,7 @@ public class SqlClient {
                             options,
                             InetSocketAddress.createUnresolved(
                                     embeddedGateway.getAddress(), embeddedGateway.getPort()));
-            final ClientExecutor executor = new ClientExecutor(defaultContext);
+            final Executor executor = new ExecutorImpl(defaultContext);
             // Open a new session
             try {
                 // add shutdown hook
@@ -112,7 +113,7 @@ public class SqlClient {
      *
      * @param executor executor
      */
-    private void openCli(ClientExecutor executor) {
+    private void openCli(Executor executor) {
         Path historyFilePath;
         if (options.getHistoryFilePath() != null) {
             historyFilePath = Paths.get(options.getHistoryFilePath());
@@ -267,10 +268,10 @@ public class SqlClient {
 
     private static class EmbeddedShutdownThread extends Thread {
 
-        private final ClientExecutor executor;
+        private final Executor executor;
         private final EmbeddedGateway gateway;
 
-        public EmbeddedShutdownThread(ClientExecutor executor, EmbeddedGateway gateway) {
+        public EmbeddedShutdownThread(Executor executor, EmbeddedGateway gateway) {
             this.executor = executor;
             this.gateway = gateway;
         }

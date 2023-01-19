@@ -27,16 +27,40 @@ import java.util.List;
 /** A gateway for communicating with Flink and other external systems. */
 public interface Executor {
 
+    /**
+     * Open a new session by using the given session id.
+     *
+     * @param sessionId session identifier
+     */
     void openSession(@Nullable String sessionId);
 
+    /** Close the resources of session for given session id. */
     void closeSession();
 
+    /**
+     * Configures session with statement.
+     *
+     * @param statement to initialize the session
+     */
     void configureSession(String statement);
 
+    /** Get the configuration of the session. */
     ReadableConfig getSessionConfig();
 
+    /**
+     * Execute statement.
+     *
+     * @param statement to execute
+     * @return Iterable results of the statement
+     */
     ClientResult executeStatement(String statement);
 
-    /** Returns a list of completion hints for the given statement at the given position. */
+    /**
+     * Returns a list of completion hints for the given statement at the given position.
+     *
+     * @param statement Partial or slightly incorrect SQL statement
+     * @param position cursor position
+     * @return completion hints that fit at the current cursor position
+     */
     List<String> completeStatement(String statement, int position);
 }

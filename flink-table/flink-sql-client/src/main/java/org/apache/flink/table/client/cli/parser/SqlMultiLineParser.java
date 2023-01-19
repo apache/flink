@@ -44,10 +44,8 @@ public class SqlMultiLineParser extends DefaultParser {
     private final SqlCommandParser parser;
     /** Exception caught in parsing. */
     private SqlExecutionException parseException = null;
-    /** Command read from terminal. */
-    private String command;
     /** Parsed statement type. */
-    private StatementType statementType;
+    private Command statementType;
 
     public SqlMultiLineParser(SqlCommandParser parser) {
         this.parser = parser;
@@ -64,9 +62,8 @@ public class SqlMultiLineParser extends DefaultParser {
             throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
         }
         try {
-            command = line;
             parseException = null;
-            statementType = parser.parseStatement(command).orElse(null);
+            statementType = parser.parseStatement(line).orElse(null);
         } catch (SqlExecutionException e) {
             if (e.getCause() instanceof SqlParserEOFException) {
                 throw new EOFError(-1, -1, "The statement is incomplete.", NEW_LINE_PROMPT);
@@ -75,7 +72,6 @@ public class SqlMultiLineParser extends DefaultParser {
             parseException = e;
             throw new SyntaxError(-1, -1, e.getMessage());
         }
-
         return parseInternal(line, cursor, context);
     }
 
@@ -103,15 +99,11 @@ public class SqlMultiLineParser extends DefaultParser {
                 parsedLine.rawWordLength());
     }
 
-    public Optional<StatementType> getStatementType() throws SqlExecutionException {
+    public Optional<Command> getStatementType() throws SqlExecutionException {
         if (parseException != null) {
             throw parseException;
         }
         return Optional.ofNullable(statementType);
-    }
-
-    public String getCommand() {
-        return command;
     }
 
     private class SqlArgumentList extends DefaultParser.ArgumentList {

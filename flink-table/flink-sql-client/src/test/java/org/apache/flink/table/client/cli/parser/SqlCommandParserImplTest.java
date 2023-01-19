@@ -30,34 +30,35 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
-import static org.apache.flink.table.client.cli.parser.StatementType.CLEAR;
-import static org.apache.flink.table.client.cli.parser.StatementType.HELP;
-import static org.apache.flink.table.client.cli.parser.StatementType.OTHER;
-import static org.apache.flink.table.client.cli.parser.StatementType.QUIT;
+import static org.apache.flink.table.client.cli.parser.Command.CLEAR;
+import static org.apache.flink.table.client.cli.parser.Command.HELP;
+import static org.apache.flink.table.client.cli.parser.Command.OTHER;
+import static org.apache.flink.table.client.cli.parser.Command.QUIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Testing whether {@link ClientParser} can parse statement to get {@link StatementType} correctly.
+ * Testing whether {@link SqlCommandParserImpl} can parse statement to get {@link Command}
+ * correctly.
  */
-public class ClientParserTest {
+public class SqlCommandParserImplTest {
 
     private static final String EXECUTE_STATEMENT_SET =
             "EXECUTE STATEMENT SET BEGIN\n INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'));";
 
-    private final ClientParser clientParser = new ClientParser();
+    private final SqlCommandParserImpl sqlCommandParserImpl = new SqlCommandParserImpl();
 
     @ParameterizedTest
     @MethodSource("positiveCases")
     public void testParseStatement(TestSpec testData) {
-        StatementType type = clientParser.parseStatement(testData.statement).orElse(null);
-        assertThat(type).isEqualTo(testData.type);
+        Command command = sqlCommandParserImpl.parseStatement(testData.statement).orElse(null);
+        assertThat(command).isEqualTo(testData.command);
     }
 
     @ParameterizedTest
     @MethodSource("negativeCases")
     public void testParseIncompleteStatement(String statement) {
-        assertThatThrownBy(() -> clientParser.parseStatement(statement))
+        assertThatThrownBy(() -> sqlCommandParserImpl.parseStatement(statement))
                 .satisfies(anyCauseMatches(SqlExecutionException.class))
                 .cause()
                 .satisfies(anyCauseMatches(SqlParserEOFException.class));
@@ -107,19 +108,19 @@ public class ClientParserTest {
     /** Used to load generated data. */
     private static class TestSpec {
         String statement;
-        StatementType type;
+        Command command;
 
-        TestSpec(String statement, @Nullable StatementType type) {
+        TestSpec(String statement, @Nullable Command type) {
             this.statement = statement;
-            this.type = type;
+            this.command = type;
         }
 
         @Override
         public String toString() {
-            return "TestSpec{" + "statement='" + statement + '\'' + ", type=" + type + '}';
+            return "TestSpec{" + "statement='" + statement + '\'' + ", type=" + command + '}';
         }
 
-        static TestSpec of(String statement, @Nullable StatementType type) {
+        static TestSpec of(String statement, @Nullable Command type) {
             return new TestSpec(statement, type);
         }
     }

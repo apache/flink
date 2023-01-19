@@ -31,9 +31,9 @@ public interface SqlCommandParser {
      * Parses given statement.
      *
      * @param statement the sql client input to evaluate.
-     * @return the optional value of {@link StatementType} parsed. It would be empty when the
-     *     statement is "" or ";".
+     * @return the optional value of {@link Command} parsed. It would be empty when the statement is
+     *     "" or ";".
      * @throws SqlExecutionException if any error happen while parsing or validating the statement.
      */
-    Optional<StatementType> parseStatement(String statement);
+    Optional<Command> parseStatement(String statement);
 }

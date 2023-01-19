@@ -40,6 +40,7 @@ import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.ConfigureSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
@@ -73,24 +74,29 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler.CLOSE_MESSAGE;
 
 /** Client executor to connect to {@link SqlGateway} and execute statements. */
-public class ClientExecutor implements Executor {
+public class ExecutorImpl implements Executor {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClientExecutor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ExecutorImpl.class);
+    private static final long HEARTBEAT_INTERVAL_MIN = 3;
 
     private final DefaultContext defaultContext;
     private final ExecutorService service;
+    private final ScheduledExecutorService heartbeatScheduler;
 
     private RestClient restClient;
     private SessionHandle sessionHandle;
-    private SessionMessageParameters sessionMessageParametersInstance;
+    private SessionMessageParameters sessionMessageParameters;
 
-    public ClientExecutor(DefaultContext defaultContext) {
+    public ExecutorImpl(DefaultContext defaultContext) {
         this.defaultContext = defaultContext;
-        this.service = Executors.newFixedThreadPool(2);
+        this.service = Executors.newSingleThreadExecutor();
+        this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
     public void openSession(@Nullable String sessionId) {
@@ -101,10 +107,10 @@ public class ClientExecutor implements Executor {
         }
 
         LOG.info("Open session to {}.", defaultContext.getGatewayAddress());
-        // Open session to address:port and get the session handle ID
         OpenSessionRequestBody request =
                 new OpenSessionRequestBody(sessionId, defaultContext.getFlinkConfig().toMap());
         try {
+            // open session to address:port
             OpenSessionResponseBody response =
                     sendRequest(
                                     OpenSessionHeaders.getInstance(),
@@ -112,22 +118,36 @@ public class ClientExecutor implements Executor {
                                     request)
                             .get();
             sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
+            sessionMessageParameters = new SessionMessageParameters(sessionHandle);
+            // register heartbeat service
+            heartbeatScheduler.schedule(
+                    () ->
+                            getResponse(
+                                    sendRequest(
+                                            TriggerSessionHeartbeatHeaders.getInstance(),
+                                            sessionMessageParameters,
+                                            EmptyRequestBody.getInstance())),
+                    HEARTBEAT_INTERVAL_MIN,
+                    TimeUnit.MINUTES);
+            // register dependencies
+            defaultContext
+                    .getDependencies()
+                    .forEach(jar -> configureSession(String.format("ADD JAR '%s'", jar)));
+
         } catch (Exception e) {
             throw new SqlExecutionException(
                     String.format(
                             "Failed to open session to %s", defaultContext.getGatewayAddress()),
                     e);
         }
-        sessionMessageParametersInstance = new SessionMessageParameters(sessionHandle);
     }
 
     public void closeSession() throws SqlExecutionException {
-        // close session
         try {
             CompletableFuture<CloseSessionResponseBody> response =
                     sendRequest(
                             CloseSessionHeaders.getInstance(),
-                            sessionMessageParametersInstance,
+                            sessionMessageParameters,
                             EmptyRequestBody.getInstance());
 
             if (!response.get().getStatus().equals(CLOSE_MESSAGE)) {
@@ -141,13 +161,14 @@ public class ClientExecutor implements Executor {
             // ignore any throwable to keep the cleanup running
         }
         service.shutdownNow();
+        heartbeatScheduler.shutdown();
     }
 
     public void configureSession(String statement) {
         try {
             sendRequest(
                             ConfigureSessionHeaders.getInstance(),
-                            sessionMessageParametersInstance,
+                            sessionMessageParameters,
                             new ConfigureSessionRequestBody(statement))
                     .get();
         } catch (Exception e) {
@@ -163,7 +184,7 @@ public class ClientExecutor implements Executor {
                 getResponse(
                         sendRequest(
                                 GetSessionConfigHeaders.getInstance(),
-                                sessionMessageParametersInstance,
+                                sessionMessageParameters,
                                 EmptyRequestBody.getInstance()));
         return Configuration.fromMap(response.getProperties());
     }
@@ -172,9 +193,7 @@ public class ClientExecutor implements Executor {
         ExecuteStatementRequestBody request = new ExecuteStatementRequestBody(statement);
         CompletableFuture<ExecuteStatementResponseBody> executeStatementResponse =
                 sendRequest(
-                        ExecuteStatementHeaders.getInstance(),
-                        sessionMessageParametersInstance,
-                        request);
+                        ExecuteStatementHeaders.getInstance(), sessionMessageParameters, request);
         OperationHandle operationHandle =
                 new OperationHandle(
                         UUID.fromString(
@@ -194,33 +213,16 @@ public class ClientExecutor implements Executor {
                 fetchResultsResponse.getJobID());
     }
 
-    /** Returns a list of completion hints for the given statement at the given position. */
     public List<String> completeStatement(String statement, int position) {
         return getResponse(
                         sendRequest(
                                 CompleteStatementHeaders.getInstance(),
-                                sessionMessageParametersInstance,
+                                sessionMessageParameters,
                                 new CompleteStatementRequestBody(statement, position)))
                 .getCandidates();
     }
 
-    private <
-                    M extends MessageHeaders<R, P, U>,
-                    U extends MessageParameters,
-                    R extends RequestBody,
-                    P extends ResponseBody>
-            CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) {
-        try {
-            return restClient.sendRequest(
-                    defaultContext.getGatewayAddress().getHostName(),
-                    defaultContext.getGatewayAddress().getPort(),
-                    messageHeaders,
-                    messageParameters,
-                    request);
-        } catch (IOException ioException) {
-            throw new SqlExecutionException("Failed to connect to the Sql Gateway.", ioException);
-        }
-    }
+    // --------------------------------------------------------------------------------------------
 
     private class RowDataInfoIterator implements CloseableIterator<RowData> {
 
@@ -264,11 +266,29 @@ public class ClientExecutor implements Executor {
         }
     }
 
+    private <
+                    M extends MessageHeaders<R, P, U>,
+                    U extends MessageParameters,
+                    R extends RequestBody,
+                    P extends ResponseBody>
+            CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) {
+        try {
+            return restClient.sendRequest(
+                    defaultContext.getGatewayAddress().getHostName(),
+                    defaultContext.getGatewayAddress().getPort(),
+                    messageHeaders,
+                    messageParameters,
+                    request);
+        } catch (IOException ioException) {
+            throw new SqlExecutionException("Failed to connect to the SQL Gateway.", ioException);
+        }
+    }
+
     private FetchResultsResponseBody fetchResults(OperationHandle operationHandle) {
         return fetchResults(operationHandle, 0L);
     }
 
-    public FetchResultsResponseBody fetchResults(OperationHandle operationHandle, long token) {
+    private FetchResultsResponseBody fetchResults(OperationHandle operationHandle, long token) {
         FetchResultsMessageParameters fetchResultsParameters =
                 new FetchResultsMessageParameters(
                         sessionHandle, operationHandle, token, RowFormat.PLAIN_TEXT);
@@ -284,7 +304,7 @@ public class ClientExecutor implements Executor {
         FetchResultsResponseBody response = fetchResults(operationHandle);
         while (response.getResultType().equals(ResultSet.ResultType.NOT_READY)) {
             try {
-                Thread.sleep(10L);
+                Thread.sleep(100L);
             } catch (InterruptedException e) {
                 throw new SqlExecutionException("The execution is interrupted.", e);
             }

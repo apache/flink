@@ -19,13 +19,13 @@
 package org.apache.flink.table.client.cli.parser;
 
 /** Enumerates the possible types of input statements. */
-public enum StatementType {
+public enum Command {
     /** Command to quit the client. */
     QUIT,
     /** Command to clear the terminal's screen. */
     CLEAR,
     /** Command to print help message. */
     HELP,
-
+    /** Unknown command. */
     OTHER
 }

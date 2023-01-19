@@ -23,9 +23,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.client.SqlClientException;
-import org.apache.flink.table.client.cli.parser.ClientParser;
+import org.apache.flink.table.client.cli.parser.Command;
+import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
 import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
-import org.apache.flink.table.client.cli.parser.StatementType;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.Executor;
@@ -71,11 +71,6 @@ public class CliClient implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
     public static final Supplier<Terminal> DEFAULT_TERMINAL_FACTORY =
             TerminalUtils::createDefaultTerminal;
-
-    private final Executor executor;
-
-    private final Path historyFilePath;
-
     private static final String NEWLINE_PROMPT =
             new AttributedStringBuilder()
                     .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN))
@@ -83,6 +78,10 @@ public class CliClient implements AutoCloseable {
                     .style(AttributedStyle.DEFAULT)
                     .append("> ")
                     .toAnsi();
+
+    private final Executor executor;
+
+    private final Path historyFilePath;
 
     private final @Nullable MaskingCallback inputTransformer;
 
@@ -108,7 +107,7 @@ public class CliClient implements AutoCloseable {
         this.executor = executor;
         this.inputTransformer = inputTransformer;
         this.historyFilePath = historyFilePath;
-        this.parser = new SqlMultiLineParser(new ClientParser());
+        this.parser = new SqlMultiLineParser(new SqlCommandParserImpl());
     }
 
     /**
@@ -117,20 +116,6 @@ public class CliClient implements AutoCloseable {
      */
     public CliClient(Supplier<Terminal> terminalFactory, Executor executor, Path historyFilePath) {
         this(terminalFactory, executor, historyFilePath, null);
-    }
-
-    public Terminal getTerminal() {
-        return terminal;
-    }
-
-    public void clearTerminal() {
-        if (TerminalUtils.isPlainTerminal(terminal)) {
-            for (int i = 0; i < 200; i++) { // large number of empty lines
-                terminal.writer().println();
-            }
-        } else {
-            terminal.puts(InfoCmp.Capability.clear_screen);
-        }
     }
 
     /** Closes the CLI instance. */
@@ -150,6 +135,7 @@ public class CliClient implements AutoCloseable {
         }
     }
 
+    /** Opens the non-interactive CLI shell. */
     public void executeInNonInteractiveMode(String content) {
         try {
             terminal = terminalFactory.get();
@@ -159,6 +145,7 @@ public class CliClient implements AutoCloseable {
         }
     }
 
+    /** Initialize the Cli Client with the content. */
     public boolean executeInitialization(String content) {
         try {
             OutputStream outputStream = new ByteArrayOutputStream(256);
@@ -236,16 +223,12 @@ public class CliClient implements AutoCloseable {
             // clear the buffer
             buffer = "";
             prompt = NEWLINE_PROMPT;
-            printNewLine();
+            // make some space to previous command
+            terminal.writer().append("\n");
+            terminal.flush();
         }
         // finish all statements.
         return true;
-    }
-
-    private void printNewLine() {
-        // make some space to previous command
-        terminal.writer().append("\n");
-        terminal.flush();
     }
 
     /**
@@ -293,11 +276,11 @@ public class CliClient implements AutoCloseable {
     }
 
     private void executeInExecutionMode(String statement, ExecutionMode executionMode) {
-        StatementType statementType =
+        Command command =
                 parser.getStatementType()
                         .orElseThrow(
                                 () -> new SqlExecutionException("The statement should be parsed."));
-        switch (statementType) {
+        switch (command) {
             case QUIT:
                 callQuit();
                 break;
@@ -312,13 +295,23 @@ public class CliClient implements AutoCloseable {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Call command
+    // --------------------------------------------------------------------------------------------
+
     private void callQuit() {
         printInfo(CliStrings.MESSAGE_QUIT);
         isRunning = false;
     }
 
     private void callClear() {
-        clearTerminal();
+        if (TerminalUtils.isPlainTerminal(terminal)) {
+            for (int i = 0; i < 200; i++) { // large number of empty lines
+                terminal.writer().println();
+            }
+        } else {
+            terminal.puts(InfoCmp.Capability.clear_screen);
+        }
     }
 
     private void callHelp() {
@@ -337,6 +330,10 @@ public class CliClient implements AutoCloseable {
             }
         }
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Print results
+    // --------------------------------------------------------------------------------------------
 
     private void printQuery(ClientResult queryResult, ExecutionMode executionMode) {
         final ResultDescriptor resultDesc =
@@ -402,6 +399,8 @@ public class CliClient implements AutoCloseable {
     }
 
     // --------------------------------------------------------------------------------------------
+    // Utils
+    // --------------------------------------------------------------------------------------------
 
     private void printExecutionException(Throwable t) {
         final String errorMessage = CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
@@ -415,8 +414,6 @@ public class CliClient implements AutoCloseable {
         terminal.writer().println(CliStrings.messageInfo(message).toAnsi());
         terminal.flush();
     }
-
-    // --------------------------------------------------------------------------------------------
 
     private void closeTerminal() {
         try {

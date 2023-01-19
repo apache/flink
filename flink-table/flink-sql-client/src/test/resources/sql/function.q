@@ -197,7 +197,7 @@ show user functions;
 # test alter function
 # ==========================================================================
 
-alter function func11 as 'org.apache.flink.table.client.gateway.local.ClientExecutorITCase$TestScalaFunction';
+alter function func11 as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
 [INFO] Execute statement succeed.
 !info
 
@@ -208,7 +208,7 @@ create temporary function tmp_func as 'LowerUDF';
 !info
 
 # should throw unsupported error
-alter temporary function tmp_func as 'org.apache.flink.table.client.gateway.local.ClientExecutorITCase$TestScalaFunction';
+alter temporary function tmp_func as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Alter temporary catalog function is not supported
 !error

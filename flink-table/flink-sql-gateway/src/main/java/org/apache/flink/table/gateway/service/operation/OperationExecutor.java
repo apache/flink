@@ -163,6 +163,8 @@ public class OperationExecutor {
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
         // Instantiate the TableEnvironment lazily
+        // TODO: remove the usage of the context classloader until {@link
+        // HiveParserUtils}#getFunctionInfo use ResourceManager explicitly.
         try (TemporaryClassLoaderContext ignored =
                 TemporaryClassLoaderContext.of(
                         sessionContext.getSessionState().resourceManager.getUserClassLoader())) {
@@ -225,8 +227,11 @@ public class OperationExecutor {
     }
 
     public Set<FunctionInfo> listUserDefinedFunctions(String catalogName, String databaseName) {
-        return sessionContext.getSessionState().functionCatalog
-                .getUserDefinedFunctions(catalogName, databaseName).stream()
+        return sessionContext
+                .getSessionState()
+                .functionCatalog
+                .getUserDefinedFunctions(catalogName, databaseName)
+                .stream()
                 // Load the CatalogFunction from the remote catalog is time wasted. Set the
                 // FunctionKind null.
                 .map(FunctionInfo::new)
@@ -459,7 +464,10 @@ public class OperationExecutor {
 
     private Set<TableInfo> listViews(String catalogName, String databaseName) {
         return Collections.unmodifiableSet(
-                sessionContext.getSessionState().catalogManager.listViews(catalogName, databaseName)
+                sessionContext
+                        .getSessionState()
+                        .catalogManager
+                        .listViews(catalogName, databaseName)
                         .stream()
                         .map(
                                 name ->

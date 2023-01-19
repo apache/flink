@@ -23,7 +23,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
-import org.apache.flink.table.client.gateway.ClientExecutor;
+import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
@@ -216,7 +217,7 @@ class CliClientITCase {
                         InetSocketAddress.createUnresolved(
                                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
                                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
-        final ClientExecutor executor = new ClientExecutor(defaultContext);
+        final Executor executor = new ExecutorImpl(defaultContext);
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
         executor.openSession("test-session");
