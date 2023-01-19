@@ -88,7 +88,7 @@ public class LeaderElectionTest {
         try {
             leaderElectionService.startLeaderElectionBackend();
             LeaderElectionService.LeaderElection leaderElection =
-                    leaderElectionService.createLeaderElection();
+                    leaderElectionService.createLeaderElection("contenderID");
             leaderElection.register(manualLeaderContender);
             leaderElection.startLeaderElection();
 

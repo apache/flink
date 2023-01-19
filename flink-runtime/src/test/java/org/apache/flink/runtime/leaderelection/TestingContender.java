@@ -44,7 +44,7 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
 
     public LeaderElectionService.LeaderElection startLeaderElection() throws Exception {
         leaderElectionService.startLeaderElectionBackend();
-        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection = leaderElectionService.createLeaderElection("contenderID");
         leaderElection.register(this);
         leaderElection.startLeaderElection();
 

@@ -25,9 +25,12 @@ import javax.annotation.Nullable;
 import java.util.UUID;
 
 public abstract class AbstractLeaderElectionService implements LeaderElectionService {
+
+    public void createLeaderElection() throws Exception {}
+
     @Override
-    public LeaderElection createLeaderElection() {
-        return new LeaderElectionImpl(this);
+    public LeaderElection createLeaderElection(String contenderID) {
+        return new LeaderElectionImpl(this, contenderID);
     }
 
     protected abstract void register(LeaderContender contender) throws Exception;
@@ -39,10 +42,12 @@ public abstract class AbstractLeaderElectionService implements LeaderElectionSer
     private static class LeaderElectionImpl implements LeaderElectionService.LeaderElection {
 
         private final AbstractLeaderElectionService parentService;
+        private final String contenderID;
         @Nullable private LeaderContender leaderContender;
 
-        public LeaderElectionImpl(AbstractLeaderElectionService parentService) {
+        public LeaderElectionImpl(AbstractLeaderElectionService parentService, String contenderID) {
             this.parentService = parentService;
+            this.contenderID = contenderID;
         }
 
         @Override

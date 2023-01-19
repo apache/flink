@@ -76,13 +76,13 @@ public class StandaloneHaServicesTest extends TestLogger {
 
         jmLeaderElectionService.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection jmLeaderElection =
-                jmLeaderElectionService.createLeaderElection();
+                jmLeaderElectionService.createLeaderElection("jobmanager");
         jmLeaderElection.register(jmLeaderContender);
         jmLeaderElection.startLeaderElection();
 
         rmLeaderElectionService.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection =
-                rmLeaderElectionService.createLeaderElection();
+                rmLeaderElectionService.createLeaderElection("resource_manager");
         leaderElection.register(rmLeaderContender);
         leaderElection.startLeaderElection();
 

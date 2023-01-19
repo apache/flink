@@ -1029,7 +1029,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     @Override
     public void startInternal() throws Exception {
         leaderElectionService.startLeaderElectionBackend();
-        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection = leaderElectionService.createLeaderElection("restserver");
         leaderElection.register(this);
         leaderElection.startLeaderElection();
 

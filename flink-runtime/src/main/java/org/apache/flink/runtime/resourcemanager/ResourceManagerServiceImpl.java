@@ -122,7 +122,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
         LOG.info("Starting resource manager service.");
 
         leaderElectionService.startLeaderElectionBackend();
-        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection = leaderElectionService.createLeaderElection("resource_manager");
         leaderElection.register(this);
         leaderElection.startLeaderElection();
     }

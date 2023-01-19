@@ -43,7 +43,20 @@ public interface LeaderElectionService extends AutoCloseable {
      */
     void startLeaderElectionBackend() throws Exception;
 
-    LeaderElection createLeaderElection();
+    /**
+     * Creates a {@link LeaderElection} which will have the given {@code contenderID} attached with
+     * it. The {@code contenderID} serves as a unique ID among all participating {@code
+     * LeaderElection} instances within a {@code LeaderElectionService}. This {@code contenderID}
+     * enables the {@code LeaderElectionService} to differentiate the leader information that it
+     * retrieves from the different {@code LeaderElection} instances.
+     *
+     * @param contenderID A unique identifier for the {@code LeaderElection} that's going to be
+     *     created by this call.
+     * @return A newly created {@code LeaderElection}.
+     * @throws IllegalArgumentException if the passed {@code contenderID} is already used within the
+     *     {@code LeaderElectionService}.
+     */
+    LeaderElection createLeaderElection(String contenderID) throws IllegalArgumentException;
 
     /**
      * Stops the leader election service. Stopping the {@code LeaderElectionService} will trigger

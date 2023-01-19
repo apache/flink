@@ -81,19 +81,19 @@ public class EmbeddedHaServicesTest extends TestLogger {
 
         leaderElectionService1.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection1 =
-                leaderElectionService1.createLeaderElection();
+                leaderElectionService1.createLeaderElection("contenderID1");
         leaderElection1.register(leaderContender1);
         leaderElection1.startLeaderElection();
 
         leaderElectionService2.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection2 =
-                leaderElectionService2.createLeaderElection();
+                leaderElectionService2.createLeaderElection("contenderID2");
         leaderElection2.register(leaderContender2);
         leaderElection2.startLeaderElection();
 
         leaderElectionServiceDifferentJobId.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElectionDifferentJobId =
-                leaderElectionServiceDifferentJobId.createLeaderElection();
+                leaderElectionServiceDifferentJobId.createLeaderElection("differentJobContenderID");
         leaderElectionDifferentJobId.register(leaderContenderDifferentJobId);
         leaderElectionDifferentJobId.startLeaderElection();
 
@@ -122,13 +122,13 @@ public class EmbeddedHaServicesTest extends TestLogger {
 
         leaderElectionService1.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection1 =
-                leaderElectionService1.createLeaderElection();
+                leaderElectionService1.createLeaderElection("contenderID1");
         leaderElection1.register(leaderContender1);
         leaderElection1.startLeaderElection();
 
         leaderElectionService2.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection2 =
-                leaderElectionService2.createLeaderElection();
+                leaderElectionService2.createLeaderElection("contenderID2");
         leaderElection2.register(leaderContender2);
         leaderElection2.startLeaderElection();
 
@@ -166,7 +166,7 @@ public class EmbeddedHaServicesTest extends TestLogger {
         leaderRetrievalService.start(leaderRetrievalListener);
         leaderElectionService.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection =
-                leaderElectionService.createLeaderElection();
+                leaderElectionService.createLeaderElection("contenderID");
         leaderElection.register(leaderContender);
         leaderElection.startLeaderElection();
 
@@ -204,7 +204,7 @@ public class EmbeddedHaServicesTest extends TestLogger {
 
         dispatcherLeaderElectionService.startLeaderElectionBackend();
         LeaderElectionService.LeaderElection leaderElection =
-                dispatcherLeaderElectionService.createLeaderElection();
+                dispatcherLeaderElectionService.createLeaderElection("contenderID");
         leaderElection.register(leaderContender);
         leaderElection.startLeaderElection();
 
