@@ -28,20 +28,24 @@ import java.util.Optional;
  */
 public class ExceptionThrowingDelegationTokenProvider implements DelegationTokenProvider {
 
-    public static volatile boolean throwInInit = false;
-    public static volatile boolean throwInUsage = false;
-    public static volatile boolean addToken = false;
-    public static volatile boolean constructed = false;
+    public static volatile ThreadLocal<Boolean> throwInInit =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwInUsage =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> addToken =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> constructed =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     public static void reset() {
-        throwInInit = false;
-        throwInUsage = false;
-        addToken = false;
-        constructed = false;
+        throwInInit.set(false);
+        throwInUsage.set(false);
+        addToken.set(false);
+        constructed.set(false);
     }
 
     public ExceptionThrowingDelegationTokenProvider() {
-        constructed = true;
+        constructed.set(true);
     }
 
     @Override
@@ -51,25 +55,25 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
 
     @Override
     public void init(Configuration configuration) {
-        if (throwInInit) {
+        if (throwInInit.get()) {
             throw new IllegalArgumentException();
         }
     }
 
     @Override
     public boolean delegationTokensRequired() {
-        if (throwInUsage) {
+        if (throwInUsage.get()) {
             throw new IllegalArgumentException();
         }
-        return addToken;
+        return addToken.get();
     }
 
     @Override
     public ObtainedDelegationTokens obtainDelegationTokens() {
-        if (throwInUsage) {
+        if (throwInUsage.get()) {
             throw new IllegalArgumentException();
         }
-        if (addToken) {
+        if (addToken.get()) {
             return new ObtainedDelegationTokens("TEST_TOKEN_VALUE".getBytes(), Optional.empty());
         } else {
             return null;

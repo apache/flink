@@ -84,7 +84,7 @@ public class DefaultDelegationTokenManagerTest {
         assertThrows(
                 Exception.class,
                 () -> {
-                    ExceptionThrowingDelegationTokenProvider.throwInInit = true;
+                    ExceptionThrowingDelegationTokenProvider.throwInInit.set(true);
                     new DefaultDelegationTokenManager(new Configuration(), null, null, null);
                 });
     }
@@ -107,8 +107,8 @@ public class DefaultDelegationTokenManagerTest {
         assertTrue(delegationTokenManager.isProviderLoaded("test"));
         assertTrue(delegationTokenManager.isReceiverLoaded("test"));
 
-        assertTrue(ExceptionThrowingDelegationTokenProvider.constructed);
-        assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed);
+        assertTrue(ExceptionThrowingDelegationTokenProvider.constructed.get());
+        assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
         assertFalse(delegationTokenManager.isProviderLoaded("throw"));
         assertFalse(delegationTokenManager.isReceiverLoaded("throw"));
     }
@@ -169,7 +169,7 @@ public class DefaultDelegationTokenManagerTest {
         final ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
 
-        ExceptionThrowingDelegationTokenProvider.addToken = true;
+        ExceptionThrowingDelegationTokenProvider.addToken.set(true);
         Configuration configuration = new Configuration();
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", true);
         AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
@@ -184,10 +184,10 @@ public class DefaultDelegationTokenManagerTest {
                 };
 
         delegationTokenManager.startTokensUpdate();
-        ExceptionThrowingDelegationTokenProvider.throwInUsage = true;
+        ExceptionThrowingDelegationTokenProvider.throwInUsage.set(true);
         scheduledExecutor.triggerScheduledTasks();
         scheduler.triggerAll();
-        ExceptionThrowingDelegationTokenProvider.throwInUsage = false;
+        ExceptionThrowingDelegationTokenProvider.throwInUsage.set(false);
         scheduledExecutor.triggerScheduledTasks();
         scheduler.triggerAll();
         delegationTokenManager.stopTokensUpdate();

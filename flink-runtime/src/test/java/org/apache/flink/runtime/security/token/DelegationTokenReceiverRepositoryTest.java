@@ -53,7 +53,7 @@ class DelegationTokenReceiverRepositoryTest {
         assertThrows(
                 Exception.class,
                 () -> {
-                    ExceptionThrowingDelegationTokenReceiver.throwInInit = true;
+                    ExceptionThrowingDelegationTokenReceiver.throwInInit.set(true);
                     new DelegationTokenReceiverRepository(new Configuration(), null);
                 });
     }
@@ -69,7 +69,7 @@ class DelegationTokenReceiverRepositoryTest {
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs"));
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("test"));
-        assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed);
+        assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
         assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
     }
 }

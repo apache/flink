@@ -26,18 +26,21 @@ import org.apache.flink.core.security.token.DelegationTokenReceiver;
  */
 public class ExceptionThrowingDelegationTokenReceiver implements DelegationTokenReceiver {
 
-    public static volatile boolean throwInInit = false;
-    public static volatile boolean throwInUsage = false;
-    public static volatile boolean constructed = false;
+    public static volatile ThreadLocal<Boolean> throwInInit =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwInUsage =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> constructed =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     public static void reset() {
-        throwInInit = false;
-        throwInUsage = false;
-        constructed = false;
+        throwInInit.set(false);
+        throwInUsage.set(false);
+        constructed.set(false);
     }
 
     public ExceptionThrowingDelegationTokenReceiver() {
-        constructed = true;
+        constructed.set(true);
     }
 
     @Override
@@ -47,14 +50,14 @@ public class ExceptionThrowingDelegationTokenReceiver implements DelegationToken
 
     @Override
     public void init(Configuration configuration) {
-        if (throwInInit) {
+        if (throwInInit.get()) {
             throw new IllegalArgumentException();
         }
     }
 
     @Override
     public void onNewTokensObtained(byte[] tokens) throws Exception {
-        if (throwInUsage) {
+        if (throwInUsage.get()) {
             throw new IllegalArgumentException();
         }
     }
