@@ -94,8 +94,7 @@ findFlinkPythonJar() {
     # If flink-python*.jar cannot be resolved write error messages to stderr since stdout is stored
     # as the classpath and exit function with empty classpath to force process failure
     if [[ "$FLINK_PYTHON" == "" ]]; then
-        (>&2 echo "[ERROR] Flink python jar not found in $FLINK_OPT_DIR.")
-        exit 1
+        echo "[WARN] Flink python jar not found in $FLINK_OPT_DIR."
     elif [[ "$FLINK_PYTHON_COUNT" -gt 1 ]]; then
         (>&2 echo "[ERROR] Multiple flink-python*.jar found in $FLINK_OPT_DIR. Please resolve.")
         exit 1

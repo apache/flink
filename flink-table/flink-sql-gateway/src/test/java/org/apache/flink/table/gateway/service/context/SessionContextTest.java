@@ -140,7 +140,10 @@ class SessionContextTest {
         flinkConfig.set(OBJECT_REUSE, true);
         flinkConfig.set(MAX_PARALLELISM, 16);
         DefaultContext defaultContext =
-                new DefaultContext(flinkConfig, Collections.singletonList(new DefaultCLI()));
+                new DefaultContext(
+                        flinkConfig,
+                        Collections.singletonList(new DefaultCLI()),
+                        Collections.emptyList());
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)

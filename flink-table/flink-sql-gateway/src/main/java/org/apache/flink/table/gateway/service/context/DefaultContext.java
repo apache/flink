@@ -51,31 +51,16 @@ public class DefaultContext {
 
     private final Configuration flinkConfig;
 
-    public DefaultContext(Configuration flinkConfig, List<CustomCommandLine> commandLines) {
+    public DefaultContext(
+            Configuration flinkConfig,
+            List<CustomCommandLine> commandLines,
+            List<URL> dependencies) {
         this.flinkConfig = flinkConfig;
         // initialize default file system
         FileSystem.initialize(
                 flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
         Options commandLineOptions = collectCommandLineOptions(commandLines);
-
-        final List<URL> dependencies = new ArrayList<>();
-        // add python dependencies by default
-        try {
-            URL location =
-                    Class.forName(
-                                    "org.apache.flink.python.PythonFunctionRunner",
-                                    false,
-                                    Thread.currentThread().getContextClassLoader())
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation();
-            if (Paths.get(location.toURI()).toFile().isFile()) {
-                dependencies.add(location);
-            }
-        } catch (URISyntaxException | ClassNotFoundException e) {
-            throw new SqlExecutionException("Failed to find flink-python jar.", e);
-        }
 
         try {
             CommandLine deploymentCommandLine =
@@ -165,6 +150,24 @@ public class DefaultContext {
         List<CustomCommandLine> commandLines =
                 CliFrontend.loadCustomCommandLines(configuration, flinkConfigDir);
 
-        return new DefaultContext(configuration, commandLines);
+        final List<URL> dependencies = new ArrayList<>();
+        // add python dependencies by default
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                dependencies.add(location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            LOG.warn("Failed to find flink-python jar." + e);
+        }
+
+        return new DefaultContext(configuration, commandLines, dependencies);
     }
 }
