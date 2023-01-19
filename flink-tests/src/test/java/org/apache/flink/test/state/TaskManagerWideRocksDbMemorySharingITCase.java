@@ -29,6 +29,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogramStatistics;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -45,7 +47,7 @@ import org.junit.Test;
 import java.math.BigInteger;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.DoubleSummaryStatistics;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -75,6 +77,8 @@ public class TaskManagerWideRocksDbMemorySharingITCase {
     // however, there is no hard limit actually
     // because of https://issues.apache.org/jira/browse/FLINK-15532
     private static final double EFFECTIVE_LIMIT = EXPECTED_BLOCK_CACHE_SIZE * 1.5;
+
+    private static final int NUM_MEASUREMENTS = 100;
 
     private InMemoryReporter metricsReporter;
     private MiniClusterWithClientResource cluster;
@@ -125,34 +129,43 @@ public class TaskManagerWideRocksDbMemorySharingITCase {
                                             0));
 
             // do some work and check the actual usage of memory
-            for (int i = 0; i < 10; i++) {
+            double[] deviations = new double[NUM_MEASUREMENTS];
+            for (int i = 0; i < NUM_MEASUREMENTS; i++) {
                 Thread.sleep(50L);
-                DoubleSummaryStatistics stats =
+                double[] blockCacheUsages =
                         collectGaugeValues(jobIDs, "rocksdb.block-cache-usage")
-                                .collect(Collectors.summarizingDouble((Double::doubleValue)));
-                assertEquals(
-                        String.format(
-                                "Block cache usage reported by different tasks varies too much: %s\n"
-                                        + "That likely mean that they use different cache objects",
-                                stats),
-                        stats.getMax(),
-                        stats.getMin(),
-                        // some deviation is possible because:
-                        // 1. records are being processed in parallel with requesting metrics
-                        // 2. reporting metrics is not synchronized
-                        500_000d);
+                                .mapToDouble(value -> value)
+                                .toArray();
                 assertTrue(
                         String.format(
                                 "total block cache usage is too high: %s (limit: %s, effective limit: %s)",
-                                stats, EXPECTED_BLOCK_CACHE_SIZE, EFFECTIVE_LIMIT),
-                        stats.getMax() <= EFFECTIVE_LIMIT);
+                                Arrays.toString(blockCacheUsages),
+                                EXPECTED_BLOCK_CACHE_SIZE,
+                                EFFECTIVE_LIMIT),
+                        Arrays.stream(blockCacheUsages).max().getAsDouble() <= EFFECTIVE_LIMIT);
+                deviations[i] = new StandardDeviation().evaluate(blockCacheUsages);
             }
-
+            validateDeviations(deviations);
         } finally {
             for (JobID jobID : jobIDs) {
                 cluster.getRestClusterClient().cancel(jobID).get();
             }
         }
+    }
+
+    private static void validateDeviations(double[] deviations) {
+        DescriptiveStatisticsHistogramStatistics percentile =
+                new DescriptiveStatisticsHistogramStatistics(deviations);
+        assertTrue(
+                String.format(
+                        "Block cache usage reported by different tasks varies too much: %s\n"
+                                + "That likely mean that they use different cache objects",
+                        Arrays.toString(deviations)),
+                // some deviation is possible because:
+                // 1. records are being processed in parallel with requesting metrics
+                // 2. reporting metrics is not synchronized
+                percentile.getQuantile(.50d) <= 10_000d
+                        && percentile.getQuantile(.75d) <= 500_000d);
     }
 
     private void waitForAllMetricsReported(JobID jid, Deadline deadline)
