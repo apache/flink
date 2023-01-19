@@ -29,7 +29,6 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
-import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
