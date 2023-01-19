@@ -306,7 +306,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         leaderElectionService.notLeader();
 
         // This will clear internal state of election service, so a new contender can register.
-        leaderElectionService.stop();
+        leaderElectionService.close();
 
         assertThat(
                 "The cleanup should have been triggered only once.",

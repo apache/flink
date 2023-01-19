@@ -56,7 +56,7 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             final TestingLeaderContender contender = new TestingLeaderContender();
 
             leaderElectionService.start(contender);
-            leaderElectionService.stop();
+            leaderElectionService.close();
 
             try {
                 // check that no exception occurred
@@ -94,7 +94,7 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
 
             final CompletableFuture<Void> revokeLeadershipFuture =
                     embeddedLeaderService.revokeLeadership();
-            leaderElectionService.stop();
+            leaderElectionService.close();
 
             try {
                 // check that no exception occurred

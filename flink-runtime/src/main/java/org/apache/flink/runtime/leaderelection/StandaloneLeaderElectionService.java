@@ -48,7 +48,7 @@ public class StandaloneLeaderElectionService extends AbstractLeaderElectionServi
     }
 
     @Override
-    public void stop() {
+    public void close() {
         if (contender != null) {
             contender.revokeLeadership();
             contender = null;

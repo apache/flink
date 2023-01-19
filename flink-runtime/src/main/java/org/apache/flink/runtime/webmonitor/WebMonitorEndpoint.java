@@ -1073,7 +1073,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                     }
 
                     try {
-                        leaderElectionService.stop();
+                        leaderElectionService.close();
                     } catch (Exception e) {
                         exception = ExceptionUtils.firstOrSuppressed(e, exception);
                     }

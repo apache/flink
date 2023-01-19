@@ -98,7 +98,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    public final void stop() throws Exception {
+    public final void close() throws Exception {
         LOG.info("Stopping DefaultLeaderElectionService.");
 
         synchronized (lock) {

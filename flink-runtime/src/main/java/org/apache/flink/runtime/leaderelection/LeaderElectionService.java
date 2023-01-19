@@ -33,7 +33,7 @@ import java.util.UUID;
  * the leader session id as well as the leader address can now be published for leader retrieval
  * services.
  */
-public interface LeaderElectionService {
+public interface LeaderElectionService extends AutoCloseable {
 
     /**
      * Starts the leader election service. This method can only be called once.
@@ -49,7 +49,7 @@ public interface LeaderElectionService {
      *
      * @throws Exception if an error occurs while stopping the {@code LeaderElectionService}.
      */
-    void stop() throws Exception;
+    void close() throws Exception;
 
     interface LeaderElection {
 

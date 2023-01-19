@@ -93,7 +93,7 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         protected void register(final LeaderContender contender) throws Exception {}
 
         @Override
-        public void stop() throws Exception {}
+        public void close() throws Exception {}
 
         @Override
         protected void confirmLeadership(final UUID leaderSessionID, final String leaderAddress) {}

@@ -201,7 +201,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
     private CompletableFuture<Void> stopLeaderElectionService() {
         try {
-            leaderElectionService.stop();
+            leaderElectionService.close();
         } catch (Exception e) {
             return FutureUtils.completedExceptionally(e);
         }

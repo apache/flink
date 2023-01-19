@@ -164,7 +164,7 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
 
             validationLogic.accept(connectionStateListener, contender);
         } finally {
-            leaderElectionService.stop();
+            leaderElectionService.close();
             curatorFrameworkWrapper.close();
 
             if (problem == Problem.LOST_CONNECTION) {

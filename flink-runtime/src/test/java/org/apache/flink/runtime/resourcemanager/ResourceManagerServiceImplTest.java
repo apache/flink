@@ -106,7 +106,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         }
 
         if (leaderElectionService != null) {
-            leaderElectionService.stop();
+            leaderElectionService.close();
         }
 
         if (fatalErrorHandler.hasExceptionOccurred()) {

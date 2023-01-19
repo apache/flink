@@ -451,7 +451,7 @@ public class EmbeddedLeaderService {
         }
 
         @Override
-        public void stop() throws Exception {
+        public void close() throws Exception {
             removeContender(this);
         }
 

@@ -59,7 +59,7 @@ public class TestingLeaderElectionService extends AbstractLeaderElectionService 
     }
 
     @Override
-    public synchronized void stop() throws Exception {
+    public synchronized void close() throws Exception {
         if (contender != null) {
             contender.revokeLeadership();
         }

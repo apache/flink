@@ -181,7 +181,7 @@ class ZooKeeperLeaderRetrievalTest {
 
                 Thread.sleep(sleepingTime);
 
-                faultyLeaderElectionService.stop();
+                faultyLeaderElectionService.close();
 
                 correctLeaderAddressContender.startLeaderElection();
 
@@ -199,7 +199,7 @@ class ZooKeeperLeaderRetrievalTest {
                 }
             } finally {
                 if (leaderElectionService != null) {
-                    leaderElectionService.stop();
+                    leaderElectionService.close();
                 }
             }
         } catch (IOException e) {

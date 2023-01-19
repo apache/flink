@@ -108,7 +108,7 @@ class DefaultLeaderElectionServiceTest {
                                     .isTrue();
                             assertThat(leaderElection.hasLeadership(UUID.randomUUID())).isFalse();
 
-                            leaderElectionService.stop();
+                            leaderElectionService.close();
                             assertThat(leaderElection.hasLeadership(currentLeaderSessionId))
                                     .isFalse();
                         });
@@ -139,7 +139,7 @@ class DefaultLeaderElectionServiceTest {
             {
                 runTest(
                         () -> {
-                            leaderElectionService.stop();
+                            leaderElectionService.close();
                             testingLeaderElectionDriver.isLeader();
                             // leader contender is not granted leadership
                             assertThat(testingContender.getLeaderSessionID()).isNull();
@@ -156,7 +156,7 @@ class DefaultLeaderElectionServiceTest {
                         () -> {
                             testingLeaderElectionDriver.isLeader();
 
-                            leaderElectionService.stop();
+                            leaderElectionService.close();
                             testingLeaderElectionDriver.leaderInformationChanged(
                                     LeaderInformation.empty());
 
@@ -179,7 +179,7 @@ class DefaultLeaderElectionServiceTest {
                             assertThat(testingContender.getLeaderSessionID())
                                     .isEqualTo(oldSessionId);
 
-                            leaderElectionService.stop();
+                            leaderElectionService.close();
 
                             assertThat(testingContender.getLeaderSessionID())
                                     .as(
@@ -237,7 +237,7 @@ class DefaultLeaderElectionServiceTest {
                         () -> {
                             final Exception testException = new Exception("test leader exception");
 
-                            leaderElectionService.stop();
+                            leaderElectionService.close();
                             testingLeaderElectionDriver.onFatalError(testException);
                             assertThat(testingContender.getError()).isNull();
                         });
@@ -274,7 +274,7 @@ class DefaultLeaderElectionServiceTest {
                 };
         isLeaderThread.start();
 
-        leaderElectionService.stop();
+        leaderElectionService.close();
         isLeaderThread.sync();
     }
 
@@ -299,7 +299,7 @@ class DefaultLeaderElectionServiceTest {
             assertThat(testingLeaderElectionDriver).isNotNull();
             testMethod.run();
 
-            leaderElectionService.stop();
+            leaderElectionService.close();
         }
     }
 }

@@ -60,7 +60,7 @@ class StandaloneLeaderElectionTest {
             assertThat(testingListener.getLeaderSessionID())
                     .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
         } finally {
-            leaderElectionService.stop();
+            leaderElectionService.close();
             leaderRetrievalService.stop();
         }
     }

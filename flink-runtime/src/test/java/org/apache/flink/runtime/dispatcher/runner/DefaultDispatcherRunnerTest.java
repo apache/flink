@@ -59,7 +59,7 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
     @After
     public void teardown() throws Exception {
         if (testingLeaderElectionService != null) {
-            testingLeaderElectionService.stop();
+            testingLeaderElectionService.close();
             testingLeaderElectionService = null;
         }
 

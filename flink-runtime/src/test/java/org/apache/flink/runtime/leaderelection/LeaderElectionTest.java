@@ -98,7 +98,7 @@ public class LeaderElectionTest {
 
             assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
 
-            leaderElectionService.stop();
+            leaderElectionService.close();
 
             assertThat(leaderElection.hasLeadership(leaderSessionId)).isFalse();
         } finally {
