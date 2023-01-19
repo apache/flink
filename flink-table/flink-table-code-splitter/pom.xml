@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16.0</version>
+		<version>1.16.1</version>
 	</parent>
 
 	<artifactId>flink-table-code-splitter</artifactId>
