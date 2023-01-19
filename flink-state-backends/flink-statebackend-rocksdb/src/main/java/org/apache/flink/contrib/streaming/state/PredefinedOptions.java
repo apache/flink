@@ -69,7 +69,6 @@ public enum PredefinedOptions {
      *   <li>setCompactionStyle(CompactionStyle.LEVEL)
      *   <li>setLevelCompactionDynamicLevelBytes(true)
      *   <li>setMaxBackgroundJobs(4)
-     *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
      * </ul>
      *
@@ -146,7 +145,6 @@ public enum PredefinedOptions {
      *
      * <ul>
      *   <li>setMaxBackgroundJobs(4)
-     *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
      * </ul>
      *
