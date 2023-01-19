@@ -62,8 +62,6 @@ public class ExecutionVertex
 
     public static final long NUM_BYTES_UNKNOWN = -1;
 
-    public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
-
     // --------------------------------------------------------------------------------------------
 
     final ExecutionJobVertex jobVertex;
