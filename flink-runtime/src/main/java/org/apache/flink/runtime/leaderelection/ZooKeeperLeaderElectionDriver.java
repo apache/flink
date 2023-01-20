@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
@@ -149,8 +150,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
     @Override
     public boolean hasLeadership() {
-        assert (running);
-        return leaderLatch.hasLeadership();
+        return running && leaderLatch.hasLeadership();
     }
 
     @Override
@@ -177,7 +177,10 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     /** Writes the current leader's address as well the given leader session ID to ZooKeeper. */
     @Override
     public void writeLeaderInformation(LeaderInformation leaderInformation) {
-        assert (running);
+        Preconditions.checkState(
+                running,
+                "Leader information can be only written if the driver hasn't been closed, yet.");
+
         // this method does not have to be synchronized because the curator framework client
         // is thread-safe. We do not write the empty data to ZooKeeper here. Because
         // check-leadership-and-update
