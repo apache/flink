@@ -319,10 +319,23 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("alter table c1.d1.t1 rename to t2").ok("ALTER TABLE `C1`.`D1`.`T1` RENAME TO `T2`");
         sql("alter table if exists c1.d1.t1 rename to t2")
                 .ok("ALTER TABLE IF EXISTS `C1`.`D1`.`T1` RENAME TO `T2`");
+
         sql("alter table t1 set ('key1'='value1')")
                 .ok("ALTER TABLE `T1` SET (\n" + "  'key1' = 'value1'\n" + ")");
         sql("alter table if exists t1 set ('key1'='value1')")
                 .ok("ALTER TABLE IF EXISTS `T1` SET (\n" + "  'key1' = 'value1'\n" + ")");
+
+        sql("alter table t1 add constraint ct1 primary key(a, b)")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`)\n"
+                                + ")")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
+                                                + "ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
         sql("alter table t1 add constraint ct1 primary key(a, b) not enforced")
                 .ok(
                         "ALTER TABLE `T1` ADD (\n"
@@ -334,12 +347,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
                                 + ")");
         sql("alter table t1 " + "add unique(a, b)")
-                .ok("ALTER TABLE `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
+                .ok("ALTER TABLE `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")")
+                .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
         sql("alter table if exists t1 " + "add unique(a, b)")
                 .ok("ALTER TABLE IF EXISTS `T1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
+
         sql("alter table t1 drop constraint ct1").ok("ALTER TABLE `T1` DROP CONSTRAINT `CT1`");
         sql("alter table if exists t1 drop constraint ct1")
                 .ok("ALTER TABLE IF EXISTS `T1` DROP CONSTRAINT `CT1`");
+
         sql("alter table t1 rename a to b").ok("ALTER TABLE `T1` RENAME `A` TO `B`");
         sql("alter table if exists t1 rename a to b")
                 .ok("ALTER TABLE IF EXISTS `T1` RENAME `A` TO `B`");
@@ -846,7 +862,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testTableConstraints() {
-        final String sql =
+        final String sql1 =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint,\n"
                         + "  h varchar, \n"
@@ -860,7 +876,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'connector' = 'kafka',\n"
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")\n";
-        final String expected =
+        final String expected1 =
                 "CREATE TABLE `TBL1` (\n"
                         + "  `A` BIGINT,\n"
                         + "  `H` VARCHAR,\n"
@@ -874,11 +890,193 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'connector' = 'kafka',\n"
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")";
-        sql(sql).ok(expected);
+        sql(sql1)
+                .ok(expected1)
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
+                                                + "ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
+
+        final String sql2 =
+                "CREATE TABLE tbl1 (\n"
+                        + "  a bigint,\n"
+                        + "  h varchar, \n"
+                        + "  g as 2 * (a + 1),\n"
+                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  b varchar,\n"
+                        + "  proc as PROCTIME(),\n"
+                        + "  PRIMARY KEY (a, b) NOT ENFORCED,\n"
+                        + "  UNIQUE (h, g)\n"
+                        + ") with (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        final String expected2 =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR,\n"
+                        + "  `PROC` AS `PROCTIME`(),\n"
+                        + "  PRIMARY KEY (`A`, `B`) NOT ENFORCED,\n"
+                        + "  UNIQUE (`H`, `G`)\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        sql(sql2)
+                .ok(expected2)
+                .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
+
+        final String sql3 =
+                "CREATE TABLE tbl1 (\n"
+                        + "  a bigint,\n"
+                        + "  h varchar, \n"
+                        + "  g as 2 * (a + 1),\n"
+                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  b varchar,\n"
+                        + "  proc as PROCTIME(),\n"
+                        + "  PRIMARY KEY (a, b) NOT ENFORCED\n"
+                        + ") with (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        final String expectParsed =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR,\n"
+                        + "  `PROC` AS `PROCTIME`(),\n"
+                        + "  PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        final String expectValidated =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT NOT NULL,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR NOT NULL,\n"
+                        + "  `PROC` AS `PROCTIME`(),\n"
+                        + "  PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        sql(sql3).ok(expectParsed).node(validated(expectValidated));
     }
 
     @Test
-    void testTableConstraintsValidated() {
+    void testColumnConstraints() {
+        final String sql1 =
+                "CREATE TABLE tbl1 (\n"
+                        + "  a bigint primary key,\n"
+                        + "  h varchar unique,\n"
+                        + "  g as 2 * (a + 1),\n"
+                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  b varchar,\n"
+                        + "  proc as PROCTIME()\n"
+                        + ") with (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        final String expected1 =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT PRIMARY KEY,\n"
+                        + "  `H` VARCHAR UNIQUE,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR,\n"
+                        + "  `PROC` AS `PROCTIME`()\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        sql(sql1)
+                .ok(expected1)
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
+                                                + "ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
+
+        final String sql2 =
+                "CREATE TABLE tbl1 (\n"
+                        + "  a bigint primary key not enforced,\n"
+                        + "  h varchar unique,\n"
+                        + "  g as 2 * (a + 1),\n"
+                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  b varchar,\n"
+                        + "  proc as PROCTIME()\n"
+                        + ") with (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        final String expected2 =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT PRIMARY KEY NOT ENFORCED,\n"
+                        + "  `H` VARCHAR UNIQUE,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR,\n"
+                        + "  `PROC` AS `PROCTIME`()\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        sql(sql2)
+                .ok(expected2)
+                .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
+
+        final String sql3 =
+                "CREATE TABLE tbl1 (\n"
+                        + "  a bigint primary key not enforced,\n"
+                        + "  h varchar,\n"
+                        + "  g as 2 * (a + 1),\n"
+                        + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  b varchar,\n"
+                        + "  proc as PROCTIME()\n"
+                        + ") with (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        final String expectParsed =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT PRIMARY KEY NOT ENFORCED,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR,\n"
+                        + "  `PROC` AS `PROCTIME`()\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        final String expectValidated =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT NOT NULL PRIMARY KEY NOT ENFORCED,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  `G` AS (2 * (`A` + 1)),\n"
+                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
+                        + "  `B` VARCHAR,\n"
+                        + "  `PROC` AS `PROCTIME`()\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        sql(sql3).ok(expectParsed).node(validated(expectValidated));
+    }
+
+    @Test
+    void testUniqueTableConstraint() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint,\n"
@@ -887,7 +1085,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n"
                         + "  b varchar,\n"
                         + "  proc as PROCTIME(),\n"
-                        + "  PRIMARY KEY (a, b),\n"
+                        + "  PRIMARY KEY (a, b) NOT ENFORCED,\n"
                         + "  UNIQUE (h, g)\n"
                         + ") with (\n"
                         + "  'connector' = 'kafka',\n"
@@ -895,19 +1093,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + ")\n";
         final String expected =
                 "CREATE TABLE `TBL1` (\n"
-                        + "  `A` BIGINT NOT NULL,\n"
+                        + "  `A` BIGINT,\n"
                         + "  `H` VARCHAR,\n"
                         + "  `G` AS (2 * (`A` + 1)),\n"
                         + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR NOT NULL,\n"
+                        + "  `B` VARCHAR,\n"
                         + "  `PROC` AS `PROCTIME`(),\n"
-                        + "  PRIMARY KEY (`A`, `B`),\n"
+                        + "  PRIMARY KEY (`A`, `B`) NOT ENFORCED,\n"
                         + "  UNIQUE (`H`, `G`)\n"
                         + ") WITH (\n"
                         + "  'connector' = 'kafka',\n"
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")";
-        sql(sql).node(validated(expected));
+        sql(sql).ok(expected);
+        sql(sql).node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
     }
 
     @Test
@@ -2139,7 +2338,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support primary key constraints yet."));
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
+                                                + "ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
     }
 
     @Test

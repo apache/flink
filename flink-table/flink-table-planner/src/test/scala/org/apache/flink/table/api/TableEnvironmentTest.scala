@@ -106,6 +106,38 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testCreateTableWithEnforcedMode(): Unit = {
+    // check column constraint
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |CREATE TABLE MyTable (
+                                                   |  a bigint primary key,
+                                                   |  b int,
+                                                   |  c varchar
+                                                   |) with (
+                                                   |  'connector' = 'COLLECTION',
+                                                   |  'is-bounded' = 'false'
+                                                   |)
+    """.stripMargin))
+      .hasMessageContaining("Flink doesn't support ENFORCED mode for PRIMARY KEY constraint.")
+      .isInstanceOf[ValidationException]
+
+    // check table constraint
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |CREATE TABLE MyTable (
+                                                   |  a bigint,
+                                                   |  b int,
+                                                   |  c varchar,
+                                                   |  primary key(a)
+                                                   |) with (
+                                                   |  'connector' = 'COLLECTION',
+                                                   |  'is-bounded' = 'false'
+                                                   |)
+    """.stripMargin))
+      .hasMessageContaining("Flink doesn't support ENFORCED mode for PRIMARY KEY constraint.")
+      .isInstanceOf[ValidationException]
+  }
+
+  @Test
   def testStreamTableEnvironmentExplain(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
@@ -1477,12 +1478,12 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
 
         // add unique constraint
         assertThatThrownBy(() -> parse("alter table tb3 add unique(b)"))
-                .isInstanceOf(UnsupportedOperationException.class)
+                .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining("UNIQUE constraint is not supported yet");
 
         // lack NOT ENFORCED
         assertThatThrownBy(() -> parse("alter table tb3 add primary key(b)"))
-                .isInstanceOf(ValidationException.class)
+                .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining(
                         "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint");
 

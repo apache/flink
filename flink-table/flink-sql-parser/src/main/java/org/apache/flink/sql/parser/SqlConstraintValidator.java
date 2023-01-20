@@ -52,21 +52,24 @@ public class SqlConstraintValidator {
         return ret;
     }
 
-    /** Check duplicate constraints and change the nullability of primary key columns. */
+    /**
+     * Check constraints and change the nullability of primary key columns.
+     *
+     * @throws SqlValidateException if encountered duplicate primary key constraints, or the
+     *     constraint is enforced or unique.
+     */
     public static void validateAndChangeColumnNullability(
             List<SqlTableConstraint> tableConstraints, SqlNodeList columnList)
             throws SqlValidateException {
-        List<SqlTableConstraint> constraints =
-                getFullConstraints(tableConstraints, columnList).stream()
-                        .filter(SqlTableConstraint::isPrimaryKey)
-                        .collect(Collectors.toList());
-
-        if (constraints.size() > 1) {
+        List<SqlTableConstraint> fullConstraints = getFullConstraints(tableConstraints, columnList);
+        if (fullConstraints.stream().filter(SqlTableConstraint::isPrimaryKey).count() > 1) {
             throw new SqlValidateException(
-                    constraints.get(1).getParserPosition(), "Duplicate primary key definition");
-        } else if (constraints.size() == 1) {
+                    fullConstraints.get(1).getParserPosition(), "Duplicate primary key definition");
+        }
+        for (SqlTableConstraint constraint : fullConstraints) {
+            validate(constraint);
             Set<String> primaryKeyColumns =
-                    Arrays.stream(constraints.get(0).getColumnNames()).collect(Collectors.toSet());
+                    Arrays.stream(constraint.getColumnNames()).collect(Collectors.toSet());
 
             for (SqlNode column : columnList) {
                 SqlTableColumn tableColumn = (SqlTableColumn) column;
@@ -78,6 +81,22 @@ public class SqlConstraintValidator {
                     regularColumn.setType(notNullType);
                 }
             }
+        }
+    }
+
+    /** Check table/column constraint. */
+    private static void validate(SqlTableConstraint constraint) throws SqlValidateException {
+        if (constraint.isUnique()) {
+            throw new SqlValidateException(
+                    constraint.getParserPosition(), "UNIQUE constraint is not supported yet");
+        }
+        if (constraint.isEnforced()) {
+            throw new SqlValidateException(
+                    constraint.getParserPosition(),
+                    "Flink doesn't support ENFORCED mode for "
+                            + "PRIMARY KEY constraint. ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
+                            + "Flink does not own the data therefore the only supported mode "
+                            + "is the NOT ENFORCED mode");
         }
     }
 }

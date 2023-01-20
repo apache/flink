@@ -61,7 +61,6 @@ import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.ddl.SqlUseModules;
-import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.resource.SqlResource;
 import org.apache.flink.sql.parser.ddl.resource.SqlResourceType;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
@@ -259,12 +258,10 @@ public class SqlToOperationConverter {
                 new SqlCreateTableConverter(
                         flinkPlanner.getOrCreateSqlValidator(),
                         catalogManager,
-                        this::getQuotedSqlString,
-                        this::validateTableConstraint);
+                        this::getQuotedSqlString);
         this.alterSchemaConverter =
                 new AlterSchemaConverter(
                         flinkPlanner.getOrCreateSqlValidator(),
-                        this::validateTableConstraint,
                         this::getQuotedSqlString,
                         catalogManager);
     }
@@ -1564,20 +1561,6 @@ public class SqlToOperationConverter {
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
         return new SinkModifyOperation(
                 contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.UPDATE);
-    }
-
-    private void validateTableConstraint(SqlTableConstraint constraint) {
-        if (constraint.isUnique()) {
-            throw new UnsupportedOperationException("UNIQUE constraint is not supported yet");
-        }
-        if (constraint.isEnforced()) {
-            throw new ValidationException(
-                    "Flink doesn't support ENFORCED mode for "
-                            + "PRIMARY KEY constraint. ENFORCED/NOT ENFORCED controls if the constraint "
-                            + "checks are performed on the incoming/outgoing data. "
-                            + "Flink does not own the data therefore the only supported mode "
-                            + "is the NOT ENFORCED mode");
-        }
     }
 
     private String getQuotedSqlString(SqlNode sqlNode) {
