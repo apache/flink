@@ -15,6 +15,12 @@
             <td>List of factories that should be used to instantiate a security context. If multiple are configured, Flink will use the first compatible factory. You should have a NoOpSecurityContextFactory in this list as a fallback.</td>
         </tr>
         <tr>
+            <td><h5>security.delegation.token.provider.&lt;serviceName&gt;.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Controls whether to obtain credentials for services when security is enabled. By default, credentials for all supported services are retrieved when those services are configured, but it's possible to disable that behavior if it somehow conflicts with the application being run.</td>
+        </tr>
+        <tr>
             <td><h5>security.delegation.tokens.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
@@ -49,7 +50,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
-import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKEN_PROVIDER_ENABLED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -161,8 +162,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     }
 
     static boolean isProviderEnabled(Configuration configuration, String serviceName) {
-        return configuration.getBoolean(
-                String.format("%s.%s.enabled", CONFIG_PREFIX, serviceName), true);
+        return SecurityOptions.forProvider(configuration, serviceName)
+                .getBoolean(DELEGATION_TOKEN_PROVIDER_ENABLED);
     }
 
     @VisibleForTesting
