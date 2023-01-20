@@ -472,5 +472,10 @@ class CliClientTest {
             receivedPosition = position;
             return Arrays.asList(helper.getSqlParser().getCompletionHints(statement, position));
         }
+
+        @Override
+        public void close() {
+            // do nothing
+        }
     }
 }

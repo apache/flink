@@ -25,9 +25,9 @@ import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalContextUtils;
 import org.apache.flink.table.gateway.SqlGateway;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.io.IOUtils;
@@ -83,25 +83,21 @@ public class SqlClient {
 
     private void start() {
         if (isEmbedded) {
-            EmbeddedGateway embeddedGateway = new EmbeddedGateway();
-            DefaultContext defaultContext =
-                    LocalContextUtils.buildDefaultContext(
-                            options,
-                            InetSocketAddress.createUnresolved(
-                                    embeddedGateway.getAddress(), embeddedGateway.getPort()));
-            final Executor executor = new ExecutorImpl(defaultContext);
-            // Open a new session
-            try {
+            DefaultContext defaultContext = LocalContextUtils.buildDefaultContext(options);
+            try (EmbeddedGateway embeddedGateway = new EmbeddedGateway();
+                    ExecutorImpl executor =
+                            new ExecutorImpl(
+                                    defaultContext,
+                                    InetSocketAddress.createUnresolved(
+                                            embeddedGateway.getAddress(),
+                                            embeddedGateway.getPort()))) {
                 // add shutdown hook
                 Runtime.getRuntime()
                         .addShutdownHook(new EmbeddedShutdownThread(executor, embeddedGateway));
-
                 // do the actual work
                 embeddedGateway.start();
                 executor.openSession(options.getSessionId());
                 openCli(executor);
-            } finally {
-                executor.closeSession();
             }
         } else {
             throw new SqlClientException("Gateway mode is not supported yet.");
@@ -268,10 +264,10 @@ public class SqlClient {
 
     private static class EmbeddedShutdownThread extends Thread {
 
-        private final Executor executor;
+        private final ExecutorImpl executor;
         private final EmbeddedGateway gateway;
 
-        public EmbeddedShutdownThread(Executor executor, EmbeddedGateway gateway) {
+        public EmbeddedShutdownThread(ExecutorImpl executor, EmbeddedGateway gateway) {
             this.executor = executor;
             this.gateway = gateway;
         }
@@ -280,7 +276,7 @@ public class SqlClient {
         public void run() {
             // Shutdown the executor
             System.out.println("\nShutting down the session...");
-            executor.closeSession();
+            executor.close();
             gateway.close();
             System.out.println("done.");
         }

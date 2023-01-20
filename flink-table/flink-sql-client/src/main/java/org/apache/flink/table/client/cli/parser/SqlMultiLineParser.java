@@ -26,6 +26,8 @@ import org.jline.reader.ParsedLine;
 import org.jline.reader.SyntaxError;
 import org.jline.reader.impl.DefaultParser;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -45,7 +47,7 @@ public class SqlMultiLineParser extends DefaultParser {
     /** Exception caught in parsing. */
     private SqlExecutionException parseException = null;
     /** Parsed statement type. */
-    private Command statementType;
+    private @Nullable Command statementType;
 
     public SqlMultiLineParser(SqlCommandParser parser) {
         this.parser = parser;

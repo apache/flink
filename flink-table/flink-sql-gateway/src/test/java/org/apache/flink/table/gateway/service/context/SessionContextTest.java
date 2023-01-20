@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.gateway.service.context;
 
-import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -139,11 +138,7 @@ class SessionContextTest {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(OBJECT_REUSE, true);
         flinkConfig.set(MAX_PARALLELISM, 16);
-        DefaultContext defaultContext =
-                new DefaultContext(
-                        flinkConfig,
-                        Collections.singletonList(new DefaultCLI()),
-                        Collections.emptyList());
+        DefaultContext defaultContext = new DefaultContext(flinkConfig, Collections.emptyList());
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)

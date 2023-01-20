@@ -35,8 +35,8 @@ public abstract class CollectResultBase implements DynamicResult {
     protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
     protected final ResultRetrievalThread retrievalThread;
 
-    public CollectResultBase(ClientResult resultIterator) {
-        this.resultIterator = resultIterator;
+    public CollectResultBase(ClientResult tableResult) {
+        this.resultIterator = tableResult;
         this.resultLock = new Object();
         this.retrievalThread = new ResultRetrievalThread();
     }

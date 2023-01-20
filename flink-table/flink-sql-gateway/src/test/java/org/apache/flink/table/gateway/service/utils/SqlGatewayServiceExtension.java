@@ -35,6 +35,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -80,7 +81,8 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
             CommonTestUtils.setEnv(map);
 
-            sessionManager = new SessionManager(DefaultContext.load(new Configuration()));
+            sessionManager =
+                    new SessionManager(DefaultContext.load(new Configuration(), new ArrayList<>()));
         } finally {
             CommonTestUtils.setEnv(originalEnv);
         }

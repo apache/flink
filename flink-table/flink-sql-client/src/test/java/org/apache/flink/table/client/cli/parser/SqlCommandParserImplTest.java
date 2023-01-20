@@ -108,20 +108,20 @@ public class SqlCommandParserImplTest {
     /** Used to load generated data. */
     private static class TestSpec {
         String statement;
-        Command command;
+        @Nullable Command command;
 
-        TestSpec(String statement, @Nullable Command type) {
+        TestSpec(String statement, @Nullable Command command) {
             this.statement = statement;
-            this.command = type;
+            this.command = command;
         }
 
         @Override
         public String toString() {
-            return "TestSpec{" + "statement='" + statement + '\'' + ", type=" + command + '}';
+            return "TestSpec{" + "statement='" + statement + '\'' + ", command=" + command + '}';
         }
 
-        static TestSpec of(String statement, @Nullable Command type) {
-            return new TestSpec(statement, type);
+        static TestSpec of(String statement, @Nullable Command command) {
+            return new TestSpec(statement, command);
         }
     }
 }

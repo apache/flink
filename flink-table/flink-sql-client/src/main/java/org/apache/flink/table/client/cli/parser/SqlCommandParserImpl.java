@@ -35,10 +35,10 @@ import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SEMIC
 /**
  * The {@link SqlCommandParserImpl} uses {@link FlinkSqlParserImplTokenManager} to do lexical
  * analysis. It cannot recognize special hive keywords yet because Hive has a slightly different
- * vocabulary compared to Flink's, which causes the The {@link SqlCommandParserImpl}
- * misunderstanding some Hive's keywords to IDENTIFIER. But the ClientParser is only responsible to
- * check whether the statement is completed or not and only cares about a few statements. So it's
- * acceptable to tolerate the inaccuracy here.
+ * vocabulary compared to Flink's, which causes the {@link SqlCommandParserImpl} misunderstanding
+ * some Hive's keywords to IDENTIFIER. But the ClientParser is only responsible to check whether the
+ * statement is completed or not and only cares about a few statements. So it's acceptable to
+ * tolerate the inaccuracy here.
  */
 public class SqlCommandParserImpl implements SqlCommandParser {
 
@@ -49,7 +49,7 @@ public class SqlCommandParserImpl implements SqlCommandParser {
         if (statement.isEmpty() || statement.equals(";")) {
             return Optional.empty();
         } else {
-            return Optional.of(getCommand(new TokenIterator(statement.trim())));
+            return Optional.of(getCommand(new TokenIterator(statement)));
         }
     }
 

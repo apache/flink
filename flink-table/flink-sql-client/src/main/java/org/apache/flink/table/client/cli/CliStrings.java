@@ -357,7 +357,7 @@ public final class CliStrings {
         }
 
         if (isVerbose) {
-            return messageError(message, t.getClass().getName() + ": " + t.getMessage());
+            return messageError(message, ExceptionUtils.stringifyException(t));
         } else {
             if (t instanceof RestClientException) {
                 // TODO: Remove this after RestClientException supports to get RootCause.
@@ -366,7 +366,7 @@ public final class CliStrings {
                         message,
                         splitExceptions[splitExceptions.length - 1].split("\tat ")[0].trim());
             } else {
-                return messageError(message, ExceptionUtils.stringifyException(t));
+                return messageError(message, t.getClass().getName() + ": " + t.getMessage());
             }
         }
     }

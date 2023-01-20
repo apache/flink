@@ -61,7 +61,8 @@ public class SqlGateway {
 
     public void start() throws Exception {
         DefaultContext context =
-                DefaultContext.load(ConfigurationUtils.createConfiguration(dynamicConfig));
+                DefaultContext.load(
+                        ConfigurationUtils.createConfiguration(dynamicConfig), new ArrayList<>());
         sessionManager = new SessionManager(context);
 
         sessionManager.start();

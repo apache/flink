@@ -25,8 +25,8 @@ import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ExecutorImpl;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
@@ -208,24 +208,27 @@ class CliClientITCase {
         final String sqlContent = String.join("", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        Collections.emptyList(),
                         new Configuration(configuration)
                                 // Make sure we use the new cast behaviour
                                 .set(
                                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
                                         ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
-                        InetSocketAddress.createUnresolved(
-                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
-        final Executor executor = new ExecutorImpl(defaultContext);
+                        Collections.emptyList());
+
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-        executor.openSession("test-session");
 
-        try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+        try (final Executor executor =
+                        new ExecutorImpl(
+                                defaultContext,
+                                InetSocketAddress.createUnresolved(
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
+                Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
                                 () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
+            executor.openSession("test-session");
             client.executeInInteractiveMode();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);

@@ -80,7 +80,7 @@ public class TestHiveCatalogFactory extends HiveCatalogFactory {
         try {
             hiveCatalog.createDatabase(
                     ADDITIONAL_TEST_DATABASE,
-                    new CatalogDatabaseImpl(new HashMap<>(), null),
+                    new CatalogDatabaseImpl(Collections.emptyMap(), null),
                     false);
             hiveCatalog.createTable(
                     new ObjectPath(ADDITIONAL_TEST_DATABASE, TEST_TABLE),

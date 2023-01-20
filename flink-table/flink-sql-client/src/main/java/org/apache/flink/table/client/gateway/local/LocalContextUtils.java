@@ -23,14 +23,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.CliOptions;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.JarUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,8 +40,7 @@ public class LocalContextUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalContextUtils.class);
 
-    public static DefaultContext buildDefaultContext(
-            CliOptions options, InetSocketAddress address) {
+    public static DefaultContext buildDefaultContext(CliOptions options) {
         final List<URL> jars;
         if (options.getJars() != null) {
             jars = options.getJars();
@@ -61,9 +59,14 @@ public class LocalContextUtils {
 
         // 2. load the global configuration
         Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
+
+        // 3. add python config
+        configuration.addAll(options.getPythonConfiguration());
+
+        // 4. discover the dependencies
         final List<URL> dependencies = discoverDependencies(jars, libDirs);
 
-        return new DefaultContext(dependencies, configuration, address);
+        return new DefaultContext(configuration, dependencies);
     }
 
     // --------------------------------------------------------------------------------------------

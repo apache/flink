@@ -22,10 +22,11 @@ import org.apache.flink.configuration.ReadableConfig;
 
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.util.List;
 
 /** A gateway for communicating with Flink and other external systems. */
-public interface Executor {
+public interface Executor extends Closeable {
 
     /**
      * Open a new session by using the given session id.
