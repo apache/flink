@@ -164,20 +164,4 @@ Flink also supports custom delegation token providers using the Java Services me
 (see `java.util.ServiceLoader`). Implementations of `org.apache.flink.runtime.security.token.DelegationTokenProvider`
 can be made available to Flink by listing their names in the corresponding file in the jar’s `META-INF/services` directory.
 
-The following options provides more fine-grained control for this feature:
-
-<table class="table">
-<tr><th>Property Name</th><th>Default</th><th>Meaning</th></tr>
-<tr>
-  <td><code>security.delegation.token.provider.${service}.enabled</code></td>
-  <td><code>true</code></td>
-  <td>
-    Controls whether to obtain credentials for services when security is enabled.
-    By default, credentials for all supported services are retrieved when those services are
-    configured, but it's possible to disable that behavior if it somehow conflicts with the
-    application being run.
-  </td>
-</tr>
-</table>
-
 {{< top >}}
