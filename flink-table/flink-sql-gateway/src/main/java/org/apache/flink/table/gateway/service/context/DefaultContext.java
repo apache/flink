@@ -36,9 +36,7 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -131,24 +129,7 @@ public class DefaultContext {
         Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
         configuration.addAll(dynamicConfig);
 
-        // 3. add python dependencies by default
-        try {
-            URL location =
-                    Class.forName(
-                                    "org.apache.flink.python.PythonFunctionRunner",
-                                    false,
-                                    Thread.currentThread().getContextClassLoader())
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation();
-            if (Paths.get(location.toURI()).toFile().isFile()) {
-                dependencies.add(location);
-            }
-        } catch (URISyntaxException | ClassNotFoundException e) {
-            LOG.warn("Failed to find flink-python jar." + e);
-        }
-
-        // 4. load the custom command lines
+        // 3. load the custom command lines
         List<CustomCommandLine> commandLines =
                 CliFrontend.loadCustomCommandLines(configuration, flinkConfigDir);
 
