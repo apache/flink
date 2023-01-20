@@ -1593,6 +1593,9 @@ under the License.
 
 						<!-- AWS SDK config that does not support license headers -->
 						<exclude>**/awssdk/global/handlers/execution.interceptors</exclude>
+
+						<!-- The most recently published version configuration file -->
+						<exclude>flink-test-utils-parent/flink-migration-test-utils/src/main/resources/most_recently_published_version</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

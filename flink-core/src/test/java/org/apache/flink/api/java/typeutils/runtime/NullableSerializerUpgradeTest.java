@@ -35,24 +35,23 @@ import static org.hamcrest.CoreMatchers.is;
 /** A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}. */
 class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "nullable-padded-serializer",
-                            flinkVersion,
-                            NullablePaddedSerializerSetup.class,
-                            NullablePaddedSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "nullable-padded-serializer",
+                        flinkVersion,
+                        NullablePaddedSerializerSetup.class,
+                        NullablePaddedSerializerVerifier.class));
 
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "nullable-not-padded-serializer",
-                            flinkVersion,
-                            NullableNotPaddedSerializerSetup.class,
-                            NullableNotPaddedSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "nullable-not-padded-serializer",
+                        flinkVersion,
+                        NullableNotPaddedSerializerSetup.class,
+                        NullableNotPaddedSerializerVerifier.class));
         return testSpecifications;
     }
 

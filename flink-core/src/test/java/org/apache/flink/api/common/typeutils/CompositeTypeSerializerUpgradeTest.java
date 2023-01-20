@@ -35,23 +35,22 @@ import static org.hamcrest.Matchers.is;
 /** A {@link TypeSerializerUpgradeTestBase} for {@link GenericArraySerializer}. */
 class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "either-serializer",
-                            flinkVersion,
-                            EitherSerializerSetup.class,
-                            EitherSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "generic-array-serializer",
-                            flinkVersion,
-                            GenericArraySerializerSetup.class,
-                            GenericArraySerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "either-serializer",
+                        flinkVersion,
+                        EitherSerializerSetup.class,
+                        EitherSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "generic-array-serializer",
+                        flinkVersion,
+                        GenericArraySerializerSetup.class,
+                        GenericArraySerializerVerifier.class));
         return testSpecifications;
     }
 
