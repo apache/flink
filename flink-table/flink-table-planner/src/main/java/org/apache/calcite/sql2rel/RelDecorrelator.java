@@ -1827,10 +1827,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
         @Override
         public RexNode visitLiteral(RexLiteral literal) {
             // Use nullIndicator to decide whether to project null.
-            // Do nothing if the literal is null.
+            // Do nothing if the literal is null or symbol.
             if (!RexUtil.isNull(literal)
                     && projectPulledAboveLeftCorrelator
-                    && (nullIndicator != null)) {
+                    && (nullIndicator != null)
+                    && !RexUtil.isSymbolLiteral(literal)) {
                 return createCaseExpression(nullIndicator, null, literal);
             }
             return literal;

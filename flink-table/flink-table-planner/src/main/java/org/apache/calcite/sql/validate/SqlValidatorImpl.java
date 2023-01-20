@@ -305,7 +305,30 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         @SuppressWarnings("argument.type.incompatible")
         TypeCoercion typeCoercion = config.typeCoercionFactory().create(typeFactory, this);
         this.typeCoercion = typeCoercion;
-        if (config.typeCoercionRules() != null) {
+
+        if (config.conformance().allowCoercionStringToArray()) {
+            SqlTypeCoercionRule rules =
+                    requireNonNull(
+                            config.typeCoercionRules() != null
+                                    ? config.typeCoercionRules()
+                                    : SqlTypeCoercionRule.THREAD_PROVIDERS.get());
+
+            ImmutableSet<SqlTypeName> arrayMapping =
+                    ImmutableSet.<SqlTypeName>builder()
+                            .addAll(
+                                    rules.getTypeMapping()
+                                            .getOrDefault(SqlTypeName.ARRAY, ImmutableSet.of()))
+                            .add(SqlTypeName.VARCHAR)
+                            .add(SqlTypeName.CHAR)
+                            .build();
+
+            Map<SqlTypeName, ImmutableSet<SqlTypeName>> mapping =
+                    new HashMap(rules.getTypeMapping());
+            mapping.replace(SqlTypeName.ARRAY, arrayMapping);
+            rules = SqlTypeCoercionRule.instance(mapping);
+
+            SqlTypeCoercionRule.THREAD_PROVIDERS.set(rules);
+        } else if (config.typeCoercionRules() != null) {
             SqlTypeCoercionRule.THREAD_PROVIDERS.set(config.typeCoercionRules());
         }
     }
@@ -4501,6 +4524,15 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             if (op instanceof SqlTableFunction) {
                 throw RESOURCE.cannotCallTableFunctionHere(op.getName()).ex();
             }
+        }
+
+        // Unless 'naked measures' are enabled, a non-aggregating query cannot
+        // reference measure columns. (An aggregating query can use them as
+        // argument to the AGGREGATE function.)
+        if (!config.nakedMeasures()
+                && !(scope instanceof AggregatingScope)
+                && scope.isMeasureRef(expr)) {
+            throw newValidationError(expr, RESOURCE.measureMustBeInAggregateQuery());
         }
 
         // Call on the expression to validate itself.
