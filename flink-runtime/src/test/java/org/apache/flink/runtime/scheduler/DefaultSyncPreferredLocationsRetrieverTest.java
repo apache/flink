@@ -20,20 +20,18 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DefaultSyncPreferredLocationsRetriever}. */
-public class DefaultSyncPreferredLocationsRetrieverTest extends TestLogger {
+class DefaultSyncPreferredLocationsRetrieverTest {
     private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV3 = createRandomExecutionVertexId();
@@ -41,7 +39,7 @@ public class DefaultSyncPreferredLocationsRetrieverTest extends TestLogger {
     private static final ExecutionVertexID EV5 = createRandomExecutionVertexId();
 
     @Test
-    public void testAvailableInputLocationRetrieval() {
+    void testAvailableInputLocationRetrieval() {
         TestingInputsLocationsRetriever originalLocationRetriever =
                 new TestingInputsLocationsRetriever.Builder()
                         .connectConsumerToProducer(EV5, EV1)
@@ -64,6 +62,6 @@ public class DefaultSyncPreferredLocationsRetrieverTest extends TestLogger {
         TaskManagerLocation expectedLocation =
                 originalLocationRetriever.getTaskManagerLocation(EV1).get().join();
 
-        assertThat(preferredLocations, contains(expectedLocation));
+        assertThat(preferredLocations).containsExactly(expectedLocation);
     }
 }

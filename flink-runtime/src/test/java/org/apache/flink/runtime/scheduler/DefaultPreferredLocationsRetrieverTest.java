@@ -23,9 +23,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,16 +33,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests {@link DefaultPreferredLocationsRetriever}. */
-public class DefaultPreferredLocationsRetrieverTest extends TestLogger {
+class DefaultPreferredLocationsRetrieverTest {
 
     @Test
-    public void testStateLocationsWillBeReturnedIfExist() {
+    void testStateLocationsWillBeReturnedIfExist() {
         final TaskManagerLocation stateLocation = new LocalTaskManagerLocation();
 
         final TestingInputsLocationsRetriever.Builder locationRetrieverBuilder =
@@ -65,11 +61,11 @@ public class DefaultPreferredLocationsRetrieverTest extends TestLogger {
         final CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
                 locationsRetriever.getPreferredLocations(consumerId, Collections.emptySet());
 
-        assertThat(preferredLocations.getNow(null), contains(stateLocation));
+        assertThat(preferredLocations.getNow(null)).containsExactly(stateLocation);
     }
 
     @Test
-    public void testInputLocationsIgnoresEdgeOfTooManyLocations() {
+    void testInputLocationsIgnoresEdgeOfTooManyLocations() {
         final TestingInputsLocationsRetriever.Builder locationRetrieverBuilder =
                 new TestingInputsLocationsRetriever.Builder();
 
@@ -98,11 +94,11 @@ public class DefaultPreferredLocationsRetrieverTest extends TestLogger {
         final CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
                 locationsRetriever.getPreferredLocations(consumerId, Collections.emptySet());
 
-        assertThat(preferredLocations.getNow(null), hasSize(0));
+        assertThat(preferredLocations.getNow(null)).isEmpty();
     }
 
     @Test
-    public void testInputLocationsChoosesInputOfFewerLocations() {
+    void testInputLocationsChoosesInputOfFewerLocations() {
         final TestingInputsLocationsRetriever.Builder locationRetrieverBuilder =
                 new TestingInputsLocationsRetriever.Builder();
 
@@ -150,12 +146,12 @@ public class DefaultPreferredLocationsRetrieverTest extends TestLogger {
         final CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
                 locationsRetriever.getPreferredLocations(consumerId, Collections.emptySet());
 
-        assertThat(
-                preferredLocations.getNow(null), containsInAnyOrder(expectedLocations.toArray()));
+        assertThat(preferredLocations.getNow(null))
+                .containsExactlyInAnyOrderElementsOf(expectedLocations);
     }
 
     @Test
-    public void testInputLocationsIgnoresExcludedProducers() {
+    void testInputLocationsIgnoresExcludedProducers() {
         final TestingInputsLocationsRetriever.Builder locationRetrieverBuilder =
                 new TestingInputsLocationsRetriever.Builder();
 
@@ -186,10 +182,10 @@ public class DefaultPreferredLocationsRetrieverTest extends TestLogger {
                 locationsRetriever.getPreferredLocations(
                         consumerId, Collections.singleton(producerId1));
 
-        assertThat(preferredLocations.getNow(null), hasSize(1));
+        assertThat(preferredLocations.getNow(null)).hasSize(1);
 
         final TaskManagerLocation producerLocation2 =
                 inputsLocationsRetriever.getTaskManagerLocation(producerId2).get().getNow(null);
-        assertThat(preferredLocations.getNow(null), contains(producerLocation2));
+        assertThat(preferredLocations.getNow(null)).containsExactly(producerLocation2);
     }
 }
