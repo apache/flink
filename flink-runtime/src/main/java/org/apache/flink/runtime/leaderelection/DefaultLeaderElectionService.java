@@ -48,9 +48,11 @@ public class DefaultLeaderElectionService
     private final LeaderElectionDriverFactory leaderElectionDriverFactory;
 
     /** The leader contender which applies for leadership. */
+    @GuardedBy("lock")
     private volatile LeaderContender leaderContender;
 
     @GuardedBy("lock")
+    @Nullable
     private volatile UUID issuedLeaderSessionID;
 
     @GuardedBy("lock")
@@ -187,7 +189,6 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    @GuardedBy("lock")
     public void onGrantLeadership(UUID newLeaderSessionId) {
         synchronized (lock) {
             if (running) {
@@ -214,7 +215,6 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    @GuardedBy("lock")
     public void onRevokeLeadership() {
         synchronized (lock) {
             if (running) {
@@ -248,7 +248,6 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    @GuardedBy("lock")
     public void onLeaderInformationChange(LeaderInformation leaderInformation) {
         synchronized (lock) {
             if (running) {
