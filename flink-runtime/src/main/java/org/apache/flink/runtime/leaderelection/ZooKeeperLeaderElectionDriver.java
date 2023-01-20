@@ -179,7 +179,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     public void writeLeaderInformation(LeaderInformation leaderInformation) {
         Preconditions.checkState(
                 running,
-                "Leader information can be only written if the driver hasn't been closed, yet.");
+                "Leader information can only be written if the driver hasn't been closed, yet.");
 
         // this method does not have to be synchronized because the curator framework client
         // is thread-safe. We do not write the empty data to ZooKeeper here. Because

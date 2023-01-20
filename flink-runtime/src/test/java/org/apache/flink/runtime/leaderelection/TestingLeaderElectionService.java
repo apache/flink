@@ -49,7 +49,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 
     @Override
     public synchronized void start(LeaderContender contender) {
-        Preconditions.checkState(getStartFuture().isDone());
+        Preconditions.checkState(!getStartFuture().isDone());
 
         this.contender = contender;
 
