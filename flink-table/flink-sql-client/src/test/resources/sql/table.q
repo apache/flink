@@ -112,6 +112,29 @@ show columns from orders;
 5 rows in set
 !ok
 
+# test display max colum width
+SET 'sql-client.display.max-column-width' = '10';
+[INFO] Execute statement succeed.
+!info
+
+show columns from orders;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |
+|  amount |                         INT |  TRUE |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
+# set back the default value
+SET 'sql-client.display.max-column-width' = '30';
+[INFO] Execute statement succeed.
+!info
+
 show columns in orders;
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+
 |    name |                        type |  null |       key |        extras |                  watermark |

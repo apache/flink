@@ -126,7 +126,7 @@ public class CliTableauResultView implements AutoCloseable {
                 PrintStyle.tableauWithDataInferredColumnWidths(
                         resultDescriptor.getResultSchema(),
                         resultDescriptor.getRowDataStringConverter(),
-                        PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                        resultDescriptor.maxColumnWidth(),
                         false,
                         false);
         style.print(resultRows.iterator(), terminal.writer());
