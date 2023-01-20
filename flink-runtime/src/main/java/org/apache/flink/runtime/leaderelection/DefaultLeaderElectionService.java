@@ -61,7 +61,8 @@ public class DefaultLeaderElectionService
     @GuardedBy("lock")
     private volatile boolean running;
 
-    private LeaderElectionDriver leaderElectionDriver;
+    // this.running=true ensures that a contender is set
+    @Nullable private LeaderElectionDriver leaderElectionDriver;
 
     public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
         this.leaderElectionDriverFactory = checkNotNull(leaderElectionDriverFactory);
@@ -106,7 +107,8 @@ public class DefaultLeaderElectionService
             clearConfirmedLeaderInformation();
         }
 
-        leaderElectionDriver.close();
+        checkNotNull(leaderElectionDriver, "LeaderElectionDriver is guarded by the running flag.")
+                .close();
     }
 
     @Override
@@ -154,7 +156,7 @@ public class DefaultLeaderElectionService
     public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
         synchronized (lock) {
             if (running) {
-                return leaderElectionDriver.hasLeadership()
+                return getLeaderElectionDriverGuardedByRunningState().hasLeadership()
                         && leaderSessionId.equals(issuedLeaderSessionID);
             } else {
                 if (LOG.isDebugEnabled()) {
@@ -180,7 +182,8 @@ public class DefaultLeaderElectionService
     @GuardedBy("lock")
     private void confirmLeaderInformation(UUID leaderSessionID, String leaderAddress) {
         confirmedLeaderInformation = LeaderInformation.known(leaderSessionID, leaderAddress);
-        leaderElectionDriver.writeLeaderInformation(confirmedLeaderInformation);
+        getLeaderElectionDriverGuardedByRunningState()
+                .writeLeaderInformation(confirmedLeaderInformation);
     }
 
     @GuardedBy("lock")
@@ -235,7 +238,8 @@ public class DefaultLeaderElectionService
                     LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
                 }
                 // Clear the old leader information on the external storage
-                leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
+                getLeaderElectionDriverGuardedByRunningState()
+                        .writeLeaderInformation(LeaderInformation.empty());
             } else {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug(
@@ -266,7 +270,8 @@ public class DefaultLeaderElectionService
                                     "Writing leader information by {} since the external storage is empty.",
                                     leaderContender.getDescription());
                         }
-                        leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
+                        getLeaderElectionDriverGuardedByRunningState()
+                                .writeLeaderInformation(confirmedLeaderInfo);
                     } else if (!leaderInformation.equals(confirmedLeaderInfo)) {
                         // the data field does not correspond to the expected leader information
                         if (LOG.isDebugEnabled()) {
@@ -274,7 +279,8 @@ public class DefaultLeaderElectionService
                                     "Correcting leader information by {}.",
                                     leaderContender.getDescription());
                         }
-                        leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
+                        getLeaderElectionDriverGuardedByRunningState()
+                                .writeLeaderInformation(confirmedLeaderInfo);
                     }
                 }
             } else {
@@ -286,6 +292,21 @@ public class DefaultLeaderElectionService
                 }
             }
         }
+    }
+
+    /**
+     * Returns {@link #leaderElectionDriver} with proper state checks.
+     *
+     * @throws IllegalStateException if this method is called without this instance being in state
+     *     running.
+     * @see #running
+     */
+    private LeaderElectionDriver getLeaderElectionDriverGuardedByRunningState() {
+        Preconditions.checkState(
+                running, "LeaderElectionDriver should only be requested if in running state.");
+        return checkNotNull(
+                leaderElectionDriver,
+                "The LeaderElectionDriver should be set if in state running.");
     }
 
     private class LeaderElectionFatalErrorHandler implements FatalErrorHandler {
