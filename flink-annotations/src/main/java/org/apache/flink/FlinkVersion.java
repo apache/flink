@@ -87,7 +87,11 @@ public enum FlinkVersion {
         return Optional.ofNullable(CODE_MAP.get(code));
     }
 
-    /** Returns the current version. */
+    public static FlinkVersion valueOf(int majorVersion, int minorVersion) {
+        return FlinkVersion.valueOf("v" + majorVersion + "_" + minorVersion);
+    }
+
+    /** Returns the version for the current branch. */
     public static FlinkVersion current() {
         return values()[values().length - 1];
     }

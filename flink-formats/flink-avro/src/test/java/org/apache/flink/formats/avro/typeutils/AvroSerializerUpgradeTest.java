@@ -37,23 +37,22 @@ import static org.hamcrest.Matchers.is;
 /** Tests based on {@link TypeSerializerUpgradeTestBase} for the {@link AvroSerializer}. */
 class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "generic-avro-serializer",
-                            flinkVersion,
-                            GenericAvroSerializerSetup.class,
-                            GenericAvroSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "generic-avro-serializer",
+                        flinkVersion,
+                        GenericAvroSerializerSetup.class,
+                        GenericAvroSerializerVerifier.class));
 
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "specific-avro-serializer",
-                            flinkVersion,
-                            SpecificAvroSerializerSetup.class,
-                            SpecificAvroSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "specific-avro-serializer",
+                        flinkVersion,
+                        SpecificAvroSerializerSetup.class,
+                        SpecificAvroSerializerVerifier.class));
 
         return testSpecifications;
     }

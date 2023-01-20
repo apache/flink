@@ -39,17 +39,16 @@ import static org.hamcrest.Matchers.is;
 class BufferEntrySerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<BufferEntry<String>, BufferEntry<String>> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "buffer-entry-serializer",
-                            flinkVersion,
-                            BufferEntrySerializerSetup.class,
-                            BufferEntrySerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "buffer-entry-serializer",
+                        flinkVersion,
+                        BufferEntrySerializerSetup.class,
+                        BufferEntrySerializerVerifier.class));
 
         return testSpecifications;
     }

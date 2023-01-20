@@ -27,82 +27,81 @@ import java.util.Collection;
 /** Migration tests for primitive array type serializers' snapshots. */
 class PrimitiveArraySerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "boolean-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveBooleanArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveBooleanArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "byte-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveByteArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveByteArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "char-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveCharArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveCharArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "double-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveDoubleArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveDoubleArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "float-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveFloatArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveFloatArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "int-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveIntArraySetup
-                                    .class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveIntArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "long-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveLongArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveLongArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "short-primitive-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveShortArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveShortArrayVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "string-array-serializer",
-                            flinkVersion,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveStringArraySetup.class,
-                            PrimitiveArraySerializerUpgradeTestSpecifications
-                                    .PrimitiveStringArrayVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "boolean-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveBooleanArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications
+                                .PrimitiveBooleanArrayVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "byte-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveByteArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveByteArrayVerifier
+                                .class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "char-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveCharArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveCharArrayVerifier
+                                .class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "double-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveDoubleArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications
+                                .PrimitiveDoubleArrayVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "float-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveFloatArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications
+                                .PrimitiveFloatArrayVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "int-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveIntArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveIntArrayVerifier
+                                .class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "long-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveLongArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveLongArrayVerifier
+                                .class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "short-primitive-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveShortArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications
+                                .PrimitiveShortArrayVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "string-array-serializer",
+                        flinkVersion,
+                        PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveStringArraySetup
+                                .class,
+                        PrimitiveArraySerializerUpgradeTestSpecifications
+                                .PrimitiveStringArrayVerifier.class));
 
         return testSpecifications;
     }

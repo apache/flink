@@ -38,16 +38,15 @@ class ArrayListSerializerUpgradeTest
 
     private static final String SPEC_NAME = "arraylist-serializer";
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            SPEC_NAME,
-                            flinkVersion,
-                            ArrayListSerializerSetup.class,
-                            ArrayListSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        SPEC_NAME,
+                        flinkVersion,
+                        ArrayListSerializerSetup.class,
+                        ArrayListSerializerVerifier.class));
         return testSpecifications;
     }
 

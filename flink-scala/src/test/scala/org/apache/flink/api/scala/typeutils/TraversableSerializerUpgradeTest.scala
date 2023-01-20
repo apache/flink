@@ -38,66 +38,65 @@ import scala.collection.{mutable, BitSet, LinearSeq}
 class TraversableSerializerUpgradeTest
   extends TypeSerializerUpgradeTestBase[TraversableOnce[_], TraversableOnce[_]] {
 
-  override def createTestSpecifications(): util.Collection[TestSpecification[_, _]] = {
+  override def createTestSpecifications(
+      migrationVersion: FlinkVersion): util.Collection[TestSpecification[_, _]] = {
     val testSpecifications =
       new util.ArrayList[TypeSerializerUpgradeTestBase.TestSpecification[_, _]]
-    TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS.forEach(
-      migrationVersion => {
-        testSpecifications.add(
-          new TestSpecification[BitSet, BitSet](
-            "traversable-serializer-bitset",
-            migrationVersion,
-            classOf[BitsetSerializerSetup],
-            classOf[BitsetSerializerVerifier]))
-        testSpecifications.add(
-          new TestSpecification[IndexedSeq[Int], IndexedSeq[Int]](
-            "traversable-serializer-indexedseq",
-            migrationVersion,
-            classOf[IndexedSeqSerializerSetup],
-            classOf[IndexedSeqSerializerVerifier]))
-        testSpecifications.add(
-          new TestSpecification[LinearSeq[Int], LinearSeq[Int]](
-            "traversable-serializer-linearseq",
-            migrationVersion,
-            classOf[LinearSeqSerializerSetup],
-            classOf[LinearSeqSerializerVerifier]))
-        testSpecifications.add(
-          new TestSpecification[Map[String, Int], Map[String, Int]](
-            "traversable-serializer-map",
-            migrationVersion,
-            classOf[MapSerializerSetup],
-            classOf[MapSerializerVerifier]))
-        testSpecifications.add(
-          new TestSpecification[mutable.MutableList[Int], mutable.MutableList[Int]](
-            "traversable-serializer-mutable-list",
-            migrationVersion,
-            classOf[MutableListSerializerSetup],
-            classOf[MutableListSerializerVerifier]))
-        testSpecifications.add(
-          new TestSpecification[Seq[Int], Seq[Int]](
-            "traversable-serializer-seq",
-            migrationVersion,
-            classOf[SeqSerializerSetup],
-            classOf[SeqSerializerVerifier]))
-        testSpecifications.add(
-          new TestSpecification[Set[Int], Set[Int]](
-            "traversable-serializer-set",
-            migrationVersion,
-            classOf[SetSerializerSetup],
-            classOf[SetSerializerVerifier]))
-        testSpecifications.add(
-          new TestSpecification[Seq[(Int, String)], Seq[(Int, String)]](
-            "traversable-serializer-with-case-class",
-            migrationVersion,
-            classOf[SeqWithCaseClassSetup],
-            classOf[SeqWithCaseClassVerifier]))
-        testSpecifications.add(
-          new TestSpecification[Seq[Pojo], Seq[Pojo]](
-            "traversable-serializer-with-pojo",
-            migrationVersion,
-            classOf[SeqWithPojoSetup],
-            classOf[SeqWithPojoVerifier]))
-      })
+    testSpecifications.add(
+      new TestSpecification[BitSet, BitSet](
+        "traversable-serializer-bitset",
+        migrationVersion,
+        classOf[BitsetSerializerSetup],
+        classOf[BitsetSerializerVerifier]))
+    testSpecifications.add(
+      new TestSpecification[IndexedSeq[Int], IndexedSeq[Int]](
+        "traversable-serializer-indexedseq",
+        migrationVersion,
+        classOf[IndexedSeqSerializerSetup],
+        classOf[IndexedSeqSerializerVerifier]))
+    testSpecifications.add(
+      new TestSpecification[LinearSeq[Int], LinearSeq[Int]](
+        "traversable-serializer-linearseq",
+        migrationVersion,
+        classOf[LinearSeqSerializerSetup],
+        classOf[LinearSeqSerializerVerifier]))
+    testSpecifications.add(
+      new TestSpecification[Map[String, Int], Map[String, Int]](
+        "traversable-serializer-map",
+        migrationVersion,
+        classOf[MapSerializerSetup],
+        classOf[MapSerializerVerifier]))
+    testSpecifications.add(
+      new TestSpecification[mutable.MutableList[Int], mutable.MutableList[Int]](
+        "traversable-serializer-mutable-list",
+        migrationVersion,
+        classOf[MutableListSerializerSetup],
+        classOf[MutableListSerializerVerifier]))
+    testSpecifications.add(
+      new TestSpecification[Seq[Int], Seq[Int]](
+        "traversable-serializer-seq",
+        migrationVersion,
+        classOf[SeqSerializerSetup],
+        classOf[SeqSerializerVerifier]))
+    testSpecifications.add(
+      new TestSpecification[Set[Int], Set[Int]](
+        "traversable-serializer-set",
+        migrationVersion,
+        classOf[SetSerializerSetup],
+        classOf[SetSerializerVerifier]))
+    testSpecifications.add(
+      new TestSpecification[Seq[(Int, String)], Seq[(Int, String)]](
+        "traversable-serializer-with-case-class",
+        migrationVersion,
+        classOf[SeqWithCaseClassSetup],
+        classOf[SeqWithCaseClassVerifier]))
+    testSpecifications.add(
+      new TestSpecification[Seq[Pojo], Seq[Pojo]](
+        "traversable-serializer-with-pojo",
+        migrationVersion,
+        classOf[SeqWithPojoSetup],
+        classOf[SeqWithPojoVerifier]))
+
     testSpecifications
   }
 }

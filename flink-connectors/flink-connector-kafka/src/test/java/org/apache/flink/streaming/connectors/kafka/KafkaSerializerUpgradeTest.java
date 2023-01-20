@@ -41,23 +41,22 @@ import static org.hamcrest.Matchers.is;
  */
 class KafkaSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "transaction-state-serializer",
-                            flinkVersion,
-                            TransactionStateSerializerSetup.class,
-                            TransactionStateSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "context-state-serializer",
-                            flinkVersion,
-                            ContextStateSerializerSetup.class,
-                            ContextStateSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "transaction-state-serializer",
+                        flinkVersion,
+                        TransactionStateSerializerSetup.class,
+                        TransactionStateSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "context-state-serializer",
+                        flinkVersion,
+                        ContextStateSerializerSetup.class,
+                        ContextStateSerializerVerifier.class));
         return testSpecifications;
     }
 
