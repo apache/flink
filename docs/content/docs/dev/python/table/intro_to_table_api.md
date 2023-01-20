@@ -337,7 +337,7 @@ revenue = orders \
     .select(col("name"), col("country"), col("revenue")) \
     .where(col("country") == 'FRANCE') \
     .group_by(col("name")) \
-    .select(col("name"), col("country").sum.alias('rev_sum'))
+    .select(col("name"), col("revenue").sum.alias('rev_sum'))
 
 revenue.execute().print()
 ```
