@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 
 import javax.annotation.Nullable;
 
@@ -98,6 +99,13 @@ public abstract class AbstractTwoInputTransformationTranslator<
 
         for (Integer inputId : context.getStreamNodeIds(secondInputTransformation)) {
             streamGraph.addEdge(inputId, transformationId, 2);
+        }
+
+        if (transformation instanceof PhysicalTransformation) {
+            streamGraph.setSupportsConcurrentExecutionAttempts(
+                    transformationId,
+                    ((PhysicalTransformation<OUT>) transformation)
+                            .isSupportsConcurrentExecutionAttempts());
         }
 
         return Collections.singleton(transformationId);

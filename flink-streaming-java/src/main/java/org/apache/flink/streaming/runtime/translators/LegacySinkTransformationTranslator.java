@@ -95,6 +95,9 @@ public class LegacySinkTransformationTranslator<IN>
         streamGraph.setParallelism(transformationId, parallelism);
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
+        streamGraph.setSupportsConcurrentExecutionAttempts(
+                transformationId, transformation.isSupportsConcurrentExecutionAttempts());
+
         for (Integer inputId : context.getStreamNodeIds(input)) {
             streamGraph.addEdge(inputId, transformationId, 0);
         }

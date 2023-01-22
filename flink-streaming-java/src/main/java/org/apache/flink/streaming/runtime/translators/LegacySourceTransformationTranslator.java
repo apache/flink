@@ -86,6 +86,9 @@ public class LegacySourceTransformationTranslator<OUT>
         streamGraph.setParallelism(transformationId, parallelism);
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
+        streamGraph.setSupportsConcurrentExecutionAttempts(
+                transformationId, transformation.isSupportsConcurrentExecutionAttempts());
+
         return Collections.singleton(transformationId);
     }
 }
