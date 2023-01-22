@@ -94,6 +94,8 @@ class RangeBoundComparatorCodeGenerator(
       if (boundCompareZero >= 0) "return -1;" else "return 1;"
     }
 
+    val (internalComparatorCode, internalComparatorMemberCode) =
+      getComparatorCode(inputExpr.resultTerm, currentExpr.resultTerm)
     val comparatorCode =
       j"""
         ${ctx.reuseLocalVariableCode()}
@@ -104,7 +106,7 @@ class RangeBoundComparatorCodeGenerator(
         } else if (${inputExpr.nullTerm} || ${currentExpr.nullTerm}) {
            $oneIsNull
         } else {
-           ${getComparatorCode(inputExpr.resultTerm, currentExpr.resultTerm)}
+           $internalComparatorCode
         }
      """.stripMargin
 
@@ -114,6 +116,7 @@ class RangeBoundComparatorCodeGenerator(
 
         private final Object[] references;
         ${ctx.reuseMemberCode()}
+        $internalComparatorMemberCode
 
         public $className(Object[] references) {
           this.references = references;
@@ -131,7 +134,17 @@ class RangeBoundComparatorCodeGenerator(
     new GeneratedRecordComparator(className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
-  private def getComparatorCode(inputValue: String, currentValue: String): String = {
+  /**
+   * Generate comparator code to determine whether
+   * input value and current value in one window or not.
+   *
+   * @param   inputValue input value's result term
+   * @param   currentValue current value's result term
+   * @return  the first is main comparator code,
+   *          the second is generated member code which should used by caller to
+   *            place in RangeBoundComparator class
+   */
+  private def getComparatorCode(inputValue: String, currentValue: String): (String, String) = {
     val (realBoundValue, realKeyType) = keyType.getTypeRoot match {
       case LogicalTypeRoot.DATE =>
         // The constant about time is expressed based millisecond unit in calcite, but
@@ -166,8 +179,7 @@ class RangeBoundComparatorCodeGenerator(
 
     val comExpr = exprCodeGenerator.generateExpression(comCall)
 
-    j"""
-       ${ctx.reuseMemberCode()}
+    (j"""
        ${ctx.reuseLocalVariableCode()}
        ${ctx.reuseInputUnboxingCode()}
        ${comExpr.code}
@@ -176,6 +188,6 @@ class RangeBoundComparatorCodeGenerator(
        } else {
          return -1;
        }
-     """.stripMargin
+     """.stripMargin, ctx.reuseMemberCode())
   }
 }
