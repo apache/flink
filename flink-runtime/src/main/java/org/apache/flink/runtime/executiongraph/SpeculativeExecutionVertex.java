@@ -72,14 +72,6 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         this.nextInputSplitIndexToConsumeByAttempts = new HashMap<>();
     }
 
-    public boolean containsSources() {
-        return getJobVertex().getJobVertex().containsSources();
-    }
-
-    public boolean containsSinks() {
-        return getJobVertex().getJobVertex().containsSinks();
-    }
-
     public boolean isSupportsConcurrentExecutionAttempts() {
         return getJobVertex().getJobVertex().isSupportsConcurrentExecutionAttempts();
     }
