@@ -128,4 +128,9 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
     public final void setChainingStrategy(ChainingStrategy strategy) {
         operatorFactory.setChainingStrategy(strategy);
     }
+
+    @Override
+    public boolean isSupportsConcurrentExecutionAttempts() {
+        return false;
+    }
 }
