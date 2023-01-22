@@ -155,6 +155,12 @@ public class JobVertex implements java.io.Serializable {
     /** Indicates whether this job vertex contains sink operators. */
     private boolean containsSinkOperators = false;
 
+    /**
+     * Indicates whether this job vertex supports multiple attempts of the same subtask executing at
+     * the same time.
+     */
+    private boolean supportsConcurrentExecutionAttempts = true;
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -551,6 +557,15 @@ public class JobVertex implements java.io.Serializable {
 
     public boolean containsSinks() {
         return containsSinkOperators;
+    }
+
+    public void setSupportsConcurrentExecutionAttempts(
+            boolean supportsConcurrentExecutionAttempts) {
+        this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
+    }
+
+    public boolean isSupportsConcurrentExecutionAttempts() {
+        return supportsConcurrentExecutionAttempts;
     }
 
     // --------------------------------------------------------------------------------------------

@@ -80,6 +80,10 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         return getJobVertex().getJobVertex().containsSinks();
     }
 
+    public boolean isSupportsConcurrentExecutionAttempts() {
+        return getJobVertex().getJobVertex().isSupportsConcurrentExecutionAttempts();
+    }
+
     public Execution createNewSpeculativeExecution(final long timestamp) {
         final Execution newExecution = createNewExecution(timestamp);
         getExecutionGraphAccessor().registerExecution(newExecution);
