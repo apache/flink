@@ -314,6 +314,11 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
 
         @Override
+        public int getAttemptNumber() {
+            return runtimeContext.getAttemptNumber();
+        }
+
+        @Override
         public MailboxExecutor getMailboxExecutor() {
             return mailboxExecutor;
         }
