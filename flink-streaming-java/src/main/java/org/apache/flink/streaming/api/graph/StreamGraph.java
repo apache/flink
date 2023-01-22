@@ -1066,4 +1066,12 @@ public class StreamGraph implements Pipeline {
     public List<JobStatusHook> getJobStatusHooks() {
         return this.jobStatusHooks;
     }
+
+    public void setSupportsConcurrentExecutionAttempts(
+            Integer vertexId, boolean supportsConcurrentExecutionAttempts) {
+        final StreamNode streamNode = getStreamNode(vertexId);
+        if (streamNode != null) {
+            streamNode.setSupportsConcurrentExecutionAttempts(supportsConcurrentExecutionAttempts);
+        }
+    }
 }

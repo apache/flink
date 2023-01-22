@@ -72,6 +72,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -132,6 +133,7 @@ import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.ar
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.stream;
 
 /** Tests for {@link StreamingJobGraphGenerator}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -1731,6 +1733,57 @@ class StreamingJobGraphGeneratorTest {
         assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
                 .hasRootCauseInstanceOf(IOException.class)
                 .hasRootCauseMessage("This provider is not serializable.");
+    }
+
+    @Test
+    void testSupportConcurrentExecutionAttempts() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        // source -> (map1 -> map2) -> sink
+        source.rebalance()
+                .map(v -> v)
+                .name("map1")
+                .map(v -> v)
+                .name("map2")
+                .rebalance()
+                .sinkTo(new PrintSink<>())
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final List<StreamNode> streamNodes =
+                streamGraph.getStreamNodes().stream()
+                        .sorted(Comparator.comparingInt(StreamNode::getId))
+                        .collect(Collectors.toList());
+
+        final StreamNode sourceNode = streamNodes.get(0);
+        final StreamNode map1Node = streamNodes.get(1);
+        final StreamNode map2Node = streamNodes.get(2);
+        final StreamNode sinkNode = streamNodes.get(3);
+        streamGraph.setSupportsConcurrentExecutionAttempts(sourceNode.getId(), true);
+        // map1 and map2 are chained
+        // map1 supports concurrent execution attempt however map2 does not
+        streamGraph.setSupportsConcurrentExecutionAttempts(map1Node.getId(), true);
+        streamGraph.setSupportsConcurrentExecutionAttempts(map2Node.getId(), false);
+        streamGraph.setSupportsConcurrentExecutionAttempts(sinkNode.getId(), false);
+
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(3);
+        for (JobVertex jobVertex : jobGraph.getVertices()) {
+            if (jobVertex.getName().contains("source")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+            } else if (jobVertex.getName().contains("map")) {
+                // chained job vertex does not support concurrent execution attempt if any operator
+                // in chain does not support it
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+            } else if (jobVertex.getName().contains("sink")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+            } else {
+                Assertions.fail("Unexpected job vertex " + jobVertex.getName());
+            }
+        }
     }
 
     private static class SerializationTestOperatorFactory
