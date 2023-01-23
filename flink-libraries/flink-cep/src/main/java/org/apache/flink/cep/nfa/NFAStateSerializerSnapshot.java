@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.core.memory.DataInputView;
@@ -71,8 +72,12 @@ public class NFAStateSerializerSnapshot
 
     @Override
     protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-            NFAStateSerializer newSerializer) {
-        if (supportsPreviousTimestamp != newSerializer.isSupportsPreviousTimestamp()) {
+            TypeSerializerSnapshot<NFAState> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof NFAStateSerializerSnapshot)) {
+            return OuterSchemaCompatibility.INCOMPATIBLE;
+        }
+        if (supportsPreviousTimestamp
+                != ((NFAStateSerializerSnapshot) oldSerializerSnapshot).supportsPreviousTimestamp) {
             return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
         }
 
