@@ -147,6 +147,8 @@ public class IPv6HostnamesITCase extends TestLogger {
                             log.info("Testing whether Akka can use " + addr);
                             final RpcService rpcService =
                                     RpcSystem.load()
+                                            // this port is only used for advertising (==no port
+                                            // conflicts) since we explicitly provide a bind port
                                             .remoteServiceBuilder(new Configuration(), null, "8081")
                                             .withBindAddress(addr.getHostAddress())
                                             .withBindPort(0)
