@@ -19,12 +19,16 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Point-in-time configuration of a {@link GenericArraySerializer}.
@@ -77,9 +81,34 @@ public final class GenericArraySerializerSnapshot<C>
     }
 
     @Override
+    public TypeSerializerSchemaCompatibility<C[]> resolveSchemaCompatibility(
+            TypeSerializerSnapshot<C[]> oldSerializerSnapshot) {
+        if (oldSerializerSnapshot instanceof GenericArraySerializerConfigSnapshot) {
+            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+                    oldSerializerSnapshot,
+                    this,
+                    Objects.requireNonNull(
+                            ((GenericArraySerializerConfigSnapshot<C>) oldSerializerSnapshot)
+                                    .getNestedSerializerSnapshots()));
+        }
+        return super.resolveSchemaCompatibility(oldSerializerSnapshot);
+    }
+
+    @Override
     protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-            GenericArraySerializer<C> newSerializer) {
-        return (this.componentClass == newSerializer.getComponentClass())
+            TypeSerializerSnapshot<C[]> oldSerializerSnapshot) {
+        Class<C> componentClass;
+        if (oldSerializerSnapshot instanceof GenericArraySerializerSnapshot) {
+            componentClass =
+                    ((GenericArraySerializerSnapshot<C>) oldSerializerSnapshot).componentClass;
+        } else if (oldSerializerSnapshot instanceof GenericArraySerializerConfigSnapshot) {
+            componentClass =
+                    ((GenericArraySerializerConfigSnapshot<C>) oldSerializerSnapshot)
+                            .getComponentClass();
+        } else {
+            return OuterSchemaCompatibility.INCOMPATIBLE;
+        }
+        return (this.componentClass == componentClass)
                 ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
                 : OuterSchemaCompatibility.INCOMPATIBLE;
     }
