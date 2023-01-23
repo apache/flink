@@ -130,12 +130,13 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
     @Override
     public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            TypeSerializer<T> newSerializer) {
-        if (!(newSerializer instanceof AvroSerializer)) {
+            TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof AvroSerializerSnapshot)) {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
-        AvroSerializer<?> newAvroSerializer = (AvroSerializer<?>) newSerializer;
-        return resolveSchemaCompatibility(schema, newAvroSerializer.getAvroSchema());
+        AvroSerializerSnapshot<?> oldAvroSerializerSnapshot =
+                (AvroSerializerSnapshot<?>) oldSerializerSnapshot;
+        return resolveSchemaCompatibility(oldAvroSerializerSnapshot.schema, schema);
     }
 
     @Override
