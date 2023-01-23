@@ -250,22 +250,6 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 checkNotNull(kryoRegistrations, "Kryo registrations cannot be null.");
     }
 
-    Class<T> getType() {
-        return type;
-    }
-
-    LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
-        return defaultSerializers;
-    }
-
-    LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> getDefaultKryoSerializerClasses() {
-        return defaultSerializerClasses;
-    }
-
-    LinkedHashMap<String, KryoRegistration> getKryoRegistrations() {
-        return kryoRegistrations;
-    }
-
     // ------------------------------------------------------------------------
 
     @Override

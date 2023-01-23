@@ -106,7 +106,10 @@ public class KryoSerializerSnapshotTest {
                 new KryoSerializer<>(Animal.class, new ExecutionConfig());
 
         assertThat(
-                restoredSnapshot.resolveSchemaCompatibility(currentSerializer), isIncompatible());
+                currentSerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(restoredSnapshot),
+                isIncompatible());
     }
 
     // -------------------------------------------------------------------------------------------------------
@@ -156,6 +159,8 @@ public class KryoSerializerSnapshotTest {
                 previousSerializer.snapshotConfiguration();
 
         TypeSerializer<Animal> currentSerializer = new KryoSerializer<>(Animal.class, current);
-        return previousSnapshot.resolveSchemaCompatibility(currentSerializer);
+        return currentSerializer
+                .snapshotConfiguration()
+                .resolveSchemaCompatibility(previousSnapshot);
     }
 }
