@@ -358,7 +358,9 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
 
         @SuppressWarnings("unchecked")
         TypeSerializerSchemaCompatibility<SubTestUserClassA> compatResult =
-                pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer2);
+                pojoSerializer2
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(pojoSerializerConfigSnapshot);
         assertThat(compatResult.isIncompatible()).isTrue();
     }
 
@@ -406,7 +408,9 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
 
         @SuppressWarnings("unchecked")
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
-                pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
+                pojoSerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(pojoSerializerConfigSnapshot);
         assertThat(compatResult.isCompatibleWithReconfiguredSerializer()).isTrue();
         assertThat(compatResult.getReconfiguredSerializer()).isInstanceOf(PojoSerializer.class);
 
@@ -470,7 +474,9 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
         // repopulated
         @SuppressWarnings("unchecked")
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
-                pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
+                pojoSerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(pojoSerializerConfigSnapshot);
         assertThat(compatResult.isCompatibleWithReconfiguredSerializer()).isTrue();
         assertThat(compatResult.getReconfiguredSerializer()).isInstanceOf(PojoSerializer.class);
 
@@ -542,7 +548,9 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
         // 2) registrations also contain the now registered subclasses
         @SuppressWarnings("unchecked")
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
-                pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
+                pojoSerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(pojoSerializerConfigSnapshot);
         assertThat(compatResult.isCompatibleWithReconfiguredSerializer()).isTrue();
         assertThat(compatResult.getReconfiguredSerializer()).isInstanceOf(PojoSerializer.class);
 

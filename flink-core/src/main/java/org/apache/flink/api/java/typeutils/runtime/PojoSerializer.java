@@ -664,7 +664,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
                 registeredSerializers,
                 fields,
                 fieldSerializers,
-                subclassSerializerCache);
+                subclassSerializerCache,
+                executionConfig);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -863,7 +864,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
             TypeSerializer<?>[] registeredSubclassSerializers,
             Field[] fields,
             TypeSerializer<?>[] fieldSerializers,
-            Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
+            Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache,
+            ExecutionConfig executionConfig) {
 
         final LinkedHashMap<Class<?>, TypeSerializer<?>> subclassRegistry =
                 CollectionUtil.newLinkedHashMapWithExpectedSize(registeredSubclassesToTags.size());
@@ -877,6 +879,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
                 fields,
                 fieldSerializers,
                 subclassRegistry,
-                nonRegisteredSubclassSerializerCache);
+                nonRegisteredSubclassSerializerCache,
+                executionConfig);
     }
 }
