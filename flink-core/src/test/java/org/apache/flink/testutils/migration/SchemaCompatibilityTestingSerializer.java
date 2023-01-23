@@ -40,8 +40,8 @@ import java.util.function.Function;
  *
  * <p>To start from a snapshot, the class {@link SchemaCompatibilityTestingSnapshot} can be
  * configured to return a predefined {@link TypeSerializerSchemaCompatibility} result when {@link
- * TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)} would be called, the following
- * static factory methods return a pre-configured snapshot class:
+ * TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot)} would be called, the
+ * following static factory methods return a pre-configured snapshot class:
  *
  * <ul>
  *   <li>{@code thatIsCompatibleWithNextSerializer}.
@@ -79,7 +79,8 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
 
     private static final long serialVersionUID = 2588814752302505240L;
 
-    private final Function<TypeSerializer<Integer>, TypeSerializerSchemaCompatibility<Integer>>
+    private final Function<
+                    TypeSerializerSnapshot<Integer>, TypeSerializerSchemaCompatibility<Integer>>
             resolver;
 
     @Nullable private final String tokenForEqualityChecks;
@@ -94,7 +95,7 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
 
     public SchemaCompatibilityTestingSerializer(
             @Nullable String tokenForEqualityChecks,
-            Function<TypeSerializer<Integer>, TypeSerializerSchemaCompatibility<Integer>>
+            Function<TypeSerializerSnapshot<Integer>, TypeSerializerSchemaCompatibility<Integer>>
                     resolver) {
         this.resolver = resolver;
         this.tokenForEqualityChecks = tokenForEqualityChecks;
@@ -186,7 +187,7 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
     // -----------------------------------------------------------------------------------------------------------
 
     private static final Function<
-                    TypeSerializer<Integer>, TypeSerializerSchemaCompatibility<Integer>>
+                    TypeSerializerSnapshot<Integer>, TypeSerializerSchemaCompatibility<Integer>>
             ALWAYS_COMPATIBLE = unused -> TypeSerializerSchemaCompatibility.compatibleAsIs();
 
     // -----------------------------------------------------------------------------------------------------------
@@ -198,11 +199,11 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
     public static final class SchemaCompatibilityTestingSnapshot
             implements TypeSerializerSnapshot<Integer> {
 
-        public static SchemaCompatibilityTestingSnapshot thatIsCompatibleWithNextSerializer() {
-            return thatIsCompatibleWithNextSerializer(null);
+        public static SchemaCompatibilityTestingSnapshot thatIsCompatibleWithLastSerializer() {
+            return thatIsCompatibleWithLastSerializer(null);
         }
 
-        public static SchemaCompatibilityTestingSnapshot thatIsCompatibleWithNextSerializer(
+        public static SchemaCompatibilityTestingSnapshot thatIsCompatibleWithLastSerializer(
                 String tokenForEqualityChecks) {
             return new SchemaCompatibilityTestingSnapshot(
                     tokenForEqualityChecks,
@@ -210,12 +211,12 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
         }
 
         public static SchemaCompatibilityTestingSnapshot
-                thatIsCompatibleWithNextSerializerAfterReconfiguration() {
-            return thatIsCompatibleWithNextSerializerAfterReconfiguration(null);
+                thatIsCompatibleWithLastSerializerAfterReconfiguration() {
+            return thatIsCompatibleWithLastSerializerAfterReconfiguration(null);
         }
 
         public static SchemaCompatibilityTestingSnapshot
-                thatIsCompatibleWithNextSerializerAfterReconfiguration(
+                thatIsCompatibleWithLastSerializerAfterReconfiguration(
                         String tokenForEqualityChecks) {
             SchemaCompatibilityTestingSerializer reconfiguredSerializer =
                     new SchemaCompatibilityTestingSerializer(
@@ -228,22 +229,22 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
         }
 
         public static SchemaCompatibilityTestingSnapshot
-                thatIsCompatibleWithNextSerializerAfterMigration() {
-            return thatIsCompatibleWithNextSerializerAfterMigration(null);
+                thatIsCompatibleWithLastSerializerAfterMigration() {
+            return thatIsCompatibleWithLastSerializerAfterMigration(null);
         }
 
         public static SchemaCompatibilityTestingSnapshot
-                thatIsCompatibleWithNextSerializerAfterMigration(String tokenForEqualityChecks) {
+                thatIsCompatibleWithLastSerializerAfterMigration(String tokenForEqualityChecks) {
             return new SchemaCompatibilityTestingSnapshot(
                     tokenForEqualityChecks,
                     unused -> TypeSerializerSchemaCompatibility.compatibleAfterMigration());
         }
 
-        public static SchemaCompatibilityTestingSnapshot thatIsIncompatibleWithTheNextSerializer() {
-            return thatIsIncompatibleWithTheNextSerializer(null);
+        public static SchemaCompatibilityTestingSnapshot thatIsIncompatibleWithTheLastSerializer() {
+            return thatIsIncompatibleWithTheLastSerializer(null);
         }
 
-        public static SchemaCompatibilityTestingSnapshot thatIsIncompatibleWithTheNextSerializer(
+        public static SchemaCompatibilityTestingSnapshot thatIsIncompatibleWithTheLastSerializer(
                 String tokenForEqualityChecks) {
             return new SchemaCompatibilityTestingSnapshot(
                     tokenForEqualityChecks,
@@ -251,12 +252,15 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
         }
 
         @Nullable private final String tokenForEqualityChecks;
-        private final Function<TypeSerializer<Integer>, TypeSerializerSchemaCompatibility<Integer>>
+        private final Function<
+                        TypeSerializerSnapshot<Integer>, TypeSerializerSchemaCompatibility<Integer>>
                 resolver;
 
         SchemaCompatibilityTestingSnapshot(
                 @Nullable String tokenForEqualityChecks,
-                Function<TypeSerializer<Integer>, TypeSerializerSchemaCompatibility<Integer>>
+                Function<
+                                TypeSerializerSnapshot<Integer>,
+                                TypeSerializerSchemaCompatibility<Integer>>
                         resolver) {
             this.tokenForEqualityChecks = tokenForEqualityChecks;
             this.resolver = resolver;
@@ -264,18 +268,18 @@ public final class SchemaCompatibilityTestingSerializer extends TypeSerializer<I
 
         @Override
         public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
-                TypeSerializer<Integer> newSerializer) {
-            if (!(newSerializer instanceof SchemaCompatibilityTestingSerializer)) {
+                TypeSerializerSnapshot<Integer> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof SchemaCompatibilityTestingSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
-            SchemaCompatibilityTestingSerializer schemaCompatibilityTestingSerializer =
-                    (SchemaCompatibilityTestingSerializer) newSerializer;
+            SchemaCompatibilityTestingSnapshot schemaCompatibilityTestingSnapshot =
+                    (SchemaCompatibilityTestingSnapshot) oldSerializerSnapshot;
             if (!(Objects.equals(
-                    schemaCompatibilityTestingSerializer.tokenForEqualityChecks,
+                    schemaCompatibilityTestingSnapshot.tokenForEqualityChecks,
                     tokenForEqualityChecks))) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
-            return resolver.apply(newSerializer);
+            return resolver.apply(oldSerializerSnapshot);
         }
 
         @Override
