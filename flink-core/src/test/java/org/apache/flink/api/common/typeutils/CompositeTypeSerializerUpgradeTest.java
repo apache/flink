@@ -20,16 +20,19 @@ package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
 import org.apache.flink.types.Either;
 
 import org.hamcrest.Matcher;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link GenericArraySerializer}. */
@@ -142,5 +145,18 @@ class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
                 FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
+    }
+
+    @Test
+    public void testUpgradeFromDeprecatedSnapshot() {
+        GenericArraySerializer<String> genericArraySerializer =
+                new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE);
+        GenericArraySerializerConfigSnapshot<String> oldSnapshot =
+                new GenericArraySerializerConfigSnapshot<>(genericArraySerializer);
+        TypeSerializerSchemaCompatibility<String[]> schemaCompatibility =
+                genericArraySerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(oldSnapshot);
+        assertThat(schemaCompatibility.isCompatibleAsIs()).isTrue();
     }
 }
