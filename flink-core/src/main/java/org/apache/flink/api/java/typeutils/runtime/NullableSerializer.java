@@ -328,8 +328,13 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
         @Override
         protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-                NullableSerializer<T> newSerializer) {
-            return (nullPaddingLength == newSerializer.nullPaddingLength())
+                TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof NullableSerializerSnapshot)) {
+                return OuterSchemaCompatibility.INCOMPATIBLE;
+            }
+            NullableSerializerSnapshot<T> oldNullableSerializerSnapshot =
+                    (NullableSerializerSnapshot<T>) oldSerializerSnapshot;
+            return (nullPaddingLength == oldNullableSerializerSnapshot.nullPaddingLength)
                     ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
                     : OuterSchemaCompatibility.INCOMPATIBLE;
         }
