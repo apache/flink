@@ -36,11 +36,11 @@ import java.util.Collections;
 import java.util.List;
 
 /** Utils to build a {@link DefaultContext}. */
-public class LocalContextUtils {
+public class DefaultContextUtils {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LocalContextUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultContextUtils.class);
 
-    public static DefaultContext buildDefaultContext(CliOptions options) {
+    public static DefaultContext buildDefaultContext(CliOptions.EmbeddedCliOptions options) {
         final List<URL> jars;
         if (options.getJars() != null) {
             jars = options.getJars();
@@ -69,6 +69,15 @@ public class LocalContextUtils {
         return new DefaultContext(configuration, dependencies);
     }
 
+    public static DefaultContext buildDefaultContext(CliOptions.GatewayCliOptions options) {
+        // 1. find the configuration directory
+        String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
+
+        // 2. load the global configuration
+        Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
+
+        return new DefaultContext(configuration, Collections.emptyList());
+    }
     // --------------------------------------------------------------------------------------------
 
     private static List<URL> discoverDependencies(List<URL> jars, List<URL> libraries) {
