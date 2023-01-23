@@ -83,6 +83,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -101,6 +102,8 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -129,7 +132,15 @@ class ExecutorImplITCase {
     @RegisterExtension
     @Order(3)
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension(MINI_CLUSTER_RESOURCE::getClientConfiguration);
+            new SqlGatewayServiceExtension(
+                    () -> {
+                        Configuration configuration =
+                                new Configuration(MINI_CLUSTER_RESOURCE.getClientConfiguration());
+                        configuration.set(SQL_GATEWAY_SESSION_IDLE_TIMEOUT, Duration.ofSeconds(3));
+                        configuration.set(
+                                SQL_GATEWAY_SESSION_CHECK_INTERVAL, Duration.ofSeconds(1));
+                        return configuration;
+                    });
 
     @RegisterExtension
     @Order(4)
@@ -498,6 +509,19 @@ class ExecutorImplITCase {
                 });
     }
 
+    @Test
+    void testHeartbeat() throws Exception {
+        try (ExecutorImpl executor = (ExecutorImpl) createRestServiceExecutor()) {
+            executor.openSession("test-heartbeat");
+            Thread.sleep(5_000);
+            assertThat(
+                            SQL_GATEWAY_SERVICE_EXTENSION
+                                    .getSessionManager()
+                                    .isSessionAlive(executor.getSessionHandle()))
+                    .isTrue();
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper method
     // --------------------------------------------------------------------------------------------
@@ -555,7 +579,8 @@ class ExecutorImplITCase {
             List<URL> dependencies, Configuration configuration, InetSocketAddress address) {
         configuration.addAll(clusterClient.getFlinkConfiguration());
         DefaultContext defaultContext = new DefaultContext(configuration, dependencies);
-        return new ExecutorImpl(defaultContext, address);
+        // frequently trigger heartbeat
+        return new ExecutorImpl(defaultContext, address, 1_000);
     }
 
     private void initSession(Executor executor, Map<String, String> replaceVars) {
@@ -759,7 +784,7 @@ class ExecutorImplITCase {
                 long token,
                 int maxRows) {
             try {
-                if (blockPhase == BlockPhase.EXECUTION) {
+                if (token == 0 && blockPhase == BlockPhase.EXECUTION) {
                     isBlocking = true;
                     latch.await();
                 } else if (token > 0 && blockPhase == BlockPhase.FETCHING) {
@@ -775,15 +800,9 @@ class ExecutorImplITCase {
                         true,
                         JobID.generate(),
                         ResultKind.SUCCESS_WITH_CONTENT);
-
             } catch (Exception e) {
                 throw new SqlGatewayException(e);
             }
-        }
-
-        public void reset() {
-            this.isClosed = false;
-            this.isBlocking = false;
         }
     }
 

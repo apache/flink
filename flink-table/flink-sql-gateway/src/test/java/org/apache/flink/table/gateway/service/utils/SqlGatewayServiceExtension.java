@@ -35,7 +35,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -82,7 +82,8 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             CommonTestUtils.setEnv(map);
 
             sessionManager =
-                    new SessionManager(DefaultContext.load(new Configuration(), new ArrayList<>()));
+                    new SessionManager(
+                            DefaultContext.load(new Configuration(), Collections.emptyList()));
         } finally {
             CommonTestUtils.setEnv(originalEnv);
         }

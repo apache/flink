@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.rest.RestClient;
@@ -88,21 +89,31 @@ import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHa
 public class ExecutorImpl implements Executor {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExecutorImpl.class);
-    private static final long HEARTBEAT_INTERVAL_MIN = 3;
+    private static final long HEARTBEAT_INTERVAL_MILLISECONDS = 60_000L;
 
     private final DefaultContext defaultContext;
     private final InetSocketAddress gatewayAddress;
+    private final long heartbeatInterval;
     private final ExecutorService service;
     private final ScheduledExecutorService heartbeatScheduler;
 
     private RestClient restClient;
     private SessionHandle sessionHandle;
 
-    public ExecutorImpl(DefaultContext defaultContext, InetSocketAddress gatewayAddress) {
+    @VisibleForTesting
+    public ExecutorImpl(
+            DefaultContext defaultContext,
+            InetSocketAddress gatewayAddress,
+            long heartbeatInterval) {
         this.defaultContext = defaultContext;
         this.gatewayAddress = gatewayAddress;
+        this.heartbeatInterval = heartbeatInterval;
         this.service = Executors.newCachedThreadPool();
         this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    public ExecutorImpl(DefaultContext defaultContext, InetSocketAddress gatewayAddress) {
+        this(defaultContext, gatewayAddress, HEARTBEAT_INTERVAL_MILLISECONDS);
     }
 
     public void openSession(@Nullable String sessionId) {
@@ -125,15 +136,16 @@ public class ExecutorImpl implements Executor {
                             .get();
             sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
             // register heartbeat service
-            heartbeatScheduler.schedule(
+            heartbeatScheduler.scheduleAtFixedRate(
                     () ->
                             getResponse(
                                     sendRequest(
                                             TriggerSessionHeartbeatHeaders.getInstance(),
                                             new SessionMessageParameters(sessionHandle),
                                             EmptyRequestBody.getInstance())),
-                    HEARTBEAT_INTERVAL_MIN,
-                    TimeUnit.MINUTES);
+                    heartbeatInterval,
+                    heartbeatInterval,
+                    TimeUnit.MILLISECONDS);
             // register dependencies
             defaultContext
                     .getDependencies()
@@ -259,6 +271,11 @@ public class ExecutorImpl implements Executor {
         closeSession();
         service.shutdownNow();
         heartbeatScheduler.shutdownNow();
+    }
+
+    @VisibleForTesting
+    public SessionHandle getSessionHandle() {
+        return sessionHandle;
     }
 
     // --------------------------------------------------------------------------------------------
