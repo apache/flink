@@ -96,10 +96,14 @@ public class CompositeTypeSerializerSnapshotTest {
         TypeSerializer<?>[] reconfiguredNestedSerializers =
                 reconfiguredSerializer.getNestedSerializers();
         // nested serializer at index 1 should strictly be a ReconfiguredNestedSerializer
-        Assert.assertTrue(reconfiguredNestedSerializers[0].getClass() == NestedSerializer.class);
-        Assert.assertTrue(
-                reconfiguredNestedSerializers[1].getClass() == ReconfiguredNestedSerializer.class);
-        Assert.assertTrue(reconfiguredNestedSerializers[2].getClass() == NestedSerializer.class);
+        // nested serializer at index 0 and 2 is RestoredNestedSerializer after checking
+        // compatibility
+        Assert.assertSame(
+                reconfiguredNestedSerializers[0].getClass(), RestoredNestedSerializer.class);
+        Assert.assertSame(
+                reconfiguredNestedSerializers[1].getClass(), ReconfiguredNestedSerializer.class);
+        Assert.assertSame(
+                reconfiguredNestedSerializers[2].getClass(), RestoredNestedSerializer.class);
     }
 
     @Test
@@ -197,7 +201,9 @@ public class CompositeTypeSerializerSnapshotTest {
         TestCompositeTypeSerializer newTestSerializer =
                 new TestCompositeTypeSerializer(
                         mockOuterSchemaCompatibilityResult, newNestedSerializer);
-        return testSerializerSnapshot.resolveSchemaCompatibility(newTestSerializer);
+        return newTestSerializer
+                .snapshotConfiguration()
+                .resolveSchemaCompatibility(testSerializerSnapshot);
     }
 
     // ------------------------------------------------------------------------------------------------
@@ -397,8 +403,8 @@ public class CompositeTypeSerializerSnapshotTest {
 
         @Override
         protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-                TestCompositeTypeSerializer newSerializer) {
-            return newSerializer.getMockOuterSchemaCompatibility();
+                TypeSerializerSnapshot<String> oldSerializerSnapshot) {
+            return mockOuterSchemaCompatibility;
         }
 
         @Override
@@ -525,11 +531,8 @@ public class CompositeTypeSerializerSnapshotTest {
 
         @Override
         public TypeSerializerSchemaCompatibility<String> resolveSchemaCompatibility(
-                TypeSerializer<String> newSerializer) {
-            // checks the exact class instead of using instanceof;
-            // this ensures that we get a new serializer, and not a ReconfiguredNestedSerializer or
-            // RestoredNestedSerializer
-            if (newSerializer.getClass() == NestedSerializer.class) {
+                TypeSerializerSnapshot<String> oldSerializerSnapshot) {
+            if (oldSerializerSnapshot.getClass() == NestedSerializerSnapshot.class) {
                 switch (targetCompatibility) {
                     case COMPATIBLE_AS_IS:
                         return TypeSerializerSchemaCompatibility.compatibleAsIs();
@@ -547,7 +550,8 @@ public class CompositeTypeSerializerSnapshotTest {
             }
 
             throw new IllegalArgumentException(
-                    "Expected the new serializer to be of class " + NestedSerializer.class);
+                    "Expected the old serializer snapshot to be of class "
+                            + NestedSerializerSnapshot.class);
         }
 
         @Override
