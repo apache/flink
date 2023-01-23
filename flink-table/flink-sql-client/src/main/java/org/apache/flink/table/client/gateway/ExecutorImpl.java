@@ -157,6 +157,9 @@ public class ExecutorImpl implements Executor {
     }
 
     public void closeSession() throws SqlExecutionException {
+        if (sessionHandle == null) {
+            return;
+        }
         try {
             CompletableFuture<CloseSessionResponseBody> response =
                     sendRequest(
@@ -173,6 +176,8 @@ public class ExecutorImpl implements Executor {
                             "Unexpected error occurs when closing session %s.", sessionHandle),
                     e);
             // ignore any throwable to keep the cleanup running
+        } finally {
+            sessionHandle = null;
         }
     }
 
