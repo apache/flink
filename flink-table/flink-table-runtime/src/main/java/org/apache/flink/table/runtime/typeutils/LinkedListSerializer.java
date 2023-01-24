@@ -258,8 +258,14 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
 
         @Override
         protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-                LinkedListSerializer<T> newSerializer) {
-            if (hasNullMask != newSerializer.hasNullMask) {
+                TypeSerializerSnapshot<LinkedList<T>> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof LinkedListSerializerSnapshot)) {
+                return OuterSchemaCompatibility.INCOMPATIBLE;
+            }
+
+            LinkedListSerializerSnapshot<T> oldLinkedListSerializerSnapshot =
+                    (LinkedListSerializerSnapshot<T>) oldSerializerSnapshot;
+            if (hasNullMask != oldLinkedListSerializerSnapshot.hasNullMask) {
                 return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
             }
             return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
