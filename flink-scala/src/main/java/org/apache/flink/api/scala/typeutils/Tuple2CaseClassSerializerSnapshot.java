@@ -91,8 +91,14 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
     @Override
     protected CompositeTypeSerializerSnapshot.OuterSchemaCompatibility
             resolveOuterSchemaCompatibility(
-                    ScalaCaseClassSerializer<Tuple2<T1, T2>> newSerializer) {
-        return (Objects.equals(type, newSerializer.getTupleClass()))
+                    TypeSerializerSnapshot<Tuple2<T1, T2>> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof Tuple2CaseClassSerializerSnapshot)) {
+            return OuterSchemaCompatibility.INCOMPATIBLE;
+        }
+
+        Tuple2CaseClassSerializerSnapshot<T1, T2> oldSnapshot =
+                (Tuple2CaseClassSerializerSnapshot<T1, T2>) oldSerializerSnapshot;
+        return (Objects.equals(type, oldSnapshot.type))
                 ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
                 : OuterSchemaCompatibility.INCOMPATIBLE;
     }
