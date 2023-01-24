@@ -1224,8 +1224,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                 testKeyedValueStateUpgrade(
                                         initialAccessDescriptor, newAccessDescriptorAfterRestore))
                 .satisfiesAnyOf(
-                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
-                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(IllegalStateException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(IllegalStateException.class));
     }
 
     @TestTemplate
@@ -1245,8 +1245,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                 testKeyedValueStateUpgrade(
                                         initialAccessDescriptor, newAccessDescriptorAfterRestore))
                 .satisfiesAnyOf(
-                        e -> assertThat(e).isInstanceOf(IllegalStateException.class),
-                        e -> assertThat(e).hasCauseInstanceOf(IllegalStateException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     // -------------------------------------------------------------------------------
@@ -1344,7 +1344,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
 
         @Override
         public TypeSerializerSchemaCompatibility<VoidNamespace> resolveSchemaCompatibility(
-                TypeSerializer<VoidNamespace> newSerializer) {
+                TypeSerializerSnapshot<VoidNamespace> oldSerializerSnapshot) {
             return TypeSerializerSchemaCompatibility.compatibleAsIs();
         }
 

@@ -529,13 +529,13 @@ public abstract class InternalPriorityQueueTestBase {
 
             @Override
             public TypeSerializerSchemaCompatibility<TestElement> resolveSchemaCompatibility(
-                    TypeSerializer<TestElement> newSerializer) {
-                if (!(newSerializer instanceof TestElementSerializer)) {
+                    TypeSerializerSnapshot<TestElement> oldSerializerSnapshot) {
+                if (!(oldSerializerSnapshot instanceof Snapshot)) {
                     return TypeSerializerSchemaCompatibility.incompatible();
                 }
 
-                TestElementSerializer testElementSerializer = (TestElementSerializer) newSerializer;
-                return (revision <= testElementSerializer.getRevision())
+                Snapshot snapshot = (Snapshot) oldSerializerSnapshot;
+                return (snapshot.getRevision() <= revision)
                         ? TypeSerializerSchemaCompatibility.compatibleAsIs()
                         : TypeSerializerSchemaCompatibility.incompatible();
             }
