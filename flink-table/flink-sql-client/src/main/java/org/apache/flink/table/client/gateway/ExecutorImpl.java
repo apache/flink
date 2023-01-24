@@ -230,7 +230,8 @@ public class ExecutorImpl implements Executor {
                                                     UUID.fromString(
                                                             executeStatementResponseBody
                                                                     .getOperationHandle()));
-                                    // close operation directly
+                                    // close operation in background to make sure users can not
+                                    // interrupt the execution.
                                     sendRequest(
                                             CloseOperationHeaders.getInstance(),
                                             new OperationMessageParameters(
@@ -300,10 +301,11 @@ public class ExecutorImpl implements Executor {
 
         @Override
         public void close() throws Exception {
-            sendRequest(
-                    CloseOperationHeaders.getInstance(),
-                    new OperationMessageParameters(sessionHandle, operationHandle),
-                    EmptyRequestBody.getInstance());
+            getResponse(
+                    sendRequest(
+                            CloseOperationHeaders.getInstance(),
+                            new OperationMessageParameters(sessionHandle, operationHandle),
+                            EmptyRequestBody.getInstance()));
         }
 
         @Override

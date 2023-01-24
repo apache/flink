@@ -194,6 +194,8 @@ public class CliClient implements AutoCloseable {
         String prompt = NEWLINE_PROMPT;
         String line = "";
 
+        // make some space to previous command
+        terminal.writer().append("\n");
         while (isRunning) {
             try {
                 // read a statement from terminal and parse it
