@@ -87,7 +87,7 @@ public class InputFormatCacheLoader extends CacheLoader {
                         .collect(Collectors.toCollection(ArrayDeque::new));
         // run first task and create concurrencyLevel - 1 threads to run remaining tasks
         ExecutorService cacheLoadTaskService = null;
-        boolean wasInterrupted;
+        boolean wasInterrupted = false;
         try {
             InputSplitCacheLoadTask firstTask = cacheLoadTasks.pop();
             CompletableFuture<?> otherTasksFuture = null;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -33,12 +34,12 @@ import java.util.Collection;
 import java.util.Collections;
 
 /** Internal implementation of {@link LookupCache} for {@link LookupCacheType#FULL}. */
+@Internal
 public class LookupFullCache implements LookupCache {
     private static final long serialVersionUID = 1L;
 
     private final CacheLoader cacheLoader;
     private final CacheReloadTrigger reloadTrigger;
-    private Configuration parameters = new Configuration();
 
     private transient volatile ReloadTriggerContext reloadTriggerContext;
     private transient volatile Throwable reloadFailCause;
@@ -49,10 +50,6 @@ public class LookupFullCache implements LookupCache {
     public LookupFullCache(CacheLoader cacheLoader, CacheReloadTrigger reloadTrigger) {
         this.cacheLoader = Preconditions.checkNotNull(cacheLoader);
         this.reloadTrigger = Preconditions.checkNotNull(reloadTrigger);
-    }
-
-    public void setParameters(Configuration parameters) {
-        this.parameters = parameters;
     }
 
     @Override
@@ -66,7 +63,8 @@ public class LookupFullCache implements LookupCache {
 
         if (reloadTriggerContext == null) {
             try {
-                cacheLoader.open(parameters);
+                // TODO add Configuration into FunctionContext and pass in into LookupFullCache
+                cacheLoader.open(new Configuration());
                 reloadTriggerContext =
                         new ReloadTriggerContext(
                                 cacheLoader,
@@ -116,9 +114,9 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public void close() throws Exception {
-        // in default triggers shutdowns scheduled thread pool used for periodic triggers of reloads
+        // stops scheduled thread pool that's responsible for scheduling cache updates
         reloadTrigger.close();
-        // shutdowns the reload thread and interrupts active reload task, if present
+        // stops thread pool that's responsible for executing the actual cache update
         cacheLoader.close();
     }
 }

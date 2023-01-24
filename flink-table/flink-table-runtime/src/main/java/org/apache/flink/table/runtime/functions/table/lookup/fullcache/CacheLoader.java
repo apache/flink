@@ -61,7 +61,7 @@ public abstract class CacheLoader implements AutoCloseable, Serializable {
     // Cache metrics
     private transient Counter loadCounter;
     private transient Counter loadFailuresCounter;
-    private transient volatile long latestLoadTimeMs = UNINITIALIZED;
+    private volatile long latestLoadTimeMs = UNINITIALIZED;
 
     protected volatile boolean isStopped;
 
