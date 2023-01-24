@@ -324,7 +324,7 @@ object FlinkRelMdUtil {
     if (distRowCount == null || rowCount == null) {
       null
     } else {
-      FlinkRelMdUtil.numDistinctVals(distRowCount, rowCount)
+      RelMdUtil.numDistinctVals(distRowCount, rowCount)
     }
   }
 
@@ -806,12 +806,12 @@ object FlinkRelMdUtil {
       if (distinctRowCount == null) {
         null
       } else {
-        FlinkRelMdUtil.numDistinctVals(distinctRowCount, mq.getAverageRowSize(calc))
+        RelMdUtil.numDistinctVals(distinctRowCount, mq.getAverageRowSize(calc))
       }
     }
 
     override def visitLiteral(literal: RexLiteral): JDouble = {
-      FlinkRelMdUtil.numDistinctVals(1d, mq.getAverageRowSize(calc))
+      RelMdUtil.numDistinctVals(1d, mq.getAverageRowSize(calc))
     }
 
     override def visitCall(call: RexCall): JDouble = {
@@ -890,7 +890,7 @@ object FlinkRelMdUtil {
       if (distinctRowCount == null) {
         null
       } else {
-        FlinkRelMdUtil.numDistinctVals(distinctRowCount, rowCount)
+        RelMdUtil.numDistinctVals(distinctRowCount, rowCount)
       }
     }
 

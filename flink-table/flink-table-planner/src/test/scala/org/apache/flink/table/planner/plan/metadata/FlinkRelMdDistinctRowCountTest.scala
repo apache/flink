@@ -613,7 +613,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       2.0e7,
       mq.getDistinctRowCount(logicalInnerJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
     assertEquals(
-      5.0569644545e8,
+      5.0569644724678594e8,
       mq.getDistinctRowCount(logicalInnerJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null),
       1e-2)
 
@@ -621,14 +621,14 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       2.0e7,
       mq.getDistinctRowCount(logicalLeftJoinOnUniqueKeys, ImmutableBitSet.of(0), null))
     assertEquals(
-      5.0569644545e8,
+      5.0569644724678594e8,
       mq.getDistinctRowCount(logicalLeftJoinOnUniqueKeys, ImmutableBitSet.of(1), null),
       1e-2)
     assertEquals(
       2.0e7,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
     assertEquals(
-      5.0569644545e8,
+      5.0569644724678594e8,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null),
       1e-2)
 
@@ -644,7 +644,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       2.0e7,
       mq.getDistinctRowCount(logicalRightJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
     assertEquals(
-      5.0569644545e8,
+      5.0569644724678594e8,
       mq.getDistinctRowCount(logicalRightJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null),
       1e-2)
 
@@ -652,14 +652,14 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       2.0e7,
       mq.getDistinctRowCount(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(0), null))
     assertEquals(
-      5.0569644545e8,
+      5.0569644724678594e8,
       mq.getDistinctRowCount(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(1), null),
       1e-2)
     assertEquals(
       2.0e7,
       mq.getDistinctRowCount(logicalFullJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
     assertEquals(
-      5.0569644545e8,
+      5.0569644724678594e8,
       mq.getDistinctRowCount(logicalFullJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null),
       1e-2)
 
