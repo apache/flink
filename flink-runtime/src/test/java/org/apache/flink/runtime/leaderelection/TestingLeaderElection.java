@@ -80,7 +80,8 @@ public class TestingLeaderElection implements LeaderElection {
         return issuedLeaderSessionId != null;
     }
 
-    synchronized void triggerContenderCleanup() {
+    @Override
+    public synchronized void close() {
         if (hasLeadership() && this.contender != null) {
             this.contender.revokeLeadership();
         }

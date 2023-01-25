@@ -141,13 +141,13 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                 new DefaultLeaderElectionService(leaderElectionDriverFactory);
         leaderElectionService.startLeaderElectionBackend();
 
-        try {
-            final TestingConnectionStateListener connectionStateListener =
-                    new TestingConnectionStateListener();
-            client.getConnectionStateListenable().addListener(connectionStateListener);
+        final TestingConnectionStateListener connectionStateListener =
+                new TestingConnectionStateListener();
+        client.getConnectionStateListenable().addListener(connectionStateListener);
 
-            final TestingContender contender = new TestingContender();
-            leaderElectionService.createLeaderElection().startLeaderElection(contender);
+        final TestingContender contender = new TestingContender();
+        try (LeaderElection leaderElection = leaderElectionService.createLeaderElection()) {
+            leaderElection.startLeaderElection(contender);
 
             contender.awaitGrantLeadership();
 
@@ -165,7 +165,6 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
 
             validationLogic.accept(connectionStateListener, contender);
         } finally {
-            leaderElectionService.stop();
             leaderElectionService.close();
             curatorFrameworkWrapper.close();
 

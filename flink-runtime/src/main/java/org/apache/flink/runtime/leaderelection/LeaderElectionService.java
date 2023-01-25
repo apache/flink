@@ -40,12 +40,4 @@ public interface LeaderElectionService {
      * LeaderElectionService} instance.
      */
     LeaderElection createLeaderElection();
-
-    /**
-     * Stops the leader election service. Stopping the {@code LeaderElectionService} will trigger
-     * {@link LeaderContender#revokeLeadership()} if the service still holds the leadership.
-     *
-     * @throws Exception if an error occurs while stopping the {@code LeaderElectionService}.
-     */
-    void stop() throws Exception;
 }

@@ -24,7 +24,7 @@ import java.util.UUID;
  * {@code LeaderElection} serves as a proxy between {@code LeaderElectionService} and {@link
  * LeaderContender}.
  */
-public interface LeaderElection {
+public interface LeaderElection extends AutoCloseable {
 
     /** Registers the passed {@link LeaderContender} with the leader election process. */
     void startLeaderElection(LeaderContender contender) throws Exception;
@@ -50,4 +50,11 @@ public interface LeaderElection {
      * @return true if the associated {@link LeaderContender} is the leader, otherwise false
      */
     boolean hasLeadership(UUID leaderSessionId);
+
+    /**
+     * Closes the {@code LeaderElection} by deregistering the {@link LeaderContender} from the
+     * underlying leader election. {@link LeaderContender#revokeLeadership()} will be called if the
+     * service still holds the leadership.
+     */
+    void close() throws Exception;
 }

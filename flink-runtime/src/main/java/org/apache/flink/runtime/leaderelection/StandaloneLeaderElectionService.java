@@ -48,10 +48,12 @@ public class StandaloneLeaderElectionService extends AbstractLeaderElectionServi
     }
 
     @Override
-    public void stop() {
-        if (contender != null) {
-            contender.revokeLeadership();
-            contender = null;
+    protected void remove(LeaderContender contender) {
+        Preconditions.checkArgument(contender == this.contender);
+
+        if (this.contender != null) {
+            this.contender.revokeLeadership();
+            this.contender = null;
         }
     }
 
@@ -60,7 +62,7 @@ public class StandaloneLeaderElectionService extends AbstractLeaderElectionServi
 
     @Override
     protected boolean hasLeadership(UUID leaderSessionId) {
-        return (contender != null
-                && HighAvailabilityServices.DEFAULT_LEADER_ID.equals(leaderSessionId));
+        return contender != null
+                && HighAvailabilityServices.DEFAULT_LEADER_ID.equals(leaderSessionId);
     }
 }

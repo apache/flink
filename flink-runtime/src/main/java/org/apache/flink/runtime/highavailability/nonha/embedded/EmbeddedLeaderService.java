@@ -453,7 +453,8 @@ public class EmbeddedLeaderService {
         }
 
         @Override
-        public void stop() throws Exception {
+        public void remove(LeaderContender contender) {
+            Preconditions.checkArgument(contender == this.contender);
             removeContender(this);
         }
 

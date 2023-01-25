@@ -42,8 +42,7 @@ class StandaloneLeaderElectionTest {
         TestingContender contender = new TestingContender(TEST_URL, leaderElectionService);
         TestingListener testingListener = new TestingListener();
 
-        try {
-            contender.startLeaderElection();
+        try (LeaderElection leaderElection = contender.startLeaderElection()) {
             leaderRetrievalService.start(testingListener);
 
             contender.waitForLeader();
@@ -58,7 +57,6 @@ class StandaloneLeaderElectionTest {
             assertThat(testingListener.getLeaderSessionID())
                     .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
         } finally {
-            leaderElectionService.stop();
             leaderRetrievalService.stop();
         }
     }

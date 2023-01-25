@@ -98,9 +98,13 @@ public class LeaderElectionTest {
 
             assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
 
-            leaderElectionService.stop();
+            leaderElection.close();
 
             assertThat(leaderElection.hasLeadership(leaderSessionId)).isFalse();
+
+            assertThat(manualLeaderContender.waitForLeaderSessionId())
+                    .as("The leadership has been revoked from the contender.")
+                    .isEqualTo(ManualLeaderContender.NULL_LEADER_SESSION_ID);
         } finally {
             manualLeaderContender.rethrowError();
         }
