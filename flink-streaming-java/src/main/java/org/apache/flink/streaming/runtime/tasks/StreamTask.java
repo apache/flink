@@ -547,9 +547,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         DataInputStatus status = inputProcessor.processInput();
         switch (status) {
             case MORE_AVAILABLE:
-                if (recordWriter.isAvailable()
-                        && (changelogWriterAvailabilityProvider == null
-                                || changelogWriterAvailabilityProvider.isAvailable())) {
+                if (taskIsAvailable()) {
                     return;
                 }
                 break;
@@ -994,8 +992,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         return this.mailboxProcessor::getMailboxExecutor;
     }
 
+    private boolean taskIsAvailable() {
+        return recordWriter.isAvailable()
+                && (changelogWriterAvailabilityProvider == null
+                        || changelogWriterAvailabilityProvider.isAvailable());
+    }
+
     public CanEmitBatchOfRecordsChecker getCanEmitBatchOfRecords() {
-        return () -> !this.mailboxProcessor.hasMail();
+        return () -> !this.mailboxProcessor.hasMail() && taskIsAvailable();
     }
 
     public final boolean isRunning() {
