@@ -50,12 +50,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriterWithAvailabilityHelper;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -130,6 +132,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -889,6 +892,47 @@ public class MultipleInputStreamTaskTest {
 
             testHarness.endInput();
             testHarness.waitForTaskCompletion();
+        }
+    }
+
+    /** The CanEmitBatchOfRecords should always be false for {@link MultipleInputStreamTask}. */
+    @Test
+    public void testCanEmitBatchOfRecords() throws Exception {
+        AvailabilityProvider.AvailabilityHelper availabilityHelper =
+                new AvailabilityProvider.AvailabilityHelper();
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+                        .addAdditionalOutput(
+                                new ResultPartitionWriterWithAvailabilityHelper(availabilityHelper))
+                        .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
+                        .finishForSingletonOperatorChain(IntSerializer.INSTANCE)
+                        .build()) {
+            StreamTask.CanEmitBatchOfRecordsChecker canEmitBatchOfRecordsChecker =
+                    testHarness.streamTask.getCanEmitBatchOfRecords();
+            testHarness.processAll();
+
+            availabilityHelper.resetAvailable();
+            assertFalse(canEmitBatchOfRecordsChecker.check());
+
+            // The canEmitBatchOfRecordsChecker should be the false after the record writer is
+            // unavailable.
+            availabilityHelper.resetUnavailable();
+            assertFalse(canEmitBatchOfRecordsChecker.check());
+
+            // Restore record writer to available
+            availabilityHelper.resetAvailable();
+            assertFalse(canEmitBatchOfRecordsChecker.check());
+
+            // The canEmitBatchOfRecordsChecker should be the false after add the mail to mail box.
+            testHarness.streamTask.mainMailboxExecutor.execute(() -> {}, "mail");
+            assertFalse(canEmitBatchOfRecordsChecker.check());
+
+            testHarness.processAll();
+            assertFalse(canEmitBatchOfRecordsChecker.check());
         }
     }
 
