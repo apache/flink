@@ -171,7 +171,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    public final void stop() throws Exception {
+    protected final void remove(LeaderContender contender) {
+        Preconditions.checkArgument(contender == this.leaderContender);
         LOG.info("Stopping DefaultLeaderElectionService.");
 
         synchronized (lock) {

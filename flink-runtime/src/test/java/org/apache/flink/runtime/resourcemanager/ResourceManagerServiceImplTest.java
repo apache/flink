@@ -77,6 +77,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
     private TestingResourceManagerFactory.Builder rmFactoryBuilder;
     private TestingLeaderElectionService leaderElectionService;
+
     private ResourceManagerServiceImpl resourceManagerService;
 
     @BeforeClass
@@ -101,10 +102,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     public void teardown() throws Exception {
         if (resourceManagerService != null) {
             resourceManagerService.close();
-        }
-
-        if (leaderElectionService != null) {
-            leaderElectionService.stop();
         }
 
         if (fatalErrorHandler.hasExceptionOccurred()) {

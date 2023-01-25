@@ -105,7 +105,7 @@ class DefaultLeaderElectionServiceTest {
 
             assertThat(testingContender.getLeaderSessionID()).isEqualTo(expectedLeaderSessionID);
 
-            testInstance.stop();
+            leaderElection.close();
         }
     }
 
@@ -117,24 +117,28 @@ class DefaultLeaderElectionServiceTest {
                         executorService -> {
                             // we need to stop to deregister the contender that was already
                             // registered to the service
-                            leaderElectionService.stop();
+                            leaderElection.close();
 
                             final UUID expectedSessionID = UUID.randomUUID();
                             testingLeaderElectionDriver.isLeader(expectedSessionID);
 
-                            leaderElection = testingContender.startLeaderElection();
+                            try (LeaderElection anotherLeaderElection =
+                                    testingContender.startLeaderElection()) {
 
-                            assertThat(testingContender.getLeaderSessionID())
-                                    .as("Leadership grant was not forwarded to the contender, yet.")
-                                    .isNull();
+                                assertThat(testingContender.getLeaderSessionID())
+                                        .as(
+                                                "Leadership grant was not forwarded to the contender, yet.")
+                                        .isNull();
 
-                            executorService.trigger();
+                                executorService.trigger();
 
-                            assertThat(testingContender.getLeaderSessionID())
-                                    .as("Leadership grant is actually forwarded to the service.")
-                                    .isEqualTo(expectedSessionID);
+                                assertThat(testingContender.getLeaderSessionID())
+                                        .as(
+                                                "Leadership grant is actually forwarded to the service.")
+                                        .isEqualTo(expectedSessionID);
 
-                            testingContender.waitForLeader();
+                                testingContender.waitForLeader();
+                            }
                         });
             }
         };
@@ -146,9 +150,9 @@ class DefaultLeaderElectionServiceTest {
             {
                 runTestWithManuallyTriggeredEvents(
                         executorService -> {
-                            // we need to stop to deregister the contender that was already
-                            // registered to the service
-                            leaderElectionService.stop();
+                            // we need to close the LeaderElection to deregister the contender that
+                            // was already registered to the service
+                            leaderElection.close();
 
                             final UUID expectedSessionID = UUID.randomUUID();
                             testingLeaderElectionDriver.isLeader(expectedSessionID);
@@ -156,7 +160,7 @@ class DefaultLeaderElectionServiceTest {
 
                             leaderElection = testingContender.startLeaderElection();
 
-                            leaderElectionService.stop();
+                            leaderElection.close();
 
                             executorService.trigger();
                         });
@@ -188,7 +192,7 @@ class DefaultLeaderElectionServiceTest {
 
             contender.waitForLeader();
 
-            testInstance.stop();
+            leaderElection.close();
 
             contender.throwErrorIfPresent();
         }
@@ -211,7 +215,7 @@ class DefaultLeaderElectionServiceTest {
             final LeaderElection leaderElection = testInstance.createLeaderElection();
             leaderElection.startLeaderElection(TestingGenericLeaderContender.newBuilder().build());
 
-            testInstance.stop();
+            leaderElection.close();
         }
     }
 
@@ -245,7 +249,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testProperCleanupOnStopWhenHoldingTheLeadership() throws Exception {
+    void testProperCleanupOnLeaderElectionCloseWhenHoldingTheLeadership() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
@@ -258,7 +262,7 @@ class DefaultLeaderElectionServiceTest {
                             assertThat(testingLeaderElectionDriver.getLeaderInformation().isEmpty())
                                     .isFalse();
 
-                            leaderElectionService.stop();
+                            leaderElection.close();
 
                             assertThat(testingContender.getLeaderSessionID())
                                     .as(
@@ -394,7 +398,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testHasLeadershipAfterStop() throws Exception {
+    void testHasLeadershipAfterLeaderElectionClose() throws Exception {
         new Context() {
             {
                 runTestWithManuallyTriggeredEvents(
@@ -403,7 +407,7 @@ class DefaultLeaderElectionServiceTest {
                             testingLeaderElectionDriver.isLeader(expectedSessionID);
                             executorService.trigger();
 
-                            leaderElectionService.stop();
+                            leaderElection.close();
 
                             assertThat(leaderElectionService.hasLeadership(expectedSessionID))
                                     .isFalse();
@@ -430,12 +434,12 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testOnGrantLeadershipIsIgnoredAfterBeingStop() throws Exception {
+    void testOnGrantLeadershipIsIgnoredAfterLeaderElectionBeingStop() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
                         () -> {
-                            leaderElectionService.stop();
+                            leaderElection.close();
                             testingLeaderElectionDriver.isLeader();
 
                             assertThat(leaderElectionService.getLeaderSessionID())
@@ -450,14 +454,14 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testOnLeaderInformationChangeIsIgnoredAfterBeingStop() throws Exception {
+    void testOnLeaderInformationChangeIsIgnoredAfterLeaderElectionBeingStop() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
                         () -> {
                             testingLeaderElectionDriver.isLeader();
 
-                            leaderElectionService.stop();
+                            leaderElection.close();
                             testingLeaderElectionDriver.leaderInformationChanged(
                                     LeaderInformation.empty());
 
@@ -470,7 +474,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testOnRevokeLeadershipIsTriggeredAfterBeingStop() throws Exception {
+    void testOnRevokeLeadershipIsTriggeredAfterLeaderElectionBeingStop() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
@@ -480,7 +484,7 @@ class DefaultLeaderElectionServiceTest {
                             assertThat(testingContender.getLeaderSessionID())
                                     .isEqualTo(oldSessionId);
 
-                            leaderElectionService.stop();
+                            leaderElection.close();
 
                             assertThat(testingContender.getLeaderSessionID())
                                     .as(
@@ -555,14 +559,15 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testErrorIsIgnoredAfterBeingStop() throws Exception {
+    void testErrorIsIgnoredAfterLeaderElectionBeingClosed() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
                         () -> {
                             final Exception testException = new Exception("test leader exception");
 
-                            leaderElectionService.stop();
+                            leaderElection.close();
+
                             testingLeaderElectionDriver.onFatalError(testException);
                             assertThat(testingContender.getError()).isNull();
                         });
@@ -581,12 +586,11 @@ class DefaultLeaderElectionServiceTest {
                         new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
         final DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(testingLeaderElectionDriverFactory);
+        leaderElectionService.startLeaderElectionBackend();
 
         final TestingContender testingContender =
                 new TestingContender(TEST_URL, leaderElectionService);
-
-        leaderElectionService.startLeaderElectionBackend();
-        testingContender.startLeaderElection();
+        final LeaderElection leaderElection = testingContender.startLeaderElection();
 
         final TestingLeaderElectionDriver currentLeaderDriver =
                 Preconditions.checkNotNull(
@@ -594,7 +598,8 @@ class DefaultLeaderElectionServiceTest {
 
         currentLeaderDriver.isLeader();
 
-        leaderElectionService.stop();
+        leaderElection.close();
+        leaderElectionService.close();
 
         testingContender.throwErrorIfPresent();
     }
@@ -646,7 +651,7 @@ class DefaultLeaderElectionServiceTest {
 
         latch.trigger();
 
-        testInstance.stop();
+        leaderElection.close();
         testInstance.close();
     }
 
@@ -698,7 +703,7 @@ class DefaultLeaderElectionServiceTest {
 
         latch.trigger();
 
-        testInstance.stop();
+        leaderElection.close();
         testInstance.close();
     }
 
@@ -740,10 +745,15 @@ class DefaultLeaderElectionServiceTest {
 
                 assertThat(testingLeaderElectionDriver).isNotNull();
                 testMethod.run();
-
-                leaderElectionService.stop();
-                leaderElectionService.close();
             } finally {
+                if (leaderElection != null) {
+                    leaderElection.close();
+                }
+
+                if (leaderElectionService != null) {
+                    leaderElectionService.close();
+                }
+
                 if (testingContender != null) {
                     testingContender.throwErrorIfPresent();
                 }

@@ -94,9 +94,6 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         public LeaderElection createLeaderElection() {
             return NoOpLeaderElection.INSTANCE;
         }
-
-        @Override
-        public void stop() {}
     }
 
     private enum NoOpLeaderElection implements LeaderElection {
@@ -112,5 +109,8 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         public boolean hasLeadership(UUID leaderSessionId) {
             return false;
         }
+
+        @Override
+        public void close() {}
     }
 }

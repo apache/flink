@@ -329,7 +329,9 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
     private void stopLeaderElectionService() {
         try {
-            leaderElectionService.stop();
+            if (leaderElection != null) {
+                leaderElection.close();
+            }
         } catch (Exception e) {
             serviceTerminationFuture.completeExceptionally(
                     new FlinkException("Cannot stop leader election service.", e));

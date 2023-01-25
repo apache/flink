@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -44,13 +45,15 @@ import static org.junit.Assert.fail;
 /** Tests for the {@link DefaultDispatcherRunner}. */
 public class DefaultDispatcherRunnerTest extends TestLogger {
 
-    private TestingLeaderElectionService testingLeaderElectionService;
+    private final TestingLeaderElectionService testingLeaderElectionService =
+            new TestingLeaderElectionService();
+    private LeaderElection leaderElection;
     private TestingFatalErrorHandler testingFatalErrorHandler;
     private TestingDispatcherLeaderProcessFactory testingDispatcherLeaderProcessFactory;
 
     @Before
     public void setup() {
-        testingLeaderElectionService = new TestingLeaderElectionService();
+        leaderElection = testingLeaderElectionService.createLeaderElection();
         testingFatalErrorHandler = new TestingFatalErrorHandler();
         testingDispatcherLeaderProcessFactory =
                 TestingDispatcherLeaderProcessFactory.defaultValue();
@@ -58,9 +61,9 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
     @After
     public void teardown() throws Exception {
-        if (testingLeaderElectionService != null) {
-            testingLeaderElectionService.stop();
-            testingLeaderElectionService = null;
+        if (leaderElection != null) {
+            leaderElection.close();
+            leaderElection = null;
         }
 
         if (testingFatalErrorHandler != null) {

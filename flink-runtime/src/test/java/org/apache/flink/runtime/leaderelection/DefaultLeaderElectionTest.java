@@ -23,8 +23,10 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,27 +41,27 @@ class DefaultLeaderElectionTest {
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setRegisterConsumer(contenderRef::set)
                         .build();
-        final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService);
+        try (final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService)) {
 
-        final LeaderContender contender = TestingGenericLeaderContender.newBuilder().build();
-        testInstance.startLeaderElection(contender);
+            final LeaderContender contender = TestingGenericLeaderContender.newBuilder().build();
+            testInstance.startLeaderElection(contender);
 
-        assertThat(contenderRef.get()).isSameAs(contender);
+            assertThat(contenderRef.get()).isSameAs(contender);
+        }
     }
 
     @Test
-    void testContenderRegistrationNull() {
-        assertThatThrownBy(
-                        () ->
-                                new DefaultLeaderElection(
-                                                TestingAbstractLeaderElectionService.newBuilder()
-                                                        .build())
-                                        .startLeaderElection(null))
-                .isInstanceOf(NullPointerException.class);
+    void testContenderRegistrationNull() throws Exception {
+        try (final DefaultLeaderElection testInstance =
+                new DefaultLeaderElection(
+                        TestingAbstractLeaderElectionService.newBuilder().build())) {
+            assertThatThrownBy(() -> testInstance.startLeaderElection(null))
+                    .isInstanceOf(NullPointerException.class);
+        }
     }
 
     @Test
-    void testContenderRegistrationFailure() {
+    void testContenderRegistrationFailure() throws Exception {
         final Exception expectedException =
                 new Exception("Expected exception during contender registration.");
         final AbstractLeaderElectionService parentService =
@@ -69,17 +71,17 @@ class DefaultLeaderElectionTest {
                                     throw expectedException;
                                 })
                         .build();
-        final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService);
-
-        assertThatThrownBy(
-                        () ->
-                                testInstance.startLeaderElection(
-                                        TestingGenericLeaderContender.newBuilder().build()))
-                .isEqualTo(expectedException);
+        try (final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService)) {
+            assertThatThrownBy(
+                            () ->
+                                    testInstance.startLeaderElection(
+                                            TestingGenericLeaderContender.newBuilder().build()))
+                    .isEqualTo(expectedException);
+        }
     }
 
     @Test
-    void testLeaderConfirmation() {
+    void testLeaderConfirmation() throws Exception {
         final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
         final AtomicReference<String> leaderAddressRef = new AtomicReference<>();
         final AbstractLeaderElectionService parentService =
@@ -90,27 +92,63 @@ class DefaultLeaderElectionTest {
                                     leaderAddressRef.set(address);
                                 })
                         .build();
-        final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService);
+        try (final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService)) {
 
-        final UUID expectedLeaderSessionID = UUID.randomUUID();
-        final String expectedAddress = "random-address";
-        testInstance.confirmLeadership(expectedLeaderSessionID, expectedAddress);
+            final UUID expectedLeaderSessionID = UUID.randomUUID();
+            final String expectedAddress = "random-address";
+            testInstance.confirmLeadership(expectedLeaderSessionID, expectedAddress);
 
-        assertThat(leaderSessionIDRef.get()).isEqualTo(expectedLeaderSessionID);
-        assertThat(leaderAddressRef.get()).isEqualTo(expectedAddress);
+            assertThat(leaderSessionIDRef.get()).isEqualTo(expectedLeaderSessionID);
+            assertThat(leaderAddressRef.get()).isEqualTo(expectedAddress);
+        }
     }
 
     @Test
-    void testHasLeadershipTrue() {
+    void testClose() throws Exception {
+        final CompletableFuture<LeaderContender> actualContender = new CompletableFuture<>();
+        final AbstractLeaderElectionService parentService =
+                TestingAbstractLeaderElectionService.newBuilder()
+                        .setRegisterConsumer(ignoredContender -> {})
+                        .setRemoveConsumer(actualContender::complete)
+                        .build();
+
+        final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService);
+
+        final LeaderContender contender = TestingGenericLeaderContender.newBuilder().build();
+        testInstance.startLeaderElection(contender);
+        testInstance.close();
+
+        assertThat(actualContender).isCompletedWithValue(contender);
+    }
+
+    @Test
+    void testCloseWithoutStart() throws Exception {
+        final CompletableFuture<LeaderContender> actualContender = new CompletableFuture<>();
+        final AbstractLeaderElectionService parentService =
+                TestingAbstractLeaderElectionService.newBuilder()
+                        .setRemoveConsumer(actualContender::complete)
+                        .build();
+
+        final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService);
+        testInstance.close();
+
+        assertThat(actualContender)
+                .as(
+                        "No removal should be triggered if there's no contender that need to be deregistered.")
+                .isNotDone();
+    }
+
+    @Test
+    void testHasLeadershipTrue() throws Exception {
         testHasLeadership(true);
     }
 
     @Test
-    void testHasLeadershipFalse() {
+    void testHasLeadershipFalse() throws Exception {
         testHasLeadership(false);
     }
 
-    private void testHasLeadership(boolean expectedReturnValue) {
+    private void testHasLeadership(boolean expectedReturnValue) throws Exception {
         final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
         final AbstractLeaderElectionService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
@@ -120,28 +158,32 @@ class DefaultLeaderElectionTest {
                                     return expectedReturnValue;
                                 })
                         .build();
-        final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService);
+        try (final DefaultLeaderElection testInstance = new DefaultLeaderElection(parentService)) {
 
-        final UUID expectedLeaderSessionID = UUID.randomUUID();
-        assertThat(testInstance.hasLeadership(expectedLeaderSessionID))
-                .isEqualTo(expectedReturnValue);
-        assertThat(leaderSessionIDRef.get()).isEqualTo(expectedLeaderSessionID);
+            final UUID expectedLeaderSessionID = UUID.randomUUID();
+            assertThat(testInstance.hasLeadership(expectedLeaderSessionID))
+                    .isEqualTo(expectedReturnValue);
+            assertThat(leaderSessionIDRef.get()).isEqualTo(expectedLeaderSessionID);
+        }
     }
 
     private static class TestingAbstractLeaderElectionService
             extends AbstractLeaderElectionService {
 
         private final ThrowingConsumer<LeaderContender, Exception> registerConsumer;
+        private final Consumer<LeaderContender> removeConsumer;
         private final BiConsumer<UUID, String> confirmLeadershipConsumer;
         private final Function<UUID, Boolean> hasLeadershipFunction;
 
         private TestingAbstractLeaderElectionService(
                 ThrowingConsumer<LeaderContender, Exception> registerConsumer,
+                Consumer<LeaderContender> removeConsumer,
                 BiConsumer<UUID, String> confirmLeadershipConsumer,
                 Function<UUID, Boolean> hasLeadershipFunction) {
             super();
 
             this.registerConsumer = registerConsumer;
+            this.removeConsumer = removeConsumer;
             this.confirmLeadershipConsumer = confirmLeadershipConsumer;
             this.hasLeadershipFunction = hasLeadershipFunction;
         }
@@ -149,6 +191,11 @@ class DefaultLeaderElectionTest {
         @Override
         protected void register(LeaderContender contender) throws Exception {
             registerConsumer.accept(contender);
+        }
+
+        @Override
+        protected void remove(LeaderContender contender) {
+            removeConsumer.accept(contender);
         }
 
         @Override
@@ -161,17 +208,13 @@ class DefaultLeaderElectionTest {
             return hasLeadershipFunction.apply(leaderSessionId);
         }
 
-        @Override
-        public void stop() {
-            throw new UnsupportedOperationException("stop is not supported.");
-        }
-
         public static Builder newBuilder() {
             return new Builder()
                     .setRegisterConsumer(
                             contender -> {
                                 throw new UnsupportedOperationException("register not supported");
                             })
+                    .setRemoveConsumer(contender -> {})
                     .setConfirmLeadershipConsumer(
                             (leaderSessionID, address) -> {
                                 throw new UnsupportedOperationException(
@@ -188,6 +231,7 @@ class DefaultLeaderElectionTest {
 
             private ThrowingConsumer<LeaderContender, Exception> registerConsumer =
                     ignoredContender -> {};
+            private Consumer<LeaderContender> removeConsumer;
             private BiConsumer<UUID, String> confirmLeadershipConsumer =
                     (ignoredSessionID, ignoredAddress) -> {};
             private Function<UUID, Boolean> hasLeadershipFunction = ignoredSessiondID -> false;
@@ -197,6 +241,11 @@ class DefaultLeaderElectionTest {
             public Builder setRegisterConsumer(
                     ThrowingConsumer<LeaderContender, Exception> registerConsumer) {
                 this.registerConsumer = registerConsumer;
+                return this;
+            }
+
+            public Builder setRemoveConsumer(Consumer<LeaderContender> removeConsumer) {
+                this.removeConsumer = removeConsumer;
                 return this;
             }
 
@@ -213,7 +262,10 @@ class DefaultLeaderElectionTest {
 
             public TestingAbstractLeaderElectionService build() {
                 return new TestingAbstractLeaderElectionService(
-                        registerConsumer, confirmLeadershipConsumer, hasLeadershipFunction);
+                        registerConsumer,
+                        removeConsumer,
+                        confirmLeadershipConsumer,
+                        hasLeadershipFunction);
             }
         }
     }

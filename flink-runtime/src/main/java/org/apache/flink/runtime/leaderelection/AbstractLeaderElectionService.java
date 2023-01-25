@@ -38,6 +38,9 @@ public abstract class AbstractLeaderElectionService implements LeaderElectionSer
      */
     protected abstract void register(LeaderContender contender) throws Exception;
 
+    /** Removes the passed {@code LeaderContender} from the {@code LeaderElectionService}. */
+    protected abstract void remove(LeaderContender contender);
+
     /** Confirms the leadership with the given session ID and address. */
     protected abstract void confirmLeadership(UUID leaderSessionID, String leaderAddress);
 

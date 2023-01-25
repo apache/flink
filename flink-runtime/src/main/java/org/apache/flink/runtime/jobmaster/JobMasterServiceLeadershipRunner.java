@@ -153,7 +153,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                         processTerminationFuture,
                         () -> {
                             classLoaderLease.release();
-                            leaderElectionService.stop();
+                            leaderElection.close();
                         });
 
         FutureUtils.forward(serviceTerminationFuture, terminationFuture);
