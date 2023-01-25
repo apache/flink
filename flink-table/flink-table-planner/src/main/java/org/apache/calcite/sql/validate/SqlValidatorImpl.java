@@ -81,6 +81,7 @@ import org.apache.calcite.sql.SqlSelectKeyword;
 import org.apache.calcite.sql.SqlSnapshot;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlTableFunction;
+import org.apache.calcite.sql.SqlUnknownLiteral;
 import org.apache.calcite.sql.SqlUnpivot;
 import org.apache.calcite.sql.SqlUnresolvedFunction;
 import org.apache.calcite.sql.SqlUpdate;
@@ -6069,6 +6070,27 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         assert feature.getProperties().get("FeatureDefinition") != null;
     }
 
+    @Override
+    public SqlLiteral resolveLiteral(SqlLiteral literal) {
+        switch (literal.getTypeName()) {
+            case UNKNOWN:
+                final SqlUnknownLiteral unknownLiteral = (SqlUnknownLiteral) literal;
+                final SqlIdentifier identifier =
+                        new SqlIdentifier(unknownLiteral.tag, SqlParserPos.ZERO);
+                final @Nullable RelDataType type = catalogReader.getNamedType(identifier);
+                final SqlTypeName typeName;
+                if (type != null) {
+                    typeName = type.getSqlTypeName();
+                } else {
+                    typeName = SqlTypeName.lookup(unknownLiteral.tag);
+                }
+                return unknownLiteral.resolve(typeName);
+
+            default:
+                return literal;
+        }
+    }
+
     public SqlNode expandSelectExpr(SqlNode expr, SelectScope scope, SqlSelect select) {
         final Expander expander = new SelectExpander(this, scope, select);
         final SqlNode newExpr = expander.go(expr);
@@ -6392,7 +6414,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         @Override
         public RelDataType visit(SqlLiteral literal) {
-            return literal.createSqlType(typeFactory);
+            return resolveLiteral(literal).createSqlType(typeFactory);
         }
 
         @Override
@@ -6534,6 +6556,11 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             SqlNode expandedExpr = expandDynamicStar(id, fqId);
             validator.setOriginal(expandedExpr, id);
             return expandedExpr;
+        }
+
+        @Override
+        public @Nullable SqlNode visit(SqlLiteral literal) {
+            return validator.resolveLiteral(literal);
         }
 
         @Override
