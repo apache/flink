@@ -51,7 +51,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
-import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.createConfig;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -89,7 +88,7 @@ class ClientTransportErrorHandlingTest {
 
         // We need a real server and client in this test, because Netty's EmbeddedChannel is
         // not failing the ChannelPromise of failed writes.
-        NettyServerAndClient serverAndClient = initServerAndClient(protocol, createConfig());
+        NettyServerAndClient serverAndClient = initServerAndClient(protocol);
 
         Channel ch = connect(serverAndClient);
 
@@ -238,7 +237,7 @@ class ClientTransportErrorHandlingTest {
                     }
                 };
 
-        NettyServerAndClient serverAndClient = initServerAndClient(protocol, createConfig());
+        NettyServerAndClient serverAndClient = initServerAndClient(protocol);
 
         Channel ch = connect(serverAndClient);
 
