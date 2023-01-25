@@ -24,6 +24,8 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
@@ -223,13 +225,19 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                 executor);
     }
 
+    private LeaderElectionService createLeaderElectionService(String leaderName) {
+        return new DefaultLeaderElectionService(createLeaderElectionDriverFactory(leaderName));
+    }
+
     /**
-     * Create leader election service with specified leaderName.
+     * Create {@link LeaderElectionDriverFactory} instance for the specified leaderName.
      *
      * @param leaderName ConfigMap name in Kubernetes or child node path in Zookeeper.
-     * @return Return LeaderElectionService using Zookeeper or Kubernetes.
+     * @return Return {@code LeaderElectionDriverFactory} used for the {@link
+     *     LeaderElectionService}.
      */
-    protected abstract LeaderElectionService createLeaderElectionService(String leaderName);
+    protected abstract LeaderElectionDriverFactory createLeaderElectionDriverFactory(
+            String leaderName);
 
     /**
      * Create leader retrieval service with specified leaderName.

@@ -24,7 +24,7 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
@@ -211,7 +211,7 @@ public class AbstractHaServicesTest extends TestLogger {
         }
 
         @Override
-        protected LeaderElectionService createLeaderElectionService(String leaderName) {
+        protected LeaderElectionDriverFactory createLeaderElectionDriverFactory(String leaderName) {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
