@@ -2440,10 +2440,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testSetReset() {
-        sql("SET").ok("SET");
-        sql("SET 'test-key' = 'test-value'").ok("SET 'test-key' = 'test-value'");
-        sql("RESET").ok("RESET");
-        sql("RESET 'test-key'").ok("RESET 'test-key'");
+        sql("SET").same();
+        sql("SET 'test-key' = 'test-value'").same();
+        sql("RESET").same();
+        sql("RESET 'test-key'").same();
     }
 
     @Test
@@ -2680,10 +2680,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testStopJob() {
-        sql("STOP JOB 'myjob'").ok("STOP JOB 'myjob'");
-        sql("STOP JOB 'myjob' WITH SAVEPOINT").ok("STOP JOB 'myjob' WITH SAVEPOINT");
-        sql("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN")
-                .ok("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN");
+        sql("STOP JOB 'myjob'").same();
+        sql("STOP JOB 'myjob' WITH SAVEPOINT").same();
+        sql("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN").same();
         sql("STOP JOB 'myjob' ^WITH DRAIN^")
                 .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
         sql("STOP JOB 'myjob' ^WITH DRAIN^ WITH SAVEPOINT")
