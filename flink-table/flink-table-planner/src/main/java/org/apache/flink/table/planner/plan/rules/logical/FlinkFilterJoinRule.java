@@ -433,8 +433,8 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         /** Rule configuration. */
         @Value.Immutable(singleton = false)
         @Value.Style(
-                get = {"is*", "get*"}, // Detect 'get' and 'is' prefixes in accessor methods
-                init = "with*", // Builder initialization methods will have 'set' prefix
+                get = {"is*", "get*"},
+                init = "with*",
                 defaults = @Value.Immutable(copy = false))
         public interface FlinkFilterJoinRuleConfig extends FlinkFilterJoinRule.Config {
             FlinkFilterJoinRuleConfig DEFAULT =
@@ -480,8 +480,8 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         /** Rule configuration. */
         @Value.Immutable(singleton = false)
         @Value.Style(
-                get = {"is*", "get*"}, // Detect 'get' and 'is' prefixes in accessor methods
-                init = "with*", // Builder initialization methods will have 'set' prefix
+                get = {"is*", "get*"},
+                init = "with*",
                 defaults = @Value.Immutable(copy = false))
         public interface FlinkFilterIntoJoinRuleConfig extends FlinkFilterJoinRule.Config {
             FlinkFilterIntoJoinRuleConfig DEFAULT =

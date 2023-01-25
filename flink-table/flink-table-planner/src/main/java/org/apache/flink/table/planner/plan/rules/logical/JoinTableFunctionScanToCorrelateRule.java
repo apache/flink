@@ -51,7 +51,7 @@ public class JoinTableFunctionScanToCorrelateRule
         call.transformTo(correlate);
     }
 
-    /** Config for JoinTableFunctionScanToCorrelateRule. */
+    /** Configuration for {@link JoinTableFunctionScanToCorrelateRule}. */
     @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
         Config DEFAULT =
