@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -331,11 +332,22 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     }
 
     private void stopLeaderElectionService() {
+        Exception exception = null;
+        try {
+            leaderElection.close();
+        } catch (Exception e) {
+            exception = e;
+        }
+
         try {
             leaderElectionService.close();
         } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        if (exception != null) {
             serviceTerminationFuture.completeExceptionally(
-                    new FlinkException("Cannot stop leader election service.", e));
+                    new FlinkException("Cannot stop leader election service.", exception));
         }
     }
 

@@ -457,8 +457,20 @@ public class EmbeddedLeaderService {
         }
 
         @Override
-        public void close() throws Exception {
+        protected void remove(String contenderID) {
+            Preconditions.checkNotNull(contenderID);
+            Preconditions.checkArgument(contenderID.equals(this.contenderID));
+
+            contender.revokeLeadership();
             removeContender(this);
+            this.contenderID = null;
+            contender = null;
+        }
+
+        @Override
+        public void close() {
+            running = false;
+            isLeader = false;
         }
 
         @Override
@@ -480,11 +492,14 @@ public class EmbeddedLeaderService {
 
         void shutdown(Exception cause) {
             if (running) {
-                running = false;
-                isLeader = false;
-                contender.revokeLeadership();
-                contender = null;
-                contenderID = null;
+                if (contenderID != null) {
+                    // TODO: why can't we just call remove here?
+                    // remove(contenderID);
+                    contenderID = null;
+                    contender.revokeLeadership();
+                    contender = null;
+                }
+                close();
             }
         }
     }

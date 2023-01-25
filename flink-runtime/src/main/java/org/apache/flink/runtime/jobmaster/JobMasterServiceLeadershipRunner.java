@@ -152,6 +152,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                         processTerminationFuture,
                         () -> {
                             classLoaderLease.release();
+                            leaderElection.close();
                             leaderElectionService.close();
                         });
 

@@ -63,13 +63,20 @@ public class TestingLeaderElectionService extends AbstractLeaderElectionService 
     }
 
     @Override
-    public synchronized void close() throws Exception {
+    protected synchronized void remove(String contenderID) {
+        Preconditions.checkNotNull(contenderID);
+        Preconditions.checkArgument(contenderID.equals(this.contenderID));
+
         if (contender != null) {
             contender.revokeLeadership();
         }
 
-        contenderID = null;
+        this.contenderID = null;
         contender = null;
+    }
+
+    @Override
+    public synchronized void close() throws Exception {
         hasLeadership = false;
         issuedLeaderSessionId = null;
         startFuture.cancel(false);

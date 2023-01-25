@@ -66,7 +66,7 @@ public interface LeaderElectionService extends AutoCloseable {
      */
     void close() throws Exception;
 
-    interface LeaderElection {
+    interface LeaderElection extends AutoCloseable {
 
         /** Registers the {@link LeaderContender} with the {@code LeaderElection}. */
         void register(LeaderContender contender);

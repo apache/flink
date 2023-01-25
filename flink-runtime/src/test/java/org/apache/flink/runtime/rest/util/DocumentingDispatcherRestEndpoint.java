@@ -97,6 +97,9 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
                 throws Exception {}
 
         @Override
+        protected void remove(String contenderID) {}
+
+        @Override
         public void close() throws Exception {}
 
         @Override

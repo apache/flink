@@ -36,6 +36,8 @@ public abstract class AbstractLeaderElectionService implements LeaderElectionSer
     protected abstract void register(String contenderID, LeaderContender contender)
             throws Exception;
 
+    protected abstract void remove(String contenderID);
+
     protected abstract void confirmLeadership(
             String contenderID, UUID leaderSessionID, String leaderAddress);
 
@@ -62,6 +64,11 @@ public abstract class AbstractLeaderElectionService implements LeaderElectionSer
             Preconditions.checkState(
                     leaderContender != null, "No LeaderContender was registered, yet.");
             parentService.register(contenderID, leaderContender);
+        }
+
+        @Override
+        public void close() throws Exception {
+            parentService.remove(contenderID);
         }
 
         @Override

@@ -111,6 +111,19 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
+    protected void remove(String contenderID) {
+        Preconditions.checkNotNull(contenderID);
+        Preconditions.checkArgument(contenderID.equals(this.contenderID));
+
+        synchronized (lock) {
+            leaderContender.revokeLeadership();
+            this.contenderID = null;
+            this.leaderContender = null;
+            LOG.info("LeaderContender for {} was removed.", contenderID);
+        }
+    }
+
+    @Override
     public final void close() throws Exception {
         LOG.info("Stopping DefaultLeaderElectionService.");
 

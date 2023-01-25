@@ -55,12 +55,17 @@ public class StandaloneLeaderElectionService extends AbstractLeaderElectionServi
     }
 
     @Override
-    public void close() {
-        if (contender != null) {
-            contender.revokeLeadership();
-            contender = null;
-        }
+    protected void remove(String contenderID) {
+        Preconditions.checkNotNull(contenderID);
+        Preconditions.checkArgument(contenderID.equals(this.contenderID));
+
+        contender.revokeLeadership();
+        this.contenderID = null;
+        contender = null;
     }
+
+    @Override
+    public void close() {}
 
     @Override
     protected void confirmLeadership(

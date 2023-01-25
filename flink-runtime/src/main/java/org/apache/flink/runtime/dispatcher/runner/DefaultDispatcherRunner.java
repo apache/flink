@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -203,13 +204,22 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
     }
 
     private CompletableFuture<Void> stopLeaderElectionService() {
+        Exception exception = null;
+        try {
+            leaderElection.close();
+        } catch (Exception e) {
+            exception = e;
+        }
+
         try {
             leaderElectionService.close();
         } catch (Exception e) {
-            return FutureUtils.completedExceptionally(e);
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
 
-        return FutureUtils.completedVoidFuture();
+        return exception == null
+                ? FutureUtils.completedVoidFuture()
+                : FutureUtils.completedExceptionally(exception);
     }
 
     private void runActionIfRunning(Runnable runnable) {
