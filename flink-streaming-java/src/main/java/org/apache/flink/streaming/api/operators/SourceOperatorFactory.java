@@ -32,11 +32,10 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.source.coordinator.SourceCoordinatorProvider;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
-
-import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -116,7 +115,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                                 .getTaskManagerInfo()
                                 .getTaskManagerExternalAddress(),
                         emitProgressiveWatermarks,
-                        parameters.getContainingTask().getMailboxHasMail());
+                        parameters.getContainingTask().getCanEmitBatchOfRecords());
 
         sourceOperator.setup(
                 parameters.getContainingTask(),
@@ -172,7 +171,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                     Configuration config,
                     String localHostName,
                     boolean emitProgressiveWatermarks,
-                    Supplier<Boolean> mailboxHasMail) {
+                    CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
 
         // jumping through generics hoops: cast the generics away to then cast them back more
         // strictly typed
@@ -194,6 +193,6 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 config,
                 localHostName,
                 emitProgressiveWatermarks,
-                mailboxHasMail);
+                canEmitBatchOfRecords);
     }
 }
