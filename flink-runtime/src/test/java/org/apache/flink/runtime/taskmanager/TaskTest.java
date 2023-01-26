@@ -81,11 +81,11 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
@@ -928,7 +928,7 @@ public class TaskTest extends TestLogger {
     }
 
     /**
-     * The invoke() method holds a lock (trigger awaitLatch after acquisition) and cancel cannot
+     * The 'invoke' method holds a lock (trigger awaitLatch after acquisition) and cancel cannot
      * complete because it also tries to acquire the same lock. This is resolved by the watch dog,
      * no fatal error.
      */
@@ -956,7 +956,7 @@ public class TaskTest extends TestLogger {
     }
 
     /**
-     * The invoke() method blocks infinitely, but cancel() does not block. Only resolved by a fatal
+     * The 'invoke' method blocks infinitely, but cancel() does not block. Only resolved by a fatal
      * error.
      */
     @Test
@@ -1147,7 +1147,7 @@ public class TaskTest extends TestLogger {
         TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
         final Task task =
                 createTaskBuilder()
-                        .setInvokable(InvokableDeclingingCheckpoints.class)
+                        .setInvokable(InvokableDecliningCheckpoints.class)
                         .setCheckpointResponder(testCheckpointResponder)
                         .build(Executors.directExecutor());
         assertCheckpointDeclined(
@@ -1164,17 +1164,17 @@ public class TaskTest extends TestLogger {
             assertCheckpointDeclined(
                     task,
                     testCheckpointResponder,
-                    InvokableDeclingingCheckpoints.REJECTED_EXECUTION_CHECKPOINT_ID,
+                    InvokableDecliningCheckpoints.REJECTED_EXECUTION_CHECKPOINT_ID,
                     CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_CLOSING);
             assertCheckpointDeclined(
                     task,
                     testCheckpointResponder,
-                    InvokableDeclingingCheckpoints.THROWING_CHECKPOINT_ID,
+                    InvokableDecliningCheckpoints.THROWING_CHECKPOINT_ID,
                     CheckpointFailureReason.TASK_FAILURE);
             assertCheckpointDeclined(
                     task,
                     testCheckpointResponder,
-                    InvokableDeclingingCheckpoints.TRIGGERING_FAILED_CHECKPOINT_ID,
+                    InvokableDecliningCheckpoints.TRIGGERING_FAILED_CHECKPOINT_ID,
                     CheckpointFailureReason.TASK_FAILURE);
         } finally {
             triggerInvokableLatch(task);
@@ -1243,7 +1243,7 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-            queue.offer(taskExecutionState);
+            assertTrue(queue.offer(taskExecutionState));
         }
 
         private void validateListenerMessage(ExecutionState state, Task task, Throwable error) {
@@ -1342,7 +1342,7 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void invoke() throws Exception {}
+        public void invoke() {}
 
         @Override
         public void cleanUp(Throwable throwable) throws Exception {
@@ -1378,12 +1378,12 @@ public class TaskTest extends TestLogger {
         }
     }
 
-    private static class InvokableDeclingingCheckpoints extends InvokableBlockingWithTrigger {
+    private static class InvokableDecliningCheckpoints extends InvokableBlockingWithTrigger {
         public static final int REJECTED_EXECUTION_CHECKPOINT_ID = 2;
         public static final int THROWING_CHECKPOINT_ID = 3;
         public static final int TRIGGERING_FAILED_CHECKPOINT_ID = 4;
 
-        public InvokableDeclingingCheckpoints(Environment environment) {
+        public InvokableDecliningCheckpoints(Environment environment) {
             super(environment);
         }
 
@@ -1418,6 +1418,7 @@ public class TaskTest extends TestLogger {
 
             // block forever
             synchronized (this) {
+                //noinspection InfiniteLoopStatement
                 while (true) {
                     wait();
                 }
@@ -1436,6 +1437,7 @@ public class TaskTest extends TestLogger {
 
             // block forever
             synchronized (this) {
+                //noinspection InfiniteLoopStatement
                 while (true) {
                     wait();
                 }
@@ -1443,7 +1445,7 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void invoke() throws Exception {}
+        public void invoke() {}
 
         @Override
         public void cleanUp(Throwable throwable) throws Exception {
