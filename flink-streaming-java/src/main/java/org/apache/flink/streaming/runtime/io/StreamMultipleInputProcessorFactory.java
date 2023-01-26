@@ -47,6 +47,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -84,7 +85,8 @@ public class StreamMultipleInputProcessorFactory {
             OperatorChain<?, ?> operatorChain,
             InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
-            TaskInfo taskInfo) {
+            TaskInfo taskInfo,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
         checkNotNull(operatorChain);
 
         List<Input> operatorInputs = mainOperator.getInputs();
@@ -116,7 +118,8 @@ public class StreamMultipleInputProcessorFactory {
                                 i,
                                 inflightDataRescalingDescriptor,
                                 gatePartitioners,
-                                taskInfo);
+                                taskInfo,
+                                canEmitBatchOfRecords);
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;

@@ -177,7 +177,8 @@ public class MultipleInputStreamTask<OUT>
                         operatorChain,
                         getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
                         gatePartitioners,
-                        getEnvironment().getTaskInfo());
+                        getEnvironment().getTaskInfo(),
+                        getCanEmitBatchOfRecords());
     }
 
     protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {

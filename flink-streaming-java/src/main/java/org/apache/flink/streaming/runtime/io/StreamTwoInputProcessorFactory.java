@@ -42,6 +42,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -75,7 +76,8 @@ public class StreamTwoInputProcessorFactory {
             Counter numRecordsIn,
             InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
-            TaskInfo taskInfo) {
+            TaskInfo taskInfo,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
 
         checkNotNull(operatorChain);
 
@@ -91,7 +93,8 @@ public class StreamTwoInputProcessorFactory {
                         0,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
-                        taskInfo);
+                        taskInfo,
+                        canEmitBatchOfRecords);
         TypeSerializer<IN2> typeSerializer2 = streamConfig.getTypeSerializerIn(1, userClassloader);
         StreamTaskInput<IN2> input2 =
                 StreamTaskNetworkInputFactory.create(
@@ -103,7 +106,8 @@ public class StreamTwoInputProcessorFactory {
                         1,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
-                        taskInfo);
+                        taskInfo,
+                        canEmitBatchOfRecords);
 
         InputSelectable inputSelectable =
                 streamOperator instanceof InputSelectable ? (InputSelectable) streamOperator : null;
