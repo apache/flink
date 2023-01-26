@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.recovery.RescalingStreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 
 import java.util.function.Function;
@@ -42,7 +43,8 @@ public class StreamTaskNetworkInputFactory {
             int inputIndex,
             InflightDataRescalingDescriptor rescalingDescriptorinflightDataRescalingDescriptor,
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
-            TaskInfo taskInfo) {
+            TaskInfo taskInfo,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
         return rescalingDescriptorinflightDataRescalingDescriptor.equals(
                         InflightDataRescalingDescriptor.NO_RESCALE)
                 ? new StreamTaskNetworkInput<>(
@@ -50,7 +52,8 @@ public class StreamTaskNetworkInputFactory {
                         inputSerializer,
                         ioManager,
                         statusWatermarkValve,
-                        inputIndex)
+                        inputIndex,
+                        canEmitBatchOfRecords)
                 : new RescalingStreamTaskNetworkInput<>(
                         checkpointedInputGate,
                         inputSerializer,
@@ -59,6 +62,7 @@ public class StreamTaskNetworkInputFactory {
                         inputIndex,
                         rescalingDescriptorinflightDataRescalingDescriptor,
                         gatePartitioners,
-                        taskInfo);
+                        taskInfo,
+                        canEmitBatchOfRecords);
     }
 }

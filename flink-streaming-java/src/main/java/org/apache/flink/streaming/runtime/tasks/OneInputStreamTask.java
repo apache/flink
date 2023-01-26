@@ -206,7 +206,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                                 .getInPhysicalEdges(getUserCodeClassLoader())
                                 .get(gateIndex)
                                 .getPartitioner(),
-                getEnvironment().getTaskInfo());
+                getEnvironment().getTaskInfo(),
+                getCanEmitBatchOfRecords());
     }
 
     /**

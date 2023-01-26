@@ -67,7 +67,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -155,7 +157,8 @@ public class StreamTaskNetworkInputTest {
                         inSerializer,
                         ioManager,
                         new StatusWatermarkValve(numInputChannels),
-                        0);
+                        0,
+                        () -> false);
 
         inputGate.sendEvent(
                 new CheckpointBarrier(
@@ -228,6 +231,92 @@ public class StreamTaskNetworkInputTest {
         assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.END_OF_RECOVERY);
     }
 
+    @Test
+    public void testRecordsAreProcessedInBatches() throws Exception {
+        int numInputChannels = 2;
+        Random random = new Random();
+        LongSerializer inSerializer = LongSerializer.INSTANCE;
+        StreamTestSingleInputGate<Long> inputGate =
+                new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+        StreamTaskNetworkInput<Long> input =
+                new StreamTaskNetworkInput<>(
+                        createCheckpointedInputGate(inputGate.getInputGate()),
+                        inSerializer,
+                        ioManager,
+                        new StatusWatermarkValve(numInputChannels),
+                        0,
+                        () -> true);
+        VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
+
+        // Test for records are processed in batches
+        int expectedElementCount = 3;
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), random.nextInt(numInputChannels));
+        }
+
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount);
+
+        // Test for records are processed in batches during processing event
+        inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, 0);
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), 1);
+        }
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount * 2);
+    }
+
+    @Test
+    public void testBatchProcessingRecordsCanBeInterrupted() throws Exception {
+        int numInputChannels = 2;
+        Random random = new Random();
+        LongSerializer inSerializer = LongSerializer.INSTANCE;
+        StreamTestSingleInputGate<Long> inputGate =
+                new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+
+        AtomicBoolean canEmitBatchOfRecords = new AtomicBoolean();
+        StreamTaskNetworkInput<Long> input =
+                new StreamTaskNetworkInput<>(
+                        createCheckpointedInputGate(inputGate.getInputGate()),
+                        inSerializer,
+                        ioManager,
+                        new StatusWatermarkValve(numInputChannels),
+                        0,
+                        canEmitBatchOfRecords::get);
+
+        VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
+
+        // Test for batch processing records can be interrupted and can be recovered
+        int expectedElementCount = 5;
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), random.nextInt(numInputChannels));
+        }
+
+        canEmitBatchOfRecords.set(false);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isOne();
+
+        canEmitBatchOfRecords.set(true);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount);
+
+        // Test for batch processing records can be interrupted and can be recovered during
+        // processing event
+        inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, 0);
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), 1);
+        }
+
+        // Just process the event
+        canEmitBatchOfRecords.set(false);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount);
+
+        canEmitBatchOfRecords.set(true);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount * 2);
+    }
+
     private BufferOrEvent createDataBuffer() throws IOException {
         try (BufferBuilder bufferBuilder =
                 BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE)) {
@@ -245,7 +334,8 @@ public class StreamTaskNetworkInputTest {
                 LongSerializer.INSTANCE,
                 ioManager,
                 new StatusWatermarkValve(1),
-                0);
+                0,
+                () -> false);
     }
 
     private static CheckpointedInputGate createCheckpointedInputGate(InputGate inputGate) {
@@ -337,7 +427,8 @@ public class StreamTaskNetworkInputTest {
                     inSerializer,
                     new StatusWatermarkValve(numInputChannels),
                     0,
-                    deserializers);
+                    deserializers,
+                    () -> false);
         }
 
         @Override
