@@ -36,6 +36,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ConcurrentModificationException;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /** {@link MetricReporter} that exports {@link Metric Metrics} via SLF4J {@link Logger}. */
 public class Slf4jReporter extends AbstractReporter implements Scheduled {
@@ -84,6 +86,10 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
     }
 
     private void tryReport() {
+        if (gauges.isEmpty() && counters.isEmpty() && histograms.isEmpty() && meters.isEmpty()) {
+            LOG.info("Skipping metrics report because no metrics are registered.");
+            return;
+        }
         // initialize with previous size to avoid repeated resizing of backing array
         // pad the size to allow deviations in the final string, for example due to different double
         // value representations
@@ -94,70 +100,38 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
                         "=========================== Starting metrics report ===========================")
                 .append(lineSeparator);
 
-        builder.append(lineSeparator)
-                .append(
-                        "-- Counters -------------------------------------------------------------------")
-                .append(lineSeparator);
-        for (Map.Entry<Counter, String> metric : counters.entrySet()) {
-            builder.append(metric.getValue())
-                    .append(": ")
-                    .append(metric.getKey().getCount())
-                    .append(lineSeparator);
-        }
-
-        builder.append(lineSeparator)
-                .append(
-                        "-- Gauges ---------------------------------------------------------------------")
-                .append(lineSeparator);
-        for (Map.Entry<Gauge<?>, String> metric : gauges.entrySet()) {
-            builder.append(metric.getValue())
-                    .append(": ")
-                    .append(metric.getKey().getValue())
-                    .append(lineSeparator);
-        }
-
-        builder.append(lineSeparator)
-                .append(
-                        "-- Meters ---------------------------------------------------------------------")
-                .append(lineSeparator);
-        for (Map.Entry<Meter, String> metric : meters.entrySet()) {
-            builder.append(metric.getValue())
-                    .append(": ")
-                    .append(metric.getKey().getRate())
-                    .append(lineSeparator);
-        }
-
-        builder.append(lineSeparator)
-                .append(
-                        "-- Histograms -----------------------------------------------------------------")
-                .append(lineSeparator);
-        for (Map.Entry<Histogram, String> metric : histograms.entrySet()) {
-            HistogramStatistics stats = metric.getKey().getStatistics();
-            builder.append(metric.getValue())
-                    .append(": count=")
-                    .append(stats.size())
-                    .append(", min=")
-                    .append(stats.getMin())
-                    .append(", max=")
-                    .append(stats.getMax())
-                    .append(", mean=")
-                    .append(stats.getMean())
-                    .append(", stddev=")
-                    .append(stats.getStdDev())
-                    .append(", p50=")
-                    .append(stats.getQuantile(0.50))
-                    .append(", p75=")
-                    .append(stats.getQuantile(0.75))
-                    .append(", p95=")
-                    .append(stats.getQuantile(0.95))
-                    .append(", p98=")
-                    .append(stats.getQuantile(0.98))
-                    .append(", p99=")
-                    .append(stats.getQuantile(0.99))
-                    .append(", p999=")
-                    .append(stats.getQuantile(0.999))
-                    .append(lineSeparator);
-        }
+        report(builder, "Counters", counters, Counter::getCount);
+        report(builder, "Gauges", gauges, Gauge::getValue);
+        report(builder, "Meters", meters, Meter::getRate);
+        report(
+                builder,
+                "Histograms",
+                histograms,
+                (metric, b) -> {
+                    HistogramStatistics stats = metric.getStatistics();
+                    b.append("count=")
+                            .append(stats.size())
+                            .append(", min=")
+                            .append(stats.getMin())
+                            .append(", max=")
+                            .append(stats.getMax())
+                            .append(", mean=")
+                            .append(stats.getMean())
+                            .append(", stddev=")
+                            .append(stats.getStdDev())
+                            .append(", p50=")
+                            .append(stats.getQuantile(0.50))
+                            .append(", p75=")
+                            .append(stats.getQuantile(0.75))
+                            .append(", p95=")
+                            .append(stats.getQuantile(0.95))
+                            .append(", p98=")
+                            .append(stats.getQuantile(0.98))
+                            .append(", p99=")
+                            .append(stats.getQuantile(0.99))
+                            .append(", p999=")
+                            .append(stats.getQuantile(0.999));
+                });
 
         builder.append(lineSeparator)
                 .append(
@@ -166,6 +140,38 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
         LOG.info(builder.toString());
 
         previousSize = builder.length();
+    }
+
+    private static <T extends Metric> void report(
+            StringBuilder builder,
+            String type,
+            Map<T, String> metrics,
+            Function<T, Object> valueExtractor) {
+        report(
+                builder,
+                type,
+                metrics,
+                (metric, build) -> builder.append(valueExtractor.apply(metric)));
+    }
+
+    private static <T extends Metric> void report(
+            StringBuilder builder,
+            String type,
+            Map<T, String> metrics,
+            BiConsumer<T, StringBuilder> valueExtractor) {
+        if (!metrics.isEmpty()) {
+            builder.append(lineSeparator)
+                    .append("-- ")
+                    .append(type)
+                    .append(
+                            " ---------------------------------------------------------------------")
+                    .append(lineSeparator);
+            for (Map.Entry<T, String> metric : metrics.entrySet()) {
+                builder.append(metric.getValue()).append(": ");
+                valueExtractor.accept(metric.getKey(), builder);
+                builder.append(lineSeparator);
+            }
+        }
     }
 
     @Override
