@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.netty.CancelPartitionRequestTest.InfiniteSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -33,7 +34,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.concurrent.CountDownLatch;
@@ -43,8 +43,8 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -64,18 +64,14 @@ public class ServerTransportErrorHandlingTest {
                         anyInt(),
                         any(BufferAvailabilityListener.class)))
                 .thenAnswer(
-                        new Answer<ResultSubpartitionView>() {
-                            @Override
-                            public ResultSubpartitionView answer(InvocationOnMock invocationOnMock)
-                                    throws Throwable {
-                                BufferAvailabilityListener listener =
-                                        (BufferAvailabilityListener)
-                                                invocationOnMock.getArguments()[2];
-                                listener.notifyDataAvailable();
-                                return new CancelPartitionRequestTest.InfiniteSubpartitionView(
-                                        outboundBuffers, sync);
-                            }
-                        });
+                        (Answer<ResultSubpartitionView>)
+                                invocationOnMock -> {
+                                    BufferAvailabilityListener listener =
+                                            (BufferAvailabilityListener)
+                                                    invocationOnMock.getArguments()[2];
+                                    listener.notifyDataAvailable();
+                                    return new InfiniteSubpartitionView(outboundBuffers, sync);
+                                });
 
         NettyProtocol protocol =
                 new NettyProtocol(partitionManager, mock(TaskEventDispatcher.class)) {
@@ -87,9 +83,7 @@ public class ServerTransportErrorHandlingTest {
                             // Close on read
                             new ChannelInboundHandlerAdapter() {
                                 @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-
+                                public void channelRead(ChannelHandlerContext ctx, Object msg) {
                                     ctx.channel().close();
                                 }
                             }
