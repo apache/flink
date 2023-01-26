@@ -583,9 +583,6 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // wait for the first task submission
         taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
 
-        // sleep a bit to ensure uptime is > 0
-        Thread.sleep(10L);
-
         CommonTestUtils.waitUntilCondition(() -> upTimeGauge.getValue() > 0L);
         assertThat(downTimeGauge.getValue()).isEqualTo(0L);
         assertThat(restartTimeGauge.getValue()).isEqualTo(0L);
@@ -603,10 +600,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // wait for the second task submissions
         taskManagerGateway.waitForSubmissions(2, Duration.ofSeconds(5));
 
-        // sleep a bit to ensure uptime is > 0
-        Thread.sleep(10L);
-
-        assertThat(upTimeGauge.getValue()).isGreaterThan(0L);
+        CommonTestUtils.waitUntilCondition(() -> upTimeGauge.getValue() > 0L);
         assertThat(downTimeGauge.getValue()).isEqualTo(0L);
         // can be zero if the restart is very quick
         assertThat(restartTimeGauge.getValue()).isGreaterThanOrEqualTo(0L);
