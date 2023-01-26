@@ -71,14 +71,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamTaskNetworkInput}. */
 public class StreamTaskNetworkInputTest {
@@ -101,7 +94,7 @@ public class StreamTaskNetworkInputTest {
 
         assertHasNextElement(input, output);
         assertHasNextElement(input, output);
-        assertEquals(2, output.getNumberOfEmittedRecords());
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(2);
     }
 
     /**
@@ -122,7 +115,7 @@ public class StreamTaskNetworkInputTest {
         StreamTaskNetworkInput<Long> input = createStreamTaskNetworkInput(buffers);
 
         assertHasNextElement(input, output);
-        assertEquals(0, output.getNumberOfEmittedRecords());
+        assertThat(output.getNumberOfEmittedRecords()).isZero();
     }
 
     private Map<InputChannelInfo, TestRecordDeserializer> createDeserializers(
@@ -174,7 +167,7 @@ public class StreamTaskNetworkInputTest {
 
         assertHasNextElement(input, output);
         assertHasNextElement(input, output);
-        assertEquals(1, output.getNumberOfEmittedRecords());
+        assertThat(output.getNumberOfEmittedRecords()).isOne();
 
         // send EndOfPartitionEvent and ensure that deserializer has been released
         inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, channelId);
@@ -204,11 +197,11 @@ public class StreamTaskNetworkInputTest {
                         inputGate, inSerializer, numInputChannels, deserializers);
 
         for (InputChannelInfo channelInfo : inputGate.getInputGate().getChannelInfos()) {
-            assertNotNull(deserializers.get(channelInfo));
+            assertThat(deserializers.get(channelInfo)).isNotNull();
             inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, channelInfo.getInputChannelIdx());
             input.emitNext(output);
-            assertTrue(copiedDeserializers.get(channelInfo).isCleared());
-            assertNull(deserializers.get(channelInfo));
+            assertThat(copiedDeserializers.get(channelInfo).isCleared()).isTrue();
+            assertThat(deserializers.get(channelInfo)).isNull();
         }
     }
 
@@ -228,11 +221,11 @@ public class StreamTaskNetworkInputTest {
                         inputGate, inSerializer, numInputChannels, deserializers);
 
         inputGate.sendElement(new StreamRecord<>(42L), 0);
-        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 0);
-        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 1);
-        assertThat(input.emitNext(output), equalTo(DataInputStatus.END_OF_RECOVERY));
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.END_OF_RECOVERY);
     }
 
     private BufferOrEvent createDataBuffer() throws IOException {
@@ -273,14 +266,14 @@ public class StreamTaskNetworkInputTest {
                 RecordWriter.serializeRecord(serializer, serializationDelegate);
         bufferBuilder.appendAndCommit(serializedRecord);
 
-        assertFalse(bufferBuilder.isFull());
+        assertThat(bufferBuilder.isFull()).isFalse();
     }
 
     private static <T> void assertHasNextElement(StreamTaskInput<T> input, DataOutput<T> output)
             throws Exception {
-        assertTrue(input.getAvailableFuture().isDone());
+        assertThat(input.getAvailableFuture().isDone()).isTrue();
         DataInputStatus status = input.emitNext(output);
-        assertThat(status, is(DataInputStatus.MORE_AVAILABLE));
+        assertThat(status).isEqualTo(DataInputStatus.MORE_AVAILABLE);
     }
 
     private static class TestRecordDeserializer
