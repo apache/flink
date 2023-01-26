@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.utils.RexLiteralUtil.toFlinkInternalV
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 
-import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.rex.{RexLiteral, RexUnknownAs}
 import org.apache.calcite.util.{RangeSets, Sarg}
 
 import java.util.Arrays.asList
@@ -96,6 +96,9 @@ object SearchOperatorGen {
            |boolean $nullTerm = true;
            |if (!${needle.nullTerm}) {
            |  $resultTerm = $negation$setTerm.contains(${needle.resultTerm});
+           |  $nullTerm = !$resultTerm && $setTerm.containsNull();
+           |} else if (${sarg.nullAs == RexUnknownAs.TRUE}) {
+           |  $resultTerm = $negation$setTerm.containsNull();
            |  $nullTerm = !$resultTerm && $setTerm.containsNull();
            |}
            |// --- End SEARCH ${target.resultTerm}
