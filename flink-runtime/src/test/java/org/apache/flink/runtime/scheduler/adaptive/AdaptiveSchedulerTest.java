@@ -87,6 +87,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
@@ -585,7 +586,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // sleep a bit to ensure uptime is > 0
         Thread.sleep(10L);
 
-        assertThat(upTimeGauge.getValue()).isGreaterThan(0L);
+        CommonTestUtils.waitUntilCondition(() -> upTimeGauge.getValue() > 0L);
         assertThat(downTimeGauge.getValue()).isEqualTo(0L);
         assertThat(restartTimeGauge.getValue()).isEqualTo(0L);
 
