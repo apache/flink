@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -43,14 +44,14 @@ public interface LeaderElectionEventHandler {
     void onRevokeLeadership();
 
     /**
-     * Called by specific {@link LeaderElectionDriver} when the leader information is changed. Then
-     * the {@link LeaderElectionService} could write the leader information again if necessary. This
-     * method should only be called when {@link LeaderElectionDriver#hasLeadership()} is true.
-     * Duplicated leader change events could happen, so the implementation should check whether the
-     * passed leader information is really different with internal confirmed leader information.
+     * Called by specific {@link LeaderElectionDriver} when the {@link LeaderInformation} is
+     * changed. Then the {@link LeaderElectionService} could write the {@code LeaderInformation}
+     * again if necessary. This method should only be called when {@link
+     * LeaderElectionDriver#hasLeadership()} is true. Duplicated leader change events could happen,
+     * so the implementation should check whether the passed leader information is really different
+     * with internal confirmed leader information.
      *
-     * @param leaderInformation leader information which contains leader session id and leader
-     *     address.
+     * @param leaderInformation {@code LeaderInformation} per unique id.
      */
-    void onLeaderInformationChange(LeaderInformation leaderInformation);
+    void onLeaderInformationChange(Map<String, LeaderInformation> leaderInformation);
 }

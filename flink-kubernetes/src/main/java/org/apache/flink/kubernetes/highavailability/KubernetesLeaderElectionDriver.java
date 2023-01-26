@@ -33,6 +33,7 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Preconditions;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,7 +223,9 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
                 leaderElectionEventHandler.onLeaderInformationChange(
-                        getLeaderInformationFromConfigMap(configMap));
+                        ImmutableMap.of(
+                                "unused-contender-id",
+                                getLeaderInformationFromConfigMap(configMap)));
             }
         }
 

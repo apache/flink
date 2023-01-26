@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -103,12 +104,28 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
     }
 
     @Override
-    public void onLeaderInformationChange(LeaderInformation leaderInformation) {
+    public void onLeaderInformationChange(
+            Map<String, LeaderInformation> leaderInformationPerContender) {
         ifRunning(
                 () ->
                         waitForInitialization(
                                 leaderElectionDriver -> {
+                                    final LeaderInformation leaderInformation;
+                                    if (leaderInformationPerContender.isEmpty()) {
+                                        leaderInformation = LeaderInformation.empty();
+                                    } else if (leaderInformationPerContender.size() == 1) {
+                                        leaderInformation =
+                                                leaderInformationPerContender
+                                                        .values()
+                                                        .iterator()
+                                                        .next();
+                                    } else {
+                                        throw new IllegalArgumentException(
+                                                "Unexpected number of contenders: "
+                                                        + leaderInformationPerContender.size());
+                                    }
                                     leaderInformationConsumer.accept(leaderInformation);
+
                                     if (confirmedLeaderInformation.getLeaderSessionID() != null
                                             && !this.confirmedLeaderInformation.equals(
                                                     leaderInformation)) {

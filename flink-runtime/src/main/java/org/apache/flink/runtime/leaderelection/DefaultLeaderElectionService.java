@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.Map;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -256,9 +257,22 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    public void onLeaderInformationChange(LeaderInformation leaderInformation) {
+    public void onLeaderInformationChange(
+            Map<String, LeaderInformation> leaderInformationPerContender) {
         synchronized (lock) {
             if (running) {
+                // FLINK-26522: Intermediate state where DefaultLeaderElectionService doesn't
+                // support multiple contenders
+                final LeaderInformation leaderInformation;
+                if (leaderInformationPerContender.isEmpty()) {
+                    leaderInformation = LeaderInformation.empty();
+                } else if (leaderInformationPerContender.size() == 1) {
+                    leaderInformation = leaderInformationPerContender.values().iterator().next();
+                } else {
+                    throw new IllegalArgumentException(
+                            "Invalid number of LeaderInformation records.");
+                }
+
                 LOG.trace(
                         "Leader node changed while {} is the leader with session ID {}. New leader information {}.",
                         leaderContender.getDescription(),

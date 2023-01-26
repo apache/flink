@@ -31,6 +31,7 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.lea
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,10 +167,13 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     private void retrieveLeaderInformationFromZooKeeper() throws Exception {
         if (leaderLatch.hasLeadership()) {
             ChildData childData = cache.getCurrentData(connectionInformationPath);
-            leaderElectionEventHandler.onLeaderInformationChange(
+            final String contenderID = ZooKeeperUtils.extractContenderID(connectionInformationPath);
+            final LeaderInformation leaderInformation =
                     childData == null
                             ? LeaderInformation.empty()
-                            : ZooKeeperUtils.readLeaderInformation(childData.getData()));
+                            : ZooKeeperUtils.readLeaderInformation(childData.getData());
+            leaderElectionEventHandler.onLeaderInformationChange(
+                    ImmutableMap.of(contenderID, leaderInformation));
         }
     }
 

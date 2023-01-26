@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -297,7 +298,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
         public void onRevokeLeadership() {}
 
         @Override
-        public void onLeaderInformationChange(LeaderInformation leaderInformation) {
+        public void onLeaderInformationChange(Map<String, LeaderInformation> leaderInformation) {
             try {
                 waitingLatch.await();
             } catch (InterruptedException e) {
@@ -393,8 +394,17 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
         }
 
         @Override
-        public void onLeaderInformationChange(LeaderInformation leaderInformation) {
-            this.leaderInformation = leaderInformation;
+        public void onLeaderInformationChange(
+                Map<String, LeaderInformation> leaderInformationPerContender) {
+            if (leaderInformationPerContender.isEmpty()) {
+                this.leaderInformation = LeaderInformation.empty();
+            } else if (leaderInformationPerContender.size() == 1) {
+                this.leaderInformation = leaderInformationPerContender.values().iterator().next();
+            } else {
+                throw new IllegalArgumentException(
+                        "Invalid number of contenders passed: "
+                                + leaderInformationPerContender.size());
+            }
         }
 
         @Nullable

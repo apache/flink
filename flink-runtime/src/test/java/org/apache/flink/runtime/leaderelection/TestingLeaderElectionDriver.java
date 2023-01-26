@@ -20,6 +20,8 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+
 import javax.annotation.Nullable;
 
 import java.util.UUID;
@@ -85,7 +87,8 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
     public void leaderInformationChanged(LeaderInformation newLeader) {
         leaderInformation = newLeader;
-        leaderElectionEventHandler.onLeaderInformationChange(newLeader);
+        leaderElectionEventHandler.onLeaderInformationChange(
+                ImmutableMap.of("unused-contender-id", newLeader));
     }
 
     public void onFatalError(Throwable throwable) {

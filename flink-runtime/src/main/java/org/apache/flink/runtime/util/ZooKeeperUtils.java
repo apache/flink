@@ -54,6 +54,7 @@ import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHel
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -520,6 +521,23 @@ public class ZooKeeperUtils {
         } else {
             return LeaderInformation.empty();
         }
+    }
+
+    public static String extractContenderID(String path) {
+        final String[] pathSegments = splitZooKeeperPath(path);
+
+        Preconditions.checkArgument(
+                pathSegments.length >= 2,
+                "The passed path '{}' does not have the minimum number of segments (expected: 2).",
+                path);
+        Preconditions.checkArgument(
+                CONNECTION_INFO_NODE.equals(pathSegments[pathSegments.length - 1]),
+                "The passed path '{}' does not have the expected format '<contender-id>/{}'.",
+                path,
+                CONNECTION_INFO_NODE);
+        Preconditions.checkArgument(path.endsWith(CONNECTION_INFO_NODE));
+
+        return pathSegments[pathSegments.length - 2];
     }
 
     /**

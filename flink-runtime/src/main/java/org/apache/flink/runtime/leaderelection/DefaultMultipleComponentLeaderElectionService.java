@@ -25,6 +25,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -248,7 +250,9 @@ public class DefaultMultipleComponentLeaderElectionService
             LeaderElectionEventHandler leaderElectionEventHandler,
             LeaderInformation leaderInformation) {
         leadershipOperationExecutor.execute(
-                () -> leaderElectionEventHandler.onLeaderInformationChange(leaderInformation));
+                () ->
+                        leaderElectionEventHandler.onLeaderInformationChange(
+                                ImmutableMap.of("unused-contender-id", leaderInformation)));
     }
 
     @Override
