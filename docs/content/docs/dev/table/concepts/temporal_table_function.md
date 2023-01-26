@@ -69,7 +69,7 @@ tEnv.registerFunction("rates", rates);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-rates = tEnv
+val rates = tEnv
     .from("currency_rates")
     .createTemporalTableFunction("update_time", "currency")
  
