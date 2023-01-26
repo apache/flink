@@ -32,6 +32,8 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +130,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     @Override
     public void writeLeaderInformation(LeaderInformation leaderInformation) {
-        assert (running);
+        Preconditions.checkState(running);
         final UUID confirmedLeaderSessionID = leaderInformation.getLeaderSessionID();
         final String confirmedLeaderAddress = leaderInformation.getLeaderAddress();
         try {
@@ -179,7 +181,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     @Override
     public boolean hasLeadership() {
-        assert (running);
+        Preconditions.checkState(running);
         final Optional<KubernetesConfigMap> configMapOpt = kubeClient.getConfigMap(configMapName);
         if (configMapOpt.isPresent()) {
             return KubernetesLeaderElector.hasLeadership(configMapOpt.get(), lockIdentity);

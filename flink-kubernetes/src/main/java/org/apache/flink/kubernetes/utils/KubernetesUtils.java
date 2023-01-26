@@ -211,8 +211,8 @@ public class KubernetesUtils {
      */
     public static KubernetesConfigMap checkConfigMaps(
             List<KubernetesConfigMap> configMaps, String expectedConfigMapName) {
-        assert (configMaps.size() == 1);
-        assert (configMaps.get(0).getName().equals(expectedConfigMapName));
+        Preconditions.checkState(configMaps.size() == 1);
+        Preconditions.checkState(configMaps.get(0).getName().equals(expectedConfigMapName));
         return configMaps.get(0);
     }
 
