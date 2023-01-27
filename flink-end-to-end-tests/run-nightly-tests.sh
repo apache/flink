@@ -46,7 +46,6 @@ source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
 function run_on_exit {
     collect_coredumps $(pwd) $DEBUG_FILES_OUTPUT_DIR
-    collect_dmesg $DEBUG_FILES_OUTPUT_DIR
 }
 
 on_exit run_on_exit
