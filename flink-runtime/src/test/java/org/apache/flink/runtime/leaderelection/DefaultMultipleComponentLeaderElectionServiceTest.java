@@ -21,11 +21,9 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
@@ -41,15 +39,14 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultMultipleComponentLeaderElectionService}. */
-@ExtendWith(TestLoggerExtension.class)
 class DefaultMultipleComponentLeaderElectionServiceTest {
 
     @RegisterExtension
-    public final TestingFatalErrorHandlerExtension fatalErrorHandlerExtension =
+    final TestingFatalErrorHandlerExtension fatalErrorHandlerExtension =
             new TestingFatalErrorHandlerExtension();
 
     @Test
-    public void isLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
+    void isLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
 
@@ -90,7 +87,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void notLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
+    void notLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
 
@@ -122,7 +119,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void unregisteredEventHandlersAreNotNotified() throws Exception {
+    void unregisteredEventHandlersAreNotNotified() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
 
@@ -146,7 +143,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void newlyRegisteredEventHandlersAreInformedAboutLeadership() throws Exception {
+    void newlyRegisteredEventHandlersAreInformedAboutLeadership() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
@@ -212,7 +209,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void allKnownLeaderInformationCallsEventHandlers() throws Exception {
+    void allKnownLeaderInformationCallsEventHandlers() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
@@ -252,7 +249,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void allKnownLeaderInformationDoesNotBlock() throws Exception {
+    void allKnownLeaderInformationDoesNotBlock() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
