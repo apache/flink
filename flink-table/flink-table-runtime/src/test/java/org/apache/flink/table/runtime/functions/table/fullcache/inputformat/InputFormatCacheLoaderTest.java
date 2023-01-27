@@ -54,14 +54,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.UNINITIALIZED;
-import static org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat.DEFAULT_DELTA_NUM_SPLITS;
-import static org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat.DEFAULT_NUM_SPLITS;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link InputFormatCacheLoader}. */
 class InputFormatCacheLoaderTest {
+
+    private static final int DEFAULT_NUM_SPLITS = 2;
+    private static final int DEFAULT_DELTA_NUM_SPLITS = 0;
 
     @BeforeEach
     void resetCounter() {
@@ -79,10 +80,10 @@ class InputFormatCacheLoaderTest {
         ConcurrentHashMap<RowData, Collection<RowData>> cache;
         try (InputFormatCacheLoader cacheLoader = createCacheLoader(deltaNumSplits)) {
             cacheLoader.initializeMetrics(UnregisteredMetricsGroup.createCacheMetricGroup());
-            run(cacheLoader);
+            reloadSynchronously(cacheLoader);
             cache = cacheLoader.getCache();
             assertCacheContent(cache);
-            run(cacheLoader);
+            reloadSynchronously(cacheLoader);
             assertThat(cacheLoader.getCache())
                     .as("A new instance of cache should be present after reload.")
                     .isNotSameAs(cache);
@@ -111,7 +112,7 @@ class InputFormatCacheLoaderTest {
             assertThat(metricGroup.missCounter).isNull();
             assertThat(metricGroup.numCachedBytesGauge).isNull(); // not supported currently
 
-            run(cacheLoader);
+            reloadSynchronously(cacheLoader);
 
             assertThat(metricGroup.loadCounter.getCount()).isEqualTo(1);
             assertThat(metricGroup.latestLoadTimeGauge.getValue()).isNotEqualTo(UNINITIALIZED);
@@ -131,7 +132,7 @@ class InputFormatCacheLoaderTest {
                 createCacheLoader(DEFAULT_NUM_SPLITS, DEFAULT_DELTA_NUM_SPLITS, reloadAction)) {
             InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
             cacheLoader.initializeMetrics(metricGroup);
-            assertThatThrownBy(() -> run(cacheLoader)).hasRootCause(exception);
+            assertThatThrownBy(() -> reloadSynchronously(cacheLoader)).hasRootCause(exception);
             assertThat(metricGroup.loadCounter.getCount()).isEqualTo(0);
             assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(1);
         }
@@ -161,8 +162,13 @@ class InputFormatCacheLoaderTest {
             future = cacheLoader.reloadAsync();
             reloadLatch.await();
         }
-        // try-with-resources calls #close, which should wait for the end of reload
-        assertThat(future.isDone()).isTrue();
+        // try-with-resources calls #close which will interrupt any running threads and wait for the
+        // end of reload
+        assertThat(future.isDone())
+                .as(
+                        "The reload future should still complete successfully indicating "
+                                + "that the reload was intentionally stopped without an error.")
+                .isTrue();
         assertThat(metricGroup.loadCounter.getCount()).isEqualTo(0);
         assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
     }
@@ -184,7 +190,7 @@ class InputFormatCacheLoaderTest {
                         assertThat(rows).containsExactlyInAnyOrderElementsOf(actual.get(key)));
     }
 
-    private void run(CacheLoader cacheLoader) {
+    private void reloadSynchronously(CacheLoader cacheLoader) {
         cacheLoader.reloadAsync().join();
     }
 

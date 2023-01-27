@@ -67,7 +67,7 @@ public class LookupFullCache implements LookupCache {
                 cacheLoader.open(new Configuration());
                 reloadTriggerContext =
                         new ReloadTriggerContext(
-                                cacheLoader,
+                                cacheLoader::reloadAsync,
                                 th -> {
                                     if (reloadFailCause == null) {
                                         reloadFailCause = th;

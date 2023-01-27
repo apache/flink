@@ -22,14 +22,16 @@ import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadT
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Runtime implementation of {@link CacheReloadTrigger.Context}. */
 public class ReloadTriggerContext implements CacheReloadTrigger.Context {
 
-    private final CacheLoader cacheLoader;
+    private final Supplier<CompletableFuture<Void>> cacheLoader;
     private final Consumer<Throwable> reloadFailCallback;
 
-    public ReloadTriggerContext(CacheLoader cacheLoader, Consumer<Throwable> reloadFailCallback) {
+    public ReloadTriggerContext(
+            Supplier<CompletableFuture<Void>> cacheLoader, Consumer<Throwable> reloadFailCallback) {
         this.cacheLoader = cacheLoader;
         this.reloadFailCallback = reloadFailCallback;
     }
@@ -50,7 +52,7 @@ public class ReloadTriggerContext implements CacheReloadTrigger.Context {
     @Override
     public CompletableFuture<Void> triggerReload() {
         return cacheLoader
-                .reloadAsync()
+                .get()
                 .exceptionally(
                         th -> {
                             reloadFailCallback.accept(th);

@@ -42,14 +42,15 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * TestInputFormat that reads data from (initNum + delta) splits which share the same {@code queue}.
+ * TestInputFormat that reads data from {@link #numSplits} splits on first load and ({@link
+ * #numSplits} + {@link #deltaNumSplits}) splits on next load. Splits share the same {@code queue}.
  */
 public class FullCacheTestInputFormat
         extends RichInputFormat<RowData, FullCacheTestInputFormat.QueueInputSplit> {
 
     public static final AtomicInteger OPEN_CLOSED_COUNTER = new AtomicInteger(0);
-    public static final int DEFAULT_NUM_SPLITS = 2;
-    public static final int DEFAULT_DELTA_NUM_SPLITS = 0;
+    private static final int DEFAULT_NUM_SPLITS = 2;
+    private static final int DEFAULT_DELTA_NUM_SPLITS = 0;
 
     // RowData is not serializable, so we store Rows
     private final Collection<Row> dataRows;
