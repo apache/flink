@@ -28,8 +28,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * leader information to various storage.
  */
 public class DefaultLeaderElectionService extends AbstractLeaderElectionService
-        implements LeaderElectionEventHandler {
+        implements LeaderElectionEventHandler, MultipleComponentLeaderElectionDriver.Listener {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 
@@ -299,6 +302,33 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                         leaderElectionDriver);
             }
         }
+    }
+
+    @Override
+    public void isLeader() {
+        onGrantLeadership(UUID.randomUUID());
+    }
+
+    @Override
+    public void notLeader() {
+        onRevokeLeadership();
+    }
+
+    @Override
+    public void notifyLeaderInformationChange(
+            String componentId, LeaderInformation leaderInformation) {
+        onLeaderInformationChange(Collections.singletonMap(componentId, leaderInformation));
+    }
+
+    @Override
+    public void notifyAllKnownLeaderInformation(
+            Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
+        onLeaderInformationChange(
+                leaderInformationWithComponentIds.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        LeaderInformationWithComponentId::getComponentId,
+                                        LeaderInformationWithComponentId::getLeaderInformation)));
     }
 
     private class LeaderElectionFatalErrorHandler implements FatalErrorHandler {
