@@ -65,7 +65,6 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
@@ -475,13 +474,11 @@ class ExecutorImplITCase {
                                             String.format("STOP JOB '%s' WITH SAVEPOINT", jobID)))
                             .get(0)
                             .getString(0);
-            assertThat(
-                            Files.exists(
-                                    Paths.get(
-                                            URI.create(
-                                                    Preconditions.checkNotNull(savepointPath)
-                                                            .toString()))))
-                    .isTrue();
+            assertThat(savepointPath)
+                    .isNotNull()
+                    .matches(
+                            stringData ->
+                                    Files.exists(Paths.get(URI.create(stringData.toString()))));
         } finally {
             executor.closeSession();
         }
