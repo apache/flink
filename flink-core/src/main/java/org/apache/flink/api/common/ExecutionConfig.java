@@ -21,7 +21,6 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -467,17 +466,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         } else {
             return restartStrategyConfiguration;
         }
-    }
-
-    /**
-     * TODO: this shouldn't exist and shouldn't pollute public API. Tests should change this via
-     * Configuration
-     */
-    @VisibleForTesting
-    @Internal
-    public ExecutionConfig setScheduler(SchedulerType schedulerType) {
-        configuration.set(JobManagerOptions.SCHEDULER, schedulerType);
-        return this;
     }
 
     @Internal
@@ -1162,7 +1150,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
 
-        configuration.getOptional(JobManagerOptions.SCHEDULER).ifPresent(this::setScheduler);
+        configuration
+                .getOptional(JobManagerOptions.SCHEDULER)
+                .ifPresent(t -> this.configuration.set(JobManagerOptions.SCHEDULER, t));
     }
 
     /**
