@@ -1828,6 +1828,57 @@ class StreamingJobGraphGeneratorTest {
         }
     }
 
+    @Test
+    void testSinkFunctionNotSupportConcurrentExecutionAttempts() {
+        testWhetherSinkFunctionSupportsConcurrentExecutionAttempts(
+                new TestingSinkFunctionNotSupportConcurrentExecutionAttempts<>(), false);
+    }
+
+    @Test
+    void testSinkFunctionSupportConcurrentExecutionAttempts() {
+        testWhetherSinkFunctionSupportsConcurrentExecutionAttempts(
+                new TestingSinkFunctionSupportConcurrentExecutionAttempts<>(), true);
+    }
+
+    private static void testWhetherSinkFunctionSupportsConcurrentExecutionAttempts(
+            SinkFunction<Integer> function, boolean isSupported) {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        source.rebalance().addSink(function).name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(2);
+        for (JobVertex jobVertex : jobGraph.getVertices()) {
+            if (jobVertex.getName().contains("source")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+            } else if (jobVertex.getName().contains("sink")) {
+                if (isSupported) {
+                    assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+                } else {
+                    assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+                }
+            } else {
+                Assertions.fail("Unexpected job vertex " + jobVertex.getName());
+            }
+        }
+    }
+
+    private static class TestingSinkFunctionNotSupportConcurrentExecutionAttempts<T>
+            implements SinkFunction<T> {
+        @Override
+        public void invoke(T value, Context context) throws Exception {}
+    }
+
+    private static class TestingSinkFunctionSupportConcurrentExecutionAttempts<T>
+            implements SinkFunction<T>, SupportsConcurrentExecutionAttempts {
+        @Override
+        public void invoke(T value, Context context) throws Exception {}
+    }
+
     private static class TestSinkWithSupportsConcurrentExecutionAttempts
             implements SupportsConcurrentExecutionAttempts,
                     TwoPhaseCommittingSink<Integer, Void>,

@@ -184,6 +184,22 @@ class SpeculativeSchedulerITCase {
         assertThat(DummyCommitter.foundSpeculativeWriter).isTrue();
     }
 
+    @Test
+    public void testNonSpeculativeSlowSinkFunction() throws Exception {
+        executeJob(this::setupNonSpeculativeSlowSinkFunction);
+        waitUntilJobArchived();
+
+        checkResults();
+    }
+
+    @Test
+    public void testSpeculativeSlowSinkFunction() throws Exception {
+        executeJob(this::setupSpeculativeSlowSinkFunction);
+        waitUntilJobArchived();
+
+        checkResults();
+    }
+
     private void checkResults() {
         final Map<Long, Long> numberCountResultMap =
                 numberCountResults.values().stream()
@@ -321,6 +337,30 @@ class SpeculativeSchedulerITCase {
                         .name("source")
                         .slotSharingGroup("sourceGroup");
         source.sinkTo(new SpeculativeSink())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("sinkGroup");
+    }
+
+    private void setupNonSpeculativeSlowSinkFunction(StreamExecutionEnvironment env) {
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("sourceGroup");
+        source.addSink(new NonSpeculativeSinkFunction())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("sinkGroup");
+    }
+
+    private void setupSpeculativeSlowSinkFunction(StreamExecutionEnvironment env) {
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("sourceGroup");
+        source.addSink(new SpeculativeSinkFunction())
                 .setParallelism(parallelism)
                 .name("sink")
                 .slotSharingGroup("sinkGroup");
@@ -566,6 +606,44 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public void close() throws Exception {}
+    }
+
+    private static class NonSpeculativeSinkFunction extends RichSinkFunction<Long> {
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void invoke(Long value, Context context) throws Exception {
+            if (slowTaskCounter.getAndDecrement() > 0) {
+                Thread.sleep(5000);
+            }
+            numberCountResult.merge(value, 1L, Long::sum);
+        }
+
+        @Override
+        public void finish() {
+            if (getRuntimeContext().getAttemptNumber() == 0) {
+                numberCountResults.put(
+                        getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+            }
+        }
+    }
+
+    private static class SpeculativeSinkFunction extends RichSinkFunction<Long>
+            implements SupportsConcurrentExecutionAttempts {
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void invoke(Long value, Context context) throws Exception {
+            numberCountResult.merge(value, 1L, Long::sum);
+            maybeSleep();
+        }
+
+        @Override
+        public void finish() {
+            numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+        }
     }
 
     private static void maybeSleep() {
