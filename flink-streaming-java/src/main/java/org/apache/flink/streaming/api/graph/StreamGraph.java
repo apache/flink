@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
@@ -709,17 +710,23 @@ public class StreamGraph implements Pipeline {
 
         if (partitioner instanceof ForwardPartitioner) {
             if (upstreamNode.getParallelism() != downstreamNode.getParallelism()) {
-                throw new UnsupportedOperationException(
-                        "Forward partitioning does not allow "
-                                + "change of parallelism. Upstream operation: "
-                                + upstreamNode
-                                + " parallelism: "
-                                + upstreamNode.getParallelism()
-                                + ", downstream operation: "
-                                + downstreamNode
-                                + " parallelism: "
-                                + downstreamNode.getParallelism()
-                                + " You must use another partitioning strategy, such as broadcast, rebalance, shuffle or global.");
+                if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
+                    partitioner =
+                            ((ForwardForConsecutiveHashPartitioner<?>) partitioner)
+                                    .getHashPartitioner();
+                } else {
+                    throw new UnsupportedOperationException(
+                            "Forward partitioning does not allow "
+                                    + "change of parallelism. Upstream operation: "
+                                    + upstreamNode
+                                    + " parallelism: "
+                                    + upstreamNode.getParallelism()
+                                    + ", downstream operation: "
+                                    + downstreamNode
+                                    + " parallelism: "
+                                    + downstreamNode.getParallelism()
+                                    + " You must use another partitioning strategy, such as broadcast, rebalance, shuffle or global.");
+                }
             }
         }
 
