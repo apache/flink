@@ -143,7 +143,6 @@ import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.ar
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.InstanceOfAssertFactories.stream;
 
 /** Tests for {@link StreamingJobGraphGenerator}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -1803,7 +1802,6 @@ class StreamingJobGraphGeneratorTest {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
-        // source -> (map1 -> map2) -> sink
         source.rebalance()
                 .sinkTo(new TestSinkWithSupportsConcurrentExecutionAttempts())
                 .name("sink");
