@@ -47,6 +47,7 @@ import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHea
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.message.operation.OperationMessageParameters;
+import org.apache.flink.table.gateway.rest.message.operation.OperationStatusResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.ConfigureSessionRequestBody;
 import org.apache.flink.table.gateway.rest.message.session.GetSessionConfigResponseBody;
@@ -63,7 +64,6 @@ import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointUtils;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +82,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler.CLOSE_MESSAGE;
 
@@ -225,29 +226,22 @@ public class ExecutorImpl implements Executor {
                                 try {
                                     ExecuteStatementResponseBody executeStatementResponseBody =
                                             executeStatementResponse.get();
-                                    OperationHandle operationHandle =
-                                            new OperationHandle(
-                                                    UUID.fromString(
-                                                            executeStatementResponseBody
-                                                                    .getOperationHandle()));
                                     // close operation in background to make sure users can not
                                     // interrupt the execution.
-                                    sendRequest(
-                                            CloseOperationHeaders.getInstance(),
-                                            new OperationMessageParameters(
-                                                    sessionHandle, operationHandle),
-                                            EmptyRequestBody.getInstance());
+                                    closeOperationAsync(
+                                            getOperationHandle(
+                                                    executeStatementResponseBody
+                                                            ::getOperationHandle));
                                 } catch (Exception newException) {
                                     // ignore
                                 }
                             });
-                    throw new SqlExecutionException("Interrupted to get response.", e);
+                    return new SqlExecutionException("Interrupted to get response.", e);
                 });
 
         OperationHandle operationHandle =
-                new OperationHandle(
-                        UUID.fromString(
-                                getResponse(executeStatementResponse).getOperationHandle()));
+                getOperationHandle(
+                        () -> getResponse(executeStatementResponse).getOperationHandle());
         FetchResultsResponseBody fetchResultsResponse = fetchUtilResultsReady(operationHandle);
         ResultInfo firstResult = fetchResultsResponse.getResults();
 
@@ -301,11 +295,7 @@ public class ExecutorImpl implements Executor {
 
         @Override
         public void close() throws Exception {
-            getResponse(
-                    sendRequest(
-                            CloseOperationHeaders.getInstance(),
-                            new OperationMessageParameters(sessionHandle, operationHandle),
-                            EmptyRequestBody.getInstance()));
+            getResponse(closeOperationAsync(operationHandle));
         }
 
         @Override
@@ -331,25 +321,14 @@ public class ExecutorImpl implements Executor {
         private FetchResultsResponseBody fetchResults(OperationHandle operationHandle, long token) {
             return getFetchResultResponse(
                     operationHandle,
-                    () -> {
-                        try {
-                            return sendRequest(
-                                            FetchResultsHeaders.getDefaultInstance(),
-                                            new FetchResultsMessageParameters(
-                                                    sessionHandle,
-                                                    operationHandle,
-                                                    token,
-                                                    RowFormat.PLAIN_TEXT),
-                                            EmptyRequestBody.getInstance())
-                                    .get();
-                        } catch (InterruptedException e) {
-                            // cancel operation in background
-                            sendRequest(
-                                    CancelOperationHeaders.getInstance(),
-                                    new OperationMessageParameters(sessionHandle, operationHandle),
-                                    EmptyRequestBody.getInstance());
-                            throw new SqlExecutionException("Interrupted to fetch results.", e);
-                        }
+                    token,
+                    true,
+                    e -> {
+                        sendRequest(
+                                CancelOperationHeaders.getInstance(),
+                                new OperationMessageParameters(sessionHandle, operationHandle),
+                                EmptyRequestBody.getInstance());
+                        return new SqlExecutionException("Interrupted to fetch results.", e);
                     });
         }
     }
@@ -378,61 +357,37 @@ public class ExecutorImpl implements Executor {
             response =
                     getFetchResultResponse(
                             operationHandle,
-                            () -> {
-                                try {
-                                    Thread.sleep(100);
-                                    return sendRequest(
-                                                    FetchResultsHeaders.getDefaultInstance(),
-                                                    new FetchResultsMessageParameters(
-                                                            sessionHandle,
-                                                            operationHandle,
-                                                            0L,
-                                                            RowFormat.PLAIN_TEXT),
-                                                    EmptyRequestBody.getInstance())
-                                            .get();
-                                } catch (InterruptedException e) {
-                                    // CliClient will not close the results. Try best to close it.
-                                    sendRequest(
-                                            CloseOperationHeaders.getInstance(),
-                                            new OperationMessageParameters(
-                                                    sessionHandle, operationHandle),
-                                            EmptyRequestBody.getInstance());
-                                    throw new SqlExecutionException(
-                                            "Interrupted to fetch results.", e);
-                                }
+                            0L,
+                            false,
+                            e -> {
+                                // CliClient will not close the results. Try best to close it.
+                                closeOperationAsync(operationHandle);
+                                return new SqlExecutionException(
+                                        "Interrupted to fetch results.", e);
                             });
         } while (response.getResultType().equals(ResultSet.ResultType.NOT_READY));
         return response;
     }
 
-    private <T> T getResponse(CompletableFuture<T> future) {
-        return getResponse(
-                future,
-                e -> {
-                    throw new SqlExecutionException("Interrupted to get response.", e);
-                });
-    }
-
-    private <T> T getResponse(
-            CompletableFuture<T> future,
-            Function<InterruptedException, T> interruptedExceptionHandler) {
-        try {
-            return future.get();
-        } catch (ExecutionException executionException) {
-            Throwable cause = executionException.getCause();
-            throw new SqlExecutionException("Failed to get response.", cause);
-        } catch (InterruptedException e) {
-            return interruptedExceptionHandler.apply(e);
-        }
-    }
-
     private FetchResultsResponseBody getFetchResultResponse(
             OperationHandle operationHandle,
-            SupplierWithException<FetchResultsResponseBody, ExecutionException> responseSupplier) {
+            long token,
+            boolean fetchResultWithInterval,
+            Function<InterruptedException, SqlExecutionException> interruptedExceptionHandler) {
         try {
-            return responseSupplier.get();
-        } catch (ExecutionException executionException) {
-            Throwable cause = executionException.getCause();
+            if (!fetchResultWithInterval) {
+                Thread.sleep(100);
+            }
+            return sendRequest(
+                            FetchResultsHeaders.getDefaultInstance(),
+                            new FetchResultsMessageParameters(
+                                    sessionHandle, operationHandle, token, RowFormat.PLAIN_TEXT),
+                            EmptyRequestBody.getInstance())
+                    .get();
+        } catch (InterruptedException e) {
+            throw interruptedExceptionHandler.apply(e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
             if (cause instanceof RestClientException
                     && cause.getMessage().contains("Encountered \"<EOF>\"")) {
                 throw new SqlParserEOFException(cause.getMessage(), cause);
@@ -443,5 +398,35 @@ public class ExecutorImpl implements Executor {
                         cause);
             }
         }
+    }
+
+    private <T> T getResponse(CompletableFuture<T> future) {
+        return getResponse(
+                future, e -> new SqlExecutionException("Interrupted to get response.", e));
+    }
+
+    private <T> T getResponse(
+            CompletableFuture<T> future,
+            Function<InterruptedException, SqlExecutionException> interruptedExceptionHandler) {
+        try {
+            return future.get();
+        } catch (ExecutionException executionException) {
+            Throwable cause = executionException.getCause();
+            throw new SqlExecutionException("Failed to get response.", cause);
+        } catch (InterruptedException e) {
+            throw interruptedExceptionHandler.apply(e);
+        }
+    }
+
+    private CompletableFuture<OperationStatusResponseBody> closeOperationAsync(
+            OperationHandle operationHandle) {
+        return sendRequest(
+                CloseOperationHeaders.getInstance(),
+                new OperationMessageParameters(sessionHandle, operationHandle),
+                EmptyRequestBody.getInstance());
+    }
+
+    private OperationHandle getOperationHandle(Supplier<String> handleSupplier) {
+        return new OperationHandle(UUID.fromString(handleSupplier.get()));
     }
 }
