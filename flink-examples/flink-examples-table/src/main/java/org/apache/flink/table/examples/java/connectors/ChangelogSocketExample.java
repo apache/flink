@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.examples.java.connectors;
 
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -36,8 +36,8 @@ import org.apache.flink.table.factories.FactoryUtil;
  * <p>The {@link SocketDynamicTableFactory} illustrates how connector components play together. It
  * can serve as a reference implementation for implementing own connectors and/or formats.
  *
- * <p>The {@link SocketDynamicTableSource} uses a simple single-threaded {@link SourceFunction} to
- * open a socket that listens for incoming bytes. The raw bytes are decoded into rows by a pluggable
+ * <p>The {@link SocketDynamicTableSource} uses a simple single-threaded {@link Source} to open a
+ * socket that listens for incoming bytes. The raw bytes are decoded into rows by a pluggable
  * format. The format expects a changelog flag as the first column.
  *
  * <p>In particular, the example shows how to
