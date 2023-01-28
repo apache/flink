@@ -58,7 +58,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
     private final RowType aggInputRowType;
     private final boolean isMerge;
     private final boolean isFinal;
-    private final boolean canDoAdaptiveHashAgg;
+    private final boolean supportAdaptiveLocalHashAgg;
 
     public BatchExecHashAggregate(
             ReadableConfig tableConfig,
@@ -68,7 +68,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
             RowType aggInputRowType,
             boolean isMerge,
             boolean isFinal,
-            boolean canDoAdaptiveHashAgg,
+            boolean supportAdaptiveLocalHashAgg,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -85,7 +85,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         this.aggInputRowType = aggInputRowType;
         this.isMerge = isMerge;
         this.isFinal = isFinal;
-        this.canDoAdaptiveHashAgg = canDoAdaptiveHashAgg;
+        this.supportAdaptiveLocalHashAgg = supportAdaptiveLocalHashAgg;
     }
 
     @SuppressWarnings("unchecked")
@@ -139,7 +139,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                             auxGrouping,
                             isMerge,
                             isFinal,
-                            canDoAdaptiveHashAgg);
+                            supportAdaptiveLocalHashAgg);
         }
 
         return ExecNodeUtil.createOneInputTransformation(

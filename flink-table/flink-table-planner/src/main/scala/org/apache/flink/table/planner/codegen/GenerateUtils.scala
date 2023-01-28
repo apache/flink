@@ -612,36 +612,8 @@ object GenerateUtils {
   }
 
   /**
-   * Do projection for grouping function 'max(col)' or 'min(col)' if adaptive hash agg takes effect.
-   * 'max/min(col)' will be convert to the current col value with same type.
-   */
-  def generateFiledAccessForMaxAndMin(
-      ctx: CodeGeneratorContext,
-      inputType: LogicalType,
-      inputTerm: String,
-      index: Int): GeneratedExpression = {
-    val fieldType = getFieldTypes(inputType).get(index)
-    val resultTypeTerm = primitiveTypeTermForType(fieldType)
-    val defaultValue = primitiveDefaultValue(fieldType)
-    val readCode = rowFieldReadAccess(index.toString, inputTerm, fieldType)
-    val Seq(fieldTerm, nullTerm) =
-      ctx.addReusableLocalVariables((resultTypeTerm, "field"), ("boolean", "isNull"))
-
-    val inputCode =
-      s"""
-         |$nullTerm = $inputTerm.isNullAt($index);
-         |$fieldTerm = $defaultValue;
-         |if (!$nullTerm) {
-         |  $fieldTerm = $readCode;
-         |}
-           """.stripMargin.trim
-
-    GeneratedExpression(fieldTerm, nullTerm, inputCode, fieldType)
-  }
-
-  /**
-   * Do projection for grouping function 'count(col)' if adaptive hash agg takes effect.
-   * 'Count(col)' will be convert to 1L if col is not null and convert to 0L if col is null.
+   * Do projection for grouping function 'count(col)' if adaptive local hash agg takes effect.
+   * 'count(col)' will be convert to 1L if col is not null and convert to 0L if col is null.
    */
   def generateFieldAccessForCountSpecificCol(
       ctx: CodeGeneratorContext,
@@ -652,9 +624,8 @@ object GenerateUtils {
 
     val inputCode =
       s"""
-         |$nullTerm = $inputTerm.isNullAt($index);
          |$fieldTerm = 0L;
-         |if (!$nullTerm) {
+         |if (!$inputTerm.isNullAt($index)) {
          |  $fieldTerm = 1L;
          |}
            """.stripMargin.trim
@@ -663,8 +634,8 @@ object GenerateUtils {
   }
 
   /**
-   * Do projection for grouping function 'count(*)' or 'count()' if adaptive hash agg takes effect.
-   * 'Count()' will be convert to 1L and transmitted to downstream.
+   * Do projection for grouping function 'count(*)' or 'count(1)' if adaptive local hash agg takes
+   * effect. 'count(*) or count(1)' will be convert to 1L and transmitted to downstream.
    */
   def generateFieldAccessForCountOne(ctx: CodeGeneratorContext): GeneratedExpression = {
     val Seq(fieldTerm, nullTerm) =

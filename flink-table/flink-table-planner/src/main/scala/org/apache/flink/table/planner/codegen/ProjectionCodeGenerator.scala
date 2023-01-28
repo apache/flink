@@ -130,16 +130,16 @@ object ProjectionCodeGenerator {
   }
 
   /**
-   * If adaptive hash agg takes effect, and the sample result was to suppress local hash agg. In
-   * order to ensure that the data format transmitted downstream with doing local hash agg is
-   * consistent with the data format transmitted downstream without doing local hash agg, we need to
-   * do projection for grouping function value.
+   * If adaptive local hash agg takes effect, local hash agg is suppressed. In order to ensure that
+   * the data structure transmitted downstream with doing local hash agg is consistent with the data
+   * format transmitted downstream without doing local hash agg, we need to do projection for
+   * grouping function value.
    *
    * <p> For example, for sql statement "select a, avg(b), count(c) from T group by a", if local
    * hash agg suppressed and a row (1, 5, "a") comes to local hash agg, we will pass (1, 5, 1, 1) to
    * downstream.
    */
-  def generatedAdaptiveHashAggValueProjectionCode(
+  def generateAdaptiveHashAggValueProjectionCode(
       ctx: CodeGeneratorContext,
       inputType: RowType,
       outClass: Class[_ <: RowData] = classOf[BinaryRowData],
@@ -151,13 +151,7 @@ object ProjectionCodeGenerator {
     aggInfos.map {
       aggInfo =>
         aggInfo.function match {
-          case _: SumAggFunction =>
-            fieldExprs += GenerateUtils.generateFieldAccess(
-              ctx,
-              inputType,
-              inputTerm,
-              aggInfo.agg.getArgList.get(0))
-          case _: MaxAggFunction | _: MinAggFunction =>
+          case _: SumAggFunction | _: MaxAggFunction | _: MinAggFunction =>
             fieldExprs += GenerateUtils.generateFieldAccess(
               ctx,
               inputType,
@@ -185,9 +179,9 @@ object ProjectionCodeGenerator {
 
     val binaryRowWriter = CodeGenUtils.className[BinaryRowWriter]
     val typeTerm = outClass.getCanonicalName
-    ctx.addReusableMember(s"$typeTerm $outRecordTerm= new $typeTerm(${fieldExprs.size});")
+    ctx.addReusableMember(s"private $typeTerm $outRecordTerm= new $typeTerm(${fieldExprs.size});")
     ctx.addReusableMember(
-      s"$binaryRowWriter $outRecordWriterTerm = new $binaryRowWriter($outRecordTerm);")
+      s"private $binaryRowWriter $outRecordWriterTerm = new $binaryRowWriter($outRecordTerm);")
 
     val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
     val setFieldsCode = fieldExprs.zipWithIndex

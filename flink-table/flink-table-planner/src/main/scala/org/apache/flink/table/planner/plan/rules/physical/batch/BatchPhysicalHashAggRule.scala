@@ -94,11 +94,11 @@ class BatchPhysicalHashAggRule
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggFunctions)
     val aggProvidedTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
-    // Judge whether this agg operator can do adaptive hash agg. If all
-    // agg function in agg operator can projection, then we can do
-    // adaptive hash agg. Otherwise false.
-    val canDoAdaptiveHashAgg =
-      AggregateUtil.doAllAggSupportProjection(aggCallToAggFunction.map(_._1))
+    // Judge whether this agg operator support adaptive local hash agg.
+    // If all agg function in agg operator can projection, then it support
+    // adaptive local hash agg. Otherwise false.
+    val supportAdaptiveLocalHashAgg =
+      AggregateUtil.doAllAggSupportAdaptiveLocalHashAgg(aggCallToAggFunction.map(_._1))
 
     // create two-phase agg if possible
     if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
@@ -116,7 +116,7 @@ class BatchPhysicalHashAggRule
         aggBufferTypes,
         aggCallToAggFunction,
         isLocalHashAgg = true,
-        canDoAdaptiveHashAgg
+        supportAdaptiveLocalHashAgg
       )
 
       // create global BatchPhysicalHashAggregate

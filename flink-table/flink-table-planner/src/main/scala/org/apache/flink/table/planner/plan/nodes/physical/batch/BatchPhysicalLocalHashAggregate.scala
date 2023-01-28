@@ -50,7 +50,7 @@ class BatchPhysicalLocalHashAggregate(
     inputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
-    val canDoAdaptiveHashAgg: Boolean,
+    val supportAdaptiveLocalHashAgg: Boolean,
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)])
   extends BatchPhysicalHashAggregateBase(
     cluster,
@@ -72,7 +72,7 @@ class BatchPhysicalLocalHashAggregate(
       inputRowType,
       grouping,
       auxGrouping,
-      canDoAdaptiveHashAgg,
+      supportAdaptiveLocalHashAgg,
       aggCallToAggFunction)
   }
 
@@ -136,7 +136,7 @@ class BatchPhysicalLocalHashAggregate(
       FlinkTypeFactory.toLogicalRowType(inputRowType),
       false, // isMerge is always false
       false, // isFinal is always false
-      canDoAdaptiveHashAgg,
+      supportAdaptiveLocalHashAgg,
       getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

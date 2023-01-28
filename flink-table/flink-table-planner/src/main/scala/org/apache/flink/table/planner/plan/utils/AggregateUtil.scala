@@ -926,10 +926,17 @@ object AggregateUtil extends Enumeration {
     aggInfos.isEmpty || supportMerge
   }
 
-  /** Return true if all aggregates can be projection in adaptive hash agg. False otherwise. */
-  def doAllAggSupportProjection(aggCalls: Seq[AggregateCall]): Boolean = {
+  /**
+   * Return true if all aggregates can be projected for adaptive local hash aggregate. False
+   * otherwise.
+   */
+  def doAllAggSupportAdaptiveLocalHashAgg(aggCalls: Seq[AggregateCall]): Boolean = {
     aggCalls.forall {
       aggCall =>
+        // TODO support adaptive local hash agg while agg call with filter condition.
+        if (aggCall.filterArg >= 0) {
+          return false
+        }
         aggCall.getAggregation match {
           case _: SqlCountAggFunction | _: SqlAvgAggFunction | _: SqlMinMaxAggFunction |
               _: SqlSumAggFunction =>

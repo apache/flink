@@ -80,7 +80,7 @@ class EnforceLocalSortAggRule
     val localGrouping = agg.grouping
     // create local sort
     val localSort = createSort(expand, localGrouping)
-    val localAgg = createLocalAgg(agg, localSort, false)
+    val localAgg = createLocalAgg(agg, localSort)
 
     val exchange = createExchange(agg, localAgg)
 

@@ -109,7 +109,8 @@ class BatchPhysicalSortAggRule
         aggBufferTypes,
         aggCallToAggFunction,
         isLocalHashAgg = false,
-        false)
+        supportAdaptiveLocalHashAgg = false
+      )
 
       // create global BatchPhysicalSortAggregate
       val (globalGroupSet, globalAuxGroupSet) = getGlobalAggGroupSetPair(groupSet, auxGroupSet)

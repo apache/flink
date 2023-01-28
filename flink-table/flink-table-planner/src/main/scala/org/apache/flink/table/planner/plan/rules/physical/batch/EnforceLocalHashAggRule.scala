@@ -69,7 +69,7 @@ class EnforceLocalHashAggRule
     val agg: BatchPhysicalHashAggregate = call.rel(0)
     val expand: BatchPhysicalExpand = call.rel(2)
 
-    val localAgg = createLocalAgg(agg, expand, true)
+    val localAgg = createLocalAgg(agg, expand)
     val exchange = createExchange(agg, localAgg)
     val globalAgg = createGlobalAgg(agg, exchange)
     call.transformTo(globalAgg)

@@ -27,6 +27,7 @@ import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.{JBoolean, JDouble, JLong}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, OperatorCodeGenerator, ProjectionCodeGenerator}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.ROW_DATA
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.generated.GeneratedOperator
@@ -46,27 +47,43 @@ object HashAggCodeGenerator {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_ENABLED: ConfigOption[JBoolean] =
-    key("table.exec.adaptive-local-hash-agg.enabled")
+  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED: ConfigOption[JBoolean] =
+    key("table.exec.local-hash-agg.adaptive.enabled")
       .booleanType()
       .defaultValue(Boolean.box(true))
-      .withDescription("Whether to enable adaptive local hash agg")
+      .withDescription("Whether to enable adaptive local hash aggregation, " +
+        "this is only used for batch job. Default is true.")
 
   @Experimental
-  val TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_SAMPLE_POINT: ConfigOption[JLong] =
-    key("table.exec.adaptive-local-hash-agg.sample-threshold")
+  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD: ConfigOption[JLong] =
+    key("table.exec.local-hash-agg.adaptive.sampling-threshold")
       .longType()
       .defaultValue(Long.box(5000000L))
-      .withDescription("If adaptive local hash agg is enabled, "
-        + "the proportion of distinct value will be checked after reading this number of records")
+      .withDescription(
+        s"""
+           |If adaptive local hash aggregation is enabled, this value defines how 
+           |many records will be used as sampled data to calculate distinct value 
+           |rate (see $TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD) 
+           |for the local aggregate. The higher the sampling threshold, the more accurate 
+           |the distinct value rate is. But as the sampling threshold increases, local 
+           |aggregation is meaningless when the distinct values rate is low. 
+           |The default values is 5000000.
+           |""".stripMargin)
 
   @Experimental
-  val TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_LIMIT_DISTINCT_RATIO: ConfigOption[JDouble] =
-    key("table.exec.adaptive-local-hash-agg.limit-distinct-ratio")
+  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD: ConfigOption[JDouble] =
+    key("table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold")
       .doubleType()
       .defaultValue(0.5d)
-      .withDescription("If adaptive distinct is enabled, local aggregation will be suppressed " +
-        "if the ratio of distinct keys is higher than this value after sample point")
+      .withDescription(s"""
+                          |The distinct value rate can be defined as the number of local 
+                          |aggregation result for the sampled data divided by the sampling 
+                          |threshold (see $TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD). 
+                          |If the computed result is lower than the given configuration value, 
+                          |the remaining input records proceed to do local aggregation, otherwise 
+                          |the remaining input records are subjected to simple projection which 
+                          |calculation cost is less than local aggregation. The default value is 0.5.
+                          |""".stripMargin)
 
   def genWithKeys(
       ctx: CodeGeneratorContext,
@@ -78,7 +95,7 @@ object HashAggCodeGenerator {
       auxGrouping: Array[Int],
       isMerge: Boolean,
       isFinal: Boolean,
-      canDoAdaptiveHashAgg: Boolean)
+      supportAdaptiveLocalHashAgg: Boolean)
       : GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
 
     val aggInfos = aggInfoList.aggInfos
@@ -98,7 +115,8 @@ object HashAggCodeGenerator {
     // gen code to do group key projection from input
     val currentKeyTerm = CodeGenUtils.newName("currentKey")
     val currentKeyWriterTerm = CodeGenUtils.newName("currentKeyWriter")
-    // currentValueTerm and currentValueWriterTerm are used for value projection while canProjection is true.
+    // currentValueTerm and currentValueWriterTerm are used for value
+    // projection while supportAdaptiveLocalHashAgg is true.
     val currentValueTerm = CodeGenUtils.newName("currentValue")
     val currentValueWriterTerm = CodeGenUtils.newName("currentValueWriter")
     val keyProjectionCode = ProjectionCodeGenerator
@@ -113,8 +131,8 @@ object HashAggCodeGenerator {
       .code
 
     val valueProjectionCode =
-      if (!isFinal && canDoAdaptiveHashAgg) {
-        ProjectionCodeGenerator.generatedAdaptiveHashAggValueProjectionCode(
+      if (!isFinal && supportAdaptiveLocalHashAgg) {
+        ProjectionCodeGenerator.generateAdaptiveHashAggValueProjectionCode(
           ctx,
           inputType,
           classOf[BinaryRowData],
@@ -215,15 +233,13 @@ object HashAggCodeGenerator {
     HashAggCodeGenHelper.prepareMetrics(ctx, aggregateMapTerm, if (isFinal) sorterTerm else null)
 
     // Do adaptive hash aggregation
-    val outputResultForOneRowAgg = {
+    val outputResultForAdaptiveHashAgg = {
       // gen code to iterating the aggregate map and output to downstream
       val inputUnboxingCode = s"${ctx.reuseInputUnboxingCode(reuseAggBufferTerm)}"
-      val rowDataType = classOf[RowData].getCanonicalName
       s"""
          |   // set result and output
-         |
-         |   $reuseGroupKeyTerm =  ($rowDataType)$currentKeyTerm;
-         |   $reuseAggBufferTerm = ($rowDataType)$currentValueTerm;
+         |   $reuseGroupKeyTerm =  ($ROW_DATA)$currentKeyTerm;
+         |   $reuseAggBufferTerm = ($ROW_DATA)$currentValueTerm;
          |   $inputUnboxingCode
          |   ${outputExpr.code}
          |   ${OperatorCodeGenerator.generateCollect(outputExpr.resultTerm)}
@@ -231,42 +247,40 @@ object HashAggCodeGenerator {
        """.stripMargin
     }
     val localAggSuppressedTerm = CodeGenUtils.newName("localAggSuppressed")
-    ctx.addReusableMember(s"boolean $localAggSuppressedTerm = false;")
+    ctx.addReusableMember(s"private transient boolean $localAggSuppressedTerm = false;")
     val (
-      distinctCountInCode,
+      distinctCountIncCode,
       totalCountIncCode,
-      adaptiveSamplePointCode,
-      adaptiveSuppressCode,
-      flushResultIfSuppressEnableCode) = {
+      adaptiveSamplingCode,
+      adaptiveLocalHashAggCode,
+      flushResultSuppressEnableCode) = {
       // from these conditions we know that it must be a distinct operation
       if (
         !isFinal &&
-        ctx.tableConfig.get(TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_ENABLED) &&
-        canDoAdaptiveHashAgg
+        ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED) &&
+        supportAdaptiveLocalHashAgg
       ) {
         val adaptiveDistinctCountTerm = CodeGenUtils.newName("distinctCount")
         val adaptiveTotalCountTerm = CodeGenUtils.newName("totalCount")
-        ctx.addReusableMember(s"long $adaptiveDistinctCountTerm = 0;")
-        ctx.addReusableMember(s"long $adaptiveTotalCountTerm = 0;")
+        ctx.addReusableMember(s"private transient long $adaptiveDistinctCountTerm = 0;")
+        ctx.addReusableMember(s"private transient long $adaptiveTotalCountTerm = 0;")
 
-        val loggerTerm = CodeGenUtils.newName("LOG")
-        ctx.addReusableLogger(loggerTerm, className)
-
-        val samplePoint =
-          ctx.tableConfig.get(TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_SAMPLE_POINT)
-        val limitDistinctRatio =
-          ctx.tableConfig.get(TABLE_EXEC_ADAPTIVE_LOCAL_HASH_AGG_LIMIT_DISTINCT_RATIO)
+        val samplingThreshold =
+          ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD)
+        val limitDistinctRatioThreshold =
+          ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD)
 
         (
           s"$adaptiveDistinctCountTerm++;",
           s"$adaptiveTotalCountTerm++;",
           s"""
-             |if ($adaptiveTotalCountTerm == $samplePoint) {
-             |  $loggerTerm.info("Local hash agg checkpoint reached, sample point = " +
-             |    $samplePoint + ", distinct = " + $adaptiveDistinctCountTerm + ", total = " +
-             |    $adaptiveTotalCountTerm + ", limit distinct ratio = " + $limitDistinctRatio);
-             |  if ((double) $adaptiveDistinctCountTerm / $adaptiveTotalCountTerm > $limitDistinctRatio) {
-             |    $loggerTerm.info("Local hash agg suppressed");
+             |if ($adaptiveTotalCountTerm == $samplingThreshold) {
+             |  $logTerm.info("Local hash aggregation checkpoint reached, sampling threshold = " +
+             |    $samplingThreshold + ", distinct = " + $adaptiveDistinctCountTerm + ", total = " +
+             |    $adaptiveTotalCountTerm + ", limit distinct ratio threshold = " 
+             |    + $limitDistinctRatioThreshold);
+             |  if ($adaptiveDistinctCountTerm / (1.0 * $adaptiveTotalCountTerm) > $limitDistinctRatioThreshold) {
+             |    $logTerm.info("Local hash aggregation is suppressed");
              |    $localAggSuppressedTerm = true;
              |  }
              |}
@@ -274,7 +288,7 @@ object HashAggCodeGenerator {
           s"""
              |if ($localAggSuppressedTerm) {
              |  $valueProjectionCode
-             |  $outputResultForOneRowAgg
+             |  $outputResultForAdaptiveHashAgg
              |  return;
              |}
              |""".stripMargin,
@@ -305,14 +319,14 @@ object HashAggCodeGenerator {
          | // project key from input
          |$keyProjectionCode
          |
-         |$adaptiveSuppressCode
+         |$adaptiveLocalHashAggCode
          |
          | // look up output buffer using current group key
          |$lookupInfo = ($lookupInfoTypeTerm) $aggregateMapTerm.lookup($currentKeyTerm);
          |$currentAggBufferTerm = ($binaryRowTypeTerm) $lookupInfo.getValue();
          |
          |if (!$lookupInfo.isFound()) {
-         |  $distinctCountInCode
+         |  $distinctCountIncCode
          |  $lazyInitAggBufferCode
          |  // append empty agg buffer into aggregate map for current group key
          |  try {
@@ -324,14 +338,14 @@ object HashAggCodeGenerator {
          |}
          |
          |$totalCountIncCode
-         |$adaptiveSamplePointCode
+         |$adaptiveSamplingCode
          |
          | // aggregate buffer fields access
          |${ctx.reuseInputUnboxingCode(currentAggBufferTerm)}
          | // do aggregate and update agg buffer
          |${aggregate.code}
          | // flush result form map if suppress is enable. 
-         |$flushResultIfSuppressEnableCode
+         |$flushResultSuppressEnableCode
          |""".stripMargin.trim
 
     val endInputCode = if (isFinal) {
@@ -354,9 +368,7 @@ object HashAggCodeGenerator {
        """.stripMargin
     } else {
       s"""
-         |if ($localAggSuppressedTerm) {
-         | return;
-         |} else {
+         |if (!$localAggSuppressedTerm) {
          | $outputResultFromMap
          |}
          |""".stripMargin
