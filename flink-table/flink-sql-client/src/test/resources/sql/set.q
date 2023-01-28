@@ -118,14 +118,13 @@ SELECT hive_add_one(1);
 Received a total of 1 row
 !ok
 
-# TODO: support this in the FLINK-30692
-#REMOVE JAR '$VAR_UDF_JAR_PATH';
-#[INFO] The specified jar is removed from session classloader.
-#!info
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
+!info
 
-#SHOW JARS;
-#Empty set
-#!ok
+SHOW JARS;
+Empty set
+!ok
 
 reset table.resources.download-dir;
 [INFO] Execute statement succeed.
@@ -296,15 +295,6 @@ create function func1 as 'LowerUDF' LANGUAGE JAVA;
 [INFO] Execute statement succeed.
 !info
 
-# TODO: support this in the FLINK-30692
-#REMOVE JAR '$VAR_UDF_JAR_PATH';
-#[INFO] The specified jar is removed from session classloader.
-#!info
-
-#SHOW JARS;
-#Empty set
-#!ok
-
 SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
 +----+-------------+--------------------------------+
 | op |          id |                         EXPR$1 |
@@ -312,4 +302,12 @@ SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
 | +I |           1 |                    hello world |
 +----+-------------+--------------------------------+
 Received a total of 1 row
+!ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
+Empty set
 !ok

@@ -154,10 +154,6 @@ public class ExecutorImpl implements Executor {
                     heartbeatInterval,
                     heartbeatInterval,
                     TimeUnit.MILLISECONDS);
-            // register dependencies
-            defaultContext
-                    .getDependencies()
-                    .forEach(jar -> configureSession(String.format("ADD JAR '%s'", jar)));
         } catch (Exception e) {
             throw new SqlClientException(
                     String.format("Failed to open session to %s", gatewayAddress), e);

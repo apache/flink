@@ -95,7 +95,7 @@ public class SessionContext {
     private boolean isStatementSetState;
     private final List<ModifyOperation> statementSetOperations;
 
-    private SessionContext(
+    protected SessionContext(
             DefaultContext defaultContext,
             SessionHandle sessionId,
             EndpointVersion endpointVersion,
@@ -244,47 +244,21 @@ public class SessionContext {
             SessionHandle sessionId,
             SessionEnvironment environment,
             ExecutorService operationExecutorService) {
-        // --------------------------------------------------------------------------------------------------------------
-        // Init config
-        // --------------------------------------------------------------------------------------------------------------
-
-        Configuration configuration = defaultContext.getFlinkConfig().clone();
-        configuration.addAll(Configuration.fromMap(environment.getSessionConfig()));
-        // every session configure the specific local resource download directory
-        setResourceDownloadTmpDir(configuration, sessionId);
-
-        // --------------------------------------------------------------------------------------------------------------
-        // Init classloader
-        // --------------------------------------------------------------------------------------------------------------
-
+        Configuration configuration =
+                initializeConfiguration(defaultContext, environment, sessionId);
         final MutableURLClassLoader userClassLoader =
                 FlinkUserCodeClassLoaders.create(
-                        new URL[0], SessionContext.class.getClassLoader(), configuration);
-
-        // --------------------------------------------------------------------------------------------------------------
-        // Init session state
-        // --------------------------------------------------------------------------------------------------------------
-
+                        defaultContext.getDependencies().toArray(new URL[0]),
+                        SessionContext.class.getClassLoader(),
+                        configuration);
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
-
-        final ModuleManager moduleManager =
-                buildModuleManager(environment, configuration, userClassLoader);
-
-        final CatalogManager catalogManager =
-                buildCatalogManager(configuration, userClassLoader, environment);
-
-        final FunctionCatalog functionCatalog =
-                new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
-        SessionState sessionState =
-                new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
-
         return new SessionContext(
                 defaultContext,
                 sessionId,
                 environment.getSessionEndpointVersion(),
                 configuration,
                 userClassLoader,
-                sessionState,
+                initializeSessionState(environment, configuration, resourceManager),
                 new OperationManager(operationExecutorService));
     }
 
@@ -386,8 +360,13 @@ public class SessionContext {
         return new StreamExecutionEnvironment(new Configuration(sessionConf), userClassloader);
     }
 
-    private static void setResourceDownloadTmpDir(
-            Configuration configuration, SessionHandle sessionId) {
+    protected static Configuration initializeConfiguration(
+            DefaultContext defaultContext,
+            SessionEnvironment environment,
+            SessionHandle sessionId) {
+        Configuration configuration = defaultContext.getFlinkConfig().clone();
+        configuration.addAll(Configuration.fromMap(environment.getSessionConfig()));
+        // every session configure the specific local resource download directory
         Path path =
                 Paths.get(
                         configuration.get(TableConfigOptions.RESOURCES_DOWNLOAD_DIR),
@@ -395,6 +374,24 @@ public class SessionContext {
         // override resource download temp directory
         configuration.set(
                 TableConfigOptions.RESOURCES_DOWNLOAD_DIR, path.toAbsolutePath().toString());
+        return configuration;
+    }
+
+    protected static SessionState initializeSessionState(
+            SessionEnvironment environment,
+            Configuration configuration,
+            ResourceManager resourceManager) {
+        final ModuleManager moduleManager =
+                buildModuleManager(
+                        environment, configuration, resourceManager.getUserClassLoader());
+
+        final CatalogManager catalogManager =
+                buildCatalogManager(
+                        configuration, resourceManager.getUserClassLoader(), environment);
+
+        final FunctionCatalog functionCatalog =
+                new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
+        return new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
     }
 
     private static ModuleManager buildModuleManager(

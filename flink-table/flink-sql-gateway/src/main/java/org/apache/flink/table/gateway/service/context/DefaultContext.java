@@ -36,7 +36,10 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -151,5 +154,24 @@ public class DefaultContext {
         }
 
         return new DefaultContext(configuration, dependencies);
+    }
+
+    public static List<URL> discoverPythonDependencies() {
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                return Collections.singletonList(location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            LOG.warn("Failed to find flink-python jar." + e);
+        }
+        return Collections.emptyList();
     }
 }

@@ -39,10 +39,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/** Test for {@link SessionManager}. */
-public class SessionManagerTest extends TestLogger {
+/** Test for {@link SessionManagerImpl}. */
+public class SessionManagerImplTest extends TestLogger {
 
-    private SessionManager sessionManager;
+    private SessionManagerImpl sessionManager;
 
     @BeforeEach
     public void setup() {
@@ -54,7 +54,7 @@ public class SessionManagerTest extends TestLogger {
                 SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL,
                 Duration.ofMillis(100));
         conf.set(SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_MAX_NUM, 3);
-        sessionManager = new SessionManager(new DefaultContext(conf, Collections.emptyList()));
+        sessionManager = new SessionManagerImpl(new DefaultContext(conf, Collections.emptyList()));
         sessionManager.start();
     }
 

@@ -55,7 +55,7 @@ import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.result.NotReadyResult;
-import org.apache.flink.table.gateway.service.session.SessionManager;
+import org.apache.flink.table.gateway.service.session.SessionManagerImpl;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
@@ -136,7 +136,7 @@ public class SqlGatewayServiceITCase {
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
-    private static SessionManager sessionManager;
+    private static SessionManagerImpl sessionManager;
     private static SqlGatewayServiceImpl service;
 
     private final SessionEnvironment defaultSessionEnvironment =
@@ -149,7 +149,7 @@ public class SqlGatewayServiceITCase {
 
     @BeforeAll
     public static void setUp() {
-        sessionManager = SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
+        sessionManager = (SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
         service = (SqlGatewayServiceImpl) SQL_GATEWAY_SERVICE_EXTENSION.getService();
     }
 

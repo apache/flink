@@ -39,7 +39,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceImpl;
 import org.apache.flink.table.gateway.service.result.NotReadyResult;
-import org.apache.flink.table.gateway.service.session.SessionManager;
+import org.apache.flink.table.gateway.service.session.SessionManagerImpl;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.test.junit5.InjectClusterClient;
@@ -143,7 +143,8 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
     @Test
     public void testOpenCloseJdbcConnection() throws Exception {
-        SessionManager sessionManager = SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
+        SessionManagerImpl sessionManager =
+                (SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
         int originSessionCount = sessionManager.currentSessionCount();
         try (Connection ignore = ENDPOINT_EXTENSION.getConnection()) {
             assertThat(1 + originSessionCount).isEqualTo(sessionManager.currentSessionCount());

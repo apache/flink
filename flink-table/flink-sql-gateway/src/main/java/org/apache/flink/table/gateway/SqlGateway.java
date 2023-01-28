@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -37,13 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.PrintStream;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 /** Main entry point for the SQL Gateway. */
@@ -51,32 +47,26 @@ public class SqlGateway {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlGateway.class);
 
+    private final Configuration defaultConfig;
+    private final SessionManager sessionManager;
     private final List<SqlGatewayEndpoint> endpoints;
-    private final Properties dynamicConfig;
     private final CountDownLatch latch;
 
-    private SessionManager sessionManager;
-
-    public SqlGateway(Properties dynamicConfig) {
+    public SqlGateway(Configuration defaultConfig, SessionManager sessionManager) {
+        this.defaultConfig = defaultConfig;
+        this.sessionManager = sessionManager;
         this.endpoints = new ArrayList<>();
-        this.dynamicConfig = dynamicConfig;
         this.latch = new CountDownLatch(1);
     }
 
     public void start() throws Exception {
-        DefaultContext context =
-                DefaultContext.load(
-                        ConfigurationUtils.createConfiguration(dynamicConfig),
-                        getPythonDependencies());
-        sessionManager = new SessionManager(context);
-
         sessionManager.start();
-        SqlGatewayService sqlGatewayService = new SqlGatewayServiceImpl(sessionManager);
 
+        SqlGatewayService sqlGatewayService = new SqlGatewayServiceImpl(sessionManager);
         try {
             endpoints.addAll(
                     SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
-                            sqlGatewayService, context.getFlinkConfig()));
+                            sqlGatewayService, defaultConfig));
             for (SqlGatewayEndpoint endpoint : endpoints) {
                 endpoint.start();
             }
@@ -118,7 +108,13 @@ public class SqlGateway {
         SignalHandler.register(LOG);
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-        SqlGateway gateway = new SqlGateway(cliOptions.getDynamicConfigs());
+        DefaultContext defaultContext =
+                DefaultContext.load(
+                        ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs()),
+                        DefaultContext.discoverPythonDependencies());
+        SqlGateway gateway =
+                new SqlGateway(
+                        defaultContext.getFlinkConfig(), SessionManager.create(defaultContext));
         try {
             Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
             gateway.start();
@@ -154,25 +150,6 @@ public class SqlGateway {
         } catch (Exception e) {
             LOG.error("Failed to stop the endpoint. Ignore.", e);
         }
-    }
-
-    private List<URL> getPythonDependencies() {
-        try {
-            URL location =
-                    Class.forName(
-                                    "org.apache.flink.python.PythonFunctionRunner",
-                                    false,
-                                    Thread.currentThread().getContextClassLoader())
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation();
-            if (Paths.get(location.toURI()).toFile().isFile()) {
-                return Collections.singletonList(location);
-            }
-        } catch (URISyntaxException | ClassNotFoundException e) {
-            LOG.warn("Failed to find flink-python jar." + e);
-        }
-        return Collections.emptyList();
     }
 
     // --------------------------------------------------------------------------------------------

@@ -25,6 +25,7 @@ import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ExecutorImpl;
+import org.apache.flink.table.client.gateway.local.SingleSessionManager;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
@@ -112,7 +113,8 @@ class CliClientITCase {
     @RegisterExtension
     @Order(2)
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension(MINI_CLUSTER_RESOURCE::getClientConfiguration);
+            new SqlGatewayServiceExtension(
+                    MINI_CLUSTER_RESOURCE::getClientConfiguration, SingleSessionManager::new);
 
     @RegisterExtension
     @Order(3)

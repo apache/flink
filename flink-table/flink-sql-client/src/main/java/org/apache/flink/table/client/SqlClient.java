@@ -19,14 +19,18 @@
 package org.apache.flink.table.client;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.DefaultContextUtils;
+import org.apache.flink.table.client.gateway.local.SingleSessionManager;
 import org.apache.flink.table.gateway.SqlGateway;
+import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.io.IOUtils;
@@ -45,10 +49,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Properties;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
+import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getSqlGatewayOptionPrefix;
 
 /**
  * SQL Client for submitting SQL statements. The client can be executed in two modes: a gateway and
@@ -82,8 +86,8 @@ public class SqlClient {
     private void start() {
         if (isGatewayMode) {
             CliOptions.GatewayCliOptions gatewayCliOptions = (CliOptions.GatewayCliOptions) options;
-            try (ExecutorImpl executor =
-                    new ExecutorImpl(
+            try (Executor executor =
+                    Executor.create(
                             DefaultContextUtils.buildDefaultContext(gatewayCliOptions),
                             gatewayCliOptions
                                     .getGatewayAddress()
@@ -98,11 +102,13 @@ public class SqlClient {
                 openCli(executor);
             }
         } else {
-            try (EmbeddedGateway embeddedGateway = new EmbeddedGateway();
-                    ExecutorImpl executor =
-                            new ExecutorImpl(
-                                    DefaultContextUtils.buildDefaultContext(
-                                            (CliOptions.EmbeddedCliOptions) options),
+            DefaultContext defaultContext =
+                    DefaultContextUtils.buildDefaultContext(
+                            (CliOptions.EmbeddedCliOptions) options);
+            try (EmbeddedGateway embeddedGateway = new EmbeddedGateway(defaultContext);
+                    Executor executor =
+                            Executor.create(
+                                    defaultContext,
                                     InetSocketAddress.createUnresolved(
                                             embeddedGateway.getAddress(),
                                             embeddedGateway.getPort()))) {
@@ -249,15 +255,19 @@ public class SqlClient {
         private final NetUtils.Port port;
         private final SqlGateway sqlGateway;
 
-        public EmbeddedGateway() {
+        public EmbeddedGateway(DefaultContext defaultContext) {
             port = NetUtils.getAvailablePort();
 
-            Properties properties = new Properties();
+            Configuration defaultConfig = defaultContext.getFlinkConfig();
+            Configuration restConfig = new Configuration();
             // always use localhost
-            properties.setProperty("sql-gateway.endpoint.rest.address", ADDRESS);
-            properties.setProperty(
-                    "sql-gateway.endpoint.rest.port", String.valueOf(port.getPort()));
-            sqlGateway = new SqlGateway(properties);
+            restConfig.set(SqlGatewayRestOptions.ADDRESS, ADDRESS);
+            restConfig.set(SqlGatewayRestOptions.PORT, port.getPort());
+            defaultConfig.addAll(
+                    restConfig,
+                    getSqlGatewayOptionPrefix(SqlGatewayRestEndpointFactory.IDENTIFIER));
+
+            sqlGateway = new SqlGateway(defaultConfig, new SingleSessionManager(defaultContext));
         }
 
         void start() {
@@ -289,14 +299,14 @@ public class SqlClient {
 
     private static class ShutdownThread extends Thread {
 
-        private final ExecutorImpl executor;
+        private final Executor executor;
         private @Nullable final EmbeddedGateway gateway;
 
-        private ShutdownThread(ExecutorImpl executor) {
+        private ShutdownThread(Executor executor) {
             this(executor, null);
         }
 
-        public ShutdownThread(ExecutorImpl executor, @Nullable EmbeddedGateway gateway) {
+        public ShutdownThread(Executor executor, @Nullable EmbeddedGateway gateway) {
             this.executor = executor;
             this.gateway = gateway;
         }

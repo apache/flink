@@ -64,6 +64,7 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.TestingSqlGatewayRestEndpoint;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
+import org.apache.flink.table.gateway.service.session.SessionManagerImpl;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.utils.UserDefinedFunctions;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
@@ -524,8 +525,7 @@ class ExecutorImplITCase {
             executor.openSession("test-heartbeat");
             Thread.sleep(5_000);
             assertThat(
-                            SQL_GATEWAY_SERVICE_EXTENSION
-                                    .getSessionManager()
+                            ((SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager())
                                     .isSessionAlive(executor.getSessionHandle()))
                     .isTrue();
         }
