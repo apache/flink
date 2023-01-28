@@ -147,6 +147,9 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
     @AfterEach
     public void after() {
         TestValuesTableFactory.clearAllData();
+        if (catalog != null) {
+            catalog.close();
+        }
     }
 
     @ParameterizedTest(name = "Is bushy join reorder: {0}")

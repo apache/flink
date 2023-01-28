@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class JoinReorderITCase extends JoinReorderITCaseBase {
 
     private StreamExecutionEnvironment env;
+
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
+    }
 
     @AfterEach
     public void after() {
@@ -66,8 +72,7 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
         streamTableEnvironment
                 .toRetractStream(table, Row.class)
                 .map(JavaScalaConversionUtil::toScala, TypeInformation.of(Tuple2.class))
-                .addSink((SinkFunction) sink)
-                .setParallelism(1);
+                .addSink((SinkFunction) sink);
         try {
             env.execute();
         } catch (Exception e) {
