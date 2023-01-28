@@ -36,11 +36,13 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
+
 import org.junit.{After, Assert, Before}
 import org.junit.runners.Parameterized
 
 import java.io.File
 import java.util
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -65,12 +67,14 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
       case HEAP_BACKEND =>
         val conf = new Configuration()
         env.setStateBackend(
-          new MemoryStateBackend(LocalFileSystem.getLocalFsURI.toString + baseCheckpointPath, null).configure(conf, classLoader))
+          new MemoryStateBackend(LocalFileSystem.getLocalFsURI.toString + baseCheckpointPath, null)
+            .configure(conf, classLoader))
       case ROCKSDB_BACKEND =>
         val conf = new Configuration()
         conf.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true)
         env.setStateBackend(
-          new RocksDBStateBackend(LocalFileSystem.getLocalFsURI.toString + baseCheckpointPath).configure(conf, classLoader))
+          new RocksDBStateBackend(LocalFileSystem.getLocalFsURI.toString + baseCheckpointPath)
+            .configure(conf, classLoader))
     }
     this.tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     FailingCollectionSource.failedBefore = true
