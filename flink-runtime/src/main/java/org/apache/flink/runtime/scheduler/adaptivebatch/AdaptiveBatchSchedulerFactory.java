@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
@@ -168,6 +169,17 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 new VertexwiseSchedulingStrategy.Factory(
                         loadInputConsumableDeciderFactory(hybridPartitionDataConsumeConstraint));
 
+        int defaultMaxParallelism =
+                jobMasterConfiguration
+                        .getOptional(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM)
+                        .orElse(
+                                jobMasterConfiguration
+                                        .getOptional(CoreOptions.DEFAULT_PARALLELISM)
+                                        .orElse(
+                                                JobManagerOptions
+                                                        .ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM
+                                                        .defaultValue()));
+
         if (enableSpeculativeExecution) {
             return new SpeculativeScheduler(
                     log,
@@ -194,8 +206,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     shuffleMaster,
                     rpcTimeout,
                     DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
-                    jobMasterConfiguration.getInteger(
-                            JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM),
+                    defaultMaxParallelism,
                     blocklistOperations,
                     hybridPartitionDataConsumeConstraint);
         } else {
@@ -224,8 +235,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     shuffleMaster,
                     rpcTimeout,
                     DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
-                    jobMasterConfiguration.getInteger(
-                            JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM),
+                    defaultMaxParallelism,
                     hybridPartitionDataConsumeConstraint);
         }
     }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
@@ -83,7 +84,14 @@ public class CacheITCase extends AbstractTestBase {
                                 .build());
         miniClusterWithClientResource.before();
 
-        env = new TestStreamEnvironment(miniClusterWithClientResource.getMiniCluster(), 8);
+        configuration.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, false);
+        env =
+                new TestStreamEnvironment(
+                        miniClusterWithClientResource.getMiniCluster(),
+                        configuration,
+                        8,
+                        Collections.emptyList(),
+                        Collections.emptyList());
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
     }
 

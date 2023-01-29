@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -94,6 +95,8 @@ public class StreamNode {
     private @Nullable IntermediateDataSetID consumeClusterDatasetId;
 
     private boolean supportsConcurrentExecutionAttempts = true;
+
+    private boolean parallelismConfigured = false;
 
     @VisibleForTesting
     public StreamNode(
@@ -191,7 +194,13 @@ public class StreamNode {
     }
 
     public void setParallelism(Integer parallelism) {
+        setParallelism(parallelism, true);
+    }
+
+    void setParallelism(Integer parallelism, boolean parallelismConfigured) {
         this.parallelism = parallelism;
+        this.parallelismConfigured =
+                parallelismConfigured && parallelism != ExecutionConfig.PARALLELISM_DEFAULT;
     }
 
     /**
@@ -391,6 +400,10 @@ public class StreamNode {
         } else {
             return Optional.empty();
         }
+    }
+
+    boolean isParallelismConfigured() {
+        return parallelismConfigured;
     }
 
     @Override
