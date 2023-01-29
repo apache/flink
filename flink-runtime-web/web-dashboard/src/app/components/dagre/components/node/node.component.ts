@@ -34,6 +34,7 @@ export class NodeComponent {
   operator: string | null;
   operatorStrategy: string | null;
   parallelism: number | null;
+  maxParallelism: number | null;
   lowWatermark: number | null | undefined;
   backPressuredPercentage: number | undefined = NaN;
   busyPercentage: number | undefined = NaN;
@@ -63,6 +64,7 @@ export class NodeComponent {
     this.operator = this.decodeHTML(value.operator);
     this.operatorStrategy = this.decodeHTML(value.operator_strategy);
     this.parallelism = value.parallelism;
+    this.maxParallelism = value.maxParallelism;
     this.lowWatermark = value.lowWatermark;
     if (this.isValid(value.backPressuredPercentage)) {
       this.backPressuredPercentage = value.backPressuredPercentage;

@@ -19,6 +19,8 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collection;
 import java.util.Map;
 
@@ -30,6 +32,13 @@ import java.util.Map;
  * SlotAllocator#tryReserveResources(VertexParallelism)}.
  */
 public interface VertexParallelism {
+    /**
+     * Returns an map with all {@link JobVertexID} and it's maxParallelism, can be empty but can't
+     * be null.
+     *
+     * @return
+     */
+    @Nonnull
     Map<JobVertexID, Integer> getMaxParallelismForVertices();
 
     int getParallelism(JobVertexID jobVertexId);

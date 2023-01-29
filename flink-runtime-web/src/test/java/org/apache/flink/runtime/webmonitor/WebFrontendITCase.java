@@ -356,7 +356,7 @@ class WebFrontendITCase {
                                     + jid
                                     + "\",\"name\":\"Stoppable streaming test job\","
                                     + "\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\","
-                                    + "\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}");
+                                    + "\"job-parallelism\":1,\"job-max-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}");
         }
 
         BlockingInvokable.reset();

@@ -171,6 +171,7 @@ public class JobConfigInfo implements ResponseBody {
         public static final String FIELD_NAME_EXECUTION_MODE = "execution-mode";
         public static final String FIELD_NAME_RESTART_STRATEGY = "restart-strategy";
         public static final String FIELD_NAME_PARALLELISM = "job-parallelism";
+        public static final String FIELD_NAME_MAX_PARALLELISM = "job-max-parallelism";
         public static final String FIELD_NAME_OBJECT_REUSE_MODE = "object-reuse-mode";
         public static final String FIELD_NAME_GLOBAL_JOB_PARAMETERS = "user-config";
 
@@ -183,6 +184,9 @@ public class JobConfigInfo implements ResponseBody {
         @JsonProperty(FIELD_NAME_PARALLELISM)
         private final int parallelism;
 
+        @JsonProperty(FIELD_NAME_MAX_PARALLELISM)
+        private final int maxParallelism;
+
         @JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE)
         private final boolean isObjectReuse;
 
@@ -194,12 +198,14 @@ public class JobConfigInfo implements ResponseBody {
                 @JsonProperty(FIELD_NAME_EXECUTION_MODE) String executionMode,
                 @JsonProperty(FIELD_NAME_RESTART_STRATEGY) String restartStrategy,
                 @JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
+                @JsonProperty(FIELD_NAME_MAX_PARALLELISM) int maxParallelism,
                 @JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE) boolean isObjectReuse,
                 @JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS)
                         Map<String, String> globalJobParameters) {
             this.executionMode = Preconditions.checkNotNull(executionMode);
             this.restartStrategy = Preconditions.checkNotNull(restartStrategy);
             this.parallelism = parallelism;
+            this.maxParallelism = maxParallelism;
             this.isObjectReuse = isObjectReuse;
             this.globalJobParameters = Preconditions.checkNotNull(globalJobParameters);
         }
@@ -214,6 +220,10 @@ public class JobConfigInfo implements ResponseBody {
 
         public int getParallelism() {
             return parallelism;
+        }
+
+        public int getMaxParallelism() {
+            return maxParallelism;
         }
 
         @JsonIgnore
@@ -235,6 +245,7 @@ public class JobConfigInfo implements ResponseBody {
             }
             ExecutionConfigInfo that = (ExecutionConfigInfo) o;
             return parallelism == that.parallelism
+                    && maxParallelism == that.maxParallelism
                     && isObjectReuse == that.isObjectReuse
                     && Objects.equals(executionMode, that.executionMode)
                     && Objects.equals(restartStrategy, that.restartStrategy)
@@ -247,6 +258,7 @@ public class JobConfigInfo implements ResponseBody {
                     executionMode,
                     restartStrategy,
                     parallelism,
+                    maxParallelism,
                     isObjectReuse,
                     globalJobParameters);
         }
@@ -256,6 +268,7 @@ public class JobConfigInfo implements ResponseBody {
                     archivedExecutionConfig.getExecutionMode(),
                     archivedExecutionConfig.getRestartStrategyDescription(),
                     archivedExecutionConfig.getParallelism(),
+                    archivedExecutionConfig.getMaxParallelism(),
                     archivedExecutionConfig.getObjectReuseEnabled(),
                     ConfigurationUtils.hideSensitiveValues(
                             archivedExecutionConfig.getGlobalJobParameters()));

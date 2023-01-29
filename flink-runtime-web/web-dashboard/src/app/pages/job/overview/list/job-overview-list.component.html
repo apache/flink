@@ -34,6 +34,7 @@
       <th [nzSortFn]="sortWriteBytesFn" nzWidth="150px">Bytes Sent</th>
       <th [nzSortFn]="sortWriteRecordsFn" nzWidth="120px">Records Sent</th>
       <th [nzSortFn]="sortParallelismFn" nzWidth="120px">Parallelism</th>
+      <th [nzSortFn]="sortParallelismFn" nzWidth="120px">Max Parallelism</th>
       <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
       <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
       <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
@@ -96,6 +97,7 @@
         </span>
       </td>
       <td>{{ node.parallelism }}</td>
+      <td>{{ node.maxParallelism }}</td>
       <td>{{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ node.detail?.duration | humanizeDuration }}</td>
       <td>{{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>

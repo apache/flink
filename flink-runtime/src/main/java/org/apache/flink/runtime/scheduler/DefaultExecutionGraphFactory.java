@@ -37,7 +37,9 @@ import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -189,6 +191,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();
 
+        boolean isMaxParallelismRestored = false;
         if (checkpointCoordinator != null) {
             // check whether we find a valid checkpoint
             if (!checkpointCoordinator.restoreInitialCheckpointIfPresent(
@@ -197,7 +200,36 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                 // check whether we can restore from a savepoint
                 tryRestoreExecutionGraphFromSavepoint(
                         newExecutionGraph, jobGraph.getSavepointRestoreSettings());
+
+                for (JobVertex jobVertex : jobGraph.getVertices()) {
+                    int oldMaxParallelism = jobVertex.getMaxParallelism();
+                    int newMaxParallelism =
+                            newExecutionGraph
+                                    .getAllVertices()
+                                    .get(jobVertex.getID())
+                                    .getMaxParallelism();
+
+                    if (oldMaxParallelism != newMaxParallelism) {
+                        jobVertex.setMaxParallelism(newMaxParallelism);
+                        isMaxParallelismRestored = true;
+                    }
+                }
             }
+        }
+
+        // reset the json plan if needed
+
+        String jsonPlan = newExecutionGraph.getJsonPlan();
+        try {
+            if (isMaxParallelismRestored) {
+                newExecutionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));
+            } else {
+                log.debug("MaxParallelism from savepoint didn't change, no need to reset!");
+            }
+        } catch (Throwable t) {
+            log.warn("Cannot reset JSON plan for job", t);
+            // give the graph the old plan
+            newExecutionGraph.setJsonPlan(jsonPlan);
         }
 
         return newExecutionGraph;

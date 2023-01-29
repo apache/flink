@@ -122,6 +122,7 @@ interface MetricsStatus {
 export interface NodesItem {
   id: string;
   parallelism: number;
+  maxParallelism: number;
   operator: string;
   operator_strategy: string;
   description: string;

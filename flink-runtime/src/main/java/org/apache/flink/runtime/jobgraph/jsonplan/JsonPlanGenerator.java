@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph.jsonplan;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -117,10 +119,27 @@ public class JsonPlanGenerator {
                 // write the core properties
                 JobVertexID vertexID = vertex.getID();
                 int storeParallelism = vertexParallelism.getParallelism(vertexID);
+                int parallelism =
+                        storeParallelism != ExecutionConfig.PARALLELISM_DEFAULT
+                                ? storeParallelism
+                                : vertex.getParallelism();
                 gen.writeStringField("id", vertexID.toString());
-                gen.writeNumberField(
-                        "parallelism",
-                        storeParallelism != -1 ? storeParallelism : vertex.getParallelism());
+                gen.writeNumberField("parallelism", parallelism);
+                int storeMaxParallelism =
+                        vertexParallelism
+                                .getMaxParallelismForVertices()
+                                .getOrDefault(vertexID, JobVertex.MAX_PARALLELISM_DEFAULT);
+                int maxParallelism =
+                        storeMaxParallelism == JobVertex.MAX_PARALLELISM_DEFAULT
+                                ? (vertex.getMaxParallelism() == JobVertex.MAX_PARALLELISM_DEFAULT
+                                        ? (parallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                                                ? JobVertex.MAX_PARALLELISM_DEFAULT
+                                                : KeyGroupRangeAssignment
+                                                        .computeDefaultMaxParallelism(parallelism))
+                                        : vertex.getMaxParallelism())
+                                : storeMaxParallelism;
+                gen.writeNumberField("maxParallelism", maxParallelism);
+
                 gen.writeStringField("operator", operator);
                 gen.writeStringField("operator_strategy", operatorDescr);
                 gen.writeStringField("description", description);

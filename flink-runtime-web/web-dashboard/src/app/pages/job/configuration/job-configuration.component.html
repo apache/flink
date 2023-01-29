@@ -46,6 +46,16 @@
         </td>
       </tr>
       <tr>
+        <td><strong>Job max parallelism</strong></td>
+        <td>
+          {{
+            config['execution-config']['job-max-parallelism'] === -1
+              ? 'auto'
+              : config['execution-config']['job-max-parallelism']
+          }}
+        </td>
+      </tr>
+      <tr>
         <td><strong>Object reuse mode</strong></td>
         <td>{{ config['execution-config']['object-reuse-mode'] }}</td>
       </tr>
