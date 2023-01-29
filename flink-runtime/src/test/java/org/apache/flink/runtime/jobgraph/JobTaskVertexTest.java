@@ -28,6 +28,7 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.SimpleInitializeOnMasterContext;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -148,8 +149,22 @@ class JobTaskVertexTest {
         assertThatThrownBy(
                         () ->
                                 copy.finalizeOnMaster(
-                                        new SimpleInitializeOnMasterContext(
-                                                cl, copy.getParallelism())))
+                                        new FinalizeOnMasterContext() {
+                                            @Override
+                                            public ClassLoader getClassLoader() {
+                                                return cl;
+                                            }
+
+                                            @Override
+                                            public int getExecutionParallelism() {
+                                                return copy.getParallelism();
+                                            }
+
+                                            @Override
+                                            public int getFinishedAttempt(int subtaskIndex) {
+                                                return 0;
+                                            }
+                                        }))
                 .isInstanceOf(TestException.class);
         assertThat(Thread.currentThread().getContextClassLoader())
                 .as("Previous classloader was not restored.")

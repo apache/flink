@@ -57,6 +57,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -1227,10 +1228,39 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
             try {
                 for (ExecutionJobVertex ejv : verticesInCreationOrder) {
+                    final Map<Integer, Integer> subtaskToFinishedAttempt =
+                            Arrays.stream(ejv.getTaskVertices())
+                                    .map(ExecutionVertex::getCurrentExecutionAttempt)
+                                    .collect(
+                                            Collectors.toMap(
+                                                    Execution::getParallelSubtaskIndex,
+                                                    Execution::getAttemptNumber));
                     ejv.getJobVertex()
                             .finalizeOnMaster(
-                                    new SimpleInitializeOnMasterContext(
-                                            getUserClassLoader(), ejv.getParallelism()));
+                                    new FinalizeOnMasterContext() {
+                                        @Override
+                                        public ClassLoader getClassLoader() {
+                                            return getUserClassLoader();
+                                        }
+
+                                        @Override
+                                        public int getExecutionParallelism() {
+                                            return ejv.getParallelism();
+                                        }
+
+                                        @Override
+                                        public int getFinishedAttempt(int subtaskIndex) {
+                                            final Integer attemptNumber =
+                                                    subtaskToFinishedAttempt.get(subtaskIndex);
+                                            if (attemptNumber == null) {
+                                                throw new IllegalArgumentException(
+                                                        "Invalid subtaskIndex "
+                                                                + subtaskIndex
+                                                                + " provided");
+                                            }
+                                            return attemptNumber;
+                                        }
+                                    });
                 }
             } catch (Throwable t) {
                 ExceptionUtils.rethrowIfFatalError(t);

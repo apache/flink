@@ -714,7 +714,7 @@ public class MiniClusterITCase extends TestLogger {
         }
 
         @Override
-        public void finalizeOnMaster(InitializeOnMasterContext context) throws Exception {
+        public void finalizeOnMaster(FinalizeOnMasterContext context) throws Exception {
             Thread.sleep(waitingTime);
             finalizedOnMaster.set(true);
         }
@@ -731,7 +731,7 @@ public class MiniClusterITCase extends TestLogger {
         }
 
         @Override
-        public void finalizeOnMaster(InitializeOnMasterContext context) {
+        public void finalizeOnMaster(FinalizeOnMasterContext context) {
             throw new OutOfMemoryError("Java heap space");
         }
     }
