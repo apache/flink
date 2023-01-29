@@ -141,7 +141,8 @@ public class RocksDBSharedResourcesFactoryTest {
                         RocksDBMemoryConfiguration.fromConfiguration(new Configuration()),
                         getEnv(tmConfig),
                         0, // managed memory fraction must be ignored
-                        LOG);
+                        LOG,
+                        RocksDBMemoryControllerUtils.RocksDBMemoryFactory.DEFAULT);
 
         assertEquals(size, resource.getSize());
         assertEquals(
