@@ -478,8 +478,7 @@ public class ExecutorImpl implements Executor {
                                                                 SqlGatewayRestAPIVersion
                                                                         ::isStableVersion)
                                                         .collect(Collectors.toList()))))
-                        .getVersions()
-                        .stream()
+                        .getVersions().stream()
                         .map(SqlGatewayRestAPIVersion::valueOf)
                         .collect(Collectors.toList());
         SqlGatewayRestAPIVersion clientVersion = SqlGatewayRestAPIVersion.getDefaultVersion();

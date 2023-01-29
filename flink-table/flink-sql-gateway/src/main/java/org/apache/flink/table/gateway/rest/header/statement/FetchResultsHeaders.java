@@ -85,11 +85,11 @@ public class FetchResultsHeaders
         if (version == V1) {
             return String.format(
                     "/%s/sessions/%s/operations/%s/result/%s",
-                    version, sessionId, operationId, nextToken);
+                    version.getURLVersionPrefix(), sessionId, operationId, nextToken);
         } else {
             return String.format(
                     "/%s/sessions/%s/operations/%s/result/%s?rowFormat=%s",
-                    version, sessionId, operationId, nextToken, rowFormat);
+                    version.getURLVersionPrefix(), sessionId, operationId, nextToken, rowFormat);
         }
     }
 
