@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -1106,6 +1107,9 @@ abstract class TableTestUtil(
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager, tableConfig)
   val tableEnv: TableEnvironment = testingTableEnv
+  tableEnv.getConfig.set(
+    BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
+    Boolean.box(false))
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 

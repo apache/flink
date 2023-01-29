@@ -141,6 +141,8 @@ public class StreamGraph implements Pipeline {
 
     private boolean dynamic;
 
+    private boolean autoParallelismEnabled;
+
     public StreamGraph(
             ExecutionConfig executionConfig,
             CheckpointConfig checkpointConfig,
@@ -755,6 +757,12 @@ public class StreamGraph implements Pipeline {
         return dynamic;
     }
 
+    public void setParallelism(Integer vertexId, int parallelism, boolean parallelismConfigured) {
+        if (getStreamNode(vertexId) != null) {
+            getStreamNode(vertexId).setParallelism(parallelism, parallelismConfigured);
+        }
+    }
+
     public void setDynamic(boolean dynamic) {
         this.dynamic = dynamic;
     }
@@ -1036,6 +1044,14 @@ public class StreamGraph implements Pipeline {
 
     public JobType getJobType() {
         return jobType;
+    }
+
+    public boolean isAutoParallelismEnabled() {
+        return autoParallelismEnabled;
+    }
+
+    public void setAutoParallelismEnabled(boolean autoParallelismEnabled) {
+        this.autoParallelismEnabled = autoParallelismEnabled;
     }
 
     public PipelineOptions.VertexDescriptionMode getVertexDescriptionMode() {

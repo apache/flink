@@ -1199,7 +1199,8 @@ public class DataStream<T> {
                         operatorName,
                         operatorFactory,
                         outTypeInfo,
-                        environment.getParallelism());
+                        environment.getParallelism(),
+                        false);
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         SingleOutputStreamOperator<R> returnStream =

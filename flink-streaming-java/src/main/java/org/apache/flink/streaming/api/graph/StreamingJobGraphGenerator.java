@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
@@ -893,6 +894,15 @@ public class StreamingJobGraphGenerator {
         jobVertices.put(streamNodeId, jobVertex);
         builtVertices.add(streamNodeId);
         jobGraph.addVertex(jobVertex);
+        jobVertex.setParallelismConfigured(chainInfo.isParallelismConfigured());
+        if (streamGraph.isDynamic()
+                && !jobVertex.isParallelismConfigured()
+                && streamGraph.isAutoParallelismEnabled()) {
+            jobVertex.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT);
+            chainInfo
+                    .getAllChainedNodes()
+                    .forEach(n -> n.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT, false));
+        }
 
         return new StreamConfig(jobVertex.getConfiguration());
     }
@@ -1811,6 +1821,8 @@ public class StreamingJobGraphGenerator {
         private final Map<Integer, ChainedSourceInfo> chainedSources;
         private final List<OperatorCoordinator.Provider> coordinatorProviders;
         private final StreamGraph streamGraph;
+        private boolean parallelismConfigured;
+        private final List<StreamNode> chainedNodes;
 
         private OperatorChainInfo(
                 int startNodeId,
@@ -1825,6 +1837,10 @@ public class StreamingJobGraphGenerator {
             this.coordinatorProviders = new ArrayList<>();
             this.chainedSources = chainedSources;
             this.streamGraph = streamGraph;
+            this.parallelismConfigured =
+                    streamGraph.getStreamNode(startNodeId).isParallelismConfigured();
+            this.chainedNodes = new ArrayList<>();
+            chainedNodes.add(streamGraph.getStreamNode(startNodeId));
         }
 
         byte[] getHash(Integer streamNodeId) {
@@ -1851,7 +1867,15 @@ public class StreamingJobGraphGenerator {
             return chainedSources;
         }
 
+        boolean isParallelismConfigured() {
+            return parallelismConfigured;
+        }
+
         private OperatorID addNodeToChain(int currentNodeId, String operatorName) {
+            StreamNode streamNode = streamGraph.getStreamNode(currentNodeId);
+            chainedNodes.add(streamNode);
+            parallelismConfigured |= streamNode.isParallelismConfigured();
+
             List<Tuple2<byte[], byte[]>> operatorHashes =
                     chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
 
@@ -1861,16 +1885,20 @@ public class StreamingJobGraphGenerator {
                 operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
             }
 
-            streamGraph
-                    .getStreamNode(currentNodeId)
+            streamNode
                     .getCoordinatorProvider(operatorName, new OperatorID(getHash(currentNodeId)))
                     .map(coordinatorProviders::add);
+
             return new OperatorID(primaryHashBytes);
         }
 
         private OperatorChainInfo newChain(Integer startNodeId) {
             return new OperatorChainInfo(
                     startNodeId, hashes, legacyHashes, chainedSources, streamGraph);
+        }
+
+        public List<StreamNode> getAllChainedNodes() {
+            return chainedNodes;
         }
     }
 

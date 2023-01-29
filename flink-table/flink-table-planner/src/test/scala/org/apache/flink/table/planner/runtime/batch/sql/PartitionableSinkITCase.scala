@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{BatchExecutionOptions, Configuration}
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
@@ -67,6 +67,7 @@ class PartitionableSinkITCase extends BatchTestBase {
     super.before()
     env.setParallelism(3)
     tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(3))
+    tEnv.getConfig.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, Boolean.box(false))
     registerCollection("nonSortTable", testData, type3, "a, b, c", dataNullables)
     registerCollection("sortTable", testData1, type3, "a, b, c", dataNullables)
     registerCollection("starTable", testData2, type_int_string, "b, c", Array(true, true))

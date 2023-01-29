@@ -82,6 +82,30 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
         this.operatorFactory = operatorFactory;
     }
 
+    /**
+     * Creates a new {@code LegacySinkTransformation} from the given input {@code Transformation}.
+     *
+     * @param input The input {@code Transformation}
+     * @param name The name of the {@code Transformation}, this will be shown in Visualizations and
+     *     the Log
+     * @param operatorFactory The {@code TwoInputStreamOperator} factory
+     * @param outputType The type of the elements produced by this {@code OneInputTransformation}
+     * @param parallelism The parallelism of this {@code OneInputTransformation}
+     * @param parallelismConfigured If true, the parallelism of the transformation is explicitly set
+     *     and should be respected. Otherwise the parallelism can be changed at runtime.
+     */
+    public OneInputTransformation(
+            Transformation<IN> input,
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, outputType, parallelism, parallelismConfigured);
+        this.input = input;
+        this.operatorFactory = operatorFactory;
+    }
+
     /** Returns the {@code TypeInformation} for the elements of the input. */
     public TypeInformation<IN> getInputType() {
         return input.getOutputType();

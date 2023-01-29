@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -59,6 +60,7 @@ class BatchTestBase extends BatchAbstractTestBase {
   protected var testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
     .create(settings, catalogManager = None, TableConfig.getDefault)
   protected var tEnv: TableEnvironment = testingTableEnv
+  tEnv.getConfig.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, Boolean.box(false))
   protected var planner =
     tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   protected var env: StreamExecutionEnvironment = planner.getExecEnv
