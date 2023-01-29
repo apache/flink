@@ -155,6 +155,8 @@ public class JobVertex implements java.io.Serializable {
      */
     private boolean supportsConcurrentExecutionAttempts = true;
 
+    private boolean parallelismConfigured = false;
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -260,6 +262,15 @@ public class JobVertex implements java.io.Serializable {
     public void setInvokableClass(Class<? extends TaskInvokable> invokable) {
         Preconditions.checkNotNull(invokable);
         this.invokableClassName = invokable.getName();
+    }
+
+    // This method can only be called once when jobGraph generated
+    public void setParallelismConfigured(boolean parallelismConfigured) {
+        this.parallelismConfigured = parallelismConfigured;
+    }
+
+    public boolean isParallelismConfigured() {
+        return parallelismConfigured;
     }
 
     /**

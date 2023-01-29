@@ -51,8 +51,9 @@ public final class ReduceTransformation<IN, K> extends PhysicalTransformation<IN
             Transformation<IN> input,
             ReduceFunction<IN> reducer,
             KeySelector<IN, K> keySelector,
-            TypeInformation<K> keyTypeInfo) {
-        super(name, input.getOutputType(), parallelism);
+            TypeInformation<K> keyTypeInfo,
+            boolean parallelismConfigured) {
+        super(name, input.getOutputType(), parallelism, parallelismConfigured);
         this.input = input;
         this.reducer = reducer;
         this.keySelector = keySelector;

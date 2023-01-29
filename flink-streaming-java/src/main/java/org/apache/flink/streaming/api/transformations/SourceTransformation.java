@@ -66,6 +66,18 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT>
         this.watermarkStrategy = watermarkStrategy;
     }
 
+    public SourceTransformation(
+            String name,
+            Source<OUT, SplitT, EnumChkT> source,
+            WatermarkStrategy<OUT> watermarkStrategy,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, outputType, parallelism, parallelismConfigured);
+        this.source = source;
+        this.watermarkStrategy = watermarkStrategy;
+    }
+
     public Source<OUT, SplitT, EnumChkT> getSource() {
         return source;
     }

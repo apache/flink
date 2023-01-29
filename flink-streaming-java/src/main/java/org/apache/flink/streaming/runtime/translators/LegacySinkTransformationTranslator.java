@@ -92,7 +92,8 @@ public class LegacySinkTransformationTranslator<IN>
                 transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
                         ? transformation.getParallelism()
                         : executionConfig.getParallelism();
-        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setParallelism(
+                transformationId, parallelism, transformation.isParallelismConfigured());
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
         streamGraph.setSupportsConcurrentExecutionAttempts(

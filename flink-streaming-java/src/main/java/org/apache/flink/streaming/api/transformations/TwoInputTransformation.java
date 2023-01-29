@@ -89,6 +89,33 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformatio
         this.operatorFactory = operatorFactory;
     }
 
+    /**
+     * Creates a new {@code TwoInputTransformation} from the given inputs and operator.
+     *
+     * @param input1 The first input {@code Transformation}
+     * @param input2 The second input {@code Transformation}
+     * @param name The name of the {@code Transformation}, this will be shown in Visualizations and
+     *     the Log
+     * @param operatorFactory The {@code TwoInputStreamOperator} factory
+     * @param outputType The type of the elements produced by this Transformation
+     * @param parallelism The parallelism of this Transformation
+     * @param parallelismConfigured If true, the parallelism of the transformation is explicitly set
+     *     and should be respected. Otherwise the parallelism can be changed at runtime.
+     */
+    public TwoInputTransformation(
+            Transformation<IN1> input1,
+            Transformation<IN2> input2,
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, outputType, parallelism, parallelismConfigured);
+        this.input1 = input1;
+        this.input2 = input2;
+        this.operatorFactory = operatorFactory;
+    }
+
     /** Returns the first input {@code Transformation} of this {@code TwoInputTransformation}. */
     public Transformation<IN1> getInput1() {
         return input1;

@@ -65,10 +65,16 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
      *     the Log
      * @param operator The sink operator
      * @param parallelism The parallelism of this {@code LegacySinkTransformation}
+     * @param parallelismConfigured If true, the parallelism of the transformation is explicitly set
+     *     and should be respected. Otherwise the parallelism can be changed at runtime.
      */
     public LegacySinkTransformation(
-            Transformation<T> input, String name, StreamSink<T> operator, int parallelism) {
-        this(input, name, SimpleOperatorFactory.of(operator), parallelism);
+            Transformation<T> input,
+            String name,
+            StreamSink<T> operator,
+            int parallelism,
+            boolean parallelismConfigured) {
+        this(input, name, SimpleOperatorFactory.of(operator), parallelism, parallelismConfigured);
     }
 
     public LegacySinkTransformation(
@@ -77,6 +83,17 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
             StreamOperatorFactory<Object> operatorFactory,
             int parallelism) {
         super(name, input.getOutputType(), parallelism);
+        this.input = input;
+        this.operatorFactory = operatorFactory;
+    }
+
+    public LegacySinkTransformation(
+            Transformation<T> input,
+            String name,
+            StreamOperatorFactory<Object> operatorFactory,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, input.getOutputType(), parallelism, parallelismConfigured);
         this.input = input;
         this.operatorFactory = operatorFactory;
     }

@@ -254,6 +254,81 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
+    public void testTransformationSetParallelism() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromSequence(1L, 3L).map(i -> i).setParallelism(10).print().setParallelism(20);
+        StreamGraph streamGraph = env.getStreamGraph();
+
+        // check the streamGraph parallleism configured
+        final List<StreamNode> streamNodes =
+                streamGraph.getStreamNodes().stream()
+                        .sorted(Comparator.comparingInt(StreamNode::getId))
+                        .collect(Collectors.toList());
+        assertThat(streamNodes.get(0).isParallelismConfigured()).isFalse();
+        assertThat(streamNodes.get(1).isParallelismConfigured()).isTrue();
+        assertThat(streamNodes.get(2).isParallelismConfigured()).isTrue();
+
+        // check the jobGraph parallelism configured
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(3);
+        assertThat(vertices.get(0).isParallelismConfigured()).isFalse();
+        assertThat(vertices.get(1).isParallelismConfigured()).isTrue();
+        assertThat(vertices.get(2).isParallelismConfigured()).isTrue();
+    }
+
+    @Test
+    public void testChainNodeSetParallelism() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromSequence(1L, 3L).map(value -> value).print().setParallelism(env.getParallelism());
+        StreamGraph streamGraph = env.getStreamGraph();
+
+        // check the streamGraph parallleism configured
+        final List<StreamNode> streamNodes =
+                streamGraph.getStreamNodes().stream()
+                        .sorted(Comparator.comparingInt(StreamNode::getId))
+                        .collect(Collectors.toList());
+        assertThat(streamNodes.get(0).isParallelismConfigured()).isFalse();
+        assertThat(streamNodes.get(1).isParallelismConfigured()).isFalse();
+        assertThat(streamNodes.get(2).isParallelismConfigured()).isTrue();
+
+        // check the jobGraph parallelism configured
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(1);
+        assertThat(vertices.get(0).isParallelismConfigured()).isTrue();
+    }
+
+    @Test
+    public void testDynamicGraphVertexParallelism() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        int defaultParallelism = 20;
+        env.setParallelism(defaultParallelism);
+        env.fromSequence(1L, 3L).map(value -> value).print();
+        StreamGraph streamGraph = env.getStreamGraph();
+
+        for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+            assertThat(streamNode.getParallelism()).isEqualTo(defaultParallelism);
+        }
+        streamGraph.setDynamic(false);
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        for (JobVertex vertex : vertices) {
+            assertThat(vertex.getParallelism()).isEqualTo(defaultParallelism);
+        }
+
+        for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+            assertThat(streamNode.getParallelism()).isEqualTo(defaultParallelism);
+        }
+        streamGraph.setDynamic(true);
+        jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        for (JobVertex vertex : vertices) {
+            assertThat(vertex.getParallelism()).isEqualTo(ExecutionConfig.PARALLELISM_DEFAULT);
+        }
+    }
+
+    @Test
     void testUnalignedCheckAndAtLeastOnce() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(0).print();
