@@ -76,7 +76,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -347,7 +346,7 @@ public class ExecutorImpl implements Executor {
                     R extends RequestBody,
                     P extends ResponseBody>
             CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) {
-        Preconditions.checkNotNull(connectionVersion);
+        Preconditions.checkNotNull(connectionVersion, "The connection version should not be null.");
         return sendRequest(messageHeaders, messageParameters, request, connectionVersion);
     }
 
@@ -473,12 +472,9 @@ public class ExecutorImpl implements Executor {
                                         // TODO: Remove this after the REST Client should allow
                                         // to build the target URL without API version.
                                         Collections.min(
-                                                Arrays.stream(SqlGatewayRestAPIVersion.values())
-                                                        .filter(
-                                                                SqlGatewayRestAPIVersion
-                                                                        ::isStableVersion)
-                                                        .collect(Collectors.toList()))))
-                        .getVersions().stream()
+                                                SqlGatewayRestAPIVersion.getStableVersions())))
+                        .getVersions()
+                        .stream()
                         .map(SqlGatewayRestAPIVersion::valueOf)
                         .collect(Collectors.toList());
         SqlGatewayRestAPIVersion clientVersion = SqlGatewayRestAPIVersion.getDefaultVersion();
@@ -490,7 +486,7 @@ public class ExecutorImpl implements Executor {
                     RestAPIVersion.getLatestVersion(gatewayVersions);
             if (latestVersion.equals(SqlGatewayRestAPIVersion.V1)) {
                 throw new SqlExecutionException(
-                        "Currently SQL Client only supports to connect to the REST endpoint whose API version is larger than V1.");
+                        "Currently, SQL Client only supports to connect to the REST endpoint with API version larger than V1.");
             }
             return latestVersion;
         }

@@ -107,6 +107,22 @@ public enum SqlGatewayRestAPIVersion
         }
     }
 
+    /**
+     * Returns the supported stable versions.
+     *
+     * @return the list of the stable versions.
+     */
+    public static List<SqlGatewayRestAPIVersion> getStableVersions() {
+        return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns the default version.
+     *
+     * @return the default version.
+     */
     public static SqlGatewayRestAPIVersion getDefaultVersion() {
         List<SqlGatewayRestAPIVersion> versions =
                 Arrays.stream(SqlGatewayRestAPIVersion.values())

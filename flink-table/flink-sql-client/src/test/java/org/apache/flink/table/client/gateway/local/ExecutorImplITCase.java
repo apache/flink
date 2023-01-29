@@ -540,7 +540,8 @@ class ExecutorImplITCase {
                                 .satisfies(
                                         anyCauseMatches(
                                                 SqlExecutionException.class,
-                                                "Currently SQL Client only supports to connect to the REST endpoint whose API version is larger than V1.")));
+                                                "Currently, SQL Client only supports to connect to the "
+                                                        + "REST endpoint with API version larger than V1.")));
     }
 
     @Test

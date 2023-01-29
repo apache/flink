@@ -31,7 +31,6 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -42,7 +41,7 @@ public class GetApiVersionHandler
         extends AbstractSqlGatewayRestHandler<
                 EmptyRequestBody, GetApiVersionResponseBody, EmptyMessageParameters> {
 
-    private final List<SqlGatewayRestAPIVersion> supportedVersions;
+    private final List<SqlGatewayRestAPIVersion> stableVersions;
 
     public GetApiVersionHandler(
             SqlGatewayService service,
@@ -53,9 +52,7 @@ public class GetApiVersionHandler
                 service,
                 responseHeaders,
                 messageHeaders,
-                Arrays.stream(SqlGatewayRestAPIVersion.values())
-                        .filter(SqlGatewayRestAPIVersion::isStableVersion)
-                        .collect(Collectors.toList()));
+                SqlGatewayRestAPIVersion.getStableVersions());
     }
 
     @VisibleForTesting
@@ -64,9 +61,9 @@ public class GetApiVersionHandler
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, GetApiVersionResponseBody, EmptyMessageParameters>
                     messageHeaders,
-            List<SqlGatewayRestAPIVersion> supportedVersions) {
+            List<SqlGatewayRestAPIVersion> stableVersions) {
         super(service, responseHeaders, messageHeaders);
-        this.supportedVersions = supportedVersions;
+        this.stableVersions = stableVersions;
     }
 
     @Override
@@ -75,6 +72,6 @@ public class GetApiVersionHandler
             @Nonnull HandlerRequest<EmptyRequestBody> request) {
         return CompletableFuture.completedFuture(
                 new GetApiVersionResponseBody(
-                        supportedVersions.stream().map(Enum::name).collect(Collectors.toList())));
+                        stableVersions.stream().map(Enum::name).collect(Collectors.toList())));
     }
 }
