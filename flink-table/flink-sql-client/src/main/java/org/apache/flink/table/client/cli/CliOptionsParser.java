@@ -208,7 +208,6 @@ public class CliOptionsParser {
         writer.println("\nMode \"embedded\" (default) submits Flink jobs from the local machine.");
         writer.println("\n  Syntax: [embedded] [OPTIONS]");
         writer.println("  \"embedded\" mode options:");
-        formatter.printHelp(" ", EMBEDDED_MODE_CLIENT_OPTIONS);
 
         formatter.printOptions(
                 writer,

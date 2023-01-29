@@ -93,7 +93,7 @@ public class SqlClient {
                                                             "Please specify the address of the SQL Gateway with command line option"
                                                                     + " '-e,--endpoint <SQL Gateway address>' in the gateway mode.")))) {
                 // add shutdown hook
-                Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(executor));
+                Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor));
                 executor.openSession(options.getSessionId());
                 openCli(executor);
             }
@@ -107,8 +107,7 @@ public class SqlClient {
                                             embeddedGateway.getAddress(),
                                             embeddedGateway.getPort()))) {
                 // add shutdown hook
-                Runtime.getRuntime()
-                        .addShutdownHook(new EmbeddedShutdownThread(executor, embeddedGateway));
+                Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor, embeddedGateway));
                 // do the actual work
                 embeddedGateway.start();
                 executor.openSession(options.getSessionId());
@@ -209,9 +208,11 @@ public class SqlClient {
                 break;
             case MODE_NONE:
                 options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
-                if (!options.isPrintHelp()) {
-                    break;
+                if (options.isPrintHelp()) {
+                    CliOptionsParser.printHelpClient(terminalFactory.get().writer());
+                    return;
                 }
+                break;
             default:
                 CliOptionsParser.printHelpClient(terminalFactory.get().writer());
                 return;
@@ -286,16 +287,16 @@ public class SqlClient {
         }
     }
 
-    private static class EmbeddedShutdownThread extends Thread {
+    private static class ShutdownThread extends Thread {
 
         private final ExecutorImpl executor;
         private @Nullable final EmbeddedGateway gateway;
 
-        private EmbeddedShutdownThread(ExecutorImpl executor) {
+        private ShutdownThread(ExecutorImpl executor) {
             this(executor, null);
         }
 
-        public EmbeddedShutdownThread(ExecutorImpl executor, @Nullable EmbeddedGateway gateway) {
+        public ShutdownThread(ExecutorImpl executor, @Nullable EmbeddedGateway gateway) {
             this.executor = executor;
             this.gateway = gateway;
         }
