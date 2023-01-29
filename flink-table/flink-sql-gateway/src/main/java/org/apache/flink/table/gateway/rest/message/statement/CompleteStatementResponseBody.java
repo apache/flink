@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.statement;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -34,6 +35,7 @@ public class CompleteStatementResponseBody implements ResponseBody {
     @JsonProperty(FIELD_NAME_CANDIDATES)
     private final List<String> candidates;
 
+    @JsonCreator
     public CompleteStatementResponseBody(
             @JsonProperty(FIELD_NAME_CANDIDATES) List<String> candidates) {
         this.candidates = candidates;

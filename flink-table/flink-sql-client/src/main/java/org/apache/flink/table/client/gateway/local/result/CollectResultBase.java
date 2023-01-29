@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
@@ -35,10 +35,10 @@ public abstract class CollectResultBase implements DynamicResult {
     protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
     protected final ResultRetrievalThread retrievalThread;
 
-    public CollectResultBase(TableResultInternal tableResult) {
-        resultIterator = tableResult.collectInternal();
-        resultLock = new Object();
-        retrievalThread = new ResultRetrievalThread();
+    public CollectResultBase(ClientResult tableResult) {
+        this.resultIterator = tableResult;
+        this.resultLock = new Object();
+        this.retrievalThread = new ResultRetrievalThread();
     }
 
     @Override

@@ -20,15 +20,14 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
+import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
@@ -89,8 +88,7 @@ class CliResultViewTest {
         ResolvedSchema schema =
                 ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING()));
         final ResultDescriptor descriptor =
-                new ResultDescriptor(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), testConfig);
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
 
         try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             Thread resultViewRunner =

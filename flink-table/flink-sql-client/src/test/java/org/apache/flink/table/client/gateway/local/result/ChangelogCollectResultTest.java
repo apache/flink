@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.cli.utils.TestTableResult;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.Test;
@@ -42,15 +43,19 @@ class ChangelogCollectResultTest {
     @Test
     void testRetrieveChanges() throws Exception {
         int totalCount = ChangelogCollectResult.CHANGE_RECORD_BUFFER_SIZE * 2;
-        CloseableIterator<Row> data =
+        CloseableIterator<RowData> data =
                 CloseableIterator.adapterForIterator(
-                        IntStream.range(0, totalCount).mapToObj(Row::of).iterator());
+                        IntStream.range(0, totalCount)
+                                .mapToObj(i -> (RowData) GenericRowData.of(i))
+                                .iterator());
         ChangelogCollectResult changelogResult =
                 new ChangelogCollectResult(
-                        new TestTableResult(
-                                ResultKind.SUCCESS_WITH_CONTENT,
+                        new ClientResult(
                                 ResolvedSchema.of(Column.physical("id", DataTypes.INT())),
-                                data));
+                                data,
+                                true,
+                                ResultKind.SUCCESS_WITH_CONTENT,
+                                JobID.generate()));
 
         int count = 0;
         boolean running = true;

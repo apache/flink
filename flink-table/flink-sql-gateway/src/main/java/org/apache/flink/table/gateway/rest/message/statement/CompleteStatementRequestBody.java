@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.statement;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -35,6 +36,7 @@ public class CompleteStatementRequestBody implements RequestBody {
     @JsonProperty(FIELD_NAME_POSITION)
     private final int position;
 
+    @JsonCreator
     public CompleteStatementRequestBody(
             @JsonProperty(FIELD_NAME_STATEMENT) String statement,
             @JsonProperty(FIELD_NAME_POSITION) int position) {

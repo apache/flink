@@ -42,6 +42,7 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
     private final Supplier<SqlGatewayService> serviceSupplier;
 
     private SqlGatewayRestEndpoint sqlGatewayRestEndpoint;
+    private SqlGatewayService sqlGatewayService;
     private String targetAddress;
     private int targetPort;
 
@@ -51,6 +52,10 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
 
     public int getTargetPort() {
         return targetPort;
+    }
+
+    public SqlGatewayService getSqlGatewayService() {
+        return sqlGatewayService;
     }
 
     public SqlGatewayRestEndpointExtension(Supplier<SqlGatewayService> serviceSupplier) {
@@ -63,7 +68,8 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
         Configuration config = getBaseConfig(getFlinkConfig(address, address, "0"));
 
         try {
-            sqlGatewayRestEndpoint = new SqlGatewayRestEndpoint(config, serviceSupplier.get());
+            sqlGatewayService = serviceSupplier.get();
+            sqlGatewayRestEndpoint = new SqlGatewayRestEndpoint(config, sqlGatewayService);
             sqlGatewayRestEndpoint.start();
         } catch (Exception e) {
             throw new SqlGatewayException(

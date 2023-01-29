@@ -19,11 +19,10 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.cli.utils.TestTableResult;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -43,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
 
     @Test
-    void testSnapshot() throws Exception {
+    void testSnapshot() {
         final ResolvedSchema schema =
                 ResolvedSchema.physical(
                         new String[] {"f0", "f1"},
@@ -56,7 +55,7 @@ class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
 
         try (TestMaterializedCollectBatchResult result =
                 new TestMaterializedCollectBatchResult(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
+                        CliClientTestUtils.createTestClient(schema),
                         Integer.MAX_VALUE,
                         createInternalBinaryRowDataConverter(schema.toPhysicalRowDataType()))) {
 
@@ -127,7 +126,7 @@ class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
 
         try (TestMaterializedCollectBatchResult result =
                 new TestMaterializedCollectBatchResult(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
+                        CliClientTestUtils.createTestClient(schema),
                         2, // limit the materialized table to 2 rows
                         3,
                         createInternalBinaryRowDataConverter(
@@ -184,7 +183,7 @@ class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
         public boolean isRetrieving;
 
         public TestMaterializedCollectBatchResult(
-                TableResultInternal tableResult,
+                ClientResult tableResult,
                 int maxRowCount,
                 int overcommitThreshold,
                 Function<Row, BinaryRowData> converter) {
@@ -193,9 +192,7 @@ class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
         }
 
         public TestMaterializedCollectBatchResult(
-                TableResultInternal tableResult,
-                int maxRowCount,
-                Function<Row, BinaryRowData> converter) {
+                ClientResult tableResult, int maxRowCount, Function<Row, BinaryRowData> converter) {
             super(tableResult, maxRowCount);
             this.converter = converter;
         }

@@ -90,7 +90,7 @@ public class ConfigureSessionHeaders
         return Collections.singleton(SqlGatewayRestAPIVersion.V2);
     }
 
-    public static ConfigureSessionHeaders getINSTANCE() {
+    public static ConfigureSessionHeaders getInstance() {
         return INSTANCE;
     }
 

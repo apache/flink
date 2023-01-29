@@ -200,7 +200,7 @@ public class SessionManager {
     }
 
     @VisibleForTesting
-    boolean isSessionAlive(SessionHandle sessionId) {
+    public boolean isSessionAlive(SessionHandle sessionId) {
         return sessions.containsKey(sessionId);
     }
 

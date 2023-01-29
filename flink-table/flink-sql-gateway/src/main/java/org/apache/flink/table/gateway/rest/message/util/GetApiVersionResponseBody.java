@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.util;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -34,6 +35,7 @@ public class GetApiVersionResponseBody implements ResponseBody {
     @JsonProperty(FIELD_VERSIONS)
     private final List<String> versions;
 
+    @JsonCreator
     public GetApiVersionResponseBody(@JsonProperty(FIELD_VERSIONS) List<String> versions) {
         this.versions = versions;
     }

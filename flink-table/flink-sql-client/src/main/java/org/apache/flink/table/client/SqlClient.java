@@ -23,10 +23,12 @@ import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalContextUtils;
-import org.apache.flink.table.client.gateway.local.LocalExecutor;
+import org.apache.flink.table.gateway.SqlGateway;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
+import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -34,12 +36,15 @@ import org.jline.terminal.Terminal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Properties;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
@@ -78,22 +83,21 @@ public class SqlClient {
 
     private void start() {
         if (isEmbedded) {
-            // create local executor with default environment
-
             DefaultContext defaultContext = LocalContextUtils.buildDefaultContext(options);
-            final Executor executor = new LocalExecutor(defaultContext);
-            executor.start();
-
-            // Open a new session
-            executor.openSession(options.getSessionId());
-            try {
+            try (EmbeddedGateway embeddedGateway = new EmbeddedGateway();
+                    ExecutorImpl executor =
+                            new ExecutorImpl(
+                                    defaultContext,
+                                    InetSocketAddress.createUnresolved(
+                                            embeddedGateway.getAddress(),
+                                            embeddedGateway.getPort()))) {
                 // add shutdown hook
-                Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(executor));
-
+                Runtime.getRuntime()
+                        .addShutdownHook(new EmbeddedShutdownThread(executor, embeddedGateway));
                 // do the actual work
+                embeddedGateway.start();
+                executor.openSession(options.getSessionId());
                 openCli(executor);
-            } finally {
-                executor.closeSession();
             }
         } else {
             throw new SqlClientException("Gateway mode is not supported yet.");
@@ -213,19 +217,67 @@ public class SqlClient {
 
     // --------------------------------------------------------------------------------------------
 
+    private static class EmbeddedGateway implements Closeable {
+
+        private static final String ADDRESS = "localhost";
+
+        private final NetUtils.Port port;
+        private final SqlGateway sqlGateway;
+
+        public EmbeddedGateway() {
+            port = NetUtils.getAvailablePort();
+
+            Properties properties = new Properties();
+            // always use localhost
+            properties.setProperty("sql-gateway.endpoint.rest.address", ADDRESS);
+            properties.setProperty(
+                    "sql-gateway.endpoint.rest.port", String.valueOf(port.getPort()));
+            sqlGateway = new SqlGateway(properties);
+        }
+
+        void start() {
+            try {
+                sqlGateway.start();
+            } catch (Throwable t) {
+                throw new SqlClientException("Failed to start the embedded sql-gateway.", t);
+            }
+        }
+
+        String getAddress() {
+            return ADDRESS;
+        }
+
+        int getPort() {
+            return port.getPort();
+        }
+
+        @Override
+        public void close() {
+            sqlGateway.stop();
+            try {
+                port.close();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+    }
+
     private static class EmbeddedShutdownThread extends Thread {
 
-        private final Executor executor;
+        private final ExecutorImpl executor;
+        private final EmbeddedGateway gateway;
 
-        public EmbeddedShutdownThread(Executor executor) {
+        public EmbeddedShutdownThread(ExecutorImpl executor, EmbeddedGateway gateway) {
             this.executor = executor;
+            this.gateway = gateway;
         }
 
         @Override
         public void run() {
             // Shutdown the executor
             System.out.println("\nShutting down the session...");
-            executor.closeSession();
+            executor.close();
+            gateway.close();
             System.out.println("done.");
         }
     }

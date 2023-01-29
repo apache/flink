@@ -28,42 +28,37 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
-import static org.apache.flink.table.client.cli.parser.StatementType.BEGIN_STATEMENT_SET;
-import static org.apache.flink.table.client.cli.parser.StatementType.CLEAR;
-import static org.apache.flink.table.client.cli.parser.StatementType.END;
-import static org.apache.flink.table.client.cli.parser.StatementType.EXPLAIN;
-import static org.apache.flink.table.client.cli.parser.StatementType.HELP;
-import static org.apache.flink.table.client.cli.parser.StatementType.OTHER;
-import static org.apache.flink.table.client.cli.parser.StatementType.QUIT;
-import static org.apache.flink.table.client.cli.parser.StatementType.SELECT;
-import static org.apache.flink.table.client.cli.parser.StatementType.SHOW_CREATE;
+import static org.apache.flink.table.client.cli.parser.Command.CLEAR;
+import static org.apache.flink.table.client.cli.parser.Command.HELP;
+import static org.apache.flink.table.client.cli.parser.Command.OTHER;
+import static org.apache.flink.table.client.cli.parser.Command.QUIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Testing whether {@link ClientParser} can parse statement to get {@link StatementType} correctly.
+ * Testing whether {@link SqlCommandParserImpl} can parse statement to get {@link Command}
+ * correctly.
  */
-public class ClientParserTest {
+public class SqlCommandParserImplTest {
 
     private static final String EXECUTE_STATEMENT_SET =
             "EXECUTE STATEMENT SET BEGIN\n INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'));";
 
-    private final ClientParser clientParser = new ClientParser();
+    private final SqlCommandParserImpl sqlCommandParserImpl = new SqlCommandParserImpl();
 
     @ParameterizedTest
     @MethodSource("positiveCases")
     public void testParseStatement(TestSpec testData) {
-        Optional<StatementType> type = clientParser.parseStatement(testData.statement);
-        assertThat(type.orElse(null)).isEqualTo(testData.type);
+        Command command = sqlCommandParserImpl.parseStatement(testData.statement).orElse(null);
+        assertThat(command).isEqualTo(testData.command);
     }
 
     @ParameterizedTest
     @MethodSource("negativeCases")
     public void testParseIncompleteStatement(String statement) {
-        assertThatThrownBy(() -> clientParser.parseStatement(statement))
+        assertThatThrownBy(() -> sqlCommandParserImpl.parseStatement(statement))
                 .satisfies(anyCauseMatches(SqlExecutionException.class))
                 .cause()
                 .satisfies(anyCauseMatches(SqlParserEOFException.class));
@@ -71,16 +66,16 @@ public class ClientParserTest {
 
     private static List<TestSpec> positiveCases() {
         return Arrays.asList(
-                TestSpec.of(";", OTHER),
+                TestSpec.of(";", null),
                 TestSpec.of("; ;", OTHER),
                 // comment and multi lines tests
-                TestSpec.of("SHOW --ignore;\n CREATE TABLE tbl;", SHOW_CREATE),
-                TestSpec.of("SHOW\n create\t TABLE `tbl`;", SHOW_CREATE),
+                TestSpec.of("SHOW --ignore;\n CREATE TABLE tbl;", OTHER),
+                TestSpec.of("SHOW\n create\t TABLE `tbl`;", OTHER),
                 TestSpec.of("SHOW -- create\n TABLES;", OTHER),
                 // special characters tests
-                TestSpec.of("SELECT * FROM `tbl`;", SELECT),
-                TestSpec.of("SHOW /* ignore */ CREATE TABLE \"tbl\";", SHOW_CREATE),
-                TestSpec.of("SELECT '\\';", SELECT),
+                TestSpec.of("SELECT * FROM `tbl`;", OTHER),
+                TestSpec.of("SHOW /* ignore */ CREATE TABLE \"tbl\";", OTHER),
+                TestSpec.of("SELECT '\\';", OTHER),
                 // normal tests
                 TestSpec.of("quit;", QUIT), // non case sensitive test
                 TestSpec.of("QUIT;", QUIT),
@@ -88,46 +83,45 @@ public class ClientParserTest {
                 TestSpec.of("QuIt;", QUIT),
                 TestSpec.of("clear;", CLEAR),
                 TestSpec.of("help;", HELP),
-                TestSpec.of("EXPLAIN PLAN FOR 'what_ever';", EXPLAIN),
-                TestSpec.of("SHOW CREATE TABLE(what_ever);", SHOW_CREATE),
-                TestSpec.of("SHOW CREATE VIEW (what_ever);", SHOW_CREATE),
-                TestSpec.of("SHOW CREATE syntax_error;", SHOW_CREATE),
+                TestSpec.of("EXPLAIN PLAN FOR 'what_ever';", OTHER),
+                TestSpec.of("SHOW CREATE TABLE(what_ever);", OTHER),
+                TestSpec.of("SHOW CREATE VIEW (what_ever);", OTHER),
+                TestSpec.of("SHOW CREATE syntax_error;", OTHER),
                 TestSpec.of("SHOW TABLES;", OTHER),
-                TestSpec.of("BEGIN STATEMENT SET;", BEGIN_STATEMENT_SET),
+                TestSpec.of("BEGIN STATEMENT SET;", OTHER),
                 TestSpec.of("BEGIN statement;", OTHER),
-                TestSpec.of("END;", END),
+                TestSpec.of("END;", OTHER),
                 TestSpec.of("END statement;", OTHER),
                 // statement set tests
                 TestSpec.of(EXECUTE_STATEMENT_SET, OTHER),
-                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET, EXPLAIN),
-                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;", EXPLAIN),
+                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET, OTHER),
+                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;", OTHER),
                 TestSpec.of(EXECUTE_STATEMENT_SET + "\nEND;", OTHER),
-                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET + "\nEND;", EXPLAIN),
-                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;\nEND;", EXPLAIN));
+                TestSpec.of("EXPLAIN " + EXECUTE_STATEMENT_SET + "\nEND;", OTHER),
+                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;\nEND;", OTHER));
     }
 
     private static List<String> negativeCases() {
-        return Arrays.asList(
-                "", "\n", " ", "-- comment;", "SHOW TABLES -- comment;", "SHOW TABLES");
+        return Arrays.asList("-- comment;", "SHOW TABLES -- comment;", "SHOW TABLES");
     }
 
     /** Used to load generated data. */
     private static class TestSpec {
         String statement;
-        StatementType type;
+        @Nullable Command command;
 
-        TestSpec(String statement, @Nullable StatementType type) {
+        TestSpec(String statement, @Nullable Command command) {
             this.statement = statement;
-            this.type = type;
+            this.command = command;
         }
 
         @Override
         public String toString() {
-            return "TestSpec{" + "statement='" + statement + '\'' + ", type=" + type + '}';
+            return "TestSpec{" + "statement='" + statement + '\'' + ", command=" + command + '}';
         }
 
-        static TestSpec of(String statement, @Nullable StatementType type) {
-            return new TestSpec(statement, type);
+        static TestSpec of(String statement, @Nullable Command command) {
+            return new TestSpec(statement, command);
         }
     }
 }

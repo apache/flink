@@ -20,7 +20,6 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
@@ -39,10 +38,10 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RE
 /** Describes a result to be expected from a table program. */
 public class ResultDescriptor {
 
-    private final TableResultInternal tableResult;
+    private final ClientResult tableResult;
     private final ReadableConfig config;
 
-    public ResultDescriptor(TableResultInternal tableResult, ReadableConfig config) {
+    public ResultDescriptor(ClientResult tableResult, ReadableConfig config) {
         this.tableResult = tableResult;
         this.config = config;
     }
@@ -76,7 +75,7 @@ public class ResultDescriptor {
     }
 
     public ResolvedSchema getResultSchema() {
-        return tableResult.getResolvedSchema();
+        return tableResult.getResultSchema();
     }
 
     public boolean isMaterialized() {

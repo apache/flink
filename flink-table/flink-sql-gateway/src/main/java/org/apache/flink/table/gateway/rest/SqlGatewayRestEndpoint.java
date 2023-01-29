@@ -97,8 +97,8 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
         // Configure session
         ConfigureSessionHandler configureSessionHandler =
                 new ConfigureSessionHandler(
-                        service, responseHeaders, ConfigureSessionHeaders.getINSTANCE());
-        handlers.add(Tuple2.of(ConfigureSessionHeaders.getINSTANCE(), configureSessionHandler));
+                        service, responseHeaders, ConfigureSessionHeaders.getInstance());
+        handlers.add(Tuple2.of(ConfigureSessionHeaders.getInstance(), configureSessionHandler));
 
         // Get session configuration
         GetSessionConfigHandler getSessionConfigHandler =
@@ -157,8 +157,8 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
         // Complete a statement
         CompleteStatementHandler completeStatementHandler =
                 new CompleteStatementHandler(
-                        service, responseHeaders, CompleteStatementHeaders.getINSTANCE());
-        handlers.add(Tuple2.of(CompleteStatementHeaders.getINSTANCE(), completeStatementHandler));
+                        service, responseHeaders, CompleteStatementHeaders.getInstance());
+        handlers.add(Tuple2.of(CompleteStatementHeaders.getInstance(), completeStatementHandler));
 
         // Execute a statement
         ExecuteStatementHandler executeStatementHandler =

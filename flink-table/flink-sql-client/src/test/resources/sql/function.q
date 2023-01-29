@@ -43,7 +43,7 @@ show user functions;
 !ok
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 # run a query to verify the registered UDF works
@@ -197,7 +197,7 @@ show user functions;
 # test alter function
 # ==========================================================================
 
-alter function func11 as 'org.apache.flink.table.client.gateway.local.LocalExecutorITCase$TestScalaFunction';
+alter function func11 as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
 [INFO] Execute statement succeed.
 !info
 
@@ -208,7 +208,7 @@ create temporary function tmp_func as 'LowerUDF';
 !info
 
 # should throw unsupported error
-alter temporary function tmp_func as 'org.apache.flink.table.client.gateway.local.LocalExecutorITCase$TestScalaFunction';
+alter temporary function tmp_func as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Alter temporary catalog function is not supported
 !error
@@ -218,9 +218,10 @@ org.apache.flink.table.api.ValidationException: Alter temporary catalog function
 # test create function using jar
 # ==========================================================================
 
-REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] The specified jar is removed from session classloader.
-!info
+# TODO: support this in the FLINK-30692
+# REMOVE JAR '$VAR_UDF_JAR_PATH';
+# [INFO] The specified jar is removed from session classloader.
+# !info
 
 create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
@@ -262,6 +263,15 @@ create function lowerudf AS 'LowerUDF';
 [INFO] Execute statement succeed.
 !info
 
+# TODO: support this in the FLINK-30692
+# REMOVE JAR '$VAR_UDF_JAR_PATH';
+# [INFO] The specified jar is removed from session classloader.
+# !info
+
+# SHOW JARS;
+# Empty set
+# !ok
+
 show user functions;
 +---------------+
 | function name |
@@ -269,12 +279,4 @@ show user functions;
 |      lowerudf |
 +---------------+
 1 row in set
-!ok
-
-REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] The specified jar is removed from session classloader.
-!info
-
-SHOW JARS;
-Empty set
 !ok

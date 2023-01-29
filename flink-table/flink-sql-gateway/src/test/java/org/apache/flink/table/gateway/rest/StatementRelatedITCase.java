@@ -67,7 +67,7 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
     public void testCompleteStatement() throws Exception {
         CompletableFuture<CompleteStatementResponseBody> completeStatementResponse =
                 sendRequest(
-                        CompleteStatementHeaders.getINSTANCE(),
+                        CompleteStatementHeaders.getInstance(),
                         sessionMessageParameters,
                         new CompleteStatementRequestBody("CREATE TA", 9));
 

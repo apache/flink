@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.session;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -39,6 +40,11 @@ public class ConfigureSessionRequestBody implements RequestBody {
     @Nullable
     private final Long timeout;
 
+    public ConfigureSessionRequestBody(String statement) {
+        this(statement, null);
+    }
+
+    @JsonCreator
     public ConfigureSessionRequestBody(
             @JsonProperty(FIELD_NAME_STATEMENT) String statement,
             @Nullable @JsonProperty(FIELD_NAME_EXECUTION_TIMEOUT) Long timeout) {

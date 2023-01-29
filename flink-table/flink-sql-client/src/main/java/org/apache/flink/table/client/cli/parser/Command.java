@@ -19,29 +19,13 @@
 package org.apache.flink.table.client.cli.parser;
 
 /** Enumerates the possible types of input statements. */
-public enum StatementType {
+public enum Command {
     /** Command to quit the client. */
     QUIT,
     /** Command to clear the terminal's screen. */
     CLEAR,
     /** Command to print help message. */
     HELP,
-    /** Command to set session configuration property. */
-    SET,
-    /** Command to reset session configuration property or reset all properties. */
-    RESET,
-    /** 'EXPLAIN' SQL statement. */
-    EXPLAIN,
-    /** 'SHOW CREATE TABLE/VIEW' SQL statement. */
-    SHOW_CREATE,
-    /** 'BEGIN STATEMENT SET;' SQL statement. */
-    BEGIN_STATEMENT_SET,
-    /** 'END;' SQL statement. */
-    END,
-    /** 'REMOVE JAR' SQL statement. */
-    REMOVE_JAR,
-    /** 'SELECT' SQL statement. */
-    SELECT,
-    /** Type not covered by any other type value. */
+    /** Unknown command. */
     OTHER
 }

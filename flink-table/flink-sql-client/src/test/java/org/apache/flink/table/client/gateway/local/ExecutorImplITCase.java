@@ -20,10 +20,8 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -31,27 +29,42 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
+import org.apache.flink.table.gateway.api.session.SessionEnvironment;
+import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayService;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
+import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.utils.UserDefinedFunctions;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.TestUtils;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
@@ -61,8 +74,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -71,20 +91,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Contains basic tests for the {@link LocalExecutor}. */
-class LocalExecutorITCase {
+/** Contains basic tests for the {@link ExecutorImpl}. */
+class ExecutorImplITCase {
 
     private static final int NUM_TMS = 2;
     private static final int NUM_SLOTS_PER_TM = 2;
@@ -104,13 +128,36 @@ class LocalExecutorITCase {
                                     .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
                                     .build());
 
-    private static ClusterClient<?> clusterClient;
+    @RegisterExtension
+    @Order(3)
+    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
+            new SqlGatewayServiceExtension(
+                    () -> {
+                        Configuration configuration =
+                                new Configuration(MINI_CLUSTER_RESOURCE.getClientConfiguration());
+                        configuration.set(SQL_GATEWAY_SESSION_IDLE_TIMEOUT, Duration.ofSeconds(3));
+                        configuration.set(
+                                SQL_GATEWAY_SESSION_CHECK_INTERVAL, Duration.ofSeconds(1));
+                        return configuration;
+                    });
+
+    @RegisterExtension
+    @Order(4)
+    private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
+            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
+
+    @RegisterExtension
+    @Order(5)
+    private static final SqlGatewayRestEndpointExtension TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
+            new SqlGatewayRestEndpointExtension(TestSqlGatewayService::new);
+
+    private static RestClusterClient<?> clusterClient;
 
     // a generated UDF jar used for testing classloading of dependencies
     private static URL udfDependency;
 
     @BeforeAll
-    static void setup(@InjectClusterClient ClusterClient<?> injectedClusterClient)
+    static void setup(@InjectClusterClient RestClusterClient<?> injectedClusterClient)
             throws Exception {
         clusterClient = injectedClusterClient;
         File udfJar =
@@ -137,7 +184,7 @@ class LocalExecutorITCase {
 
     @Test
     void testCompleteStatement() {
-        final Executor executor = createLocalExecutor();
+        final Executor executor = createRestServiceExecutor();
         executor.openSession("test-session");
         initSession(executor, Collections.emptyMap());
 
@@ -167,8 +214,8 @@ class LocalExecutorITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final LocalExecutor executor =
-                createLocalExecutor(Collections.singletonList(udfDependency), configuration);
+        final Executor executor =
+                createRestServiceExecutor(Collections.singletonList(udfDependency), configuration);
         executor.openSession("test-session");
 
         initSession(executor, replaceVars);
@@ -208,8 +255,8 @@ class LocalExecutorITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final LocalExecutor executor =
-                createLocalExecutor(Collections.singletonList(udfDependency), configuration);
+        final Executor executor =
+                createRestServiceExecutor(Collections.singletonList(udfDependency), configuration);
         executor.openSession("test-session");
 
         final List<String> expectedResults = new ArrayList<>();
@@ -327,7 +374,7 @@ class LocalExecutorITCase {
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
         final Executor executor =
-                createLocalExecutor(
+                createRestServiceExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
 
@@ -367,7 +414,7 @@ class LocalExecutorITCase {
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
         final Executor executor =
-                createLocalExecutor(
+                createRestServiceExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
         initSession(executor, replaceVars);
@@ -404,8 +451,8 @@ class LocalExecutorITCase {
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
         configMap.put(TableConfigOptions.TABLE_DML_SYNC.key(), "false");
 
-        final LocalExecutor executor =
-                createLocalExecutor(
+        final Executor executor =
+                createRestServiceExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
 
@@ -414,23 +461,61 @@ class LocalExecutorITCase {
         final String insert = "INSERT INTO snk SELECT a FROM src;";
 
         try {
-            executor.executeOperation(executor.parseStatement(srcDdl));
-            executor.executeOperation(executor.parseStatement(snkDdl));
-            TableResult result = executor.executeOperation(executor.parseStatement(insert));
-            JobClient jobClient = result.getJobClient().get();
-            JobID jobId = jobClient.getJobID();
+            executor.configureSession(srcDdl);
+            executor.configureSession(snkDdl);
+            ClientResult result = executor.executeStatement(insert);
+            JobID jobID = result.getJobId();
 
             // wait till the job turns into running status or the test times out
-            JobStatus jobStatus;
-            do {
-                Thread.sleep(2_000L);
-                jobStatus = jobClient.getJobStatus().get();
-            } while (jobStatus != JobStatus.RUNNING);
-
-            Optional<String> savepoint = executor.stopJob(jobId.toString(), true, true);
-            assertThat(savepoint).isPresent();
+            TestUtils.waitUntilAllTasksAreRunning(clusterClient, jobID);
+            StringData savepointPath =
+                    CollectionUtil.iteratorToList(
+                                    executor.executeStatement(
+                                            String.format("STOP JOB '%s' WITH SAVEPOINT", jobID)))
+                            .get(0)
+                            .getString(0);
+            assertThat(savepointPath)
+                    .isNotNull()
+                    .matches(
+                            stringData ->
+                                    Files.exists(Paths.get(URI.create(stringData.toString()))));
         } finally {
             executor.closeSession();
+        }
+    }
+
+    @Test
+    void testInterruptSubmitting() throws Exception {
+        testInterrupting(executor -> executor.executeStatement(BlockPhase.SUBMIT.name()));
+    }
+
+    @Test
+    void testInterruptExecution() throws Exception {
+        testInterrupting(executor -> executor.executeStatement(BlockPhase.EXECUTION.name()));
+    }
+
+    @Test
+    void testInterruptFetching() throws Exception {
+        testInterrupting(
+                executor -> {
+                    try (ClientResult result =
+                            executor.executeStatement(BlockPhase.EXECUTION.name())) {
+                        // trigger to fetch again
+                        result.hasNext();
+                    }
+                });
+    }
+
+    @Test
+    void testHeartbeat() throws Exception {
+        try (ExecutorImpl executor = (ExecutorImpl) createRestServiceExecutor()) {
+            executor.openSession("test-heartbeat");
+            Thread.sleep(5_000);
+            assertThat(
+                            SQL_GATEWAY_SERVICE_EXTENSION
+                                    .getSessionManager()
+                                    .isSessionAlive(executor.getSessionHandle()))
+                    .isTrue();
         }
     }
 
@@ -438,26 +523,66 @@ class LocalExecutorITCase {
     // Helper method
     // --------------------------------------------------------------------------------------------
 
+    private void testInterrupting(Consumer<Executor> task) throws Exception {
+        try (Executor executor = createTestServiceExecutor()) {
+            Thread t = new Thread(() -> task.accept(executor), "worker");
+            t.start();
+
+            TestSqlGatewayService service =
+                    (TestSqlGatewayService)
+                            TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getSqlGatewayService();
+            CommonTestUtils.waitUntilCondition(() -> service.isBlocking, 100L);
+
+            // interrupt the submission
+            t.interrupt();
+            // notify service return handle
+            service.latch.countDown();
+
+            CommonTestUtils.waitUntilCondition(() -> service.isClosed, 100L);
+        }
+    }
+
     private ResultDescriptor executeQuery(Executor executor, String query) {
-        Operation operation = executor.parseStatement(query);
-        return executor.executeQuery((QueryOperation) operation);
+        return new ResultDescriptor(executor.executeStatement(query), executor.getSessionConfig());
     }
 
-    private LocalExecutor createLocalExecutor() {
-        return createLocalExecutor(Collections.emptyList(), new Configuration());
+    private Executor createRestServiceExecutor() {
+        return createRestServiceExecutor(Collections.emptyList(), new Configuration());
     }
 
-    private LocalExecutor createLocalExecutor(List<URL> dependencies, Configuration configuration) {
+    private Executor createRestServiceExecutor(
+            List<URL> dependencies, Configuration configuration) {
+        return createExecutor(
+                dependencies,
+                configuration,
+                InetSocketAddress.createUnresolved(
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
+    }
+
+    private Executor createTestServiceExecutor() {
+        Executor executor =
+                createExecutor(
+                        Collections.emptyList(),
+                        new Configuration(),
+                        InetSocketAddress.createUnresolved(
+                                TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
+        executor.openSession("mock");
+        return executor;
+    }
+
+    private Executor createExecutor(
+            List<URL> dependencies, Configuration configuration, InetSocketAddress address) {
         configuration.addAll(clusterClient.getFlinkConfiguration());
-        DefaultContext defaultContext =
-                new DefaultContext(
-                        dependencies, configuration, Collections.singletonList(new DefaultCLI()));
-        return new LocalExecutor(defaultContext);
+        DefaultContext defaultContext = new DefaultContext(configuration, dependencies);
+        // frequently trigger heartbeat
+        return new ExecutorImpl(defaultContext, address, 1_000);
     }
 
     private void initSession(Executor executor, Map<String, String> replaceVars) {
         for (String sql : getInitSQL(replaceVars)) {
-            executor.executeOperation(executor.parseStatement(sql));
+            executor.configureSession(sql);
         }
     }
 
@@ -468,8 +593,8 @@ class LocalExecutorITCase {
             List<String> expectedResults)
             throws Exception {
 
-        final LocalExecutor executor =
-                createLocalExecutor(
+        final Executor executor =
+                createRestServiceExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         executor.openSession("test-session");
         initSession(executor, replaceVars);
@@ -589,6 +714,101 @@ class LocalExecutorITCase {
                             return sql;
                         })
                 .collect(Collectors.toList());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Test SqlGatewayService
+    // --------------------------------------------------------------------------------------------
+
+    private static class TestSqlGatewayService extends MockedSqlGatewayService {
+
+        private CountDownLatch latch = new CountDownLatch(1);
+        private @Nullable volatile BlockPhase blockPhase;
+        private volatile boolean isBlocking;
+        private volatile boolean isClosed;
+
+        @Override
+        public SessionHandle openSession(SessionEnvironment environment)
+                throws SqlGatewayException {
+            this.isClosed = false;
+            this.isBlocking = false;
+            return SessionHandle.create();
+        }
+
+        @Override
+        public void closeSession(SessionHandle sessionHandle) throws SqlGatewayException {
+            // do nothing
+        }
+
+        @Override
+        public OperationHandle executeStatement(
+                SessionHandle sessionHandle,
+                String statement,
+                long executionTimeoutMs,
+                Configuration executionConfig)
+                throws SqlGatewayException {
+            this.isClosed = false;
+            this.isBlocking = false;
+            this.latch = new CountDownLatch(1);
+            this.blockPhase = BlockPhase.valueOf(statement);
+            if (this.blockPhase == BlockPhase.SUBMIT) {
+                try {
+                    isBlocking = true;
+                    latch.await();
+                } catch (Exception e) {
+                    throw new SqlGatewayException(e);
+                }
+            }
+            return OperationHandle.create();
+        }
+
+        @Override
+        public void cancelOperation(SessionHandle sessionHandle, OperationHandle operationHandle)
+                throws SqlGatewayException {
+            // do nothing
+        }
+
+        @Override
+        public void closeOperation(SessionHandle sessionHandle, OperationHandle operationHandle)
+                throws SqlGatewayException {
+            this.isClosed = true;
+        }
+
+        @Override
+        public ResultSet fetchResults(
+                SessionHandle sessionHandle,
+                OperationHandle operationHandle,
+                long token,
+                int maxRows) {
+            try {
+                if (token == 0 && blockPhase == BlockPhase.EXECUTION) {
+                    isBlocking = true;
+                    latch.await();
+                } else if (token > 0 && blockPhase == BlockPhase.FETCHING) {
+                    isBlocking = true;
+                    latch.await();
+                }
+                return new ResultSetImpl(
+                        ResultSet.ResultType.PAYLOAD,
+                        token + 1,
+                        ResolvedSchema.of(Column.physical("result", DataTypes.INT())),
+                        Collections.emptyList(),
+                        SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
+                        true,
+                        JobID.generate(),
+                        ResultKind.SUCCESS_WITH_CONTENT);
+            } catch (Exception e) {
+                throw new SqlGatewayException(e);
+            }
+        }
+    }
+
+    enum BlockPhase {
+        SUBMIT,
+
+        EXECUTION,
+
+        FETCHING
     }
 
     // --------------------------------------------------------------------------------------------

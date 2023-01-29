@@ -37,7 +37,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.PrintStream;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -61,7 +65,9 @@ public class SqlGateway {
 
     public void start() throws Exception {
         DefaultContext context =
-                DefaultContext.load(ConfigurationUtils.createConfiguration(dynamicConfig));
+                DefaultContext.load(
+                        ConfigurationUtils.createConfiguration(dynamicConfig),
+                        getPythonDependencies());
         sessionManager = new SessionManager(context);
 
         sessionManager.start();
@@ -148,6 +154,25 @@ public class SqlGateway {
         } catch (Exception e) {
             LOG.error("Failed to stop the endpoint. Ignore.", e);
         }
+    }
+
+    private List<URL> getPythonDependencies() {
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                return Collections.singletonList(location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            LOG.warn("Failed to find flink-python jar." + e);
+        }
+        return Collections.emptyList();
     }
 
     // --------------------------------------------------------------------------------------------

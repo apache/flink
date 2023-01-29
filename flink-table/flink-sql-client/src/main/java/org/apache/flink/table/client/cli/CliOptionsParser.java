@@ -144,6 +144,8 @@ public class CliOptionsParser {
     private static final Options GATEWAY_MODE_GATEWAY_OPTIONS =
             getGatewayModeGatewayOptions(new Options());
 
+    private static final String DEFAULT_SESSION_ID = "default";
+
     private static void buildGeneralOptions(Options options) {
         options.addOption(OPTION_HELP);
     }
@@ -363,7 +365,10 @@ public class CliOptionsParser {
 
     private static String checkSessionId(CommandLine line) {
         final String sessionId = line.getOptionValue(CliOptionsParser.OPTION_SESSION.getOpt());
-        if (sessionId != null && !sessionId.matches("[a-zA-Z0-9_\\-.]+")) {
+        if (sessionId == null) {
+            return DEFAULT_SESSION_ID;
+        }
+        if (!sessionId.matches("[a-zA-Z0-9_\\-.]+")) {
             throw new SqlClientException(
                     "Session identifier must only consists of 'a-zA-Z0-9_-.'.");
         }

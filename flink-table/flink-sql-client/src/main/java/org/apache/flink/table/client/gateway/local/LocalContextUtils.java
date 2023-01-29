@@ -19,38 +19,28 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.CliOptions;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
-import org.apache.flink.table.client.gateway.context.SessionContext;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.JarUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Utils to build a {@link DefaultContext} and {@link SessionContext}. */
+/** Utils to build a {@link DefaultContext}. */
 public class LocalContextUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalContextUtils.class);
 
-    private static final String DEFAULT_SESSION_ID = "default";
-
     public static DefaultContext buildDefaultContext(CliOptions options) {
-
         final List<URL> jars;
         if (options.getJars() != null) {
             jars = options.getJars();
@@ -70,25 +60,13 @@ public class LocalContextUtils {
         // 2. load the global configuration
         Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
 
-        // 3. load the custom command lines
-        List<CustomCommandLine> commandLines =
-                CliFrontend.loadCustomCommandLines(configuration, flinkConfigDir);
-
+        // 3. add python config
         configuration.addAll(options.getPythonConfiguration());
+
+        // 4. discover the dependencies
         final List<URL> dependencies = discoverDependencies(jars, libDirs);
 
-        return new DefaultContext(dependencies, configuration, commandLines);
-    }
-
-    public static SessionContext buildSessionContext(
-            @Nullable String sessionId, DefaultContext defaultContext) {
-        final SessionContext context;
-        if (sessionId == null) {
-            context = SessionContext.create(defaultContext, DEFAULT_SESSION_ID);
-        } else {
-            context = SessionContext.create(defaultContext, sessionId);
-        }
-        return context;
+        return new DefaultContext(configuration, dependencies);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -125,28 +103,6 @@ public class LocalContextUtils {
             }
         } catch (Exception e) {
             throw new SqlClientException("Could not load all required JAR files.", e);
-        }
-
-        // add python dependencies by default
-        try {
-            URL location =
-                    Class.forName(
-                                    "org.apache.flink.python.PythonFunctionRunner",
-                                    false,
-                                    Thread.currentThread().getContextClassLoader())
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation();
-            if (Paths.get(location.toURI()).toFile().isFile()) {
-                dependencies.add(location);
-            }
-        } catch (URISyntaxException | ClassNotFoundException e) {
-            // TODO: Introduce user jar analyzer to determine user jar whether contains the python
-            // function or not. If user jar contains python function, manually add the python
-            // dependencies
-            throw new SqlExecutionException(
-                    "Don't find python dependencies. Please add the flink-python jar via `--jar` command option manually.",
-                    e);
         }
 
         if (LOG.isDebugEnabled()) {
