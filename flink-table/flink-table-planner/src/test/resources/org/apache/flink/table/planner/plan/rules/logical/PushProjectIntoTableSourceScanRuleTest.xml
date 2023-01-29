@@ -347,7 +347,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[], metadata=[]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]])
 ]]>
     </Resource>
   </TestCase>
