@@ -95,17 +95,33 @@ public class RowLevelUpdateTest extends TableTestBase {
     }
 
     @Test
-    public void testUpdateWithOnlyRequireUpdatedCols() {
+    public void testUpdateAllColsWithOnlyRequireUpdatedCols() {
         util.tableEnv()
                 .executeSql(
                         String.format(
                                 "CREATE TABLE t (a int, b string, c double) WITH "
                                         + "('connector' = 'test-update-delete',"
                                         + " 'update-mode' = '%s',"
-                                        + " 'only_require_updated_columns_for_update' = 'true'"
+                                        + " 'only-require-updated-columns-for-update' = 'true'"
                                         + ") ",
                                 updateMode));
-        util.verifyExplainInsert("UPDATE t SET b = 'v2', a = 123 WHERE c > 123", explainDetails);
+        util.verifyExplainInsert(
+                "UPDATE t SET b = 'v2', a = 123, c = c + 1 WHERE c > 123", explainDetails);
+    }
+
+    @Test
+    public void testUpdatePartColsWithOnlyRequireUpdatedCols() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE t (f0 string, f1 int, a int, b string, c double, f2 string, f3 int) WITH "
+                                        + "('connector' = 'test-update-delete',"
+                                        + " 'update-mode' = '%s',"
+                                        + " 'only-require-updated-columns-for-update' = 'true'"
+                                        + ") ",
+                                updateMode));
+        util.verifyExplainInsert(
+                "UPDATE t SET b = 'v2', a = 123, c = c + 1 WHERE c > 123", explainDetails);
     }
 
     @Test

@@ -1555,10 +1555,11 @@ public class SqlToOperationConverter {
         RelRoot updateRelational = flinkPlanner.rel(sqlUpdate);
         // get target sink table
         LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
-        List<String> targetTablePath = tableModify.getTable().getQualifiedName();
+        UnresolvedIdentifier unresolvedTableIdentifier =
+                UnresolvedIdentifier.of(tableModify.getTable().getQualifiedName());
         ContextResolvedTable contextResolvedTable =
                 catalogManager.getTableOrError(
-                        catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(targetTablePath)));
+                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // get query
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
         return new SinkModifyOperation(

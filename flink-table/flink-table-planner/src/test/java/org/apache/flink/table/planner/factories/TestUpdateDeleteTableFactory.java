@@ -129,21 +129,21 @@ public class TestUpdateDeleteTableFactory
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "The columns' name for the required columns in row-level delete");
+                            "The columns' name for the required columns in row-level delete.");
 
     private static final ConfigOption<List<String>> REQUIRED_COLUMNS_FOR_UPDATE =
             ConfigOptions.key("required-columns-for-update")
                     .stringType()
                     .asList()
                     .noDefaultValue()
-                    .withDescription("The name for the required columns in row-level update");
+                    .withDescription("The name for the required columns in row-level update.");
 
     private static final ConfigOption<Boolean> ONLY_REQUIRE_UPDATED_COLUMNS_FOR_UPDATE =
-            ConfigOptions.key("only_require_updated_columns_for_update")
+            ConfigOptions.key("only-require-updated-columns-for-update")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Whether to only require the updated columns for update statement. ");
+                            "Whether to only require the updated columns for update statement, require all columns by default.");
 
     private static final List<Column.MetadataColumn> META_COLUMNS =
             Arrays.asList(
@@ -170,6 +170,8 @@ public class TestUpdateDeleteTableFactory
         SupportsRowLevelUpdate.RowLevelUpdateMode updateMode = helper.getOptions().get(UPDATE_MODE);
         List<String> requireColsForDelete = helper.getOptions().get(REQUIRED_COLUMNS_FOR_DELETE);
         List<String> requireColsForUpdate = helper.getOptions().get(REQUIRED_COLUMNS_FOR_UPDATE);
+        boolean onlyRequireUpdatedColumns =
+                helper.getOptions().get(ONLY_REQUIRE_UPDATED_COLUMNS_FOR_UPDATE);
         if (helper.getOptions().get(MIX_DELETE)) {
             return new SupportsDeleteSink(
                     context.getObjectIdentifier(),
@@ -178,7 +180,8 @@ public class TestUpdateDeleteTableFactory
                     updateMode,
                     dataId,
                     requireColsForDelete,
-                    requireColsForUpdate);
+                    requireColsForUpdate,
+                    onlyRequireUpdatedColumns);
         } else {
             if (helper.getOptions().get(SUPPORT_DELETE_PUSH_DOWN)) {
                 return new SupportsDeletePushDownSink(
@@ -187,6 +190,7 @@ public class TestUpdateDeleteTableFactory
                         updateMode,
                         dataId,
                         requireColsForUpdate,
+                        onlyRequireUpdatedColumns,
                         helper.getOptions().get(ONLY_ACCEPT_EQUAL_PREDICATE));
             } else {
                 return new SupportsRowLevelModificationSink(
@@ -196,7 +200,8 @@ public class TestUpdateDeleteTableFactory
                         updateMode,
                         dataId,
                         requireColsForDelete,
-                        requireColsForUpdate);
+                        requireColsForUpdate,
+                        onlyRequireUpdatedColumns);
             }
         }
     }
@@ -322,6 +327,7 @@ public class TestUpdateDeleteTableFactory
         protected final ResolvedCatalogTable resolvedCatalogTable;
         protected final RowLevelUpdateMode updateMode;
         protected final List<String> requireColumnsForUpdate;
+        protected final boolean onlyRequireUpdatedColumns;
         protected final String dataId;
 
         protected boolean isUpdate;
@@ -331,13 +337,15 @@ public class TestUpdateDeleteTableFactory
                 ResolvedCatalogTable resolvedCatalogTable,
                 RowLevelUpdateMode updateMode,
                 String dataId,
-                List<String> requireColumnsForUpdate) {
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns) {
             this(
                     tableIdentifier,
                     resolvedCatalogTable,
                     updateMode,
                     dataId,
                     requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
                     false);
         }
 
@@ -347,12 +355,14 @@ public class TestUpdateDeleteTableFactory
                 RowLevelUpdateMode updateMode,
                 String dataId,
                 List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns,
                 boolean isUpdate) {
             this.tableIdentifier = tableIdentifier;
             this.resolvedCatalogTable = resolvedCatalogTable;
             this.updateMode = updateMode;
             this.dataId = dataId;
             this.requireColumnsForUpdate = requireColumnsForUpdate;
+            this.onlyRequireUpdatedColumns = onlyRequireUpdatedColumns;
             this.isUpdate = isUpdate;
         }
 
@@ -390,6 +400,7 @@ public class TestUpdateDeleteTableFactory
                     updateMode,
                     dataId,
                     requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
                     isUpdate);
         }
 
@@ -409,7 +420,9 @@ public class TestUpdateDeleteTableFactory
                 @Override
                 public Optional<List<Column>> requiredColumns() {
                     List<Column> requiredCols = null;
-                    if (requireColumnsForUpdate != null) {
+                    if (onlyRequireUpdatedColumns) {
+                        requiredCols = updatedColumns;
+                    } else if (requireColumnsForUpdate != null) {
                         requiredCols =
                                 getRequiredColumns(
                                         requireColumnsForUpdate,
@@ -445,7 +458,8 @@ public class TestUpdateDeleteTableFactory
                 RowLevelUpdateMode updateMode,
                 String dataId,
                 List<String> requireColumnsForDelete,
-                List<String> requireColumnsForUpdate) {
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns) {
             this(
                     tableIdentifier,
                     resolvedCatalogTable,
@@ -454,6 +468,7 @@ public class TestUpdateDeleteTableFactory
                     dataId,
                     requireColumnsForDelete,
                     requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
                     false,
                     false);
         }
@@ -466,6 +481,7 @@ public class TestUpdateDeleteTableFactory
                 String dataId,
                 List<String> requireColumnsForDelete,
                 List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns,
                 boolean isDelete,
                 boolean isUpdate) {
             super(
@@ -474,6 +490,7 @@ public class TestUpdateDeleteTableFactory
                     updateMode,
                     dataId,
                     requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
                     isUpdate);
             this.tableIdentifier = tableIdentifier;
             this.resolvedCatalogTable = resolvedCatalogTable;
@@ -526,6 +543,7 @@ public class TestUpdateDeleteTableFactory
                     dataId,
                     requireColumnsForDelete,
                     requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
                     isDelete,
                     isUpdate);
         }
@@ -640,13 +658,15 @@ public class TestUpdateDeleteTableFactory
                 RowLevelUpdateMode updateMode,
                 String dataId,
                 List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns,
                 boolean onlyAcceptEqualPredicate) {
             super(
                     tableIdentifier,
                     resolvedCatalogTable,
                     updateMode,
                     dataId,
-                    requireColumnsForUpdate);
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns);
             this.dataId = dataId;
             this.onlyAcceptEqualPredicate = onlyAcceptEqualPredicate;
             this.resolvedCatalogTable = resolvedCatalogTable;
@@ -662,6 +682,7 @@ public class TestUpdateDeleteTableFactory
                     updateMode,
                     dataId,
                     requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns,
                     onlyAcceptEqualPredicate);
         }
 
@@ -761,7 +782,8 @@ public class TestUpdateDeleteTableFactory
                 SupportsRowLevelUpdate.RowLevelUpdateMode updateMode,
                 String dataId,
                 List<String> requireColumnsForDelete,
-                List<String> requireColumnsForUpdate) {
+                List<String> requireColumnsForUpdate,
+                boolean onlyRequireUpdatedColumns) {
             super(
                     tableIdentifier,
                     resolvedCatalogTable,
@@ -769,7 +791,8 @@ public class TestUpdateDeleteTableFactory
                     updateMode,
                     dataId,
                     requireColumnsForDelete,
-                    requireColumnsForUpdate);
+                    requireColumnsForUpdate,
+                    onlyRequireUpdatedColumns);
         }
 
         @Override

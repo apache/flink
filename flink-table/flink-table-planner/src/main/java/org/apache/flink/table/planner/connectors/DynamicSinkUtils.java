@@ -435,9 +435,9 @@ public final class DynamicSinkUtils {
         SupportsRowLevelUpdate supportsRowLevelUpdate = (SupportsRowLevelUpdate) sink;
         ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
         List<Column> updatedColumns = getUpdatedColumns(tableModify, resolvedSchema);
+        RowLevelModificationScanContext context = RowLevelModificationContextUtils.getScanContext();
         SupportsRowLevelUpdate.RowLevelUpdateInfo updateInfo =
-                supportsRowLevelUpdate.applyRowLevelUpdate(
-                        updatedColumns, RowLevelModificationContextUtils.getScanContext());
+                supportsRowLevelUpdate.applyRowLevelUpdate(updatedColumns, context);
         if (updateInfo.getRowLevelUpdateMode()
                         != SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS
                 && updateInfo.getRowLevelUpdateMode()
@@ -447,9 +447,7 @@ public final class DynamicSinkUtils {
         }
         sinkAbilitySpecs.add(
                 new RowLevelUpdateSpec(
-                        updatedColumns,
-                        updateInfo.getRowLevelUpdateMode(),
-                        RowLevelModificationContextUtils.getScanContext()));
+                        updatedColumns, updateInfo.getRowLevelUpdateMode(), context));
         return convertToRowLevelUpdate(
                 tableModify,
                 contextResolvedTable,

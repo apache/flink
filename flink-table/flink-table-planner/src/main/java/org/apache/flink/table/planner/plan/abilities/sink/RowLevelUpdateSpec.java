@@ -38,7 +38,7 @@ import java.util.Objects;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the row-level
- * update mode & updated columns to/from JSON, but also can update existing data for {@link
+ * update mode & columns to/from JSON, but also can update existing data for {@link
  * org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -80,6 +80,7 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         }
     }
 
+    @Nonnull
     public SupportsRowLevelUpdate.RowLevelUpdateMode getRowLevelUpdateMode() {
         return rowLevelUpdateMode;
     }
