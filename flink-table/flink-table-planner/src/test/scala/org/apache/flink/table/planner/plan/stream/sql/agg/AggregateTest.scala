@@ -425,6 +425,21 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
+  def testCountStartWithMetadataOnly(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | sys_col VARCHAR METADATA,
+                               | id VARCHAR METADATA,
+                               | cnt BIGINT METADATA
+                               |) WITH (
+                               | 'connector' = 'values',
+                               | 'readable-metadata' = 'sys_col:STRING,id:STRING,cnt:BIGINT'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
   def testCountStartWithNestedRow(): Unit = {
     util.tableEnv.executeSql("""
                                |CREATE TABLE src (
