@@ -473,8 +473,7 @@ public class ExecutorImpl implements Executor {
                                         // to build the target URL without API version.
                                         Collections.min(
                                                 SqlGatewayRestAPIVersion.getStableVersions())))
-                        .getVersions()
-                        .stream()
+                        .getVersions().stream()
                         .map(SqlGatewayRestAPIVersion::valueOf)
                         .collect(Collectors.toList());
         SqlGatewayRestAPIVersion clientVersion = SqlGatewayRestAPIVersion.getDefaultVersion();
