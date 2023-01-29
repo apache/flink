@@ -111,7 +111,8 @@ class BatchPhysicalSortLimit(
       limitStart,
       limitEnd,
       isGlobal,
-      InputProperty.builder()
+      InputProperty
+        .builder()
         .requiredDistribution(requiredDistribution)
         .damBehavior(InputProperty.DamBehavior.END_INPUT)
         .build(),
