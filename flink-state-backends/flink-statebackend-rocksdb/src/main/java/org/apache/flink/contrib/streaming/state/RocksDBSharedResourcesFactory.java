@@ -116,7 +116,8 @@ enum RocksDBSharedResourcesFactory {
             RocksDBMemoryConfiguration jobMemoryConfig,
             Environment env,
             double memoryFraction,
-            Logger logger)
+            Logger logger,
+            RocksDBMemoryControllerUtils.RocksDBMemoryFactory rocksDBMemoryFactory)
             throws Exception {
         logger.info(
                 "Getting shared memory for RocksDB: shareScope={}, managed={}",
@@ -127,7 +128,8 @@ enum RocksDBSharedResourcesFactory {
                 managed ? MANAGED_MEMORY_RESOURCE_ID : UNMANAGED_MEMORY_RESOURCE_ID,
                 env,
                 memoryFraction,
-                createAllocator(shareScope.getConfiguration(jobMemoryConfig, env)));
+                createAllocator(
+                        shareScope.getConfiguration(jobMemoryConfig, env), rocksDBMemoryFactory));
     }
 
     protected abstract OpaqueMemoryResource<RocksDBSharedResources> createInternal(
@@ -151,13 +153,15 @@ enum RocksDBSharedResourcesFactory {
     private static final String UNMANAGED_MEMORY_RESOURCE_ID = "state-rocks-fixed-slot-memory";
 
     private static LongFunctionWithException<RocksDBSharedResources, Exception> createAllocator(
-            RocksDBMemoryConfiguration config) {
+            RocksDBMemoryConfiguration config,
+            RocksDBMemoryControllerUtils.RocksDBMemoryFactory rocksDBMemoryFactory) {
         return size ->
                 RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(
                         size,
                         config.getWriteBufferRatio(),
                         config.getHighPriorityPoolRatio(),
-                        config.isUsingPartitionedIndexFilters());
+                        config.isUsingPartitionedIndexFilters(),
+                        rocksDBMemoryFactory);
     }
 }
 
