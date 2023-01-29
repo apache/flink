@@ -182,6 +182,7 @@ under the License.
 								<includes>
 									<include>org.apache.flink:flink-connector-hive_${scala.binary.version}</include>
 									<include>org.apache.hive:hive-exec</include>
+									<include>org.apache.thrift:libfb303</include>
 									<include>org.antlr:antlr-runtime</include>
 									<include>org.apache.avro:avro</include>
 									<include>org.apache.avro:avro-mapred</include>
