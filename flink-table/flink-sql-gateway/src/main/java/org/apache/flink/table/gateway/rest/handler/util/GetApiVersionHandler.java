@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest.handler.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -31,6 +32,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -40,12 +42,31 @@ public class GetApiVersionHandler
         extends AbstractSqlGatewayRestHandler<
                 EmptyRequestBody, GetApiVersionResponseBody, EmptyMessageParameters> {
 
+    private final List<SqlGatewayRestAPIVersion> supportedVersions;
+
     public GetApiVersionHandler(
             SqlGatewayService service,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, GetApiVersionResponseBody, EmptyMessageParameters>
                     messageHeaders) {
+        this(
+                service,
+                responseHeaders,
+                messageHeaders,
+                Arrays.stream(SqlGatewayRestAPIVersion.values())
+                        .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                        .collect(Collectors.toList()));
+    }
+
+    @VisibleForTesting
+    public GetApiVersionHandler(
+            SqlGatewayService service,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, GetApiVersionResponseBody, EmptyMessageParameters>
+                    messageHeaders,
+            List<SqlGatewayRestAPIVersion> supportedVersions) {
         super(service, responseHeaders, messageHeaders);
+        this.supportedVersions = supportedVersions;
     }
 
     @Override
@@ -54,9 +75,6 @@ public class GetApiVersionHandler
             @Nonnull HandlerRequest<EmptyRequestBody> request) {
         return CompletableFuture.completedFuture(
                 new GetApiVersionResponseBody(
-                        Arrays.stream(SqlGatewayRestAPIVersion.values())
-                                .filter(SqlGatewayRestAPIVersion::isStableVersion)
-                                .map(Enum::name)
-                                .collect(Collectors.toList())));
+                        supportedVersions.stream().map(Enum::name).collect(Collectors.toList())));
     }
 }

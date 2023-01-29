@@ -29,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.data.RowData;
@@ -46,6 +47,7 @@ import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbea
 import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
+import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
 import org.apache.flink.table.gateway.rest.message.operation.OperationMessageParameters;
 import org.apache.flink.table.gateway.rest.message.operation.OperationStatusResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;
@@ -61,9 +63,11 @@ import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessage
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointUtils;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +76,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
@@ -83,6 +89,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler.CLOSE_MESSAGE;
 
@@ -97,9 +104,10 @@ public class ExecutorImpl implements Executor {
     private final long heartbeatInterval;
     private final ExecutorService service;
     private final ScheduledExecutorService heartbeatScheduler;
+    private final RestClient restClient;
 
-    private RestClient restClient;
     private SessionHandle sessionHandle;
+    private SqlGatewayRestAPIVersion connectionVersion;
 
     @VisibleForTesting
     public ExecutorImpl(
@@ -111,6 +119,11 @@ public class ExecutorImpl implements Executor {
         this.heartbeatInterval = heartbeatInterval;
         this.service = Executors.newCachedThreadPool();
         this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            this.restClient = new RestClient(defaultContext.getFlinkConfig(), service);
+        } catch (Exception e) {
+            throw new SqlClientException("Can not create the Rest Client.", e);
+        }
     }
 
     public ExecutorImpl(DefaultContext defaultContext, InetSocketAddress gatewayAddress) {
@@ -119,21 +132,16 @@ public class ExecutorImpl implements Executor {
 
     public void openSession(@Nullable String sessionId) {
         try {
-            restClient = new RestClient(defaultContext.getFlinkConfig(), service);
-        } catch (Exception e) {
-            throw new SqlExecutionException("Can not create the Rest Client.", e);
-        }
-
-        LOG.info("Open session to {}.", gatewayAddress);
-        OpenSessionRequestBody request =
-                new OpenSessionRequestBody(sessionId, defaultContext.getFlinkConfig().toMap());
-        try {
+            // determine gateway rest api version
+            connectionVersion = negotiateVersion();
             // open session to address:port
+            LOG.info("Open session to {}.", gatewayAddress);
             OpenSessionResponseBody response =
                     sendRequest(
                                     OpenSessionHeaders.getInstance(),
                                     EmptyMessageParameters.getInstance(),
-                                    request)
+                                    new OpenSessionRequestBody(
+                                            sessionId, defaultContext.getFlinkConfig().toMap()))
                             .get();
             sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
             // register heartbeat service
@@ -339,13 +347,29 @@ public class ExecutorImpl implements Executor {
                     R extends RequestBody,
                     P extends ResponseBody>
             CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) {
+        Preconditions.checkNotNull(connectionVersion);
+        return sendRequest(messageHeaders, messageParameters, request, connectionVersion);
+    }
+
+    private <
+                    M extends MessageHeaders<R, P, U>,
+                    U extends MessageParameters,
+                    R extends RequestBody,
+                    P extends ResponseBody>
+            CompletableFuture<P> sendRequest(
+                    M messageHeaders,
+                    U messageParameters,
+                    R request,
+                    SqlGatewayRestAPIVersion connectionVersion) {
         try {
             return restClient.sendRequest(
                     gatewayAddress.getHostName(),
                     gatewayAddress.getPort(),
                     messageHeaders,
                     messageParameters,
-                    request);
+                    request,
+                    Collections.emptyList(),
+                    connectionVersion);
         } catch (IOException ioException) {
             throw new SqlExecutionException("Failed to connect to the SQL Gateway.", ioException);
         }
@@ -428,5 +452,48 @@ public class ExecutorImpl implements Executor {
 
     private OperationHandle getOperationHandle(Supplier<String> handleSupplier) {
         return new OperationHandle(UUID.fromString(handleSupplier.get()));
+    }
+
+    private SqlGatewayRestAPIVersion negotiateVersion() {
+        List<SqlGatewayRestAPIVersion> gatewayVersions =
+                getResponse(
+                                sendRequest(
+                                        GetApiVersionHeaders.getInstance(),
+                                        EmptyMessageParameters.getInstance(),
+                                        EmptyRequestBody.getInstance(),
+                                        // Currently, RestClient always uses the latest REST API
+                                        // version to build the targetUrl. However, it's possible
+                                        // that the client REST API version is higher than the
+                                        // server REST API version. In this case, the gateway will
+                                        // report Not Found Error to notify the client.
+                                        //
+                                        // So, here use the lowest REST API version to get the
+                                        // remote gateway version list and then determine the
+                                        // connection version.
+                                        // TODO: Remove this after the REST Client should allow
+                                        // to build the target URL without API version.
+                                        Collections.min(
+                                                Arrays.stream(SqlGatewayRestAPIVersion.values())
+                                                        .filter(
+                                                                SqlGatewayRestAPIVersion
+                                                                        ::isStableVersion)
+                                                        .collect(Collectors.toList()))))
+                        .getVersions()
+                        .stream()
+                        .map(SqlGatewayRestAPIVersion::valueOf)
+                        .collect(Collectors.toList());
+        SqlGatewayRestAPIVersion clientVersion = SqlGatewayRestAPIVersion.getDefaultVersion();
+
+        if (gatewayVersions.contains(clientVersion)) {
+            return clientVersion;
+        } else {
+            SqlGatewayRestAPIVersion latestVersion =
+                    RestAPIVersion.getLatestVersion(gatewayVersions);
+            if (latestVersion.equals(SqlGatewayRestAPIVersion.V1)) {
+                throw new SqlExecutionException(
+                        "Currently SQL Client only supports to connect to the REST endpoint whose API version is larger than V1.");
+            }
+            return latestVersion;
+        }
     }
 }

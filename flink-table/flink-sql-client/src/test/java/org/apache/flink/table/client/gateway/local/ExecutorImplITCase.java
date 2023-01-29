@@ -41,6 +41,7 @@ import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
@@ -55,7 +56,13 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayService;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.rest.handler.session.OpenSessionHandler;
+import org.apache.flink.table.gateway.rest.handler.util.GetApiVersionHandler;
+import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.rest.util.TestingSqlGatewayRestEndpoint;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.utils.UserDefinedFunctions;
@@ -77,6 +84,7 @@ import org.junit.jupiter.api.io.TempDir;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
@@ -98,14 +106,18 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL;
 import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_IDLE_TIMEOUT;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getBaseConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getFlinkConfig;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Contains basic tests for the {@link ExecutorImpl}. */
 class ExecutorImplITCase {
@@ -519,9 +531,64 @@ class ExecutorImplITCase {
         }
     }
 
+    @Test
+    void testConnectToEndpointWithV1Version() throws Exception {
+        testNegotiateVersion(
+                SqlGatewayRestAPIVersion.V1,
+                executor ->
+                        assertThatThrownBy(() -> executor.openSession("connection-version"))
+                                .satisfies(
+                                        anyCauseMatches(
+                                                SqlExecutionException.class,
+                                                "Currently SQL Client only supports to connect to the REST endpoint whose API version is larger than V1.")));
+    }
+
+    @Test
+    void testConnectToEndpointWithHigherVersion() throws Exception {
+        testNegotiateVersion(
+                SqlGatewayRestAPIVersion.V2,
+                executor -> {
+                    executor.openSession("connection-version");
+                    assertThat(
+                                    SQL_GATEWAY_SERVICE_EXTENSION
+                                            .getService()
+                                            .getSessionEndpointVersion(
+                                                    ((ExecutorImpl) executor).getSessionHandle()))
+                            .isEqualTo(SqlGatewayRestAPIVersion.V2);
+                });
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper method
     // --------------------------------------------------------------------------------------------
+
+    private void testNegotiateVersion(
+            SqlGatewayRestAPIVersion version, Consumer<Executor> validator) throws Exception {
+        final String address = InetAddress.getLoopbackAddress().getHostAddress();
+        Configuration config = getBaseConfig(getFlinkConfig(address, address, "0"));
+        try (TestingSqlGatewayRestEndpoint endpoint =
+                        TestingSqlGatewayRestEndpoint.builder(
+                                        config, SQL_GATEWAY_SERVICE_EXTENSION.getService())
+                                .withHandler(
+                                        GetApiVersionHeaders.getInstance(),
+                                        new GetApiVersionHandler(
+                                                SQL_GATEWAY_SERVICE_EXTENSION.getService(),
+                                                Collections.emptyMap(),
+                                                GetApiVersionHeaders.getInstance(),
+                                                Collections.singletonList(version)))
+                                .withHandler(
+                                        OpenSessionHeaders.getInstance(),
+                                        new OpenSessionHandler(
+                                                SQL_GATEWAY_SERVICE_EXTENSION.getService(),
+                                                Collections.emptyMap(),
+                                                OpenSessionHeaders.getInstance()))
+                                .buildAndStart();
+                Executor executor =
+                        createExecutor(
+                                Collections.emptyList(), config, endpoint.getServerAddress())) {
+            validator.accept(executor);
+        }
+    }
 
     private void testInterrupting(Consumer<Executor> task) throws Exception {
         try (Executor executor = createTestServiceExecutor()) {
