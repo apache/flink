@@ -463,7 +463,8 @@ public class AsyncWaitOperator<IN, OUT>
 
         private void cancelRetryTimer() {
             if (delayedRetryTimer != null) {
-                delayedRetryTimer.cancel(true);
+                // do not interrupt task thread, just try to cancel the timer
+                delayedRetryTimer.cancel(false);
             }
         }
 

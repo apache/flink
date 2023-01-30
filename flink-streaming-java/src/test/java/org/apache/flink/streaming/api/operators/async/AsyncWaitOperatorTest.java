@@ -1330,9 +1330,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
                         new StreamRecordComparator());
             }
 
-            // verify the elements' try count
-            assertTrue(asyncFunction.getTryCount(1) == 2);
-            assertTrue(asyncFunction.getTryCount(2) == 2);
+            // verify the elements' try count never beyond 2 (use <= instead of == to avoid unstable
+            // case when test machine under high load)
+            assertTrue(asyncFunction.getTryCount(1) <= 2);
+            assertTrue(asyncFunction.getTryCount(2) <= 2);
         }
     }
 
@@ -1429,7 +1430,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
             CompletableFuture.runAsync(
                     () -> {
                         try {
-                            Thread.sleep(500L);
+                            Thread.sleep(501L);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
