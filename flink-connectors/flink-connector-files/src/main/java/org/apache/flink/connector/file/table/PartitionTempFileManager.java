@@ -33,6 +33,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.searchPartSpecAndPaths;
 
@@ -42,7 +45,7 @@ import static org.apache.flink.table.utils.PartitionPathUtils.searchPartSpecAndP
  *
  * <p>Temporary file directory contains the following directory parts: 1.temporary base path
  * directory. 2.task id directory. 3.directories to specify partitioning. 4.data files. eg:
- * /tmp/task-0/p0=1/p1=2/fileName.
+ * /tmp/task-0-attempt-0/p0=1/p1=2/fileName.
  */
 @Internal
 public class PartitionTempFileManager {
@@ -51,29 +54,21 @@ public class PartitionTempFileManager {
     private static final String TASK_DIR_PREFIX = "task-";
     private static final String ATTEMPT_PREFIX = "attempt-";
 
+    /** <b>ATTENTION:</b> please keep TASK_DIR_FORMAT matching with TASK_DIR_PATTERN. */
+    private static final String TASK_DIR_FORMAT = "%s%d-%s%d";
+
+    private static final Pattern TASK_DIR_PATTERN =
+            Pattern.compile(TASK_DIR_PREFIX + "(\\d+)-" + ATTEMPT_PREFIX + "(\\d+)");
     private final int taskNumber;
     private final Path taskTmpDir;
     private final OutputFileConfig outputFileConfig;
 
     private transient int nameCounter = 0;
 
-    public PartitionTempFileManager(FileSystemFactory factory, Path tmpPath, int taskNumber)
+    public PartitionTempFileManager(
+            FileSystemFactory factory, Path tmpPath, int taskNumber, int attemptNumber)
             throws IOException {
-        this(factory, tmpPath, taskNumber, new OutputFileConfig("", ""));
-    }
-
-    PartitionTempFileManager(
-            FileSystemFactory factory,
-            Path tmpPath,
-            int taskNumber,
-            OutputFileConfig outputFileConfig)
-            throws IOException {
-        this.taskNumber = taskNumber;
-        this.outputFileConfig = outputFileConfig;
-
-        // generate and clean task temp dir.
-        this.taskTmpDir = new Path(tmpPath, TASK_DIR_PREFIX + taskNumber);
-        factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
+        this(factory, tmpPath, taskNumber, attemptNumber, new OutputFileConfig("", ""));
     }
 
     public PartitionTempFileManager(
@@ -89,7 +84,11 @@ public class PartitionTempFileManager {
         // generate task temp dir with task and attempt number like "task-0-attempt-0"
         String taskTmpDirName =
                 String.format(
-                        "%s%d-%s%d", TASK_DIR_PREFIX, taskNumber, ATTEMPT_PREFIX, attemptNumber);
+                        TASK_DIR_FORMAT,
+                        TASK_DIR_PREFIX,
+                        taskNumber,
+                        ATTEMPT_PREFIX,
+                        attemptNumber);
         this.taskTmpDir = new Path(tmpPath, taskTmpDirName);
         factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
     }
@@ -112,22 +111,26 @@ public class PartitionTempFileManager {
                 outputFileConfig.getPartSuffix());
     }
 
-    private static boolean isTaskDir(String fileName) {
-        return fileName.startsWith(TASK_DIR_PREFIX);
-    }
-
     private static String taskName(int task) {
         return TASK_DIR_PREFIX + task;
     }
 
     /** Returns task temporary paths in this checkpoint. */
-    public static List<Path> listTaskTemporaryPaths(FileSystem fs, Path basePath) throws Exception {
+    public static List<Path> listTaskTemporaryPaths(
+            FileSystem fs, Path basePath, BiPredicate<Integer, Integer> taskAttemptFilter)
+            throws Exception {
         List<Path> taskTmpPaths = new ArrayList<>();
 
         if (fs.exists(basePath)) {
             for (FileStatus taskStatus : fs.listStatus(basePath)) {
-                if (isTaskDir(taskStatus.getPath().getName())) {
-                    taskTmpPaths.add(taskStatus.getPath());
+                final String taskDirName = taskStatus.getPath().getName();
+                final Matcher matcher = TASK_DIR_PATTERN.matcher(taskDirName);
+                if (matcher.matches()) {
+                    final int subtaskIndex = Integer.parseInt(matcher.group(1));
+                    final int attemptNumber = Integer.parseInt(matcher.group(2));
+                    if (taskAttemptFilter.test(subtaskIndex, attemptNumber)) {
+                        taskTmpPaths.add(taskStatus.getPath());
+                    }
                 }
             }
         } else {

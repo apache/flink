@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 
 import static org.apache.flink.connector.file.table.PartitionTempFileManager.collectPartSpecToPaths;
 import static org.apache.flink.connector.file.table.PartitionTempFileManager.listTaskTemporaryPaths;
@@ -85,8 +86,19 @@ public class FileSystemCommitter {
 
     /** For committing job's output after successful batch job completion. */
     public void commitPartitions() throws Exception {
+        commitPartitions((subtaskIndex, attemptNumber) -> true);
+    }
+
+    /**
+     * Commits the partitions with a filter to filter out invalid task attempt files. In speculative
+     * execution mode, there might be some files which do not belong to the finished attempt.
+     *
+     * @param taskAttemptFilter the filter that accepts subtaskIndex and attemptNumber
+     * @throws Exception if partition commitment fails
+     */
+    public void commitPartitions(BiPredicate<Integer, Integer> taskAttemptFilter) throws Exception {
         FileSystem fs = factory.create(tmpPath.toUri());
-        List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath);
+        List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath, taskAttemptFilter);
 
         try (PartitionLoader loader =
                 new PartitionLoader(
