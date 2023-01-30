@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
@@ -53,30 +51,12 @@ public class DefaultContextUtils {
         } else {
             libDirs = Collections.emptyList();
         }
-
-        // 1. find the configuration directory
-        String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
-
-        // 2. load the global configuration
-        Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
-
-        // 3. add python config
-        configuration.addAll(options.getPythonConfiguration());
-
-        // 4. discover the dependencies
-        final List<URL> dependencies = discoverDependencies(jars, libDirs);
-
-        return new DefaultContext(configuration, dependencies);
+        return DefaultContext.load(
+                options.getPythonConfiguration(), discoverDependencies(jars, libDirs), true);
     }
 
     public static DefaultContext buildDefaultContext(CliOptions.GatewayCliOptions options) {
-        // 1. find the configuration directory
-        String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
-
-        // 2. load the global configuration
-        Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
-
-        return new DefaultContext(configuration, Collections.emptyList());
+        return DefaultContext.load(new Configuration(), Collections.emptyList(), false);
     }
     // --------------------------------------------------------------------------------------------
 

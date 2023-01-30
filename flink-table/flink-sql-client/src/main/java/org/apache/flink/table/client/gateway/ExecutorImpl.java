@@ -129,7 +129,7 @@ public class ExecutorImpl implements Executor {
         this(defaultContext, gatewayAddress, HEARTBEAT_INTERVAL_MILLISECONDS);
     }
 
-    public void openSession(@Nullable String sessionId) {
+    public void openSession(String sessionId) {
         try {
             // determine gateway rest api version
             connectionVersion = negotiateVersion();
@@ -154,10 +154,6 @@ public class ExecutorImpl implements Executor {
                     heartbeatInterval,
                     heartbeatInterval,
                     TimeUnit.MILLISECONDS);
-            // register dependencies
-            defaultContext
-                    .getDependencies()
-                    .forEach(jar -> configureSession(String.format("ADD JAR '%s'", jar)));
         } catch (Exception e) {
             throw new SqlClientException(
                     String.format("Failed to open session to %s", gatewayAddress), e);

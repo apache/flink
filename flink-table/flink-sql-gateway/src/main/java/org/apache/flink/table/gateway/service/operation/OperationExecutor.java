@@ -62,6 +62,7 @@ import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJobsOperation;
@@ -107,8 +108,8 @@ public class OperationExecutor {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperationExecutor.class);
 
-    private final SessionContext sessionContext;
-    private final Configuration executionConfig;
+    protected final SessionContext sessionContext;
+    protected final Configuration executionConfig;
 
     private final ClusterClientServiceLoader clusterClientServiceLoader;
 
@@ -332,6 +333,8 @@ public class OperationExecutor {
             return callStopJobOperation(handle, (StopJobOperation) op);
         } else if (op instanceof ShowJobsOperation) {
             return callShowJobsOperation(handle, (ShowJobsOperation) op);
+        } else if (op instanceof RemoveJarOperation) {
+            return callRemoveJar(handle, ((RemoveJarOperation) op).getPath());
         } else {
             return callOperation(tableEnv, handle, op);
         }
@@ -419,6 +422,11 @@ public class OperationExecutor {
                         GenericRowData.of(StringData.fromString(jobID.toString()))),
                 jobID,
                 result.getResultKind());
+    }
+
+    protected ResultFetcher callRemoveJar(OperationHandle operationHandle, String jarPath) {
+        throw new UnsupportedOperationException(
+                "SQL Gateway doesn't support REMOVE JAR syntax now.");
     }
 
     private ResultFetcher callOperation(

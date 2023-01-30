@@ -218,10 +218,13 @@ org.apache.flink.table.api.ValidationException: Alter temporary catalog function
 # test create function using jar
 # ==========================================================================
 
-# TODO: support this in the FLINK-30692
-# REMOVE JAR '$VAR_UDF_JAR_PATH';
-# [INFO] The specified jar is removed from session classloader.
-# !info
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
+Empty set
+!ok
 
 create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
@@ -263,15 +266,6 @@ create function lowerudf AS 'LowerUDF';
 [INFO] Execute statement succeed.
 !info
 
-# TODO: support this in the FLINK-30692
-# REMOVE JAR '$VAR_UDF_JAR_PATH';
-# [INFO] The specified jar is removed from session classloader.
-# !info
-
-# SHOW JARS;
-# Empty set
-# !ok
-
 show user functions;
 +---------------+
 | function name |
@@ -279,4 +273,12 @@ show user functions;
 |      lowerudf |
 +---------------+
 1 row in set
+!ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
+Empty set
 !ok
