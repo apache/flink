@@ -132,16 +132,16 @@ object ProjectionCodeGenerator {
   }
 
   /**
-   * If adaptive local hash agg takes effect, local hash agg is suppressed. In order to ensure that
-   * the data structure transmitted downstream with doing local hash agg is consistent with the data
-   * format transmitted downstream without doing local hash agg, we need to do projection for
-   * grouping function value.
+   * If adaptive local hash aggregation takes effect, local hash aggregation will be suppressed. In
+   * order to ensure that the data structure transmitted downstream with doing local hash
+   * aggregation is consistent with the data format transmitted downstream without doing local hash
+   * aggregation, we need to do projection for grouping function value.
    *
    * <p> For example, for sql statement "select a, avg(b), count(c) from T group by a", if local
-   * hash agg suppressed and a row (1, 5, "a") comes to local hash agg, we will pass (1, 5, 1, 1) to
-   * downstream.
+   * hash aggregation suppressed and a row (1, 5, "a") comes to local hash aggregation, we will pass
+   * (1, 5, 1, 1) to downstream.
    */
-  def generateAdaptiveLocalHashAggValueProjectionCode(
+  def genAdaptiveLocalHashAggValueProjectionCode(
       ctx: CodeGeneratorContext,
       inputType: RowType,
       outClass: Class[_ <: RowData] = classOf[BinaryRowData],
@@ -154,7 +154,7 @@ object ProjectionCodeGenerator {
       aggInfo =>
         aggInfo.function match {
           case sumAggFunction: SumAggFunction =>
-            fieldExprs += generateValueProjectionForSumAggFunc(
+            fieldExprs += genValueProjectionForSumAggFunc(
               ctx,
               inputType,
               inputTerm,
@@ -167,23 +167,23 @@ object ProjectionCodeGenerator {
               inputTerm,
               aggInfo.agg.getArgList.get(0))
           case avgAggFunction: AvgAggFunction =>
-            fieldExprs += generateValueProjectionForSumAggFunc(
+            fieldExprs += genValueProjectionForSumAggFunc(
               ctx,
               inputType,
               inputTerm,
               avgAggFunction.getSumType.getLogicalType,
               aggInfo.agg.getArgList.get(0))
-            fieldExprs += generateValueProjectionForCountAggFunc(
+            fieldExprs += genValueProjectionForCountAggFunc(
               ctx,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
           case _: CountAggFunction =>
-            fieldExprs += generateValueProjectionForCountAggFunc(
+            fieldExprs += genValueProjectionForCountAggFunc(
               ctx,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
           case _: Count1AggFunction =>
-            fieldExprs += generateValueProjectionForCount1AggFunc(ctx)
+            fieldExprs += genValueProjectionForCount1AggFunc(ctx)
         }
     }
 
@@ -221,11 +221,11 @@ object ProjectionCodeGenerator {
   }
 
   /**
-   * Do projection for grouping function 'sum(col)' if adaptive local hash agg takes effect. For
-   * 'count(col)', we will try to convert the projected value type to sum agg function target type
-   * if col is not null and convert it to default value type if col is null.
+   * Do projection for grouping function 'sum(col)' if adaptive local hash aggregation takes effect.
+   * For 'count(col)', we will try to convert the projected value type to sum agg function target
+   * type if col is not null and convert it to default value type if col is null.
    */
-  def generateValueProjectionForSumAggFunc(
+  def genValueProjectionForSumAggFunc(
       ctx: CodeGeneratorContext,
       inputType: LogicalType,
       inputTerm: String,
@@ -253,10 +253,10 @@ object ProjectionCodeGenerator {
   }
 
   /**
-   * Do projection for grouping function 'count(col)' if adaptive local hash agg takes effect.
-   * 'count(col)' will be convert to 1L if col is not null and convert to 0L if col is null.
+   * Do projection for grouping function 'count(col)' if adaptive local hash aggregation takes
+   * effect. 'count(col)' will be convert to 1L if col is not null and convert to 0L if col is null.
    */
-  def generateValueProjectionForCountAggFunc(
+  def genValueProjectionForCountAggFunc(
       ctx: CodeGeneratorContext,
       inputTerm: String,
       index: Int): GeneratedExpression = {
@@ -278,7 +278,7 @@ object ProjectionCodeGenerator {
    * Do projection for grouping function 'count(*)' or 'count(1)' if adaptive local hash agg takes
    * effect. 'count(*) or count(1)' will be convert to 1L and transmitted to downstream.
    */
-  def generateValueProjectionForCount1AggFunc(ctx: CodeGeneratorContext): GeneratedExpression = {
+  def genValueProjectionForCount1AggFunc(ctx: CodeGeneratorContext): GeneratedExpression = {
     val Seq(fieldTerm, nullTerm) =
       ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
     val inputCode =

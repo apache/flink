@@ -51,8 +51,17 @@ object HashAggCodeGenerator {
     key("table.exec.local-hash-agg.adaptive.enabled")
       .booleanType()
       .defaultValue(Boolean.box(true))
-      .withDescription("Whether to enable adaptive local hash aggregation, " +
-        "this is only used for batch job. Default is true.")
+      .withDescription(
+        s"""
+           |Whether to enable adaptive local hash aggregation. Adaptive local hash
+           |aggregation is an optimization of local hash aggregation, which can adaptively 
+           |determine whether to continue to do local hash aggregation according to the distinct
+           | value rate of sampling data. If distinct value rate bigger than defined threshold
+           |(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold), 
+           |we will stop aggregating and just send the input data to the downstream after a simple 
+           |projection. Otherwise, we will continue to do aggregation. Adaptive local hash aggregation
+           |only works in batch mode. Default value of this parameter is true.
+           |""".stripMargin)
 
   @Experimental
   val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD: ConfigOption[JLong] =
@@ -62,12 +71,12 @@ object HashAggCodeGenerator {
       .withDescription(
         s"""
            |If adaptive local hash aggregation is enabled, this value defines how 
-           |many records will be used as sampled data to calculate distinct value 
-           |rate (see $TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD) 
+           |many records will be used as sampled data to calculate distinct value rate 
+           |(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold) 
            |for the local aggregate. The higher the sampling threshold, the more accurate 
            |the distinct value rate is. But as the sampling threshold increases, local 
            |aggregation is meaningless when the distinct values rate is low. 
-           |The default values is 5000000.
+           |The default value is 5000000.
            |""".stripMargin)
 
   @Experimental
@@ -75,15 +84,16 @@ object HashAggCodeGenerator {
     key("table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold")
       .doubleType()
       .defaultValue(0.5d)
-      .withDescription(s"""
-                          |The distinct value rate can be defined as the number of local 
-                          |aggregation result for the sampled data divided by the sampling 
-                          |threshold (see $TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD). 
-                          |If the computed result is lower than the given configuration value, 
-                          |the remaining input records proceed to do local aggregation, otherwise 
-                          |the remaining input records are subjected to simple projection which 
-                          |calculation cost is less than local aggregation. The default value is 0.5.
-                          |""".stripMargin)
+      .withDescription(
+        s"""
+           |The distinct value rate can be defined as the number of local 
+           |aggregation result for the sampled data divided by the sampling 
+           |threshold (see ${TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD.key()}). 
+           |If the computed result is lower than the given configuration value, 
+           |the remaining input records proceed to do local aggregation, otherwise 
+           |the remaining input records are subjected to simple projection which 
+           |calculation cost is less than local aggregation. The default value is 0.5.
+           |""".stripMargin)
 
   def genWithKeys(
       ctx: CodeGeneratorContext,
@@ -131,15 +141,19 @@ object HashAggCodeGenerator {
       .code
 
     val valueProjectionCode =
-      ProjectionCodeGenerator.generateAdaptiveLocalHashAggValueProjectionCode(
-        ctx,
-        inputType,
-        classOf[BinaryRowData],
-        inputTerm = inputTerm,
-        aggInfos,
-        outRecordTerm = currentValueTerm,
-        outRecordWriterTerm = currentValueWriterTerm
-      )
+      if (!isFinal && supportAdaptiveLocalHashAgg) {
+        ProjectionCodeGenerator.genAdaptiveLocalHashAggValueProjectionCode(
+          ctx,
+          inputType,
+          classOf[BinaryRowData],
+          inputTerm = inputTerm,
+          aggInfos,
+          outRecordTerm = currentValueTerm,
+          outRecordWriterTerm = currentValueWriterTerm
+        )
+      } else {
+        ""
+      }
 
     // gen code to create groupKey, aggBuffer Type array
     // it will be used in BytesHashMap and BufferedKVExternalSorter if enable fallback
@@ -230,7 +244,7 @@ object HashAggCodeGenerator {
     HashAggCodeGenHelper.prepareMetrics(ctx, aggregateMapTerm, if (isFinal) sorterTerm else null)
 
     // Do adaptive hash aggregation
-    val outputResultForAdaptiveHashAgg = {
+    val outputResultForAdaptiveLocalHashAgg = {
       // gen code to iterating the aggregate map and output to downstream
       val inputUnboxingCode = s"${ctx.reuseInputUnboxingCode(reuseAggBufferTerm)}"
       s"""
@@ -264,7 +278,7 @@ object HashAggCodeGenerator {
 
         val samplingThreshold =
           ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD)
-        val limitDistinctRatioThreshold =
+        val distinctValueRateThreshold =
           ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD)
 
         (
@@ -273,10 +287,10 @@ object HashAggCodeGenerator {
           s"""
              |if ($adaptiveTotalCountTerm == $samplingThreshold) {
              |  $logTerm.info("Local hash aggregation checkpoint reached, sampling threshold = " +
-             |    $samplingThreshold + ", distinct = " + $adaptiveDistinctCountTerm + ", total = " +
-             |    $adaptiveTotalCountTerm + ", limit distinct ratio threshold = " 
-             |    + $limitDistinctRatioThreshold);
-             |  if ($adaptiveDistinctCountTerm / (1.0 * $adaptiveTotalCountTerm) > $limitDistinctRatioThreshold) {
+             |    $samplingThreshold + ", distinct value count = " + $adaptiveDistinctCountTerm + ", total = " +
+             |    $adaptiveTotalCountTerm + ", distinct value rate threshold = " 
+             |    + $distinctValueRateThreshold);
+             |  if ($adaptiveDistinctCountTerm / (1.0 * $adaptiveTotalCountTerm) > $distinctValueRateThreshold) {
              |    $logTerm.info("Local hash aggregation is suppressed");
              |    $localAggSuppressedTerm = true;
              |  }
@@ -285,7 +299,7 @@ object HashAggCodeGenerator {
           s"""
              |if ($localAggSuppressedTerm) {
              |  $valueProjectionCode
-             |  $outputResultForAdaptiveHashAgg
+             |  $outputResultForAdaptiveLocalHashAgg
              |  return;
              |}
              |""".stripMargin,
