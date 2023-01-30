@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
@@ -104,7 +104,7 @@ public class DefaultSchedulerBuilder {
     private VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
             createCustomParallelismDecider(1);
     private int defaultMaxParallelism =
-            JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue();
+            BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM.defaultValue();
     private BlocklistOperations blocklistOperations = ignore -> {};
     private HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
             HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;

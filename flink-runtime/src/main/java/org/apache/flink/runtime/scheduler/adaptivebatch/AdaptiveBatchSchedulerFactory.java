@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -122,7 +123,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                                 "The AdaptiveBatchScheduler requires a SlotPool."));
 
         final boolean enableSpeculativeExecution =
-                jobMasterConfiguration.getBoolean(JobManagerOptions.SPECULATIVE_ENABLED);
+                jobMasterConfiguration.getBoolean(BatchExecutionOptions.SPECULATIVE_ENABLED);
 
         final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
                 getOrDecideHybridPartitionDataConsumeConstraint(
@@ -171,13 +172,14 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
 
         int defaultMaxParallelism =
                 jobMasterConfiguration
-                        .getOptional(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM)
+                        .getOptional(
+                                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM)
                         .orElse(
                                 jobMasterConfiguration
                                         .getOptional(CoreOptions.DEFAULT_PARALLELISM)
                                         .orElse(
-                                                JobManagerOptions
-                                                        .ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM
+                                                BatchExecutionOptions
+                                                        .ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM
                                                         .defaultValue()));
 
         if (enableSpeculativeExecution) {

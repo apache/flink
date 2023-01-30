@@ -20,7 +20,7 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -393,7 +393,7 @@ class AdaptiveBatchSchedulerTest {
         return createScheduler(
                 jobGraph,
                 createCustomParallelismDecider(10),
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue());
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM.defaultValue());
     }
 
     private SchedulerBase createScheduler(

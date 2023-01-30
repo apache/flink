@@ -21,6 +21,7 @@ package org.apache.flink.test.scheduling;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -104,10 +105,10 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
         configuration.setString(RestOptions.BIND_PORT, "0");
         configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
         configuration.setInteger(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM,
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
                 DEFAULT_MAX_PARALLELISM);
         configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
                 MemorySize.parse("150kb"));
         configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
         configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 1);
