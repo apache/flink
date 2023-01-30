@@ -26,7 +26,9 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -115,6 +117,28 @@ public class SqlDmlToOperationConverterTest extends SqlToOperationConverterTestB
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining(
                         "Hint [OPTIONS] only support " + "non empty key value options");
+    }
+
+    @Test
+    public void testBeginStatementSet() {
+        final String sql = "BEGIN STATEMENT SET";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(BeginStatementSetOperation.class);
+        final BeginStatementSetOperation beginStatementSetOperation =
+                (BeginStatementSetOperation) operation;
+
+        assertThat(beginStatementSetOperation.asSummaryString()).isEqualTo("BEGIN STATEMENT SET");
+    }
+
+    @Test
+    public void testEnd() {
+        final String sql = "END";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(EndStatementSetOperation.class);
+        final EndStatementSetOperation endStatementSetOperation =
+                (EndStatementSetOperation) operation;
+
+        assertThat(endStatementSetOperation.asSummaryString()).isEqualTo("END");
     }
 
     @Test
