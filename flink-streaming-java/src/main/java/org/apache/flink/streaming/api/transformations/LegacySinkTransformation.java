@@ -22,10 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -149,7 +152,16 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
                 if (userFunction instanceof SupportsConcurrentExecutionAttempts) {
                     return true;
                 }
+
+                if (userFunction instanceof OutputFormatSinkFunction) {
+                    return ((OutputFormatSinkFunction<?>) userFunction).getFormat()
+                            instanceof SupportsConcurrentExecutionAttempts;
+                }
             }
+        } else if (operatorFactory instanceof OutputFormatOperatorFactory) {
+            final OutputFormat<?> outputFormat =
+                    ((OutputFormatOperatorFactory<?, ?>) operatorFactory).getOutputFormat();
+            return outputFormat instanceof SupportsConcurrentExecutionAttempts;
         }
         return false;
     }
