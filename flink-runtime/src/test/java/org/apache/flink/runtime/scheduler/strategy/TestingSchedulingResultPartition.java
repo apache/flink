@@ -25,10 +25,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -102,18 +100,8 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         return Collections.unmodifiableList(consumedPartitionGroups);
     }
 
-    void addConsumerGroup(
-            Collection<TestingSchedulingExecutionVertex> consumerVertices,
-            ResultPartitionType resultPartitionType) {
+    void addConsumerGroup(ConsumerVertexGroup consumerVertexGroup) {
         checkState(this.consumerVertexGroup == null);
-
-        final ConsumerVertexGroup consumerVertexGroup =
-                ConsumerVertexGroup.fromMultipleVertices(
-                        consumerVertices.stream()
-                                .map(TestingSchedulingExecutionVertex::getId)
-                                .collect(Collectors.toList()),
-                        resultPartitionType);
-
         this.consumerVertexGroup = consumerVertexGroup;
     }
 
