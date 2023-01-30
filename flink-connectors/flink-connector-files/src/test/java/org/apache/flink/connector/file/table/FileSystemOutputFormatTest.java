@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster.FinalizationContext;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
@@ -51,6 +52,8 @@ class FileSystemOutputFormatTest {
 
     @TempDir private java.nio.file.Path tmpPath;
     @TempDir private java.nio.file.Path outputPath;
+
+    private final TestingFinalizationContext finalizationContext = new TestingFinalizationContext();
 
     private static Map<File, String> getFileContentByPath(java.nio.file.Path directory)
             throws IOException {
@@ -95,7 +98,7 @@ class FileSystemOutputFormatTest {
             assertThat(getFileContentByPath(tmpPath)).hasSize(1);
         }
 
-        ref.get().finalizeGlobal(1);
+        ref.get().finalizeGlobal(finalizationContext);
         Map<File, String> content = getFileContentByPath(outputPath);
         assertThat(content.values())
                 .containsExactly("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
@@ -123,7 +126,7 @@ class FileSystemOutputFormatTest {
             assertThat(getFileContentByPath(tmpPath)).hasSize(1);
         }
 
-        ref.get().finalizeGlobal(1);
+        ref.get().finalizeGlobal(finalizationContext);
         Map<File, String> content = getFileContentByPath(outputPath);
         assertThat(content).hasSize(1);
         assertThat(content.values())
@@ -148,7 +151,7 @@ class FileSystemOutputFormatTest {
             assertThat(getFileContentByPath(tmpPath)).hasSize(1);
         }
 
-        ref.get().finalizeGlobal(1);
+        ref.get().finalizeGlobal(finalizationContext);
         Map<File, String> content = getFileContentByPath(outputPath);
         assertThat(content).hasSize(1);
         assertThat(content.keySet().iterator().next().getParentFile().getName()).isEqualTo("c=p1");
@@ -165,7 +168,7 @@ class FileSystemOutputFormatTest {
             assertThat(getFileContentByPath(tmpPath)).hasSize(2);
         }
 
-        ref.get().finalizeGlobal(1);
+        ref.get().finalizeGlobal(finalizationContext);
         Map<File, String> content = getFileContentByPath(outputPath);
         Map<String, String> sortedContent = new TreeMap<>();
         content.forEach((file, s) -> sortedContent.put(file.getParentFile().getName(), s));
@@ -191,7 +194,7 @@ class FileSystemOutputFormatTest {
             assertThat(getFileContentByPath(tmpPath)).hasSize(2);
         }
 
-        ref.get().finalizeGlobal(1);
+        ref.get().finalizeGlobal(finalizationContext);
         Map<File, String> content = getFileContentByPath(outputPath);
         Map<String, String> sortedContent = new TreeMap<>();
         content.forEach((file, s) -> sortedContent.put(file.getParentFile().getName(), s));
@@ -235,5 +238,18 @@ class FileSystemOutputFormatTest {
                 3,
                 3,
                 0);
+    }
+
+    private static class TestingFinalizationContext implements FinalizationContext {
+
+        @Override
+        public int getParallelism() {
+            return 1;
+        }
+
+        @Override
+        public int getFinishedAttempt(int subtaskIndex) {
+            return 0;
+        }
     }
 }
