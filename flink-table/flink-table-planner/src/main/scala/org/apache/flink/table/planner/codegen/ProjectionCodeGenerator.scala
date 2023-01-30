@@ -23,10 +23,12 @@ import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
+import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
-import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.logical.{BigIntType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -139,7 +141,7 @@ object ProjectionCodeGenerator {
    * hash agg suppressed and a row (1, 5, "a") comes to local hash agg, we will pass (1, 5, 1, 1) to
    * downstream.
    */
-  def generateAdaptiveHashAggValueProjectionCode(
+  def generateAdaptiveLocalHashAggValueProjectionCode(
       ctx: CodeGeneratorContext,
       inputType: RowType,
       outClass: Class[_ <: RowData] = classOf[BinaryRowData],
@@ -151,29 +153,37 @@ object ProjectionCodeGenerator {
     aggInfos.map {
       aggInfo =>
         aggInfo.function match {
-          case _: SumAggFunction | _: MaxAggFunction | _: MinAggFunction =>
+          case sumAggFunction: SumAggFunction =>
+            fieldExprs += generateValueProjectionForSumAggFunc(
+              ctx,
+              inputType,
+              inputTerm,
+              sumAggFunction.getResultType.getLogicalType,
+              aggInfo.agg.getArgList.get(0))
+          case _: MaxAggFunction | _: MinAggFunction =>
             fieldExprs += GenerateUtils.generateFieldAccess(
               ctx,
               inputType,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
-          case _: AvgAggFunction =>
-            fieldExprs += GenerateUtils.generateFieldAccess(
+          case avgAggFunction: AvgAggFunction =>
+            fieldExprs += generateValueProjectionForSumAggFunc(
               ctx,
               inputType,
               inputTerm,
+              avgAggFunction.getSumType.getLogicalType,
               aggInfo.agg.getArgList.get(0))
-            fieldExprs += GenerateUtils.generateFieldAccessForCountSpecificCol(
+            fieldExprs += generateValueProjectionForCountAggFunc(
               ctx,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
           case _: CountAggFunction =>
-            fieldExprs += GenerateUtils.generateFieldAccessForCountSpecificCol(
+            fieldExprs += generateValueProjectionForCountAggFunc(
               ctx,
               inputTerm,
               aggInfo.agg.getArgList.get(0))
           case _: Count1AggFunction =>
-            fieldExprs += GenerateUtils.generateFieldAccessForCountOne(ctx)
+            fieldExprs += generateValueProjectionForCount1AggFunc(ctx)
         }
     }
 
@@ -208,6 +218,74 @@ object ProjectionCodeGenerator {
        |$setFieldsCode
        |$completeWriter
         """.stripMargin
+  }
+
+  /**
+   * Do projection for grouping function 'sum(col)' if adaptive local hash agg takes effect. For
+   * 'count(col)', we will try to convert the projected value type to sum agg function target type
+   * if col is not null and convert it to default value type if col is null.
+   */
+  def generateValueProjectionForSumAggFunc(
+      ctx: CodeGeneratorContext,
+      inputType: LogicalType,
+      inputTerm: String,
+      targetType: LogicalType,
+      index: Int): GeneratedExpression = {
+    val fieldType = getFieldTypes(inputType).get(index)
+    val resultTypeTerm = primitiveTypeTermForType(fieldType)
+    val defaultValue = primitiveDefaultValue(fieldType)
+    val readCode = rowFieldReadAccess(index.toString, inputTerm, fieldType)
+    val Seq(fieldTerm, nullTerm) =
+      ctx.addReusableLocalVariables((resultTypeTerm, "field"), ("boolean", "isNull"))
+
+    val inputCode =
+      s"""
+         |$nullTerm = $inputTerm.isNullAt($index);
+         |$fieldTerm = $defaultValue;
+         |if (!$nullTerm) {
+         |  $fieldTerm = $readCode;
+         |}
+           """.stripMargin.trim
+
+    val expression = GeneratedExpression(fieldTerm, nullTerm, inputCode, fieldType)
+    // Convert the projected value type to sum agg func target type.
+    ScalarOperatorGens.generateCast(ctx, expression, targetType, true)
+  }
+
+  /**
+   * Do projection for grouping function 'count(col)' if adaptive local hash agg takes effect.
+   * 'count(col)' will be convert to 1L if col is not null and convert to 0L if col is null.
+   */
+  def generateValueProjectionForCountAggFunc(
+      ctx: CodeGeneratorContext,
+      inputTerm: String,
+      index: Int): GeneratedExpression = {
+    val Seq(fieldTerm, nullTerm) =
+      ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
+
+    val inputCode =
+      s"""
+         |$fieldTerm = 0L;
+         |if (!$inputTerm.isNullAt($index)) {
+         |  $fieldTerm = 1L;
+         |}
+           """.stripMargin.trim
+
+    GeneratedExpression(fieldTerm, nullTerm, inputCode, new BigIntType())
+  }
+
+  /**
+   * Do projection for grouping function 'count(*)' or 'count(1)' if adaptive local hash agg takes
+   * effect. 'count(*) or count(1)' will be convert to 1L and transmitted to downstream.
+   */
+  def generateValueProjectionForCount1AggFunc(ctx: CodeGeneratorContext): GeneratedExpression = {
+    val Seq(fieldTerm, nullTerm) =
+      ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
+    val inputCode =
+      s"""
+         |$fieldTerm = 1L;
+         |""".stripMargin.trim
+    GeneratedExpression(fieldTerm, nullTerm, inputCode, new BigIntType())
   }
 
   /** For java invoke. */

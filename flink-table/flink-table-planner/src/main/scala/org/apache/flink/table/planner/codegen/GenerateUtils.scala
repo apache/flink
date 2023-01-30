@@ -611,42 +611,6 @@ object GenerateUtils {
       generateInputFieldUnboxing(ctx, inputType, inputCode, inputCode)
   }
 
-  /**
-   * Do projection for grouping function 'count(col)' if adaptive local hash agg takes effect.
-   * 'count(col)' will be convert to 1L if col is not null and convert to 0L if col is null.
-   */
-  def generateFieldAccessForCountSpecificCol(
-      ctx: CodeGeneratorContext,
-      inputTerm: String,
-      index: Int): GeneratedExpression = {
-    val Seq(fieldTerm, nullTerm) =
-      ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
-
-    val inputCode =
-      s"""
-         |$fieldTerm = 0L;
-         |if (!$inputTerm.isNullAt($index)) {
-         |  $fieldTerm = 1L;
-         |}
-           """.stripMargin.trim
-
-    GeneratedExpression(fieldTerm, nullTerm, inputCode, new BigIntType())
-  }
-
-  /**
-   * Do projection for grouping function 'count(*)' or 'count(1)' if adaptive local hash agg takes
-   * effect. 'count(*) or count(1)' will be convert to 1L and transmitted to downstream.
-   */
-  def generateFieldAccessForCountOne(ctx: CodeGeneratorContext): GeneratedExpression = {
-    val Seq(fieldTerm, nullTerm) =
-      ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
-    val inputCode =
-      s"""
-         |$fieldTerm = 1L;
-         |""".stripMargin.trim
-    GeneratedExpression(fieldTerm, nullTerm, inputCode, new BigIntType())
-  }
-
   /** Generates code for comparing two fields. */
   @tailrec
   def generateCompare(

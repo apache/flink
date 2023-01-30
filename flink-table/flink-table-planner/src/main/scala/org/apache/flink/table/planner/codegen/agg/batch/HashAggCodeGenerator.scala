@@ -131,18 +131,15 @@ object HashAggCodeGenerator {
       .code
 
     val valueProjectionCode =
-      if (!isFinal && supportAdaptiveLocalHashAgg) {
-        ProjectionCodeGenerator.generateAdaptiveHashAggValueProjectionCode(
-          ctx,
-          inputType,
-          classOf[BinaryRowData],
-          inputTerm = inputTerm,
-          aggInfos,
-          outRecordTerm = currentValueTerm,
-          outRecordWriterTerm = currentValueWriterTerm)
-      } else {
-        ""
-      }
+      ProjectionCodeGenerator.generateAdaptiveLocalHashAggValueProjectionCode(
+        ctx,
+        inputType,
+        classOf[BinaryRowData],
+        inputTerm = inputTerm,
+        aggInfos,
+        outRecordTerm = currentValueTerm,
+        outRecordWriterTerm = currentValueWriterTerm
+      )
 
     // gen code to create groupKey, aggBuffer Type array
     // it will be used in BytesHashMap and BufferedKVExternalSorter if enable fallback
