@@ -29,6 +29,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -130,6 +131,31 @@ class YarnApplicationFileUploaderTest {
                         "Provided lib directories, configured via %s, should not include %s.",
                         YarnConfigOptions.PROVIDED_LIB_DIRS.key(),
                         ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+    }
+
+    @Test
+    void testUploadLocalFileWithoutScheme(@TempDir File flinkHomeDir) throws IOException {
+        final File tempFile = File.createTempFile(UUID.randomUUID().toString(), "", flinkHomeDir);
+        final Path pathWithoutScheme = new Path(tempFile.getAbsolutePath());
+        final Path pathWithScheme = new Path(tempFile.toURI());
+
+        final FileSystem fileSystem = Mockito.spy(FileSystem.get(new YarnConfiguration()));
+        try (final YarnApplicationFileUploader yarnApplicationFileUploader =
+                YarnApplicationFileUploader.from(
+                        fileSystem,
+                        new Path(flinkHomeDir.getPath()),
+                        Collections.emptyList(),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
+
+            yarnApplicationFileUploader.uploadLocalFileToRemote(pathWithoutScheme, "test");
+            Mockito.verify(fileSystem)
+                    .copyFromLocalFile(
+                            Mockito.anyBoolean(),
+                            Mockito.anyBoolean(),
+                            Mockito.eq(pathWithScheme),
+                            Mockito.any(Path.class));
+        }
     }
 
     private static Map<String, String> getLibJars() {

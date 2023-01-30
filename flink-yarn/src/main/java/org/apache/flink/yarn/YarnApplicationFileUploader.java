@@ -388,13 +388,20 @@ class YarnApplicationFileUploader implements AutoCloseable {
                 (relativeDstPath.isEmpty() ? "" : relativeDstPath + "/") + localSrcPath.getName();
         final Path dst = new Path(applicationDir, suffix);
 
+        final Path localSrcPathWithScheme;
+        if (localSrcPath.toUri().getScheme() == null) {
+            localSrcPathWithScheme = new Path(URI.create("file:///").resolve(localSrcPath.toUri()));
+        } else {
+            localSrcPathWithScheme = localSrcPath;
+        }
+
         LOG.debug(
                 "Copying from {} to {} with replication factor {}",
-                localSrcPath,
+                localSrcPathWithScheme,
                 dst,
                 replicationFactor);
 
-        fileSystem.copyFromLocalFile(false, true, localSrcPath, dst);
+        fileSystem.copyFromLocalFile(false, true, localSrcPathWithScheme, dst);
         fileSystem.setReplication(dst, (short) replicationFactor);
         return dst;
     }
