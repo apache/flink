@@ -174,6 +174,9 @@ public class EdgeManagerBuildUtil {
         for (IntermediateResultPartition partition : partitions) {
             partition.addConsumers(consumerVertexGroup);
         }
+
+        consumedPartitionGroup.setConsumerVertexGroup(consumerVertexGroup);
+        consumerVertexGroup.setConsumedPartitionGroup(consumedPartitionGroup);
     }
 
     private static ConsumedPartitionGroup createAndRegisterConsumedPartitionGroupToEdgeManager(

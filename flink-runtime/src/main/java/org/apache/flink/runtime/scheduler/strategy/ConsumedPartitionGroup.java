@@ -23,14 +23,21 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
-/** Group of consumed {@link IntermediateResultPartitionID}s. */
+/**
+ * Group of consumed {@link IntermediateResultPartitionID}s. One such a group corresponds to one
+ * {@link ConsumerVertexGroup}.
+ */
 public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartitionID> {
 
     private final List<IntermediateResultPartitionID> resultPartitions;
@@ -43,6 +50,8 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     /** Number of consumer tasks in the corresponding {@link ConsumerVertexGroup}. */
     private final int numConsumers;
+
+    @Nullable private ConsumerVertexGroup consumerVertexGroup;
 
     private ConsumedPartitionGroup(
             int numConsumers,
@@ -129,5 +138,14 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     public ResultPartitionType getResultPartitionType() {
         return resultPartitionType;
+    }
+
+    public ConsumerVertexGroup getConsumerVertexGroup() {
+        return checkNotNull(consumerVertexGroup, "ConsumerVertexGroup is not properly set.");
+    }
+
+    public void setConsumerVertexGroup(ConsumerVertexGroup consumerVertexGroup) {
+        checkState(this.consumerVertexGroup == null);
+        this.consumerVertexGroup = checkNotNull(consumerVertexGroup);
     }
 }

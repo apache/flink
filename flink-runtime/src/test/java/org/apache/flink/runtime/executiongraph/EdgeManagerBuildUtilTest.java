@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -116,21 +117,24 @@ class EdgeManagerBuildUtilTest {
         ExecutionVertex vertex2 = consumer.getTaskVertices()[1];
 
         // check consumers of the partitions
-        assertThat(partition1.getConsumerVertexGroups().get(0))
-                .containsExactlyInAnyOrder(vertex1.getID(), vertex2.getID());
-        assertThat(partition1.getConsumerVertexGroups().get(0))
-                .isEqualTo(partition1.getConsumerVertexGroups().get(0));
-        assertThat(partition3.getConsumerVertexGroups().get(0))
-                .isEqualTo(partition1.getConsumerVertexGroups().get(0));
+        ConsumerVertexGroup consumerVertexGroup = partition1.getConsumerVertexGroups().get(0);
+        assertThat(consumerVertexGroup).containsExactlyInAnyOrder(vertex1.getID(), vertex2.getID());
+        assertThat(partition2.getConsumerVertexGroups().get(0)).isEqualTo(consumerVertexGroup);
+        assertThat(partition3.getConsumerVertexGroups().get(0)).isEqualTo(consumerVertexGroup);
 
         // check inputs of the execution vertices
-        assertThat(vertex1.getConsumedPartitionGroup(0))
+        ConsumedPartitionGroup consumedPartitionGroup = vertex1.getConsumedPartitionGroup(0);
+        assertThat(consumedPartitionGroup)
                 .containsExactlyInAnyOrder(
                         partition1.getPartitionId(),
                         partition2.getPartitionId(),
                         partition3.getPartitionId());
-        assertThat(vertex2.getConsumedPartitionGroup(0))
-                .isEqualTo(vertex1.getConsumedPartitionGroup(0));
+        assertThat(vertex2.getConsumedPartitionGroup(0)).isEqualTo(consumedPartitionGroup);
+
+        // check the consumerVertexGroup and consumedPartitionGroup are set to each other
+        assertThat(consumerVertexGroup.getConsumedPartitionGroup())
+                .isEqualTo(consumedPartitionGroup);
+        assertThat(consumedPartitionGroup.getConsumerVertexGroup()).isEqualTo(consumerVertexGroup);
     }
 
     @Test
@@ -186,25 +190,39 @@ class EdgeManagerBuildUtilTest {
         ExecutionVertex vertex4 = consumer.getTaskVertices()[3];
 
         // check consumers of the partitions
-        assertThat(partition1.getConsumerVertexGroups().get(0))
+        ConsumerVertexGroup consumerVertexGroup1 = partition1.getConsumerVertexGroups().get(0);
+        ConsumerVertexGroup consumerVertexGroup2 = partition2.getConsumerVertexGroups().get(0);
+        ConsumerVertexGroup consumerVertexGroup3 = partition4.getConsumerVertexGroups().get(0);
+        assertThat(consumerVertexGroup1)
                 .containsExactlyInAnyOrder(vertex1.getID(), vertex2.getID());
-        assertThat(partition2.getConsumerVertexGroups().get(0))
-                .containsExactlyInAnyOrder(vertex3.getID());
-        assertThat(partition3.getConsumerVertexGroups().get(0))
-                .isEqualTo(partition2.getConsumerVertexGroups().get(0));
-        assertThat(partition4.getConsumerVertexGroups().get(0))
-                .containsExactlyInAnyOrder(vertex4.getID());
+        assertThat(consumerVertexGroup2).containsExactlyInAnyOrder(vertex3.getID());
+        assertThat(partition3.getConsumerVertexGroups().get(0)).isEqualTo(consumerVertexGroup2);
+        assertThat(consumerVertexGroup3).containsExactlyInAnyOrder(vertex4.getID());
 
         // check inputs of the execution vertices
-        assertThat(vertex1.getConsumedPartitionGroup(0))
-                .containsExactlyInAnyOrder(partition1.getPartitionId());
-        assertThat(vertex2.getConsumedPartitionGroup(0))
-                .isEqualTo(vertex1.getConsumedPartitionGroup(0));
-        assertThat(vertex3.getConsumedPartitionGroup(0))
+        ConsumedPartitionGroup consumedPartitionGroup1 = vertex1.getConsumedPartitionGroup(0);
+        ConsumedPartitionGroup consumedPartitionGroup2 = vertex3.getConsumedPartitionGroup(0);
+        ConsumedPartitionGroup consumedPartitionGroup3 = vertex4.getConsumedPartitionGroup(0);
+        assertThat(consumedPartitionGroup1).containsExactlyInAnyOrder(partition1.getPartitionId());
+        assertThat(vertex2.getConsumedPartitionGroup(0)).isEqualTo(consumedPartitionGroup1);
+        assertThat(consumedPartitionGroup2)
                 .containsExactlyInAnyOrder(
                         partition2.getPartitionId(), partition3.getPartitionId());
-        assertThat(vertex4.getConsumedPartitionGroup(0))
-                .containsExactlyInAnyOrder(partition4.getPartitionId());
+        assertThat(consumedPartitionGroup3).containsExactlyInAnyOrder(partition4.getPartitionId());
+
+        // check the consumerVertexGroups and consumedPartitionGroups are properly set
+        assertThat(consumerVertexGroup1.getConsumedPartitionGroup())
+                .isEqualTo(consumedPartitionGroup1);
+        assertThat(consumedPartitionGroup1.getConsumerVertexGroup())
+                .isEqualTo(consumerVertexGroup1);
+        assertThat(consumerVertexGroup2.getConsumedPartitionGroup())
+                .isEqualTo(consumedPartitionGroup2);
+        assertThat(consumedPartitionGroup2.getConsumerVertexGroup())
+                .isEqualTo(consumerVertexGroup2);
+        assertThat(consumerVertexGroup3.getConsumedPartitionGroup())
+                .isEqualTo(consumedPartitionGroup3);
+        assertThat(consumedPartitionGroup3.getConsumerVertexGroup())
+                .isEqualTo(consumerVertexGroup3);
     }
 
     private void testGetMaxNumEdgesToTarget(

@@ -20,15 +20,25 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-/** Group of consumer {@link ExecutionVertexID}s. */
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
+/**
+ * Group of consumer {@link ExecutionVertexID}s. One such a group corresponds to one {@link
+ * ConsumedPartitionGroup}.
+ */
 public class ConsumerVertexGroup implements Iterable<ExecutionVertexID> {
     private final List<ExecutionVertexID> vertices;
 
     private final ResultPartitionType resultPartitionType;
+
+    @Nullable private ConsumedPartitionGroup consumedPartitionGroup;
 
     private ConsumerVertexGroup(
             List<ExecutionVertexID> vertices, ResultPartitionType resultPartitionType) {
@@ -65,5 +75,14 @@ public class ConsumerVertexGroup implements Iterable<ExecutionVertexID> {
 
     public ExecutionVertexID getFirst() {
         return iterator().next();
+    }
+
+    public ConsumedPartitionGroup getConsumedPartitionGroup() {
+        return checkNotNull(consumedPartitionGroup, "ConsumedPartitionGroup is not properly set.");
+    }
+
+    public void setConsumedPartitionGroup(ConsumedPartitionGroup consumedPartitionGroup) {
+        checkState(this.consumedPartitionGroup == null);
+        this.consumedPartitionGroup = checkNotNull(consumedPartitionGroup);
     }
 }
