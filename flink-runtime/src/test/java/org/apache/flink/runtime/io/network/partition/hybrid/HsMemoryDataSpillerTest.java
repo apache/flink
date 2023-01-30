@@ -125,20 +125,6 @@ class HsMemoryDataSpillerTest {
     @Test
     void testClose() throws Exception {
         memoryDataSpiller = createMemoryDataSpiller(dataFilePath);
-        List<BufferWithIdentity> bufferWithIdentityList = new ArrayList<>();
-        bufferWithIdentityList.addAll(
-                createBufferWithIdentityList(
-                        false,
-                        0,
-                        Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2))));
-        memoryDataSpiller.close();
-        assertThatThrownBy(() -> memoryDataSpiller.spillAsync(bufferWithIdentityList))
-                .isInstanceOf(RejectedExecutionException.class);
-    }
-
-    @Test
-    void testRelease() throws Exception {
-        memoryDataSpiller = createMemoryDataSpiller(dataFilePath);
         List<BufferWithIdentity> bufferWithIdentityList =
                 new ArrayList<>(
                         createBufferWithIdentityList(
@@ -147,8 +133,10 @@ class HsMemoryDataSpillerTest {
                                 Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2))));
         memoryDataSpiller.spillAsync(bufferWithIdentityList);
         // blocked until spill finished.
-        memoryDataSpiller.release();
+        memoryDataSpiller.close();
         checkData(false, Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2)));
+        assertThatThrownBy(() -> memoryDataSpiller.spillAsync(bufferWithIdentityList))
+                .isInstanceOf(RejectedExecutionException.class);
     }
 
     /**

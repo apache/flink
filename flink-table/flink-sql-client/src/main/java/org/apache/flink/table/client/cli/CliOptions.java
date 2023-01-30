@@ -22,8 +22,10 @@ import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nullable;
 
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Command line options to configure the SQL client. Arguments that have not been specified by the
@@ -35,31 +37,22 @@ public class CliOptions {
     private final String sessionId;
     private final URL initFile;
     private final URL sqlFile;
-    private final List<URL> jars;
-    private final List<URL> libraryDirs;
     private final String updateStatement;
     private final String historyFilePath;
-    private final Configuration pythonConfiguration;
 
-    public CliOptions(
+    private CliOptions(
             boolean isPrintHelp,
             String sessionId,
             URL initFile,
             URL sqlFile,
-            List<URL> jars,
-            List<URL> libraryDirs,
             String updateStatement,
-            String historyFilePath,
-            Configuration pythonConfiguration) {
+            String historyFilePath) {
         this.isPrintHelp = isPrintHelp;
         this.sessionId = sessionId;
         this.initFile = initFile;
         this.sqlFile = sqlFile;
-        this.jars = jars;
-        this.libraryDirs = libraryDirs;
         this.updateStatement = updateStatement;
         this.historyFilePath = historyFilePath;
-        this.pythonConfiguration = pythonConfiguration;
     }
 
     public boolean isPrintHelp() {
@@ -78,23 +71,70 @@ public class CliOptions {
         return sqlFile;
     }
 
-    public List<URL> getJars() {
-        return jars;
-    }
-
-    public List<URL> getLibraryDirs() {
-        return libraryDirs;
+    public String getHistoryFilePath() {
+        return historyFilePath;
     }
 
     public String getUpdateStatement() {
         return updateStatement;
     }
 
-    public String getHistoryFilePath() {
-        return historyFilePath;
+    /** Command option lines to configure SQL Client in the embedded mode. */
+    public static class EmbeddedCliOptions extends CliOptions {
+
+        private final List<URL> jars;
+        private final List<URL> libraryDirs;
+
+        private final Configuration pythonConfiguration;
+
+        public EmbeddedCliOptions(
+                boolean isPrintHelp,
+                String sessionId,
+                URL initFile,
+                URL sqlFile,
+                String updateStatement,
+                String historyFilePath,
+                List<URL> jars,
+                List<URL> libraryDirs,
+                Configuration pythonConfiguration) {
+            super(isPrintHelp, sessionId, initFile, sqlFile, updateStatement, historyFilePath);
+            this.jars = jars;
+            this.libraryDirs = libraryDirs;
+            this.pythonConfiguration = pythonConfiguration;
+        }
+
+        public List<URL> getJars() {
+            return jars;
+        }
+
+        public List<URL> getLibraryDirs() {
+            return libraryDirs;
+        }
+
+        public Configuration getPythonConfiguration() {
+            return pythonConfiguration;
+        }
     }
 
-    public Configuration getPythonConfiguration() {
-        return pythonConfiguration;
+    /** Command option lines to configure SQL Client in the gateway mode. */
+    public static class GatewayCliOptions extends CliOptions {
+
+        private final @Nullable InetSocketAddress gatewayAddress;
+
+        GatewayCliOptions(
+                boolean isPrintHelp,
+                String sessionId,
+                URL initFile,
+                URL sqlFile,
+                String updateStatement,
+                String historyFilePath,
+                @Nullable InetSocketAddress gatewayAddress) {
+            super(isPrintHelp, sessionId, initFile, sqlFile, updateStatement, historyFilePath);
+            this.gatewayAddress = gatewayAddress;
+        }
+
+        public Optional<InetSocketAddress> getGatewayAddress() {
+            return Optional.ofNullable(gatewayAddress);
+        }
     }
 }

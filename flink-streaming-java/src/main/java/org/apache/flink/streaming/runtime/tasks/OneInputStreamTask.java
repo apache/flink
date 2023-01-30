@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
+import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.flink.shaded.curator5.com.google.common.collect.Iterables;
 
@@ -204,7 +206,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                                 .getInPhysicalEdges(getUserCodeClassLoader())
                                 .get(gateIndex)
                                 .getPartitioner(),
-                getEnvironment().getTaskInfo());
+                getEnvironment().getTaskInfo(),
+                getCanEmitBatchOfRecords());
     }
 
     /**
@@ -217,6 +220,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         private final WatermarkGauge watermarkGauge;
         private final Counter numRecordsIn;
+        private final ThrowingConsumer<StreamRecord<IN>, Exception> recordProcessor;
 
         private StreamTaskNetworkOutput(
                 Input<IN> operator, WatermarkGauge watermarkGauge, Counter numRecordsIn) {
@@ -224,13 +228,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
             this.operator = checkNotNull(operator);
             this.watermarkGauge = checkNotNull(watermarkGauge);
             this.numRecordsIn = checkNotNull(numRecordsIn);
+            this.recordProcessor = RecordProcessorUtils.getRecordProcessor(operator);
         }
 
         @Override
         public void emitRecord(StreamRecord<IN> record) throws Exception {
             numRecordsIn.inc();
-            operator.setKeyContextElement(record);
-            operator.processElement(record);
+            recordProcessor.accept(record);
         }
 
         @Override

@@ -27,20 +27,20 @@ import java.util.List;
 /** Operation to describe ALTER TABLE DROP PARTITION statement. */
 public class DropPartitionsOperation extends AlterTableOperation {
 
-    private final boolean ifExists;
+    private final boolean ignoreIfPartitionNotExists;
     private final List<CatalogPartitionSpec> partitionSpecs;
 
     public DropPartitionsOperation(
             ObjectIdentifier tableIdentifier,
-            boolean ifExists,
+            boolean ignoreIfPartitionNotExists,
             List<CatalogPartitionSpec> partitionSpecs) {
-        super(tableIdentifier);
-        this.ifExists = ifExists;
+        super(tableIdentifier, false);
+        this.ignoreIfPartitionNotExists = ignoreIfPartitionNotExists;
         this.partitionSpecs = partitionSpecs;
     }
 
-    public boolean ifExists() {
-        return ifExists;
+    public boolean ignoreIfPartitionNotExists() {
+        return ignoreIfPartitionNotExists;
     }
 
     public List<CatalogPartitionSpec> getPartitionSpecs() {
@@ -52,7 +52,7 @@ public class DropPartitionsOperation extends AlterTableOperation {
         StringBuilder builder =
                 new StringBuilder(
                         String.format("ALTER TABLE %s DROP", tableIdentifier.asSummaryString()));
-        if (ifExists) {
+        if (ignoreIfPartitionNotExists) {
             builder.append(" IF EXISTS");
         }
         for (CatalogPartitionSpec spec : partitionSpecs) {

@@ -32,21 +32,13 @@ public class DockerImageVersions {
 
     public static final String SCHEMA_REGISTRY = "confluentinc/cp-schema-registry:7.2.2";
 
-    public static final String RABBITMQ = "rabbitmq:3.9.8-management-alpine";
-
     public static final String KINESALITE = "instructure/kinesalite:latest";
 
     public static final String LOCALSTACK = "localstack/localstack:0.13.3";
 
-    public static final String PULSAR = "apachepulsar/pulsar:2.10.2";
-
-    public static final String CASSANDRA_4_0 = "cassandra:4.0.3";
-
     public static final String MINIO = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
 
     public static final String ZOOKEEPER = "zookeeper:3.4.14";
-
-    public static final String POSTGRES = "postgres:9.6.12";
 
     public static final String GOOGLE_CLOUD_PUBSUB_EMULATOR =
             "gcr.io/google.com/cloudsdktool/cloud-sdk:379.0.0";

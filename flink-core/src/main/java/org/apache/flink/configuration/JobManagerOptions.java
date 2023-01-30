@@ -25,6 +25,9 @@ import org.apache.flink.configuration.description.Description;
 import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -543,9 +546,7 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s. "
-                                                    + "Currently, this option should be configured as a power of 2, "
-                                                    + "otherwise it will also be rounded up to a power of 2 automatically.",
+                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -561,9 +562,7 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s. "
-                                                    + "Currently, this option should be configured as a power of 2, "
-                                                    + "otherwise it will also be rounded down to a power of 2 automatically.",
+                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -580,9 +579,7 @@ public class JobManagerOptions {
                             Description.builder()
                                     .text(
                                             "The average size of data volume to expect each task instance to process if %s has been set to %s. "
-                                                    + "Note that since the parallelism of the vertices is adjusted to a power of 2, "
-                                                    + "the actual average size will be 0.75~1.5 times this value. "
-                                                    + "It is also important to note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
+                                                    + "Note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
                                                     + "the data actually processed by some tasks may far exceed this value.",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()),
@@ -649,6 +646,52 @@ public class JobManagerOptions {
                     .noDefaultValue()
                     .withDescription(
                             "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
+
+    /** Constraints of upstream hybrid partition data consumption by downstream. */
+    public enum HybridPartitionDataConsumeConstraint {
+        ALL_PRODUCERS_FINISHED(true),
+        ONLY_FINISHED_PRODUCERS(true),
+        UNFINISHED_PRODUCERS(false);
+
+        private final boolean onlyConsumeFinishedPartition;
+
+        HybridPartitionDataConsumeConstraint(boolean onlyConsumeFinishedPartition) {
+            this.onlyConsumeFinishedPartition = onlyConsumeFinishedPartition;
+        }
+
+        public boolean isOnlyConsumeFinishedPartition() {
+            return onlyConsumeFinishedPartition;
+        }
+    }
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<HybridPartitionDataConsumeConstraint>
+            HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT =
+                    key("jobmanager.partition.hybrid.partition-data-consume-constraint")
+                            .enumType(HybridPartitionDataConsumeConstraint.class)
+                            .noDefaultValue()
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Controls the constraint that hybrid partition data can be consumed. "
+                                                            + "Note that this option is allowed only when %s has been set to %s. "
+                                                            + "Accepted values are:",
+                                                    code(SCHEDULER.key()),
+                                                    code(SchedulerType.AdaptiveBatch.name()))
+                                            .list(
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed only when all producers are finished.",
+                                                            code(ALL_PRODUCERS_FINISHED.name())),
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed when its producer is finished.",
+                                                            code(ONLY_FINISHED_PRODUCERS.name())),
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed even if its producer is un-finished.",
+                                                            code(UNFINISHED_PRODUCERS.name())))
+                                            .build());
 
     // ---------------------------------------------------------------------------------------------
 

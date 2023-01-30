@@ -63,6 +63,18 @@
             <td>The desired context from your Kubernetes config file used to configure the Kubernetes client for interacting with the cluster. This could be helpful if one has multiple contexts configured and wants to administrate different Flink clusters on different Kubernetes clusters/contexts.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.decorator.hadoop-conf-mount.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable Hadoop configuration mount decorator. This must be set to false when Hadoop config is mounted outside of Flink. A typical use-case is when one uses Flink Kubernetes Operator.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.decorator.kerberos-mount.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable Kerberos mount decorator. This must be set to false when Kerberos config and keytab is mounted outside of Flink. A typical use-case is when one uses Flink Kubernetes Operator.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.entry.path</h5></td>
             <td style="word-wrap: break-word;">"/docker-entrypoint.sh"</td>
             <td>String</td>

@@ -78,26 +78,28 @@ public class ClassLoaderITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
 
-    private static final String INPUT_SPLITS_PROG_JAR_FILE = "customsplit-test-jar.jar";
+    private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
 
     private static final String STREAMING_INPUT_SPLITS_PROG_JAR_FILE =
-            "streaming-customsplit-test-jar.jar";
+            "target/streaming-customsplit-test-jar.jar";
 
-    private static final String STREAMING_PROG_JAR_FILE = "streamingclassloader-test-jar.jar";
+    private static final String STREAMING_PROG_JAR_FILE =
+            "target/streamingclassloader-test-jar.jar";
 
     private static final String STREAMING_CHECKPOINTED_PROG_JAR_FILE =
-            "streaming-checkpointed-classloader-test-jar.jar";
+            "target/streaming-checkpointed-classloader-test-jar.jar";
 
-    private static final String KMEANS_JAR_PATH = "kmeans-test-jar.jar";
+    private static final String KMEANS_JAR_PATH = "target/kmeans-test-jar.jar";
 
-    private static final String USERCODETYPE_JAR_PATH = "usercodetype-test-jar.jar";
+    private static final String USERCODETYPE_JAR_PATH = "target/usercodetype-test-jar.jar";
 
-    private static final String CUSTOM_KV_STATE_JAR_PATH = "custom_kv_state-test-jar.jar";
+    private static final String CUSTOM_KV_STATE_JAR_PATH = "target/custom_kv_state-test-jar.jar";
 
     private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH =
-            "checkpointing_custom_kv_state-test-jar.jar";
+            "target/checkpointing_custom_kv_state-test-jar.jar";
 
-    private static final String CLASSLOADING_POLICY_JAR_PATH = "classloading_policy-test-jar.jar";
+    private static final String CLASSLOADING_POLICY_JAR_PATH =
+            "target/classloading_policy-test-jar.jar";
 
     @ClassRule public static final TemporaryFolder FOLDER = new TemporaryFolder();
 

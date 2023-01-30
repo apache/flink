@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.util;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -36,6 +37,7 @@ public class GetInfoResponseBody implements ResponseBody {
     @JsonProperty(FIELD_PRODUCT_VERSION)
     private final String productVersion;
 
+    @JsonCreator
     public GetInfoResponseBody(
             @JsonProperty(FIELD_PRODUCT_NAME) String productName,
             @JsonProperty(FIELD_PRODUCT_VERSION) String productVersion) {

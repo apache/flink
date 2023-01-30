@@ -265,19 +265,24 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
 
     private Optional<BufferIndexOrError> checkAndGetFirstBufferIndexOrError(int expectedBufferIndex)
             throws Throwable {
-        if (loadedBuffers.isEmpty()) {
-            return Optional.empty();
-        }
-
         BufferIndexOrError peek = loadedBuffers.peek();
-
-        if (peek.getThrowable().isPresent()) {
-            throw peek.getThrowable().get();
-        } else if (peek.getIndex() != expectedBufferIndex) {
-            return Optional.empty();
+        while (peek != null) {
+            if (peek.getThrowable().isPresent()) {
+                throw peek.getThrowable().get();
+            } else if (peek.getIndex() == expectedBufferIndex) {
+                break;
+            } else if (peek.getIndex() > expectedBufferIndex) {
+                return Optional.empty();
+            } else if (peek.getIndex() < expectedBufferIndex) {
+                // Because the update of consumption progress may be delayed, there is a
+                // very small probability to load the buffer that has been consumed from memory.
+                // Skip these buffers directly to avoid repeated consumption.
+                loadedBuffers.poll();
+                peek = loadedBuffers.peek();
+            }
         }
 
-        return Optional.of(peek);
+        return Optional.ofNullable(peek);
     }
 
     private void moveFileOffsetToBuffer(int bufferIndex) throws IOException {

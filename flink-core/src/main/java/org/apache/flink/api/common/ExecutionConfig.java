@@ -21,7 +21,6 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -49,6 +48,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -344,6 +344,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return this;
     }
 
+    @Internal
+    public void resetParallelism() {
+        configuration.removeConfig(CoreOptions.DEFAULT_PARALLELISM);
+    }
+
     /**
      * Gets the maximum degree of parallelism defined for the program.
      *
@@ -464,20 +469,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         }
     }
 
-    /**
-     * TODO: this shouldn't exist and shouldn't pollute public API. Tests should change this via
-     * Configuration
-     */
-    @VisibleForTesting
     @Internal
-    public ExecutionConfig setScheduler(SchedulerType schedulerType) {
-        configuration.set(JobManagerOptions.SCHEDULER, schedulerType);
-        return this;
-    }
-
-    @Internal
-    public boolean isDynamicGraph() {
-        return configuration.get(JobManagerOptions.SCHEDULER) == SchedulerType.AdaptiveBatch;
+    public Optional<SchedulerType> getSchedulerType() {
+        return configuration.getOptional(JobManagerOptions.SCHEDULER);
     }
 
     /**
@@ -1157,7 +1151,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
 
-        configuration.getOptional(JobManagerOptions.SCHEDULER).ifPresent(this::setScheduler);
+        configuration
+                .getOptional(JobManagerOptions.SCHEDULER)
+                .ifPresent(t -> this.configuration.set(JobManagerOptions.SCHEDULER, t));
     }
 
     /**

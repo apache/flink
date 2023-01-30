@@ -50,10 +50,8 @@ import org.junit.rules.ExpectedException
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time._
 import java.util
-
-import scala.collection.Seq
 
 class CalcITCase extends BatchTestBase {
 
@@ -2114,5 +2112,30 @@ class CalcITCase extends BatchTestBase {
         false)
     tEnv.useDatabase("db1")
     checkResult("SELECT CURRENT_DATABASE()", Seq(row(tEnv.getCurrentDatabase)))
+  }
+
+  @Test
+  def testLikeWithConditionContainsDoubleQuotationMark(): Unit = {
+    val rows = Seq(row(42, "abc"), row(2, "cbc\"ddd"))
+    val dataId = TestValuesTableFactory.registerData(rows)
+
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  b string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      """
+        | SELECT * FROM MyTable WHERE b LIKE '%"%'
+        |""".stripMargin,
+      Seq(row(2, "cbc\"ddd")))
   }
 }

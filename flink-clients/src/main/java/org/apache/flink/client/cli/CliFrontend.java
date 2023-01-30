@@ -83,6 +83,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.lang.Math.min;
 import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -90,6 +91,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CliFrontend {
 
     private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
+
+    private static final int INITIAL_RET_CODE = 31;
 
     // actions
     private static final String ACTION_RUN = "run";
@@ -1149,6 +1152,16 @@ public class CliFrontend {
 
     /** Submits the job based on the arguments. */
     public static void main(final String[] args) {
+        int retCode = INITIAL_RET_CODE;
+        try {
+            retCode = mainInternal(args);
+        } finally {
+            System.exit(retCode);
+        }
+    }
+
+    @VisibleForTesting
+    static int mainInternal(final String[] args) {
         EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
         // 1. find the configuration directory
@@ -1162,12 +1175,14 @@ public class CliFrontend {
         final List<CustomCommandLine> customCommandLines =
                 loadCustomCommandLines(configuration, configurationDirectory);
 
-        int retCode = 31;
+        int retCode = INITIAL_RET_CODE;
         try {
             final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
             CommandLine commandLine =
                     cli.getCommandLine(
-                            new Options(), Arrays.copyOfRange(args, 1, args.length), true);
+                            new Options(),
+                            Arrays.copyOfRange(args, min(args.length, 1), args.length),
+                            true);
             Configuration securityConfig = new Configuration(cli.configuration);
             DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
             SecurityUtils.install(new SecurityConfiguration(securityConfig));
@@ -1177,9 +1192,8 @@ public class CliFrontend {
                     ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
             LOG.error("Fatal error while running command line interface.", strippedThrowable);
             strippedThrowable.printStackTrace();
-        } finally {
-            System.exit(retCode);
         }
+        return retCode;
     }
 
     // --------------------------------------------------------------------------------------------

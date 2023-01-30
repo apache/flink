@@ -139,10 +139,25 @@ public class PushProjectIntoTableSourceScanRule
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
         final ResolvedSchema schema = sourceTable.contextResolvedTable().getResolvedSchema();
         final RowType producedType = createProducedType(schema, sourceTable.tableSource());
-        final NestedSchema projectedSchema =
+        NestedSchema projectedSchema =
                 NestedProjectionUtil.build(
                         getProjections(project, scan),
                         typeFactory.buildRelNodeRowType(producedType));
+        // we can not perform an empty column query to the table scan, just choose the first column
+        // in such case
+        if (projectedSchema.columns().isEmpty()) {
+            if (scan.getRowType().getFieldCount() == 0) {
+                throw new TableException(
+                        "Unexpected empty row type of source table:"
+                                + String.join(".", scan.getTable().getQualifiedName()));
+            }
+            RexInputRef firstFieldRef = RexInputRef.of(0, scan.getRowType());
+            projectedSchema =
+                    NestedProjectionUtil.build(
+                            Collections.singletonList(firstFieldRef),
+                            typeFactory.buildRelNodeRowType(producedType));
+        }
+
         if (!supportsNestedProjection) {
             for (NestedColumn column : projectedSchema.columns().values()) {
                 column.markLeaf();

@@ -19,6 +19,7 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.LogicalScopeProvider;
@@ -162,6 +163,28 @@ public class InMemoryReporter implements MetricReporter {
                                             && getJobId(g).equals(jobId.toString()))
                     .map(OperatorMetricGroup.class::cast)
                     .sorted(Comparator.comparing(this::getSubtaskId))
+                    .collect(Collectors.toList());
+        }
+    }
+
+    public List<Tuple3<MetricGroup, String, Metric>> findJobMetricGroups(
+            JobID jobId, String metricPattern) {
+        Pattern pattern = Pattern.compile(metricPattern);
+        synchronized (this) {
+            return metrics.entrySet().stream()
+                    .filter(group -> Objects.equals(getJobId(group.getKey()), jobId.toString()))
+                    .flatMap(
+                            group ->
+                                    group.getValue().entrySet().stream()
+                                            .filter(
+                                                    metric ->
+                                                            pattern.matcher(metric.getKey()).find())
+                                            .map(
+                                                    metric ->
+                                                            Tuple3.of(
+                                                                    group.getKey(),
+                                                                    metric.getKey(),
+                                                                    metric.getValue())))
                     .collect(Collectors.toList());
         }
     }

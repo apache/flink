@@ -28,7 +28,7 @@ then
 fi
 
 # This is the pattern that determines which containers we save.
-DOCKER_IMAGE_CACHE_PATTERN="testcontainers|kafka|postgres|mysql|pulsar|cassandra|schema-registry"
+DOCKER_IMAGE_CACHE_PATTERN="testcontainers|kafka|mysql|pulsar|schema-registry"
 
 # The path to the tar file that will contain the saved docker images.
 DOCKER_IMAGES_CACHE_PATH="${DOCKER_IMAGES_CACHE_FOLDER}/cache.tar"

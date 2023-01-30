@@ -15,10 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from typing import Iterable, Tuple, Dict
-
-import pytest
 
 from pyflink.common import Configuration
 from pyflink.common.time import Time
@@ -600,7 +597,6 @@ class ProcessWindowTests(WindowTests, PyFlinkStreamingTestCase):
         config.setString("python.execution-mode", "process")
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedWindowTests(WindowTests, PyFlinkStreamingTestCase):
     def setUp(self) -> None:
         super(EmbeddedWindowTests, self).setUp()

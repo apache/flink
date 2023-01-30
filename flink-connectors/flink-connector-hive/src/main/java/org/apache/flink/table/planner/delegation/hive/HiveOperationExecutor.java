@@ -147,7 +147,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
     private TableResultInternal buildResultForShowVariable(List<String> results) {
         List<Row> rows = results.stream().map(Row::of).collect(Collectors.toList());
         return TableResultImpl.builder()
-                .resultKind(ResultKind.SUCCESS)
+                .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                 .schema(ResolvedSchema.of(Column.physical("variables", DataTypes.STRING())))
                 .data(rows)
                 .build();

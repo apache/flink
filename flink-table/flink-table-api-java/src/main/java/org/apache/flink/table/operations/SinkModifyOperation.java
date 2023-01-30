@@ -38,11 +38,12 @@ import java.util.Map;
 @Internal
 public class SinkModifyOperation implements ModifyOperation {
 
-    private final ContextResolvedTable contextResolvedTable;
+    protected final ContextResolvedTable contextResolvedTable;
     private final Map<String, String> staticPartitions;
     private final QueryOperation child;
     private final boolean overwrite;
     private final Map<String, String> dynamicOptions;
+    private final ModifyType modifyType;
 
     public SinkModifyOperation(ContextResolvedTable contextResolvedTable, QueryOperation child) {
         this(contextResolvedTable, child, Collections.emptyMap(), false, Collections.emptyMap());
@@ -51,14 +52,44 @@ public class SinkModifyOperation implements ModifyOperation {
     public SinkModifyOperation(
             ContextResolvedTable contextResolvedTable,
             QueryOperation child,
+            ModifyType modifyType) {
+        this(
+                contextResolvedTable,
+                child,
+                Collections.emptyMap(),
+                false,
+                Collections.emptyMap(),
+                modifyType);
+    }
+
+    public SinkModifyOperation(
+            ContextResolvedTable contextResolvedTable,
+            QueryOperation child,
             Map<String, String> staticPartitions,
             boolean overwrite,
             Map<String, String> dynamicOptions) {
+        this(
+                contextResolvedTable,
+                child,
+                staticPartitions,
+                overwrite,
+                dynamicOptions,
+                ModifyType.INSERT);
+    }
+
+    public SinkModifyOperation(
+            ContextResolvedTable contextResolvedTable,
+            QueryOperation child,
+            Map<String, String> staticPartitions,
+            boolean overwrite,
+            Map<String, String> dynamicOptions,
+            ModifyType modifyType) {
         this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.staticPartitions = staticPartitions;
         this.overwrite = overwrite;
         this.dynamicOptions = dynamicOptions;
+        this.modifyType = modifyType;
     }
 
     public ContextResolvedTable getContextResolvedTable() {
@@ -71,6 +102,14 @@ public class SinkModifyOperation implements ModifyOperation {
 
     public boolean isOverwrite() {
         return overwrite;
+    }
+
+    public boolean isUpdate() {
+        return modifyType == ModifyType.UPDATE;
+    }
+
+    public boolean isDelete() {
+        return modifyType == ModifyType.DELETE;
     }
 
     public Map<String, String> getDynamicOptions() {
@@ -91,6 +130,7 @@ public class SinkModifyOperation implements ModifyOperation {
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
+        params.put("modifyType", modifyType);
         params.put("staticPartitions", staticPartitions);
         params.put("overwrite", overwrite);
         params.put("dynamicOptions", dynamicOptions);
@@ -100,5 +140,14 @@ public class SinkModifyOperation implements ModifyOperation {
                 params,
                 Collections.singletonList(child),
                 Operation::asSummaryString);
+    }
+
+    /** The type of sink modification. */
+    public enum ModifyType {
+        INSERT,
+
+        UPDATE,
+
+        DELETE
     }
 }

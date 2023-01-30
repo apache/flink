@@ -177,7 +177,8 @@ public class MultipleInputStreamTask<OUT>
                         operatorChain,
                         getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
                         gatePartitioners,
-                        getEnvironment().getTaskInfo());
+                        getEnvironment().getTaskInfo(),
+                        getCanEmitBatchOfRecords());
     }
 
     protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
@@ -203,6 +204,15 @@ public class MultipleInputStreamTask<OUT>
         } else {
             return triggerSourcesCheckpointAsync(metadata, options);
         }
+    }
+
+    // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing
+    // behavior of choosing an input every time a record is emitted. This behavior is good for
+    // fairness between input consumption. But it can reduce throughput due to added control
+    // flow cost on the per-record code path.
+    @Override
+    public CanEmitBatchOfRecordsChecker getCanEmitBatchOfRecords() {
+        return () -> false;
     }
 
     private boolean isSynchronous(SnapshotType snapshotType) {

@@ -18,6 +18,7 @@
 
 import { NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
+import { RouterModule } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
@@ -27,6 +28,8 @@ import {
   JobBackpressure,
   JobBackpressureSubtask,
   JobBackpressureSubtaskData,
+  JobVertexSubTaskData,
+  JobVertexSubTaskDetail,
   NodesItemCorrect
 } from '@flink-runtime-web/interfaces';
 import {
@@ -46,7 +49,7 @@ import { JobLocalService } from '../../job-local.service';
   templateUrl: './job-overview-drawer-backpressure.component.html',
   styleUrls: ['./job-overview-drawer-backpressure.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, HumanizeDurationPipe, NzDividerModule, DynamicHostComponent, NgForOf],
+  imports: [NzTableModule, NgIf, HumanizeDurationPipe, NzDividerModule, DynamicHostComponent, NgForOf, RouterModule],
   standalone: true
 })
 export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy {
@@ -61,6 +64,7 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
   backpressure = {} as JobBackpressure;
   listOfSubTaskBackpressure: JobBackpressureSubtask[] = [];
   stateBadgeComponent: Type<unknown>;
+  mapOfSubtask: Map<number, JobVertexSubTaskData> = new Map();
 
   readonly narrowType = typeDefinition<JobBackpressureSubtask>();
 
@@ -101,6 +105,25 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
         this.listOfSubTaskBackpressure = data?.subtasks || [];
         this.cdr.markForCheck();
       });
+
+    this.jobLocalService
+      .jobWithVertexChanges()
+      .pipe(
+        mergeMap(data =>
+          this.jobService.loadSubTasks(data.job.jid, data.vertex!.id).pipe(
+            catchError(() => {
+              return of({} as JobVertexSubTaskDetail);
+            })
+          )
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.mapOfSubtask = data?.subtasks.reduce(function (map: Map<number, JobVertexSubTaskData>, obj) {
+          map.set(obj.subtask, obj);
+          return map;
+        }, new Map());
+      });
   }
 
   ngOnDestroy(): void {
@@ -128,5 +151,9 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
     } else {
       return `${Math.round(value * 100)}%`;
     }
+  }
+
+  sortByBusyRatio(a: JobBackpressureSubtask, b: JobBackpressureSubtask): number {
+    return a.busyRatio - b.busyRatio;
   }
 }

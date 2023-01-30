@@ -25,8 +25,9 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.stream.Collectors;
 
 /**
  * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data
@@ -44,6 +45,8 @@ public interface SqlGatewayMessageHeaders<
 
     @Override
     default Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
-        return Collections.singleton(SqlGatewayRestAPIVersion.V1);
+        return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                .collect(Collectors.toList());
     }
 }

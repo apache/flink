@@ -22,6 +22,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.delegation.InternalPlan;
@@ -68,7 +69,7 @@ class CompiledPlanImpl implements CompiledPlan {
     }
 
     @Override
-    public String explain(ExplainDetail... extraDetails) {
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
         return tableEnvironment.explainPlan(internalPlan, extraDetails);
     }
 

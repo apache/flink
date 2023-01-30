@@ -1,0 +1,714 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testDeleteWithoutFilter[deleteMode = DELETED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[DELETE])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithFilter[deleteMode = DELETED_ROWS]">
+	<Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[AND(=($0, 1), =($1, _UTF-16LE'123'))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[CAST(1 AS INTEGER) AS a, CAST('123' AS VARCHAR(2147483647)) AS b], where=[AND(=(a, 1), =(b, '123'))])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[CAST(1 AS INTEGER) AS a, CAST('123' AS VARCHAR(2147483647)) AS b], where=[((a = 1) AND (b = '123'))])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[CAST(1 AS INTEGER) AS a, CAST('123' AS VARCHAR(2147483647)) AS b], where=[((a = 1) AND (b = '123'))])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[DELETE])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithSubQuery[deleteMode = DELETED_ROWS]">
+    <Resource name="explain">
+	  <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'123'), =(CAST($0):BIGINT, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
+})))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[a, CAST('123' AS VARCHAR(2147483647)) AS b])
+   +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a0, EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])
+      :- Calc(select=[a, CAST(a AS BIGINT) AS a0], where=[=(b, '123')])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[a, CAST('123' AS VARCHAR(2147483647)) AS b])
+   +- NestedLoopJoin(joinType=[InnerJoin], where=[(a0 = EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])
+      :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+      :  +- Calc(select=[a, CAST(a AS BIGINT) AS a0], where=[(b = '123')])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])(reuse_id=[1])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- Reused(reference_id=[1])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, CAST(a AS BIGINT) AS a0], where=[(b = '123')])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[0 AS $f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "NestedLoopJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:NestedLoopJoin(joinType=[InnerJoin], where=[(a0 = EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])",
+    "parallelism" : 12,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, CAST('123' AS VARCHAR(2147483647)) AS b])",
+    "parallelism" : 12,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[DELETE])",
+    "parallelism" : 12,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithCustomColumns[deleteMode = DELETED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[b, c])
++- LogicalProject(b=[$1], c=[$2])
+   +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[b, c])
++- Calc(select=[CAST('123' AS VARCHAR(2147483647)) AS b, c], where=[=(b, '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[b, c])
++- Calc(select=[CAST('123' AS VARCHAR(2147483647)) AS b, c], where=[(b = '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[CAST('123' AS VARCHAR(2147483647)) AS b, c], where=[(b = '123')])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[DELETE])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithMetaColumns[deleteMode = DELETED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
++- LogicalProject(meta_f1=[$3], meta_f2=[$4], b=[$1])
+   +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
++- Calc(select=[meta_f1, meta_f2, CAST('123' AS VARCHAR(2147483647)) AS b], where=[=(b, '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
++- Calc(select=[meta_f1, meta_f2, CAST('123' AS VARCHAR(2147483647)) AS b], where=[(b = '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[meta_f1, meta_f2, CAST('123' AS VARCHAR(2147483647)) AS b], where=[(b = '123')])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[DELETE])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithoutFilter[deleteMode = REMAINING_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[false])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Values(tuples=[[]], values=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Values(tuples=[[]], values=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Values[]",
+    "pact" : "Data Source",
+    "contents" : "[]:Values(tuples=[[]], values=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithFilter[deleteMode = REMAINING_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[NOT(AND(=($0, 1), =($1, _UTF-16LE'123')))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[a, b], where=[OR(<>(a, 1), <>(b, '123'))])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[a, b], where=[((a <> 1) OR (b <> '123'))])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b], where=[((a <> 1) OR (b <> '123'))])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithSubQuery[deleteMode = REMAINING_ROWS]">
+    <Resource name="explain">
+		<![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[NOT(AND(=($1, _UTF-16LE'123'), =(CAST($0):BIGINT, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
+}))))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[a, b], where=[OR(<>(b, '123'), <>(CAST(a AS BIGINT), EXPR$0))])
+   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
+      :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[a, b])
++- Calc(select=[a, b], where=[((b <> '123') OR (CAST(a AS BIGINT) <> EXPR$0))])
+   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
+      :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])(reuse_id=[1])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- Reused(reference_id=[1])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[0 AS $f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "NestedLoopJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])",
+    "parallelism" : 12,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b], where=[((b <> '123') OR (CAST(a AS BIGINT) <> EXPR$0))])",
+    "parallelism" : 12,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithCustomColumns[deleteMode = REMAINING_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[b, c])
++- LogicalProject(b=[$1], c=[$2])
+   +- LogicalFilter(condition=[NOT(=($1, _UTF-16LE'123'))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[b, c])
++- Calc(select=[b, c], where=[<>(b, '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[b, c])
++- Calc(select=[b, c], where=[(b <> '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[b, c], where=[(b <> '123')])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testDeleteWithMetaColumns[deleteMode = REMAINING_ROWS]">
+    <Resource name="explain">
+	  <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
++- LogicalProject(meta_f1=[$3], meta_f2=[$4], b=[$1])
+   +- LogicalFilter(condition=[NOT(=($1, _UTF-16LE'123'))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
++- Calc(select=[meta_f1, meta_f2, b], where=[<>(b, '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
++- Calc(select=[meta_f1, meta_f2, b], where=[(b <> '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[meta_f1, meta_f2, b], where=[(b <> '123')])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+	</Resource>
+  </TestCase>
+</Root>

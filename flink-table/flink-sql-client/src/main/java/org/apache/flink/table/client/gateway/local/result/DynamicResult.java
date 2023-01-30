@@ -25,12 +25,6 @@ package org.apache.flink.table.client.gateway.local.result;
  */
 public interface DynamicResult {
 
-    /**
-     * Returns whether this result is materialized such that snapshots can be taken or results must
-     * be retrieved record-wise.
-     */
-    boolean isMaterialized();
-
     /** Closes the retrieval and all involved threads. */
-    void close() throws Exception;
+    void close();
 }

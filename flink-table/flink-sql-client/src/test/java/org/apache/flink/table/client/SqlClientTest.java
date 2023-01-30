@@ -21,6 +21,7 @@ package org.apache.flink.table.client;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.client.cli.TerminalUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.jline.terminal.Terminal;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -111,11 +113,13 @@ class SqlClientTest {
     }
 
     @Test
-    void testUnsupportedGatewayMode() {
+    void testGatewayModeWithoutAddress() throws Exception {
         String[] args = new String[] {"gateway"};
-        assertThatThrownBy(() -> SqlClient.main(args))
-                .isInstanceOf(SqlClientException.class)
-                .hasMessage("Gateway mode is not supported yet.");
+        assertThrows(
+                "Please specify the address of the SQL Gateway with command line option"
+                        + " '-e,--endpoint <SQL Gateway address>' in the gateway mode.",
+                SqlClientException.class,
+                () -> runSqlClient(args));
     }
 
     @Test
@@ -179,7 +183,7 @@ class SqlClientTest {
 
         String[] args = new String[] {"-i", initFile};
         String output = runSqlClient(args, "SET;\nQUIT;\n");
-        assertThat(output).contains("'key' = 'value'");
+        assertThat(output).contains("key", "value");
     }
 
     @Test
@@ -202,6 +206,34 @@ class SqlClientTest {
         assertThatThrownBy(() -> runSqlClient(args))
                 .isInstanceOf(SqlClientException.class)
                 .hasMessage("SQL Client only supports to load files in local.");
+    }
+
+    @Test
+    public void testPrintEmbeddedModeHelp() throws Exception {
+        runTestCliHelp(new String[] {"embedded", "--help"}, "cli/embedded-mode-help.out");
+    }
+
+    @Test
+    public void testPrintGatewayModeHelp() throws Exception {
+        runTestCliHelp(new String[] {"gateway", "--help"}, "cli/gateway-mode-help.out");
+    }
+
+    @Test
+    public void testPrintAllModeHelp() throws Exception {
+        runTestCliHelp(new String[] {"--help"}, "cli/all-mode-help.out");
+    }
+
+    private void runTestCliHelp(String[] args, String expected) throws Exception {
+        String actual =
+                new String(
+                        Files.readAllBytes(
+                                Paths.get(
+                                        Preconditions.checkNotNull(
+                                                        SqlClientTest.class
+                                                                .getClassLoader()
+                                                                .getResource(expected))
+                                                .toURI())));
+        assertThat(runSqlClient(args)).isEqualTo(actual);
     }
 
     private String runSqlClient(String[] args) throws Exception {

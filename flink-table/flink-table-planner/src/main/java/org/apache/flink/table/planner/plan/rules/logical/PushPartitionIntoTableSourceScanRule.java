@@ -100,7 +100,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         if (!(dynamicTableSource instanceof SupportsPartitionPushDown)) {
             return false;
         }
-        CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getTable();
+        CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getResolvedTable();
         if (!catalogTable.isPartitioned() || catalogTable.getPartitionKeys().isEmpty()) {
             return false;
         }

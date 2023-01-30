@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
@@ -51,6 +50,7 @@ import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
@@ -146,7 +146,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     }
 
     public static DefaultSlotPoolServiceSchedulerFactory fromConfiguration(
-            Configuration configuration, JobType jobType) {
+            Configuration configuration, JobType jobType, boolean isDynamicGraph) {
 
         final Time rpcTimeout =
                 Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
@@ -159,7 +159,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         final SchedulerNGFactory schedulerNGFactory;
 
         JobManagerOptions.SchedulerType schedulerType =
-                ClusterOptions.getSchedulerType(configuration);
+                getSchedulerType(configuration, jobType, isDynamicGraph);
         if (schedulerType == JobManagerOptions.SchedulerType.Adaptive && jobType == JobType.BATCH) {
             LOG.info(
                     "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to 'Default'.");
@@ -173,6 +173,15 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                     JobManagerOptions.SchedulerType.Default);
             // overwrite
             schedulerType = JobManagerOptions.SchedulerType.Default;
+        }
+
+        if (configuration
+                .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
+                .isPresent()) {
+            Preconditions.checkState(
+                    schedulerType == JobManagerOptions.SchedulerType.AdaptiveBatch,
+                    "Only adaptive batch scheduler supports setting "
+                            + JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT.key());
         }
 
         switch (schedulerType) {
@@ -211,6 +220,24 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
         return new DefaultSlotPoolServiceSchedulerFactory(
                 slotPoolServiceFactory, schedulerNGFactory);
+    }
+
+    private static JobManagerOptions.SchedulerType getSchedulerType(
+            Configuration configuration, JobType jobType, boolean isDynamicGraph) {
+        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                == SchedulerExecutionMode.REACTIVE) {
+            return JobManagerOptions.SchedulerType.Adaptive;
+        } else {
+            return configuration
+                    .getOptional(JobManagerOptions.SCHEDULER)
+                    .orElse(
+                            System.getProperties()
+                                            .containsKey("flink.tests.enable-adaptive-scheduler")
+                                    ? JobManagerOptions.SchedulerType.Adaptive
+                                    : (jobType == JobType.BATCH && isDynamicGraph
+                                            ? JobManagerOptions.SchedulerType.AdaptiveBatch
+                                            : JobManagerOptions.SchedulerType.Default));
+        }
     }
 
     @VisibleForTesting

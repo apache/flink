@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.endpoint.hive.util;
 
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -41,6 +42,7 @@ import org.apache.flink.table.functions.hive.HiveFunction;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -65,6 +67,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_COLUMNS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_FUNCTIONS_SCHEMA;
@@ -537,7 +540,15 @@ public class OperationExecutorFactory {
     }
 
     private static ResultSet buildResultSet(ResolvedSchema schema, List<RowData> data) {
-        return new ResultSet(EOS, null, schema, data);
+        return new ResultSetImpl(
+                EOS,
+                null,
+                schema,
+                data,
+                SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
+                false,
+                null,
+                ResultKind.SUCCESS_WITH_CONTENT);
     }
 
     private static List<Type> getSupportedHiveType() {

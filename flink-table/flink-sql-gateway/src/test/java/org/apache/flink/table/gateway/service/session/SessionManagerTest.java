@@ -19,7 +19,6 @@
 package org.apache.flink.table.gateway.service.session;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -55,9 +54,7 @@ public class SessionManagerTest extends TestLogger {
                 SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL,
                 Duration.ofMillis(100));
         conf.set(SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_MAX_NUM, 3);
-        sessionManager =
-                new SessionManager(
-                        new DefaultContext(conf, Collections.singletonList(new DefaultCLI())));
+        sessionManager = new SessionManager(new DefaultContext(conf, Collections.emptyList()));
         sessionManager.start();
     }
 

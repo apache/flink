@@ -51,4 +51,7 @@ object JavaScalaConversionUtil {
 
   def toScala[T](list: JList[T]): Seq[T] =
     list.asScala
+
+  def toScala[T0, T1](tuple: JTuple2[T0, T1]): (T0, T1) =
+    (tuple.f0, tuple.f1)
 }

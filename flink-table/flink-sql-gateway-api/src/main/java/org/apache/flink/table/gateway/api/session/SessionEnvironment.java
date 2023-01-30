@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.api.session;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -40,8 +41,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SessionEnvironment {
     private final @Nullable String sessionName;
     private final EndpointVersion version;
-    private final Map<String, Catalog> registeredCatalogs;
-    private final Map<String, Module> registeredModules;
+    private final Map<String, CatalogCreator> registeredCatalogCreators;
+    private final Map<String, ModuleCreator> registeredModuleCreators;
     private final @Nullable String defaultCatalog;
     private final Map<String, String> sessionConfig;
 
@@ -49,14 +50,14 @@ public class SessionEnvironment {
     SessionEnvironment(
             @Nullable String sessionName,
             EndpointVersion version,
-            Map<String, Catalog> registeredCatalogs,
-            Map<String, Module> registeredModules,
+            Map<String, CatalogCreator> registeredCatalogCreators,
+            Map<String, ModuleCreator> registeredModuleCreators,
             @Nullable String defaultCatalog,
             Map<String, String> sessionConfig) {
         this.sessionName = sessionName;
         this.version = version;
-        this.registeredCatalogs = registeredCatalogs;
-        this.registeredModules = registeredModules;
+        this.registeredCatalogCreators = registeredCatalogCreators;
+        this.registeredModuleCreators = registeredModuleCreators;
         this.defaultCatalog = defaultCatalog;
         this.sessionConfig = sessionConfig;
     }
@@ -77,12 +78,12 @@ public class SessionEnvironment {
         return Collections.unmodifiableMap(sessionConfig);
     }
 
-    public Map<String, Catalog> getRegisteredCatalogs() {
-        return Collections.unmodifiableMap(registeredCatalogs);
+    public Map<String, CatalogCreator> getRegisteredCatalogCreators() {
+        return Collections.unmodifiableMap(registeredCatalogCreators);
     }
 
-    public Map<String, Module> getRegisteredModules() {
-        return Collections.unmodifiableMap(registeredModules);
+    public Map<String, ModuleCreator> getRegisteredModuleCreators() {
+        return Collections.unmodifiableMap(registeredModuleCreators);
     }
 
     public Optional<String> getDefaultCatalog() {
@@ -102,8 +103,8 @@ public class SessionEnvironment {
         SessionEnvironment that = (SessionEnvironment) o;
         return Objects.equals(sessionName, that.sessionName)
                 && Objects.equals(version, that.version)
-                && Objects.equals(registeredCatalogs, that.registeredCatalogs)
-                && Objects.equals(registeredModules, that.registeredModules)
+                && Objects.equals(registeredCatalogCreators, that.registeredCatalogCreators)
+                && Objects.equals(registeredModuleCreators, that.registeredModuleCreators)
                 && Objects.equals(defaultCatalog, that.defaultCatalog)
                 && Objects.equals(sessionConfig, that.sessionConfig);
     }
@@ -113,8 +114,8 @@ public class SessionEnvironment {
         return Objects.hash(
                 sessionName,
                 version,
-                registeredCatalogs,
-                registeredModules,
+                registeredCatalogCreators,
+                registeredModuleCreators,
                 defaultCatalog,
                 sessionConfig);
     }
@@ -133,8 +134,8 @@ public class SessionEnvironment {
         private @Nullable String sessionName;
         private EndpointVersion version;
         private final Map<String, String> sessionConfig = new HashMap<>();
-        private final Map<String, Catalog> registeredCatalogs = new HashMap<>();
-        private final Map<String, Module> registeredModules = new HashMap<>();
+        private final Map<String, CatalogCreator> registeredCatalogCreators = new HashMap<>();
+        private final Map<String, ModuleCreator> registeredModuleCreators = new HashMap<>();
         private @Nullable String defaultCatalog;
 
         public Builder setSessionName(String sessionName) {
@@ -158,21 +159,41 @@ public class SessionEnvironment {
         }
 
         public Builder registerCatalog(String catalogName, Catalog catalog) {
-            if (registeredCatalogs.containsKey(catalogName)) {
+            if (registeredCatalogCreators.containsKey(catalogName)) {
                 throw new ValidationException(
                         String.format("A catalog with name '%s' already exists.", catalogName));
             }
-            this.registeredCatalogs.put(catalogName, catalog);
+            this.registeredCatalogCreators.put(
+                    catalogName, (configuration, classLoader) -> catalog);
+            return this;
+        }
+
+        public Builder registerCatalogCreator(String catalogName, CatalogCreator catalogCreator) {
+            if (registeredCatalogCreators.containsKey(catalogName)) {
+                throw new ValidationException(
+                        String.format("A catalog with name '%s' already exists.", catalogName));
+            }
+            this.registeredCatalogCreators.put(catalogName, catalogCreator);
             return this;
         }
 
         public Builder registerModuleAtHead(String moduleName, Module module) {
-            if (registeredModules.containsKey(moduleName)) {
+            if (registeredModuleCreators.containsKey(moduleName)) {
                 throw new ValidationException(
                         String.format("A module with name '%s' already exists", moduleName));
             }
 
-            this.registeredModules.put(moduleName, module);
+            this.registeredModuleCreators.put(moduleName, (configuration, classLoader) -> module);
+            return this;
+        }
+
+        public Builder registerModuleCreatorAtHead(String moduleName, ModuleCreator moduleCreator) {
+            if (registeredModuleCreators.containsKey(moduleName)) {
+                throw new ValidationException(
+                        String.format("A module with name '%s' already exists", moduleName));
+            }
+
+            this.registeredModuleCreators.put(moduleName, moduleCreator);
             return this;
         }
 
@@ -180,10 +201,34 @@ public class SessionEnvironment {
             return new SessionEnvironment(
                     sessionName,
                     checkNotNull(version),
-                    registeredCatalogs,
-                    registeredModules,
+                    registeredCatalogCreators,
+                    registeredModuleCreators,
                     defaultCatalog,
                     sessionConfig);
         }
+    }
+
+    /** An interface used to create {@link Module}. */
+    @PublicEvolving
+    public interface ModuleCreator {
+
+        /**
+         * @param configuration The read-only configuration with which the module is created.
+         * @param classLoader The class loader with which the module is created.
+         * @return The created module object.
+         */
+        Module create(ReadableConfig configuration, ClassLoader classLoader);
+    }
+
+    /** An interface used to create {@link Catalog}. */
+    @PublicEvolving
+    public interface CatalogCreator {
+
+        /**
+         * @param configuration The read-only configuration with which the catalog is created.
+         * @param classLoader The class loader with which the catalog is created.
+         * @return The created catalog object.
+         */
+        Catalog create(ReadableConfig configuration, ClassLoader classLoader);
     }
 }

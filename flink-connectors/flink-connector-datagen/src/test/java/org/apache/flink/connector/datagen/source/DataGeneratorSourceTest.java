@@ -86,10 +86,11 @@ class DataGeneratorSourceTest {
     @Test
     @DisplayName("Uses the underlying NumberSequenceSource correctly for checkpointing.")
     void testReaderCheckpoints() throws Exception {
-        final long from = 177;
-        final long mid = 333;
-        final long to = 563;
-        final long elementsPerCycle = (to - from) / 3;
+        final int numCycles = 3;
+        final long from = 0;
+        final long mid = 156;
+        final long to = 383;
+        final long elementsPerCycle = (to - from + 1) / numCycles;
 
         final TestingReaderOutput<Long> out = new TestingReaderOutput<>();
 
@@ -99,22 +100,47 @@ class DataGeneratorSourceTest {
                         new NumberSequenceSource.NumberSequenceSplit("split-1", from, mid),
                         new NumberSequenceSource.NumberSequenceSplit("split-2", mid + 1, to)));
 
-        long remainingInCycle = elementsPerCycle;
-        while (reader.pollNext(out) != InputStatus.END_OF_INPUT) {
-            if (--remainingInCycle <= 0) {
-                remainingInCycle = elementsPerCycle;
-                // checkpoint
-                List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
+        for (int cycle = 0; cycle < numCycles; cycle++) {
+            // this call is not required but mimics what happens at runtime
+            assertThat(reader.pollNext(out))
+                    .as(
+                            "Each poll should return a NOTHING_AVAILABLE status to explicitly trigger the availability check through in SourceReader.isAvailable")
+                    .isSameAs(InputStatus.NOTHING_AVAILABLE);
+            for (int elementInCycle = 0; elementInCycle < elementsPerCycle; elementInCycle++) {
+                assertThat(reader.isAvailable())
+                        .as(
+                                "There should be always data available because the test utilizes no rate-limiting strategy and splits are provided.")
+                        .isCompleted();
+                // this never returns END_OF_INPUT because IteratorSourceReaderBase#pollNext does
+                // not immediately return END_OF_INPUT when the input is exhausted
+                assertThat(reader.pollNext(out))
+                        .as(
+                                "Each poll should return a NOTHING_AVAILABLE status to explicitly trigger the availability check through in SourceReader.isAvailable")
+                        .isSameAs(InputStatus.NOTHING_AVAILABLE);
+            }
+            // checkpoint
+            List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
+            // first cycle partially consumes the first split
+            // second cycle consumes the remaining first split and partially consumes the second
+            // third cycle consumes remaining second split
+            assertThat(splits).hasSize(numCycles - cycle - 1);
 
-                // re-create and restore
-                reader = createReader();
-                if (splits.isEmpty()) {
-                    reader.notifyNoMoreSplits();
-                } else {
-                    reader.addSplits(splits);
-                }
+            // re-create and restore
+            reader = createReader();
+            if (splits.isEmpty()) {
+                reader.notifyNoMoreSplits();
+            } else {
+                reader.addSplits(splits);
             }
         }
+
+        // we need to go again through isAvailable because IteratorSourceReaderBase#pollNext does
+        // not immediately return END_OF_INPUT when the input is exhausted
+        assertThat(reader.isAvailable())
+                .as(
+                        "There should be always data available because the test utilizes no rate-limiting strategy and splits are provided.")
+                .isCompleted();
+        assertThat(reader.pollNext(out)).isSameAs(InputStatus.END_OF_INPUT);
 
         final List<Long> result = out.getEmittedRecords();
         final Iterable<Long> expected = LongStream.range(from, to + 1)::iterator;

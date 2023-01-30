@@ -17,23 +17,22 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.arrow:arrow-memory-core:5.0.0
 - org.apache.arrow:arrow-memory-netty:5.0.0
 - org.apache.arrow:arrow-vector:5.0.0
-- org.apache.beam:beam-model-fn-execution:2.38.0
-- org.apache.beam:beam-model-job-management:2.38.0
-- org.apache.beam:beam-model-pipeline:2.38.0
-- org.apache.beam:beam-runners-core-construction-java:2.38.0
-- org.apache.beam:beam-runners-core-java:2.38.0
-- org.apache.beam:beam-runners-java-fn-execution:2.38.0
-- org.apache.beam:beam-sdks-java-core:2.38.0
-- org.apache.beam:beam-sdks-java-fn-execution:2.38.0
-- org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1
+- org.apache.beam:beam-model-fn-execution:2.43.0
+- org.apache.beam:beam-model-job-management:2.43.0
+- org.apache.beam:beam-model-pipeline:2.43.0
+- org.apache.beam:beam-runners-core-construction-java:2.43.0
+- org.apache.beam:beam-runners-core-java:2.43.0
+- org.apache.beam:beam-runners-java-fn-execution:2.43.0
+- org.apache.beam:beam-sdks-java-core:2.43.0
+- org.apache.beam:beam-sdks-java-fn-execution:2.43.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
-- org.apache.beam:beam-vendor-grpc-1_43_2:0.1
-- com.alibaba:pemja:0.2.6
+- org.apache.beam:beam-vendor-grpc-1_48_1:0.1
+- com.alibaba:pemja:0.3.0
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
 
-- net.sf.py4j:py4j:0.10.9.3
+- net.sf.py4j:py4j:0.10.9.7
 - com.google.protobuf:protobuf-java:3.21.7
 
 This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
@@ -43,36 +42,36 @@ See bundled license files for details.
 
 The bundled Apache Beam dependencies bundle the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.google.api.grpc:proto-google-common-protos:2.0.1
-- com.google.code.gson:gson:2.8.9
-- com.google.guava:guava:30.1.1-jre
-- io.grpc:grpc-auth:1.43.2
-- io.grpc:grpc-core:1.43.2
-- io.grpc:grpc-context:1.43.2
-- io.grpc:grpc-netty:1.43.2
-- io.grpc:grpc-protobuf:1.43.2
-- io.grpc:grpc-stub:1.43.2
-- io.grpc:grpc-testing:1.43.2
-- io.netty:netty-buffer:4.1.63.Final
-- io.netty:netty-codec:4.1.63.Final
-- io.netty:netty-codec-http:4.1.63.Final
-- io.netty:netty-codec-http2:4.1.63.Final
-- io.netty:netty-codec-socks:4.1.63.Final
-- io.netty:netty-common:4.1.63.Final
-- io.netty:netty-handler:4.1.63.Final
-- io.netty:netty-handler-proxy:4.1.63.Final
-- io.netty:netty-resolver:4.1.63.Final
-- io.netty:netty-transport:4.1.63.Final
-- io.netty:netty-transport-native-epoll:4.1.63.Final:linux-x86_64
-- io.netty:netty-transport-native-unix-common:4.1.63.Final
-- io.netty:netty-tcnative-boringssl-static:2.0.38.Final
-- io.opencensus:opencensus-api:0.28.0
-- io.opencensus:opencensus-contrib-grpc-metrics:0.28.0
-- io.perfmark:perfmark-api:0.23.0
+- com.google.api.grpc:proto-google-common-protos:2.9.0
+- com.google.code.gson:gson:2.9.0
+- com.google.guava:guava:31.1-jre
+- io.grpc:grpc-auth:1.48.1
+- io.grpc:grpc-core:1.48.1
+- io.grpc:grpc-context:1.48.1
+- io.grpc:grpc-netty:1.48.1
+- io.grpc:grpc-protobuf:1.48.1
+- io.grpc:grpc-stub:1.48.1
+- io.grpc:grpc-testing:1.48.1
+- io.netty:netty-buffer:4.1.77.Final
+- io.netty:netty-codec:4.1.77.Final
+- io.netty:netty-codec-http:4.1.77.Final
+- io.netty:netty-codec-http2:4.1.77.Final
+- io.netty:netty-codec-socks:4.1.77.Final
+- io.netty:netty-common:4.1.77.Final
+- io.netty:netty-handler:4.1.77.Final
+- io.netty:netty-handler-proxy:4.1.77.Final
+- io.netty:netty-resolver:4.1.77.Final
+- io.netty:netty-transport:4.1.77.Final
+- io.netty:netty-transport-native-epoll:4.1.77.Final:linux-x86_64
+- io.netty:netty-transport-native-unix-common:4.1.77.Final
+- io.netty:netty-tcnative-boringssl-static:2.0.53.Final
+- io.opencensus:opencensus-api:0.31.0
+- io.opencensus:opencensus-contrib-grpc-metrics:0.31.0
+- io.perfmark:perfmark-api:0.25.0
 
 The bundled Apache Beam dependencies bundle the following dependencies under the BSD license.
 See bundled license files for details
 
-- com.google.auth:google-auth-library-credentials:0.22.2
-- com.google.protobuf:protobuf-java:3.19.2
-- com.google.protobuf:protobuf-java-util:3.19.2
+- com.google.auth:google-auth-library-credentials:1.4.0
+- com.google.protobuf:protobuf-java:3.21.1
+- com.google.protobuf:protobuf-java-util:3.21.1

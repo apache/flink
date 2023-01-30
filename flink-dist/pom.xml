@@ -688,9 +688,7 @@ under the License.
 					</execution>
 					<execution>
 						<!--
-						Disable inherited shade-flink to prevent the Shade plugin from changing the project.basedir. The basedir
-						is changed by the Shade plugin when dependencyReducedPomLocation is set to a different location than the
-						original basedir. We do that in the root pom.xml.
+						Historic artifact; shade-dist execution should be renamed.
 						-->
 						<id>shade-flink</id>
 						<phase>none</phase>

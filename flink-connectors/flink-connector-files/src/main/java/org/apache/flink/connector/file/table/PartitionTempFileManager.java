@@ -49,6 +49,7 @@ public class PartitionTempFileManager {
     private static final Logger LOG = LoggerFactory.getLogger(PartitionTempFileManager.class);
 
     private static final String TASK_DIR_PREFIX = "task-";
+    private static final String ATTEMPT_PREFIX = "attempt-";
 
     private final int taskNumber;
     private final Path taskTmpDir;
@@ -56,7 +57,7 @@ public class PartitionTempFileManager {
 
     private transient int nameCounter = 0;
 
-    PartitionTempFileManager(FileSystemFactory factory, Path tmpPath, int taskNumber)
+    public PartitionTempFileManager(FileSystemFactory factory, Path tmpPath, int taskNumber)
             throws IOException {
         this(factory, tmpPath, taskNumber, new OutputFileConfig("", ""));
     }
@@ -72,6 +73,24 @@ public class PartitionTempFileManager {
 
         // generate and clean task temp dir.
         this.taskTmpDir = new Path(tmpPath, TASK_DIR_PREFIX + taskNumber);
+        factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
+    }
+
+    public PartitionTempFileManager(
+            FileSystemFactory factory,
+            Path tmpPath,
+            int taskNumber,
+            int attemptNumber,
+            OutputFileConfig outputFileConfig)
+            throws IOException {
+        this.taskNumber = taskNumber;
+        this.outputFileConfig = outputFileConfig;
+
+        // generate task temp dir with task and attempt number like "task-0-attempt-0"
+        String taskTmpDirName =
+                String.format(
+                        "%s%d-%s%d", TASK_DIR_PREFIX, taskNumber, ATTEMPT_PREFIX, attemptNumber);
+        this.taskTmpDir = new Path(tmpPath, taskTmpDirName);
         factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
     }
 
@@ -120,7 +139,7 @@ public class PartitionTempFileManager {
     }
 
     /** Collect all partitioned paths, aggregate according to partition spec. */
-    static Map<LinkedHashMap<String, String>, List<Path>> collectPartSpecToPaths(
+    public static Map<LinkedHashMap<String, String>, List<Path>> collectPartSpecToPaths(
             FileSystem fs, List<Path> taskPaths, int partColSize) {
         Map<LinkedHashMap<String, String>, List<Path>> specToPaths = new HashMap<>();
         for (Path taskPath : taskPaths) {

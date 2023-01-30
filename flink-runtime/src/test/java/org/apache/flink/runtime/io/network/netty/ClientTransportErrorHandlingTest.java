@@ -42,7 +42,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
@@ -51,13 +50,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
-import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.createConfig;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.isA;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -89,7 +87,7 @@ class ClientTransportErrorHandlingTest {
 
         // We need a real server and client in this test, because Netty's EmbeddedChannel is
         // not failing the ChannelPromise of failed writes.
-        NettyServerAndClient serverAndClient = initServerAndClient(protocol, createConfig());
+        NettyServerAndClient serverAndClient = initServerAndClient(protocol);
 
         Channel ch = connect(serverAndClient);
 
@@ -103,9 +101,7 @@ class ClientTransportErrorHandlingTest {
 
                             @Override
                             public void write(
-                                    ChannelHandlerContext ctx, Object msg, ChannelPromise promise)
-                                    throws Exception {
-
+                                    ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
                                 if (writeNum >= 1) {
                                     throw new RuntimeException("Expected test exception.");
                                 }
@@ -125,17 +121,15 @@ class ClientTransportErrorHandlingTest {
 
         final CountDownLatch sync = new CountDownLatch(1);
 
-        // Do this with explicit synchronization. Otherwise this is not robust against slow timings
+        // Do this with explicit synchronization. Otherwise, this is not robust against slow timings
         // of the callback (e.g. we cannot just verify that it was called once, because there is
         // a chance that we do this too early).
         doAnswer(
-                        new Answer<Void>() {
-                            @Override
-                            public Void answer(InvocationOnMock invocation) throws Throwable {
-                                sync.countDown();
-                                return null;
-                            }
-                        })
+                        (Answer<Void>)
+                                invocation -> {
+                                    sync.countDown();
+                                    return null;
+                                })
                 .when(rich[1])
                 .onError(isA(LocalTransportException.class));
 
@@ -144,7 +138,7 @@ class ClientTransportErrorHandlingTest {
 
         // Second request is *not* successful
         requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[1], 0);
-        // Wait for the notification and it could confirm all the request operations are done
+        // Wait for the notification, and it could confirm all the request operations are done
         assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))
                 .withFailMessage(
                         "Timed out after waiting for "
@@ -228,9 +222,7 @@ class ClientTransportErrorHandlingTest {
                             // Close on read
                             new ChannelInboundHandlerAdapter() {
                                 @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-
+                                public void channelRead(ChannelHandlerContext ctx, Object msg) {
                                     ctx.channel().close();
                                 }
                             }
@@ -238,7 +230,7 @@ class ClientTransportErrorHandlingTest {
                     }
                 };
 
-        NettyServerAndClient serverAndClient = initServerAndClient(protocol, createConfig());
+        NettyServerAndClient serverAndClient = initServerAndClient(protocol);
 
         Channel ch = connect(serverAndClient);
 
@@ -251,12 +243,9 @@ class ClientTransportErrorHandlingTest {
         final CountDownLatch sync = new CountDownLatch(rich.length);
 
         Answer<Void> countDownLatch =
-                new Answer<Void>() {
-                    @Override
-                    public Void answer(InvocationOnMock invocation) throws Throwable {
-                        sync.countDown();
-                        return null;
-                    }
+                invocation -> {
+                    sync.countDown();
+                    return null;
                 };
 
         for (RemoteInputChannel r : rich) {
@@ -330,26 +319,27 @@ class ClientTransportErrorHandlingTest {
 
         // Verify the Exception
         doAnswer(
-                        new Answer<Void>() {
-                            @Override
-                            public Void answer(InvocationOnMock invocation) throws Throwable {
-                                Throwable cause = (Throwable) invocation.getArguments()[0];
+                        (Answer<Void>)
+                                invocation -> {
+                                    Throwable cause = (Throwable) invocation.getArguments()[0];
 
-                                try {
-                                    assertThat(cause).isInstanceOf(RemoteTransportException.class);
-                                    assertThat(cause)
-                                            .hasMessageNotContaining("Connection reset by peer");
+                                    try {
+                                        assertThat(cause)
+                                                .isInstanceOf(RemoteTransportException.class);
+                                        assertThat(cause)
+                                                .hasMessageNotContaining(
+                                                        "Connection reset by peer");
 
-                                    assertThat(cause.getCause()).isInstanceOf(IOException.class);
-                                    assertThat(cause.getCause())
-                                            .hasMessage("Connection reset by peer");
-                                } catch (Throwable t) {
-                                    error[0] = t;
-                                }
+                                        assertThat(cause.getCause())
+                                                .isInstanceOf(IOException.class);
+                                        assertThat(cause.getCause())
+                                                .hasMessage("Connection reset by peer");
+                                    } catch (Throwable t) {
+                                        error[0] = t;
+                                    }
 
-                                return null;
-                            }
-                        })
+                                    return null;
+                                })
                 .when(rich)
                 .onError(any(Throwable.class));
 

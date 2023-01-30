@@ -19,7 +19,17 @@
 package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.cli.ClientOptions;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -44,30 +54,52 @@ import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
+import org.apache.flink.table.operations.UseOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJobsOperation;
+import org.apache.flink.table.operations.command.StopJobOperation;
+import org.apache.flink.table.operations.ddl.AlterOperation;
+import org.apache.flink.table.operations.ddl.CreateOperation;
+import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
+import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_CANDIDATES;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
+import static org.apache.flink.table.gateway.service.utils.Constants.JOB_NAME;
+import static org.apache.flink.table.gateway.service.utils.Constants.SAVEPOINT_PATH;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_VALUE;
+import static org.apache.flink.table.gateway.service.utils.Constants.START_TIME;
+import static org.apache.flink.table.gateway.service.utils.Constants.STATUS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** An executor to execute the {@link Operation}. */
@@ -78,45 +110,75 @@ public class OperationExecutor {
     private final SessionContext sessionContext;
     private final Configuration executionConfig;
 
+    private final ClusterClientServiceLoader clusterClientServiceLoader;
+
     @VisibleForTesting
     public OperationExecutor(SessionContext context, Configuration executionConfig) {
         this.sessionContext = context;
         this.executionConfig = executionConfig;
+        this.clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
     }
 
-    public ResultFetcher executeStatement(OperationHandle handle, String statement) {
-        // Instantiate the TableEnvironment lazily
+    public ResultFetcher configureSession(OperationHandle handle, String statement) {
         TableEnvironmentInternal tableEnv = getTableEnvironment();
         List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
         if (parsedOperations.size() > 1) {
             throw new UnsupportedOperationException(
-                    "Unsupported SQL statement! Execute statement only accepts a single SQL statement or "
-                            + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
+                    "Unsupported SQL statement! Configure session only accepts a single SQL statement.");
         }
         Operation op = parsedOperations.get(0);
+
+        if (!(op instanceof SetOperation)
+                && !(op instanceof ResetOperation)
+                && !(op instanceof CreateOperation)
+                && !(op instanceof DropOperation)
+                && !(op instanceof UseOperation)
+                && !(op instanceof AlterOperation)
+                && !(op instanceof LoadModuleOperation)
+                && !(op instanceof UnloadModuleOperation)
+                && !(op instanceof AddJarOperation)) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Unsupported statement for configuring session:%s\n"
+                                    + "The configureSession API only supports to execute statement of type "
+                                    + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
+                                    + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
+                                    + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
+                                    + "CREATE CATALOG, DROP CATALOG, "
+                                    + "USE CATALOG, USE [CATALOG.]DATABASE, "
+                                    + "CREATE VIEW, DROP VIEW, "
+                                    + "LOAD MODULE, UNLOAD MODULE, USE MODULE, "
+                                    + "ADD JAR.",
+                            statement));
+        }
+
         if (op instanceof SetOperation) {
             return callSetOperation(tableEnv, handle, (SetOperation) op);
         } else if (op instanceof ResetOperation) {
             return callResetOperation(handle, (ResetOperation) op);
-        } else if (op instanceof BeginStatementSetOperation) {
-            // TODO: support statement set in the FLINK-27837
-            throw new UnsupportedOperationException();
-        } else if (op instanceof EndStatementSetOperation) {
-            // TODO: support statement set in the FLINK-27837
-            throw new UnsupportedOperationException();
-        } else if (op instanceof ModifyOperation) {
-            return callModifyOperations(
-                    tableEnv, handle, Collections.singletonList((ModifyOperation) op));
-        } else if (op instanceof StatementSetOperation) {
-            return callModifyOperations(
-                    tableEnv, handle, ((StatementSetOperation) op).getOperations());
-        } else if (op instanceof QueryOperation) {
-            TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
         } else {
-            TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(
-                    handle, result.getResolvedSchema(), collect(result.collectInternal()));
+            return callOperation(tableEnv, handle, op);
+        }
+    }
+
+    public ResultFetcher executeStatement(OperationHandle handle, String statement) {
+        // Instantiate the TableEnvironment lazily
+        // TODO: remove the usage of the context classloader until {@link
+        // HiveParserUtils}#getFunctionInfo use ResourceManager explicitly.
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(
+                        sessionContext.getSessionState().resourceManager.getUserClassLoader())) {
+            TableEnvironmentInternal tableEnv = getTableEnvironment();
+            List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
+            if (parsedOperations.size() > 1) {
+                throw new UnsupportedOperationException(
+                        "Unsupported SQL statement! Execute statement only accepts a single SQL statement or "
+                                + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
+            }
+            Operation op = parsedOperations.get(0);
+            return sessionContext.isStatementSetState()
+                    ? executeOperationInStatementSetState(tableEnv, handle, op)
+                    : executeOperation(tableEnv, handle, op);
         }
     }
 
@@ -211,6 +273,19 @@ public class OperationExecutor {
                 .getDefinition();
     }
 
+    public ResultFetcher getCompletionHints(
+            OperationHandle operationHandle, String statement, int position) {
+        return ResultFetcher.fromResults(
+                operationHandle,
+                ResolvedSchema.of(Column.physical(COMPLETION_CANDIDATES, DataTypes.STRING())),
+                Arrays.stream(
+                                getTableEnvironment()
+                                        .getParser()
+                                        .getCompletionHints(statement, position))
+                        .map(hint -> GenericRowData.of(StringData.fromString(hint)))
+                        .collect(Collectors.toList()));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     @VisibleForTesting
@@ -220,31 +295,71 @@ public class OperationExecutor {
         return tableEnv;
     }
 
+    private ResultFetcher executeOperationInStatementSetState(
+            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation operation) {
+        if (operation instanceof EndStatementSetOperation) {
+            return callEndStatementSetOperation(tableEnv, handle);
+        } else if (operation instanceof ModifyOperation) {
+            sessionContext.addStatementSetOperation((ModifyOperation) operation);
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+        } else {
+            throw new SqlExecutionException(
+                    "Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.");
+        }
+    }
+
+    private ResultFetcher executeOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
+        if (op instanceof SetOperation) {
+            return callSetOperation(tableEnv, handle, (SetOperation) op);
+        } else if (op instanceof ResetOperation) {
+            return callResetOperation(handle, (ResetOperation) op);
+        } else if (op instanceof BeginStatementSetOperation) {
+            return callBeginStatementSetOperation(handle);
+        } else if (op instanceof EndStatementSetOperation) {
+            throw new SqlExecutionException(
+                    "No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.");
+        } else if (op instanceof ModifyOperation) {
+            return callModifyOperations(
+                    tableEnv, handle, Collections.singletonList((ModifyOperation) op));
+        } else if (op instanceof StatementSetOperation) {
+            return callModifyOperations(
+                    tableEnv, handle, ((StatementSetOperation) op).getOperations());
+        } else if (op instanceof QueryOperation) {
+            TableResultInternal result = tableEnv.executeInternal(op);
+            return ResultFetcher.fromTableResult(handle, result, true);
+        } else if (op instanceof StopJobOperation) {
+            return callStopJobOperation(handle, (StopJobOperation) op);
+        } else if (op instanceof ShowJobsOperation) {
+            return callShowJobsOperation(handle, (ShowJobsOperation) op);
+        } else {
+            return callOperation(tableEnv, handle, op);
+        }
+    }
+
     private ResultFetcher callSetOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle, SetOperation setOp) {
         if (setOp.getKey().isPresent() && setOp.getValue().isPresent()) {
             // set a property
             sessionContext.set(setOp.getKey().get().trim(), setOp.getValue().get().trim());
-            return new ResultFetcher(
-                    handle,
-                    TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                    collect(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
             // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
-            return new ResultFetcher(
+            return ResultFetcher.fromResults(
                     handle,
                     ResolvedSchema.of(
                             Column.physical(SET_KEY, DataTypes.STRING()),
                             Column.physical(SET_VALUE, DataTypes.STRING())),
-                    collect(
-                            configMap.entrySet().stream()
+                    CollectionUtil.iteratorToList(
+                            configMap.keySet().stream()
+                                    .sorted()
                                     .map(
-                                            entry ->
+                                            key ->
                                                     GenericRowData.of(
-                                                            StringData.fromString(entry.getKey()),
+                                                            StringData.fromString(key),
                                                             StringData.fromString(
-                                                                    entry.getValue())))
+                                                                    configMap.get(key))))
                                     .map(RowData.class::cast)
                                     .iterator()));
         } else {
@@ -261,10 +376,26 @@ public class OperationExecutor {
             // reset all properties
             sessionContext.reset();
         }
-        return new ResultFetcher(
-                handle,
-                TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                collect(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+    }
+
+    private ResultFetcher callBeginStatementSetOperation(OperationHandle handle) {
+        sessionContext.enableStatementSet();
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+    }
+
+    private ResultFetcher callEndStatementSetOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle) {
+        // reset the state regardless of whether error occurs while executing the set
+        List<ModifyOperation> statementSetOperations = sessionContext.getStatementSetOperations();
+        sessionContext.disableStatementSet();
+
+        if (statementSetOperations.isEmpty()) {
+            // there's no statement in the statement set, skip submitting
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+        } else {
+            return callModifyOperations(tableEnv, handle, statementSetOperations);
+        }
     }
 
     private ResultFetcher callModifyOperations(
@@ -272,21 +403,28 @@ public class OperationExecutor {
             OperationHandle handle,
             List<ModifyOperation> modifyOperations) {
         TableResultInternal result = tableEnv.executeInternal(modifyOperations);
-        return new ResultFetcher(
+        JobID jobID =
+                result.getJobClient()
+                        .orElseThrow(
+                                () ->
+                                        new SqlExecutionException(
+                                                String.format(
+                                                        "Can't get job client for the operation %s.",
+                                                        handle)))
+                        .getJobID();
+        return ResultFetcher.fromResults(
                 handle,
                 ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
                 Collections.singletonList(
-                        GenericRowData.of(
-                                StringData.fromString(
-                                        result.getJobClient()
-                                                .orElseThrow(
-                                                        () ->
-                                                                new SqlExecutionException(
-                                                                        String.format(
-                                                                                "Can't get job client for the operation %s.",
-                                                                                handle)))
-                                                .getJobID()
-                                                .toString()))));
+                        GenericRowData.of(StringData.fromString(jobID.toString()))),
+                jobID,
+                result.getResultKind());
+    }
+
+    private ResultFetcher callOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
+        TableResultInternal result = tableEnv.executeInternal(op);
+        return ResultFetcher.fromTableResult(handle, result, false);
     }
 
     private Set<TableInfo> listTables(
@@ -334,9 +472,151 @@ public class OperationExecutor {
                         .collect(Collectors.toSet()));
     }
 
-    private List<RowData> collect(Iterator<RowData> tableResult) {
-        List<RowData> rows = new ArrayList<>();
-        tableResult.forEachRemaining(rows::add);
-        return rows;
+    public ResultFetcher callStopJobOperation(
+            OperationHandle handle, StopJobOperation stopJobOperation)
+            throws SqlExecutionException {
+        String jobId = stopJobOperation.getJobId();
+        boolean isWithSavepoint = stopJobOperation.isWithSavepoint();
+        boolean isWithDrain = stopJobOperation.isWithDrain();
+        Duration clientTimeout =
+                Configuration.fromMap(sessionContext.getConfigMap())
+                        .get(ClientOptions.CLIENT_TIMEOUT);
+        Optional<String> savepoint;
+        try {
+            savepoint =
+                    runClusterAction(
+                            handle,
+                            clusterClient -> {
+                                if (isWithSavepoint) {
+                                    // blocking get savepoint path
+                                    try {
+                                        return Optional.of(
+                                                clusterClient
+                                                        .stopWithSavepoint(
+                                                                JobID.fromHexString(jobId),
+                                                                isWithDrain,
+                                                                executionConfig.get(
+                                                                        CheckpointingOptions
+                                                                                .SAVEPOINT_DIRECTORY),
+                                                                SavepointFormatType.DEFAULT)
+                                                        .get(
+                                                                clientTimeout.toMillis(),
+                                                                TimeUnit.MILLISECONDS));
+                                    } catch (Exception e) {
+                                        throw new FlinkException(
+                                                "Could not stop job "
+                                                        + stopJobOperation.getJobId()
+                                                        + " in session "
+                                                        + handle.getIdentifier()
+                                                        + ".",
+                                                e);
+                                    }
+                                } else {
+                                    clusterClient.cancel(JobID.fromHexString(jobId));
+                                    return Optional.empty();
+                                }
+                            });
+        } catch (Exception e) {
+            throw new SqlExecutionException(
+                    "Could not stop job " + jobId + " for operation " + handle + ".", e);
+        }
+        if (isWithSavepoint) {
+            return ResultFetcher.fromResults(
+                    handle,
+                    ResolvedSchema.of(Column.physical(SAVEPOINT_PATH, DataTypes.STRING())),
+                    Collections.singletonList(
+                            GenericRowData.of(StringData.fromString(savepoint.orElse("")))));
+        } else {
+            return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+        }
+    }
+
+    public ResultFetcher callShowJobsOperation(
+            OperationHandle operationHandle, ShowJobsOperation showJobsOperation)
+            throws SqlExecutionException {
+        Duration clientTimeout =
+                Configuration.fromMap(sessionContext.getConfigMap())
+                        .get(ClientOptions.CLIENT_TIMEOUT);
+        Collection<JobStatusMessage> jobs =
+                runClusterAction(
+                        operationHandle,
+                        clusterClient -> {
+                            try {
+                                return clusterClient
+                                        .listJobs()
+                                        .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                            } catch (Exception e) {
+                                throw new SqlExecutionException(
+                                        "Failed to list jobs in the cluster.", e);
+                            }
+                        });
+        List<RowData> resultRows =
+                jobs.stream()
+                        .map(
+                                job ->
+                                        GenericRowData.of(
+                                                StringData.fromString(job.getJobId().toString()),
+                                                StringData.fromString(job.getJobName()),
+                                                StringData.fromString(job.getJobState().toString()),
+                                                DateTimeUtils.toTimestampData(
+                                                        job.getStartTime(), 3)))
+                        .collect(Collectors.toList());
+        return ResultFetcher.fromResults(
+                operationHandle,
+                ResolvedSchema.of(
+                        Column.physical(JOB_ID, DataTypes.STRING()),
+                        Column.physical(JOB_NAME, DataTypes.STRING()),
+                        Column.physical(STATUS, DataTypes.STRING()),
+                        Column.physical(START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
+                resultRows);
+    }
+
+    /**
+     * Retrieves the {@link ClusterClient} from the session and runs the given {@link ClusterAction}
+     * against it.
+     *
+     * @param handle the specified operation handle
+     * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
+     * @param <ClusterID> type of the cluster id
+     * @param <Result>> type of the result
+     * @throws SqlExecutionException if something goes wrong
+     */
+    private <ClusterID, Result> Result runClusterAction(
+            OperationHandle handle, ClusterAction<ClusterID, Result> clusterAction)
+            throws SqlExecutionException {
+        final Configuration configuration = Configuration.fromMap(sessionContext.getConfigMap());
+        final ClusterClientFactory<ClusterID> clusterClientFactory =
+                clusterClientServiceLoader.getClusterClientFactory(configuration);
+
+        final ClusterID clusterId = clusterClientFactory.getClusterId(configuration);
+        Preconditions.checkNotNull(clusterId, "No cluster ID found for operation " + handle);
+
+        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
+                        clusterClientFactory.createClusterDescriptor(configuration);
+                final ClusterClient<ClusterID> clusterClient =
+                        clusterDescriptor.retrieve(clusterId).getClusterClient()) {
+            return clusterAction.runAction(clusterClient);
+        } catch (FlinkException e) {
+            throw new SqlExecutionException("Failed to run cluster action.", e);
+        }
+    }
+
+    /**
+     * Internal interface to encapsulate cluster actions which are executed via the {@link
+     * ClusterClient}.
+     *
+     * @param <ClusterID> type of the cluster id
+     * @param <Result>> type of the result
+     */
+    @FunctionalInterface
+    private interface ClusterAction<ClusterID, Result> {
+
+        /**
+         * Run the cluster action with the given {@link ClusterClient}.
+         *
+         * @param clusterClient to run the cluster action against
+         * @throws FlinkException if something goes wrong
+         */
+        Result runAction(ClusterClient<ClusterID> clusterClient) throws FlinkException;
     }
 }

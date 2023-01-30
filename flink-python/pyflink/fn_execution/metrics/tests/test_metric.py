@@ -48,7 +48,7 @@ class MetricTests(PyFlinkTestCase):
         self.assertEqual(MetricTests.print_metric_group_path(new_group), 'root.key.value')
 
     def test_metric_not_enabled(self):
-        fc = FunctionContext(None)
+        fc = FunctionContext(None, None)
         with self.assertRaises(RuntimeError):
             fc.get_metric_group()
 

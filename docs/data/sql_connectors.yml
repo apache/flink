@@ -148,7 +148,7 @@ jdbc:
     name: JDBC
     category: connector
     maven: flink-connector-jdbc
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/$version/flink-connector-jdbc-$version.jar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/3.0.0-1.16/flink-connector-jdbc-3.0.0-1.16.jar
 
 kafka:
     name: Kafka
@@ -167,16 +167,28 @@ upsert-kafka:
           sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$version/flink-sql-connector-kafka-$version.jar
 
 kinesis:
-    name: Kinesis
+    name: Amazon Kinesis Data Streams
     category: connector
-    maven: flink-connector-kinesis
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/$version/flink-sql-connector-kinesis-$version.jar
+    versions:
+        - versions: universal
+          maven: flink-connector-kinesis
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/4.0.0-1.17/flink-sql-connector-kinesis-4.0.0-1.17.jar
 
 aws-kinesis-firehose:
-  name: AWS Kinesis Firehose
-  category: connector
-  maven: flink-connector-kinesis-firehose
-  sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/$version/flink-sql-connector-aws-kinesis-firehose-$version.jar
+    name: Amazon Kinesis Data Firehose
+    category: connector
+    versions:
+        - version: universal
+          maven: flink-connector-aws-kinesis-firehose
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/4.0.0-1.17/flink-sql-connector-aws-kinesis-firehose-4.0.0-1.17.jar
+
+dynamodb:
+    name: Amazon DynamoDB
+    category: connector
+    versions:
+        - version: universal
+          maven: flink-connector-dynamodb
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-dynamodb/4.0.0-1.17/flink-sql-connector-dynamodb-4.0.0-1.17.jar
 
 pulsar:
     name: Pulsar
@@ -188,4 +200,4 @@ rabbitmq:
     name: RabbitMQ
     category: connector
     maven: flink-connector-rabbitmq
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/$version/flink-sql-connector-rabbitmq-$version.jar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/3.0.0-1.16/flink-sql-connector-rabbitmq-3.0.0-1.16.jar

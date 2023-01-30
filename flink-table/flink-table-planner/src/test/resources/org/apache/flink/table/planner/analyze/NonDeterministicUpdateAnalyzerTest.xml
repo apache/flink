@@ -1,0 +1,189 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCdcJoinDimWithPkNonDeterministicLocalCondition">
+    <Resource name="sql">
+      <![CDATA[insert into sink_without_pk
+select t1.a, t1.b, t1.c
+from (
+  select *, proctime() proctime from cdc
+) t1 join dim_with_pk for system_time as of t1.proctime as t2
+on t1.a = t2.a and ndFunc(t2.b) > 100]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[>(ndFunc(b), 100)], select=[a, b, c, a])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [WARNING] There exists non deterministic function: 'ndFunc' in condition: '>(ndFunc($1), 100)' which may cause wrong result in update pipeline.
+related rel plan:
+LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[>(ndFunc(b), 100)], select=[a, b, c, a], changelogMode=[I,UB,UA,D])
++- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c], changelogMode=[I,UB,UA,D], upsertKeys=[[a]])
+
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCdcWithMetaSinkWithPk">
+    <Resource name="sql">
+      <![CDATA[insert into sink_with_pk
+select a, metadata_3, c
+from cdc_with_meta]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
++- Calc(select=[a, metadata_3, c])
+   +- DropUpdateBefore
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, project=[a, c], metadata=[metadata_3]]], fields=[a, c, metadata_3])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCdcJoinDimWithPkOutputNoPkSinkWithoutPk">
+    <Resource name="sql">
+      <![CDATA[insert into sink_without_pk
+  select t1.a, t2.b, t1.c
+  from (
+    select *, proctime() proctime from cdc
+  ) t1 join dim_with_pk for system_time as of t1.proctime as t2
+  on t1.a = t2.a]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a0, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
+
+advice[1]: [WARNING] You might want to enable upsert materialization for look up join operator by configuring ('table.optimizer.non-deterministic-update.strategy' to 'TRY_RESOLVE') to resolve the correctness issue caused by 'Non-Deterministic Updates' (NDU) in a changelog pipeline.
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCdcWithMetaRenameSinkWithCompositePk">
+    <Resource name="sql">
+      <![CDATA[insert into sink_with_composite_pk
+select a, b, c, e from cdc_with_meta_rename]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, metadata_3])
++- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta_rename, project=[a, b, c], metadata=[metadata_3]]], fields=[a, b, c, metadata_3])
+
+advice[1]: [WARNING] The metadata column(s): 'metadata_3' in cdc source may cause wrong result or error on downstream operators, please consider removing these columns or use a non-cdc source that only has insert messages.
+source node:
+TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta_rename, project=[a, b, c], metadata=[metadata_3]]], fields=[a, b, c, metadata_3], changelogMode=[I,UB,UA,D], upsertKeys=[[a]])
+
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupByNonDeterministicFuncWithCdcSource">
+    <Resource name="sql">
+      <![CDATA[insert into sink_with_pk
+select
+  a, count(*) cnt, `day`
+from (
+  select *, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') `day` from cdc
+) t
+group by `day`, a]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, day], upsertMaterialize=[true])
++- Calc(select=[a, cnt, day])
+   +- GroupAggregate(advice=[1], groupBy=[day, a], select=[day, a, COUNT_RETRACT(*) AS cnt])
+      +- Exchange(distribution=[hash[day, a]])
+         +- Calc(select=[DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day, a])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+advice[2]: [WARNING] The column(s): day(generated by non-deterministic function: CURRENT_TIMESTAMP ) can not satisfy the determinism requirement for correctly processing update message('UB'/'UA'/'D' in changelogMode, not 'I' only), this usually happens when input node has no upsertKey(upsertKeys=[{}]) or current node outputs non-deterministic update messages. Please consider removing these non-deterministic columns or making them deterministic by using deterministic functions.
+
+related rel plan:
+Calc(select=[DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day, a], changelogMode=[I,UB,UA,D], upsertKeys=[[a]])
++- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a], changelogMode=[I,UB,UA,D], upsertKeys=[[a]])
+
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceWithComputedColumnSinkWithPk">
+    <Resource name="sql">
+      <![CDATA[insert into sink_with_pk
+select a, b, `day`
+from cdc_with_computed_col
+where b > 100]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true])
++- Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day], where=[>(b, 100)])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
+
+advice[1]: [WARNING] The column(s): day(generated by non-deterministic function: CURRENT_TIMESTAMP ) can not satisfy the determinism requirement for correctly processing update message('UB'/'UA'/'D' in changelogMode, not 'I' only), this usually happens when input node has no upsertKey(upsertKeys=[{}]) or current node outputs non-deterministic update messages. Please consider removing these non-deterministic columns or making them deterministic by using deterministic functions.
+
+related rel plan:
+Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], where=[>(b, 100)], changelogMode=[I,UB,UA,D])
++- TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, filter=[], project=[a, b], metadata=[]]], fields=[a, b], changelogMode=[I,UB,UA,D])
+
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSinkOnJoinedView">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink1], fields=[a, day, EXPR$2, EXPR$3])
++- GroupAggregate(advice=[1], groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3])
+   +- Exchange(distribution=[hash[a, day]])
+      +- Calc(select=[a, day, b, c])
+         +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, day, b, c, d], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a]])
+            :  +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])
+            +- Exchange(distribution=[hash[d]])
+               +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[b, c, d], metadata=[]]], fields=[b, c, d])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[a, day, b, c])
++- Calc(select=[a, day, b, c])
+   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, day, b, c, d], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])
+      +- Exchange(distribution=[hash[d]])
+         +- Calc(select=[b, c, d], where=[>(b, 100)])
+            +- TableSourceScan(table=[[default_catalog, default_database, src2, filter=[], project=[b, c, d], metadata=[]]], fields=[b, c, d])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+advice[2]: [WARNING] The column(s): day(generated by non-deterministic function: CURRENT_TIMESTAMP ) can not satisfy the determinism requirement for correctly processing update message('UB'/'UA'/'D' in changelogMode, not 'I' only), this usually happens when input node has no upsertKey(upsertKeys=[{}]) or current node outputs non-deterministic update messages. Please consider removing these non-deterministic columns or making them deterministic by using deterministic functions.
+
+related rel plan:
+Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], changelogMode=[I,UB,UA,D])
++- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a], changelogMode=[I,UB,UA,D])
+
+
+]]>
+    </Resource>
+  </TestCase>
+</Root>

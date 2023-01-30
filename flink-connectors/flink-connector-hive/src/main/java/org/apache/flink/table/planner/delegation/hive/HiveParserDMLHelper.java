@@ -52,7 +52,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelCollationImpl;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
@@ -316,7 +316,16 @@ public class HiveParserDMLHelper {
                 topQB.getParseInfo().getInsertOverwriteTables().keySet().stream()
                         .map(String::toLowerCase)
                         .collect(Collectors.toSet())
-                        .contains(tableName);
+                        .contains(tableName.toLowerCase());
+
+        boolean isInsertInto = topQB.getParseInfo().isInsertIntoTable(tableName);
+
+        Preconditions.checkArgument(
+                overwrite | isInsertInto,
+                "Inconsistent data structure detected: we are writing to "
+                        + tableName
+                        + ", but it's not in isInsertIntoTable() or getInsertOverwriteTables()."
+                        + " This is a bug. Please consider filing an issue.");
 
         Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean> insertOperationInfo =
                 createInsertOperationInfo(
@@ -454,10 +463,7 @@ public class HiveParserDMLHelper {
             }
             shiftedCollations.add(fieldCollation);
         }
-        return plannerContext
-                .getCluster()
-                .traitSet()
-                .canonize(RelCollationImpl.of(shiftedCollations));
+        return plannerContext.getCluster().traitSet().canonize(RelCollations.of(shiftedCollations));
     }
 
     static RelNode addTypeConversions(
@@ -779,10 +785,7 @@ public class HiveParserDMLHelper {
             fieldCollation = fieldCollation.withFieldIndex(newIndex);
             updatedCollations.add(fieldCollation);
         }
-        return plannerContext
-                .getCluster()
-                .traitSet()
-                .canonize(RelCollationImpl.of(updatedCollations));
+        return plannerContext.getCluster().traitSet().canonize(RelCollations.of(updatedCollations));
     }
 
     private List<Integer> updateDistKeys(List<Integer> distKeys, List<Object> updatedIndices) {

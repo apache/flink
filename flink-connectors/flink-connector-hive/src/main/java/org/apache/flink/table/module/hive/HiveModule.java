@@ -19,11 +19,18 @@
 package org.apache.flink.table.module.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.hive.HiveAverageAggFunction;
+import org.apache.flink.table.functions.hive.HiveCountAggFunction;
+import org.apache.flink.table.functions.hive.HiveMaxAggFunction;
+import org.apache.flink.table.functions.hive.HiveMinAggFunction;
+import org.apache.flink.table.functions.hive.HiveSumAggFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayAccessStructField;
@@ -40,6 +47,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Module to provide Hive built-in metadata. */
@@ -80,21 +88,35 @@ public class HiveModule implements Module {
                                     "tumble_rowtime",
                                     "tumble_start")));
 
+    static final Set<String> BUILTIN_NATIVE_AGG_FUNC =
+            Collections.unmodifiableSet(
+                    new HashSet<>(Arrays.asList("sum", "count", "avg", "min", "max")));
+
     private final HiveFunctionDefinitionFactory factory;
     private final String hiveVersion;
     private final HiveShim hiveShim;
     private Set<String> functionNames;
+    private final ReadableConfig config;
     private final ClassLoader classLoader;
 
+    @VisibleForTesting
     public HiveModule() {
-        this(HiveShimLoader.getHiveVersion(), Thread.currentThread().getContextClassLoader());
+        this(
+                HiveShimLoader.getHiveVersion(),
+                new Configuration(),
+                Thread.currentThread().getContextClassLoader());
     }
 
+    @VisibleForTesting
     public HiveModule(String hiveVersion) {
         this(hiveVersion, Thread.currentThread().getContextClassLoader());
     }
 
     public HiveModule(String hiveVersion, ClassLoader classLoader) {
+        this(hiveVersion, new Configuration(), classLoader);
+    }
+
+    public HiveModule(String hiveVersion, ReadableConfig config, ClassLoader classLoader) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null");
 
@@ -102,6 +124,7 @@ public class HiveModule implements Module {
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         this.factory = new HiveFunctionDefinitionFactory(hiveShim);
         this.functionNames = new HashSet<>();
+        this.config = config;
         this.classLoader = classLoader;
     }
 
@@ -125,6 +148,12 @@ public class HiveModule implements Module {
             return Optional.empty();
         }
         FunctionDefinitionFactory.Context context = () -> classLoader;
+
+        // We override some Hive's function by native implementation to supports hash-agg
+        if (isNativeAggFunctionEnabled() && BUILTIN_NATIVE_AGG_FUNC.contains(name.toLowerCase())) {
+            return getBuiltInNativeAggFunction(name.toLowerCase());
+        }
+
         // We override Hive's grouping function. Refer to the implementation for more details.
         if (name.equalsIgnoreCase("grouping")) {
             return Optional.of(
@@ -170,5 +199,33 @@ public class HiveModule implements Module {
 
     public String getHiveVersion() {
         return hiveVersion;
+    }
+
+    private boolean isNativeAggFunctionEnabled() {
+        return config.get(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED);
+    }
+
+    private Optional<FunctionDefinition> getBuiltInNativeAggFunction(String name) {
+        switch (name) {
+            case "sum":
+                // We override Hive's sum function by native implementation to support hash-agg
+                return Optional.of(new HiveSumAggFunction());
+            case "count":
+                // We override Hive's sum function by native implementation to support hash-agg
+                return Optional.of(new HiveCountAggFunction());
+            case "avg":
+                // We override Hive's avg function by native implementation to support hash-agg
+                return Optional.of(new HiveAverageAggFunction());
+            case "min":
+                // We override Hive's min function by native implementation to support hash-agg
+                return Optional.of(new HiveMinAggFunction());
+            case "max":
+                // We override Hive's max function by native implementation to support hash-agg
+                return Optional.of(new HiveMaxAggFunction());
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Built-in hive aggregate function doesn't support %s yet!", name));
+        }
     }
 }

@@ -42,8 +42,8 @@ public class HadoopUtilsTest extends TestLogger {
 
     @BeforeClass
     public static void setPropertiesToEnableKerberosConfigInit() throws KrbException {
-        System.setProperty("java.security.krb5.realm", "");
-        System.setProperty("java.security.krb5.kdc", "");
+        System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
+        System.setProperty("java.security.krb5.kdc", "kdc");
         System.setProperty("java.security.krb5.conf", "/dev/null");
         sun.security.krb5.Config.refresh();
     }

@@ -83,6 +83,7 @@ class BaseOperation(Operation):
         else:
             self.base_metric_group = None
         self.func, self.user_defined_funcs = self.generate_func(serialized_fn)
+        self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
 
     def finish(self):
         self._update_gauge(self.base_metric_group)
@@ -102,7 +103,7 @@ class BaseOperation(Operation):
     def open(self):
         for user_defined_func in self.user_defined_funcs:
             if hasattr(user_defined_func, 'open'):
-                user_defined_func.open(FunctionContext(self.base_metric_group))
+                user_defined_func.open(FunctionContext(self.base_metric_group, self.job_parameters))
 
     def close(self):
         for user_defined_func in self.user_defined_funcs:
@@ -197,9 +198,9 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
         bounded_range_window_nums = 0
         for i, window in enumerate(self.windows):
             window_type = window.window_type
-            if (window_type is window_types.RANGE_UNBOUNDED_PRECEDING) or (
-                    window_type is window_types.RANGE_UNBOUNDED_FOLLOWING) or (
-                    window_type is window_types.RANGE_SLIDING):
+            if (window_type == window_types.RANGE_UNBOUNDED_PRECEDING) or (
+                    window_type == window_types.RANGE_UNBOUNDED_FOLLOWING) or (
+                    window_type == window_types.RANGE_SLIDING):
                 self.bounded_range_window_index[i] = bounded_range_window_nums
                 self.is_bounded_range_window.append(True)
                 bounded_range_window_nums += 1
@@ -238,13 +239,13 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
             if self.is_bounded_range_window[window_index]:
                 window_boundaries = boundaries_series[
                     self.bounded_range_window_index[window_index]]
-                if window_type is OverWindow.RANGE_UNBOUNDED_PRECEDING:
+                if window_type == OverWindow.RANGE_UNBOUNDED_PRECEDING:
                     # range unbounded preceding window
                     for j in range(input_cnt):
                         end = window_boundaries[j]
                         series_slices = [s.iloc[:end] for s in input_series]
                         result.append(func(series_slices))
-                elif window_type is OverWindow.RANGE_UNBOUNDED_FOLLOWING:
+                elif window_type == OverWindow.RANGE_UNBOUNDED_FOLLOWING:
                     # range unbounded following window
                     for j in range(input_cnt):
                         start = window_boundaries[j]
@@ -259,19 +260,19 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
                         result.append(func(series_slices))
             else:
                 # unbounded range window or unbounded row window
-                if (window_type is OverWindow.RANGE_UNBOUNDED) or (
-                        window_type is OverWindow.ROW_UNBOUNDED):
+                if (window_type == OverWindow.RANGE_UNBOUNDED) or (
+                        window_type == OverWindow.ROW_UNBOUNDED):
                     series_slices = [s.iloc[:] for s in input_series]
                     func_result = func(series_slices)
                     result = [func_result for _ in range(input_cnt)]
-                elif window_type is OverWindow.ROW_UNBOUNDED_PRECEDING:
+                elif window_type == OverWindow.ROW_UNBOUNDED_PRECEDING:
                     # row unbounded preceding window
                     window_end = window.upper_boundary
                     for j in range(input_cnt):
                         end = min(j + window_end + 1, input_cnt)
                         series_slices = [s.iloc[: end] for s in input_series]
                         result.append(func(series_slices))
-                elif window_type is OverWindow.ROW_UNBOUNDED_FOLLOWING:
+                elif window_type == OverWindow.ROW_UNBOUNDED_FOLLOWING:
                     # row unbounded following window
                     window_start = window.lower_boundary
                     for j in range(input_cnt):
@@ -323,11 +324,12 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
         self.state_cache_size = serialized_fn.state_cache_size
         self.state_cleaning_enabled = serialized_fn.state_cleaning_enabled
         self.data_view_specs = extract_data_view_specs(serialized_fn.udfs)
+        self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
         super(AbstractStreamGroupAggregateOperation, self).__init__(
             serialized_fn, keyed_state_backend)
 
     def open(self):
-        self.group_agg_function.open(FunctionContext(self.base_metric_group))
+        self.group_agg_function.open(FunctionContext(self.base_metric_group, self.job_parameters))
 
     def close(self):
         self.group_agg_function.close()

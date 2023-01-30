@@ -29,17 +29,17 @@ import java.util.Map;
 /** Operation to describe ALTER TABLE ADD PARTITION statement. */
 public class AddPartitionsOperation extends AlterTableOperation {
 
-    private final boolean ifNotExists;
+    private final boolean ignoreIfPartitionExists;
     private final List<CatalogPartitionSpec> partitionSpecs;
     private final List<CatalogPartition> catalogPartitions;
 
     public AddPartitionsOperation(
             ObjectIdentifier tableIdentifier,
-            boolean ifNotExists,
+            boolean ignoreIfPartitionExists,
             List<CatalogPartitionSpec> partitionSpecs,
             List<CatalogPartition> catalogPartitions) {
-        super(tableIdentifier);
-        this.ifNotExists = ifNotExists;
+        super(tableIdentifier, false);
+        this.ignoreIfPartitionExists = ignoreIfPartitionExists;
         this.partitionSpecs = partitionSpecs;
         this.catalogPartitions = catalogPartitions;
     }
@@ -52,8 +52,8 @@ public class AddPartitionsOperation extends AlterTableOperation {
         return catalogPartitions;
     }
 
-    public boolean ifNotExists() {
-        return ifNotExists;
+    public boolean ignoreIfPartitionExists() {
+        return ignoreIfPartitionExists;
     }
 
     @Override
@@ -61,7 +61,7 @@ public class AddPartitionsOperation extends AlterTableOperation {
         StringBuilder builder =
                 new StringBuilder(
                         String.format("ALTER TABLE %s ADD", tableIdentifier.asSummaryString()));
-        if (ifNotExists) {
+        if (ignoreIfPartitionExists) {
             builder.append(" IF NOT EXISTS");
         }
         for (int i = 0; i < partitionSpecs.size(); i++) {

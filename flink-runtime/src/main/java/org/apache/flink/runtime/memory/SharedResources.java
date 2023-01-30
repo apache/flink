@@ -31,7 +31,7 @@ import java.util.function.LongConsumer;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** A map that keeps track of acquired shared resources and handles their allocation disposal. */
-final class SharedResources {
+public final class SharedResources {
 
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -45,7 +45,7 @@ final class SharedResources {
      * <p>The resource must be released when no longer used. That releases the lease. When all
      * leases are released, the resource is disposed.
      */
-    <T extends AutoCloseable> ResourceAndSize<T> getOrAllocateSharedResource(
+    public <T extends AutoCloseable> ResourceAndSize<T> getOrAllocateSharedResource(
             String type,
             Object leaseHolder,
             LongFunctionWithException<T, Exception> initializer,
@@ -94,7 +94,7 @@ final class SharedResources {
      *
      * <p>This method takes an additional hook that is called when the resource is disposed.
      */
-    void release(String type, Object leaseHolder, LongConsumer releaser) throws Exception {
+    public void release(String type, Object leaseHolder, LongConsumer releaser) throws Exception {
         lock.lock();
         try {
             final LeasedResource<?> resource = reservedResources.get(type);
@@ -130,7 +130,7 @@ final class SharedResources {
     // ------------------------------------------------------------------------
 
     /** A resource handle with size. */
-    interface ResourceAndSize<T extends AutoCloseable> {
+    public interface ResourceAndSize<T extends AutoCloseable> {
 
         T resourceHandle();
 

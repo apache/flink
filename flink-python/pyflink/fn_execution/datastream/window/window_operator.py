@@ -497,7 +497,7 @@ class WindowOperator(object):
         if trigger_result.is_purge():
             self.window_state.clear()
 
-        if self.window_assigner.is_event_time() and self.is_cleanup_time(
+        if not self.window_assigner.is_event_time() and self.is_cleanup_time(
                 self.trigger_context.window, timestamp):
             self.clear_all_state(self.trigger_context.window, self.window_state, merging_windows)
 

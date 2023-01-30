@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -49,7 +50,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -567,7 +567,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         new IntermediateDataSetID(),
                         ResultPartitionType.PIPELINED,
                         0,
-                        new ShuffleDescriptor[] {shuffleDescriptor});
+                        new ShuffleDescriptorAndIndex[] {
+                            new ShuffleDescriptorAndIndex(shuffleDescriptor, 0)
+                        });
         return createTestTaskDeploymentDescriptor(
                 "Receiver",
                 createExecutionAttemptId(),

@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service.context;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -46,7 +47,9 @@ import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -62,8 +65,10 @@ import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -87,6 +92,9 @@ public class SessionContext {
 
     private final OperationManager operationManager;
 
+    private boolean isStatementSetState;
+    private final List<ModifyOperation> statementSetOperations;
+
     private SessionContext(
             DefaultContext defaultContext,
             SessionHandle sessionId,
@@ -102,6 +110,8 @@ public class SessionContext {
         this.userClassloader = classLoader;
         this.sessionState = sessionState;
         this.operationManager = operationManager;
+        this.isStatementSetState = false;
+        this.statementSetOperations = new ArrayList<>();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -167,6 +177,33 @@ public class SessionContext {
         return new OperationExecutor(this, executionConfig);
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Begin statement set
+    // --------------------------------------------------------------------------------------------
+
+    public boolean isStatementSetState() {
+        return isStatementSetState;
+    }
+
+    public void enableStatementSet() {
+        isStatementSetState = true;
+    }
+
+    public void disableStatementSet() {
+        isStatementSetState = false;
+        statementSetOperations.clear();
+    }
+
+    public List<ModifyOperation> getStatementSetOperations() {
+        return Collections.unmodifiableList(new ArrayList<>(statementSetOperations));
+    }
+
+    public void addStatementSetOperation(ModifyOperation operation) {
+        statementSetOperations.add(operation);
+    }
+
+    // --------------------------------------------------------------------------------------------
+
     /** Close resources, e.g. catalogs. */
     public void close() {
         operationManager.close();
@@ -230,7 +267,8 @@ public class SessionContext {
 
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
 
-        final ModuleManager moduleManager = buildModuleManager(environment);
+        final ModuleManager moduleManager =
+                buildModuleManager(environment, configuration, userClassLoader);
 
         final CatalogManager catalogManager =
                 buildCatalogManager(configuration, userClassLoader, environment);
@@ -359,17 +397,21 @@ public class SessionContext {
                 TableConfigOptions.RESOURCES_DOWNLOAD_DIR, path.toAbsolutePath().toString());
     }
 
-    private static ModuleManager buildModuleManager(SessionEnvironment environment) {
+    private static ModuleManager buildModuleManager(
+            SessionEnvironment environment,
+            ReadableConfig readableConfig,
+            ClassLoader classLoader) {
         final ModuleManager moduleManager = new ModuleManager();
 
         environment
-                .getRegisteredModules()
+                .getRegisteredModuleCreators()
                 .forEach(
-                        (moduleName, module) -> {
+                        (moduleName, moduleCreator) -> {
                             Deque<String> moduleNames =
                                     new ArrayDeque<>(moduleManager.listModules());
                             moduleNames.addFirst(moduleName);
 
+                            Module module = moduleCreator.create(readableConfig, classLoader);
                             moduleManager.loadModule(moduleName, module);
                             moduleManager.useModules(moduleNames.toArray(new String[0]));
                         });
@@ -392,13 +434,17 @@ public class SessionContext {
         Catalog defaultCatalog;
         if (environment.getDefaultCatalog().isPresent()) {
             defaultCatalogName = environment.getDefaultCatalog().get();
-            defaultCatalog = environment.getRegisteredCatalogs().get(defaultCatalogName);
+            defaultCatalog =
+                    environment
+                            .getRegisteredCatalogCreators()
+                            .get(defaultCatalogName)
+                            .create(configuration, userClassLoader);
         } else {
             EnvironmentSettings settings =
                     EnvironmentSettings.newInstance().withConfiguration(configuration).build();
             defaultCatalogName = settings.getBuiltInCatalogName();
 
-            if (environment.getRegisteredCatalogs().containsKey(defaultCatalogName)) {
+            if (environment.getRegisteredCatalogCreators().containsKey(defaultCatalogName)) {
                 throw new SqlGatewayException(
                         String.format(
                                 "The name of the registered catalog is conflicts with the built-in default catalog name: %s.",
@@ -416,11 +462,13 @@ public class SessionContext {
 
         // filter the default catalog out to avoid repeated registration
         environment
-                .getRegisteredCatalogs()
+                .getRegisteredCatalogCreators()
                 .forEach(
-                        (catalogName, catalog) -> {
+                        (catalogName, catalogCreator) -> {
                             if (!catalogName.equals(defaultCatalogName)) {
-                                catalogManager.registerCatalog(catalogName, catalog);
+                                catalogManager.registerCatalog(
+                                        catalogName,
+                                        catalogCreator.create(configuration, userClassLoader));
                             }
                         });
 

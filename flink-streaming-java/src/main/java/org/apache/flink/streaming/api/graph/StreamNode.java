@@ -93,6 +93,8 @@ public class StreamNode {
 
     private @Nullable IntermediateDataSetID consumeClusterDatasetId;
 
+    private boolean supportsConcurrentExecutionAttempts = true;
+
     @VisibleForTesting
     public StreamNode(
             Integer id,
@@ -417,5 +419,14 @@ public class StreamNode {
     public void setConsumeClusterDatasetId(
             @Nullable IntermediateDataSetID consumeClusterDatasetId) {
         this.consumeClusterDatasetId = consumeClusterDatasetId;
+    }
+
+    public boolean isSupportsConcurrentExecutionAttempts() {
+        return supportsConcurrentExecutionAttempts;
+    }
+
+    public void setSupportsConcurrentExecutionAttempts(
+            boolean supportsConcurrentExecutionAttempts) {
+        this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
     }
 }

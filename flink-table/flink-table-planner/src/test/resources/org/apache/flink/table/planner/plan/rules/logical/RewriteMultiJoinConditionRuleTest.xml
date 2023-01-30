@@ -105,6 +105,30 @@ MultiJoin(joinFilter=[AND(=($0, $4), =($0, $2), =($4, $2))], isFullOuterJoin=[fa
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMultiJoin_InnerJoin2_WithBushyJoinReorderEnable">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A, B, C WHERE a1 = b1 AND a1 = c1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalFilter(condition=[AND(=($0, $2), =($0, $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MultiJoin(joinFilter=[AND(=($0, $4), =($0, $2))], isFullOuterJoin=[false], joinTypes=[[INNER, INNER, INNER]], outerJoinConditions=[[NULL, NULL, NULL]], projFields=[[{0, 1}, {0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultiJoin_InnerJoin3">
     <Resource name="sql">
       <![CDATA[SELECT * FROM A, B, C, D WHERE a1 = b1 AND b1 = c1 AND c1 = d1]]>
@@ -133,6 +157,30 @@ MultiJoin(joinFilter=[AND(=($4, $6), =($2, $4), =($0, $2), =($4, $0), =($6, $2),
     </Resource>
   </TestCase>
   <TestCase name="testMultiJoin_InnerJoin4">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A, B, C WHERE a1 = b1 AND a1 > c1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalFilter(condition=[AND(=($0, $2), >($0, $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MultiJoin(joinFilter=[AND(>($0, $4), =($0, $2))], isFullOuterJoin=[false], joinTypes=[[INNER, INNER, INNER]], outerJoinConditions=[[NULL, NULL, NULL]], projFields=[[{0, 1}, {0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_InnerJoin4_WithBushyJoinReorderEnable">
     <Resource name="sql">
       <![CDATA[SELECT * FROM A, B, C WHERE a1 = b1 AND a1 > c1]]>
     </Resource>

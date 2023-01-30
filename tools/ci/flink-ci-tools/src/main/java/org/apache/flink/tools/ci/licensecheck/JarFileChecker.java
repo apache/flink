@@ -211,6 +211,7 @@ public class JarFileChecker {
                     // contained in sql-avro-confluent-registry
                     .filter(path -> !pathStartsWith(path, "/org/glassfish/jersey/internal"))
                     // contained in sql-connector-pulsar
+                    // while the Pulsar connector is externalized, this is still needed for PyFlink
                     .filter(
                             path ->
                                     !pathStartsWith(

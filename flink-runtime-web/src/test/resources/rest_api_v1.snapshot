@@ -532,21 +532,6 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo",
       "properties" : {
-        "environment" : {
-          "type" : "array",
-          "items" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:EnvironmentVariableItem",
-            "properties" : {
-              "key" : {
-                "type" : "string"
-              },
-              "value" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
         "jvm" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:JVMInfo",
@@ -1854,6 +1839,32 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/clientHeartbeat",
+    "method" : "PATCH",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobClientHeartbeatRequestBody",
+      "properties" : {
+        "expiredTimestamp" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+    }
+  }, {
     "url" : "/jobs/:jobid/config",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -1953,6 +1964,9 @@
               },
               "timestamp" : {
                 "type" : "integer"
+              },
+              "taskManagerId" : {
+                "type" : "string"
               }
             }
           }
@@ -1985,6 +1999,9 @@
                   "location" : {
                     "type" : "string"
                   },
+                  "taskManagerId" : {
+                    "type" : "string"
+                  },
                   "concurrentExceptions" : {
                     "type" : "array",
                     "items" : {
@@ -2004,6 +2021,9 @@
                           "type" : "string"
                         },
                         "location" : {
+                          "type" : "string"
+                        },
+                        "taskManagerId" : {
                           "type" : "string"
                         }
                       }
@@ -2110,21 +2130,6 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo",
       "properties" : {
-        "environment" : {
-          "type" : "array",
-          "items" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:EnvironmentVariableItem",
-            "properties" : {
-              "key" : {
-                "type" : "string"
-              },
-              "value" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
         "jvm" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EnvironmentInfo:JVMInfo",
@@ -2765,6 +2770,9 @@
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "type",
+        "mandatory" : false
+      }, {
+        "key" : "subtaskindex",
         "mandatory" : false
       } ]
     },

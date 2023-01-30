@@ -157,6 +157,7 @@ public class PythonTableFunctionOperator
     @Override
     public FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto() {
         return ProtoUtils.createUserDefinedFunctionsProto(
+                getRuntimeContext(),
                 new PythonFunctionInfo[] {tableFunction},
                 config.get(PYTHON_METRIC_ENABLED),
                 config.get(PYTHON_PROFILE_ENABLED));

@@ -50,8 +50,7 @@ public class PbCodegenArraySerializer implements PbCodegenSerializer {
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         PbCodegenAppender appender = new PbCodegenAppender(indent);
-        String protoTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(fd, false, formatContext.getOuterPrefix());
+        String protoTypeStr = PbCodegenUtils.getTypeStrFromProto(fd, false);
         String pbListVar = "pbList" + uid;
         String flinkArrayDataVar = "arrData" + uid;
         String pbElementVar = "elementPbVar" + uid;

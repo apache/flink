@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -38,10 +39,13 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.rex.RexVisitor;
+import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBeans;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Util;
 
 import javax.annotation.Nullable;
 
@@ -415,6 +419,12 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         }
 
         @Override
+        public boolean matches(RelOptRuleCall call) {
+            Join join = call.rel(0);
+            return !isEventTimeTemporalJoin(join.getCondition()) && super.matches(call);
+        }
+
+        @Override
         public void onMatch(RelOptRuleCall call) {
             Join join = call.rel(0);
             perform(call, null, join);
@@ -440,6 +450,8 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
      * Rule that tries to push filter expressions into a join condition and into the inputs of the
      * join.
      *
+     * <p>Note: It never pushes a filter into an event time temporal join in streaming.
+     *
      * @see CoreRules#FILTER_INTO_JOIN
      */
     public static class FlinkFilterIntoJoinRule
@@ -447,6 +459,12 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         /** Creates a FlinkFilterIntoJoinRule. */
         protected FlinkFilterIntoJoinRule(FlinkFilterIntoJoinRule.Config config) {
             super(config);
+        }
+
+        @Override
+        public boolean matches(RelOptRuleCall call) {
+            Join join = call.rel(1);
+            return !isEventTimeTemporalJoin(join.getCondition()) && super.matches(call);
         }
 
         @Override
@@ -476,6 +494,26 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 return new FlinkFilterIntoJoinRule(this);
             }
         }
+    }
+
+    protected boolean isEventTimeTemporalJoin(RexNode joinCondition) {
+        RexVisitor<Void> temporalConditionFinder =
+                new RexVisitorImpl<Void>(true) {
+                    @Override
+                    public Void visitCall(RexCall call) {
+                        if (call.getOperator() == TemporalJoinUtil.INITIAL_TEMPORAL_JOIN_CONDITION()
+                                && TemporalJoinUtil.isInitialRowTimeTemporalTableJoin(call)) {
+                            throw new Util.FoundOne(call);
+                        }
+                        return super.visitCall(call);
+                    }
+                };
+        try {
+            joinCondition.accept(temporalConditionFinder);
+        } catch (Util.FoundOne found) {
+            return true;
+        }
+        return false;
     }
 
     /**

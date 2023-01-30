@@ -258,8 +258,8 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                         jobConf,
                         hiveVersion,
                         tablePath,
-                        getProducedTableSchema().getFieldDataTypes(),
-                        getProducedTableSchema().getFieldNames(),
+                        getTableSchema().getFieldDataTypes(),
+                        getTableSchema().getFieldNames(),
                         catalogTable.getPartitionKeys(),
                         projectedFields,
                         flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));

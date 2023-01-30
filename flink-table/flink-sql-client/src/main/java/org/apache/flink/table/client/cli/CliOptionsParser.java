@@ -21,6 +21,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -30,6 +31,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -137,26 +139,35 @@ public class CliOptionsParser {
                                     + "auto-generate one under your user's home directory.")
                     .build();
 
+    public static final Option OPTION_ENDPOINT_ADDRESS =
+            Option.builder("e")
+                    .required(false)
+                    .longOpt("endpoint")
+                    .numberOfArgs(1)
+                    .argName("SQL Gateway address")
+                    .desc("The address of the remote SQL Gateway to connect.")
+                    .build();
+
     private static final Options EMBEDDED_MODE_CLIENT_OPTIONS =
             getEmbeddedModeClientOptions(new Options());
     private static final Options GATEWAY_MODE_CLIENT_OPTIONS =
             getGatewayModeClientOptions(new Options());
-    private static final Options GATEWAY_MODE_GATEWAY_OPTIONS =
-            getGatewayModeGatewayOptions(new Options());
+
+    private static final String DEFAULT_SESSION_ID = "default";
 
     private static void buildGeneralOptions(Options options) {
         options.addOption(OPTION_HELP);
+        options.addOption(OPTION_SESSION);
+        options.addOption(OPTION_INIT_FILE);
+        options.addOption(OPTION_FILE);
+        options.addOption(OPTION_UPDATE);
+        options.addOption(OPTION_HISTORY);
     }
 
     public static Options getEmbeddedModeClientOptions(Options options) {
         buildGeneralOptions(options);
-        options.addOption(OPTION_SESSION);
-        options.addOption(OPTION_INIT_FILE);
-        options.addOption(OPTION_FILE);
         options.addOption(OPTION_JAR);
         options.addOption(OPTION_LIBRARY);
-        options.addOption(OPTION_UPDATE);
-        options.addOption(OPTION_HISTORY);
         options.addOption(PYFILES_OPTION);
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
@@ -166,27 +177,10 @@ public class CliOptionsParser {
     }
 
     public static Options getGatewayModeClientOptions(Options options) {
+        // Don't support additional files in the gateway mode because current SQL Gateway doesn't
+        // support the client to upload the jars or python scripts.
         buildGeneralOptions(options);
-        options.addOption(OPTION_SESSION);
-        options.addOption(OPTION_UPDATE);
-        options.addOption(OPTION_HISTORY);
-        options.addOption(PYFILES_OPTION);
-        options.addOption(PYREQUIREMENTS_OPTION);
-        options.addOption(PYARCHIVE_OPTION);
-        options.addOption(PYEXEC_OPTION);
-        options.addOption(PYCLIENTEXEC_OPTION);
-        return options;
-    }
-
-    public static Options getGatewayModeGatewayOptions(Options options) {
-        buildGeneralOptions(options);
-        options.addOption(OPTION_JAR);
-        options.addOption(OPTION_LIBRARY);
-        options.addOption(PYFILES_OPTION);
-        options.addOption(PYREQUIREMENTS_OPTION);
-        options.addOption(PYARCHIVE_OPTION);
-        options.addOption(PYEXEC_OPTION);
-        options.addOption(PYCLIENTEXEC_OPTION);
+        options.addOption(OPTION_ENDPOINT_ADDRESS);
         return options;
     }
 
@@ -195,84 +189,74 @@ public class CliOptionsParser {
     // --------------------------------------------------------------------------------------------
 
     /** Prints the help for the client. */
-    public static void printHelpClient() {
-        System.out.println("./sql-client [MODE] [OPTIONS]");
-        System.out.println();
-        System.out.println("The following options are available:");
+    public static void printHelpClient(PrintWriter writer) {
+        writer.println("./sql-client [MODE] [OPTIONS]");
+        writer.println();
+        writer.println("The following options are available:");
 
-        printHelpEmbeddedModeClient();
-        printHelpGatewayModeClient();
+        printHelpEmbeddedModeClient(writer);
+        printHelpGatewayModeClient(writer);
 
-        System.out.println();
+        writer.println();
     }
 
-    /** Prints the help for the gateway. */
-    public static void printHelpGateway() {
-        System.out.println("./sql-gateway [OPTIONS]");
-        System.out.println();
-        System.out.println("The following options are available:");
-
-        printHelpGatewayModeGateway();
-
-        System.out.println();
-    }
-
-    public static void printHelpEmbeddedModeClient() {
+    public static void printHelpEmbeddedModeClient(PrintWriter writer) {
         HelpFormatter formatter = new HelpFormatter();
         formatter.setLeftPadding(5);
         formatter.setWidth(80);
 
-        System.out.println(
-                "\nMode \"embedded\" (default) submits Flink jobs from the local machine.");
-        System.out.println("\n  Syntax: [embedded] [OPTIONS]");
-        formatter.setSyntaxPrefix("  \"embedded\" mode options:");
-        formatter.printHelp(" ", EMBEDDED_MODE_CLIENT_OPTIONS);
+        writer.println("\nMode \"embedded\" (default) submits Flink jobs from the local machine.");
+        writer.println("\n  Syntax: [embedded] [OPTIONS]");
+        writer.println("  \"embedded\" mode options:");
 
-        System.out.println();
+        formatter.printOptions(
+                writer,
+                formatter.getWidth(),
+                EMBEDDED_MODE_CLIENT_OPTIONS,
+                formatter.getLeftPadding(),
+                formatter.getDescPadding());
+
+        writer.println();
+        writer.flush();
     }
 
-    public static void printHelpGatewayModeClient() {
-        // TODO enable this once gateway mode is in place
-        //		HelpFormatter formatter = new HelpFormatter();
-        //		formatter.setLeftPadding(5);
-        //		formatter.setWidth(80);
-        //
-        //		System.out.println("\nIn future versions: Mode \"gateway\" mode connects to the SQL
-        // gateway for submission.");
-        //		System.out.println("\n  Syntax: gateway [OPTIONS]");
-        //		formatter.setSyntaxPrefix("  \"gateway\" mode options:");
-        //		formatter.printHelp(" ", GATEWAY_MODE_CLIENT_OPTIONS);
-        //
-        //		System.out.println();
-    }
-
-    public static void printHelpGatewayModeGateway() {
+    public static void printHelpGatewayModeClient(PrintWriter writer) {
         HelpFormatter formatter = new HelpFormatter();
         formatter.setLeftPadding(5);
         formatter.setWidth(80);
 
-        formatter.printHelp(" ", GATEWAY_MODE_GATEWAY_OPTIONS);
+        writer.println("\nMode \"gateway\" mode connects to the SQL gateway for submission.");
+        writer.println("\n  Syntax: gateway [OPTIONS]");
+        writer.println("  \"gateway\" mode options:");
 
-        System.out.println();
+        formatter.printOptions(
+                writer,
+                formatter.getWidth(),
+                GATEWAY_MODE_CLIENT_OPTIONS,
+                formatter.getLeftPadding(),
+                formatter.getDescPadding());
+
+        writer.println();
+        writer.flush();
     }
 
     // --------------------------------------------------------------------------------------------
     //  Line Parsing
     // --------------------------------------------------------------------------------------------
 
-    public static CliOptions parseEmbeddedModeClient(String[] args) {
+    public static CliOptions.EmbeddedCliOptions parseEmbeddedModeClient(String[] args) {
         try {
             DefaultParser parser = new DefaultParser();
             CommandLine line = parser.parse(EMBEDDED_MODE_CLIENT_OPTIONS, args, true);
-            return new CliOptions(
+            return new CliOptions.EmbeddedCliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
                     checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
                     checkUrl(line, CliOptionsParser.OPTION_FILE),
-                    checkUrls(line, CliOptionsParser.OPTION_JAR),
-                    checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
+                    checkUrls(line, CliOptionsParser.OPTION_JAR),
+                    checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     getPythonConfiguration(line));
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
@@ -283,35 +267,18 @@ public class CliOptionsParser {
         try {
             DefaultParser parser = new DefaultParser();
             CommandLine line = parser.parse(GATEWAY_MODE_CLIENT_OPTIONS, args, true);
-            return new CliOptions(
+            return new CliOptions.GatewayCliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
-                    null,
-                    null,
-                    checkUrls(line, CliOptionsParser.OPTION_JAR),
-                    checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
+                    checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
+                    checkUrl(line, CliOptionsParser.OPTION_FILE),
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
-                    getPythonConfiguration(line));
-        } catch (ParseException e) {
-            throw new SqlClientException(e.getMessage());
-        }
-    }
-
-    public static CliOptions parseGatewayModeGateway(String[] args) {
-        try {
-            DefaultParser parser = new DefaultParser();
-            CommandLine line = parser.parse(GATEWAY_MODE_GATEWAY_OPTIONS, args, true);
-            return new CliOptions(
-                    line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
-                    null,
-                    null,
-                    null,
-                    checkUrls(line, CliOptionsParser.OPTION_JAR),
-                    checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
-                    null,
-                    null,
-                    getPythonConfiguration(line));
+                    line.hasOption(CliOptionsParser.OPTION_ENDPOINT_ADDRESS.getOpt())
+                            ? NetUtils.parseHostPortAddress(
+                                    line.getOptionValue(
+                                            CliOptionsParser.OPTION_ENDPOINT_ADDRESS.getOpt()))
+                            : null);
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
         }
@@ -363,7 +330,10 @@ public class CliOptionsParser {
 
     private static String checkSessionId(CommandLine line) {
         final String sessionId = line.getOptionValue(CliOptionsParser.OPTION_SESSION.getOpt());
-        if (sessionId != null && !sessionId.matches("[a-zA-Z0-9_\\-.]+")) {
+        if (sessionId == null) {
+            return DEFAULT_SESSION_ID;
+        }
+        if (!sessionId.matches("[a-zA-Z0-9_\\-.]+")) {
             throw new SqlClientException(
                     "Session identifier must only consists of 'a-zA-Z0-9_-.'.");
         }

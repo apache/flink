@@ -36,6 +36,10 @@ public enum CheckpointFailureReason {
 
     CHECKPOINT_ASYNC_EXCEPTION(false, "Asynchronous task checkpoint failed."),
 
+    CHANNEL_STATE_SHARED_STREAM_EXCEPTION(
+            false,
+            "The checkpoint was aborted due to exception of other subtasks sharing the ChannelState file."),
+
     CHECKPOINT_EXPIRED(false, "Checkpoint expired before completing."),
 
     CHECKPOINT_SUBSUMED(false, "Checkpoint has been subsumed."),

@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
@@ -222,12 +223,16 @@ class SplitAggregateRule
               aggFunc,
               aggCall.isDistinct,
               aggCall.isApproximate,
+              false,
               aggCall.getArgList,
               aggCall.filterArg,
+              null,
+              RelCollations.EMPTY,
               fullGroupSet.cardinality,
               relBuilder.peek(),
               null,
-              null)
+              null
+            )
         }
         partialAggCalls.addAll(newAggCalls)
         newAggCalls.foreach {
@@ -323,8 +328,11 @@ class SplitAggregateRule
               aggFunction,
               false,
               aggCall.isApproximate,
+              false,
               newArgList,
               -1,
+              null,
+              RelCollations.EMPTY,
               originalAggregate.getGroupCount,
               relBuilder.peek(),
               null,

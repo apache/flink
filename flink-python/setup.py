@@ -21,18 +21,15 @@ import io
 import os
 import platform
 import sys
-import warnings
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
 
 from setuptools import setup, Extension
 
-if sys.version_info < (3, 6):
-    print("Python versions prior to 3.6 are not supported for PyFlink.",
+if sys.version_info < (3, 7):
+    print("Python versions prior to 3.7 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
-elif sys.version_info.minor == 6:
-    warnings.warn("Python version 3.6 won't be supported for PyFlink after 1.16.")
 
 
 def remove_if_exists(file_path):
@@ -308,18 +305,14 @@ try:
         'pyflink.examples': ['*.py', '*/*.py'],
         'pyflink.bin': ['*']}
 
-    install_requires = ['py4j==0.10.9.3', 'python-dateutil==2.8.0', 'apache-beam==2.38.0',
-                        'cloudpickle==2.1.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
+    install_requires = ['py4j==0.10.9.7', 'python-dateutil>=2.8.0,<3', 'apache-beam==2.43.0',
+                        'cloudpickle==2.2.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
                         'pytz>=2018.3', 'fastavro>=1.1.0,<1.4.8', 'requests>=2.26.0',
                         'protobuf>=3.19.0,<=3.21',
-                        'numpy>=1.14.3,<1.20; python_full_version < "3.7"',
-                        'numpy>=1.21.4,<1.22.0; python_full_version >= "3.7"',
-                        'pandas>=1.0,<1.2.0; python_full_version < "3.7"',
-                        'pandas>=1.3.0,<1.4.0; python_full_version >= "3.7"',
-                        'pyarrow>=0.15.1,<7.0.0; python_full_version < "3.7"',
-                        'pyarrow>=5.0.0,<9.0.0; python_full_version >= "3.7"',
-                        'pemja==0.2.6;'
-                        'python_full_version >= "3.7" and platform_system != "Windows"',
+                        'numpy>=1.21.4,<1.22.0',
+                        'pandas>=1.3.0,<1.4.0',
+                        'pyarrow>=5.0.0,<9.0.0',
+                        'pemja==0.3.0;platform_system != "Windows"',
                         'httplib2>=0.19.0,<=0.20.4', apache_flink_libraries_dependency]
 
     setup(
@@ -334,7 +327,7 @@ try:
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
-        python_requires='>=3.6',
+        python_requires='>=3.7',
         install_requires=install_requires,
         cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],
@@ -345,10 +338,10 @@ try:
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8',
-            'Programming Language :: Python :: 3.9'],
+            'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10'],
         ext_modules=extensions
     )
 finally:

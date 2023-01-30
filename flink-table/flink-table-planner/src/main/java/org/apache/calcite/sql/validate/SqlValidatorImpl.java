@@ -94,6 +94,7 @@ import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlTypeCoercionRule;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.util.IdPair;
@@ -107,6 +108,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.Litmus;
+import org.apache.calcite.util.Optionality;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Static;
 import org.apache.calcite.util.Util;
@@ -155,10 +157,10 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 5009 ~ 5022, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
- * specification type at {@link org.apache.calcite.sql.validate.SqlValidatorImpl#validateSnapshot}
+ * <p>Lines 4995 ~ 5008, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
+ * specification type at {@link org.apache.calcite.sql.validate.SqlValidatorImpl#validateSnapshot}.
  *
- * <p>Lines 5366 ~ 5372, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
+ * <p>Lines 5352 ~ 5358, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
  * matchRecognize at {@link SqlValidatorImpl#validateMatchRecognize}.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
@@ -1325,30 +1327,13 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         final SqlKind kind = node.getKind();
         switch (kind) {
             case VALUES:
-                // CHECKSTYLE: IGNORE 1
-                if (underFrom || true) {
-                    // leave FROM (VALUES(...)) [ AS alias ] clauses alone,
-                    // otherwise they grow cancerously if this rewrite is invoked
-                    // over and over
-                    return node;
-                } else {
-                    final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
-                    selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
-                    return new SqlSelect(
-                            node.getParserPosition(),
-                            null,
-                            selectList,
-                            node,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null);
-                }
-
+                // Do not rewrite VALUES clauses.
+                // At some point we used to rewrite VALUES(...) clauses
+                // to (SELECT * FROM VALUES(...)) but this was problematic
+                // in various cases such as FROM (VALUES(...)) [ AS alias ]
+                // where the rewrite was invoked over and over making the
+                // expression grow indefinitely.
+                return node;
             case ORDER_BY:
                 {
                     SqlOrderBy orderBy = (SqlOrderBy) node;
@@ -1842,7 +1827,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                     // call to this function, so we can use the regular
                     // operator validation.
                     return new SqlBasicCall(
-                            operator, SqlNode.EMPTY_ARRAY, id.getParserPosition(), true, null);
+                                    operator, SqlNode.EMPTY_ARRAY, id.getParserPosition(), null)
+                            .withExpanded(true);
                 }
             }
         }
@@ -5855,6 +5841,29 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 break;
             default:
                 throw new AssertionError(op);
+        }
+
+        if (op.isPercentile()) {
+            assert op.requiresGroupOrder() == Optionality.MANDATORY;
+            assert orderList != null;
+
+            // Validate that percentile function have a single ORDER BY expression
+            if (orderList.size() != 1) {
+                throw newValidationError(orderList, RESOURCE.orderByRequiresOneKey(op.getName()));
+            }
+
+            // Validate that the ORDER BY field is of NUMERIC type
+            SqlNode node = orderList.get(0);
+            assert node != null;
+
+            final RelDataType type = deriveType(scope, node);
+            final @Nullable SqlTypeFamily family = type.getSqlTypeName().getFamily();
+            if (family == null || family.allowableDifferenceTypes().isEmpty()) {
+                throw newValidationError(
+                        orderList,
+                        RESOURCE.unsupportedTypeInOrderBy(
+                                type.getSqlTypeName().getName(), op.getName()));
+            }
         }
     }
 

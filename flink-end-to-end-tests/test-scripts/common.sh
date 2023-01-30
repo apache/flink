@@ -380,6 +380,7 @@ function check_logs_for_errors {
       | grep -v "Error sending fetch request" \
       | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
       | grep -v "Options.*error_*" \
+      | grep -v "not packaged with this application" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
@@ -390,38 +391,59 @@ function check_logs_for_errors {
   fi
 }
 
-function check_logs_for_exceptions {
+# check logs for exceptions, the arguments are the additional allowed exceptions
+function internal_check_logs_for_exceptions {
   echo "Checking for exceptions..."
-  exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
-   | grep -v "due to CancelTaskException" \
-   | grep -v "RetriableCommitFailedException" \
-   | grep -v "NoAvailableBrokersException" \
-   | grep -v "Async Kafka commit failed" \
-   | grep -v "DisconnectException" \
-   | grep -v "Cannot connect to ResourceManager right now" \
-   | grep -v "AskTimeoutException" \
-   | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
-   | grep -v  "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
-   | grep -v 'INFO.*AWSErrorCode' \
-   | grep -v "RejectedExecutionException" \
-   | grep -v "CancellationException" \
-   | grep -v "An exception was thrown by an exception handler" \
-   | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.yarn.exceptions.YarnException" \
-   | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.conf.Configuration" \
-   | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
-   | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
-   | grep -v "java.lang.Exception: Execution was suspended" \
-   | grep -v "java.io.InvalidClassException: org.apache.flink.formats.avro.typeutils.AvroSerializer" \
-   | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
-   | grep -v "java.lang.Exception: Artificial failure" \
-   | grep -v "org.apache.flink.runtime.checkpoint.CheckpointException" \
-   | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
-   | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
-   | grep -v "RecipientUnreachableException" \
-   | grep -v "SerializedCheckpointException.unwrap" \
-   | grep -v "ExecutionGraphException: The execution attempt" \
-   | grep -v "Cannot find task to fail for execution" \
-   | grep -ic "exception" || true)
+
+  local additional_allowed_exceptions=()
+  local index=0
+  for exception in "$@"; do
+    additional_allowed_exceptions[index]="$exception"
+    index=$index+1
+  done
+
+  local default_allowed_exceptions=("GroupCoordinatorNotAvailableException" \
+  "due to CancelTaskException" \
+  "RetriableCommitFailedException" \
+  "NoAvailableBrokersException" \
+  "Async Kafka commit failed" \
+  "DisconnectException" \
+  "Cannot connect to ResourceManager right now" \
+  "AskTimeoutException" \
+  "WARN  akka.remote.transport.netty.NettyTransport" \
+  "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
+  'INFO.*AWSErrorCode' \
+  "RejectedExecutionException" \
+  "CancellationException" \
+  "An exception was thrown by an exception handler" \
+  "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.yarn.exceptions.YarnException" \
+  "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.conf.Configuration" \
+  "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
+  "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
+  "java.lang.Exception: Execution was suspended" \
+  "java.io.InvalidClassException: org.apache.flink.formats.avro.typeutils.AvroSerializer" \
+  "Caused by: java.lang.Exception: JobManager is shutting down" \
+  "java.lang.Exception: Artificial failure" \
+  "org.apache.flink.runtime.checkpoint.CheckpointException" \
+  "org.apache.flink.runtime.JobException: Recovery is suppressed" \
+  "WARN  akka.remote.ReliableDeliverySupervisor" \
+  "RecipientUnreachableException" \
+  "SerializedCheckpointException.unwrap")
+
+  local all_allowed_exceptions=("${default_allowed_exceptions[@]}" "${additional_allowed_exceptions[@]}")
+
+  # generate the grep command
+  local grep_command=""
+  for exception in "${all_allowed_exceptions[@]}"; do
+    if [[ $grep_command == "" ]]; then
+      grep_command="grep -rv \"$exception\" $FLINK_LOG_DIR"
+    else
+      grep_command="$grep_command | grep -v \"$exception\""
+    fi
+  done
+  grep_command="$grep_command | grep -ic \"exception\" || true"
+
+  exception_count=$(eval "$grep_command")
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"
     find $FLINK_LOG_DIR/ -type f -exec head -n 500 {} \;
@@ -429,6 +451,10 @@ function check_logs_for_exceptions {
   else
     echo "No exceptions in log files."
   fi
+}
+
+function check_logs_for_exceptions() {
+  internal_check_logs_for_exceptions
 }
 
 function check_logs_for_non_empty_out_files {

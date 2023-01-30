@@ -94,12 +94,8 @@ class FlinkLogicalAggregate(
   }
 }
 
-private class FlinkLogicalAggregateBatchConverter
-  extends ConverterRule(
-    classOf[LogicalAggregate],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalAggregateBatchConverter") {
+private class FlinkLogicalAggregateBatchConverter(config: ConverterRule.Config)
+  extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg = call.rel(0).asInstanceOf[LogicalAggregate]
@@ -126,12 +122,8 @@ private class FlinkLogicalAggregateBatchConverter
   }
 }
 
-private class FlinkLogicalAggregateStreamConverter
-  extends ConverterRule(
-    classOf[LogicalAggregate],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalAggregateStreamConverter") {
+private class FlinkLogicalAggregateStreamConverter(config: ConverterRule.Config)
+  extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg = call.rel(0).asInstanceOf[LogicalAggregate]
@@ -152,8 +144,25 @@ private class FlinkLogicalAggregateStreamConverter
 }
 
 object FlinkLogicalAggregate {
-  val BATCH_CONVERTER: ConverterRule = new FlinkLogicalAggregateBatchConverter()
-  val STREAM_CONVERTER: ConverterRule = new FlinkLogicalAggregateStreamConverter()
+
+  val BATCH_CONVERTER: ConverterRule = new FlinkLogicalAggregateBatchConverter(
+    ConverterRule.Config.INSTANCE
+      .withConversion(
+        classOf[LogicalAggregate],
+        Convention.NONE,
+        FlinkConventions.LOGICAL,
+        "FlinkLogicalAggregateBatchConverter")
+      .withRuleFactory(
+        (config: ConverterRule.Config) => new FlinkLogicalAggregateBatchConverter(config)))
+  val STREAM_CONVERTER: ConverterRule = new FlinkLogicalAggregateStreamConverter(
+    ConverterRule.Config.INSTANCE
+      .withConversion(
+        classOf[LogicalAggregate],
+        Convention.NONE,
+        FlinkConventions.LOGICAL,
+        "FlinkLogicalAggregateStreamConverter")
+      .withRuleFactory(
+        (config: ConverterRule.Config) => new FlinkLogicalAggregateStreamConverter(config)))
 
   def create(
       input: RelNode,

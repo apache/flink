@@ -29,6 +29,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
@@ -95,6 +97,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -202,8 +205,11 @@ class JobMasterTest {
         rpcService = new TestingRpcService();
 
         fastHeartbeatServices =
-                new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout, -1);
-        heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout, 1);
+                new HeartbeatServicesImpl(
+                        fastHeartbeatInterval,
+                        fastHeartbeatTimeout,
+                        HeartbeatManagerOptions.FAILED_RPC_DETECTION_DISABLED);
+        heartbeatServices = new HeartbeatServicesImpl(heartbeatInterval, heartbeatTimeout, 1);
     }
 
     @BeforeEach
@@ -264,7 +270,7 @@ class JobMasterTest {
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
                         .withHighAvailabilityServices(haServices)
-                        .withHeartbeatServices(new HeartbeatServices(1L, 10000L))
+                        .withHeartbeatServices(new HeartbeatServicesImpl(1L, 10000L))
                         .createJobMaster()) {
 
             jobMaster.start();
@@ -408,7 +414,7 @@ class JobMasterTest {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
-                        .withHeartbeatServices(new HeartbeatServices(5L, 1000L))
+                        .withHeartbeatServices(new HeartbeatServicesImpl(5L, 1000L))
                         .withSlotPoolServiceSchedulerFactory(
                                 DefaultSlotPoolServiceSchedulerFactory.create(
                                         new TestingSlotPoolFactory(hasReceivedSlotOffers),
@@ -1362,7 +1368,8 @@ class JobMasterTest {
             // finish the producer task
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(executionAttemptId, ExecutionState.FINISHED))
+                            SchedulerTestingUtils.createFinishedTaskExecutionState(
+                                    executionAttemptId))
                     .get();
 
             // request the state of the result partition of the producer
@@ -1942,12 +1949,11 @@ class JobMasterTest {
             // 1 slot reserved, 1 slot free
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(
+                            SchedulerTestingUtils.createFinishedTaskExecutionState(
                                     getExecutions(jobMasterGateway)
                                             .iterator()
                                             .next()
-                                            .getAttemptId(),
-                                    ExecutionState.FINISHED))
+                                            .getAttemptId()))
                     .get();
 
             BlockedNode blockedNode =
@@ -2158,8 +2164,10 @@ class JobMasterTest {
     private JobGraph producerConsumerJobGraph() {
         final JobVertex producer = new JobVertex("Producer");
         producer.setInvokableClass(NoOpInvokable.class);
+        producer.setParallelism(1);
         final JobVertex consumer = new JobVertex("Consumer");
         consumer.setInvokableClass(NoOpInvokable.class);
+        consumer.setParallelism(1);
 
         consumer.connectNewDataSetAsInput(
                 producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);

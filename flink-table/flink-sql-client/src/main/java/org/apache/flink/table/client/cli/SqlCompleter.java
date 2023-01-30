@@ -35,20 +35,16 @@ import java.util.List;
 public class SqlCompleter implements Completer {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlCompleter.class);
+    private final Executor executor;
 
-    private String sessionId;
-
-    private Executor executor;
-
-    public SqlCompleter(String sessionId, Executor executor) {
-        this.sessionId = sessionId;
+    public SqlCompleter(Executor executor) {
         this.executor = executor;
     }
 
     public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates) {
         String statement = line.line();
         try {
-            executor.completeStatement(sessionId, statement, line.cursor())
+            executor.completeStatement(statement, line.cursor())
                     .forEach(hint -> candidates.add(createCandidate(hint)));
         } catch (SqlExecutionException e) {
             LOG.debug("Could not complete statement at " + line.cursor() + ":" + statement, e);

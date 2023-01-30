@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 
 import javax.annotation.Nullable;
 

@@ -133,6 +133,9 @@ public class MultiInputTransformationTranslator<OUT>
             }
         }
 
+        streamGraph.setSupportsConcurrentExecutionAttempts(
+                transformationId, transformation.isSupportsConcurrentExecutionAttempts());
+
         return Collections.singleton(transformationId);
     }
 }

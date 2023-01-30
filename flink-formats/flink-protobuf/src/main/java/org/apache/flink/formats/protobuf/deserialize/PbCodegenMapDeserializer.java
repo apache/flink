@@ -58,10 +58,8 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
                 fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME);
 
         PbCodegenAppender appender = new PbCodegenAppender(indent);
-        String pbKeyTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(keyFd, false, formatContext.getOuterPrefix());
-        String pbValueTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(valueFd, false, formatContext.getOuterPrefix());
+        String pbKeyTypeStr = PbCodegenUtils.getTypeStrFromProto(keyFd, false);
+        String pbValueTypeStr = PbCodegenUtils.getTypeStrFromProto(valueFd, false);
         String pbMapVar = "pbMap" + uid;
         String pbMapEntryVar = "pbEntry" + uid;
         String resultDataMapVar = "resultDataMap" + uid;

@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.JBoolean
+import org.apache.flink.table.planner.analyze.PlanAdvice
 import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
@@ -87,6 +88,57 @@ object FlinkRelOptUtil {
       withJoinHint = true,
       withQueryBlockAlias)
     rel.explain(planWriter)
+    sw.toString
+  }
+
+  /**
+   * Converts a sequence of relational expressions to a string. This is different from
+   * [[RelOptUtil]]#toString and overloaded [[FlinkRelOptUtil]]#toString on following points:
+   *   - Generated string by this method is in a tree style
+   *   - Generated string by this method may have available [[PlanAdvice]]
+   *
+   * @param relNodes
+   *   a sequence of [[RelNode]]s to convert
+   * @param detailLevel
+   *   detailLevel defines detail levels for EXPLAIN PLAN_ADVICE.
+   * @param withChangelogTraits
+   *   whether including changelog traits of RelNode (only applied to StreamPhysicalRel node at
+   *   present)
+   * @param withAdvice
+   *   whether including plan advice of RelNode (only applied to StreamPhysicalRel node at present)
+   * @return
+   *   explain plan of RelNode
+   */
+  def toString(
+      relNodes: Seq[RelNode],
+      detailLevel: SqlExplainLevel,
+      withChangelogTraits: Boolean,
+      withAdvice: Boolean): String = {
+    if (relNodes == null) {
+      return null
+    }
+    val sw = new StringWriter
+    val planWriter = new RelTreeWriterImpl(
+      new PrintWriter(sw),
+      detailLevel,
+      withIdPrefix = false,
+      withChangelogTraits,
+      withRowType = false,
+      withTreeStyle = true,
+      withUpsertKey = false,
+      withJoinHint = true,
+      withQueryBlockAlias = false,
+      relNodes.length,
+      withAdvice = withAdvice)
+    relNodes.foreach {
+      rel =>
+        rel.explain(planWriter)
+        /*
+         * Reset the print indentation because plan writer is reused.
+         * This is to ensure advice is always attached at the end of the whole plan.
+         */
+        planWriter.continue()
+    }
     sw.toString
   }
 

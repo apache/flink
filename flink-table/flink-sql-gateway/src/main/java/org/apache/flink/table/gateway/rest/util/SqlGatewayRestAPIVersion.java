@@ -20,6 +20,11 @@ package org.apache.flink.table.gateway.rest.util;
 
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
+import org.apache.flink.util.Preconditions;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * An enum for all versions of the Sql Gateway REST API.
@@ -34,8 +39,16 @@ public enum SqlGatewayRestAPIVersion
         implements RestAPIVersion<SqlGatewayRestAPIVersion>, EndpointVersion {
     // The bigger the ordinal(its position in enum declaration), the higher the level of the
     // version.
+
+    // V0 is just for test
     V0(false, false),
-    V1(true, true);
+
+    // V1 introduces basic APIs for rest endpoint
+    V1(false, true),
+
+    // V2 adds support for configuring Session and allows to serialize the RowData with PLAIN_TEXT
+    // or JSON format.
+    V2(true, true);
 
     private final boolean isDefaultVersion;
 
@@ -90,7 +103,37 @@ public enum SqlGatewayRestAPIVersion
         try {
             return valueOf(uri.substring(1, slashIndex).toUpperCase());
         } catch (Exception e) {
-            return V1;
+            return getDefaultVersion();
         }
+    }
+
+    /**
+     * Returns the supported stable versions.
+     *
+     * @return the list of the stable versions.
+     */
+    public static List<SqlGatewayRestAPIVersion> getStableVersions() {
+        return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns the default version.
+     *
+     * @return the default version.
+     */
+    public static SqlGatewayRestAPIVersion getDefaultVersion() {
+        List<SqlGatewayRestAPIVersion> versions =
+                Arrays.stream(SqlGatewayRestAPIVersion.values())
+                        .filter(SqlGatewayRestAPIVersion::isDefaultVersion)
+                        .collect(Collectors.toList());
+        Preconditions.checkState(
+                versions.size() == 1,
+                String.format(
+                        "Only one default version of Sql Gateway Rest API, but found %s.",
+                        versions.size()));
+
+        return versions.get(0);
     }
 }

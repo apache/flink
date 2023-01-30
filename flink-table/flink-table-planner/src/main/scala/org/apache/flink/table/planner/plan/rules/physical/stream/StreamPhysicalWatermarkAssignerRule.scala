@@ -24,14 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalW
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /** Rule that converts [[FlinkLogicalWatermarkAssigner]] to [[StreamPhysicalWatermarkAssigner]]. */
-class StreamPhysicalWatermarkAssignerRule
-  extends ConverterRule(
-    classOf[FlinkLogicalWatermarkAssigner],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalWatermarkAssignerRule") {
+class StreamPhysicalWatermarkAssignerRule(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val watermarkAssigner = rel.asInstanceOf[FlinkLogicalWatermarkAssigner]
@@ -50,5 +46,10 @@ class StreamPhysicalWatermarkAssignerRule
 }
 
 object StreamPhysicalWatermarkAssignerRule {
-  val INSTANCE = new StreamPhysicalWatermarkAssignerRule
+  val INSTANCE = new StreamPhysicalWatermarkAssignerRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalWatermarkAssigner],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalWatermarkAssignerRule"))
 }

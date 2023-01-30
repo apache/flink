@@ -20,6 +20,7 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.InternalPlan;
@@ -51,7 +52,8 @@ public class PlannerMock implements Planner {
     }
 
     @Override
-    public String explain(List<Operation> operations, ExplainDetail... extraDetails) {
+    public String explain(
+            List<Operation> operations, ExplainFormat format, ExplainDetail... extraDetails) {
         return null;
     }
 

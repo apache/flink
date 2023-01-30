@@ -31,14 +31,20 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/** ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*). */
+/**
+ * ALTER TABLE [IF EXISTS] [[catalogName.] dataBasesName].tableName SET ( name=value [,
+ * name=value]*).
+ */
 public class SqlAlterTableOptions extends SqlAlterTable {
 
     private final SqlNodeList propertyList;
 
     public SqlAlterTableOptions(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-        this(pos, tableName, null, propertyList);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList propertyList,
+            boolean ifTableExists) {
+        this(pos, tableName, null, propertyList, ifTableExists);
     }
 
     public SqlAlterTableOptions(
@@ -46,7 +52,16 @@ public class SqlAlterTableOptions extends SqlAlterTable {
             SqlIdentifier tableName,
             SqlNodeList partitionSpec,
             SqlNodeList propertyList) {
-        super(pos, tableName, partitionSpec);
+        this(pos, tableName, partitionSpec, propertyList, false);
+    }
+
+    public SqlAlterTableOptions(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList partitionSpec,
+            SqlNodeList propertyList,
+            boolean ifTableExists) {
+        super(pos, tableName, partitionSpec, ifTableExists);
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
     }
 
@@ -70,9 +85,5 @@ public class SqlAlterTableOptions extends SqlAlterTable {
         }
         writer.newlineAndIndent();
         writer.endList(withFrame);
-    }
-
-    public String[] fullTableName() {
-        return tableIdentifier.names.toArray(new String[0]);
     }
 }

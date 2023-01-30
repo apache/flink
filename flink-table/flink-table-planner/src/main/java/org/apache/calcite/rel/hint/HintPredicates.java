@@ -110,6 +110,13 @@ public abstract class HintPredicates {
             new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.WINDOW);
 
     /**
+     * A hint predicate that indicates a hint can only be used to {@link
+     * org.apache.calcite.rel.core.Snapshot} nodes.
+     */
+    public static final HintPredicate SNAPSHOT =
+            new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.SNAPSHOT);
+
+    /**
      * Returns a composed hint predicate that represents a short-circuiting logical AND of an array
      * of hint predicates {@code hintPredicates}. When evaluating the composed predicate, if a
      * predicate is {@code false}, then all the left predicates are not evaluated.

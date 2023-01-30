@@ -46,14 +46,14 @@ public class SchedulingDownstreamTasksInBatchJobBenchmark extends SchedulingBenc
         for (int i = 0; i < parallelism - 1; i++) {
             ExecutionVertex taskVertex =
                     executionGraph.getJobVertex(jobVertices.get(0).getID()).getTaskVertices()[i];
-            taskVertex.finishAllBlockingPartitions();
+            taskVertex.finishPartitionsIfNeeded();
 
             schedulingStrategy.onExecutionStateChange(taskVertex.getID(), ExecutionState.FINISHED);
         }
         ExecutionVertex lastVertex =
                 executionGraph.getJobVertex(jobVertices.get(0).getID())
                         .getTaskVertices()[parallelism - 1];
-        lastVertex.finishAllBlockingPartitions();
+        lastVertex.finishPartitionsIfNeeded();
         schedulingStrategy.onExecutionStateChange(lastVertex.getID(), ExecutionState.FINISHED);
     }
 }

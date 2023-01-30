@@ -148,7 +148,11 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                                     partitionColumns.length - staticPartitions.size() > 0,
                                     dynamicGrouped,
                                     staticPartitions)
-                            .create(context, fileManager, computer);
+                            .create(
+                                    context,
+                                    fileManager,
+                                    computer,
+                                    new PartitionWriter.DefaultPartitionWriterListener());
         } catch (Exception e) {
             throw new TableException("Exception in open", e);
         }

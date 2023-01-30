@@ -226,6 +226,35 @@ public class NettyShuffleEnvironmentOptions {
                                     + " increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
     /**
+     * Maximum number of network buffers to use for each outgoing/incoming gate (result
+     * partition/input gate), which contains all exclusive network buffers for all subpartitions and
+     * all floating buffers for the gate. The exclusive network buffers for one channel is
+     * configured by {@link #NETWORK_BUFFERS_PER_CHANNEL} and the floating buffers for one gate is
+     * configured by {@link #NETWORK_EXTRA_BUFFERS_PER_GATE}.
+     */
+    @Experimental
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE =
+            key("taskmanager.network.memory.read-buffer.required-per-gate.max")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum number of network read buffers that are required by an"
+                                    + " input gate. (An input gate is responsible for reading data"
+                                    + " from all subtasks of an upstream task.) The number of buffers"
+                                    + " needed by an input gate is dynamically calculated in runtime,"
+                                    + " depending on various factors (e.g., the parallelism of the"
+                                    + " upstream task). Among the calculated number of needed buffers,"
+                                    + " the part below this configured value is required, while the"
+                                    + " excess part, if any, is optional. A task will fail if the"
+                                    + " required buffers cannot be obtained in runtime. A task will"
+                                    + " not fail due to not obtaining optional buffers, but may"
+                                    + " suffer a performance reduction. If not explicitly configured,"
+                                    + " the default value is Integer.MAX_VALUE for streaming workloads,"
+                                    + " and 1000 for batch workloads. If explicitly configured, the"
+                                    + " configured value should be at least 1.");
+
+    /**
      * Minimum number of network buffers required per blocking result partition for sort-shuffle.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
@@ -269,6 +298,24 @@ public class NettyShuffleEnvironmentOptions {
                                     // is implemented to guard that when the target key is modified,
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
+
+    /** Segment size of hybrid spilled file data index. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_SEGMENT_SIZE =
+            key("taskmanager.network.hybrid-shuffle.spill-index-segment-size")
+                    .intType()
+                    .defaultValue(1024)
+                    .withDescription(
+                            "Controls the segment size(in bytes) of hybrid spilled file data index.");
+
+    /** Max number of hybrid retained regions in memory. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Long> HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX =
+            key("taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max")
+                    .longType()
+                    .defaultValue(1024 * 1024L)
+                    .withDescription(
+                            "Controls the max number of hybrid retained regions in memory.");
 
     /** Number of max buffers can be used for each output subpartition. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)

@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.functions.FunctionDefinition
+import org.apache.flink.table.functions.{DeclarativeAggregateFunction, FunctionDefinition}
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.{BridgingSqlAggFunction, BridgingSqlFunction}
 import org.apache.flink.table.planner.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
@@ -28,12 +27,8 @@ import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFuncti
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexInputRef, RexNode, RexProgram}
+import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
-
-import java.util
-import java.util.List
-import java.util.stream.IntStream
 
 import scala.collection.JavaConversions._
 

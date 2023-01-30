@@ -590,23 +590,43 @@ SqlAlterTable SqlAlterTable() :
     SqlParserPos startPos;
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
+    boolean ifExists = false;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
+    SqlTableConstraint constraint;
+    SqlIdentifier originColumnIdentifier;
+    SqlIdentifier newColumnIdentifier;
     AlterTableContext ctx = new AlterTableContext();
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
+        ifExists = IfExistsOpt()
         tableIdentifier = CompoundIdentifier()
     (
+        LOOKAHEAD(2)
         <RENAME> <TO>
         newTableIdentifier = CompoundIdentifier()
         {
             return new SqlAlterTableRename(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        newTableIdentifier);
+                        newTableIdentifier,
+                        ifExists);
+        }
+    |
+        <RENAME>
+            originColumnIdentifier = CompoundIdentifier()
+        <TO>
+            newColumnIdentifier = CompoundIdentifier()
+        {
+            return new SqlAlterTableRenameColumn(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    originColumnIdentifier,
+                    newColumnIdentifier,
+                    ifExists);
         }
     |
         <RESET>
@@ -615,7 +635,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableReset(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        propertyKeyList);
+                        propertyKeyList,
+                        ifExists);
         }
     |
         <SET>
@@ -624,21 +645,13 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        propertyList);
+                        propertyList,
+                        ifExists);
         }
     |
         <ADD>
         (
-            AlterTableAddOrModify(ctx) {
-                // TODO: remove it after supports convert SqlNode to Operation,
-                // the jira link https://issues.apache.org/jira/browse/FLINK-22315
-                if (ctx.constraints.size() > 0) {
-                    return new SqlAlterTableAddConstraint(
-                                tableIdentifier,
-                                ctx.constraints.get(0),
-                                startPos.plus(getPos()));
-                }
-            }
+            AlterTableAddOrModify(ctx)
         |
             <LPAREN>
             AlterTableAddOrModify(ctx)
@@ -653,7 +666,8 @@ SqlAlterTable SqlAlterTable() :
                         tableIdentifier,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
-                        ctx.watermark);
+                        ctx.watermark,
+                        ifExists);
         }
     |
         <MODIFY>
@@ -673,17 +687,55 @@ SqlAlterTable SqlAlterTable() :
                         tableIdentifier,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
-                        ctx.watermark);
+                        ctx.watermark,
+                        ifExists);
         }
 
     |
-        <DROP> <CONSTRAINT>
-        constraintName = SimpleIdentifier() {
-            return new SqlAlterTableDropConstraint(
-                tableIdentifier,
-                constraintName,
-                startPos.plus(getPos()));
-        }
+     <DROP>
+        (
+            { SqlIdentifier columnName = null; }
+            columnName = CompoundIdentifier() {
+                return new SqlAlterTableDropColumn(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            new SqlNodeList(
+                                Collections.singletonList(columnName),
+                                getPos()),
+                            ifExists);
+            }
+        |
+            { Pair<SqlNodeList, SqlNodeList> columnWithTypePair = null; }
+            columnWithTypePair = ParenthesizedCompoundIdentifierList() {
+                return new SqlAlterTableDropColumn(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            columnWithTypePair.getKey(),
+                            ifExists);
+            }
+        |
+            <PRIMARY> <KEY> {
+                return new SqlAlterTableDropPrimaryKey(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        ifExists);
+            }
+        |
+            <CONSTRAINT> constraintName = SimpleIdentifier() {
+                return new SqlAlterTableDropConstraint(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            constraintName,
+                            ifExists);
+            }
+        |
+            <WATERMARK> {
+                return new SqlAlterTableDropWatermark(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            ifExists);
+            }
+        )
     |
         [
             <PARTITION>
@@ -693,7 +745,7 @@ SqlAlterTable SqlAlterTable() :
         ]
         <COMPACT>
         {
-            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec);
+            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec, ifExists);
         }
     )
 }
@@ -771,7 +823,7 @@ SqlTableColumn TypedColumn(TableCreationContext context) :
     SqlDataTypeSpec type;
 }
 {
-    name = SimpleIdentifier() {pos = getPos();}
+    name = CompoundIdentifier() {pos = getPos();}
     type = ExtendedDataType()
     (
         tableColumn = MetadataColumn(context, name, type)
@@ -905,7 +957,7 @@ void AddOrModifyColumn(AlterTableContext context) :
     [
         (
             <AFTER>
-            referencedColumn = SimpleIdentifier()
+            referencedColumn = CompoundIdentifier()
             {
                 columnPos = new SqlTableColumnPosition(
                     getPos(),
@@ -2092,12 +2144,14 @@ void ParseExplainDetail(Set<String> explainDetails):
 }
 {
     (
-        <ESTIMATED_COST> 
-        | 
-        <CHANGELOG_MODE> 
-        | 
+        <ESTIMATED_COST>
+        |
+        <CHANGELOG_MODE>
+        |
         <JSON_EXECUTION_PLAN>
-    ) 
+        |
+        <PLAN_ADVICE>
+    )
     {
         if (explainDetails.contains(token.image.toUpperCase())) {
             throw SqlUtil.newContextException(
@@ -2323,6 +2377,19 @@ SqlNode SqlAnalyzeTable():
 
     {
         return new SqlAnalyzeTable(s.end(this), tableName, partitionSpec, columns, allColumns);
+    }
+}
+
+/**
+* Parse a "SHOW JOBS" statement.
+*/
+SqlShowJobs SqlShowJobs() :
+{
+}
+{
+    <SHOW> <JOBS>
+    {
+        return new SqlShowJobs(getPos());
     }
 }
 

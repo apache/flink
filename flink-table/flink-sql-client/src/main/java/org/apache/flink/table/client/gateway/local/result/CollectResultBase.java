@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
@@ -29,23 +29,28 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /** A result that works through {@link TableResult#collect()}. */
 public abstract class CollectResultBase implements DynamicResult {
-    private final CloseableIterator<RowData> result;
+    private final CloseableIterator<RowData> resultIterator;
 
     protected final Object resultLock;
     protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
     protected final ResultRetrievalThread retrievalThread;
 
-    public CollectResultBase(TableResultInternal tableResult) {
-        result = tableResult.collectInternal();
-        resultLock = new Object();
-        retrievalThread = new ResultRetrievalThread();
+    public CollectResultBase(ClientResult tableResult) {
+        this.resultIterator = tableResult;
+        this.resultLock = new Object();
+        this.retrievalThread = new ResultRetrievalThread();
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         retrievalThread.isRunning = false;
         retrievalThread.interrupt();
-        result.close();
+        try {
+            // cancel the job if it is not terminated
+            resultIterator.close();
+        } catch (Exception e) {
+            // ignore
+        }
     }
 
     protected <T> TypedResult<T> handleMissingResult() {
@@ -72,8 +77,8 @@ public abstract class CollectResultBase implements DynamicResult {
         @Override
         public void run() {
             try {
-                while (isRunning && result.hasNext()) {
-                    processRecord(result.next());
+                while (isRunning && resultIterator.hasNext()) {
+                    processRecord(resultIterator.next());
                 }
             } catch (RuntimeException e) {
                 executionException.compareAndSet(

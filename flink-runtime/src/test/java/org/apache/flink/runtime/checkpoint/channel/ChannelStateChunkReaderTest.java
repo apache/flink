@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -35,31 +35,39 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link ChannelStateChunkReader} test. */
-public class ChannelStateChunkReaderTest {
+class ChannelStateChunkReaderTest {
 
-    @Test(expected = TestException.class)
-    public void testBufferRecycledOnFailure() throws IOException, InterruptedException {
+    @Test
+    void testBufferRecycledOnFailure() {
         FailingChannelStateSerializer serializer = new FailingChannelStateSerializer();
         TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
-        try (FSDataInputStream stream = getStream(serializer, 10)) {
-            new ChannelStateChunkReader(serializer)
-                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
-        } finally {
-            checkState(serializer.failed);
-            checkState(!handler.requestedBuffers.isEmpty());
-            assertTrue(
-                    handler.requestedBuffers.stream()
-                            .allMatch(TestChannelStateByteBuffer::isRecycled));
-        }
+        assertThatThrownBy(
+                        () -> {
+                            try (FSDataInputStream stream = getStream(serializer, 10)) {
+                                new ChannelStateChunkReader(serializer)
+                                        .readChunk(
+                                                stream,
+                                                serializer.getHeaderLength(),
+                                                handler,
+                                                "channelInfo",
+                                                0);
+                            } finally {
+                                checkState(serializer.failed);
+                                checkState(!handler.requestedBuffers.isEmpty());
+                            }
+                        })
+                .isInstanceOf(TestException.class);
+        assertThat(handler.requestedBuffers).allMatch(TestChannelStateByteBuffer::isRecycled);
     }
 
     @Test
-    public void testBufferRecycledOnSuccess() throws IOException, InterruptedException {
+    void testBufferRecycledOnSuccess() throws IOException, InterruptedException {
         ChannelStateSerializer serializer = new ChannelStateSerializerImpl();
         TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
@@ -68,14 +76,12 @@ public class ChannelStateChunkReaderTest {
                     .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
         } finally {
             checkState(!handler.requestedBuffers.isEmpty());
-            assertTrue(
-                    handler.requestedBuffers.stream()
-                            .allMatch(TestChannelStateByteBuffer::isRecycled));
+            assertThat(handler.requestedBuffers).allMatch(TestChannelStateByteBuffer::isRecycled);
         }
     }
 
     @Test
-    public void testBuffersNotRequestedForEmptyStream() throws IOException, InterruptedException {
+    void testBuffersNotRequestedForEmptyStream() throws IOException, InterruptedException {
         ChannelStateSerializer serializer = new ChannelStateSerializerImpl();
         TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
@@ -83,12 +89,12 @@ public class ChannelStateChunkReaderTest {
             new ChannelStateChunkReader(serializer)
                     .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
         } finally {
-            assertTrue(handler.requestedBuffers.isEmpty());
+            assertThat(handler.requestedBuffers).isEmpty();
         }
     }
 
     @Test
-    public void testNoSeekUnnecessarily() throws IOException, InterruptedException {
+    void testNoSeekUnnecessarily() throws IOException, InterruptedException {
         final int offset = 123;
         final FSDataInputStream stream =
                 new FSDataInputStream() {
@@ -99,7 +105,7 @@ public class ChannelStateChunkReaderTest {
 
                     @Override
                     public void seek(long ignored) {
-                        fail();
+                        fail("It shouldn't be called.");
                     }
 
                     @Override

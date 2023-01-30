@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -56,9 +57,15 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.SimpleExecutionSlotAllocator;
+import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
+import org.apache.flink.runtime.scheduler.strategy.DefaultInputConsumableDecider;
+import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
+import org.apache.flink.runtime.scheduler.strategy.PartialFinishedInputConsumableDecider;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.util.SlotSelectionStrategyUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
@@ -69,6 +76,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Factory for {@link AdaptiveBatchScheduler}. */
@@ -101,8 +111,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         checkState(
                 jobGraph.getJobType() == JobType.BATCH,
                 "Adaptive batch scheduler only supports batch jobs");
-        checkAllExchangesBlocking(jobGraph);
-
+        checkAllExchangesAreSupported(jobGraph);
         final SlotPool slotPool =
                 slotPoolService
                         .castInto(SlotPool.class)
@@ -113,6 +122,10 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
 
         final boolean enableSpeculativeExecution =
                 jobMasterConfiguration.getBoolean(JobManagerOptions.SPECULATIVE_ENABLED);
+
+        final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
+                getOrDecideHybridPartitionDataConsumeConstraint(
+                        jobMasterConfiguration, enableSpeculativeExecution);
 
         final List<Consumer<ComponentMainThreadExecutor>> startUpActions = new ArrayList<>();
         final Consumer<ComponentMainThreadExecutor> combinedStartUpActions =
@@ -148,7 +161,12 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         shuffleMaster,
                         partitionTracker,
                         true,
-                        createExecutionJobVertexFactory(enableSpeculativeExecution));
+                        createExecutionJobVertexFactory(enableSpeculativeExecution),
+                        hybridPartitionDataConsumeConstraint == ONLY_FINISHED_PRODUCERS);
+
+        final SchedulingStrategyFactory schedulingStrategyFactory =
+                new VertexwiseSchedulingStrategy.Factory(
+                        loadInputConsumableDeciderFactory(hybridPartitionDataConsumeConstraint));
 
         if (enableSpeculativeExecution) {
             return new SpeculativeScheduler(
@@ -162,7 +180,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     new CheckpointsCleaner(),
                     checkpointRecoveryFactory,
                     jobManagerJobMetricGroup,
-                    new VertexwiseSchedulingStrategy.Factory(),
+                    schedulingStrategyFactory,
                     FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(
                             jobMasterConfiguration),
                     restartBackoffTimeStrategy,
@@ -175,10 +193,11 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
-                    DefaultVertexParallelismDecider.from(jobMasterConfiguration),
-                    DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
-                            jobMasterConfiguration),
-                    blocklistOperations);
+                    DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
+                    jobMasterConfiguration.getInteger(
+                            JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM),
+                    blocklistOperations,
+                    hybridPartitionDataConsumeConstraint);
         } else {
             return new AdaptiveBatchScheduler(
                     log,
@@ -191,7 +210,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     new CheckpointsCleaner(),
                     checkpointRecoveryFactory,
                     jobManagerJobMetricGroup,
-                    new VertexwiseSchedulingStrategy.Factory(),
+                    schedulingStrategyFactory,
                     FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(
                             jobMasterConfiguration),
                     restartBackoffTimeStrategy,
@@ -204,10 +223,44 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
-                    DefaultVertexParallelismDecider.from(jobMasterConfiguration),
-                    DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
-                            jobMasterConfiguration));
+                    DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
+                    jobMasterConfiguration.getInteger(
+                            JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM),
+                    hybridPartitionDataConsumeConstraint);
         }
+    }
+
+    public static InputConsumableDecider.Factory loadInputConsumableDeciderFactory(
+            HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint) {
+        switch (hybridPartitionDataConsumeConstraint) {
+            case ALL_PRODUCERS_FINISHED:
+                return AllFinishedInputConsumableDecider.Factory.INSTANCE;
+            case ONLY_FINISHED_PRODUCERS:
+                return PartialFinishedInputConsumableDecider.Factory.INSTANCE;
+            case UNFINISHED_PRODUCERS:
+                return DefaultInputConsumableDecider.Factory.INSTANCE;
+            default:
+                throw new IllegalStateException(
+                        hybridPartitionDataConsumeConstraint + "is not supported.");
+        }
+    }
+
+    public static HybridPartitionDataConsumeConstraint
+            getOrDecideHybridPartitionDataConsumeConstraint(
+                    Configuration configuration, boolean enableSpeculativeExecution) {
+        final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
+                configuration
+                        .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
+                        .orElse(
+                                enableSpeculativeExecution
+                                        ? ALL_PRODUCERS_FINISHED
+                                        : UNFINISHED_PRODUCERS);
+        if (enableSpeculativeExecution) {
+            Preconditions.checkState(
+                    hybridPartitionDataConsumeConstraint != UNFINISHED_PRODUCERS,
+                    "For speculative execution, only supports consume finished partition now.");
+        }
+        return hybridPartitionDataConsumeConstraint;
     }
 
     private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(
@@ -230,17 +283,20 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         }
     }
 
-    private void checkAllExchangesBlocking(final JobGraph jobGraph) {
+    private void checkAllExchangesAreSupported(final JobGraph jobGraph) {
         for (JobVertex jobVertex : jobGraph.getVertices()) {
             for (IntermediateDataSet dataSet : jobVertex.getProducedDataSets()) {
                 checkState(
-                        dataSet.getResultType().isBlockingOrBlockingPersistentResultPartition(),
+                        dataSet.getResultType().isBlockingOrBlockingPersistentResultPartition()
+                                || dataSet.getResultType().isHybridResultPartition(),
                         String.format(
                                 "At the moment, adaptive batch scheduler requires batch workloads "
-                                        + "to be executed with types of all edges being BLOCKING. "
-                                        + "To do that, you need to configure '%s' to '%s'.",
+                                        + "to be executed with types of all edges being BLOCKING or HYBRID_FULL/HYBRID_SELECTIVE. "
+                                        + "To do that, you need to configure '%s' to '%s' or '%s/%s'.",
                                 ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
-                                BatchShuffleMode.ALL_EXCHANGES_BLOCKING));
+                                BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
+                                BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL,
+                                BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE));
             }
         }
     }

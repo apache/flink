@@ -46,7 +46,6 @@ import java.time.Instant
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 class CalcITCase extends StreamingTestBase {
 
@@ -713,5 +712,36 @@ class CalcITCase extends StreamingTestBase {
     tEnv.useDatabase("db1")
     val result2 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().toList
     assertEquals(Seq(row(tEnv.getCurrentDatabase)), result2)
+  }
+
+  @Test
+  def testLikeWithConditionContainsDoubleQuotationMark(): Unit = {
+    val rows = Seq(row(42, "abc"), row(2, "cbc\"ddd"))
+    val dataId = TestValuesTableFactory.registerData(rows)
+
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  b string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    val result = tEnv
+      .sqlQuery("""
+                  | SELECT * FROM MyTable WHERE b LIKE '%"%'
+                  |""".stripMargin)
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("2,cbc\"ddd")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

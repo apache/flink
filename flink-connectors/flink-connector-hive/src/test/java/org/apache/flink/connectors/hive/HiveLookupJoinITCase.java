@@ -363,17 +363,18 @@ public class HiveLookupJoinITCase {
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
-                        "insert overwrite bounded_table values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)")
+                        "insert overwrite bounded_table values (1,'a',10),(2,'b',22),(3,'c',33)")
                 .await();
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         TableImpl flinkTable =
                 (TableImpl)
                         tableEnv.sqlQuery(
-                                "select b.x, b.y from "
+                                "select b.x, b.z from "
                                         + " default_catalog.default_database.probe as p "
-                                        + " join bounded_table for system_time as of p.p as b on p.x=b.x and p.y=b.y");
+                                        + " join bounded_table for system_time as of p.p as b on p.x=b.x");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertThat(results.toString()).isEqualTo("[+I[1, a], +I[2, b], +I[3, c]]");
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, 10], +I[1, 10], +I[2, 22], +I[2, 22], +I[3, 33]]");
     }
 
     @Test

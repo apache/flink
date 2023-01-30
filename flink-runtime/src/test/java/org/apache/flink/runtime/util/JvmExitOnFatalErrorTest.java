@@ -26,6 +26,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -45,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -233,6 +235,7 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                                 memoryManager,
+                                new SharedResources(),
                                 ioManager,
                                 shuffleEnvironment,
                                 new KvStateService(new KvStateRegistry(), null, null),
@@ -252,7 +255,9 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                                 tmInfo,
                                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
                                 new NoOpPartitionProducerStateChecker(),
-                                executor);
+                                executor,
+                                new ChannelStateWriteRequestExecutorFactory(
+                                        jobInformation.getJobId()));
 
                 System.err.println("starting task thread");
 

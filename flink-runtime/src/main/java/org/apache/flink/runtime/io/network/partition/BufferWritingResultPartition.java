@@ -423,7 +423,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         final BufferBuilder bufferBuilder = unicastBufferBuilders[targetSubpartition];
         if (bufferBuilder != null) {
             int bytes = bufferBuilder.finish();
-            numBytesProduced.inc(bytes);
+            resultPartitionBytes.inc(targetSubpartition, bytes);
             numBytesOut.inc(bytes);
             numBuffersOut.inc();
             unicastBufferBuilders[targetSubpartition] = null;
@@ -440,7 +440,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     private void finishBroadcastBufferBuilder() {
         if (broadcastBufferBuilder != null) {
             int bytes = broadcastBufferBuilder.finish();
-            numBytesProduced.inc(bytes);
+            resultPartitionBytes.incAll(bytes);
             numBytesOut.inc(bytes * numSubpartitions);
             numBuffersOut.inc(numSubpartitions);
             broadcastBufferBuilder.close();

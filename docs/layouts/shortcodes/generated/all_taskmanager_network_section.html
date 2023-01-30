@@ -33,6 +33,18 @@
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max</h5></td>
+            <td style="word-wrap: break-word;">1048576</td>
+            <td>Long</td>
+            <td>Controls the max number of hybrid retained regions in memory.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.spill-index-segment-size</h5></td>
+            <td style="word-wrap: break-word;">1024</td>
+            <td>Integer</td>
+            <td>Controls the segment size(in bytes) of hybrid spilled file data index.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.max-num-tcp-connections</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -91,6 +103,12 @@
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
             <td>Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers will be used when the subtask cannot apply to the normal buffers  due to back pressure, while subtask is performing an action that can not be interrupted in the middle,  like serializing a large record, flatMap operator producing multiple records for one single input record or processing time timer producing large output. In situations like that system will allow subtask to request overdraft buffers, so that the subtask can finish such uninterruptible action, without blocking unaligned checkpoints for long period of time. Overdraft buffers are provided on best effort basis only if the system has some unused buffers available. Subtask that has used overdraft buffers won't be allowed to process any more records until the overdraft buffers are returned to the pool.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.read-buffer.required-per-gate.max</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The maximum number of network read buffers that are required by an input gate. (An input gate is responsible for reading data from all subtasks of an upstream task.) The number of buffers needed by an input gate is dynamically calculated in runtime, depending on various factors (e.g., the parallelism of the upstream task). Among the calculated number of needed buffers, the part below this configured value is required, while the excess part, if any, is optional. A task will fail if the required buffers cannot be obtained in runtime. A task will not fail due to not obtaining optional buffers, but may suffer a performance reduction. If not explicitly configured, the default value is Integer.MAX_VALUE for streaming workloads, and 1000 for batch workloads. If explicitly configured, the configured value should be at least 1.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.netty.client.connectTimeoutSec</h5></td>

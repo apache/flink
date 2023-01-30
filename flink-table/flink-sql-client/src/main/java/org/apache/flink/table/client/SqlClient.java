@@ -23,10 +23,11 @@ import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
-import org.apache.flink.table.client.gateway.local.LocalContextUtils;
-import org.apache.flink.table.client.gateway.local.LocalExecutor;
+import org.apache.flink.table.client.gateway.local.DefaultContextUtils;
+import org.apache.flink.table.gateway.SqlGateway;
+import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -34,12 +35,17 @@ import org.jline.terminal.Terminal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Properties;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
@@ -51,63 +57,71 @@ import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTO
  * <p>- In embedded mode, the SQL CLI is tightly coupled with the executor in a common process. This
  * allows for submitting jobs without having to start an additional component.
  *
- * <p>- In future versions: In gateway mode, the SQL CLI client connects to the REST API of the
- * gateway and allows for managing queries via console.
- *
- * <p>For debugging in an IDE you can execute the main method of this class using: "--defaults
- * /path/to/sql-client-defaults.yaml --jar /path/to/target/flink-sql-client-*.jar"
- *
- * <p>Make sure that the FLINK_CONF_DIR environment variable is set.
+ * <p>- In gateway mode, the SQL CLI client connects to the REST API of the gateway and allows for
+ * managing queries via console.
  */
 public class SqlClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlClient.class);
 
-    private final boolean isEmbedded;
+    private final boolean isGatewayMode;
     private final CliOptions options;
     private final Supplier<Terminal> terminalFactory;
 
     public static final String MODE_EMBEDDED = "embedded";
     public static final String MODE_GATEWAY = "gateway";
+    public static final String MODE_NONE = "";
 
-    public SqlClient(boolean isEmbedded, CliOptions options, Supplier<Terminal> terminalFactory) {
-        this.isEmbedded = isEmbedded;
+    public SqlClient(
+            boolean isGatewayMode, CliOptions options, Supplier<Terminal> terminalFactory) {
+        this.isGatewayMode = isGatewayMode;
         this.options = options;
         this.terminalFactory = terminalFactory;
     }
 
     private void start() {
-        if (isEmbedded) {
-            // create local executor with default environment
-
-            DefaultContext defaultContext = LocalContextUtils.buildDefaultContext(options);
-            final Executor executor = new LocalExecutor(defaultContext);
-            executor.start();
-
-            // Open an new session
-            String sessionId = executor.openSession(options.getSessionId());
-            try {
+        if (isGatewayMode) {
+            CliOptions.GatewayCliOptions gatewayCliOptions = (CliOptions.GatewayCliOptions) options;
+            try (ExecutorImpl executor =
+                    new ExecutorImpl(
+                            DefaultContextUtils.buildDefaultContext(gatewayCliOptions),
+                            gatewayCliOptions
+                                    .getGatewayAddress()
+                                    .orElseThrow(
+                                            () ->
+                                                    new SqlClientException(
+                                                            "Please specify the address of the SQL Gateway with command line option"
+                                                                    + " '-e,--endpoint <SQL Gateway address>' in the gateway mode.")))) {
                 // add shutdown hook
-                Runtime.getRuntime()
-                        .addShutdownHook(new EmbeddedShutdownThread(sessionId, executor));
-
-                // do the actual work
-                openCli(sessionId, executor);
-            } finally {
-                executor.closeSession(sessionId);
+                Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor));
+                executor.openSession(options.getSessionId());
+                openCli(executor);
             }
         } else {
-            throw new SqlClientException("Gateway mode is not supported yet.");
+            try (EmbeddedGateway embeddedGateway = new EmbeddedGateway();
+                    ExecutorImpl executor =
+                            new ExecutorImpl(
+                                    DefaultContextUtils.buildDefaultContext(
+                                            (CliOptions.EmbeddedCliOptions) options),
+                                    InetSocketAddress.createUnresolved(
+                                            embeddedGateway.getAddress(),
+                                            embeddedGateway.getPort()))) {
+                // add shutdown hook
+                Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor, embeddedGateway));
+                // do the actual work
+                embeddedGateway.start();
+                executor.openSession(options.getSessionId());
+                openCli(executor);
+            }
         }
     }
 
     /**
      * Opens the CLI client for executing SQL statements.
      *
-     * @param sessionId session identifier for the current client.
      * @param executor executor
      */
-    private void openCli(String sessionId, Executor executor) {
+    private void openCli(Executor executor) {
         Path historyFilePath;
         if (options.getHistoryFilePath() != null) {
             historyFilePath = Paths.get(options.getHistoryFilePath());
@@ -130,7 +144,7 @@ public class SqlClient {
                             CliOptionsParser.OPTION_FILE.getOpt()));
         }
 
-        try (CliClient cli = new CliClient(terminalFactory, sessionId, executor, historyFilePath)) {
+        try (CliClient cli = new CliClient(terminalFactory, executor, historyFilePath)) {
             if (options.getInitFile() != null) {
                 boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
                 if (!success) {
@@ -167,7 +181,7 @@ public class SqlClient {
         final String[] modeArgs;
         if (args.length < 1 || args[0].startsWith("-")) {
             // mode is not specified, use the default `embedded` mode
-            mode = MODE_EMBEDDED;
+            mode = "";
             modeArgs = args;
         } else {
             // mode is specified, extract the mode value and reaming args
@@ -176,60 +190,125 @@ public class SqlClient {
             modeArgs = Arrays.copyOfRange(args, 1, args.length);
         }
 
+        final CliOptions options;
         switch (mode) {
             case MODE_EMBEDDED:
-                final CliOptions options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
+                options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
                 if (options.isPrintHelp()) {
-                    CliOptionsParser.printHelpEmbeddedModeClient();
-                } else {
-                    try {
-                        final SqlClient client = new SqlClient(true, options, terminalFactory);
-                        client.start();
-                    } catch (SqlClientException e) {
-                        // make space in terminal
-                        System.out.println();
-                        System.out.println();
-                        LOG.error("SQL Client must stop.", e);
-                        throw e;
-                    } catch (Throwable t) {
-                        // make space in terminal
-                        System.out.println();
-                        System.out.println();
-                        LOG.error(
-                                "SQL Client must stop. Unexpected exception. This is a bug. Please consider filing an issue.",
-                                t);
-                        throw new SqlClientException(
-                                "Unexpected exception. This is a bug. Please consider filing an issue.",
-                                t);
-                    }
+                    CliOptionsParser.printHelpEmbeddedModeClient(terminalFactory.get().writer());
+                    return;
                 }
                 break;
-
             case MODE_GATEWAY:
-                throw new SqlClientException("Gateway mode is not supported yet.");
-
+                options = CliOptionsParser.parseGatewayModeClient(modeArgs);
+                if (options.isPrintHelp()) {
+                    CliOptionsParser.printHelpGatewayModeClient(terminalFactory.get().writer());
+                    return;
+                }
+                break;
+            case MODE_NONE:
+                options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
+                if (options.isPrintHelp()) {
+                    CliOptionsParser.printHelpClient(terminalFactory.get().writer());
+                    return;
+                }
+                break;
             default:
-                CliOptionsParser.printHelpClient();
+                CliOptionsParser.printHelpClient(terminalFactory.get().writer());
+                return;
+        }
+
+        try {
+            final SqlClient client =
+                    new SqlClient(mode.equals(MODE_GATEWAY), options, terminalFactory);
+            client.start();
+        } catch (SqlClientException e) {
+            // make space in terminal
+            System.out.println();
+            System.out.println();
+            LOG.error("SQL Client must stop.", e);
+            throw e;
+        } catch (Throwable t) {
+            // make space in terminal
+            System.out.println();
+            System.out.println();
+            LOG.error(
+                    "SQL Client must stop. Unexpected exception. This is a bug. Please consider filing an issue.",
+                    t);
+            throw new SqlClientException(
+                    "Unexpected exception. This is a bug. Please consider filing an issue.", t);
         }
     }
 
     // --------------------------------------------------------------------------------------------
 
-    private static class EmbeddedShutdownThread extends Thread {
+    private static class EmbeddedGateway implements Closeable {
 
-        private final String sessionId;
-        private final Executor executor;
+        private static final String ADDRESS = "localhost";
 
-        public EmbeddedShutdownThread(String sessionId, Executor executor) {
-            this.sessionId = sessionId;
+        private final NetUtils.Port port;
+        private final SqlGateway sqlGateway;
+
+        public EmbeddedGateway() {
+            port = NetUtils.getAvailablePort();
+
+            Properties properties = new Properties();
+            // always use localhost
+            properties.setProperty("sql-gateway.endpoint.rest.address", ADDRESS);
+            properties.setProperty(
+                    "sql-gateway.endpoint.rest.port", String.valueOf(port.getPort()));
+            sqlGateway = new SqlGateway(properties);
+        }
+
+        void start() {
+            try {
+                sqlGateway.start();
+            } catch (Throwable t) {
+                throw new SqlClientException("Failed to start the embedded sql-gateway.", t);
+            }
+        }
+
+        String getAddress() {
+            return ADDRESS;
+        }
+
+        int getPort() {
+            return port.getPort();
+        }
+
+        @Override
+        public void close() {
+            sqlGateway.stop();
+            try {
+                port.close();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+    }
+
+    private static class ShutdownThread extends Thread {
+
+        private final ExecutorImpl executor;
+        private @Nullable final EmbeddedGateway gateway;
+
+        private ShutdownThread(ExecutorImpl executor) {
+            this(executor, null);
+        }
+
+        public ShutdownThread(ExecutorImpl executor, @Nullable EmbeddedGateway gateway) {
             this.executor = executor;
+            this.gateway = gateway;
         }
 
         @Override
         public void run() {
             // Shutdown the executor
             System.out.println("\nShutting down the session...");
-            executor.closeSession(sessionId);
+            executor.close();
+            if (gateway != null) {
+                gateway.close();
+            }
             System.out.println("done.");
         }
     }

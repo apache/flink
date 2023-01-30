@@ -220,6 +220,7 @@ public class StreamingJobGraphGenerator {
     private JobGraph createJobGraph() {
         preValidate();
         jobGraph.setJobType(streamGraph.getJobType());
+        jobGraph.setDynamic(streamGraph.isDynamic());
 
         jobGraph.enableApproximateLocalRecovery(
                 streamGraph.getCheckpointConfig().isApproximateLocalRecoveryEnabled());
@@ -239,7 +240,7 @@ public class StreamingJobGraphGenerator {
 
         setPhysicalEdges();
 
-        markContainsSourcesOrSinks();
+        markSupportingConcurrentExecutionAttempts();
 
         setSlotSharingAndCoLocation();
 
@@ -1009,6 +1010,7 @@ public class StreamingJobGraphGenerator {
         config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
         config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
         config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
+        config.setMaxSubtasksPerChannelStateFile(checkpointCfg.getMaxSubtasksPerChannelStateFile());
         config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
@@ -1104,7 +1106,7 @@ public class StreamingJobGraphGenerator {
             if (partitioner instanceof ForwardForConsecutiveHashPartitioner
                     || partitioner instanceof ForwardForUnspecifiedPartitioner) {
                 checkState(
-                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        streamGraph.isDynamic(),
                         String.format(
                                 "%s should only be used in dynamic graph.",
                                 partitioner.getClass().getSimpleName()));
@@ -1115,14 +1117,14 @@ public class StreamingJobGraphGenerator {
             StreamPartitioner<?> partitioner = edge.getPartitioner();
             if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
                 checkState(
-                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        streamGraph.isDynamic(),
                         "ForwardForConsecutiveHashPartitioner should only be used in dynamic graph.");
                 edge.setPartitioner(
                         ((ForwardForConsecutiveHashPartitioner<?>) partitioner)
                                 .getHashPartitioner());
             } else if (partitioner instanceof ForwardForUnspecifiedPartitioner) {
                 checkState(
-                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        streamGraph.isDynamic(),
                         "ForwardForUnspecifiedPartitioner should only be used in dynamic graph.");
                 edge.setPartitioner(new RescalePartitioner<>());
             }
@@ -1286,9 +1288,7 @@ public class StreamingJobGraphGenerator {
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && arePartitionerAndExchangeModeChainable(
-                        edge.getPartitioner(),
-                        edge.getExchangeMode(),
-                        streamGraph.getExecutionConfig().isDynamicGraph())
+                        edge.getPartitioner(), edge.getExchangeMode(), streamGraph.isDynamic())
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 && streamGraph.isChainingEnabled())) {
 
@@ -1388,24 +1388,28 @@ public class StreamingJobGraphGenerator {
         return upStreamVertex.getOperatorFactory();
     }
 
-    private void markContainsSourcesOrSinks() {
+    private void markSupportingConcurrentExecutionAttempts() {
         for (Map.Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
             final JobVertex jobVertex = entry.getValue();
             final Set<Integer> vertexOperators = new HashSet<>();
             vertexOperators.add(entry.getKey());
-            if (chainedConfigs.containsKey(entry.getKey())) {
-                vertexOperators.addAll(chainedConfigs.get(entry.getKey()).keySet());
+            final Map<Integer, StreamConfig> vertexChainedConfigs =
+                    chainedConfigs.get(entry.getKey());
+            if (vertexChainedConfigs != null) {
+                vertexOperators.addAll(vertexChainedConfigs.keySet());
             }
 
+            // disable supportConcurrentExecutionAttempts of job vertex if there is any stream node
+            // does not support it
+            boolean supportConcurrentExecutionAttempts = true;
             for (int nodeId : vertexOperators) {
-                if (streamGraph.getSourceIDs().contains(nodeId)) {
-                    jobVertex.markContainsSources();
-                }
-                if (streamGraph.getSinkIDs().contains(nodeId)
-                        || streamGraph.getExpandedSinkIds().contains(nodeId)) {
-                    jobVertex.markContainsSinks();
+                final StreamNode streamNode = streamGraph.getStreamNode(nodeId);
+                if (!streamNode.isSupportsConcurrentExecutionAttempts()) {
+                    supportConcurrentExecutionAttempts = false;
+                    break;
                 }
             }
+            jobVertex.setSupportsConcurrentExecutionAttempts(supportConcurrentExecutionAttempts);
         }
     }
 

@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Iterator;
 import java.util.Optional;
@@ -59,6 +61,8 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
     private final Collector<OUT> collector;
 
     private final Timestamper<IN> timestamper;
+
+    private ThrowingConsumer<StreamRecord<IN>, Exception> recordProcessor;
 
     BoundedStreamTask(
             Environment environment,
@@ -91,6 +95,7 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
         mainOperator = mainOperatorAndTimeService.f0;
         mainOperator.initializeState(createStreamTaskStateInitializer());
         mainOperator.open();
+        recordProcessor = RecordProcessorUtils.getRecordProcessor(mainOperator);
     }
 
     @Override
@@ -103,8 +108,7 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
                 streamRecord.setTimestamp(timestamp);
             }
 
-            mainOperator.setKeyContextElement1(streamRecord);
-            mainOperator.processElement(streamRecord);
+            recordProcessor.accept(streamRecord);
         } else {
             mainOperator.endInput();
             mainOperator.finish();

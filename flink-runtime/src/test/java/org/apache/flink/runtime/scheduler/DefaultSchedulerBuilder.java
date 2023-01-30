@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
@@ -30,7 +31,9 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.ParallelismAndInputInfos;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -43,7 +46,9 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.SpeculativeScheduler;
-import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismDecider;
+import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
+import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
+import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
@@ -55,6 +60,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -95,10 +101,15 @@ public class DefaultSchedulerBuilder {
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
     private ExecutionDeployer.Factory executionDeployerFactory =
             new DefaultExecutionDeployer.Factory();
-    private VertexParallelismDecider vertexParallelismDecider = (ignored) -> 0;
+    private VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
+            createCustomParallelismDecider(1);
     private int defaultMaxParallelism =
             JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue();
     private BlocklistOperations blocklistOperations = ignore -> {};
+    private HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
+            HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
+    private InputConsumableDecider.Factory inputConsumableDeciderFactory =
+            AllFinishedInputConsumableDecider.Factory.INSTANCE;
 
     public DefaultSchedulerBuilder(
             JobGraph jobGraph,
@@ -238,9 +249,9 @@ public class DefaultSchedulerBuilder {
         return this;
     }
 
-    public DefaultSchedulerBuilder setVertexParallelismDecider(
-            VertexParallelismDecider vertexParallelismDecider) {
-        this.vertexParallelismDecider = vertexParallelismDecider;
+    public DefaultSchedulerBuilder setVertexParallelismAndInputInfosDecider(
+            VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider) {
+        this.vertexParallelismAndInputInfosDecider = vertexParallelismAndInputInfosDecider;
         return this;
     }
 
@@ -251,6 +262,18 @@ public class DefaultSchedulerBuilder {
 
     public DefaultSchedulerBuilder setBlocklistOperations(BlocklistOperations blocklistOperations) {
         this.blocklistOperations = blocklistOperations;
+        return this;
+    }
+
+    public DefaultSchedulerBuilder setHybridPartitionDataConsumeConstraint(
+            HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint) {
+        this.hybridPartitionDataConsumeConstraint = hybridPartitionDataConsumeConstraint;
+        return this;
+    }
+
+    public DefaultSchedulerBuilder setInputConsumableDeciderFactory(
+            InputConsumableDecider.Factory inputConsumableDeciderFactory) {
+        this.inputConsumableDeciderFactory = inputConsumableDeciderFactory;
         return this;
     }
 
@@ -294,7 +317,7 @@ public class DefaultSchedulerBuilder {
                 checkpointCleaner,
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
-                new VertexwiseSchedulingStrategy.Factory(),
+                new VertexwiseSchedulingStrategy.Factory(inputConsumableDeciderFactory),
                 failoverStrategyFactory,
                 restartBackoffTimeStrategy,
                 executionOperations,
@@ -306,8 +329,9 @@ public class DefaultSchedulerBuilder {
                 createExecutionGraphFactory(true),
                 shuffleMaster,
                 rpcTimeout,
-                vertexParallelismDecider,
-                defaultMaxParallelism);
+                vertexParallelismAndInputInfosDecider,
+                defaultMaxParallelism,
+                hybridPartitionDataConsumeConstraint);
     }
 
     public SpeculativeScheduler buildSpeculativeScheduler() throws Exception {
@@ -322,7 +346,7 @@ public class DefaultSchedulerBuilder {
                 checkpointCleaner,
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
-                new VertexwiseSchedulingStrategy.Factory(),
+                new VertexwiseSchedulingStrategy.Factory(inputConsumableDeciderFactory),
                 failoverStrategyFactory,
                 restartBackoffTimeStrategy,
                 executionOperations,
@@ -334,9 +358,10 @@ public class DefaultSchedulerBuilder {
                 createExecutionGraphFactory(true, new SpeculativeExecutionJobVertex.Factory()),
                 shuffleMaster,
                 rpcTimeout,
-                vertexParallelismDecider,
+                vertexParallelismAndInputInfosDecider,
                 defaultMaxParallelism,
-                blocklistOperations);
+                blocklistOperations,
+                HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED);
     }
 
     private ExecutionGraphFactory createExecutionGraphFactory(boolean isDynamicGraph) {
@@ -357,6 +382,22 @@ public class DefaultSchedulerBuilder {
                 shuffleMaster,
                 partitionTracker,
                 isDynamicGraph,
-                executionJobVertexFactory);
+                executionJobVertexFactory,
+                isDynamicGraph
+                        && hybridPartitionDataConsumeConstraint
+                                == HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS);
+    }
+
+    public static VertexParallelismAndInputInfosDecider createCustomParallelismDecider(
+            int expectParallelism) {
+        return (jobVertexId, consumedResults, initialParallelism) -> {
+            int parallelism = initialParallelism > 0 ? initialParallelism : expectParallelism;
+            return new ParallelismAndInputInfos(
+                    parallelism,
+                    consumedResults.isEmpty()
+                            ? Collections.emptyMap()
+                            : VertexInputInfoComputationUtils.computeVertexInputInfos(
+                                    parallelism, consumedResults, true));
+        };
     }
 }

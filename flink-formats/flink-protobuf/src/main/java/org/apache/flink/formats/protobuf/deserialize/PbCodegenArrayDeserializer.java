@@ -50,8 +50,7 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
         PbCodegenAppender appender = new PbCodegenAppender(indent);
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
-        String protoTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(fd, false, formatContext.getOuterPrefix());
+        String protoTypeStr = PbCodegenUtils.getTypeStrFromProto(fd, false);
         String listPbVar = "list" + uid;
         String flinkArrVar = "newArr" + uid;
         String flinkArrEleVar = "subReturnVar" + uid;

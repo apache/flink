@@ -56,6 +56,9 @@ function setup_kubernetes_for_linux {
     sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
     rm -f crictl-$VERSION-linux-amd64.tar.gz
     # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
+    if [ -e cri-dockerd ];
+     then rm -r cri-dockerd
+    fi
     git clone https://github.com/Mirantis/cri-dockerd.git
     cd cri-dockerd
     # Checkout version 0.2.3

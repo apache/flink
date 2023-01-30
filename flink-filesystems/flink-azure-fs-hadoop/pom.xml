@@ -186,13 +186,6 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-hadoop-fs</artifact>
-									<excludes>
-										<exclude>org/apache/flink/runtime/util/HadoopUtils</exclude>
-										<exclude>org/apache/flink/runtime/fs/hdfs/HadoopRecoverable*</exclude>
-									</excludes>
-								</filter>
-								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>properties.dtd</exclude>

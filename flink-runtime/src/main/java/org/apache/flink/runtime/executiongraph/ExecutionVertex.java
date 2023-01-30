@@ -28,6 +28,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -59,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ExecutionVertex
         implements AccessExecutionVertex, Archiveable<ArchivedExecutionVertex> {
 
-    public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
+    public static final long NUM_BYTES_UNKNOWN = -1;
 
     // --------------------------------------------------------------------------------------------
 
@@ -84,6 +85,8 @@ public class ExecutionVertex
     final ArrayList<InputSplit> inputSplits;
 
     private int nextAttemptNumber;
+
+    private long inputBytes;
 
     /** This field holds the allocation id of the last successful assignment. */
     @Nullable private TaskManagerLocation lastAssignedLocation;
@@ -140,6 +143,8 @@ public class ExecutionVertex
 
         this.nextAttemptNumber = initialAttemptCount;
 
+        this.inputBytes = NUM_BYTES_UNKNOWN;
+
         this.timeout = timeout;
         this.inputSplits = new ArrayList<>();
 
@@ -159,6 +164,21 @@ public class ExecutionVertex
                 nextAttemptNumber++,
                 timestamp,
                 timeout);
+    }
+
+    public ExecutionVertexInputInfo getExecutionVertexInputInfo(IntermediateDataSetID resultId) {
+        return getExecutionGraphAccessor()
+                .getJobVertexInputInfo(getJobvertexId(), resultId)
+                .getExecutionVertexInputInfos()
+                .get(subTaskIndex);
+    }
+
+    public void setInputBytes(long inputBytes) {
+        this.inputBytes = inputBytes;
+    }
+
+    public long getInputBytes() {
+        return inputBytes;
     }
 
     public Execution getPartitionProducer() {
@@ -477,28 +497,34 @@ public class ExecutionVertex
         getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
     }
 
-    /** Returns all blocking result partitions whose receivers can be scheduled/updated. */
+    /**
+     * Mark partition finished if needed.
+     *
+     * @return list of finished partitions.
+     */
     @VisibleForTesting
-    public List<IntermediateResultPartition> finishAllBlockingPartitions() {
-        List<IntermediateResultPartition> finishedBlockingPartitions = null;
-
+    public List<IntermediateResultPartition> finishPartitionsIfNeeded() {
+        List<IntermediateResultPartition> finishedPartitions = null;
+        MarkPartitionFinishedStrategy markPartitionFinishedStrategy =
+                getExecutionGraphAccessor().getMarkPartitionFinishedStrategy();
         for (IntermediateResultPartition partition : resultPartitions.values()) {
-            if (!partition.getResultType().canBePipelinedConsumed()) {
+            if (markPartitionFinishedStrategy.needMarkPartitionFinished(
+                    partition.getResultType())) {
 
                 partition.markFinished();
 
-                if (finishedBlockingPartitions == null) {
-                    finishedBlockingPartitions = new LinkedList<>();
+                if (finishedPartitions == null) {
+                    finishedPartitions = new LinkedList<>();
                 }
 
-                finishedBlockingPartitions.add(partition);
+                finishedPartitions.add(partition);
             }
         }
 
-        if (finishedBlockingPartitions == null) {
+        if (finishedPartitions == null) {
             return Collections.emptyList();
         } else {
-            return finishedBlockingPartitions;
+            return finishedPartitions;
         }
     }
 

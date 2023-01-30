@@ -78,7 +78,7 @@ public class PbCodegenUtils {
      * @return The returned code phrase will be used as java type str in codegen sections.
      * @throws PbCodegenException
      */
-    public static String getTypeStrFromProto(FieldDescriptor fd, boolean isList, String outerPrefix)
+    public static String getTypeStrFromProto(FieldDescriptor fd, boolean isList)
             throws PbCodegenException {
         String typeStr;
         switch (fd.getJavaType()) {
@@ -90,12 +90,12 @@ public class PbCodegenUtils {
                     FieldDescriptor valueFd =
                             fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME);
                     // key and value cannot be repeated
-                    String keyTypeStr = getTypeStrFromProto(keyFd, false, outerPrefix);
-                    String valueTypeStr = getTypeStrFromProto(valueFd, false, outerPrefix);
+                    String keyTypeStr = getTypeStrFromProto(keyFd, false);
+                    String valueTypeStr = getTypeStrFromProto(valueFd, false);
                     typeStr = "Map<" + keyTypeStr + "," + valueTypeStr + ">";
                 } else {
                     // simple message
-                    typeStr = PbFormatUtils.getFullJavaName(fd.getMessageType(), outerPrefix);
+                    typeStr = PbFormatUtils.getFullJavaName(fd.getMessageType());
                 }
                 break;
             case INT:
@@ -108,7 +108,7 @@ public class PbCodegenUtils {
                 typeStr = "String";
                 break;
             case ENUM:
-                typeStr = PbFormatUtils.getFullJavaName(fd.getEnumType(), outerPrefix);
+                typeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
                 break;
             case FLOAT:
                 typeStr = "Float";
@@ -174,11 +174,10 @@ public class PbCodegenUtils {
     public static String pbDefaultValueCode(
             FieldDescriptor fieldDescriptor, PbFormatContext pbFormatContext)
             throws PbCodegenException {
-        String outerPrefix = pbFormatContext.getOuterPrefix();
         String nullLiteral = pbFormatContext.getPbFormatConfig().getWriteNullStringLiterals();
         switch (fieldDescriptor.getJavaType()) {
             case MESSAGE:
-                return PbFormatUtils.getFullJavaName(fieldDescriptor.getMessageType(), outerPrefix)
+                return PbFormatUtils.getFullJavaName(fieldDescriptor.getMessageType())
                         + ".getDefaultInstance()";
             case INT:
                 return "0";
@@ -187,7 +186,7 @@ public class PbCodegenUtils {
             case STRING:
                 return "\"" + nullLiteral + "\"";
             case ENUM:
-                return PbFormatUtils.getFullJavaName(fieldDescriptor.getEnumType(), outerPrefix)
+                return PbFormatUtils.getFullJavaName(fieldDescriptor.getEnumType())
                         + ".values()[0]";
             case FLOAT:
                 return "0.0f";
@@ -229,9 +228,7 @@ public class PbCodegenUtils {
         int uid = varUid.getAndIncrement();
         String flinkElementVar = "elementVar" + uid;
         PbCodegenAppender appender = new PbCodegenAppender(indent);
-        String protoTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(
-                        elementPbFd, false, pbFormatContext.getOuterPrefix());
+        String protoTypeStr = PbCodegenUtils.getTypeStrFromProto(elementPbFd, false);
         String dataTypeStr = PbCodegenUtils.getTypeStrFromLogicType(elementDataType);
         appender.appendLine(protoTypeStr + " " + resultPbVar);
         appender.begin("if(" + flinkArrDataVar + ".isNullAt(" + iVar + ")){");

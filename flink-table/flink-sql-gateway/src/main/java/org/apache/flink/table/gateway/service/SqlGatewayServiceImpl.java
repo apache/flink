@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -38,15 +39,18 @@ import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 /** The implementation of the {@link SqlGatewayService} interface. */
 public class SqlGatewayServiceImpl implements SqlGatewayService {
@@ -76,6 +80,32 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable e) {
             LOG.error("Failed to closeSession.", e);
             throw new SqlGatewayException("Failed to closeSession.", e);
+        }
+    }
+
+    @Override
+    public void configureSession(
+            SessionHandle sessionHandle, String statement, long executionTimeoutMs)
+            throws SqlGatewayException {
+        try {
+            if (executionTimeoutMs > 0) {
+                // TODO: support the feature in FLINK-27838
+                throw new UnsupportedOperationException(
+                        "SqlGatewayService doesn't support timeout mechanism now.");
+            }
+
+            OperationManager operationManager = getSession(sessionHandle).getOperationManager();
+            OperationHandle operationHandle =
+                    operationManager.submitOperation(
+                            handle ->
+                                    getSession(sessionHandle)
+                                            .createExecutor()
+                                            .configureSession(handle, statement));
+            operationManager.awaitOperationTermination(operationHandle);
+            operationManager.closeOperation(operationHandle);
+        } catch (Throwable t) {
+            LOG.error("Failed to configure session.", t);
+            throw new SqlGatewayException("Failed to configure session.", t);
         }
     }
 
@@ -310,6 +340,34 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     public GatewayInfo getGatewayInfo() {
         return GatewayInfo.INSTANCE;
     }
+
+    @Override
+    public List<String> completeStatement(
+            SessionHandle sessionHandle, String statement, int position)
+            throws SqlGatewayException {
+        try {
+            OperationManager operationManager = getSession(sessionHandle).getOperationManager();
+            OperationHandle operationHandle =
+                    operationManager.submitOperation(
+                            handle ->
+                                    getSession(sessionHandle)
+                                            .createExecutor()
+                                            .getCompletionHints(handle, statement, position));
+            operationManager.awaitOperationTermination(operationHandle);
+
+            ResultSet resultSet =
+                    fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE);
+            return resultSet.getData().stream()
+                    .map(data -> data.getString(0))
+                    .map(StringData::toString)
+                    .collect(Collectors.toList());
+        } catch (Throwable t) {
+            LOG.error("Failed to get statement completion candidates.", t);
+            throw new SqlGatewayException("Failed to get statement completion candidates.", t);
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
 
     @VisibleForTesting
     public Session getSession(SessionHandle sessionHandle) {

@@ -17,7 +17,8 @@
 
 package org.apache.flink.state.changelog;
 
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
@@ -27,11 +28,8 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
-
 import javax.annotation.Nullable;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 
@@ -50,13 +48,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 abstract class AbstractStateChangeLogger<Key, Value, Ns>
         implements StateChangeLogger<Value, Ns>, Closeable {
-    static final int COMMON_KEY_GROUP = -1;
     protected final StateChangelogWriter<?> stateChangelogWriter;
     protected final InternalKeyContext<Key> keyContext;
     protected RegisteredStateMetaInfoBase metaInfo;
     private final StateMetaInfoSnapshot.BackendStateType stateType;
-    private final ByteArrayOutputStream out = new ByteArrayOutputStream();
-    private final DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(out);
+    private final DataOutputSerializer out = new DataOutputSerializer(128);
     private boolean metaDataWritten = false;
     private final short stateShortId;
 
@@ -96,8 +92,7 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
         }
     }
 
-    protected abstract void serializeValue(Value value, DataOutputViewStreamWrapper out)
-            throws IOException;
+    protected abstract void serializeValue(Value value, DataOutputView out) throws IOException;
 
     @Override
     public void valueAdded(Value addedValue, Ns ns) throws IOException {
@@ -111,21 +106,21 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
 
     @Override
     public void valueElementAdded(
-            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Ns ns)
+            ThrowingConsumer<DataOutputView, IOException> dataSerializer, Ns ns)
             throws IOException {
         log(ADD_ELEMENT, dataSerializer, ns);
     }
 
     @Override
     public void valueElementAddedOrUpdated(
-            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Ns ns)
+            ThrowingConsumer<DataOutputView, IOException> dataSerializer, Ns ns)
             throws IOException {
         log(ADD_OR_UPDATE_ELEMENT, dataSerializer, ns);
     }
 
     @Override
     public void valueElementRemoved(
-            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Ns ns)
+            ThrowingConsumer<DataOutputView, IOException> dataSerializer, Ns ns)
             throws IOException {
         log(REMOVE_ELEMENT, dataSerializer, ns);
     }
@@ -148,7 +143,7 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
 
     protected void log(
             StateChangeOperation op,
-            @Nullable ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter,
+            @Nullable ThrowingConsumer<DataOutputView, IOException> dataWriter,
             Ns ns)
             throws IOException {
         logMetaIfNeeded();
@@ -158,10 +153,7 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
 
     private void logMetaIfNeeded() throws IOException {
         if (!metaDataWritten) {
-            // todo: add StateChangelogWriter.append() version without a keygroup
-            //     when all callers and implementers are merged (FLINK-21356 or later)
-            stateChangelogWriter.append(
-                    COMMON_KEY_GROUP,
+            stateChangelogWriter.appendMeta(
                     serializeRaw(
                             out -> {
                                 out.writeByte(METADATA.getCode());
@@ -176,12 +168,12 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
         }
     }
 
-    protected void writeDefaultValueAndTtl(DataOutputViewStreamWrapper out) throws IOException {}
+    protected void writeDefaultValueAndTtl(DataOutputView out) throws IOException {}
 
     private byte[] serialize(
             StateChangeOperation op,
             Ns ns,
-            @Nullable ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter)
+            @Nullable ThrowingConsumer<DataOutputView, IOException> dataWriter)
             throws IOException {
         return serializeRaw(
                 wrapper -> {
@@ -194,24 +186,18 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
                 });
     }
 
-    protected abstract void serializeScope(Ns ns, DataOutputViewStreamWrapper out)
-            throws IOException;
+    protected abstract void serializeScope(Ns ns, DataOutputView out) throws IOException;
 
-    private byte[] serializeRaw(
-            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter)
+    private byte[] serializeRaw(ThrowingConsumer<DataOutputView, IOException> dataWriter)
             throws IOException {
-        dataWriter.accept(wrapper);
-        wrapper.flush();
-        byte[] bytes = out.toByteArray();
-        out.reset();
+        dataWriter.accept(out);
+        byte[] bytes = out.getCopyOfBuffer();
+        out.clear();
         return bytes;
     }
 
     @Override
     public void close() throws IOException {
-        try (Closer closer = Closer.create()) {
-            closer.register(wrapper);
-            closer.register(out);
-        }
+        // do nothing
     }
 }

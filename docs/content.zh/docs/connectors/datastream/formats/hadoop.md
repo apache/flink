@@ -48,7 +48,7 @@ under the License.
 <dependency>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-client</artifactId>
-    <version>2.8.5</version>
+    <version>2.10.2</version>
     <scope>provided</scope>
 </dependency>
 ```

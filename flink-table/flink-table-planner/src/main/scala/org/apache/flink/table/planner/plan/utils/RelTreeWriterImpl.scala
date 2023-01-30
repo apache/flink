@@ -17,8 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.analyze.{FlinkStreamPlanAnalyzers, PlanAdvice}
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
@@ -30,6 +32,7 @@ import org.apache.calcite.util.Pair
 
 import java.io.PrintWriter
 import java.util
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConversions._
 
@@ -43,12 +46,24 @@ class RelTreeWriterImpl(
     withTreeStyle: Boolean = true,
     withUpsertKey: Boolean = false,
     withJoinHint: Boolean = true,
-    withQueryBlockAlias: Boolean = false)
+    withQueryBlockAlias: Boolean = false,
+    statementNum: Integer = 1,
+    withAdvice: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
+
+  val NODE_LEVEL_ADVICE = new util.HashMap[Integer, util.List[PlanAdvice]]()
+
+  val QUERY_LEVEL_ADVICE = new util.LinkedHashSet[PlanAdvice]()
+
+  val NEXT_ADVICE_ID = new AtomicInteger(1)
+
+  val ADVICE_IDS = new util.LinkedHashMap[PlanAdvice, Integer]()
 
   var lastChildren: Seq[Boolean] = Nil
 
   var depth = 0
+
+  var statementCnt = 1
 
   override def explain_(rel: RelNode, values: util.List[Pair[String, AnyRef]]): Unit = {
     val inputs = rel.getInputs
@@ -81,6 +96,21 @@ class RelTreeWriterImpl(
 
     val printValues = new util.ArrayList[Pair[String, AnyRef]]()
     if (explainLevel != SqlExplainLevel.NO_ATTRIBUTES) {
+      if (withAdvice) {
+        if (depth == 0) {
+          applyAdvice(rel)
+        }
+        val adviceToRel = NODE_LEVEL_ADVICE.get(rel.getId)
+        if (adviceToRel != null) {
+          val adviceIds = new util.LinkedHashSet[Integer]()
+          adviceToRel.foreach {
+            advice =>
+              ADVICE_IDS.computeIfAbsent(advice, _ => NEXT_ADVICE_ID.getAndIncrement())
+              adviceIds.add(ADVICE_IDS.get(advice))
+          }
+          printValues.add(Pair.of("advice", adviceIds.mkString(", ")))
+        }
+      }
       printValues.addAll(values)
     }
 
@@ -187,6 +217,58 @@ class RelTreeWriterImpl(
         depth = depth - 1
         lastChildren = lastChildren.init
       }
+    }
+
+    /*
+     * check depth (zero means recursion finishes) to ensure sub-plan reuse condition is covered
+     * check statementCnt to ensure statement set condition is covered
+     */
+    if (withAdvice && depth == 0 && statementNum == statementCnt) {
+      pw.println()
+      ADVICE_IDS.foreach(
+        advice =>
+          pw.println(s"advice[${advice._2}]: [${advice._1.getKind}] ${advice._1.getContent}"))
+      QUERY_LEVEL_ADVICE.forEach(
+        advice =>
+          pw.println(
+            s"advice[${NEXT_ADVICE_ID.getAndIncrement()}]: " +
+              s"[${advice.getKind}] ${advice.getContent}"))
+      if (ADVICE_IDS.isEmpty && QUERY_LEVEL_ADVICE.isEmpty) {
+        pw.println("No available advice...")
+      }
+    }
+  }
+
+  /**
+   * Reuse the current writer to print the next statement for
+   * [[org.apache.flink.table.api.StatementSet]] clause. This is to ensure plan advice is always
+   * attached at the end of the whole plan.
+   */
+  def continue(): Unit = {
+    // reset depth to refresh indentation
+    depth = 0
+    // increase the counter to track the progress
+    statementCnt += 1
+    pw.println()
+  }
+
+  private def applyAdvice(rel: RelNode): Unit = {
+    FlinkStreamPlanAnalyzers.ANALYZERS.foreach {
+      analyzer =>
+        analyzer
+          .analyze(rel.asInstanceOf[FlinkPhysicalRel])
+          .ifPresent(
+            analyzedResult =>
+              if (analyzedResult.getAdvice.getScope == PlanAdvice.Scope.NODE_LEVEL) {
+                analyzedResult.getTargetIds.foreach(
+                  id =>
+                    NODE_LEVEL_ADVICE
+                      .computeIfAbsent(id, _ => new util.ArrayList[PlanAdvice]())
+                      .add(analyzedResult.getAdvice))
+
+              } else {
+                QUERY_LEVEL_ADVICE.add(analyzedResult.getAdvice)
+              })
     }
   }
 }

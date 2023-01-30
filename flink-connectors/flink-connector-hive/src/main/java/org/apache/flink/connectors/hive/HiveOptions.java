@@ -230,6 +230,13 @@ public class HiveOptions {
                     .withDescription(
                             "The cache TTL (e.g. 10min) for the build table in lookup join.");
 
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED =
+            key("table.exec.hive.native-agg-function.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enabling native aggregate function for hive dialect to use hash-agg strategy that can improve the aggregation performance.");
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------

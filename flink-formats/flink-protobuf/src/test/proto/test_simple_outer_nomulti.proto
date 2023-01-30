@@ -20,20 +20,20 @@ syntax = "proto2";
 package org.apache.flink.formats.protobuf.proto;
 option java_package = "org.apache.flink.formats.protobuf.testproto";
 option java_outer_classname = "SimpleTestOuterNomultiProto";
+option java_multiple_files = false;
 
-message SimpleTestOuterNomulti {
+message SimpleTestOuterNoMulti {
+  optional int32 a = 1;
+  optional int64 b = 2;
+  optional bool c = 3;
+  optional float d = 4;
+  optional double e = 5;
+  optional string f = 6;
+  optional bytes g = 7;
+  optional InnerMessageTest h = 8;
+
+  message InnerMessageTest{
     optional int32 a = 1;
     optional int64 b = 2;
-    optional bool c = 3;
-    optional float d = 4;
-    optional double e = 5;
-    optional string f = 6;
-    optional bytes g = 7;
-    optional InnerMessageTest h = 8;
-
-    message InnerMessageTest{
-        optional int32 a =1;
-        optional int64 b =2;
-    }
+  }
 }
-

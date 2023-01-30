@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -33,6 +34,8 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -44,6 +47,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -63,6 +67,11 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
+import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -72,6 +81,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -117,6 +127,7 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1731,6 +1742,226 @@ class StreamingJobGraphGeneratorTest {
         assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
                 .hasRootCauseInstanceOf(IOException.class)
                 .hasRootCauseMessage("This provider is not serializable.");
+    }
+
+    @Test
+    void testSupportConcurrentExecutionAttempts() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        // source -> (map1 -> map2) -> sink
+        source.rebalance()
+                .map(v -> v)
+                .name("map1")
+                .map(v -> v)
+                .name("map2")
+                .rebalance()
+                .sinkTo(new PrintSink<>())
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final List<StreamNode> streamNodes =
+                streamGraph.getStreamNodes().stream()
+                        .sorted(Comparator.comparingInt(StreamNode::getId))
+                        .collect(Collectors.toList());
+
+        final StreamNode sourceNode = streamNodes.get(0);
+        final StreamNode map1Node = streamNodes.get(1);
+        final StreamNode map2Node = streamNodes.get(2);
+        final StreamNode sinkNode = streamNodes.get(3);
+        streamGraph.setSupportsConcurrentExecutionAttempts(sourceNode.getId(), true);
+        // map1 and map2 are chained
+        // map1 supports concurrent execution attempt however map2 does not
+        streamGraph.setSupportsConcurrentExecutionAttempts(map1Node.getId(), true);
+        streamGraph.setSupportsConcurrentExecutionAttempts(map2Node.getId(), false);
+        streamGraph.setSupportsConcurrentExecutionAttempts(sinkNode.getId(), false);
+
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(3);
+        for (JobVertex jobVertex : jobGraph.getVertices()) {
+            if (jobVertex.getName().contains("source")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+            } else if (jobVertex.getName().contains("map")) {
+                // chained job vertex does not support concurrent execution attempt if any operator
+                // in chain does not support it
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+            } else if (jobVertex.getName().contains("sink")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+            } else {
+                Assertions.fail("Unexpected job vertex " + jobVertex.getName());
+            }
+        }
+    }
+
+    @Test
+    void testSinkSupportConcurrentExecutionAttempts() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        source.rebalance()
+                .sinkTo(new TestSinkWithSupportsConcurrentExecutionAttempts())
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(6);
+        for (JobVertex jobVertex : jobGraph.getVertices()) {
+            if (jobVertex.getName().contains("source")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+            } else if (jobVertex.getName().contains("pre-writer")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+            } else if (jobVertex.getName().contains("Writer")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+            } else if (jobVertex.getName().contains("pre-committer")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+            } else if (jobVertex.getName().contains("post-committer")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+            } else if (jobVertex.getName().contains("Committer")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+            } else {
+                Assertions.fail("Unexpected job vertex " + jobVertex.getName());
+            }
+        }
+    }
+
+    @Test
+    void testSinkFunctionNotSupportConcurrentExecutionAttempts() {
+        testWhetherSinkFunctionSupportsConcurrentExecutionAttempts(
+                new TestingSinkFunctionNotSupportConcurrentExecutionAttempts<>(), false);
+    }
+
+    @Test
+    void testSinkFunctionSupportConcurrentExecutionAttempts() {
+        testWhetherSinkFunctionSupportsConcurrentExecutionAttempts(
+                new TestingSinkFunctionSupportConcurrentExecutionAttempts<>(), true);
+    }
+
+    private static void testWhetherSinkFunctionSupportsConcurrentExecutionAttempts(
+            SinkFunction<Integer> function, boolean isSupported) {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        source.rebalance().addSink(function).name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(2);
+        for (JobVertex jobVertex : jobGraph.getVertices()) {
+            if (jobVertex.getName().contains("source")) {
+                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+            } else if (jobVertex.getName().contains("sink")) {
+                if (isSupported) {
+                    assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
+                } else {
+                    assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
+                }
+            } else {
+                Assertions.fail("Unexpected job vertex " + jobVertex.getName());
+            }
+        }
+    }
+
+    private static class TestingSinkFunctionNotSupportConcurrentExecutionAttempts<T>
+            implements SinkFunction<T> {
+        @Override
+        public void invoke(T value, Context context) throws Exception {}
+    }
+
+    private static class TestingSinkFunctionSupportConcurrentExecutionAttempts<T>
+            implements SinkFunction<T>, SupportsConcurrentExecutionAttempts {
+        @Override
+        public void invoke(T value, Context context) throws Exception {}
+    }
+
+    private static class TestSinkWithSupportsConcurrentExecutionAttempts
+            implements SupportsConcurrentExecutionAttempts,
+                    TwoPhaseCommittingSink<Integer, Void>,
+                    WithPreWriteTopology<Integer>,
+                    WithPreCommitTopology<Integer, Void>,
+                    WithPostCommitTopology<Integer, Void> {
+
+        @Override
+        public PrecommittingSinkWriter<Integer, Void> createWriter(InitContext context)
+                throws IOException {
+            return new PrecommittingSinkWriter<Integer, Void>() {
+                @Override
+                public Collection<Void> prepareCommit() throws IOException, InterruptedException {
+                    return null;
+                }
+
+                @Override
+                public void write(Integer element, Context context)
+                        throws IOException, InterruptedException {}
+
+                @Override
+                public void flush(boolean endOfInput) throws IOException, InterruptedException {}
+
+                @Override
+                public void close() throws Exception {}
+            };
+        }
+
+        @Override
+        public Committer<Void> createCommitter() throws IOException {
+            return new Committer<Void>() {
+                @Override
+                public void commit(Collection<CommitRequest<Void>> committables)
+                        throws IOException, InterruptedException {}
+
+                @Override
+                public void close() throws Exception {}
+            };
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Void> getCommittableSerializer() {
+            return new SimpleVersionedSerializer<Void>() {
+                @Override
+                public int getVersion() {
+                    return 0;
+                }
+
+                @Override
+                public byte[] serialize(Void obj) throws IOException {
+                    return new byte[0];
+                }
+
+                @Override
+                public Void deserialize(int version, byte[] serialized) throws IOException {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public void addPostCommitTopology(DataStream<CommittableMessage<Void>> committables) {
+            committables
+                    .map(v -> v)
+                    .name("post-committer")
+                    .returns(CommittableMessageTypeInfo.noOutput())
+                    .rebalance();
+        }
+
+        @Override
+        public DataStream<CommittableMessage<Void>> addPreCommitTopology(
+                DataStream<CommittableMessage<Void>> committables) {
+            return committables
+                    .map(v -> v)
+                    .name("pre-committer")
+                    .returns(CommittableMessageTypeInfo.noOutput())
+                    .rebalance();
+        }
+
+        @Override
+        public DataStream<Integer> addPreWriteTopology(DataStream<Integer> inputDataStream) {
+            return inputDataStream.map(v -> v).name("pre-writer").rebalance();
+        }
     }
 
     private static class SerializationTestOperatorFactory
