@@ -59,7 +59,6 @@ public class ParallelismSettingTest extends TableTestBase {
 
     @Test
     public void testParallelismSettingAfterSingletonShuffleRemove() {
-        util.getStreamEnv().getConfig().setScheduler(SchedulerType.AdaptiveBatch);
         util.getTableEnv()
                 .executeSql(
                         "CREATE TABLE MySink (\n"
