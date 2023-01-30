@@ -316,7 +316,16 @@ public class HiveParserDMLHelper {
                 topQB.getParseInfo().getInsertOverwriteTables().keySet().stream()
                         .map(String::toLowerCase)
                         .collect(Collectors.toSet())
-                        .contains(tableName);
+                        .contains(tableName.toLowerCase());
+
+        boolean isInsertInto = topQB.getParseInfo().isInsertIntoTable(tableName);
+
+        Preconditions.checkArgument(
+                overwrite | isInsertInto,
+                "Inconsistent data structure detected: we are writing to "
+                        + tableName
+                        + ", but it's not in isInsertIntoTable() or getInsertOverwriteTables()."
+                        + " This is a bug. Please consider filing an issue.");
 
         Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean> insertOperationInfo =
                 createInsertOperationInfo(
