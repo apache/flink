@@ -52,11 +52,11 @@ public class DefaultContextUtils {
             libDirs = Collections.emptyList();
         }
         return DefaultContext.load(
-                options.getPythonConfiguration(), discoverDependencies(jars, libDirs));
+                options.getPythonConfiguration(), discoverDependencies(jars, libDirs), true);
     }
 
     public static DefaultContext buildDefaultContext(CliOptions.GatewayCliOptions options) {
-        return DefaultContext.load(new Configuration(), Collections.emptyList());
+        return DefaultContext.load(new Configuration(), Collections.emptyList(), false);
     }
     // --------------------------------------------------------------------------------------------
 

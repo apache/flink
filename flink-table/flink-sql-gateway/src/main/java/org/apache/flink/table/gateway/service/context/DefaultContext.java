@@ -125,10 +125,6 @@ public class DefaultContext {
 
     // -------------------------------------------------------------------------------------------
 
-    public static DefaultContext load(Configuration dynamicConfig, List<URL> dependencies) {
-        return load(dynamicConfig, dependencies, false);
-    }
-
     public static DefaultContext load(
             Configuration dynamicConfig, List<URL> dependencies, boolean discoverPythonDependency) {
         // 1. find the configuration directory
