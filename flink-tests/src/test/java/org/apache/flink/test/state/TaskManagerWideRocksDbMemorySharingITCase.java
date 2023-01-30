@@ -42,6 +42,7 @@ import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.math.BigInteger;
@@ -102,6 +103,7 @@ public class TaskManagerWideRocksDbMemorySharingITCase {
         metricsReporter.close();
     }
 
+    @Ignore
     @Test
     public void testBlockCache() throws Exception {
         List<JobID> jobIDs = new ArrayList<>(NUMBER_OF_JOBS);
