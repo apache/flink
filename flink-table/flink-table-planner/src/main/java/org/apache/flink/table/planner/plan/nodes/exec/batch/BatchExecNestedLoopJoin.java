@@ -123,6 +123,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 parallelism,
-                manageMem);
+                manageMem,
+                false);
     }
 }

@@ -127,7 +127,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                                 generator.getHeadWrappers(),
                                 generator.getTailWrapper()),
                         InternalTypeInfo.of(getOutputType()),
-                        generator.getParallelism());
+                        generator.getParallelism(),
+                        false);
         multipleInputTransform.setDescription(createTransformationDescription(config));
         inputTransformAndInputSpecPairs.forEach(
                 input -> multipleInputTransform.addInput(input.getKey()));

@@ -196,7 +196,8 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
                         createTransformationMeta(PYTHON_GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
                 pythonConfig, planner.getFlinkContext().getClassLoader())) {

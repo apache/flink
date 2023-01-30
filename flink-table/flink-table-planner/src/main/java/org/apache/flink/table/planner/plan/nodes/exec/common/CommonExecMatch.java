@@ -180,7 +180,8 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                         createTransformationMeta(MATCH_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
-                        timestampedInputTransform.getParallelism());
+                        timestampedInputTransform.getParallelism(),
+                        false);
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(
                         planner.getFlinkContext().getClassLoader(), partitionKeys, inputTypeInfo);

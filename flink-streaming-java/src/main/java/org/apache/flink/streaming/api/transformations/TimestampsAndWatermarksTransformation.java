@@ -59,8 +59,9 @@ public class TimestampsAndWatermarksTransformation<IN> extends PhysicalTransform
             String name,
             int parallelism,
             Transformation<IN> input,
-            WatermarkStrategy<IN> watermarkStrategy) {
-        super(name, input.getOutputType(), parallelism);
+            WatermarkStrategy<IN> watermarkStrategy,
+            boolean parallelismConfigured) {
+        super(name, input.getOutputType(), parallelism, parallelismConfigured);
         this.input = input;
         this.watermarkStrategy = watermarkStrategy;
     }

@@ -865,7 +865,8 @@ public class DataStream<T> {
                         "Timestamps/Watermarks",
                         inputParallelism,
                         getTransformation(),
-                        cleanedStrategy);
+                        cleanedStrategy,
+                        false);
         getExecutionEnvironment().addOperator(transformation);
         return new SingleOutputStreamOperator<>(getExecutionEnvironment(), transformation);
     }

@@ -116,6 +116,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     private final ChangelogMode inputChangelogMode;
     private final boolean isBounded;
+    private boolean sinkParallelismConfigured;
 
     protected CommonExecSink(
             int id,
@@ -158,6 +159,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final RowType physicalRowType = getPhysicalRowType(schema);
         final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
+        sinkParallelismConfigured = isParallelismConfigured(runtimeProvider);
         final int inputParallelism = inputTransform.getParallelism();
         final boolean inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT);
         final boolean hasPk = primaryKeys.length > 0;
@@ -287,7 +289,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             config),
                     constraintEnforcer,
                     getInputTypeInfo(),
-                    inputTransform.getParallelism());
+                    inputTransform.getParallelism(),
+                    false);
         } else {
             // there are no not-null fields, just skip adding the enforcer operator
             return inputTransform;
@@ -345,27 +348,27 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     private int deriveSinkParallelism(
             Transformation<RowData> inputTransform, SinkRuntimeProvider runtimeProvider) {
         final int inputParallelism = inputTransform.getParallelism();
-        if (!(runtimeProvider instanceof ParallelismProvider)) {
+        if (isParallelismConfigured(runtimeProvider)) {
+            int sinkParallelism = ((ParallelismProvider) runtimeProvider).getParallelism().get();
+            if (sinkParallelism <= 0) {
+                throw new TableException(
+                        String.format(
+                                "Invalid configured parallelism %s for table '%s'.",
+                                sinkParallelism,
+                                tableSinkSpec
+                                        .getContextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
+            }
+            return sinkParallelism;
+        } else {
             return inputParallelism;
         }
-        final ParallelismProvider parallelismProvider = (ParallelismProvider) runtimeProvider;
-        return parallelismProvider
-                .getParallelism()
-                .map(
-                        sinkParallelism -> {
-                            if (sinkParallelism <= 0) {
-                                throw new TableException(
-                                        String.format(
-                                                "Invalid configured parallelism %s for table '%s'.",
-                                                sinkParallelism,
-                                                tableSinkSpec
-                                                        .getContextResolvedTable()
-                                                        .getIdentifier()
-                                                        .asSummaryString()));
-                            }
-                            return sinkParallelism;
-                        })
-                .orElse(inputParallelism);
+    }
+
+    private boolean isParallelismConfigured(DynamicTableSink.SinkRuntimeProvider runtimeProvider) {
+        return runtimeProvider instanceof ParallelismProvider
+                && ((ParallelismProvider) runtimeProvider).getParallelism().isPresent();
     }
 
     /**
@@ -409,7 +412,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 new PartitionTransformation<>(inputTransform, partitioner);
         createTransformationMeta(PARTITIONER_TRANSFORMATION, "Partitioner", "Partitioner", config)
                 .fill(partitionedTransform);
-        partitionedTransform.setParallelism(sinkParallelism);
+        partitionedTransform.setParallelism(sinkParallelism, sinkParallelismConfigured);
         return partitionedTransform;
     }
 
@@ -459,7 +462,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                 config),
                         operator,
                         inputTransform.getOutputType(),
-                        sinkParallelism);
+                        sinkParallelism,
+                        sinkParallelismConfigured);
         RowDataKeySelector keySelector =
                 KeySelectorUtil.getRowDataSelector(
                         classLoader, primaryKeys, InternalTypeInfo.of(physicalRowType));
@@ -479,7 +483,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         config),
                 new RowKindSetter(rowKind),
                 inputTransform.getOutputType(),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     private Transformation<?> applySinkProvider(
@@ -554,7 +559,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                         ((SinkProvider) runtimeProvider).createSink(),
                                         CustomSinkOperatorUidHashes.DEFAULT)
                                 .getTransformation();
-                transformation.setParallelism(sinkParallelism);
+                transformation.setParallelism(sinkParallelism, sinkParallelismConfigured);
                 sinkMeta.fill(transformation);
                 return transformation;
             } else if (runtimeProvider instanceof SinkV2Provider) {
@@ -568,7 +573,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                         ((SinkV2Provider) runtimeProvider).createSink(),
                                         CustomSinkOperatorUidHashes.DEFAULT)
                                 .getTransformation();
-                transformation.setParallelism(sinkParallelism);
+                transformation.setParallelism(sinkParallelism, sinkParallelismConfigured);
                 sinkMeta.fill(transformation);
                 return transformation;
             } else {
@@ -605,7 +610,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         inputTransformation,
                         transformationMetadata.getName(),
                         SimpleOperatorFactory.of(operator),
-                        sinkParallelism);
+                        sinkParallelism,
+                        sinkParallelismConfigured);
         transformationMetadata.fill(transformation);
         return transformation;
     }
@@ -630,7 +636,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         config),
                 new StreamRecordTimestampInserter(rowtimeFieldIndex),
                 inputTransform.getOutputType(),
-                sinkParallelism);
+                sinkParallelism,
+                sinkParallelismConfigured);
     }
 
     private InternalTypeInfo<RowData> getInputTypeInfo() {

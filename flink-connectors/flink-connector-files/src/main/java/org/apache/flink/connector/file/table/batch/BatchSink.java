@@ -36,6 +36,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -57,12 +58,15 @@ public class BatchSink {
             DataStream<RowData> dataStream,
             DynamicTableSink.DataStructureConverter converter,
             FileSystemOutputFormat<Row> fileSystemOutputFormat,
-            final int parallelism) {
-        return dataStream
-                .map(value -> ((Row) converter.toExternal(value)))
-                .setParallelism(parallelism)
-                .writeUsingOutputFormat(fileSystemOutputFormat)
-                .setParallelism(parallelism);
+            final int parallelism,
+            final boolean parallelismConfigured) {
+        SingleOutputStreamOperator<Row> map =
+                dataStream.map(value -> ((Row) converter.toExternal(value)));
+        map.getTransformation().setParallelism(parallelism, parallelismConfigured);
+
+        DataStreamSink<Row> sink = map.writeUsingOutputFormat(fileSystemOutputFormat);
+        sink.getTransformation().setParallelism(parallelism, parallelismConfigured);
+        return sink;
     }
 
     public static <T> DataStreamSink<?> createBatchCompactSink(
@@ -82,7 +86,8 @@ public class BatchSink {
             final long compactTargetSize,
             boolean isToLocal,
             boolean overwrite,
-            final int compactParallelism) {
+            final int compactParallelism,
+            final boolean compactParallelismConfigured) {
         SupplierWithException<FileSystem, IOException> fsSupplier =
                 (SupplierWithException<FileSystem, IOException> & Serializable)
                         () -> fsFactory.create(tmpPath.toUri());
@@ -92,19 +97,24 @@ public class BatchSink {
                         (SupplierWithException<BucketWriter<T, String>, IOException> & Serializable)
                                 builder::createBucketWriter);
 
-        return dataStream
-                .transform(
-                        "coordinator",
-                        TypeInformation.of(CompactMessages.CoordinatorOutput.class),
-                        new BatchCompactCoordinator(
-                                fsSupplier, compactAverageSize, compactTargetSize))
-                .setParallelism(1)
-                .setMaxParallelism(1)
-                .transform(
-                        "compact",
-                        TypeInformation.of(CompactMessages.CompactOutput.class),
-                        new BatchCompactOperator<>(fsSupplier, readFactory, writerFactory))
-                .setParallelism(compactParallelism)
+        SingleOutputStreamOperator<CompactMessages.CompactOutput> transform =
+                dataStream
+                        .transform(
+                                "coordinator",
+                                TypeInformation.of(CompactMessages.CoordinatorOutput.class),
+                                new BatchCompactCoordinator(
+                                        fsSupplier, compactAverageSize, compactTargetSize))
+                        .setParallelism(1)
+                        .setMaxParallelism(1)
+                        .transform(
+                                "compact",
+                                TypeInformation.of(CompactMessages.CompactOutput.class),
+                                new BatchCompactOperator<>(fsSupplier, readFactory, writerFactory));
+        transform
+                .getTransformation()
+                .setParallelism(compactParallelism, compactParallelismConfigured);
+
+        return transform
                 .addSink(
                         new BatchPartitionCommitterSink(
                                 fsFactory,

@@ -327,7 +327,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                     createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, config),
                     operatorFactory,
                     InternalTypeInfo.of(resultRowType),
-                    inputTransformation.getParallelism());
+                    inputTransformation.getParallelism(),
+                    false);
         }
     }
 
@@ -407,7 +408,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         if (singleParallelism) {
             setSingletonParallelism(partitionedTransform);
         } else {
-            partitionedTransform.setParallelism(inputTransformation.getParallelism());
+            partitionedTransform.setParallelism(inputTransformation.getParallelism(), false);
         }
 
         OneInputTransformation<RowData, RowData> transform =
@@ -416,7 +417,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         createTransformationMeta(LOOKUP_JOIN_MATERIALIZE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(resultRowType),
-                        partitionedTransform.getParallelism());
+                        partitionedTransform.getParallelism(),
+                        false);
         transform.setStateKeySelector(keySelector);
         transform.setStateKeyType(keySelector.getProducedType());
         if (singleParallelism) {

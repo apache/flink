@@ -156,6 +156,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
-                managedMemory);
+                managedMemory,
+                false);
     }
 }

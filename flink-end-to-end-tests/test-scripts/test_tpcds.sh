@@ -60,13 +60,12 @@ function run_test() {
     set_config_key "jobmanager.scheduler" "${scheduler}"
     set_config_key "taskmanager.memory.process.size" "4096m"
     set_config_key "taskmanager.memory.network.fraction" "0.2"
+    set_config_key "parallelism.default" "4"
 
     if [ "${scheduler}" == "Default" ]; then
         set_config_key "taskmanager.numberOfTaskSlots" "4"
-        set_config_key "parallelism.default" "4"
     elif [ "${scheduler}" == "AdaptiveBatch" ]; then
         set_config_key "taskmanager.numberOfTaskSlots" "8"
-        set_config_key "parallelism.default" "-1"
         set_config_key "jobmanager.adaptive-batch-scheduler.max-parallelism" "8"
         set_config_key "jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task" "6m"
         set_config_key "jobmanager.adaptive-batch-scheduler.speculative.enabled" "true"

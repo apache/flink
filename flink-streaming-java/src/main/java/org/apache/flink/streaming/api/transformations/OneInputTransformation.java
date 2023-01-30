@@ -74,6 +74,22 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     public OneInputTransformation(
             Transformation<IN> input,
             String name,
+            OneInputStreamOperator<IN, OUT> operator,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        this(
+                input,
+                name,
+                SimpleOperatorFactory.of(operator),
+                outputType,
+                parallelism,
+                parallelismConfigured);
+    }
+
+    public OneInputTransformation(
+            Transformation<IN> input,
+            String name,
             StreamOperatorFactory<OUT> operatorFactory,
             TypeInformation<OUT> outputType,
             int parallelism) {

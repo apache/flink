@@ -135,6 +135,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
                 createTransformationMeta(WATERMARK_ASSIGNER_TRANSFORMATION, config),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

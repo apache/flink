@@ -119,7 +119,6 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
 
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironment(configuration);
-        env.setParallelism(-1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         List<SlotSharingGroup> slotSharingGroups = new ArrayList<>();

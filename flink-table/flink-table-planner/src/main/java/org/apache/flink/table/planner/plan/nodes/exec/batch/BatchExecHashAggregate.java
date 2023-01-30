@@ -149,6 +149,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism(),
-                managedMemory);
+                managedMemory,
+                false);
     }
 }

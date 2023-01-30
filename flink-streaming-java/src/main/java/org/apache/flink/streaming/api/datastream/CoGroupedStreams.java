@@ -371,14 +371,15 @@ public class CoGroupedStreams<T1, T2> {
             UnionKeySelector<T1, T2, KEY> unionKeySelector =
                     new UnionKeySelector<>(keySelector1, keySelector2);
 
-            DataStream<TaggedUnion<T1, T2>> taggedInput1 =
-                    input1.map(new Input1Tagger<T1, T2>())
-                            .setParallelism(input1.getParallelism())
-                            .returns(unionType);
-            DataStream<TaggedUnion<T1, T2>> taggedInput2 =
-                    input2.map(new Input2Tagger<T1, T2>())
-                            .setParallelism(input2.getParallelism())
-                            .returns(unionType);
+            SingleOutputStreamOperator<TaggedUnion<T1, T2>> taggedInput1 =
+                    input1.map(new Input1Tagger<T1, T2>());
+            taggedInput1.getTransformation().setParallelism(input1.getParallelism(), false);
+            taggedInput1.returns(unionType);
+
+            SingleOutputStreamOperator<TaggedUnion<T1, T2>> taggedInput2 =
+                    input2.map(new Input2Tagger<T1, T2>());
+            taggedInput2.getTransformation().setParallelism(input2.getParallelism(), false);
+            taggedInput2.returns(unionType);
 
             DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
 
