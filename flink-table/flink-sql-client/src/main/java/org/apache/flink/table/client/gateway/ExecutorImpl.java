@@ -409,7 +409,9 @@ public class ExecutorImpl implements Executor {
             Throwable cause = e.getCause();
             if (cause instanceof RestClientException
                     && cause.getMessage().contains("Encountered \"<EOF>\"")) {
-                throw new SqlParserEOFException(cause.getMessage(), cause);
+                throw new SqlExecutionException(
+                        "The SQL statement is incomplete.",
+                        new SqlParserEOFException(cause.getMessage(), cause));
             } else {
                 throw new SqlExecutionException(
                         String.format(

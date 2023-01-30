@@ -349,7 +349,11 @@ class CliClientTest {
         mockExecutor.openSession(SESSION_ID);
 
         final SqlCompleter completer = new SqlCompleter(mockExecutor);
-        final SqlMultiLineParser parser = new SqlMultiLineParser(new SqlCommandParserImpl());
+        final SqlMultiLineParser parser =
+                new SqlMultiLineParser(
+                        new SqlCommandParserImpl(),
+                        mockExecutor,
+                        CliClient.ExecutionMode.INTERACTIVE_EXECUTION);
 
         try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();

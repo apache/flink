@@ -23,6 +23,7 @@ import org.apache.flink.table.client.cli.TerminalUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.jline.terminal.Size;
 import org.jline.terminal.Terminal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,7 +131,7 @@ class SqlClientTest {
                         + "SELECT * FROM T;\n"
                         + "QUIT;\n";
         String[] args = new String[] {};
-        String output = runSqlClient(args, stmts);
+        String output = runSqlClient(args, stmts, false);
         assertThat(output)
                 .contains(
                         "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'");
@@ -155,7 +156,7 @@ class SqlClientTest {
                         + "SELECT * FROM T;\n"
                         + "QUIT;\n";
         String[] args = new String[] {};
-        String output = runSqlClient(args, stmts);
+        String output = runSqlClient(args, stmts, false);
         String[] errors =
                 new String[] {
                     "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'",
@@ -182,7 +183,7 @@ class SqlClientTest {
         String initFile = createSqlFile(statements, "init-sql.sql");
 
         String[] args = new String[] {"-i", initFile};
-        String output = runSqlClient(args, "SET;\nQUIT;\n");
+        String output = runSqlClient(args, "SET;\nQUIT;\n", false);
         assertThat(output).contains("key", "value");
     }
 
@@ -198,6 +199,44 @@ class SqlClientTest {
         for (String command : help.split("\n")) {
             assertThat(output).contains(command);
         }
+    }
+
+    @Test
+    void testDisplayMultiLineSqlInInteractiveMode() throws Exception {
+        List<String> statements =
+                Arrays.asList(
+                        "-- define table \n"
+                                + "CREATE TABLE source ("
+                                + "id INT"
+                                + ") WITH ("
+                                + "  'connector' = 'datagen'"
+                                + "); \n",
+                        "CREATE TABLE sink ( id INT) WITH ( 'connector' = 'blackhole');");
+        String initFile = createSqlFile(statements, "init-sql.sql");
+        String[] args = new String[] {"-i", initFile};
+        String output =
+                runSqlClient(
+                        args,
+                        String.join(
+                                "\n",
+                                Arrays.asList(
+                                        "EXPLAIN STATEMENT SET",
+                                        "BEGIN",
+                                        "INSERT INTO sink SELECT * FROM source;",
+                                        "",
+                                        "INSERT INTO sink SELECT * FROM source;",
+                                        "",
+                                        "END;\n")),
+                        true);
+        assertThat(output)
+                .contains(
+                        "Flink SQL> EXPLAIN STATEMENT SET\n"
+                                + "> BEGIN\n"
+                                + "> INSERT INTO sink SELECT * FROM source;\n"
+                                + "> \n"
+                                + "> INSERT INTO sink SELECT * FROM source;\n"
+                                + "> \n"
+                                + "> END;");
     }
 
     @Test
@@ -237,18 +276,24 @@ class SqlClientTest {
     }
 
     private String runSqlClient(String[] args) throws Exception {
-        return runSqlClient(args, "QUIT;\n");
+        return runSqlClient(args, "QUIT;\n", false);
     }
 
-    private String runSqlClient(String[] args, String statements) throws Exception {
+    private String runSqlClient(String[] args, String statements, boolean printInput)
+            throws Exception {
         try (OutputStream out = new ByteArrayOutputStream();
                 Terminal terminal =
                         TerminalUtils.createDumbTerminal(
                                 new ByteArrayInputStream(
                                         statements.getBytes(StandardCharsets.UTF_8)),
                                 out)) {
+            if (printInput) {
+                // The default terminal has an empty size. Here increase the terminal to allow
+                // the line reader print the input string.
+                terminal.setSize(new Size(160, 80));
+            }
             SqlClient.startClient(args, () -> terminal);
-            return out.toString();
+            return out.toString().replace("\r\n", System.lineSeparator());
         }
     }
 
