@@ -426,7 +426,7 @@ public class OperationExecutor {
 
     protected ResultFetcher callRemoveJar(OperationHandle operationHandle, String jarPath) {
         throw new UnsupportedOperationException(
-                "Sql Gateway doesn't support REMOVE JAR syntax now.");
+                "SQL Gateway doesn't support REMOVE JAR syntax now.");
     }
 
     private ResultFetcher callOperation(

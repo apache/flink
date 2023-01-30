@@ -45,7 +45,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * A {@link SessionManager} only has one session at most.
+ * A {@link SessionManager} only has one session at most. It uses the less resources and also
+ * provides special handler for the REMOVE JAR syntax.
  *
  * <p>The special {@link SessionManager} is used in the Sql Client embedded mode and doesn't support
  * concurrently modification.
@@ -79,8 +80,7 @@ public class SingleSessionManager implements SessionManager {
     }
 
     @Override
-    public synchronized Session openSession(SessionEnvironment environment)
-            throws SqlGatewayException {
+    public Session openSession(SessionEnvironment environment) throws SqlGatewayException {
         if (session != null) {
             throw new SqlClientException(
                     String.format(

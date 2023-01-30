@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -111,7 +112,8 @@ public class SqlGateway {
         DefaultContext defaultContext =
                 DefaultContext.load(
                         ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs()),
-                        DefaultContext.discoverPythonDependencies());
+                        Collections.emptyList(),
+                        true);
         SqlGateway gateway =
                 new SqlGateway(
                         defaultContext.getFlinkConfig(), SessionManager.create(defaultContext));

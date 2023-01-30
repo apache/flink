@@ -98,8 +98,6 @@ public class DefaultContextUtils {
             LOG.debug("Using the following dependencies: {}", dependencies);
         }
 
-        // add python dependencies
-        dependencies.addAll(DefaultContext.discoverPythonDependencies());
         return dependencies;
     }
 }

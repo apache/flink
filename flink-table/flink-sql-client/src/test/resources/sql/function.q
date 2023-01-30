@@ -222,6 +222,10 @@ REMOVE JAR '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info
 
+SHOW JARS;
+Empty set
+!ok
+
 create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info

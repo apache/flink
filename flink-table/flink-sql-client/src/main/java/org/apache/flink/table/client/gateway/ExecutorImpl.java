@@ -129,7 +129,7 @@ public class ExecutorImpl implements Executor {
         this(defaultContext, gatewayAddress, HEARTBEAT_INTERVAL_MILLISECONDS);
     }
 
-    public void openSession(@Nullable String sessionId) {
+    public void openSession(String sessionId) {
         try {
             // determine gateway rest api version
             connectionVersion = negotiateVersion();

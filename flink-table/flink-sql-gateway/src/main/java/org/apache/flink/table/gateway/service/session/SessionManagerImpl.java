@@ -30,6 +30,8 @@ import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -54,7 +56,7 @@ public class SessionManagerImpl implements SessionManager {
     private static final Logger LOG = LoggerFactory.getLogger(SessionManagerImpl.class);
     private static final String OPERATION_POOL_NAME = "sql-gateway-operation-pool";
 
-    protected final DefaultContext defaultContext;
+    private final DefaultContext defaultContext;
 
     private final long idleTimeout;
     private final long checkInterval;
@@ -63,8 +65,8 @@ public class SessionManagerImpl implements SessionManager {
     private final Map<SessionHandle, Session> sessions;
 
     private ExecutorService operationExecutorService;
-    private ScheduledExecutorService scheduledExecutorService;
-    private ScheduledFuture<?> timeoutCheckerFuture;
+    private @Nullable ScheduledExecutorService cleanupService;
+    private @Nullable ScheduledFuture<?> timeoutCheckerFuture;
 
     public SessionManagerImpl(DefaultContext defaultContext) {
         this.defaultContext = defaultContext;
@@ -78,9 +80,9 @@ public class SessionManagerImpl implements SessionManager {
     @Override
     public void start() {
         if (checkInterval > 0 && idleTimeout > 0) {
-            scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+            cleanupService = Executors.newSingleThreadScheduledExecutor();
             timeoutCheckerFuture =
-                    scheduledExecutorService.scheduleAtFixedRate(
+                    cleanupService.scheduleAtFixedRate(
                             () -> {
                                 LOG.debug(
                                         "Start to cleanup expired sessions, current session count: {}",
@@ -114,9 +116,9 @@ public class SessionManagerImpl implements SessionManager {
 
     @Override
     public void stop() {
-        if (scheduledExecutorService != null) {
+        if (cleanupService != null) {
             timeoutCheckerFuture.cancel(true);
-            scheduledExecutorService.shutdown();
+            cleanupService.shutdown();
         }
         if (operationExecutorService != null) {
             operationExecutorService.shutdown();

@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -125,6 +126,11 @@ public class DefaultContext {
     // -------------------------------------------------------------------------------------------
 
     public static DefaultContext load(Configuration dynamicConfig, List<URL> dependencies) {
+        return load(dynamicConfig, dependencies, false);
+    }
+
+    public static DefaultContext load(
+            Configuration dynamicConfig, List<URL> dependencies, boolean discoverPythonDependency) {
         // 1. find the configuration directory
         String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
 
@@ -139,6 +145,11 @@ public class DefaultContext {
         // initialize default file system
         FileSystem.initialize(
                 configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
+
+        if (discoverPythonDependency) {
+            dependencies = new ArrayList<>(dependencies);
+            dependencies.addAll(discoverPythonDependencies());
+        }
 
         Options commandLineOptions = collectCommandLineOptions(commandLines);
 
@@ -156,7 +167,7 @@ public class DefaultContext {
         return new DefaultContext(configuration, dependencies);
     }
 
-    public static List<URL> discoverPythonDependencies() {
+    private static List<URL> discoverPythonDependencies() {
         try {
             URL location =
                     Class.forName(
