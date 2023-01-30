@@ -17,10 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
+import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType
 import org.apache.flink.table.api.{DataTypes, TableException, Types}
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -904,6 +907,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   @Test
   def testLeadLag(): Unit = {
+    tEnv.getConfig.set(JobManagerOptions.SCHEDULER, SchedulerType.Default)
+    tEnv.getConfig
+      .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
 
     val testAllDataTypeCardinality = tEnv.fromValues(
       DataTypes.ROW(
