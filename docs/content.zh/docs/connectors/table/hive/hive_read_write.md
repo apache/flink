@@ -558,7 +558,7 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
         <td>no</td>
         <td style="word-wrap: break-word;">false</td>
         <td>Boolean</td>
-        <td>是否开启自动合并， 数据将会首先被写入临时文件，合并结束后，文件才可见。</td>
+        <td>是否开启自动合并，数据将会首先被写入临时文件，合并结束后，文件才可见。</td>
     </tr>
     <tr>
         <td><h5>compaction.small-files.avg-size</h5></td>
@@ -566,7 +566,7 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
         <td>yes</td>
         <td style="word-wrap: break-word;">16MB</td>
         <td>MemorySize</td>
-        <td>合并文件的阈值，当文件的平均大小小于该阈值, Flink 将对这些文件进行合并. 默认值是 16MB.</td>
+        <td>合并文件的阈值，当文件的平均大小小于该阈值，Flink 将对这些文件进行合并。默认值是 16MB。</td>
     </tr>
     <tr>
         <td><h5>compaction.file-size</h5></td>
@@ -574,7 +574,7 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
         <td>yes</td>
         <td style="word-wrap: break-word;">(none)</td>
         <td>MemorySize</td>
-        <td>合并文件的目标大小,即期望将文件合并成多大的文件，默认值是 <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink-rolling-policy-file-size">rolling file</a>的大小</td>
+        <td>合并文件的目标大小，即期望将文件合并成多大的文件，默认值是 <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink-rolling-policy-file-size">rolling file</a>的大小。</td>
     </tr>
     <tr>
         <td><h5>compaction.parallelism</h5></td>

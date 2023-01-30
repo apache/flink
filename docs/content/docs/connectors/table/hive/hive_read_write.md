@@ -589,7 +589,7 @@ configured threshold, then Flink will try to compact these files to files with a
         <td>no</td>
         <td style="word-wrap: break-word;">false</td>
         <td>Boolean</td>
-        <td>Whether to enable automatic compaction in Hive sink or not. The data will be written to temporary files. The temporary files are invisible before compaction.</td>
+        <td>Whether to enable automatic compaction in Hive sink or not. The data will be written to temporary files first. The temporary files are invisible before compaction.</td>
     </tr>
     <tr>
         <td><h5>compaction.small-files.avg-size</h5></td>
