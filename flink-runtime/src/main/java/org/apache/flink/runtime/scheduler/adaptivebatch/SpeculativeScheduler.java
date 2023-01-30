@@ -21,8 +21,8 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
@@ -156,10 +156,10 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
         this.maxConcurrentExecutions =
                 jobMasterConfiguration.getInteger(
-                        JobManagerOptions.SPECULATIVE_MAX_CONCURRENT_EXECUTIONS);
+                        BatchExecutionOptions.SPECULATIVE_MAX_CONCURRENT_EXECUTIONS);
 
         this.blockSlowNodeDuration =
-                jobMasterConfiguration.get(JobManagerOptions.BLOCK_SLOW_NODE_DURATION);
+                jobMasterConfiguration.get(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION);
         checkArgument(
                 !blockSlowNodeDuration.isNegative(),
                 "The blocking duration should not be negative.");

@@ -38,6 +38,7 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -143,7 +144,7 @@ class SpeculativeSchedulerITCase {
     @Test
     void testBlockSlowNodeInSpeculativeExecution() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.BLOCK_SLOW_NODE_DURATION, Duration.ofMinutes(1));
+        configuration.set(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION, Duration.ofMinutes(1));
         JobClient client = executeJobAsync(configuration, this::setupJobWithSlowMap);
 
         assertThatThrownBy(
@@ -253,10 +254,10 @@ class SpeculativeSchedulerITCase {
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
 
         // for speculative execution
-        configuration.set(JobManagerOptions.SPECULATIVE_ENABLED, true);
+        configuration.set(BatchExecutionOptions.SPECULATIVE_ENABLED, true);
         // for testing, does not block node by default
-        if (!configuration.contains(JobManagerOptions.BLOCK_SLOW_NODE_DURATION)) {
-            configuration.set(JobManagerOptions.BLOCK_SLOW_NODE_DURATION, Duration.ZERO);
+        if (!configuration.contains(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION)) {
+            configuration.set(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION, Duration.ZERO);
         }
         configuration.set(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER, 1.0);
         configuration.set(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_RATIO, 0.2);
@@ -265,13 +266,13 @@ class SpeculativeSchedulerITCase {
 
         // for adaptive parallelism
         configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM,
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 MAX_PARALLELISM);
         configuration.set(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM, 1);
         configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM, MAX_PARALLELISM);
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM, MAX_PARALLELISM);
         configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
                 MemorySize.parse("150kb"));
 
         return configuration;

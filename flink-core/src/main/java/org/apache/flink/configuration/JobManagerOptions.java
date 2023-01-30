@@ -535,10 +535,9 @@ public class JobManagerOptions {
                     .withDescription(
                             "Controls whether partitions should already be released during the job execution.");
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /** @deprecated Use {@link BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM}. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM =
             key("jobmanager.adaptive-batch-scheduler.min-parallelism")
                     .intType()
@@ -551,10 +550,9 @@ public class JobManagerOptions {
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /** @deprecated Use {@link BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM}. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM =
             key("jobmanager.adaptive-batch-scheduler.max-parallelism")
                     .intType()
@@ -567,10 +565,12 @@ public class JobManagerOptions {
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /**
+     * @deprecated Use {@link
+     *     BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK =
             key("jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task")
                     .memoryType()
@@ -586,10 +586,12 @@ public class JobManagerOptions {
                                             code(ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.key()))
                                     .build());
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /**
+     * @deprecated Use {@link
+     *     BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM =
             key("jobmanager.adaptive-batch-scheduler.default-source-parallelism")
                     .intType()
@@ -602,20 +604,18 @@ public class JobManagerOptions {
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /** @deprecated Use {@link BatchExecutionOptions#SPECULATIVE_ENABLED}. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Boolean> SPECULATIVE_ENABLED =
             key("jobmanager.adaptive-batch-scheduler.speculative.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("Controls whether to enable speculative execution.");
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /** @deprecated Use {@link BatchExecutionOptions#SPECULATIVE_MAX_CONCURRENT_EXECUTIONS}. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Integer> SPECULATIVE_MAX_CONCURRENT_EXECUTIONS =
             key("jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions")
                     .intType()
@@ -625,10 +625,9 @@ public class JobManagerOptions {
                                     + "that can execute concurrently, including the original one "
                                     + "and speculative ones.");
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /** @deprecated Use {@link BatchExecutionOptions#BLOCK_SLOW_NODE_DURATION}. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> BLOCK_SLOW_NODE_DURATION =
             key("jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration")
                     .durationType()
