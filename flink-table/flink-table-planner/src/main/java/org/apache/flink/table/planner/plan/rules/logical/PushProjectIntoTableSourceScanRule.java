@@ -147,7 +147,9 @@ public class PushProjectIntoTableSourceScanRule
         // in such case
         if (projectedSchema.columns().isEmpty()) {
             if (scan.getRowType().getFieldCount() == 0) {
-                return;
+                throw new TableException(
+                        "Unexpected empty row type of source table:"
+                                + String.join(".", scan.getTable().getQualifiedName()));
             }
             RexInputRef firstFieldRef = RexInputRef.of(0, scan.getRowType());
             projectedSchema =
