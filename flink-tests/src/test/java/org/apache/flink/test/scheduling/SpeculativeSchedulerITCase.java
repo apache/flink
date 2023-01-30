@@ -22,7 +22,9 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.GenericInputFormat;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
@@ -200,6 +202,16 @@ class SpeculativeSchedulerITCase {
         checkResults();
     }
 
+    @Test
+    public void testSpeculativeOutputFormatSink() throws Exception {
+        executeJob(this::setupSlowOutputFormatSink);
+        waitUntilJobArchived();
+
+        checkResults();
+
+        assertThat(DummySpeculativeOutputFormat.foundSpeculativeAttempt).isTrue();
+    }
+
     private void checkResults() {
         final Map<Long, Long> numberCountResultMap =
                 numberCountResults.values().stream()
@@ -362,6 +374,20 @@ class SpeculativeSchedulerITCase {
                 .setParallelism(parallelism)
                 .name("sink")
                 .slotSharingGroup("sinkGroup");
+    }
+
+    private void setupSlowOutputFormatSink(StreamExecutionEnvironment env) {
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("group1");
+
+        source.rebalance()
+                .writeUsingOutputFormat(new DummySpeculativeOutputFormat())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("group3");
     }
 
     private void addSink(DataStream<Long> dataStream) {
@@ -641,6 +667,57 @@ class SpeculativeSchedulerITCase {
         @Override
         public void finish() {
             numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+        }
+    }
+
+    /** Outputs format which waits for the previous mapper. */
+    private static class DummySpeculativeOutputFormat
+            implements OutputFormat<Long>, FinalizeOnMaster, SupportsConcurrentExecutionAttempts {
+
+        private static final long serialVersionUID = 1L;
+
+        private static volatile boolean foundSpeculativeAttempt;
+
+        private int taskNumber;
+
+        private boolean taskFailed;
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void configure(Configuration parameters) {}
+
+        @Override
+        public void open(InitializationContext context) throws IOException {
+            taskNumber = context.getTaskNumber();
+        }
+
+        @Override
+        public void writeRecord(Long value) throws IOException {
+            try {
+                numberCountResult.merge(value, 1L, Long::sum);
+                if (taskNumber == 0) {
+                    maybeSleep();
+                }
+            } catch (Throwable t) {
+                taskFailed = true;
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (!taskFailed) {
+                numberCountResults.put(taskNumber, numberCountResult);
+            }
+        }
+
+        @Override
+        public void finalizeGlobal(FinalizationContext context) throws IOException {
+            for (int i = 0; i < context.getParallelism(); i++) {
+                if (context.getFinishedAttempt(i) != 0) {
+                    foundSpeculativeAttempt = true;
+                }
+            }
         }
     }
 
