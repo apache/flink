@@ -102,6 +102,7 @@ public class BatchExecDynamicFilteringDataCollector extends ExecNodeBase<Object>
                 createTransformationDescription(config),
                 factory,
                 InternalTypeInfo.of(getOutputType()),
-                1); // parallelism should always be 1
+                1,
+                true); // parallelism should always be 1
     }
 }

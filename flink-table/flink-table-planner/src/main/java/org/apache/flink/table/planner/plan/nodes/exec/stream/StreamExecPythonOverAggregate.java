@@ -267,7 +267,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_OVER_AGGREGATE_TRANSFORMATION, config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     @SuppressWarnings("unchecked")

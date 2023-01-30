@@ -45,7 +45,11 @@ public class CacheTransformation<T> extends Transformation<T> {
      *     the Log
      */
     public CacheTransformation(Transformation<T> transformationToCache, String name) {
-        super(name, transformationToCache.getOutputType(), transformationToCache.getParallelism());
+        super(
+                name,
+                transformationToCache.getOutputType(),
+                transformationToCache.getParallelism(),
+                transformationToCache.isParallelismConfigured());
         this.transformationToCache = transformationToCache;
 
         this.datasetId = new AbstractID();

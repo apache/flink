@@ -192,7 +192,8 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
                         createTransformationMeta(WINDOW_JOIN_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(returnType),
-                        leftTransform.getParallelism());
+                        leftTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         RowDataKeySelector leftSelect =

@@ -76,6 +76,7 @@ public class BatchExecLimit extends ExecNodeBase<RowData>
                 createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 inputTransform.getOutputType(),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

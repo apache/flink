@@ -91,6 +91,7 @@ public class BatchExecSort extends ExecNodeBase<RowData>
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
                 inputTransform.getParallelism(),
-                sortMemory);
+                sortMemory,
+                false);
     }
 }

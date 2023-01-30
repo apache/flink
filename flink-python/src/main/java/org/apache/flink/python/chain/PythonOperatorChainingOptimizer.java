@@ -307,7 +307,8 @@ public class PythonOperatorChainingOptimizer {
                             upTransform.getName() + ", " + downTransform.getName(),
                             (OneInputStreamOperator<?, ?>) chainedOperator,
                             downTransform.getOutputType(),
-                            upTransform.getParallelism());
+                            upTransform.getParallelism(),
+                            false);
 
             ((OneInputTransformation<?, ?>) chainedTransformation)
                     .setStateKeySelector(
@@ -323,7 +324,8 @@ public class PythonOperatorChainingOptimizer {
                             upTransform.getName() + ", " + downTransform.getName(),
                             (TwoInputStreamOperator<?, ?, ?>) chainedOperator,
                             downTransform.getOutputType(),
-                            upTransform.getParallelism());
+                            upTransform.getParallelism(),
+                            false);
 
             ((TwoInputTransformation<?, ?, ?>) chainedTransformation)
                     .setStateKeySelectors(

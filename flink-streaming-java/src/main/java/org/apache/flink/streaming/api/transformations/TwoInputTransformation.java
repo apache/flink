@@ -80,6 +80,24 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformatio
             Transformation<IN1> input1,
             Transformation<IN2> input2,
             String name,
+            TwoInputStreamOperator<IN1, IN2, OUT> operator,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        this(
+                input1,
+                input2,
+                name,
+                SimpleOperatorFactory.of(operator),
+                outputType,
+                parallelism,
+                parallelismConfigured);
+    }
+
+    public TwoInputTransformation(
+            Transformation<IN1> input1,
+            Transformation<IN2> input2,
+            String name,
             StreamOperatorFactory<OUT> operatorFactory,
             TypeInformation<OUT> outputType,
             int parallelism) {

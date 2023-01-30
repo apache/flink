@@ -114,6 +114,7 @@ public class BatchExecRank extends ExecNodeBase<RowData>
                 createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

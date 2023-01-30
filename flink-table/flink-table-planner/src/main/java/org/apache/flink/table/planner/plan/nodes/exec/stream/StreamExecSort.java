@@ -95,6 +95,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
                 createTransformationMeta(SORT_TRANSFORMATION, config),
                 sortOperator,
                 InternalTypeInfo.of(inputType),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

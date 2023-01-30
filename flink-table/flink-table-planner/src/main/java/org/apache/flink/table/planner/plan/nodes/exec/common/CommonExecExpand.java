@@ -100,6 +100,7 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
                 createTransformationMeta(EXPAND_TRANSFORMATION, config),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

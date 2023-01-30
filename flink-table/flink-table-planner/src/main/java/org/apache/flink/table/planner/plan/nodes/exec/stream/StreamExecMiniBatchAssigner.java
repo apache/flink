@@ -126,6 +126,7 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
                 createTransformationMeta(MINI_BATCH_ASSIGNER_TRANSFORMATION, config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

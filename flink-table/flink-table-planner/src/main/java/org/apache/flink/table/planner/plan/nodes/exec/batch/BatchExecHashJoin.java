@@ -257,7 +257,8 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 probeTransform.getParallelism(),
-                managedMemory);
+                managedMemory,
+                false);
     }
 
     private long getLargeManagedMemory(FlinkJoinType joinType, ExecNodeConfig config) {

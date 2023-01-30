@@ -146,7 +146,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_CORRELATE_TRANSFORMATION, pythonNodeConfig),
                 pythonOperator,
                 pythonOperatorOutputRowType,
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     private Tuple2<int[], PythonFunctionInfo> extractPythonTableFunctionInfo(

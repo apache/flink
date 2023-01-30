@@ -189,7 +189,7 @@ public class PythonConfigUtil {
                 .getSlotSharingGroup()
                 .ifPresent(firstTransformation::setSlotSharingGroup);
         firstTransformation.setCoLocationGroupKey(secondTransformation.getCoLocationGroupKey());
-        firstTransformation.setParallelism(secondTransformation.getParallelism());
+        firstTransformation.setParallelism(secondTransformation.getParallelism(), false);
     }
 
     private static void configForwardPartitioner(
