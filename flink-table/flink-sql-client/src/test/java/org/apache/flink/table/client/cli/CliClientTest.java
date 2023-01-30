@@ -30,9 +30,9 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
 import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
-import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -349,7 +349,11 @@ class CliClientTest {
         mockExecutor.openSession(SESSION_ID);
 
         final SqlCompleter completer = new SqlCompleter(mockExecutor);
-        final SqlMultiLineParser parser = new SqlMultiLineParser(new SqlCommandParserImpl());
+        final SqlMultiLineParser parser =
+                new SqlMultiLineParser(
+                        new SqlCommandParserImpl(),
+                        mockExecutor,
+                        CliClient.ExecutionMode.INTERACTIVE_EXECUTION);
 
         try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
@@ -426,7 +430,7 @@ class CliClientTest {
         }
 
         @Override
-        public ClientResult executeStatement(String statement) {
+        public StatementResult executeStatement(String statement) {
             receivedStatement = statement;
             if (failExecution) {
                 throw new SqlExecutionException("Fail execution.");
@@ -447,7 +451,7 @@ class CliClientTest {
                     }
                 }
 
-                return new ClientResult(
+                return new StatementResult(
                         ResolvedSchema.of(Column.physical("result", DataTypes.BIGINT())),
                         CloseableIterator.adapterForIterator(
                                 Collections.singletonList((RowData) GenericRowData.of(-1L))
@@ -457,7 +461,7 @@ class CliClientTest {
                         JobID.generate(),
                         SIMPLE_ROW_DATA_TO_STRING_CONVERTER);
             } else {
-                return new ClientResult(
+                return new StatementResult(
                         TableResultImpl.TABLE_RESULT_OK.getResolvedSchema(),
                         TableResultImpl.TABLE_RESULT_OK.collectInternal(),
                         false,

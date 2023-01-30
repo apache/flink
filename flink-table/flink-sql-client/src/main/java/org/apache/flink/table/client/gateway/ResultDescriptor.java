@@ -38,10 +38,10 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RE
 /** Describes a result to be expected from a table program. */
 public class ResultDescriptor {
 
-    private final ClientResult tableResult;
+    private final StatementResult tableResult;
     private final ReadableConfig config;
 
-    public ResultDescriptor(ClientResult tableResult, ReadableConfig config) {
+    public ResultDescriptor(StatementResult tableResult, ReadableConfig config) {
         this.tableResult = tableResult;
         this.config = config;
     }

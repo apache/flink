@@ -20,7 +20,7 @@ package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.gateway.ClientResult;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.RowData;
@@ -183,7 +183,7 @@ class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
         public boolean isRetrieving;
 
         public TestMaterializedCollectBatchResult(
-                ClientResult tableResult,
+                StatementResult tableResult,
                 int maxRowCount,
                 int overcommitThreshold,
                 Function<Row, BinaryRowData> converter) {
@@ -192,7 +192,9 @@ class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
         }
 
         public TestMaterializedCollectBatchResult(
-                ClientResult tableResult, int maxRowCount, Function<Row, BinaryRowData> converter) {
+                StatementResult tableResult,
+                int maxRowCount,
+                Function<Row, BinaryRowData> converter) {
             super(tableResult, maxRowCount);
             this.converter = converter;
         }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.client.gateway.ClientResult;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
 
 /** Collects results and returns them as table snapshots. */
@@ -27,13 +27,13 @@ public class MaterializedCollectBatchResult extends MaterializedCollectResultBas
 
     @VisibleForTesting
     public MaterializedCollectBatchResult(
-            ClientResult tableResult, int maxRowCount, int overcommitThreshold) {
+            StatementResult tableResult, int maxRowCount, int overcommitThreshold) {
         super(tableResult, maxRowCount, overcommitThreshold);
         // start listener thread
         retrievalThread.start();
     }
 
-    public MaterializedCollectBatchResult(ClientResult tableResult, int maxRowCount) {
+    public MaterializedCollectBatchResult(StatementResult tableResult, int maxRowCount) {
         this(tableResult, maxRowCount, computeMaterializedTableOvercommit(maxRowCount));
     }
 

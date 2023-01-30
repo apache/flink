@@ -212,7 +212,7 @@ public class ExecutorImpl implements Executor {
         }
     }
 
-    public ClientResult executeStatement(String statement) {
+    public StatementResult executeStatement(String statement) {
         ExecuteStatementRequestBody request = new ExecuteStatementRequestBody(statement);
         CompletableFuture<ExecuteStatementResponseBody> executeStatementResponse =
                 sendRequest(
@@ -248,7 +248,7 @@ public class ExecutorImpl implements Executor {
         FetchResultsResponseBody fetchResultsResponse = fetchUtilResultsReady(operationHandle);
         ResultInfo firstResult = fetchResultsResponse.getResults();
 
-        return new ClientResult(
+        return new StatementResult(
                 fetchResultsResponse.getResults().getResultSchema(),
                 new RowDataInfoIterator(
                         operationHandle,
@@ -409,7 +409,9 @@ public class ExecutorImpl implements Executor {
             Throwable cause = e.getCause();
             if (cause instanceof RestClientException
                     && cause.getMessage().contains("Encountered \"<EOF>\"")) {
-                throw new SqlParserEOFException(cause.getMessage(), cause);
+                throw new SqlExecutionException(
+                        "The SQL statement is incomplete.",
+                        new SqlParserEOFException(cause.getMessage(), cause));
             } else {
                 throw new SqlExecutionException(
                         String.format(

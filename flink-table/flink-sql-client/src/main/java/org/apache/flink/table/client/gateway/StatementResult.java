@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 
 /** Wrapped results for the {@link FetchResultsResponseBody}. */
-public class ClientResult implements CloseableIterator<RowData> {
+public class StatementResult implements CloseableIterator<RowData> {
 
     private final ResolvedSchema resultSchema;
     private final CloseableIterator<RowData> resultProvider;
@@ -41,7 +41,7 @@ public class ClientResult implements CloseableIterator<RowData> {
     private final @Nullable JobID jobID;
     private final RowDataToStringConverter toStringConverter;
 
-    public ClientResult(
+    public StatementResult(
             ResolvedSchema resultSchema,
             CloseableIterator<RowData> resultProvider,
             boolean isQueryResult,
@@ -57,7 +57,7 @@ public class ClientResult implements CloseableIterator<RowData> {
     }
 
     @VisibleForTesting
-    public ClientResult(
+    public StatementResult(
             ResolvedSchema resultSchema,
             CloseableIterator<RowData> resultProvider,
             boolean isQueryResult,

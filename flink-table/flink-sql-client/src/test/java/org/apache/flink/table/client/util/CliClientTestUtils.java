@@ -21,7 +21,7 @@ package org.apache.flink.table.client.util;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.SqlClient;
-import org.apache.flink.table.client.gateway.ClientResult;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointStatementITCase;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
@@ -30,7 +30,7 @@ import org.apache.flink.util.CloseableIterator;
 /** Test utils for {@link SqlClient}. */
 public class CliClientTestUtils {
 
-    public static ClientResult createTestClient(ResolvedSchema schema) {
+    public static StatementResult createTestClient(ResolvedSchema schema) {
 
         RowDataToStringConverterImpl converter =
                 new RowDataToStringConverterImpl(
@@ -39,7 +39,7 @@ public class CliClientTestUtils {
                         SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
                         false);
 
-        return new ClientResult(
+        return new StatementResult(
                 schema,
                 CloseableIterator.empty(),
                 true,

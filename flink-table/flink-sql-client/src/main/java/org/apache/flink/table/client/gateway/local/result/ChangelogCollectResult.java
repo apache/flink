@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.client.gateway.ClientResult;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
 
@@ -32,7 +32,7 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
     private final List<RowData> changeRecordBuffer;
     @VisibleForTesting protected static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;
 
-    public ChangelogCollectResult(ClientResult tableResult) {
+    public ChangelogCollectResult(StatementResult tableResult) {
         super(tableResult);
         // prepare for changelog
         changeRecordBuffer = new ArrayList<>();
