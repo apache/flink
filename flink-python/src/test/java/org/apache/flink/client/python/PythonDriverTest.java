@@ -67,10 +67,9 @@ public class PythonDriverTest {
 
         PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx.py", args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
-        Assert.assertEquals(4, commands.size());
-        Assert.assertEquals(commands.get(0), "-m");
-        Assert.assertEquals(commands.get(1), "xxx");
-        Assert.assertEquals(commands.get(2), "--input");
-        Assert.assertEquals(commands.get(3), "in.txt");
+        Assert.assertEquals(3, commands.size());
+        Assert.assertEquals(commands.get(0), "xxx.py");
+        Assert.assertEquals(commands.get(1), "--input");
+        Assert.assertEquals(commands.get(2), "in.txt");
     }
 }
