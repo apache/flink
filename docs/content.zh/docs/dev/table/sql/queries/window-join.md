@@ -26,15 +26,15 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-窗口关联就是增加时间维度到关联条件中.在此过程中,窗口关联将两个流中在同一窗口且符合join条件的元素join起来.窗口关联的语义和[DataStream window join]({{< ref "docs/dev/datastream/operators/joining" >}}#window-join)相同.
+窗口关联就是增加时间维度到关联条件中。在此过程中，窗口关联将两个流中在同一窗口且符合 join 条件的元素 join 起来。窗口关联的语义和[DataStream window join]({{< ref "docs/dev/datastream/operators/joining" >}}#window-join)相同。
 
-在流式查询中,与其他连续表上的关联不同,窗口关联不产生中间结果,只在窗口结束产生一个最终的结果.另外,窗口关联会清除不需要的中间状态.
+在流式查询中，与其他连续表上的关联不同，窗口关联不产生中间结果，只在窗口结束产生一个最终的结果。另外，窗口关联会清除不需要的中间状态。
 
-通常,窗口关联和[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})一起使用.而且,窗口关联可以在其他基于[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})的操作后使用,例如[窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}),[窗口TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}}).
+通常，窗口关联和[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})一起使用。而且，窗口关联可以在其他基于[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})的操作后使用，例如[窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
-目前,窗口关联需要join on条件中包含输入表的窗口开始和结束相等.
+目前，窗口关联需要 join on 条件中包含输入表的窗口开始和结束相等。
 
-窗口关联支持 INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI join.
+窗口关联支持 INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI join。
 
 ## INNER/LEFT/RIGHT/FULL OUTER 
 
@@ -46,9 +46,9 @@ FROM L [LEFT|RIGHT|FULL OUTER] JOIN R -- L and R are relations applied windowing
 ON L.window_start = R.window_start AND L.window_end = R.window_end AND ...
 ```
 
-INNER/LEFT/RIGHT/FULL OUTER 这几种窗口关联的语法看起来很相似,这里只提供FULL OUTER JOIN的实例.
-当执行窗口关联时,所有元素与公共键和共同的滚动窗口一起关联.这里只提供滚动窗口表值函数的实例.
-通过将join的时间区域限定为固定的5分钟,数据集被分成两个不同的时间窗口:[12:00,12:05)和[12:05,12:10).L2和R2不能join在一起,因为它们不在一个窗口中.
+INNER/LEFT/RIGHT/FULL OUTER 这几种窗口关联的语法看起来很相似，这里只提供 FULL OUTER JOIN 的实例。
+当执行窗口关联时，所有元素与公共键和共同的滚动窗口一起关联。这里只提供滚动窗口表值函数的实例。
+通过将join的时间区域限定为固定的5分钟，数据集被分成两个不同的时间窗口：[12:00,12:05)和[12:05,12:10)。L2和R2不能 join 在一起是因为它们不在一个窗口中。
 
 ```sql
 Flink SQL> desc LeftTable;
@@ -108,11 +108,11 @@ Flink SQL> SELECT L.num as L_Num, L.id as L_Id, R.num as R_Num, R.id as R_Id,
 +-------+------+-------+------+------------------+------------------+
 ```
 
-*注意: 为了更好地理解窗口行为,这里把timestamp值后面的0去掉了.例如:在Flink SQL Client中,如果类型是`TIMESTAMP(3)`,`2020-04-15 08:05`应该显示成`2020-04-15 08:05:00.000`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值后面的0去掉了。例如:在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
 ## SEMI
 
-Semi窗口关联:如果在同一个窗口中,左侧记录在右侧至少有一个匹配的记录才能输出.
+Semi窗口关联：如果在同一个窗口中，左侧记录在右侧至少有一个匹配的记录才能输出。
 
 ```sql
 Flink SQL> SELECT *
@@ -142,11 +142,11 @@ Flink SQL> SELECT *
 +------------------+-----+----+------------------+------------------+-------------------------+
 ```
 
-*注意: 为了更好地理解窗口行为,这里把timestamp值后面的0去掉了.例如:在Flink SQL Client中,如果类型是`TIMESTAMP(3)`,`2020-04-15 08:05`应该显示成`2020-04-15 08:05:00.000`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值后面的0去掉了。例如:在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
 ## ANTI
 
-Anti窗口关联和inner窗口关联相反:它包含每个共同窗口内没jion的行.
+Anti窗口关联和inner窗口关联相反：它包含每个共同窗口内没jion的行。
 
 ```sql
 Flink SQL> SELECT *
@@ -178,21 +178,21 @@ Flink SQL> SELECT *
 +------------------+-----+----+------------------+------------------+-------------------------+
 ```
 
-*注意: 为了更好地理解窗口行为,这里把timestamp值后面的0去掉了.例如:在Flink SQL Client中,如果类型是`TIMESTAMP(3)`,`2020-04-15 08:05`应该显示成`2020-04-15 08:05:00.000`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值后面的0去掉了。例如:在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
 
 ## 限制
 
 ### Join子句的限制
 
-目前,窗口关联需要join on条件中包含输入表的窗口开始和结束相等.未来,如果是滚动或滑动窗口,只需要在join on条件中包含窗口开始相等即可.
+目前，窗口关联需要 join on 条件中包含输入表的窗口开始和结束相等。未来，如果是滚动或滑动窗口，只需要在join on条件中包含窗口开始相等即可。
 
 ### 输入窗口表值函数的限制
 
-目前,关联的左右两边必须使用相同的窗口表值函数.这个规则在未来可以扩展,比如:滚动和滑动窗口在窗口大小相同的情况下join.
+目前，关联的左右两边必须使用相同的窗口表值函数。这个规则在未来可以扩展，比如：滚动和滑动窗口在窗口大小相同的情况下join。
 
 ### 窗口表值函数之后直接使用窗口关联的限制
 
-目前滚动,滑动和累计[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})支持在其后直接进行窗口关联,会话窗口不支持.
+目前滚动，滑动和累计[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})支持在其后直接进行窗口关联，会话窗口不支持。
 
 {{< top >}}
