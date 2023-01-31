@@ -220,7 +220,8 @@ public class KafkaDynamicSource
                 Preconditions.checkNotNull(
                         specificStartupOffsets, "Specific offsets must not be null.");
         this.startupTimestampMillis = startupTimestampMillis;
-        this.boundedMode = boundedMode;
+        this.boundedMode =
+                Preconditions.checkNotNull(boundedMode, "Bounded mode must not be null.");
         this.specificBoundedOffsets =
                 Preconditions.checkNotNull(
                         specificBoundedOffsets, "Specific bounded offsets must not be null.");
@@ -379,7 +380,7 @@ public class KafkaDynamicSource
                 && Objects.equals(specificStartupOffsets, that.specificStartupOffsets)
                 && startupTimestampMillis == that.startupTimestampMillis
                 && boundedMode == that.boundedMode
-                && Objects.equals(specificBoundedOffsets, that.specificStartupOffsets)
+                && Objects.equals(specificBoundedOffsets, that.specificBoundedOffsets)
                 && boundedTimestampMillis == that.boundedTimestampMillis
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)

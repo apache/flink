@@ -293,10 +293,7 @@ class KafkaConnectorOptionsUtil {
     public static BoundedOptions getBoundedOptions(ReadableConfig tableOptions) {
         final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
         final BoundedMode boundedMode =
-                tableOptions
-                        .getOptional(SCAN_BOUNDED_MODE)
-                        .map(KafkaConnectorOptionsUtil::fromOption)
-                        .orElse(null);
+                KafkaConnectorOptionsUtil.fromOption(tableOptions.get(SCAN_BOUNDED_MODE));
         if (boundedMode == BoundedMode.SPECIFIC_OFFSETS) {
             buildBoundedOffsets(tableOptions, tableOptions.get(TOPIC).get(0), specificOffsets);
         }
