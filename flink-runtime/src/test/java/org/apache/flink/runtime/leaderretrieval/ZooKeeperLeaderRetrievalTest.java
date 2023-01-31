@@ -122,12 +122,18 @@ class ZooKeeperLeaderRetrievalTest {
         LeaderElectionService leaderElectionService = null;
         LeaderElectionService faultyLeaderElectionService;
 
-        ServerSocket serverSocket;
-        InetAddress localHost;
-
         Thread thread;
 
+        final InetAddress localHost;
         try {
+            localHost = InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            // may happen if disconnected. skip test.
+            System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
+            return;
+        }
+
+        try (ServerSocket serverSocket = new ServerSocket(0, 50, localHost)) {
             String wrongAddress =
                     RPC_SYSTEM.getRpcUrl(
                             "1.1.1.1",
@@ -137,76 +143,68 @@ class ZooKeeperLeaderRetrievalTest {
                             config);
 
             try {
-                localHost = InetAddress.getLocalHost();
-                serverSocket = new ServerSocket(0, 50, localHost);
-            } catch (UnknownHostException e) {
-                // may happen if disconnected. skip test.
-                System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
-                return;
-            } catch (IOException e) {
-                // may happen in certain test setups, skip test.
-                System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
-                return;
+                InetSocketAddress correctInetSocketAddress =
+                        new InetSocketAddress(localHost, serverSocket.getLocalPort());
+
+                String correctAddress =
+                        RPC_SYSTEM.getRpcUrl(
+                                localHost.getHostName(),
+                                correctInetSocketAddress.getPort(),
+                                JobMaster.JOB_MANAGER_NAME,
+                                AddressResolution.NO_ADDRESS_RESOLUTION,
+                                config);
+
+                faultyLeaderElectionService =
+                        highAvailabilityServices.getJobManagerLeaderElectionService(
+                                HighAvailabilityServices.DEFAULT_JOB_ID);
+                TestingContender wrongLeaderAddressContender =
+                        new TestingContender(wrongAddress, faultyLeaderElectionService);
+
+                faultyLeaderElectionService.start(wrongLeaderAddressContender);
+
+                FindConnectingAddress findConnectingAddress =
+                        new FindConnectingAddress(
+                                timeout,
+                                highAvailabilityServices.getJobManagerLeaderRetriever(
+                                        HighAvailabilityServices.DEFAULT_JOB_ID,
+                                        "unused-default-address"));
+
+                thread = new Thread(findConnectingAddress);
+
+                thread.start();
+
+                leaderElectionService =
+                        highAvailabilityServices.getJobManagerLeaderElectionService(
+                                HighAvailabilityServices.DEFAULT_JOB_ID);
+                TestingContender correctLeaderAddressContender =
+                        new TestingContender(correctAddress, leaderElectionService);
+
+                Thread.sleep(sleepingTime);
+
+                faultyLeaderElectionService.stop();
+
+                leaderElectionService.start(correctLeaderAddressContender);
+
+                thread.join();
+
+                InetAddress result = findConnectingAddress.getInetAddress();
+
+                // check that we can connect to the localHost
+                try (Socket socket = new Socket()) {
+                    // port 0 = let the OS choose the port
+                    SocketAddress bindP = new InetSocketAddress(result, 0);
+                    // machine
+                    socket.bind(bindP);
+                    socket.connect(correctInetSocketAddress, 1000);
+                }
+            } finally {
+                if (leaderElectionService != null) {
+                    leaderElectionService.stop();
+                }
             }
-
-            InetSocketAddress correctInetSocketAddress =
-                    new InetSocketAddress(localHost, serverSocket.getLocalPort());
-
-            String correctAddress =
-                    RPC_SYSTEM.getRpcUrl(
-                            localHost.getHostName(),
-                            correctInetSocketAddress.getPort(),
-                            JobMaster.JOB_MANAGER_NAME,
-                            AddressResolution.NO_ADDRESS_RESOLUTION,
-                            config);
-
-            faultyLeaderElectionService =
-                    highAvailabilityServices.getJobManagerLeaderElectionService(
-                            HighAvailabilityServices.DEFAULT_JOB_ID);
-            TestingContender wrongLeaderAddressContender =
-                    new TestingContender(wrongAddress, faultyLeaderElectionService);
-
-            faultyLeaderElectionService.start(wrongLeaderAddressContender);
-
-            FindConnectingAddress findConnectingAddress =
-                    new FindConnectingAddress(
-                            timeout,
-                            highAvailabilityServices.getJobManagerLeaderRetriever(
-                                    HighAvailabilityServices.DEFAULT_JOB_ID,
-                                    "unused-default-address"));
-
-            thread = new Thread(findConnectingAddress);
-
-            thread.start();
-
-            leaderElectionService =
-                    highAvailabilityServices.getJobManagerLeaderElectionService(
-                            HighAvailabilityServices.DEFAULT_JOB_ID);
-            TestingContender correctLeaderAddressContender =
-                    new TestingContender(correctAddress, leaderElectionService);
-
-            Thread.sleep(sleepingTime);
-
-            faultyLeaderElectionService.stop();
-
-            leaderElectionService.start(correctLeaderAddressContender);
-
-            thread.join();
-
-            InetAddress result = findConnectingAddress.getInetAddress();
-
-            // check that we can connect to the localHost
-            try (Socket socket = new Socket()) {
-                // port 0 = let the OS choose the port
-                SocketAddress bindP = new InetSocketAddress(result, 0);
-                // machine
-                socket.bind(bindP);
-                socket.connect(correctInetSocketAddress, 1000);
-            }
-        } finally {
-            if (leaderElectionService != null) {
-                leaderElectionService.stop();
-            }
+        } catch (IOException e) {
+            // may happen in certain test setups, skip test.
+            System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
         }
     }
 
