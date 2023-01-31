@@ -70,7 +70,7 @@ trait BatchPhysicalJoinRuleBase {
       node.getRowType, // input row type
       distinctKeys.toArray,
       Array.empty,
-      true,
+      supportAdaptiveLocalHashAgg = false,
       Seq())
   }
 
