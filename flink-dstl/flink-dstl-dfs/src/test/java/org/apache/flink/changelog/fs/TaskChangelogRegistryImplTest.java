@@ -21,11 +21,6 @@ import org.apache.flink.runtime.state.TestingStreamStateHandle;
 
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
-
 import static org.apache.flink.util.concurrent.Executors.directExecutor;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -37,11 +32,11 @@ public class TaskChangelogRegistryImplTest {
     public void testDiscardedWhenNotUsed() {
         TaskChangelogRegistry registry = new TaskChangelogRegistryImpl(directExecutor());
         TestingStreamStateHandle handle = new TestingStreamStateHandle();
-        List<UUID> backends = Arrays.asList(UUID.randomUUID(), UUID.randomUUID());
-        registry.startTracking(handle, new HashSet<>(backends));
-        for (UUID backend : backends) {
+        long refCount = 2;
+        registry.startTracking(handle, refCount);
+        for (int i = 0; i < refCount; i++) {
             assertFalse(handle.isDisposed());
-            registry.notUsed(handle, backend);
+            registry.release(handle);
         }
         assertTrue(handle.isDisposed());
     }
@@ -50,10 +45,13 @@ public class TaskChangelogRegistryImplTest {
     public void testNotDiscardedIfStoppedTracking() {
         TaskChangelogRegistry registry = new TaskChangelogRegistryImpl(directExecutor());
         TestingStreamStateHandle handle = new TestingStreamStateHandle();
-        List<UUID> backends = Arrays.asList(UUID.randomUUID(), UUID.randomUUID());
-        registry.startTracking(handle, new HashSet<>(backends));
+        long refCount = 2;
+        registry.startTracking(handle, refCount);
         registry.stopTracking(handle);
-        backends.forEach(id -> registry.notUsed(handle, id));
+        for (int i = 0; i < refCount; i++) {
+            assertFalse(handle.isDisposed());
+            registry.release(handle);
+        }
         assertFalse(handle.isDisposed());
     }
 }
