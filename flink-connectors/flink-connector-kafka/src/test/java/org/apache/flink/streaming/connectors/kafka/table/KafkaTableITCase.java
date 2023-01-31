@@ -263,7 +263,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  `user_id` INT,\n"
                                 + "  `item_id` INT,\n"
                                 + "  `behavior` STRING,\n"
-                                + "  `event_time` TIMESTAMP(3) METADATA FROM 'timestamp'"
+                                + "  `event_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'"
                                 + ") WITH (\n"
                                 + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
@@ -301,14 +301,8 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         assertThat(results)
                 .containsExactly(
-                        Row.of(1, 1102, "behavior 1",
-                                LocalDateTime.ofInstant(
-                                        Instant.ofEpochMilli(0L),
-                                        ZoneId.systemDefault())),
-                        Row.of(2, 1103, "behavior 2",
-                                LocalDateTime.ofInstant(
-                                        Instant.ofEpochMilli(3L),
-                                        ZoneId.systemDefault()))
+                        Row.of(1, 1102, "behavior 1", Instant.ofEpochMilli(0L)),
+                        Row.of(2, 1103, "behavior 2", Instant.ofEpochMilli(3L))
                 );
 
         // ------------- cleanup -------------------
