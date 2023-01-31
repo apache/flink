@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -39,7 +40,6 @@ import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.result.MaterializedResult;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -74,6 +74,8 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -184,7 +186,6 @@ class ExecutorImplITCase {
         config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, tempFolder.toURI().toString());
-        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, tempFolder.toURI().toString());
         return config;
     }
 
@@ -434,8 +435,9 @@ class ExecutorImplITCase {
         }
     }
 
-    @Test
-    void testStopJob() throws Exception {
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest
+    void testStopJob(boolean withSavepoint) throws Exception {
         final Map<String, String> configMap = new HashMap<>();
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
@@ -449,6 +451,8 @@ class ExecutorImplITCase {
                 createRestServiceExecutor(
                         Collections.singletonList(udfDependency),
                         Configuration.fromMap(configMap))) {
+
+
             executor.configureSession(srcDdl);
             executor.configureSession(snkDdl);
             StatementResult result = executor.executeStatement(insert);
@@ -456,17 +460,41 @@ class ExecutorImplITCase {
 
             // wait till the job turns into running status or the test times out
             TestUtils.waitUntilAllTasksAreRunning(clusterClient, jobID);
-            StringData savepointPath =
-                    CollectionUtil.iteratorToList(
-                                    executor.executeStatement(
-                                            String.format("STOP JOB '%s' WITH SAVEPOINT", jobID)))
-                            .get(0)
-                            .getString(0);
-            assertThat(savepointPath)
-                    .isNotNull()
-                    .matches(
-                            stringData ->
-                                    Files.exists(Paths.get(URI.create(stringData.toString()))));
+
+            JobStatus expectedJobStatus;
+            if (withSavepoint) {
+                executor.configureSession(
+                        String.format(
+                                "SET '%s' = '%s'",
+                                CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
+                                tempFolder.toURI()));
+                StatementResult stopResult =
+                        executor.executeStatement(
+                                String.format("STOP JOB '%s' WITH SAVEPOINT", jobID));
+                String savepointPath =
+                        CollectionUtil.iteratorToList(stopResult).get(0).getString(0).toString();
+                assertThat(savepointPath)
+                        .matches(path -> Files.exists(Paths.get(URI.create(path))));
+                expectedJobStatus = JobStatus.FINISHED;
+            } else {
+                executor.executeStatement(String.format("STOP JOB '%s'", jobID));
+                TestUtils.waitUntilJobCanceled(jobID, clusterClient);
+                expectedJobStatus = JobStatus.CANCELED;
+            }
+            assertThat(jobID).isNotNull();
+            assertThat(
+                            CollectionUtil.iteratorToList(executor.executeStatement("SHOW JOBS"))
+                                    .stream()
+                                    .filter(
+                                            row ->
+                                                    row.getString(0)
+                                                            .toString()
+                                                            .equals(jobID.toHexString()))
+                                    .findAny())
+                    .isPresent()
+                    .map(row -> row.getString(2).toString())
+                    .get()
+                    .isEqualTo(expectedJobStatus.name());
         }
     }
 

@@ -109,14 +109,14 @@ public class OperationExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(OperationExecutor.class);
 
     protected final SessionContext sessionContext;
-    protected final Configuration executionConfig;
+    protected final Configuration operationConfig;
 
     private final ClusterClientServiceLoader clusterClientServiceLoader;
 
     @VisibleForTesting
     public OperationExecutor(SessionContext context, Configuration executionConfig) {
         this.sessionContext = context;
-        this.executionConfig = executionConfig;
+        this.operationConfig = combineConfiguration(executionConfig);
         this.clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
     }
 
@@ -292,8 +292,14 @@ public class OperationExecutor {
     @VisibleForTesting
     public TableEnvironmentInternal getTableEnvironment() {
         TableEnvironmentInternal tableEnv = sessionContext.createTableEnvironment();
-        tableEnv.getConfig().getConfiguration().addAll(executionConfig);
+        tableEnv.getConfig().getConfiguration().addAll(operationConfig);
         return tableEnv;
+    }
+
+    private Configuration combineConfiguration(Configuration executionConfig) {
+        Configuration combined = executionConfig.clone();
+        combined.addAll(Configuration.fromMap(sessionContext.getConfigMap()));
+        return combined;
     }
 
     private ResultFetcher executeOperationInStatementSetState(
@@ -486,9 +492,7 @@ public class OperationExecutor {
         String jobId = stopJobOperation.getJobId();
         boolean isWithSavepoint = stopJobOperation.isWithSavepoint();
         boolean isWithDrain = stopJobOperation.isWithDrain();
-        Duration clientTimeout =
-                Configuration.fromMap(sessionContext.getConfigMap())
-                        .get(ClientOptions.CLIENT_TIMEOUT);
+        Duration clientTimeout = operationConfig.get(ClientOptions.CLIENT_TIMEOUT);
         Optional<String> savepoint =
                 runClusterAction(
                         handle,
@@ -501,7 +505,7 @@ public class OperationExecutor {
                                                     .stopWithSavepoint(
                                                             JobID.fromHexString(jobId),
                                                             isWithDrain,
-                                                            executionConfig.get(
+                                                            operationConfig.get(
                                                                     CheckpointingOptions
                                                                             .SAVEPOINT_DIRECTORY),
                                                             SavepointFormatType.DEFAULT)
@@ -515,12 +519,12 @@ public class OperationExecutor {
                                     return Optional.empty();
                                 }
                             } catch (Exception e) {
-                                throw new SqlExecutionException(
-                                        "Could not stop job "
-                                                + jobId
-                                                + " for operation "
-                                                + handle.getIdentifier()
-                                                + ".",
+                                throw new FlinkException(
+                                        String.format(
+                                                "Could not stop job %s %s for operation %s.",
+                                                jobId,
+                                                isWithSavepoint ? "with savepoint" : "",
+                                                handle.getIdentifier()),
                                         e);
                             }
                         });
@@ -538,9 +542,7 @@ public class OperationExecutor {
     public ResultFetcher callShowJobsOperation(
             OperationHandle operationHandle, ShowJobsOperation showJobsOperation)
             throws SqlExecutionException {
-        Duration clientTimeout =
-                Configuration.fromMap(sessionContext.getConfigMap())
-                        .get(ClientOptions.CLIENT_TIMEOUT);
+        Duration clientTimeout = operationConfig.get(ClientOptions.CLIENT_TIMEOUT);
         Collection<JobStatusMessage> jobs =
                 runClusterAction(
                         operationHandle,
@@ -588,15 +590,14 @@ public class OperationExecutor {
     private <ClusterID, Result> Result runClusterAction(
             OperationHandle handle, ClusterAction<ClusterID, Result> clusterAction)
             throws SqlExecutionException {
-        final Configuration configuration = Configuration.fromMap(sessionContext.getConfigMap());
         final ClusterClientFactory<ClusterID> clusterClientFactory =
-                clusterClientServiceLoader.getClusterClientFactory(configuration);
+                clusterClientServiceLoader.getClusterClientFactory(operationConfig);
 
-        final ClusterID clusterId = clusterClientFactory.getClusterId(configuration);
+        final ClusterID clusterId = clusterClientFactory.getClusterId(operationConfig);
         Preconditions.checkNotNull(clusterId, "No cluster ID found for operation " + handle);
 
         try (final ClusterDescriptor<ClusterID> clusterDescriptor =
-                        clusterClientFactory.createClusterDescriptor(configuration);
+                        clusterClientFactory.createClusterDescriptor(operationConfig);
                 final ClusterClient<ClusterID> clusterClient =
                         clusterDescriptor.retrieve(clusterId).getClusterClient()) {
             return clusterAction.runAction(clusterClient);
