@@ -314,15 +314,22 @@ public class KafkaConnectorOptions {
     /** Bounded mode for the Kafka consumer, see {@link #SCAN_BOUNDED_MODE}. */
     public enum ScanBoundedMode implements DescribedEnum {
         UNBOUNDED("unbounded", text("Do not stop consuming")),
-        LATEST_OFFSET("latest-offset", text("Bounded from the latest offset.")),
+        LATEST_OFFSET(
+                "latest-offset",
+                text("Bounded by latest offsets. This is evaluated at the start of consumption"
+                        + " from a given partition.")),
         GROUP_OFFSETS(
                 "group-offsets",
                 text(
-                        "Bounded from committed offsets in ZooKeeper / Kafka brokers of a specific consumer group.")),
-        TIMESTAMP("timestamp", text("Bounded from user-supplied timestamp for each partition.")),
+                        "Bounded by committed offsets in ZooKeeper / Kafka brokers of a specific"
+                                + " consumer group. This is evaluated at the start of consumption"
+                                + " from a given partition.")),
+        TIMESTAMP("timestamp", text("Bounded by a user-supplied timestamp.")),
         SPECIFIC_OFFSETS(
                 "specific-offsets",
-                text("Bounded from user-supplied specific offsets for each partition."));
+                text("Bounded by user-supplied specific offsets for each partition. If an offset"
+                        + " for a partition is not provided it will not consume from that"
+                        + " partition."));
         private final String value;
         private final InlineElement description;
 

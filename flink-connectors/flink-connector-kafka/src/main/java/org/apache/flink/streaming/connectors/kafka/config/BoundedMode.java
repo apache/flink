@@ -23,25 +23,29 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public enum BoundedMode {
 
-    /** Do not end consuming */
+    /** Do not end consuming. */
     UNBOUNDED,
 
-    /** End from committed offsets in ZK / Kafka brokers of a specific consumer group (default). */
+    /**
+     * End from committed offsets in ZK / Kafka brokers of a specific consumer group.
+     * This is evaluated at the start of consumption from a given partition.
+     */
     GROUP_OFFSETS,
 
-    /** End from the latest offset. */
+    /**
+     * End from the latest offset.
+     * This is evaluated at the start of consumption from a given partition.
+     */
     LATEST,
 
     /**
-     * End from user-supplied timestamp for each partition. Since this mode will have specific
-     * offsets to end with, we do not need a sentinel value; using Long.MIN_VALUE as a placeholder.
+     * End from user-supplied timestamp for each partition.
      */
     TIMESTAMP,
 
     /**
-     * End from user-supplied specific offsets for each partition. Since this mode will have
-     * specific offsets to end with, we do not need a sentinel value; using Long.MIN_VALUE as a
-     * placeholder.
+     * End from user-supplied specific offsets for each partition.
+     * If an offset for a partition is not provided it will not consume from that partition.
      */
     SPECIFIC_OFFSETS;
 }

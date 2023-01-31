@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -41,7 +42,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,6 +63,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
+import static org.apache.flink.table.api.Expressions.toTimestamp;
+import static org.apache.flink.table.api.Expressions.toTimestampLtz;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.apache.flink.util.CollectionUtil.entry;
@@ -234,6 +240,76 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         assertThat(results)
                 .containsExactly(Row.of(1, 1102, "behavior 1"), Row.of(2, 1103, "behavior 2"));
+
+        // ------------- cleanup -------------------
+
+        deleteTestTopic(topic);
+    }
+
+    @Test
+    public void testKafkaSourceSinkWithBoundedTimestamp() throws Exception {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "bounded_" + format + "_" + UUID.randomUUID();
+        createTestTopic(topic, 1, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE kafka (\n"
+                                + "  `user_id` INT,\n"
+                                + "  `item_id` INT,\n"
+                                + "  `behavior` STRING,\n"
+                                + "  `event_time` TIMESTAMP(3) METADATA FROM 'timestamp'"
+                                + ") WITH (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'scan.bounded.mode' = 'timestamp',\n"
+                                + "  'scan.bounded.timestamp-millis' = '5',\n"
+                                + "  %s\n"
+                                + ")\n",
+                        KafkaDynamicTableFactory.IDENTIFIER,
+                        topic,
+                        bootstraps,
+                        groupId,
+                        formatOptions());
+
+        tEnv.executeSql(createTable);
+
+        List<Row> values =
+                Arrays.asList(
+                        Row.of(1, 1102, "behavior 1", Instant.ofEpochMilli(0L)),
+                        Row.of(2, 1103, "behavior 2", Instant.ofEpochMilli(3L)),
+                        Row.of(3, 1104, "behavior 3", Instant.ofEpochMilli(7L)));
+        tEnv.fromValues(values).insertInto("kafka").execute().await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        List<Row> results = new ArrayList<>();
+        try (CloseableIterator<Row> resultsItr =
+                     tEnv.sqlQuery("SELECT * from kafka").execute().collect()) {
+            while (resultsItr.hasNext()) {
+                results.add(resultsItr.next());
+            }
+        }
+
+        assertThat(results)
+                .containsExactly(
+                        Row.of(1, 1102, "behavior 1",
+                                LocalDateTime.ofInstant(
+                                        Instant.ofEpochMilli(0L),
+                                        ZoneId.systemDefault())),
+                        Row.of(2, 1103, "behavior 2",
+                                LocalDateTime.ofInstant(
+                                        Instant.ofEpochMilli(3L),
+                                        ZoneId.systemDefault()))
+                );
 
         // ------------- cleanup -------------------
 
