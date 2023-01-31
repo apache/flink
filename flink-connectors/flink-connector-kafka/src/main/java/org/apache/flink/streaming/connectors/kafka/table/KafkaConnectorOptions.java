@@ -316,8 +316,9 @@ public class KafkaConnectorOptions {
         UNBOUNDED("unbounded", text("Do not stop consuming")),
         LATEST_OFFSET(
                 "latest-offset",
-                text("Bounded by latest offsets. This is evaluated at the start of consumption"
-                        + " from a given partition.")),
+                text(
+                        "Bounded by latest offsets. This is evaluated at the start of consumption"
+                                + " from a given partition.")),
         GROUP_OFFSETS(
                 "group-offsets",
                 text(
@@ -327,9 +328,10 @@ public class KafkaConnectorOptions {
         TIMESTAMP("timestamp", text("Bounded by a user-supplied timestamp.")),
         SPECIFIC_OFFSETS(
                 "specific-offsets",
-                text("Bounded by user-supplied specific offsets for each partition. If an offset"
-                        + " for a partition is not provided it will not consume from that"
-                        + " partition."));
+                text(
+                        "Bounded by user-supplied specific offsets for each partition. If an offset"
+                                + " for a partition is not provided it will not consume from that"
+                                + " partition."));
         private final String value;
         private final InlineElement description;
 

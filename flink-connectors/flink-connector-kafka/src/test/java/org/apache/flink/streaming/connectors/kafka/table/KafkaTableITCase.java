@@ -23,7 +23,6 @@ import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -44,8 +43,6 @@ import org.junit.runners.Parameterized;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -63,8 +60,6 @@ import java.util.stream.IntStream;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
-import static org.apache.flink.table.api.Expressions.toTimestamp;
-import static org.apache.flink.table.api.Expressions.toTimestampLtz;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.apache.flink.util.CollectionUtil.entry;
@@ -293,7 +288,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         List<Row> results = new ArrayList<>();
         try (CloseableIterator<Row> resultsItr =
-                     tEnv.sqlQuery("SELECT * from kafka").execute().collect()) {
+                tEnv.sqlQuery("SELECT * from kafka").execute().collect()) {
             while (resultsItr.hasNext()) {
                 results.add(resultsItr.next());
             }
@@ -302,8 +297,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         assertThat(results)
                 .containsExactly(
                         Row.of(1, 1102, "behavior 1", Instant.ofEpochMilli(0L)),
-                        Row.of(2, 1103, "behavior 2", Instant.ofEpochMilli(3L))
-                );
+                        Row.of(2, 1103, "behavior 2", Instant.ofEpochMilli(3L)));
 
         // ------------- cleanup -------------------
 

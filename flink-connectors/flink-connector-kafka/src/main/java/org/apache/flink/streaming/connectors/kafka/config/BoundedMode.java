@@ -27,25 +27,23 @@ public enum BoundedMode {
     UNBOUNDED,
 
     /**
-     * End from committed offsets in ZK / Kafka brokers of a specific consumer group.
-     * This is evaluated at the start of consumption from a given partition.
+     * End from committed offsets in ZK / Kafka brokers of a specific consumer group. This is
+     * evaluated at the start of consumption from a given partition.
      */
     GROUP_OFFSETS,
 
     /**
-     * End from the latest offset.
-     * This is evaluated at the start of consumption from a given partition.
+     * End from the latest offset. This is evaluated at the start of consumption from a given
+     * partition.
      */
     LATEST,
 
-    /**
-     * End from user-supplied timestamp for each partition.
-     */
+    /** End from user-supplied timestamp for each partition. */
     TIMESTAMP,
 
     /**
-     * End from user-supplied specific offsets for each partition.
-     * If an offset for a partition is not provided it will not consume from that partition.
+     * End from user-supplied specific offsets for each partition. If an offset for a partition is
+     * not provided it will not consume from that partition.
      */
     SPECIFIC_OFFSETS;
 }
