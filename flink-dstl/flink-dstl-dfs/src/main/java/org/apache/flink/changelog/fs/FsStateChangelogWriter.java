@@ -276,9 +276,9 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                             } else {
                                 // uploaded already truncated, i.e. materialized state changes,
                                 // or closed
-                                changelogRegistry.notUsed(result.streamStateHandle, logId);
+                                changelogRegistry.release(result.streamStateHandle);
                                 if (result.localStreamHandle != null) {
-                                    changelogRegistry.notUsed(result.localStreamHandle, logId);
+                                    changelogRegistry.release(result.localStreamHandle);
                                 }
                             }
                         }
@@ -505,9 +505,9 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     private void notifyStateNotUsed(Map<SequenceNumber, UploadResult> notUsedState) {
         LOG.trace("Uploaded state to discard: {}", notUsedState);
         for (UploadResult result : notUsedState.values()) {
-            changelogRegistry.notUsed(result.streamStateHandle, logId);
+            changelogRegistry.release(result.streamStateHandle);
             if (result.localStreamHandle != null) {
-                changelogRegistry.notUsed(result.localStreamHandle, logId);
+                changelogRegistry.release(result.localStreamHandle);
             }
         }
     }
