@@ -590,23 +590,13 @@ object FlinkRexUtil {
   }
 
   /**
-   * Returns whether a given expression is deterministic in streaming scenario, differs from
-   * calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions.
+   * Returns the non-deterministic call name for a given expression. Use java [[Optional]] for
+   * scala-free goal.
    */
-  def isDeterministicInStreaming(e: RexNode): Boolean = {
-    !getNonDeterministicCallNameInStreaming(e).isPresent
-  }
-
-  /**
-   * Returns the non-deterministic call name for a given expression in streaming scenario, differs
-   * from calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions. Use java
-   * [[Optional]] for scala-free goal.
-   */
-  def getNonDeterministicCallNameInStreaming(e: RexNode): Optional[String] = try {
+  def getNonDeterministicCallName(e: RexNode): Optional[String] = try {
     val visitor = new RexVisitorImpl[Void](true) {
       override def visitCall(call: RexCall): Void = {
-        // dynamic function call is also non-deterministic to streaming
-        if (!call.getOperator.isDeterministic || call.getOperator.isDynamicFunction) {
+        if (!call.getOperator.isDeterministic) {
           throw new Util.FoundOne(call.getOperator.getName)
         }
         super.visitCall(call)
@@ -621,20 +611,19 @@ object FlinkRexUtil {
   }
 
   /**
-   * Returns whether a given [[RexProgram]] is deterministic in streaming scenario, differs from
-   * calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions.
+   * Returns whether a given [[RexProgram]] is deterministic.
    * @return
-   *   true if any expression of the program is not deterministic in streaming
+   *   false if any expression of the program is not deterministic
    */
-  def isDeterministicInStreaming(rexProgram: RexProgram): Boolean = try {
+  def isDeterministic(rexProgram: RexProgram): Boolean = try {
     if (null != rexProgram.getCondition) {
       val rexCondi = rexProgram.expandLocalRef(rexProgram.getCondition)
-      if (!isDeterministicInStreaming(rexCondi)) {
+      if (!RexUtil.isDeterministic(rexCondi)) {
         return false
       }
     }
     val projects = rexProgram.getProjectList.map(rexProgram.expandLocalRef)
-    projects.forall(isDeterministicInStreaming)
+    projects.forall(RexUtil.isDeterministic)
   }
 
   /**
