@@ -32,7 +32,7 @@ import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelDistribution, RelNode, SingleRel}
 import org.apache.calcite.rel.core.{Aggregate, Calc, Exchange, Filter, Join, JoinInfo, JoinRelType, Project, SetOp, Sort, TableScan, Window}
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexNode, RexUtil}
 import org.apache.calcite.util.{Bug, ImmutableBitSet, Util}
 
 import java.util
@@ -237,9 +237,9 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     val rightUniqueKeys = FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfTemporalTable(join)
 
     val remainingConditionNonDeterministic =
-      join.remainingCondition.exists(c => !FlinkRexUtil.isDeterministicInStreaming(c))
+      join.remainingCondition.exists(c => !RexUtil.isDeterministic(c))
     lazy val calcOnTemporalTableNonDeterministic =
-      join.calcOnTemporalTable.exists(p => !FlinkRexUtil.isDeterministicInStreaming(p))
+      join.calcOnTemporalTable.exists(p => !FlinkRexUtil.isDeterministic(p))
 
     val rightUpsertKeys =
       if (remainingConditionNonDeterministic || calcOnTemporalTableNonDeterministic) {
