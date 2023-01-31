@@ -75,6 +75,9 @@ public class SqlMultiLineParser extends DefaultParser {
         if (context != ParseContext.ACCEPT_LINE) {
             return parseInternal(line, cursor, context);
         }
+        if (!line.trim().endsWith(STATEMENT_DELIMITER)) {
+            throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
+        }
         try {
             parseException = null;
             Command command = parser.parseStatement(line).orElse(null);
