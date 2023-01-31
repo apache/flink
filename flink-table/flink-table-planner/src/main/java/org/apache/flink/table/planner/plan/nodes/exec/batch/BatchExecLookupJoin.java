@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
@@ -41,7 +42,8 @@ import java.util.List;
 import java.util.Map;
 
 /** {@link BatchExecNode} for temporal table join that implemented by lookup. */
-public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchExecNode<RowData> {
+public class BatchExecLookupJoin extends CommonExecLookupJoin
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
     public BatchExecLookupJoin(
             ReadableConfig tableConfig,
             FlinkJoinType joinType,
