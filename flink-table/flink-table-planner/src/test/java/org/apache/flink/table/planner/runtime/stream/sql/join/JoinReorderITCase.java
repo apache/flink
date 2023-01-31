@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.runtime.stream.sql.join;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -52,7 +51,8 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
         super.before();
         // This conf is aims to fix IOException due to timeout occurring while requesting exclusive
         // NetworkBuffer (see https://issues.apache.org/jira/browse/FLINK-30727).
-        tEnv.getConfig().getConfiguration().set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.4f);
+        // tEnv.getConfig().getConfiguration().set(TaskManagerOptions.NETWORK_MEMORY_FRACTION,
+        // 0.4f);
     }
 
     @AfterEach
@@ -65,6 +65,7 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
     protected TableEnvironment getTableEnvironment() {
         EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
         env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
         return StreamTableEnvironment.create(env, settings);
     }
 
