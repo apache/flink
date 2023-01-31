@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.planner.expressions.utils.Func0
@@ -31,8 +31,8 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
-import org.junit.{Before, Ignore, Rule, Test}
-import org.junit.Assert.{assertEquals, assertNotEquals, fail}
+import org.junit.{Before, Rule, Test}
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -946,7 +946,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().sameElements(Array("t1")))
   }
 
-  @Ignore("FLINK-29072")
   @Test
   def testAlterTable(): Unit = {
     val ddl1 =
