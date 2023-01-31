@@ -47,10 +47,6 @@ This section describes how to use speculative execution, including how to enable
 how to develop/improve custom sources to work with speculative execution.
 
 {{< hint warning >}}
-Note: Flink does not support speculative execution of sinks yet and will support it in follow-up releases.
-{{< /hint >}}
-
-{{< hint warning >}}
 Note: Flink does not support speculative execution of DataSet jobs because DataSet will be deprecated 
 in near future. DataStream API is now the recommended low level API to develop Flink batch jobs.
 {{< /hint >}}
@@ -91,6 +87,30 @@ No extra change is required for other sources to work with speculative execution
 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java" name="InputFormat sources" >}}, 
 and {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="new sources" >}}. 
 All the source connectors offered by Apache Flink can work with speculative execution.
+
+### Enable Sinks for Speculative Execution
+Speculative execution is disabled by default for a sink unless it implements {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}} 
+interface. This is due to compatibility considerations.
+```java
+public interface SupportsConcurrentExecutionAttempts {}
+```
+The {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}} 
+works for {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} 
+, {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/sink/SinkFunction.java" name="SinkFunction" >}} 
+and {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java" name="OutputFormat" >}}.
+
+{{< hint info >}}
+If any operator in a task does not support speculative execution, the entire task would be marked as not supporting speculative execution.
+That means if the Sink does not support speculative execution, the task containing the Sink operator cannot be speculatively executed.
+{{< /hint >}}
+
+{{< hint info >}}
+For the {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} implementation, 
+Flink disables speculative execution for {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Committer.java" name="Committer" >}}(
+including the operators extended by {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPreCommitTopology.java" name="WithPreCommitTopology" >}} and {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPostCommitTopology.java" name="WithPostCommitTopology" >}}).
+Because the concurrent committing may cause some unexpected problems if the user is not experienced with it. 
+And the committer is very unlikely to be the bottleneck of the batch job.
+{{< /hint >}}
 
 ## Checking the Effectiveness of Speculative Execution
 After enabling speculative execution, when there are slow tasks that trigger speculative execution, 

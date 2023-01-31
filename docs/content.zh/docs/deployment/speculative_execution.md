@@ -41,10 +41,6 @@ under the License.
 本章节描述了如何使用预测执行，包含如何启用，调优，以及开发/改进自定义 source 来支持预测执行。
 
 {{< hint warning >}}
-注意: Flink 尚不支持 sink 的预测执行。这个能力会在后续版本中得到完善。
-{{< /hint >}}
-
-{{< hint warning >}}
 注意：Flink 不支持 DataSet 作业的预测执行，因为 DataSet API 在不久的将来会被废弃。现在推荐使用 DataStream API 来开发 Flink 批处理作业。
 {{< /hint >}}
 
@@ -82,6 +78,28 @@ public interface SupportsHandleExecutionAttemptSourceEvent {
 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java" name="InputFormat Source" >}}, 
 和 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="新版 Source" >}}.
 Apache Flink 官方提供的 Source 都支持预测执行。
+
+### 让 Sink 支持预测执行
+Sink 的预测执行默认是关闭的，除非 Sink 实现了 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}}
+接口。这里主要是兼容性方面的考虑。
+```java
+public interface SupportsConcurrentExecutionAttempts {}
+```
+接口 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}}
+适用于 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}}
+，{{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/sink/SinkFunction.java" name="SinkFunction" >}}
+以及 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java" name="OutputFormat" >}}。
+
+{{< hint info >}}
+如果作业节点中有任何算子不支持预测执行，那么该节点都将被认为不支持预测执行。这意味着如果 Sink 不支持预测执行，那么包含其的整个节点都无法进行预测执行。
+{{< /hint >}}
+
+{{< hint info >}}
+对于 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} 实现, 
+Flink 会关闭 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Committer.java" name="Committer" >}} 的预测执行，
+（包括被 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPreCommitTopology.java" name="WithPreCommitTopology" >}} 和 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPostCommitTopology.java" name="WithPostCommitTopology" >}} 扩展的算子）。
+因为如果用户对并行提交理解不深的话，这里可能会引起意料之外的问题。另外一个原因是提交的部分往往不是批作业的瓶颈所在。
+{{< /hint >}}
 
 ## 检查预测执行的效果
 在启用预测执行后，当出现慢任务触发预测执行时，Web UI 会在作业页面的节点信息的 `SubTasks` 分页展示预测执行实例。Web UI 
