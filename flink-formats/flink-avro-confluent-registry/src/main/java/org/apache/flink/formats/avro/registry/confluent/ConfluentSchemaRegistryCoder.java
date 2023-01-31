@@ -70,6 +70,11 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
         } else {
             int schemaId = dataInputStream.readInt();
 
+            // If the schema id (4bytes) is zero, it means it got serialized with 8bytes
+            if (schemaId == 0) {
+                schemaId = dataInputStream.readInt();
+            }
+
             try {
                 return schemaRegistryClient.getById(schemaId);
             } catch (RestClientException e) {
