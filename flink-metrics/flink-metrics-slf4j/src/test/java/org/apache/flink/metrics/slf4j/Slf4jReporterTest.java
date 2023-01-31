@@ -76,7 +76,7 @@ class Slf4jReporterTest {
     }
 
     @Test
-    void testSkipCountersIfNoCounterRegistered() {
+    void testOnlyCounterRegistered() {
         reporter.notifyOfAddedMetric(new SimpleCounter(), "metric", metricGroup);
 
         reporter.report();
@@ -89,7 +89,7 @@ class Slf4jReporterTest {
     }
 
     @Test
-    void testSkipMetersIfNoMeterRegistered() {
+    void testOnlyMeterRegistered() {
         reporter.notifyOfAddedMetric(new MeterView(new SimpleCounter()), "metric", metricGroup);
 
         reporter.report();
@@ -102,7 +102,7 @@ class Slf4jReporterTest {
     }
 
     @Test
-    void testSkipGaugesIfNoGaugeRegistered() {
+    void testOnlyGaugeRegistered() {
         reporter.notifyOfAddedMetric((Gauge<Number>) () -> 4, "metric", metricGroup);
 
         reporter.report();
@@ -115,7 +115,7 @@ class Slf4jReporterTest {
     }
 
     @Test
-    void testSkipHistogramsIfNoHistogramRegistered() {
+    void testOnlyHistogramRegistered() {
         reporter.notifyOfAddedMetric(new TestHistogram(), "metric", metricGroup);
 
         reporter.report();
