@@ -20,7 +20,6 @@ package org.apache.flink.formats.avro.glue.schema.registry;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
-import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
 import com.amazonaws.services.schemaregistry.exception.AWSSchemaRegistryException;
@@ -73,12 +72,8 @@ public class GlueSchemaRegistryInputStreamDeserializer {
         in.read(inputBytes);
         in.reset();
 
-        MutableByteArrayInputStream mutableByteArrayInputStream = (MutableByteArrayInputStream) in;
         String schemaDefinition =
                 glueSchemaRegistryDeserializationFacade.getSchemaDefinition(inputBytes);
-        byte[] deserializedBytes =
-                glueSchemaRegistryDeserializationFacade.getActualData(inputBytes);
-        mutableByteArrayInputStream.setBuffer(deserializedBytes);
 
         Schema schema;
         try {
