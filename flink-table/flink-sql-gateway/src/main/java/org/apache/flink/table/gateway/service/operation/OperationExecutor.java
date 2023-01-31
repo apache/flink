@@ -30,13 +30,21 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -44,6 +52,11 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -52,6 +65,7 @@ import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -70,8 +84,10 @@ import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TemporaryClassLoaderContext;
@@ -79,6 +95,7 @@ import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -109,7 +126,8 @@ public class OperationExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(OperationExecutor.class);
 
     protected final SessionContext sessionContext;
-    protected final Configuration executionConfig;
+
+    private final Configuration executionConfig;
 
     private final ClusterClientServiceLoader clusterClientServiceLoader;
 
@@ -291,9 +309,98 @@ public class OperationExecutor {
 
     @VisibleForTesting
     public TableEnvironmentInternal getTableEnvironment() {
-        TableEnvironmentInternal tableEnv = sessionContext.createTableEnvironment();
-        tableEnv.getConfig().getConfiguration().addAll(executionConfig);
-        return tableEnv;
+        // checks the value of RUNTIME_MODE
+        Configuration operationConfig = sessionContext.getSessionConf().clone();
+        operationConfig.addAll(executionConfig);
+        final EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(operationConfig).build();
+
+        // We need not different StreamExecutionEnvironments to build and submit flink job,
+        // instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
+        // to execute existing StreamGraph.
+        // This requires StreamExecutionEnvironment to have a full flink configuration.
+        StreamExecutionEnvironment streamExecEnv =
+                new StreamExecutionEnvironment(
+                        operationConfig, sessionContext.getUserClassloader());
+
+        TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(sessionContext.getDefaultContext().getFlinkConfig());
+        tableConfig.addConfiguration(operationConfig);
+
+        final Executor executor =
+                lookupExecutor(streamExecEnv, sessionContext.getUserClassloader());
+        return createStreamTableEnvironment(
+                streamExecEnv,
+                settings,
+                tableConfig,
+                executor,
+                sessionContext.getSessionState().catalogManager,
+                sessionContext.getSessionState().moduleManager,
+                sessionContext.getSessionState().resourceManager,
+                sessionContext.getSessionState().functionCatalog);
+    }
+
+    private static Executor lookupExecutor(
+            StreamExecutionEnvironment executionEnvironment, ClassLoader userClassLoader) {
+        try {
+            final ExecutorFactory executorFactory =
+                    FactoryUtil.discoverFactory(
+                            userClassLoader,
+                            ExecutorFactory.class,
+                            ExecutorFactory.DEFAULT_IDENTIFIER);
+            final Method createMethod =
+                    executorFactory
+                            .getClass()
+                            .getMethod("create", StreamExecutionEnvironment.class);
+
+            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
+        } catch (Exception e) {
+            throw new TableException(
+                    "Could not instantiate the executor. Make sure a planner module is on the classpath",
+                    e);
+        }
+    }
+
+    private TableEnvironmentInternal createStreamTableEnvironment(
+            StreamExecutionEnvironment env,
+            EnvironmentSettings settings,
+            TableConfig tableConfig,
+            Executor executor,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            ResourceManager resourceManager,
+            FunctionCatalog functionCatalog) {
+
+        final Planner planner =
+                PlannerFactoryUtil.createPlanner(
+                        executor,
+                        tableConfig,
+                        resourceManager.getUserClassLoader(),
+                        moduleManager,
+                        catalogManager,
+                        functionCatalog);
+
+        try {
+            return new StreamTableEnvironmentImpl(
+                    catalogManager,
+                    moduleManager,
+                    resourceManager,
+                    functionCatalog,
+                    tableConfig,
+                    env,
+                    planner,
+                    executor,
+                    settings.isStreamingMode());
+        } catch (ValidationException e) {
+            if (tableConfig.getSqlDialect() == SqlDialect.HIVE) {
+                String additionErrorMsg =
+                        "Note: if you want to use Hive dialect, "
+                                + "please first move the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt` "
+                                + "to `FLINK_HOME/lib` and then move out the jar `flink-table-planner-loader` from `FLINK_HOME/lib`.";
+                ExceptionUtils.updateDetailMessage(e, t -> t.getMessage() + additionErrorMsg);
+            }
+            throw e;
+        }
     }
 
     private ResultFetcher executeOperationInStatementSetState(
@@ -330,9 +437,9 @@ public class OperationExecutor {
             TableResultInternal result = tableEnv.executeInternal(op);
             return ResultFetcher.fromTableResult(handle, result, true);
         } else if (op instanceof StopJobOperation) {
-            return callStopJobOperation(handle, (StopJobOperation) op);
+            return callStopJobOperation(tableEnv, handle, (StopJobOperation) op);
         } else if (op instanceof ShowJobsOperation) {
-            return callShowJobsOperation(handle, (ShowJobsOperation) op);
+            return callShowJobsOperation(tableEnv, handle, (ShowJobsOperation) op);
         } else if (op instanceof RemoveJarOperation) {
             return callRemoveJar(handle, ((RemoveJarOperation) op).getPath());
         } else {
@@ -481,16 +588,18 @@ public class OperationExecutor {
     }
 
     public ResultFetcher callStopJobOperation(
-            OperationHandle handle, StopJobOperation stopJobOperation)
+            TableEnvironmentInternal tableEnv,
+            OperationHandle handle,
+            StopJobOperation stopJobOperation)
             throws SqlExecutionException {
         String jobId = stopJobOperation.getJobId();
         boolean isWithSavepoint = stopJobOperation.isWithSavepoint();
         boolean isWithDrain = stopJobOperation.isWithDrain();
-        Duration clientTimeout =
-                Configuration.fromMap(sessionContext.getConfigMap())
-                        .get(ClientOptions.CLIENT_TIMEOUT);
+        Configuration configuration = tableEnv.getConfig().getConfiguration();
+        Duration clientTimeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
         Optional<String> savepoint =
                 runClusterAction(
+                        configuration,
                         handle,
                         clusterClient -> {
                             try {
@@ -501,7 +610,7 @@ public class OperationExecutor {
                                                     .stopWithSavepoint(
                                                             JobID.fromHexString(jobId),
                                                             isWithDrain,
-                                                            executionConfig.get(
+                                                            configuration.get(
                                                                     CheckpointingOptions
                                                                             .SAVEPOINT_DIRECTORY),
                                                             SavepointFormatType.DEFAULT)
@@ -516,11 +625,11 @@ public class OperationExecutor {
                                 }
                             } catch (Exception e) {
                                 throw new SqlExecutionException(
-                                        "Could not stop job "
-                                                + jobId
-                                                + " for operation "
-                                                + handle.getIdentifier()
-                                                + ".",
+                                        String.format(
+                                                "Could not stop job %s %s for operation %s.",
+                                                jobId,
+                                                isWithSavepoint ? "with savepoint" : "",
+                                                handle.getIdentifier()),
                                         e);
                             }
                         });
@@ -536,13 +645,15 @@ public class OperationExecutor {
     }
 
     public ResultFetcher callShowJobsOperation(
-            OperationHandle operationHandle, ShowJobsOperation showJobsOperation)
+            TableEnvironmentInternal tableEnv,
+            OperationHandle operationHandle,
+            ShowJobsOperation showJobsOperation)
             throws SqlExecutionException {
-        Duration clientTimeout =
-                Configuration.fromMap(sessionContext.getConfigMap())
-                        .get(ClientOptions.CLIENT_TIMEOUT);
+        Configuration configuration = tableEnv.getConfig().getConfiguration();
+        Duration clientTimeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
         Collection<JobStatusMessage> jobs =
                 runClusterAction(
+                        configuration,
                         operationHandle,
                         clusterClient -> {
                             try {
@@ -579,6 +690,8 @@ public class OperationExecutor {
      * Retrieves the {@link ClusterClient} from the session and runs the given {@link ClusterAction}
      * against it.
      *
+     * @param configuration the combined configuration of {@code sessionConf} and {@code
+     *     executionConfig}.
      * @param handle the specified operation handle
      * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
      * @param <ClusterID> type of the cluster id
@@ -586,9 +699,10 @@ public class OperationExecutor {
      * @throws SqlExecutionException if something goes wrong
      */
     private <ClusterID, Result> Result runClusterAction(
-            OperationHandle handle, ClusterAction<ClusterID, Result> clusterAction)
+            Configuration configuration,
+            OperationHandle handle,
+            ClusterAction<ClusterID, Result> clusterAction)
             throws SqlExecutionException {
-        final Configuration configuration = Configuration.fromMap(sessionContext.getConfigMap());
         final ClusterClientFactory<ClusterID> clusterClientFactory =
                 clusterClientServiceLoader.getClusterClientFactory(configuration);
 

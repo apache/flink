@@ -22,24 +22,13 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.config.TableConfigOptions;
-import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.ExecutorFactory;
-import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -51,7 +40,6 @@ import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 
@@ -59,7 +47,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -69,7 +56,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -122,8 +108,8 @@ public class SessionContext {
         return this.sessionId;
     }
 
-    public Map<String, String> getConfigMap() {
-        return sessionConf.toMap();
+    public Configuration getSessionConf() {
+        return new UnmodifiableConfiguration(sessionConf);
     }
 
     public OperationManager getOperationManager() {
@@ -136,6 +122,14 @@ public class SessionContext {
 
     public SessionState getSessionState() {
         return sessionState;
+    }
+
+    public DefaultContext getDefaultContext() {
+        return defaultContext;
+    }
+
+    public URLClassLoader getUserClassloader() {
+        return userClassloader;
     }
 
     public void set(String key, String value) {
@@ -265,100 +259,6 @@ public class SessionContext {
     // ------------------------------------------------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------------------------------------------------
-
-    public TableEnvironmentInternal createTableEnvironment() {
-        // checks the value of RUNTIME_MODE
-        final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().withConfiguration(sessionConf).build();
-
-        StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
-
-        TableConfig tableConfig = TableConfig.getDefault();
-        tableConfig.setRootConfiguration(defaultContext.getFlinkConfig());
-        tableConfig.addConfiguration(sessionConf);
-
-        final Executor executor = lookupExecutor(streamExecEnv, userClassloader);
-        return createStreamTableEnvironment(
-                streamExecEnv,
-                settings,
-                tableConfig,
-                executor,
-                sessionState.catalogManager,
-                sessionState.moduleManager,
-                sessionState.resourceManager,
-                sessionState.functionCatalog);
-    }
-
-    private TableEnvironmentInternal createStreamTableEnvironment(
-            StreamExecutionEnvironment env,
-            EnvironmentSettings settings,
-            TableConfig tableConfig,
-            Executor executor,
-            CatalogManager catalogManager,
-            ModuleManager moduleManager,
-            ResourceManager resourceManager,
-            FunctionCatalog functionCatalog) {
-
-        final Planner planner =
-                PlannerFactoryUtil.createPlanner(
-                        executor,
-                        tableConfig,
-                        resourceManager.getUserClassLoader(),
-                        moduleManager,
-                        catalogManager,
-                        functionCatalog);
-
-        try {
-            return new StreamTableEnvironmentImpl(
-                    catalogManager,
-                    moduleManager,
-                    resourceManager,
-                    functionCatalog,
-                    tableConfig,
-                    env,
-                    planner,
-                    executor,
-                    settings.isStreamingMode());
-        } catch (ValidationException e) {
-            if (tableConfig.getSqlDialect() == SqlDialect.HIVE) {
-                String additionErrorMsg =
-                        "Note: if you want to use Hive dialect, "
-                                + "please first move the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt` "
-                                + "to `FLINK_HOME/lib` and then move out the jar `flink-table-planner-loader` from `FLINK_HOME/lib`.";
-                ExceptionUtils.updateDetailMessage(e, t -> t.getMessage() + additionErrorMsg);
-            }
-            throw e;
-        }
-    }
-
-    private static Executor lookupExecutor(
-            StreamExecutionEnvironment executionEnvironment, ClassLoader userClassLoader) {
-        try {
-            final ExecutorFactory executorFactory =
-                    FactoryUtil.discoverFactory(
-                            userClassLoader,
-                            ExecutorFactory.class,
-                            ExecutorFactory.DEFAULT_IDENTIFIER);
-            final Method createMethod =
-                    executorFactory
-                            .getClass()
-                            .getMethod("create", StreamExecutionEnvironment.class);
-
-            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
-        } catch (Exception e) {
-            throw new TableException(
-                    "Could not instantiate the executor. Make sure a planner module is on the classpath",
-                    e);
-        }
-    }
-
-    private StreamExecutionEnvironment createStreamExecutionEnvironment() {
-        // We need not different StreamExecutionEnvironments to build and submit flink job,
-        // instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
-        // to execute existing StreamGraph.
-        // This requires StreamExecutionEnvironment to have a full flink configuration.
-        return new StreamExecutionEnvironment(new Configuration(sessionConf), userClassloader);
-    }
 
     protected static Configuration initializeConfiguration(
             DefaultContext defaultContext,

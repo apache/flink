@@ -55,7 +55,7 @@ public class Session implements Closeable {
     }
 
     public Map<String, String> getSessionConfig() {
-        return sessionContext.getConfigMap();
+        return sessionContext.getSessionConf().toMap();
     }
 
     public EndpointVersion getEndpointVersion() {
