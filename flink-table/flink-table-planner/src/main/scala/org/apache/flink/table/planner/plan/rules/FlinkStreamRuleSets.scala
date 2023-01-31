@@ -142,7 +142,7 @@ object FlinkStreamRuleSets {
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
-    CoreRules.FILTER_PROJECT_TRANSPOSE,
+    FlinkFilterProjectTransposeRule.INSTANCE,
     // push a filter past a setop
     CoreRules.FILTER_SET_OP_TRANSPOSE,
     CoreRules.FILTER_MERGE
@@ -280,7 +280,7 @@ object FlinkStreamRuleSets {
     DecomposeGroupingSetsRule.INSTANCE,
 
     // calc rules
-    CoreRules.FILTER_CALC_MERGE,
+    FlinkFilterCalcMergeRule.INSTANCE,
     CoreRules.PROJECT_CALC_MERGE,
     CoreRules.FILTER_TO_CALC,
     CoreRules.PROJECT_TO_CALC,
