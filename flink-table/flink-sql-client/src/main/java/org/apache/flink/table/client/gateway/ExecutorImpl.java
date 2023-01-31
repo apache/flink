@@ -98,91 +98,85 @@ public class ExecutorImpl implements Executor {
     private static final Logger LOG = LoggerFactory.getLogger(ExecutorImpl.class);
     private static final long HEARTBEAT_INTERVAL_MILLISECONDS = 60_000L;
 
-    private final DefaultContext defaultContext;
     private final InetSocketAddress gatewayAddress;
-    private final long heartbeatInterval;
-    private final ExecutorService service;
+    private final ExecutorService executorService;
     private final ScheduledExecutorService heartbeatScheduler;
     private final RestClient restClient;
 
+    private final SqlGatewayRestAPIVersion connectionVersion;
     private SessionHandle sessionHandle;
-    private SqlGatewayRestAPIVersion connectionVersion;
+
+    public static ExecutorImpl create(
+            DefaultContext defaultContext, InetSocketAddress gatewayAddress, String sessionId) {
+        return create(defaultContext, gatewayAddress, sessionId, HEARTBEAT_INTERVAL_MILLISECONDS);
+    }
 
     @VisibleForTesting
-    public ExecutorImpl(
+    public static ExecutorImpl create(
             DefaultContext defaultContext,
             InetSocketAddress gatewayAddress,
+            String sessionId,
             long heartbeatInterval) {
-        this.defaultContext = defaultContext;
-        this.gatewayAddress = gatewayAddress;
-        this.heartbeatInterval = heartbeatInterval;
-        this.service = Executors.newCachedThreadPool();
-        this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
+        ExecutorService executor = Executors.newCachedThreadPool();
         try {
-            this.restClient = new RestClient(defaultContext.getFlinkConfig(), service);
-        } catch (Exception e) {
-            throw new SqlClientException("Can not create the Rest Client.", e);
-        }
-    }
-
-    public ExecutorImpl(DefaultContext defaultContext, InetSocketAddress gatewayAddress) {
-        this(defaultContext, gatewayAddress, HEARTBEAT_INTERVAL_MILLISECONDS);
-    }
-
-    public void openSession(String sessionId) {
-        try {
+            RestClient restClient = new RestClient(defaultContext.getFlinkConfig(), executor);
             // determine gateway rest api version
-            connectionVersion = negotiateVersion();
+            SqlGatewayRestAPIVersion connectionVersion =
+                    negotiateVersion(restClient, gatewayAddress);
             // open session to address:port
             LOG.info("Open session to {}.", gatewayAddress);
             OpenSessionResponseBody response =
-                    sendRequest(
+                    restClient
+                            .sendRequest(
+                                    gatewayAddress.getHostName(),
+                                    gatewayAddress.getPort(),
                                     OpenSessionHeaders.getInstance(),
                                     EmptyMessageParameters.getInstance(),
                                     new OpenSessionRequestBody(
-                                            sessionId, defaultContext.getFlinkConfig().toMap()))
+                                            sessionId, defaultContext.getFlinkConfig().toMap()),
+                                    Collections.emptyList(),
+                                    connectionVersion)
                             .get();
-            sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
-            // register heartbeat service
-            heartbeatScheduler.scheduleAtFixedRate(
-                    () ->
-                            getResponse(
-                                    sendRequest(
-                                            TriggerSessionHeartbeatHeaders.getInstance(),
-                                            new SessionMessageParameters(sessionHandle),
-                                            EmptyRequestBody.getInstance())),
-                    heartbeatInterval,
-                    heartbeatInterval,
-                    TimeUnit.MILLISECONDS);
+            SessionHandle sessionHandle =
+                    new SessionHandle(UUID.fromString(response.getSessionHandle()));
+            return new ExecutorImpl(
+                    restClient,
+                    executor,
+                    gatewayAddress,
+                    connectionVersion,
+                    sessionHandle,
+                    heartbeatInterval);
         } catch (Exception e) {
-            throw new SqlClientException(
-                    String.format("Failed to open session to %s", gatewayAddress), e);
+            executor.shutdownNow();
+            throw new SqlClientException("Failed to create the executor.", e);
         }
     }
 
-    public void closeSession() throws SqlExecutionException {
-        if (sessionHandle == null) {
-            return;
-        }
-        try {
-            CompletableFuture<CloseSessionResponseBody> response =
-                    sendRequest(
-                            CloseSessionHeaders.getInstance(),
-                            new SessionMessageParameters(sessionHandle),
-                            EmptyRequestBody.getInstance());
+    private ExecutorImpl(
+            RestClient restClient,
+            ExecutorService executor,
+            InetSocketAddress gatewayAddress,
+            SqlGatewayRestAPIVersion connectionVersion,
+            SessionHandle sessionHandle,
+            long heartbeatInterval) {
+        this.restClient = restClient;
+        this.executorService = executor;
+        this.gatewayAddress = gatewayAddress;
+        this.sessionHandle = sessionHandle;
+        this.connectionVersion = connectionVersion;
 
-            if (!response.get().getStatus().equals(CLOSE_MESSAGE)) {
-                LOG.warn("The status of close session response isn't {}.", CLOSE_MESSAGE);
-            }
-        } catch (Exception e) {
-            LOG.warn(
-                    String.format(
-                            "Unexpected error occurs when closing session %s.", sessionHandle),
-                    e);
-            // ignore any throwable to keep the cleanup running
-        } finally {
-            sessionHandle = null;
-        }
+        this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
+        // register heartbeat executor
+        heartbeatScheduler.scheduleAtFixedRate(
+                () ->
+                        getResponse(
+                                sendRequest(
+                                        TriggerSessionHeartbeatHeaders.getInstance(),
+                                        new SessionMessageParameters(sessionHandle),
+                                        EmptyRequestBody.getInstance())),
+                heartbeatInterval,
+                heartbeatInterval,
+                TimeUnit.MILLISECONDS);
     }
 
     public void configureSession(String statement) {
@@ -224,7 +218,7 @@ public class ExecutorImpl implements Executor {
         getResponse(
                 executeStatementResponse,
                 e -> {
-                    service.submit(
+                    executorService.submit(
                             () -> {
                                 try {
                                     ExecuteStatementResponseBody executeStatementResponseBody =
@@ -272,7 +266,7 @@ public class ExecutorImpl implements Executor {
     @Override
     public void close() {
         closeSession();
-        service.shutdownNow();
+        executorService.shutdownNow();
         heartbeatScheduler.shutdownNow();
     }
 
@@ -343,6 +337,7 @@ public class ExecutorImpl implements Executor {
                     P extends ResponseBody>
             CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) {
         Preconditions.checkNotNull(connectionVersion, "The connection version should not be null.");
+        Preconditions.checkNotNull(sessionHandle, "The session handle should not be null.");
         return sendRequest(messageHeaders, messageParameters, request, connectionVersion);
     }
 
@@ -421,12 +416,12 @@ public class ExecutorImpl implements Executor {
         }
     }
 
-    private <T> T getResponse(CompletableFuture<T> future) {
+    private static <T> T getResponse(CompletableFuture<T> future) {
         return getResponse(
                 future, e -> new SqlExecutionException("Interrupted to get response.", e));
     }
 
-    private <T> T getResponse(
+    private static <T> T getResponse(
             CompletableFuture<T> future,
             Function<InterruptedException, SqlExecutionException> interruptedExceptionHandler) {
         try {
@@ -451,13 +446,17 @@ public class ExecutorImpl implements Executor {
         return new OperationHandle(UUID.fromString(handleSupplier.get()));
     }
 
-    private SqlGatewayRestAPIVersion negotiateVersion() {
+    private static SqlGatewayRestAPIVersion negotiateVersion(
+            RestClient restClient, InetSocketAddress gatewayAddress) throws Exception {
         List<SqlGatewayRestAPIVersion> gatewayVersions =
                 getResponse(
-                                sendRequest(
+                                restClient.sendRequest(
+                                        gatewayAddress.getHostName(),
+                                        gatewayAddress.getPort(),
                                         GetApiVersionHeaders.getInstance(),
                                         EmptyMessageParameters.getInstance(),
                                         EmptyRequestBody.getInstance(),
+                                        Collections.emptyList(),
                                         // Currently, RestClient always uses the latest REST API
                                         // version to build the targetUrl. However, it's possible
                                         // that the client REST API version is higher than the
@@ -486,6 +485,32 @@ public class ExecutorImpl implements Executor {
                         "Currently, SQL Client only supports to connect to the REST endpoint with API version larger than V1.");
             }
             return latestVersion;
+        }
+    }
+
+    private void closeSession() throws SqlExecutionException {
+        if (sessionHandle == null) {
+            return;
+        }
+
+        try {
+            CompletableFuture<CloseSessionResponseBody> response =
+                    sendRequest(
+                            CloseSessionHeaders.getInstance(),
+                            new SessionMessageParameters(sessionHandle),
+                            EmptyRequestBody.getInstance());
+
+            if (!response.get().getStatus().equals(CLOSE_MESSAGE)) {
+                LOG.warn("The status of close session response isn't {}.", CLOSE_MESSAGE);
+            }
+        } catch (Exception e) {
+            LOG.warn(
+                    String.format(
+                            "Unexpected error occurs when closing session %s.", sessionHandle),
+                    e);
+            // ignore any throwable to keep the cleanup running
+        } finally {
+            sessionHandle = null;
         }
     }
 }

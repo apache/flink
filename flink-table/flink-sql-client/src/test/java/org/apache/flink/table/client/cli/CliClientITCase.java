@@ -221,16 +221,16 @@ class CliClientITCase {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
 
         try (final Executor executor =
-                        new ExecutorImpl(
+                        ExecutorImpl.create(
                                 defaultContext,
                                 InetSocketAddress.createUnresolved(
                                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
+                                "test-session");
                 Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
                                 () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
-            executor.openSession("test-session");
             client.executeInInteractiveMode();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);

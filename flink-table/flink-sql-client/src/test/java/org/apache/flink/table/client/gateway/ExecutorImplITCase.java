@@ -190,25 +190,24 @@ class ExecutorImplITCase {
 
     @Test
     void testCompleteStatement() {
-        final Executor executor = createRestServiceExecutor();
-        executor.openSession("test-session");
-        initSession(executor, Collections.emptyMap());
+        try (Executor executor = createRestServiceExecutor()) {
+            initSession(executor, Collections.emptyMap());
 
-        final List<String> expectedTableHints =
-                Arrays.asList(
-                        "default_catalog.default_database.TableNumber1",
-                        "default_catalog.default_database.TableSourceSink");
-        assertThat(executor.completeStatement("SELECT * FROM Ta", 16))
-                .isEqualTo(expectedTableHints);
+            final List<String> expectedTableHints =
+                    Arrays.asList(
+                            "default_catalog.default_database.TableNumber1",
+                            "default_catalog.default_database.TableSourceSink");
+            assertThat(executor.completeStatement("SELECT * FROM Ta", 16))
+                    .isEqualTo(expectedTableHints);
 
-        final List<String> expectedClause = Collections.singletonList("WHERE");
-        assertThat(executor.completeStatement("SELECT * FROM TableNumber1 WH", 29))
-                .isEqualTo(expectedClause);
+            final List<String> expectedClause = Collections.singletonList("WHERE");
+            assertThat(executor.completeStatement("SELECT * FROM TableNumber1 WH", 29))
+                    .isEqualTo(expectedClause);
 
-        final List<String> expectedField = Collections.singletonList("IntegerField1");
-        assertThat(executor.completeStatement("SELECT * FROM TableNumber1 WHERE Inte", 37))
-                .isEqualTo(expectedField);
-        executor.closeSession();
+            final List<String> expectedField = Collections.singletonList("IntegerField1");
+            assertThat(executor.completeStatement("SELECT * FROM TableNumber1 WHERE Inte", 37))
+                    .isEqualTo(expectedField);
+        }
     }
 
     @Test
@@ -220,12 +219,10 @@ class ExecutorImplITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final Executor executor =
-                createRestServiceExecutor(Collections.singletonList(udfDependency), configuration);
-        executor.openSession("test-session");
-
-        initSession(executor, replaceVars);
-        try {
+        try (final Executor executor =
+                createRestServiceExecutor(
+                        Collections.singletonList(udfDependency), configuration)) {
+            initSession(executor, replaceVars);
             // start job and retrieval
             final ResultDescriptor desc =
                     executeQuery(
@@ -247,8 +244,6 @@ class ExecutorImplITCase {
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
-        } finally {
-            executor.closeSession();
         }
     }
 
@@ -261,10 +256,6 @@ class ExecutorImplITCase {
 
         Configuration configuration = Configuration.fromMap(getDefaultSessionConfigMap());
 
-        final Executor executor =
-                createRestServiceExecutor(Collections.singletonList(udfDependency), configuration);
-        executor.openSession("test-session");
-
         final List<String> expectedResults = new ArrayList<>();
         expectedResults.add("[47, Hello World]");
         expectedResults.add("[27, Hello World]");
@@ -273,8 +264,11 @@ class ExecutorImplITCase {
         expectedResults.add("[47, Hello World]");
         expectedResults.add("[57, Hello World!!!!]");
 
-        initSession(executor, replaceVars);
-        try {
+        try (final Executor executor =
+                createRestServiceExecutor(
+                        Collections.singletonList(udfDependency), configuration)) {
+            initSession(executor, replaceVars);
+
             for (int i = 0; i < 3; i++) {
                 // start job and retrieval
                 final ResultDescriptor desc =
@@ -291,8 +285,6 @@ class ExecutorImplITCase {
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
             }
-        } finally {
-            executor.closeSession();
         }
     }
 
@@ -379,13 +371,11 @@ class ExecutorImplITCase {
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
-        final Executor executor =
+        try (final Executor executor =
                 createRestServiceExecutor(
-                        Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        executor.openSession("test-session");
-
-        initSession(executor, replaceVars);
-        try {
+                        Collections.singletonList(udfDependency),
+                        Configuration.fromMap(configMap))) {
+            initSession(executor, replaceVars);
             final ResultDescriptor desc = executeQuery(executor, "SELECT *, 'ABC' FROM TestView1");
 
             assertThat(desc.isMaterialized()).isTrue();
@@ -403,8 +393,6 @@ class ExecutorImplITCase {
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
-        } finally {
-            executor.closeSession();
         }
     }
 
@@ -419,12 +407,6 @@ class ExecutorImplITCase {
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
 
-        final Executor executor =
-                createRestServiceExecutor(
-                        Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        executor.openSession("test-session");
-        initSession(executor, replaceVars);
-
         final List<String> expectedResults = new ArrayList<>();
         expectedResults.add("[47]");
         expectedResults.add("[27]");
@@ -433,7 +415,11 @@ class ExecutorImplITCase {
         expectedResults.add("[47]");
         expectedResults.add("[57]");
 
-        try {
+        try (final Executor executor =
+                createRestServiceExecutor(
+                        Collections.singletonList(udfDependency),
+                        Configuration.fromMap(configMap))) {
+            initSession(executor, replaceVars);
             for (int i = 0; i < 3; i++) {
                 final ResultDescriptor desc = executeQuery(executor, "SELECT * FROM TestView1");
 
@@ -445,8 +431,6 @@ class ExecutorImplITCase {
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
             }
-        } finally {
-            executor.closeSession();
         }
     }
 
@@ -457,16 +441,14 @@ class ExecutorImplITCase {
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
         configMap.put(TableConfigOptions.TABLE_DML_SYNC.key(), "false");
 
-        final Executor executor =
-                createRestServiceExecutor(
-                        Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        executor.openSession("test-session");
-
         final String srcDdl = "CREATE TABLE src (a STRING) WITH ('connector' = 'datagen')";
         final String snkDdl = "CREATE TABLE snk (a STRING) WITH ('connector' = 'blackhole')";
         final String insert = "INSERT INTO snk SELECT a FROM src;";
 
-        try {
+        try (final Executor executor =
+                createRestServiceExecutor(
+                        Collections.singletonList(udfDependency),
+                        Configuration.fromMap(configMap))) {
             executor.configureSession(srcDdl);
             executor.configureSession(snkDdl);
             StatementResult result = executor.executeStatement(insert);
@@ -485,8 +467,6 @@ class ExecutorImplITCase {
                     .matches(
                             stringData ->
                                     Files.exists(Paths.get(URI.create(stringData.toString()))));
-        } finally {
-            executor.closeSession();
         }
     }
 
@@ -515,7 +495,6 @@ class ExecutorImplITCase {
     @Test
     void testHeartbeat() throws Exception {
         try (ExecutorImpl executor = (ExecutorImpl) createRestServiceExecutor()) {
-            executor.openSession("test-heartbeat");
             Thread.sleep(5_000);
             assertThat(
                             ((SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager())
@@ -525,31 +504,27 @@ class ExecutorImplITCase {
     }
 
     @Test
-    void testConnectToEndpointWithV1Version() throws Exception {
-        testNegotiateVersion(
-                SqlGatewayRestAPIVersion.V1,
-                executor ->
-                        assertThatThrownBy(() -> executor.openSession("connection-version"))
-                                .satisfies(
-                                        anyCauseMatches(
-                                                SqlExecutionException.class,
-                                                "Currently, SQL Client only supports to connect to the "
-                                                        + "REST endpoint with API version larger than V1.")));
+    void testConnectToEndpointWithV1Version() {
+        assertThatThrownBy(() -> testNegotiateVersion(SqlGatewayRestAPIVersion.V1, executor -> {}))
+                .satisfies(
+                        anyCauseMatches(
+                                SqlExecutionException.class,
+                                "Currently, SQL Client only supports to connect to the "
+                                        + "REST endpoint with API version larger than V1."));
     }
 
     @Test
     void testConnectToEndpointWithHigherVersion() throws Exception {
         testNegotiateVersion(
                 SqlGatewayRestAPIVersion.V2,
-                executor -> {
-                    executor.openSession("connection-version");
-                    assertThat(
-                                    SQL_GATEWAY_SERVICE_EXTENSION
-                                            .getService()
-                                            .getSessionEndpointVersion(
-                                                    ((ExecutorImpl) executor).getSessionHandle()))
-                            .isEqualTo(SqlGatewayRestAPIVersion.V2);
-                });
+                executor ->
+                        assertThat(
+                                        SQL_GATEWAY_SERVICE_EXTENSION
+                                                .getService()
+                                                .getSessionEndpointVersion(
+                                                        ((ExecutorImpl) executor)
+                                                                .getSessionHandle()))
+                                .isEqualTo(SqlGatewayRestAPIVersion.V2));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -622,15 +597,12 @@ class ExecutorImplITCase {
     }
 
     private Executor createTestServiceExecutor() {
-        Executor executor =
-                createExecutor(
-                        Collections.emptyList(),
-                        new Configuration(),
-                        InetSocketAddress.createUnresolved(
-                                TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
-        executor.openSession("mock");
-        return executor;
+        return createExecutor(
+                Collections.emptyList(),
+                new Configuration(),
+                InetSocketAddress.createUnresolved(
+                        TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                        TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
     }
 
     private Executor createExecutor(
@@ -638,7 +610,7 @@ class ExecutorImplITCase {
         configuration.addAll(clusterClient.getFlinkConfiguration());
         DefaultContext defaultContext = new DefaultContext(configuration, dependencies);
         // frequently trigger heartbeat
-        return new ExecutorImpl(defaultContext, address, 1_000);
+        return ExecutorImpl.create(defaultContext, address, "test-session", 1_000);
     }
 
     private void initSession(Executor executor, Map<String, String> replaceVars) {
@@ -653,14 +625,11 @@ class ExecutorImplITCase {
             String query,
             List<String> expectedResults)
             throws Exception {
-
-        final Executor executor =
+        try (final Executor executor =
                 createRestServiceExecutor(
-                        Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
-        executor.openSession("test-session");
-        initSession(executor, replaceVars);
-
-        try {
+                        Collections.singletonList(udfDependency),
+                        Configuration.fromMap(configMap))) {
+            initSession(executor, replaceVars);
             // start job and retrieval
             final ResultDescriptor desc = executeQuery(executor, query);
 
@@ -671,8 +640,6 @@ class ExecutorImplITCase {
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
-        } finally {
-            executor.closeSession();
         }
     }
 

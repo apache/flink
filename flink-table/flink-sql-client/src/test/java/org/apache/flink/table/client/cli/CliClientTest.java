@@ -49,8 +49,6 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.jupiter.api.Test;
 
-import javax.annotation.Nullable;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -71,8 +69,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link CliClient}. */
 class CliClientTest {
-
-    private static final String SESSION_ID = "test-session";
 
     private static final String INSERT_INTO_STATEMENT =
             "INSERT INTO MyTable SELECT * FROM MyOtherTable";
@@ -109,16 +105,15 @@ class CliClientTest {
 
     @Test
     void testExecuteSqlFileWithoutSqlCompleter() throws Exception {
-        MockExecutor executor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE));
+        MockExecutor executor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE), false);
         executeSqlFromContent(executor, ORIGIN_HIVE_SQL);
         assertThat(executor.receivedStatement).contains(HIVE_SQL_WITHOUT_COMPLETER);
     }
 
     @Test
     void testExecuteSqlInteractiveWithSqlCompleter() throws Exception {
-        final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE));
-        String sessionId = "test-session";
-        mockExecutor.openSession(sessionId);
+        final MockExecutor mockExecutor =
+                new MockExecutor(new SqlParserHelper(SqlDialect.HIVE), false);
 
         InputStream inputStream = new ByteArrayInputStream(ORIGIN_HIVE_SQL.getBytes());
         OutputStream outputStream = new ByteArrayOutputStream(256);
@@ -146,7 +141,6 @@ class CliClientTest {
     @Test
     void testHistoryFile() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
-        mockExecutor.openSession(SESSION_ID);
 
         InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
         Path historyFilePath = historyTempFile();
@@ -257,10 +251,7 @@ class CliClientTest {
 
         String content = String.join("\n", statements);
 
-        final MockExecutor mockExecutor = new MockExecutor();
-        mockExecutor.isSync = true;
-
-        mockExecutor.openSession(SESSION_ID);
+        final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(), true);
 
         Path historyFilePath = historyTempFile();
 
@@ -294,10 +285,8 @@ class CliClientTest {
 
     @Test
     void testCancelExecutionInteractiveMode() throws Exception {
-        final MockExecutor mockExecutor = new MockExecutor();
-        mockExecutor.isSync = true;
+        final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(), true);
 
-        mockExecutor.openSession(SESSION_ID);
         Path historyFilePath = historyTempFile();
         InputStream inputStream = new ByteArrayInputStream("SELECT 1;\nHELP;\n ".getBytes());
         OutputStream outputStream = new ByteArrayOutputStream(248);
@@ -346,7 +335,6 @@ class CliClientTest {
     private void verifySqlCompletion(String statement, int position, List<String> expectedHints)
             throws IOException {
         final MockExecutor mockExecutor = new MockExecutor();
-        mockExecutor.openSession(SESSION_ID);
 
         final SqlCompleter completer = new SqlCompleter(mockExecutor);
         final SqlMultiLineParser parser =
@@ -377,7 +365,6 @@ class CliClientTest {
     }
 
     private String executeSqlFromContent(MockExecutor executor, String content) throws IOException {
-        executor.openSession("test-session");
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (CliClient client =
                 new CliClient(
@@ -396,7 +383,7 @@ class CliClientTest {
 
         public boolean failExecution;
 
-        public volatile boolean isSync = false;
+        public volatile boolean isSync;
         public volatile boolean isAwait = false;
         public String receivedStatement;
         public int receivedPosition;
@@ -404,22 +391,16 @@ class CliClientTest {
         private final SqlParserHelper helper;
 
         public MockExecutor() {
-            this(new SqlParserHelper());
+            this(new SqlParserHelper(), false);
         }
 
-        public MockExecutor(SqlParserHelper helper) {
+        public MockExecutor(SqlParserHelper helper, boolean isSync) {
             this.helper = helper;
             this.configuration = new Configuration();
-        }
-
-        @Override
-        public void openSession(@Nullable String sessionId) throws SqlExecutionException {
+            this.isSync = isSync;
             configuration.set(TABLE_DML_SYNC, isSync);
             helper.registerTables();
         }
-
-        @Override
-        public void closeSession() throws SqlExecutionException {}
 
         @Override
         public void configureSession(String statement) {}
