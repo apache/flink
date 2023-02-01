@@ -65,8 +65,8 @@ public class InputFormatCacheLoader extends CacheLoader {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(Configuration parameters, ClassLoader userCodeClassLoader) throws Exception {
+        super.open(parameters, userCodeClassLoader);
         this.parameters = parameters;
         this.initialInputFormat.configure(parameters);
     }

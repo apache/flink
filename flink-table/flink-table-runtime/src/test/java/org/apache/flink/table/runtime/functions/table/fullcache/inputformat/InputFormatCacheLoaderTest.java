@@ -241,7 +241,7 @@ class InputFormatCacheLoaderTest {
                         generatedProjection);
         InputFormatCacheLoader cacheLoader =
                 new InputFormatCacheLoader(inputFormat, keySelector, rightRowSerializer);
-        cacheLoader.open(new Configuration());
+        cacheLoader.open(new Configuration(), Thread.currentThread().getContextClassLoader());
         return cacheLoader;
     }
 }
