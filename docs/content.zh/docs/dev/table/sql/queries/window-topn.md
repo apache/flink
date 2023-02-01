@@ -31,7 +31,6 @@ under the License.
 因此，窗口 Top-N 查询在用户不需要更新结果时，性能较好。通常，窗口 Top-N 直接用于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})上，另外，窗口 Top-N 可以用于基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作。比如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
 窗口 Top-N 的语法和普通的 Top-N 相同，更多信息参见：[Top-N 文档]({{< ref "docs/dev/table/sql/queries/topn" >}})。
-
 除此之外，窗口 Top-N 需要 `PARTITION BY` 子句包含 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 或 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) 产生的 `window_start` 和 `window_end`。
 否则优化器无法翻译。
 
@@ -131,7 +130,7 @@ Flink SQL> SELECT *
 *注意： 为了更好地理解窗口行为，这里把 timestamp 值后面的0去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)` ，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000` 。*
 
 ## 限制
-
 目前，Flink只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})后进行窗口 Top-N。会话窗口不久之后就会支持。
+
 
 {{< top >}}
