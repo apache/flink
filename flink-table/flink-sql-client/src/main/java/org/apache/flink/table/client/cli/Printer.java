@@ -46,7 +46,8 @@ public interface Printer extends Closeable {
     void print(Terminal terminal);
 
     /** Close the resource of the {@link Printer}. */
-    void close();
+     @Override
+    default void close() {}
 
     // --------------------------------------------------------------------------------------------
 
