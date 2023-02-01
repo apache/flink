@@ -20,9 +20,7 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
---> 
-
-# Windowing table-valued functions (Windowing TVFs)
+-->
 
 # 窗口表值函数(Windowing TVFs)
 
