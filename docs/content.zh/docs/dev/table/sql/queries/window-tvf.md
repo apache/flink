@@ -30,10 +30,10 @@ under the License.
 
 Apache Flink 提供了如下 `窗口表值函数`（TVF）把表的数据划分到窗口中：
 
-*   [滚动窗口](#tumble)
-*   [滑动窗口](#hop)
-*   [累计窗口](#cumulate)
-*   会话窗口 (很快就能支持了)
+- [滚动窗口](#tumble)
+- [滑动窗口](#hop)
+- [累计窗口](#cumulate)
+- 会话窗口 (很快就能支持了)
 
 注意：每一个元素可以被逻辑上应用于超过一个窗口。这取决于使用的 `窗口表值函数`。例如：滑动窗口可以把单个元素分配给多个窗口。
 
@@ -43,12 +43,10 @@ Apache Flink 提供了如下 `窗口表值函数`（TVF）把表的数据划分�
 
 更多基于 `窗口表值函数` 的进阶用法:
 
-*   [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
-*   [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}})
-*   [窗口 join]({{< ref "docs/dev/table/sql/queries/window-join">}})
-*   [窗口去重]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
-
-## Window Functions
+- [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
+- [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}})
+- [窗口 join]({{< ref "docs/dev/table/sql/queries/window-join">}})
+- [窗口去重]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
 
 ## 窗口函数
 
@@ -75,10 +73,10 @@ Apache Flink 提供3个内置的 `窗口表值函数`：`滚动`，`滑动` 和 
 TUMBLE(TABLE data, DESCRIPTOR(timecol), size [, offset ])
 ```
 
-*   `data` ：拥有时间属性列的表。
-*   `timecol` ：列描述符，决定数据的哪个时间属性列应该映射到窗口。
-*   `size` ：窗口的大小（时长）。
-*   `offset` ：窗口的偏移量 [非必填]。
+- `data` ：拥有时间属性列的表。
+- `timecol` ：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `size` ：窗口的大小（时长）。
+- `offset` ：窗口的偏移量 [非必填]。
 
 下面是 `Bid` 表的调用示例：
 
@@ -159,11 +157,11 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 ```
 
-*   `data`：拥有时间属性列的表。
-*   `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
-*   `slide`：窗口的滑动步长。
-*   `size`：窗口的大小(时长)。
-*   `offset`：窗口的偏移量 [非必填]。
+- `data`：拥有时间属性列的表。
+- `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `slide`：窗口的滑动步长。
+- `size`：窗口的大小(时长)。
+- `offset`：窗口的偏移量 [非必填]。
 
 下面是 `Bid` 表的调用示例：
 
@@ -233,11 +231,11 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 ```
    
-*   `data`：拥有时间属性列的表。
-*   `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
-*   `step`：窗口的步长。
-*   `size`：窗口的大小（时长）。
-*   `offset`：窗口的偏移量 [非必填]。
+- `data`：拥有时间属性列的表。
+- `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `step`：窗口的步长。
+- `size`：窗口的大小（时长）。
+- `offset`：窗口的偏移量 [非必填]。
 
 下面是 `Bid` 表的调用示例：
 
@@ -298,13 +296,13 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 `Offset` 可选参数，可以用来改变窗口的分配。可以是正或者负的区间。默认情况下窗口的偏移是 0。不同的偏移值可以决定记录分配的窗口。
 例如：在 10 分钟大小的滚动窗口下，时间戳为 `2021-06-30 00:00:04` 的数据会被分配到那个窗口呢？
 
-*   当 `offset` 为 `-16 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
-*   当 `offset` 为 `-6 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
-*   当 `offset` 为 `-4 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
-*   当 `offset` 为 `0`，数据会分配到窗口 [`2021-06-30 00:00:00`, `2021-06-30 00:10:00`)。
-*   当 `offset` 为 `4 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
-*   当 `offset` 为 `6 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
-*   当 `offset` 为 `16 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
+- 当 `offset` 为 `-16 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
+- 当 `offset` 为 `-6 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
+- 当 `offset` 为 `-4 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
+- 当 `offset` 为 `0`，数据会分配到窗口 [`2021-06-30 00:00:00`, `2021-06-30 00:10:00`)。
+- 当 `offset` 为 `4 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
+- 当 `offset` 为 `6 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
+- 当 `offset` 为 `16 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
     我们可以发现，有些不同的窗口偏移参数对窗口分配的影响是一样的。在上面的例子中，`-16 MINUTE`，`-6 MINUTE` 和 `4 MINUTE` 对 10 分钟大小的滚动窗口效果相同。
 
 *注意：窗口偏移只影响窗口的分配，并不会影响 Watermark *
