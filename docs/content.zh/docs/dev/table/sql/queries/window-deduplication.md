@@ -109,7 +109,7 @@ Flink SQL> SELECT *
 目前，Flink 只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 后进行窗口去重。会话窗口不久之后就会支持。
 
 ### 根据时间属性排序的限制
-
 目前，Flink 只支持根据 [事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) 排序。根据处理时间排序不久之后就会支持。
+
 
 {{< top >}}
