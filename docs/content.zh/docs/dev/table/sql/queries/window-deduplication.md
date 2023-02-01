@@ -106,7 +106,6 @@ Flink SQL> SELECT *
 ## 限制
 
 ## 在窗口表值函数后直接进行窗口去重的限制
-
 目前，Flink 只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 后进行窗口去重。会话窗口不久之后就会支持。
 
 ### 根据时间属性排序的限制
