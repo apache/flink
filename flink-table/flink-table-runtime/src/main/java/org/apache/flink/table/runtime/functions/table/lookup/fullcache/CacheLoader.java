@@ -68,9 +68,16 @@ public abstract class CacheLoader implements AutoCloseable, Serializable {
     /** @return whether reload was successful and was not interrupted. */
     protected abstract boolean updateCache() throws Exception;
 
-    public void open(Configuration parameters) throws Exception {
+    public void open(Configuration parameters, ClassLoader userCodeClassLoader) throws Exception {
         firstLoadLatch = new CountDownLatch(1);
-        reloadExecutor = Executors.newSingleThreadExecutor();
+        reloadExecutor =
+                Executors.newSingleThreadExecutor(
+                        r -> {
+                            Thread thread = Executors.defaultThreadFactory().newThread(r);
+                            thread.setName("full-cache-loader-executor");
+                            thread.setContextClassLoader(userCodeClassLoader);
+                            return thread;
+                        });
     }
 
     public void initializeMetrics(CacheMetricGroup cacheMetricGroup) {
