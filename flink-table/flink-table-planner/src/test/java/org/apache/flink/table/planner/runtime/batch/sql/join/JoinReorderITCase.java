@@ -21,11 +21,14 @@ package org.apache.flink.table.planner.runtime.batch.sql.join;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.runtime.utils.JoinReorderITCaseBase;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowUtils;
 import org.apache.flink.util.CollectionUtil;
+
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +38,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for JoinReorder in batch mode. */
 public class JoinReorderITCase extends JoinReorderITCaseBase {
+
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
+        tEnv.getConfig()
+                .getConfiguration()
+                .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3);
+    }
 
     @Override
     protected TableEnvironment getTableEnvironment() {
