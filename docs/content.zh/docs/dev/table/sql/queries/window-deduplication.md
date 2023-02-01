@@ -25,17 +25,17 @@ under the License.
 # 窗口去重
 {{< label Streaming >}}
 
-窗口去重是一种特殊的[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})，它根据指定的多个列来删除重复的行，保留每个窗口和分区键的第一个或最后一个数据。
+窗口去重是一种特殊的 [去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})，它根据指定的多个列来删除重复的行，保留每个窗口和分区键的第一个或最后一个数据。
 
 对于流式查询，与持续查询的普通去重不同，窗口去重只在窗口的最后返回结果数据，不会产生中间结果。它会清除不需要的中间状态。
 
-因此，窗口去重查询在用户不需要更新结果时，性能较好。通常，窗口去重直接用于[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})上。另外，它可以用于基于[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})的操作。比如[窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
+因此，窗口去重查询在用户不需要更新结果时，性能较好。通常，窗口去重直接用于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 上。另外，它可以用于基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作。比如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
 窗口Top-N的语法和普通的Top-N相同，更多信息参见：[去重文档]({{< ref "docs/dev/table/sql/queries/deduplication" >}})。
-除此之外，窗口去重需要 `PARTITION BY` 子句包含表的`window_start`和`window_end`列。
+除此之外，窗口去重需要 `PARTITION BY` 子句包含表的 `window_start` 和 `window_end` 列。
 否则优化器无法翻译。
 
-Flink使用 `ROW_NUMBER()` 移除重复数据，就像[窗口Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})一样。理论上，窗口是一种特殊的窗口Top-N：N是1并且是根据处理时间或事件时间排序的。
+Flink 使用 `ROW_NUMBER()` 移除重复数据，就像 [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) 一样。理论上，窗口是一种特殊的窗口 Top-N：N是1并且是根据处理时间或事件时间排序的。
 
 下面展示了窗口去重的语法：
 
@@ -53,8 +53,8 @@ WHERE (rownum = 1 | rownum <=1 | rownum < 2) [AND conditions]
 
 *   `ROW_NUMBER()`：为每一行分配一个唯一且连续的序号，从1开始。
 *   `PARTITION BY window_start, window_end [, col_key1...]`： 指定分区字段，需要包含`window_start`， `window_end`以及其他分区键。
-*   `ORDER BY time_attr [asc|desc]`： 指定排序列，必须是[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。目前Flink支持[处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) 和 [事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)。 Order by ASC表示保留第一行，Order by DESC表示保留最后一行。
-*   `WHERE (rownum = 1 | rownum <=1 | rownum < 2)`： 优化器通过 `rownum = 1 | rownum <=1 | rownum < 2`来识别查询能否被翻译成窗口去重。
+*   `ORDER BY time_attr [asc|desc]`： 指定排序列，必须是 [时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。目前 Flink 支持 [处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) 和 [事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)。 Order by ASC 表示保留第一行，Order by DESC 表示保留最后一行。
+*   `WHERE (rownum = 1 | rownum <=1 | rownum < 2)`： 优化器通过 `rownum = 1 | rownum <=1 | rownum < 2` 来识别查询能否被翻译成窗口去重。
 
 {{< hint info >}}
 注意：必须严格遵循上述模式，否则优化器无法翻译查询。
@@ -102,16 +102,16 @@ Flink SQL> SELECT *
 +------------------+-------+------+-------------+------------------+------------------+--------+
 ```
 
-*注意： 为了更好地理解窗口行为，这里把timestamp值后面的0去掉了。例如：在Flink SQL Client中，如果类型是 `TIMESTAMP(3)` ，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
+*注意： 为了更好地理解窗口行为，这里把 timestamp 值后面的0去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)` ，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
 ## 限制
 
 ## 在窗口表值函数后直接进行窗口去重的限制
 
-目前，Flink只支持在滚动，滑动和累计[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})后进行窗口去重。会话窗口不久之后就会支持。
+目前，Flink 只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 后进行窗口去重。会话窗口不久之后就会支持。
 
 ### 根据时间属性排序的限制
 
-目前，Flink只支持根据[事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)排序。根据处理时间排序不久之后就会支持。
+目前，Flink 只支持根据 [事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) 排序。根据处理时间排序不久之后就会支持。
 
 {{< top >}}
