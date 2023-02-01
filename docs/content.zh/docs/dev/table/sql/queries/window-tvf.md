@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# 窗口表值函数(Windowing TVFs)
+# 窗口表值函数（Windowing TVFs）
 
 {{< label Batch >}} {{< label Streaming >}}
 
@@ -42,7 +42,6 @@ Apache Flink 提供了如下 `窗口表值函数`（TVF）把表的数据划分�
 `窗口表值函数` 是 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation-deprecated) （已经过时）的替代方案。`窗口表值函数` 更符合 SQL 标准，在支持基于窗口的复杂计算上也更强大。例如：窗口 TopN,窗口 Join.而 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation) 只支持窗口聚合。
 
 更多基于 `窗口表值函数` 的进阶用法:
-
 - [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
 - [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}})
 - [窗口 join]({{< ref "docs/dev/table/sql/queries/window-join">}})
