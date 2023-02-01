@@ -22,8 +22,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Over Aggregation
-
 # Over聚合
 
 {{< label Batch >}} {{< label Streaming >}}
