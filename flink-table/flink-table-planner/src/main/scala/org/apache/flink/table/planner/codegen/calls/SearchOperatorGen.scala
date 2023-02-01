@@ -97,9 +97,8 @@ object SearchOperatorGen {
            |if (!${needle.nullTerm}) {
            |  $resultTerm = $negation$setTerm.contains(${needle.resultTerm});
            |  $nullTerm = !$resultTerm && $setTerm.containsNull();
-           |} else if (${sarg.nullAs == RexUnknownAs.TRUE}) {
-           |  $resultTerm = $negation$setTerm.containsNull();
-           |  $nullTerm = !$resultTerm && $setTerm.containsNull();
+           |} else {
+           |  $resultTerm = $setTerm.containsNull();
            |}
            |// --- End SEARCH ${target.resultTerm}
            |""".stripMargin.trim

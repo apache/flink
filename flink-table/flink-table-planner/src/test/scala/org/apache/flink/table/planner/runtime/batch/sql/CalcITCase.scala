@@ -1823,6 +1823,109 @@ class CalcITCase extends BatchTestBase {
         row(null, 999L, "NullTuple"),
         row(null, 999L, "NullTuple"))
     )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IN (1, 3) OR T.a IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world"),
+        row(null, 999L, "NullTuple"),
+        row(null, 999L, "NullTuple"))
+    )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IN (1, 3) OR T.a IS NOT NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(10, 4L, "Comment#4"),
+        row(11, 5L, "Comment#5"),
+        row(12, 5L, "Comment#6"),
+        row(13, 5L, "Comment#7"),
+        row(14, 5L, "Comment#8"),
+        row(15, 5L, "Comment#9"),
+        row(16, 6L, "Comment#10"),
+        row(17, 6L, "Comment#11"),
+        row(18, 6L, "Comment#12"),
+        row(19, 6L, "Comment#13"),
+        row(2, 2L, "Hello"),
+        row(20, 6L, "Comment#14"),
+        row(21, 6L, "Comment#15"),
+        row(3, 2L, "Hello world"),
+        row(4, 3L, "Hello world, how are you?"),
+        row(5, 3L, "I am fine."),
+        row(6, 3L, "Luke Skywalker"),
+        row(7, 4L, "Comment#1"),
+        row(8, 4L, "Comment#2"),
+        row(9, 4L, "Comment#3")
+      )
+    )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a NOT IN (1, 2) OR T.a IS NULL
+        |""".stripMargin,
+      Seq(
+        row(10, 4L, "Comment#4"),
+        row(11, 5L, "Comment#5"),
+        row(12, 5L, "Comment#6"),
+        row(13, 5L, "Comment#7"),
+        row(14, 5L, "Comment#8"),
+        row(15, 5L, "Comment#9"),
+        row(16, 6L, "Comment#10"),
+        row(17, 6L, "Comment#11"),
+        row(18, 6L, "Comment#12"),
+        row(19, 6L, "Comment#13"),
+        row(20, 6L, "Comment#14"),
+        row(21, 6L, "Comment#15"),
+        row(3, 2L, "Hello world"),
+        row(4, 3L, "Hello world, how are you?"),
+        row(5, 3L, "I am fine."),
+        row(6, 3L, "Luke Skywalker"),
+        row(7, 4L, "Comment#1"),
+        row(8, 4L, "Comment#2"),
+        row(9, 4L, "Comment#3"),
+        row(null, 999L, "NullTuple"),
+        row(null, 999L, "NullTuple")
+      )
+    )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a NOT IN (1, 2) OR T.a IS NOT NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(10, 4L, "Comment#4"),
+        row(11, 5L, "Comment#5"),
+        row(12, 5L, "Comment#6"),
+        row(13, 5L, "Comment#7"),
+        row(14, 5L, "Comment#8"),
+        row(15, 5L, "Comment#9"),
+        row(16, 6L, "Comment#10"),
+        row(17, 6L, "Comment#11"),
+        row(18, 6L, "Comment#12"),
+        row(19, 6L, "Comment#13"),
+        row(20, 6L, "Comment#14"),
+        row(21, 6L, "Comment#15"),
+        row(2, 2L, "Hello"),
+        row(3, 2L, "Hello world"),
+        row(4, 3L, "Hello world, how are you?"),
+        row(5, 3L, "I am fine."),
+        row(6, 3L, "Luke Skywalker"),
+        row(7, 4L, "Comment#1"),
+        row(8, 4L, "Comment#2"),
+        row(9, 4L, "Comment#3")
+      )
+    )
+
   }
 
   @Test
