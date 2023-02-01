@@ -114,7 +114,9 @@ function check_logs_for_exceptions_for_adaptive_batch_scheduler {
     local additional_allowed_exceptions=("ExecutionGraphException: The execution attempt" \
     "Cannot find task to fail for execution" \
     "ExceptionInChainedOperatorException: Could not forward element to next operator" \
-    "CancelTaskException: Buffer pool has already been destroyed")
+    "CancelTaskException: Buffer pool has already been destroyed" \
+    "java.nio.channels.ClosedChannelException" \
+    "java.lang.IllegalStateException: File writer is already closed")
 
     internal_check_logs_for_exceptions "${additional_allowed_exceptions[@]}"
 }
