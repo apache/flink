@@ -61,7 +61,7 @@ public interface Executor extends Closeable {
      * @param statement to execute
      * @return Iterable results of the statement
      */
-    ClientResult executeStatement(String statement);
+    StatementResult executeStatement(String statement);
 
     /**
      * Returns a list of completion hints for the given statement at the given position.

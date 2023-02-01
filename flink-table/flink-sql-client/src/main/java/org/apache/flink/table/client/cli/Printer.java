@@ -21,8 +21,8 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.jline.terminal.Terminal;
@@ -39,14 +39,14 @@ import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SUBMITTING_ST
 /** Printer to print the results to the terminal. */
 public interface Printer extends Closeable {
 
-    /** Flag to determine whether to stop the execution. */
+    /** Flag to determine whether to quit the process. */
     boolean isQuitCommand();
 
     /** Print the results to the terminal. */
     void print(Terminal terminal);
 
     /** Close the resource of the {@link Printer}. */
-     @Override
+    @Override
     default void close() {}
 
     // --------------------------------------------------------------------------------------------
@@ -63,13 +63,13 @@ public interface Printer extends Closeable {
         return HelpCommandPrinter.INSTANCE;
     }
 
-    static ClientResultPrinter createClientResultPrinter(
-            ClientResult result, ReadableConfig sessionConfig) {
-        return new ClientResultPrinter(result, sessionConfig);
+    static StatementResultPrinter createStatementCommandPrinter(
+            StatementResult result, ReadableConfig sessionConfig) {
+        return new StatementResultPrinter(result, sessionConfig);
     }
 
-    static InitializationResultPrinter createInitializationResultPrinter() {
-        return InitializationResultPrinter.INSTANCE;
+    static InitializationCommandPrinter createInitializationCommandPrinter() {
+        return InitializationCommandPrinter.INSTANCE;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -140,12 +140,12 @@ public interface Printer extends Closeable {
         public void close() {}
     }
 
-    /** Printer prints the initialization results. */
-    class InitializationResultPrinter implements Printer {
+    /** Printer prints the initialization command results. */
+    class InitializationCommandPrinter implements Printer {
 
-        static final InitializationResultPrinter INSTANCE = new InitializationResultPrinter();
+        static final InitializationCommandPrinter INSTANCE = new InitializationCommandPrinter();
 
-        private InitializationResultPrinter() {}
+        private InitializationCommandPrinter() {}
 
         @Override
         public boolean isQuitCommand() {
@@ -162,12 +162,12 @@ public interface Printer extends Closeable {
     }
 
     /** Printer prints the statement results. */
-    class ClientResultPrinter implements Printer {
+    class StatementResultPrinter implements Printer {
 
-        private final ClientResult result;
+        private final StatementResult result;
         private final ReadableConfig sessionConfig;
 
-        public ClientResultPrinter(ClientResult result, ReadableConfig sessionConfig) {
+        public StatementResultPrinter(StatementResult result, ReadableConfig sessionConfig) {
             this.result = result;
             this.sessionConfig = sessionConfig;
         }

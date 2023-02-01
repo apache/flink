@@ -185,11 +185,10 @@ public class CliClient implements AutoCloseable {
                     continue;
                 }
 
-                if (parser.getPrinter().isPresent()) {
-                    boolean success = print(parser.getPrinter().get());
-                    if (exitOnFailure && !success) {
-                        return false;
-                    }
+                Printer printer = parser.getPrinter();
+                boolean success = print(printer);
+                if (exitOnFailure && !success) {
+                    return false;
                 }
             } catch (UserInterruptException e) {
                 // user cancelled line with Ctrl+C

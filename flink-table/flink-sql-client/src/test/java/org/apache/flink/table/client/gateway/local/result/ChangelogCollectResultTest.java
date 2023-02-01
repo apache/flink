@@ -23,8 +23,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -50,7 +50,7 @@ class ChangelogCollectResultTest {
                                 .iterator());
         ChangelogCollectResult changelogResult =
                 new ChangelogCollectResult(
-                        new ClientResult(
+                        new StatementResult(
                                 ResolvedSchema.of(Column.physical("id", DataTypes.INT())),
                                 data,
                                 true,

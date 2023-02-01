@@ -24,9 +24,9 @@ import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.Printer;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
-import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.StatementResult;
 
 import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
@@ -34,7 +34,6 @@ import org.jline.reader.SyntaxError;
 import org.jline.reader.impl.DefaultParser;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.table.client.config.ResultMode.TABLEAU;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
@@ -98,9 +97,9 @@ public class SqlMultiLineParser extends DefaultParser {
                     {
                         if (mode == CliClient.ExecutionMode.INITIALIZATION) {
                             executor.configureSession(line);
-                            printer = Printer.createInitializationResultPrinter();
+                            printer = Printer.createInitializationCommandPrinter();
                         } else {
-                            ClientResult result = executor.executeStatement(line);
+                            StatementResult result = executor.executeStatement(line);
                             ReadableConfig sessionConfig = executor.getSessionConfig();
                             if (mode == CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION
                                     && result.isQueryResult()
@@ -115,7 +114,7 @@ public class SqlMultiLineParser extends DefaultParser {
                                                 EXECUTION_RESULT_MODE.key(),
                                                 TABLEAU));
                             }
-                            printer = Printer.createClientResultPrinter(result, sessionConfig);
+                            printer = Printer.createStatementCommandPrinter(result, sessionConfig);
                         }
                         break;
                     }
@@ -124,7 +123,6 @@ public class SqlMultiLineParser extends DefaultParser {
             if (e.getCause() instanceof SqlParserEOFException) {
                 throw new EOFError(-1, -1, "The statement is incomplete.", NEW_LINE_PROMPT);
             }
-
             // cache the exception so that we can print details in the terminal.
             parseException = e;
             throw new SyntaxError(-1, -1, e.getMessage());
@@ -156,11 +154,11 @@ public class SqlMultiLineParser extends DefaultParser {
                 parsedLine.rawWordLength());
     }
 
-    public Optional<Printer> getPrinter() {
+    public Printer getPrinter() {
         if (parseException != null) {
             throw parseException;
         }
-        return Optional.ofNullable(printer);
+        return printer;
     }
 
     private class SqlArgumentList extends DefaultParser.ArgumentList {

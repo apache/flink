@@ -37,11 +37,11 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
-import org.apache.flink.table.client.gateway.ClientResult;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
@@ -476,7 +476,7 @@ class ExecutorImplITCase {
         try {
             executor.configureSession(srcDdl);
             executor.configureSession(snkDdl);
-            ClientResult result = executor.executeStatement(insert);
+            StatementResult result = executor.executeStatement(insert);
             JobID jobID = result.getJobId();
 
             // wait till the job turns into running status or the test times out
@@ -511,7 +511,7 @@ class ExecutorImplITCase {
     void testInterruptFetching() throws Exception {
         testInterrupting(
                 executor -> {
-                    try (ClientResult result =
+                    try (StatementResult result =
                             executor.executeStatement(BlockPhase.EXECUTION.name())) {
                         // trigger to fetch again
                         result.hasNext();
