@@ -65,7 +65,6 @@ Apache Flink 提供3个内置的 `窗口表值函数`：`滚动`，`滑动` 和 
 在批计算模式，窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
 `TUMBLE` 的返回值包括原生列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol”（Watermark 列）将转换为一个常规的 timestamp 列。
 
-
 `TUMBLE` 函数有三个必传参数，一个可选参数：
 
 ```sql
