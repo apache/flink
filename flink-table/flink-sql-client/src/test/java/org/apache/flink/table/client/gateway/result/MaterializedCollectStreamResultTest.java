@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local.result;
+package org.apache.flink.table.client.gateway.result;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;

@@ -25,7 +25,7 @@ import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ExecutorImpl;
-import org.apache.flink.table.client.gateway.local.SingleSessionManager;
+import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;

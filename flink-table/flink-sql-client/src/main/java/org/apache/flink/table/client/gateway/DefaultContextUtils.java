@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local;
+package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.SqlClientException;
