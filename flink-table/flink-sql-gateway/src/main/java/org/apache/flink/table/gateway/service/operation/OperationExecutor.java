@@ -489,45 +489,41 @@ public class OperationExecutor {
         Duration clientTimeout =
                 Configuration.fromMap(sessionContext.getConfigMap())
                         .get(ClientOptions.CLIENT_TIMEOUT);
-        Optional<String> savepoint;
-        try {
-            savepoint =
-                    runClusterAction(
-                            handle,
-                            clusterClient -> {
+        Optional<String> savepoint =
+                runClusterAction(
+                        handle,
+                        clusterClient -> {
+                            try {
                                 if (isWithSavepoint) {
                                     // blocking get savepoint path
-                                    try {
-                                        return Optional.of(
-                                                clusterClient
-                                                        .stopWithSavepoint(
-                                                                JobID.fromHexString(jobId),
-                                                                isWithDrain,
-                                                                executionConfig.get(
-                                                                        CheckpointingOptions
-                                                                                .SAVEPOINT_DIRECTORY),
-                                                                SavepointFormatType.DEFAULT)
-                                                        .get(
-                                                                clientTimeout.toMillis(),
-                                                                TimeUnit.MILLISECONDS));
-                                    } catch (Exception e) {
-                                        throw new FlinkException(
-                                                "Could not stop job "
-                                                        + stopJobOperation.getJobId()
-                                                        + " in session "
-                                                        + handle.getIdentifier()
-                                                        + ".",
-                                                e);
-                                    }
+                                    return Optional.of(
+                                            clusterClient
+                                                    .stopWithSavepoint(
+                                                            JobID.fromHexString(jobId),
+                                                            isWithDrain,
+                                                            executionConfig.get(
+                                                                    CheckpointingOptions
+                                                                            .SAVEPOINT_DIRECTORY),
+                                                            SavepointFormatType.DEFAULT)
+                                                    .get(
+                                                            clientTimeout.toMillis(),
+                                                            TimeUnit.MILLISECONDS));
                                 } else {
-                                    clusterClient.cancel(JobID.fromHexString(jobId));
+                                    clusterClient
+                                            .cancel(JobID.fromHexString(jobId))
+                                            .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
                                     return Optional.empty();
                                 }
-                            });
-        } catch (Exception e) {
-            throw new SqlExecutionException(
-                    "Could not stop job " + jobId + " for operation " + handle + ".", e);
-        }
+                            } catch (Exception e) {
+                                throw new SqlExecutionException(
+                                        "Could not stop job "
+                                                + jobId
+                                                + " for operation "
+                                                + handle.getIdentifier()
+                                                + ".",
+                                        e);
+                            }
+                        });
         if (isWithSavepoint) {
             return ResultFetcher.fromResults(
                     handle,
