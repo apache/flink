@@ -22,61 +22,61 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Windowing table-valued functions (Windowing TVFs)
+# 窗口表值函数（Windowing TVFs）
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Windows are at the heart of processing infinite streams. Windows split the stream into “buckets” of finite size, over which we can apply computations. This document focuses on how windowing is performed in Flink SQL and how the programmer can benefit to the maximum from its offered functionality.
+窗口是处理无限流的核心。窗口把流分割为有限大小的 “桶”，这样就可以在其之上进行计算。本文档聚焦于窗口在 Flink SQL 中是如何工作的，编程人员如何最大化地利用好它。
 
-Apache Flink provides several window table-valued functions (TVF) to divide the elements of your table into windows, including:
+Apache Flink 提供了如下 `窗口表值函数`（TVF）把表的数据划分到窗口中：
 
-- [Tumble Windows](#tumble)
-- [Hop Windows](#hop)
-- [Cumulate Windows](#cumulate)
-- Session Windows (will be supported soon)
+- [滚动窗口](#tumble)
+- [滑动窗口](#hop)
+- [累计窗口](#cumulate)
+- 会话窗口 (很快就能支持了)
 
-Note that each element can logically belong to more than one window, depending on the windowing table-valued function you use. For example, HOP windowing creates overlapping windows wherein a single element can be assigned to multiple windows.
+注意：逻辑上，每个元素可以应用于一个或多个窗口，这取决于所使用的 `窗口表值函数`。例如：滑动窗口可以把单个元素分配给多个窗口。
 
-Windowing TVFs are Flink defined Polymorphic Table Functions (abbreviated PTF). PTF is part of the SQL 2016 standard, a special table-function, but can have a table as a parameter. PTF is a powerful feature to change the shape of a table. Because PTFs are used semantically like tables, their invocation occurs in a `FROM` clause of a `SELECT` statement.
+`窗口表值函数` 是 Flink 定义的多态表函数（小型 PTF ：Polymorphic Table Function），PTF 是 `SQL:2016标准` 中的一种特殊的表函数，它可以把表作为一个参数。PTF 在重塑表这一点上很强大。因为它们的调用出现在 `SELECT` 的 `FROM` 从句里。
 
-Windowing TVFs is a replacement of legacy [Grouped Window Functions]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation-deprecated). Windowing TVFs is more SQL standard compliant and more powerful to support complex window-based computations, e.g. Window TopN, Window Join. However, [Grouped Window Functions]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation) can only support Window Aggregation.
+`窗口表值函数` 是 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation-deprecated) （已经过时）的替代方案。`窗口表值函数` 更符合 SQL 标准，在支持基于窗口的复杂计算上也更强大。例如：窗口 TopN,窗口 Join.而 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation) 只支持窗口聚合。
 
-See more how to apply further computations based on windowing TVF:
-- [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
-- [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}})
-- [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}})
-- [Window Deduplication]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
+更多基于 `窗口表值函数` 的进阶用法:
+- [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
+- [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}})
+- [窗口 join]({{< ref "docs/dev/table/sql/queries/window-join">}})
+- [窗口去重]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
 
-## Window Functions
+## 窗口函数
 
-Apache Flink provides 3 built-in windowing TVFs: `TUMBLE`, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. 
-In streaming mode, the "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window. 
-In batch mode, the "window_time" field is an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ` based on input time field type. 
-The "window_time" field can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
+Apache Flink 提供3个内置的 `窗口表值函数`：`滚动`，`滑动` 和 `累计`。`窗口表值函数` 的返回值包括原生列和附加的三个指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。
+在流计算模式，`window_time` 是 `TIMESTAMP` 或者 `TIMESTAMP_LTZ` 类型（具体哪种类型取决于输入的时间字段类型）的字段。
+`window_time` 字段用于后续基于时间的操作，例如：其他的 `窗口表值函数`，或者<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>，<a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>。
+它的值总是等于 `window_end - 1ms`。
 
-### TUMBLE
+### 滚动窗口
 
-The `TUMBLE` function assigns each element to a window of specified window size. Tumbling windows have a fixed size and do not overlap. For example, suppose you specify a tumbling window with a size of 5 minutes. In that case, Flink will evaluate the current window, and a new window started every five minutes, as illustrated by the following figure.
+`TUMBLE` 函数指定每个元素到一个指定大小的窗口中。滚动窗口的大小固定且不重复。例如：假设指定了一个 5 分钟的滚动窗口。Flink 将每 5 分钟生成一个新的窗口，如下图所示：
 
 {{< img src="/fig/tumbling-windows.svg" alt="Tumbling Windows" width="70%">}}
 
-The `TUMBLE` function assigns a window for each row of a relation based on a time attribute field.
-In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
-In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
-The return value of `TUMBLE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
+`TUMBLE` 函数通过时间属性字段为每行数据分配一个窗口。
+在流计算模式，时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+在批计算模式，窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
+`TUMBLE` 的返回值包括原生列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol”（Watermark 列）将转换为一个常规的 timestamp 列。
 
-`TUMBLE` function takes three required parameters, one optional parameter:
+`TUMBLE` 函数有三个必传参数，一个可选参数：
 
 ```sql
 TUMBLE(TABLE data, DESCRIPTOR(timecol), size [, offset ])
 ```
 
-- `data`: is a table parameter that can be any relation with a time attribute column.
-- `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to tumbling windows.
-- `size`: is a duration specifying the width of the tumbling windows.
-- `offset`: is an optional parameter to specify the offset which window start would be shifted by.
+- `data` ：拥有时间属性列的表。
+- `timecol` ：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `size` ：窗口的大小（时长）。
+- `offset` ：窗口的偏移量 [非必填]。
 
-Here is an example invocation on the `Bid` table:
+下面是 `Bid` 表的调用示例：
 
 ```sql
 -- tables must have time attribute, e.g. `bidtime` in this table
@@ -134,35 +134,35 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 +------------------+------------------+-------+
 ```
 
-*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值得后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`*
 
 
-### HOP
+### 滑动窗口
 
-The `HOP` function assigns elements to windows of fixed length. Like a `TUMBLE` windowing function, the size of the windows is configured by the window size parameter. An additional window slide parameter controls how frequently a hopping window is started. Hence, hopping windows can be overlapping if the slide is smaller than the window size. In this case, elements are assigned to multiple windows. Hopping windows are also known as "sliding windows".
+`滑动窗口函数` 指定元素到一个定长的窗口中。和滚动窗口很像，有窗口大小参数，另外增加了一个窗口滑动步长参数。如果滑动步长小于窗口大小，就能产生数据重叠的效果。在这个例子里，数据可以被分配在多个窗口。
 
-For example, you could have windows of size 10 minutes that slides by 5 minutes. With this, you get every 5 minutes a window that contains the events that arrived during the last 10 minutes, as depicted by the following figure.
+例如：可以定义一个每5分钟滑动一次。大小为10分钟的窗口。每5分钟获得最近10分钟到达的数据的窗口,如下图所示：
 
 {{< img src="/fig/sliding-windows.svg" alt="Hopping windows" width="70%">}}
 
-The `HOP` function assigns windows that cover rows within the interval of size and shifting every slide based on a time attribute field.
-In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
-In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
-The return value of `HOP` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after windowing TVF.
+`HOP` 函数通过时间属性字段为每一行数据分配了一个窗口。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time\_attributes" >}})。
+在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
+`HOP` 的返回值包括原有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
-`HOP` takes four required parameters, one optional parameter:
+`HOP` 有四个必填参数和一个可选参数：
 
 ```sql
 HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 ```
 
-- `data`: is a table parameter that can be any relation with an time attribute column.
-- `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to hopping windows.
-- `slide`: is a duration specifying the duration between the start of sequential hopping windows
-- `size`: is a duration specifying the width of the hopping windows.
-- `offset`: is an optional parameter to specify the offset which window start would be shifted by.
+- `data`：拥有时间属性列的表。
+- `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `slide`：窗口的滑动步长。
+- `size`：窗口的大小(时长)。
+- `offset`：窗口的偏移量 [非必填]。
 
-Here is an example invocation on the `Bid` table:
+下面是 `Bid` 表的调用示例：
 
 ```sql
 > SELECT * FROM TABLE(
@@ -207,35 +207,35 @@ Here is an example invocation on the `Bid` table:
 +------------------+------------------+-------+
 ```
 
-### CUMULATE
+### 累计窗口
 
-Cumulating windows are very useful in some scenarios, such as tumbling windows with early firing in a fixed window interval. For example, a daily dashboard draws cumulative UVs from 00:00 to every minute, the UV at 10:00 represents the total number of UV from 00:00 to 10:00. This can be easily and efficiently implemented by CUMULATE windowing.
+累积窗口在某些场景中非常有用，比如说提前触发的滚动窗口。例如：每日仪表盘从 00:00 开始每分钟绘制累积 UV，10:00 时 UV 就是从 00:00 到 10:00 的UV 总数。累积窗口可以简单且有效地实现它。
 
-The `CUMULATE` function assigns elements to windows that cover rows within an initial interval of step size and expand to one more step size (keep window start fixed) every step until the max window size.
-You can think `CUMULATE` function as applying `TUMBLE` windowing with max window size first, and split each tumbling windows into several windows with same window start and window ends of step-size difference. So cumulating windows do overlap and don't have a fixed size.
+`CUMULATE` 函数指定元素到多个窗口，从初始的窗口开始，直到达到最大的窗口大小的窗口，所有的窗口都包含其区间内的元素，另外，窗口的开始时间是固定的。
+你可以将 `CUMULATE` 函数视为首先应用具有最大窗口大小的 `TUMBLE` 窗口，然后将每个滚动窗口拆分为具有相同窗口开始但窗口结束步长不同的几个窗口。 所以累积窗口会产生重叠并且没有固定大小。
 
-For example, you could have a cumulating window for 1 hour step and 1 day max size, and you will get windows: `[00:00, 01:00)`, `[00:00, 02:00)`, `[00:00, 03:00)`, ..., `[00:00, 24:00)` for every day.
+例如：1小时步长，24小时大小的累计窗口，每天可以获得如下这些窗口：`[00:00, 01:00)`，`[00:00, 02:00)`，`[00:00, 03:00)`， ...， `[00:00, 24:00)`
 
 {{< img src="/fig/cumulating-windows.png" alt="Cumulating Windows" width="70%">}}
 
-The `CUMULATE` functions assigns windows based on a time attribute column.
-In streaming mode, the time attribute field must be either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). 
-In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
-The return value of `CUMULATE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
+`CUMULATE`　函数通过时间属性字段为每一行数据分配了一个窗口。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time\_attributes" >}})。
+在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
+`CUMULATE` 的返回值包括原有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
-`CUMULATE` takes four required parameters, one optional parameter:
+`CUMULATE` 有四个必填参数和一个可选参数：
 
 ```sql
 CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 ```
 
-- `data`: is a table parameter that can be any relation with an time attribute column.
-- `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to cumulating windows.
-- `step`: is a duration specifying the increased window size between the end of sequential cumulating windows.
-- `size`: is a duration specifying the max width of the cumulating windows. `size` must be an integral multiple of `step`.
-- `offset`: is an optional parameter to specify the offset which window start would be shifted by.
+- `data`：拥有时间属性列的表。
+- `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `step`：窗口的步长。
+- `size`：窗口的大小（时长）。
+- `offset`：窗口的偏移量 [非必填]。
 
-Here is an example invocation on the Bid table:
+下面是 `Bid` 表的调用示例：
 
 ```sql
 > SELECT * FROM TABLE(
@@ -289,21 +289,21 @@ Here is an example invocation on the Bid table:
 +------------------+------------------+-------+
 ```
 
-## Window Offset
-`Offset` is an optional parameter which could be used to change the window assignment. It could be positive duration and negative duration. Default values for window offset is 0. The same record maybe assigned to the different window if set different offset value.                                                                              
-For example, which window would be assigned to for a record with timestamp `2021-06-30 00:00:04` for a Tumble window with 10 MINUTE as size?
-- If `offset` value is `-16 MINUTE`,  the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
-- If `offset` value is `-6 MINUTE`, the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
-- If `offset` is `-4 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
-- If `offset` is `0`, the record assigns to window [`2021-06-30 00:00:00`, `2021-06-30 00:10:00`).
-- If `offset` is `4 MINUTE`, the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
-- If `offset` is `6 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
-- If `offset` is `16 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
-We could find that, some windows offset parameters may have same effect on the assignment of windows. In the above case, `-16 MINUTE`, `-6 MINUTE` and `4 MINUTE` have same effect for a Tumble window with 10 MINUTE as size.
+## 窗口偏移
+`Offset` 可选参数，可以用来改变窗口的分配。可以是正或者负的区间。默认情况下窗口的偏移是 0。不同的偏移值可以决定记录分配的窗口。
+例如：在 10 分钟大小的滚动窗口下，时间戳为 `2021-06-30 00:00:04` 的数据会被分配到那个窗口呢？
+- 当 `offset` 为 `-16 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
+- 当 `offset` 为 `-6 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
+- 当 `offset` 为 `-4 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
+- 当 `offset` 为 `0`，数据会分配到窗口 [`2021-06-30 00:00:00`, `2021-06-30 00:10:00`)。
+- 当 `offset` 为 `4 MINUTE`，数据会分配到窗口 [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`)。
+- 当 `offset` 为 `6 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
+- 当 `offset` 为 `16 MINUTE`，数据会分配到窗口 [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`)。
+    我们可以发现，有些不同的窗口偏移参数对窗口分配的影响是一样的。在上面的例子中，`-16 MINUTE`，`-6 MINUTE` 和 `4 MINUTE` 对 10 分钟大小的滚动窗口效果相同。
 
-*Note: The effect of window offset is just for updating window assignment, it has no effect on Watermark.* 
+*注意：窗口偏移只影响窗口的分配，并不会影响 Watermark *
 
-We show an example to describe how to use offset in Tumble window in the following SQL.
+下面的 SQL 展示了偏移在滚动窗口如何使用。
 
 ```sql
 -- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
@@ -343,6 +343,6 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 +------------------+------------------+-------+
 ```
 
-*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值得后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`*
 
 {{< top >}}
