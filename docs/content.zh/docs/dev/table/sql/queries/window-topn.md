@@ -130,6 +130,7 @@ Flink SQL> SELECT *
 *注意： 为了更好地理解窗口行为，这里把 timestamp 值后面的0去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)` ，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000` 。*
 
 ## 限制
+
 目前，Flink只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})后进行窗口 Top-N。会话窗口不久之后就会支持。
 
 
