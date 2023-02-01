@@ -22,10 +22,10 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
-import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
-import org.apache.flink.table.client.gateway.local.result.DynamicResult;
-import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
-import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
+import org.apache.flink.table.client.gateway.result.ChangelogCollectResult;
+import org.apache.flink.table.client.gateway.result.DynamicResult;
+import org.apache.flink.table.client.gateway.result.MaterializedCollectBatchResult;
+import org.apache.flink.table.client.gateway.result.MaterializedCollectStreamResult;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
