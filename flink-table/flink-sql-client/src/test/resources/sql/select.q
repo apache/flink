@@ -143,6 +143,42 @@ SELECT * from testUserData;
 Received a total of 4 rows
 !ok
 
+# test fallback config option key
+
+SET 'table.display.max-column-width' = '10';
+[INFO] Execute statement succeed.
+!info
+
+SELECT * from testUserData;
++----+------------+-------------------------+---------+
+| op |       name |                     dob | isHappy |
++----+------------+-------------------------+---------+
+| +I | 30b5c1b... | 2001-01-13 20:11:11.123 |    TRUE |
+| +I | 91170c9... | 1994-02-14 21:12:11.123 |    TRUE |
+| +I | 8b012d9... | 1979-03-15 22:13:11.123 |   FALSE |
+| +I | 09969d9... | 1985-04-16 23:14:11.123 |    TRUE |
++----+------------+-------------------------+---------+
+Received a total of 4 rows
+!ok
+
+SET 'table.display.max-column-width' = '40';
+[INFO] Execute statement succeed.
+!info
+
+SELECT * from testUserData;
++----+------------------------------------------+-------------------------+---------+
+| op |                                     name |                     dob | isHappy |
++----+------------------------------------------+-------------------------+---------+
+| +I |     30b5c1bb-0ac0-43d3-b812-fcb649fd2b07 | 2001-01-13 20:11:11.123 |    TRUE |
+| +I |     91170c98-2cc5-4935-9ea6-12b72d32fb3c | 1994-02-14 21:12:11.123 |    TRUE |
+| +I |     8b012d93-6ece-48ad-a2ea-aa75ef7b1d60 | 1979-03-15 22:13:11.123 |   FALSE |
+| +I |     09969d9e-d584-11eb-b8bc-0242ac130003 | 1985-04-16 23:14:11.123 |    TRUE |
++----+------------------------------------------+-------------------------+---------+
+Received a total of 4 rows
+!ok
+
+# test original config option key
+
 SET 'sql-client.display.max-column-width' = '10';
 [INFO] Execute statement succeed.
 !info
@@ -158,6 +194,7 @@ SELECT * from testUserData;
 +----+------------+-------------------------+---------+
 Received a total of 4 rows
 !ok
+
 
 SET 'sql-client.display.max-column-width' = '40';
 [INFO] Execute statement succeed.
