@@ -23,7 +23,6 @@ under the License.
 -->
 
 # 窗口 Top-N
-
 {{< label Batch >}} {{< label Streaming >}}
 
 窗口 Top-N 是特殊的 [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}})，它返回每个窗口和其他分区键的N个最小或最大值。
