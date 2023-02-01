@@ -229,8 +229,8 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 ```
 
-- `data`：拥有时间属性列的表。
-- `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `data`: 拥有时间属性列的表。
+- `timecol`: 列描述符，决定数据的哪个时间属性列应该映射到窗口。
 - `step`：窗口的步长。
 - `size`：窗口的大小（时长）。
 - `offset`：窗口的偏移量 [非必填]。
