@@ -105,6 +105,8 @@ public class CachingLookupFunction extends LookupFunction {
             cacheMetricGroup.loadCounter(loadCounter);
             numLoadFailuresCounter = new SimpleCounter();
             cacheMetricGroup.numLoadFailuresCounter(numLoadFailuresCounter);
+        } else {
+            initializeFullCache(((LookupFullCache) cache), context);
         }
         // Initialize cache and the delegating function
         cache.open(cacheMetricGroup);
@@ -176,5 +178,9 @@ public class CachingLookupFunction extends LookupFunction {
             cacheMetricGroup.latestLoadTimeGauge(() -> latestLoadTime);
         }
         latestLoadTime = loadTime;
+    }
+
+    private void initializeFullCache(LookupFullCache lookupFullCache, FunctionContext context) {
+        lookupFullCache.setUserCodeClassLoader(context.getUserCodeClassLoader());
     }
 }

@@ -162,6 +162,8 @@ public class LookupFullCacheTest {
                         runAsync(
                                 ThrowingRunnable.unchecked(
                                         () -> {
+                                            cache.setUserCodeClassLoader(
+                                                    Thread.currentThread().getContextClassLoader());
                                             cache.open(metricGroup);
                                         }),
                                 executor);
@@ -203,6 +205,7 @@ public class LookupFullCacheTest {
         LookupFullCache fullCache = new LookupFullCache(cacheLoader, reloadTrigger);
         assertThat(cacheLoader.isAwaitTriggered()).isFalse();
         assertThat(cacheLoader.getNumLoads()).isZero();
+        fullCache.setUserCodeClassLoader(Thread.currentThread().getContextClassLoader());
         fullCache.open(metricGroup);
         assertThat(cacheLoader.isAwaitTriggered()).isTrue();
         assertThat(cacheLoader.getNumLoads()).isEqualTo(1);

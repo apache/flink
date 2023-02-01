@@ -28,10 +28,11 @@ import org.apache.flink.table.connector.source.lookup.LookupOptions.LookupCacheT
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadTrigger;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Internal implementation of {@link LookupCache} for {@link LookupCacheType#FULL}. */
 @Internal
@@ -47,9 +48,15 @@ public class LookupFullCache implements LookupCache {
     // Cache metrics
     private transient Counter hitCounter; // equals to number of requests
 
+    private transient ClassLoader userCodeClassLoader;
+
     public LookupFullCache(CacheLoader cacheLoader, CacheReloadTrigger reloadTrigger) {
-        this.cacheLoader = Preconditions.checkNotNull(cacheLoader);
-        this.reloadTrigger = Preconditions.checkNotNull(reloadTrigger);
+        this.cacheLoader = checkNotNull(cacheLoader);
+        this.reloadTrigger = checkNotNull(reloadTrigger);
+    }
+
+    public void setUserCodeClassLoader(ClassLoader userCodeClassLoader) {
+        this.userCodeClassLoader = userCodeClassLoader;
     }
 
     @Override
@@ -64,7 +71,10 @@ public class LookupFullCache implements LookupCache {
         if (reloadTriggerContext == null) {
             try {
                 // TODO add Configuration into FunctionContext and pass in into LookupFullCache
-                cacheLoader.open(new Configuration());
+                checkNotNull(
+                        userCodeClassLoader,
+                        "User code classloader must be initialized before opening full cache");
+                cacheLoader.open(new Configuration(), userCodeClassLoader);
                 reloadTriggerContext =
                         new ReloadTriggerContext(
                                 cacheLoader::reloadAsync,
