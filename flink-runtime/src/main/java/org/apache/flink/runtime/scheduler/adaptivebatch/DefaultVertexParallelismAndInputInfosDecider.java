@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
@@ -463,7 +462,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 configuration.getInteger(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM),
                 configuration.getInteger(
-                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM),
+                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
                 configuration.get(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
                 configuration.get(
