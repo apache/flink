@@ -248,13 +248,7 @@ public class DefaultMultipleComponentLeaderElectionService
             LeaderElectionEventHandler leaderElectionEventHandler,
             LeaderInformation leaderInformation) {
         leadershipOperationExecutor.execute(
-                () -> {
-                    synchronized (lock) {
-                        if (running && multipleComponentLeaderElectionDriver.hasLeadership()) {
-                            leaderElectionEventHandler.onLeaderInformationChange(leaderInformation);
-                        }
-                    }
-                });
+                () -> leaderElectionEventHandler.onLeaderInformationChange(leaderInformation));
     }
 
     @Override
