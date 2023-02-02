@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -275,5 +276,10 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     public void resetTransformation() {
         this.transformation = null;
+    }
+
+    @VisibleForTesting
+    public boolean isTransformationNull() {
+        return this.transformation == null;
     }
 }

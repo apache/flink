@@ -152,4 +152,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
     public List<ExecEdge> getOriginalEdges() {
         return originalEdges;
     }
+
+    public ExecNode<?> getRootNode() {
+        return rootNode;
+    }
 }
