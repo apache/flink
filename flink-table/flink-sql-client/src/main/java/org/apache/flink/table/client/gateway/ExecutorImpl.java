@@ -21,6 +21,7 @@ package org.apache.flink.table.client.gateway;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -98,85 +99,75 @@ public class ExecutorImpl implements Executor {
     private static final Logger LOG = LoggerFactory.getLogger(ExecutorImpl.class);
     private static final long HEARTBEAT_INTERVAL_MILLISECONDS = 60_000L;
 
+    private final AutoCloseableRegistry registry;
     private final InetSocketAddress gatewayAddress;
     private final ExecutorService executorService;
-    private final ScheduledExecutorService heartbeatScheduler;
     private final RestClient restClient;
 
     private final SqlGatewayRestAPIVersion connectionVersion;
-    private SessionHandle sessionHandle;
+    private final SessionHandle sessionHandle;
 
-    public static ExecutorImpl create(
+    public ExecutorImpl(
             DefaultContext defaultContext, InetSocketAddress gatewayAddress, String sessionId) {
-        return create(defaultContext, gatewayAddress, sessionId, HEARTBEAT_INTERVAL_MILLISECONDS);
+        this(defaultContext, gatewayAddress, sessionId, HEARTBEAT_INTERVAL_MILLISECONDS);
     }
 
     @VisibleForTesting
-    public static ExecutorImpl create(
+    ExecutorImpl(
             DefaultContext defaultContext,
             InetSocketAddress gatewayAddress,
             String sessionId,
             long heartbeatInterval) {
-        ExecutorService executor = Executors.newCachedThreadPool();
+        this.registry = new AutoCloseableRegistry();
         try {
-            RestClient restClient = new RestClient(defaultContext.getFlinkConfig(), executor);
+            this.gatewayAddress = gatewayAddress;
+            // register required resource
+            this.executorService = Executors.newCachedThreadPool();
+            registry.registerCloseable(executorService::shutdownNow);
+            this.restClient = new RestClient(defaultContext.getFlinkConfig(), executorService);
+            registry.registerCloseable(restClient);
+
             // determine gateway rest api version
-            SqlGatewayRestAPIVersion connectionVersion =
-                    negotiateVersion(restClient, gatewayAddress);
-            // open session to address:port
-            LOG.info("Open session to {}.", gatewayAddress);
+            this.connectionVersion = negotiateVersion();
+
+            // register session
+            LOG.info(
+                    "Open session to {} with connection version: {}.",
+                    gatewayAddress,
+                    connectionVersion);
             OpenSessionResponseBody response =
-                    restClient
-                            .sendRequest(
-                                    gatewayAddress.getHostName(),
-                                    gatewayAddress.getPort(),
+                    sendRequest(
                                     OpenSessionHeaders.getInstance(),
                                     EmptyMessageParameters.getInstance(),
                                     new OpenSessionRequestBody(
-                                            sessionId, defaultContext.getFlinkConfig().toMap()),
-                                    Collections.emptyList(),
-                                    connectionVersion)
+                                            sessionId, defaultContext.getFlinkConfig().toMap()))
                             .get();
-            SessionHandle sessionHandle =
-                    new SessionHandle(UUID.fromString(response.getSessionHandle()));
-            return new ExecutorImpl(
-                    restClient,
-                    executor,
-                    gatewayAddress,
-                    connectionVersion,
-                    sessionHandle,
-                    heartbeatInterval);
+            this.sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
+            registry.registerCloseable(this::closeSession);
+
+            // heartbeat
+            ScheduledExecutorService heartbeatScheduler =
+                    Executors.newSingleThreadScheduledExecutor();
+            registry.registerCloseable(heartbeatScheduler::shutdownNow);
+            heartbeatScheduler.scheduleAtFixedRate(
+                    () ->
+                            getResponse(
+                                    sendRequest(
+                                            TriggerSessionHeartbeatHeaders.getInstance(),
+                                            new SessionMessageParameters(sessionHandle),
+                                            EmptyRequestBody.getInstance())),
+                    heartbeatInterval,
+                    heartbeatInterval,
+                    TimeUnit.MILLISECONDS);
         } catch (Exception e) {
-            executor.shutdownNow();
+            try {
+                registry.close();
+            } catch (Throwable t) {
+                e.addSuppressed(t);
+            }
+
             throw new SqlClientException("Failed to create the executor.", e);
         }
-    }
-
-    private ExecutorImpl(
-            RestClient restClient,
-            ExecutorService executor,
-            InetSocketAddress gatewayAddress,
-            SqlGatewayRestAPIVersion connectionVersion,
-            SessionHandle sessionHandle,
-            long heartbeatInterval) {
-        this.restClient = restClient;
-        this.executorService = executor;
-        this.gatewayAddress = gatewayAddress;
-        this.sessionHandle = sessionHandle;
-        this.connectionVersion = connectionVersion;
-
-        this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
-        // register heartbeat executor
-        heartbeatScheduler.scheduleAtFixedRate(
-                () ->
-                        getResponse(
-                                sendRequest(
-                                        TriggerSessionHeartbeatHeaders.getInstance(),
-                                        new SessionMessageParameters(sessionHandle),
-                                        EmptyRequestBody.getInstance())),
-                heartbeatInterval,
-                heartbeatInterval,
-                TimeUnit.MILLISECONDS);
     }
 
     public void configureSession(String statement) {
@@ -265,9 +256,13 @@ public class ExecutorImpl implements Executor {
 
     @Override
     public void close() {
-        closeSession();
-        executorService.shutdownNow();
-        heartbeatScheduler.shutdownNow();
+        if (!registry.isClosed()) {
+            try {
+                registry.close();
+            } catch (Throwable t) {
+                // ignore
+            }
+        }
     }
 
     @VisibleForTesting
@@ -337,7 +332,6 @@ public class ExecutorImpl implements Executor {
                     P extends ResponseBody>
             CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) {
         Preconditions.checkNotNull(connectionVersion, "The connection version should not be null.");
-        Preconditions.checkNotNull(sessionHandle, "The session handle should not be null.");
         return sendRequest(messageHeaders, messageParameters, request, connectionVersion);
     }
 
@@ -446,8 +440,7 @@ public class ExecutorImpl implements Executor {
         return new OperationHandle(UUID.fromString(handleSupplier.get()));
     }
 
-    private static SqlGatewayRestAPIVersion negotiateVersion(
-            RestClient restClient, InetSocketAddress gatewayAddress) throws Exception {
+    private SqlGatewayRestAPIVersion negotiateVersion() throws Exception {
         List<SqlGatewayRestAPIVersion> gatewayVersions =
                 getResponse(
                                 restClient.sendRequest(
@@ -509,8 +502,6 @@ public class ExecutorImpl implements Executor {
                             "Unexpected error occurs when closing session %s.", sessionHandle),
                     e);
             // ignore any throwable to keep the cleanup running
-        } finally {
-            sessionHandle = null;
         }
     }
 }

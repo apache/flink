@@ -25,7 +25,6 @@ import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.DefaultContextUtils;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.gateway.SqlGateway;
@@ -88,7 +87,7 @@ public class SqlClient {
         if (isGatewayMode) {
             CliOptions.GatewayCliOptions gatewayCliOptions = (CliOptions.GatewayCliOptions) options;
             try (Executor executor =
-                    ExecutorImpl.create(
+                    Executor.create(
                             DefaultContextUtils.buildDefaultContext(gatewayCliOptions),
                             gatewayCliOptions
                                     .getGatewayAddress()
@@ -108,7 +107,7 @@ public class SqlClient {
                             (CliOptions.EmbeddedCliOptions) options);
             try (EmbeddedGateway embeddedGateway = EmbeddedGateway.create(defaultContext);
                     Executor executor =
-                            ExecutorImpl.create(
+                            Executor.create(
                                     defaultContext,
                                     InetSocketAddress.createUnresolved(
                                             embeddedGateway.getAddress(),
@@ -269,6 +268,7 @@ public class SqlClient {
                     new SqlGateway(defaultConfig, new SingleSessionManager(defaultContext));
             try {
                 sqlGateway.start();
+                LOG.info("Start embedded gateway on port {}", port.getPort());
             } catch (Throwable t) {
                 closePort(port);
                 throw new SqlClientException("Failed to start the embedded sql-gateway.", t);

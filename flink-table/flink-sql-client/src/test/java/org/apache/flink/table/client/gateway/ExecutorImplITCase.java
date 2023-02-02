@@ -527,6 +527,22 @@ class ExecutorImplITCase {
                                 .isEqualTo(SqlGatewayRestAPIVersion.V2));
     }
 
+    @Test
+    void testExecutorCloseSession() {
+        SessionHandle sessionHandle;
+        try (ExecutorImpl executor = (ExecutorImpl) createRestServiceExecutor()) {
+            // close executor multiple times
+            executor.close();
+            sessionHandle = executor.getSessionHandle();
+        }
+
+        assertThat(sessionHandle).isNotNull();
+        assertThat(
+                        ((SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager())
+                                .isSessionAlive(sessionHandle))
+                .isFalse();
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper method
     // --------------------------------------------------------------------------------------------
@@ -610,7 +626,7 @@ class ExecutorImplITCase {
         configuration.addAll(clusterClient.getFlinkConfiguration());
         DefaultContext defaultContext = new DefaultContext(configuration, dependencies);
         // frequently trigger heartbeat
-        return ExecutorImpl.create(defaultContext, address, "test-session", 1_000);
+        return new ExecutorImpl(defaultContext, address, "test-session", 1_000);
     }
 
     private void initSession(Executor executor, Map<String, String> replaceVars) {

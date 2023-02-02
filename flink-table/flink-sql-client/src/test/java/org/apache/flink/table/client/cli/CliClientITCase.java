@@ -24,7 +24,6 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
@@ -221,7 +220,7 @@ class CliClientITCase {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
 
         try (final Executor executor =
-                        ExecutorImpl.create(
+                        Executor.create(
                                 defaultContext,
                                 InetSocketAddress.createUnresolved(
                                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
