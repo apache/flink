@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -49,6 +50,9 @@ import java.util.Map;
  * isBushyJoinReorder.
  */
 public abstract class JoinReorderITCaseBase extends TestLogger {
+
+    private static final int DEFAULT_PARALLELISM = 4;
+
     protected TableEnvironment tEnv;
     private Catalog catalog;
 
@@ -64,6 +68,11 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         tEnv.getConfig()
                 .getConfiguration()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
+        tEnv.getConfig()
+                .getConfiguration()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM,
+                        DEFAULT_PARALLELISM);
 
         // Test data
         String dataId2 = TestValuesTableFactory.registerData(TestData.data2());

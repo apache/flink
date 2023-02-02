@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -54,6 +55,8 @@ import static java.util.stream.Collectors.toList;
 /** The base class for statistics report testing. */
 public abstract class StatisticsReportTestBase extends TestLogger {
 
+    private static final int DEFAULT_PARALLELISM = 4;
+
     protected TableEnvironment tEnv;
     protected File folder;
 
@@ -61,6 +64,11 @@ public abstract class StatisticsReportTestBase extends TestLogger {
     public void setup(@TempDir File file) throws Exception {
         folder = file;
         tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        tEnv.getConfig()
+                .getConfiguration()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM,
+                        DEFAULT_PARALLELISM);
     }
 
     @AfterEach
