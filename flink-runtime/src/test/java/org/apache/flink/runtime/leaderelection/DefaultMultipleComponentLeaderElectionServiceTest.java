@@ -33,9 +33,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -118,108 +116,6 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
             for (SimpleTestingLeaderElectionEventListener eventListener : eventListeners) {
                 assertThat(eventListener.hasLeadership()).isFalse();
             }
-        } finally {
-            leaderElectionService.close();
-        }
-    }
-
-    @Test
-    public void testLeaderInformationChangeOnlyCalledOnLeaderForSingleComponent() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
-
-        final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
-
-        try {
-            final SimpleTestingLeaderElectionEventListener leaderElectionEventHandler =
-                    new SimpleTestingLeaderElectionEventListener();
-            final String componentId = "test-component";
-            leaderElectionService.registerLeaderElectionEventHandler(
-                    componentId, leaderElectionEventHandler);
-
-            final LeaderInformation leaderInformation =
-                    LeaderInformation.known(UUID.randomUUID(), "leader-address");
-            leaderElectionService.notifyLeaderInformationChange(componentId, leaderInformation);
-
-            assertThat(leaderElectionEventHandler.getLeaderInformation())
-                    .as(
-                            "The leader information should not be updated because the leadership was not acquired, yet.")
-                    .isNull();
-
-            leaderElectionDriver.grantLeadership();
-
-            assertThat(leaderElectionEventHandler.getLeaderInformation())
-                    .as(
-                            "The leader information should not be updated because no change event was triggered after the leadership was granted.")
-                    .isNull();
-
-            leaderElectionService.notifyLeaderInformationChange(componentId, leaderInformation);
-
-            assertThat(leaderElectionEventHandler.getLeaderInformation())
-                    .isEqualTo(leaderInformation);
-        } finally {
-            leaderElectionService.close();
-        }
-    }
-
-    @Test
-    public void testLeaderInformationChangeOnlyCalledOnLeaderForAllKnownComponents()
-            throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
-
-        final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
-
-        try {
-            final String componentWithChangeId = "component-with-change";
-            final SimpleTestingLeaderElectionEventListener componentWithChangeListener =
-                    new SimpleTestingLeaderElectionEventListener();
-            final String componentWithoutChangeId = "component-without-change";
-            final SimpleTestingLeaderElectionEventListener componentWithoutChangeListener =
-                    new SimpleTestingLeaderElectionEventListener();
-
-            final Map<String, SimpleTestingLeaderElectionEventListener> listeners = new HashMap<>();
-            listeners.put(componentWithChangeId, componentWithChangeListener);
-            listeners.put(componentWithoutChangeId, componentWithoutChangeListener);
-
-            listeners.forEach(leaderElectionService::registerLeaderElectionEventHandler);
-
-            final LeaderInformation leaderInformation =
-                    LeaderInformation.known(UUID.randomUUID(), "leader-address");
-            final Collection<LeaderInformationWithComponentId> componentsWithChange =
-                    Collections.singleton(
-                            LeaderInformationWithComponentId.create(
-                                    componentWithChangeId, leaderInformation));
-            leaderElectionService.notifyAllKnownLeaderInformation(componentsWithChange);
-
-            assertThat(listeners)
-                    .allSatisfy(
-                            (componentId, listener) ->
-                                    assertThat(listener.getLeaderInformation())
-                                            .as(
-                                                    "The leader information should not be updated for %s because the leadership was not acquired, yet.",
-                                                    componentId)
-                                            .isNull());
-
-            leaderElectionDriver.grantLeadership();
-
-            assertThat(listeners)
-                    .allSatisfy(
-                            (componentId, listener) ->
-                                    assertThat(listener.getLeaderInformation())
-                                            .as(
-                                                    "The leader information should not be updated for %s because no change event was triggered after the leadership was granted.",
-                                                    componentId)
-                                            .isNull());
-
-            leaderElectionService.notifyAllKnownLeaderInformation(componentsWithChange);
-
-            assertThat(componentWithChangeListener.getLeaderInformation())
-                    .isEqualTo(leaderInformation);
-            assertThat(componentWithoutChangeListener.getLeaderInformation())
-                    .isEqualTo(LeaderInformation.empty());
         } finally {
             leaderElectionService.close();
         }
