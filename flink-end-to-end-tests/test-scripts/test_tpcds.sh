@@ -66,10 +66,10 @@ function run_test() {
         set_config_key "taskmanager.numberOfTaskSlots" "4"
     elif [ "${scheduler}" == "AdaptiveBatch" ]; then
         set_config_key "taskmanager.numberOfTaskSlots" "8"
-        set_config_key "jobmanager.adaptive-batch-scheduler.max-parallelism" "8"
-        set_config_key "jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task" "6m"
-        set_config_key "jobmanager.adaptive-batch-scheduler.speculative.enabled" "true"
-        set_config_key "jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration" "0s"
+        set_config_key "execution.batch.adaptive.auto-parallelism.max-parallelism" "8"
+        set_config_key "execution.batch.adaptive.auto-parallelism.avg-data-volume-per-task" "6m"
+        set_config_key "execution.batch.speculative.enabled" "true"
+        set_config_key "execution.batch.speculative.block-slow-node-duration" "0s"
         set_config_key "slow-task-detector.execution-time.baseline-ratio" "0.0"
         set_config_key "slow-task-detector.execution-time.baseline-lower-bound" "0s"
     else
