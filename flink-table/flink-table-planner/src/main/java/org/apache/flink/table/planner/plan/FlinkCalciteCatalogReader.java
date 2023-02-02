@@ -22,11 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -42,6 +44,7 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -217,10 +220,25 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
             // try to create legacy table source using the options,
             // some legacy factories uses the new 'connector' key
             try {
+                // The input table is ResolvedCatalogTable that the
+                // rowtime/proctime contains {@link TimestampKind}. However, rowtime
+                // is the concept defined by the WatermarkGenerator and the
+                // WatermarkGenerator is responsible to convert the rowtime column
+                // to Long. For source, it only treats the rowtime column as regular
+                // timestamp. So, we erase the rowtime indicator here. Please take a
+                // look at the usage of the {@link
+                // DataTypeUtils#removeTimeAttribute}
+                ResolvedCatalogTable originTable =
+                        schemaTable.getContextResolvedTable().getResolvedTable();
                 TableFactoryUtil.findAndCreateTableSource(
                         schemaTable.getContextResolvedTable().getCatalog().orElse(null),
                         schemaTable.getContextResolvedTable().getIdentifier(),
-                        schemaTable.getContextResolvedTable().getResolvedTable(),
+                        new CatalogTableImpl(
+                                TableSchemaUtils.removeTimeAttributeFromResolvedSchema(
+                                        originTable.getResolvedSchema()),
+                                originTable.getPartitionKeys(),
+                                originTable.getOptions(),
+                                originTable.getComment()),
                         new Configuration(),
                         schemaTable.isTemporary());
                 // success, then we will use the legacy factories
