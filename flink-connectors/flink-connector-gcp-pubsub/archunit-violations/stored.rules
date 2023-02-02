@@ -1,4 +1,0 @@
-#
-#Tue Feb 22 12:17:23 CET 2022
-Tests\ inheriting\ from\ AbstractTestBase\ should\ have\ name\ ending\ with\ ITCase=97f3780e-2fb4-43fd-a58c-09ea654509a8
-ITCASE\ tests\ should\ use\ a\ MiniCluster\ resource\ or\ extension=2f5a722a-a4be-46cf-977f-047a2a23bf90

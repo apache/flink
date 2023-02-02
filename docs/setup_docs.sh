@@ -49,6 +49,7 @@ integrate_connector_docs cassandra v3.0.0
 integrate_connector_docs pulsar main
 integrate_connector_docs jdbc v3.0.0
 integrate_connector_docs rabbitmq v3.0.0
+integrate_connector_docs gcp-pubsub v3.0.0
 
 cd ..
 rm -rf tmp

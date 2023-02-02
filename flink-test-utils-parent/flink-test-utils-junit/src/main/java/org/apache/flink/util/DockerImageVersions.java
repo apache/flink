@@ -40,8 +40,5 @@ public class DockerImageVersions {
 
     public static final String ZOOKEEPER = "zookeeper:3.4.14";
 
-    public static final String GOOGLE_CLOUD_PUBSUB_EMULATOR =
-            "gcr.io/google.com/cloudsdktool/cloud-sdk:379.0.0";
-
     public static final String HIVE2 = "prestodb/hdp2.6-hive:10";
 }
