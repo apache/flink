@@ -47,8 +47,9 @@ import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{InternalDataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeContext, ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
+import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -83,6 +84,7 @@ import java.io.{File, IOException}
 import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.time.Duration
+import java.util.Collections
 
 /** Test base for testing Table API / SQL plans. */
 abstract class TableTestBase {
@@ -1653,6 +1655,15 @@ object TableTestUtil {
   def toRelNode(tEnv: TableEnvironment, modifyOperation: ModifyOperation): RelNode = {
     val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
     planner.translateToRel(modifyOperation)
+  }
+
+  /** Convert a sql query to a ExecNodeGraph. */
+  def toExecNodeGraph(tEnv: TableEnvironment, sqlQuery: String): ExecNodeGraph = {
+    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    val optimizedRel =
+      planner.optimize(toRelNode(tEnv.sqlQuery(sqlQuery))).asInstanceOf[FlinkPhysicalRel]
+    val generator = new ExecNodeGraphGenerator
+    generator.generate(Collections.singletonList(optimizedRel), false)
   }
 
   def createTemporaryView[T](
