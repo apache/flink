@@ -92,6 +92,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler.CLOSE_MESSAGE;
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 
 /** Executor to connect to {@link SqlGateway} and execute statements. */
 public class ExecutorImpl implements Executor {
@@ -260,7 +261,8 @@ public class ExecutorImpl implements Executor {
             try {
                 registry.close();
             } catch (Throwable t) {
-                // ignore
+                Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
+                LOG.error("Exception happens when closing the Executor.", firstOrSuppressed(e, t));
             }
         }
     }
