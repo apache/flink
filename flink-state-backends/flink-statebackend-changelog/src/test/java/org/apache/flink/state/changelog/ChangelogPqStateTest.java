@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** ChangelogKeyGroupedPriorityQueue Test. */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ChangelogPqStateTest {
+class ChangelogPqStateTest {
 
     @Test
     void testValuesIterator() throws Exception {

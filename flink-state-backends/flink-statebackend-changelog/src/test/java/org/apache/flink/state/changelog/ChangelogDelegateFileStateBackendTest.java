@@ -42,7 +42,7 @@ import java.io.File;
 import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link FsStateBackend}. */
-public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest {
+class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest {
 
     @TempDir static File tmPath;
 

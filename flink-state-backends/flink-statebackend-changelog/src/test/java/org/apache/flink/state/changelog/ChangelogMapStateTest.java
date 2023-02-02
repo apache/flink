@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** ChangelogMapState Test. */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ChangelogMapStateTest {
+class ChangelogMapStateTest {
 
     @Test
     void testValuesIterator() throws Exception {

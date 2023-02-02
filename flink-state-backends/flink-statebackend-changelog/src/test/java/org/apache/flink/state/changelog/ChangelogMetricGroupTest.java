@@ -65,7 +65,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
  * Test the {@link MetricGroup} Changelog used. e.g.{@link ChangelogStateBackendMetricGroup}, {@link
  * ChangelogMaterializationMetricGroup}
  */
-public class ChangelogMetricGroupTest {
+class ChangelogMetricGroupTest {
 
     private ChangelogKeyedStateBackend<Integer> changelogKeyedStateBackend;
     private PeriodicMaterializationManager periodicMaterializationManager;

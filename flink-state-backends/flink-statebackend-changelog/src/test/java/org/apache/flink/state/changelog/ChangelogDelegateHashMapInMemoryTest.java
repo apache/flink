@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogS
  * Tests for {@link ChangelogStateBackend} using {@link InMemoryStateChangelogStorage} and
  * delegating {@link HashMapStateBackendTest}.
  */
-public class ChangelogDelegateHashMapInMemoryTest extends ChangelogDelegateHashMapTest {
+class ChangelogDelegateHashMapInMemoryTest extends ChangelogDelegateHashMapTest {
 
     protected TestTaskStateManager getTestTaskStateManager() {
         return TestTaskStateManager.builder().build();

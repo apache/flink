@@ -70,7 +70,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /** Verify Changelog StateBackend is properly loaded. */
-public class ChangelogStateBackendLoadingTest {
+class ChangelogStateBackendLoadingTest {
     private final ClassLoader cl = getClass().getClassLoader();
 
     private final String backendKey = StateBackendOptions.STATE_BACKEND.key();
@@ -82,7 +82,7 @@ public class ChangelogStateBackendLoadingTest {
                         null, TernaryBoolean.UNDEFINED, config(), cl, null);
         final CheckpointStorage storage =
                 CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
-        assertThat(backend instanceof HashMapStateBackend).isTrue();
+        assertThat(backend).isInstanceOf(HashMapStateBackend.class);
     }
 
     @Test
@@ -241,7 +241,7 @@ public class ChangelogStateBackendLoadingTest {
 
         // set back and force
         env.setStateBackend(new MemoryStateBackend());
-        assertThat(env.getStateBackend() instanceof MemoryStateBackend).isTrue();
+        assertThat(env.getStateBackend()).isInstanceOf(MemoryStateBackend.class);
         assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
                 env, TernaryBoolean.UNDEFINED, MemoryStateBackend.class);
         env.enableChangelogStateBackend(true);

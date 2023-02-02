@@ -39,7 +39,7 @@ import java.io.File;
 import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
-public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
+class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
 
     @TempDir static File tmPath;
 

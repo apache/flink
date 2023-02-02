@@ -41,8 +41,7 @@ import java.io.File;
 import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link EmbeddedRocksDBStateBackend}. */
-public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
-        extends EmbeddedRocksDBStateBackendTest {
+class ChangelogDelegateEmbeddedRocksDBStateBackendTest extends EmbeddedRocksDBStateBackendTest {
 
     @TempDir static File tmPath;
 

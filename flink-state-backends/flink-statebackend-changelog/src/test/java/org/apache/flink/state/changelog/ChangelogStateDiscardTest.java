@@ -85,7 +85,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * achieved by testing integration between {@link ChangelogKeyedStateBackend} and {@link
  * StateChangelogWriter} created by {@link FsStateChangelogStorage}.
  */
-public class ChangelogStateDiscardTest {
+class ChangelogStateDiscardTest {
     private static final Random RANDOM = new Random();
 
     @Test

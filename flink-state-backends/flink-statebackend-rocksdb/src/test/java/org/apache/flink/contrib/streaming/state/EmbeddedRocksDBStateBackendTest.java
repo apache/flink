@@ -448,7 +448,7 @@ public class EmbeddedRocksDBStateBackendTest
             SnapshotResult<KeyedStateHandle> snapshotResult = snapshot.get();
             KeyedStateHandle keyedStateHandle = snapshotResult.getJobManagerOwnedSnapshot();
             assertThat(keyedStateHandle).isNotNull();
-            assertThat(keyedStateHandle.getStateSize() > 0).isTrue();
+            assertThat(keyedStateHandle.getStateSize()).isGreaterThan(0);
             assertThat(keyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups()).isEqualTo(2);
 
             for (BlockingCheckpointOutputStream stream : testStreamFactory.getAllCreatedStreams()) {
@@ -523,7 +523,7 @@ public class EmbeddedRocksDBStateBackendTest
             state.update("Hello");
 
             // more than just the root directory
-            assertThat(allFilesInDbDir.size() > 1).isTrue();
+            assertThat(allFilesInDbDir).hasSizeGreaterThan(1);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -533,7 +533,7 @@ public class EmbeddedRocksDBStateBackendTest
                         new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
 
         // just the root directory left
-        assertThat(allFilesInDbDir.size()).isEqualTo(1);
+        assertThat(allFilesInDbDir).hasSize(1);
     }
 
     @TestTemplate
