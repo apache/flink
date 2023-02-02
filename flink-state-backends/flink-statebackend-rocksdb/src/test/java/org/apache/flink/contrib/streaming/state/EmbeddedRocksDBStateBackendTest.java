@@ -106,7 +106,7 @@ public class EmbeddedRocksDBStateBackendTest
     private ValueState<String> testState2;
 
     @TempDir static File tmpCheckpointPath;
-    @TempDir static File tmpDbPath;
+    @TempDir File tmpDbPath;
 
     @Parameters
     public static List<Object[]> modes() throws IOException {
@@ -143,16 +143,13 @@ public class EmbeddedRocksDBStateBackendTest
     private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
     public void prepareRocksDB() throws Exception {
-        File dbPath = new File(tmpDbPath, DB_INSTANCE_DIR_STRING);
-        if (!dbPath.exists()) {
-            dbPath.mkdirs();
-        }
+        String dbPath = new File(tmpDbPath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
         ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
 
         ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
         db =
                 RocksDBOperationUtils.openDB(
-                        dbPath.getAbsolutePath(),
+                        dbPath,
                         Collections.emptyList(),
                         columnFamilyHandles,
                         columnOptions,

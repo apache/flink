@@ -20,8 +20,8 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Tests for the keyed state backend and operator state backend, as created by the {@link
@@ -31,7 +31,8 @@ public class FileStateBackendMigrationTest extends StateBackendMigrationTestBase
 
     @Parameters
     public static Collection<Object> modes() {
-        return Arrays.asList("just to please junit5 parameter test in base class");
+        // current test does not need to be parameterized
+        return Collections.singletonList("no-use");
     }
 
     @Override

@@ -33,9 +33,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
-import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Delegated partitioned {@link MapState} that forwards changes to {@link StateChange} upon {@link
@@ -62,7 +62,17 @@ class ChangelogMapState<K, N, UK, UV>
 
     private Map.Entry<UK, UV> loggingMapEntry(
             Map.Entry<UK, UV> entry, KvStateChangeLogger<Map<UK, UV>, N> changeLogger, N ns) {
-        return new AbstractMap.SimpleEntry<UK, UV>(entry.getKey(), entry.getValue()) {
+        return new Map.Entry<UK, UV>() {
+            @Override
+            public UK getKey() {
+                return entry.getKey();
+            }
+
+            @Override
+            public UV getValue() {
+                return entry.getValue();
+            }
+
             @Override
             public UV setValue(UV value) {
                 UV oldValue = entry.setValue(value);
@@ -73,6 +83,16 @@ class ChangelogMapState<K, N, UK, UV>
                     ExceptionUtils.rethrow(e);
                 }
                 return oldValue;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof Map.Entry)) {
+                    return false;
+                }
+                Map.Entry<?, ?> e = (Map.Entry<?, ?>) o;
+                return Objects.equals(entry.getKey(), e.getKey())
+                        && Objects.equals(entry.getValue(), e.getValue());
             }
         };
     }
