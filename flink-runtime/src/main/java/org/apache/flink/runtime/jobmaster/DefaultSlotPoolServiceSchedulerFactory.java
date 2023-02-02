@@ -160,20 +160,6 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
         JobManagerOptions.SchedulerType schedulerType =
                 getSchedulerType(configuration, jobType, isDynamicGraph);
-        if (schedulerType == JobManagerOptions.SchedulerType.Adaptive && jobType == JobType.BATCH) {
-            LOG.info(
-                    "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to 'Default'.");
-            // overwrite
-            schedulerType = JobManagerOptions.SchedulerType.Default;
-        } else if (schedulerType == JobManagerOptions.SchedulerType.Ng) {
-            LOG.warn(
-                    "Config value '{}' for option '{}' is deprecated, use '{}' instead.",
-                    JobManagerOptions.SchedulerType.Ng,
-                    JobManagerOptions.SCHEDULER.key(),
-                    JobManagerOptions.SchedulerType.Default);
-            // overwrite
-            schedulerType = JobManagerOptions.SchedulerType.Default;
-        }
 
         if (configuration
                 .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
@@ -224,20 +210,48 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
     private static JobManagerOptions.SchedulerType getSchedulerType(
             Configuration configuration, JobType jobType, boolean isDynamicGraph) {
-        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
-                == SchedulerExecutionMode.REACTIVE) {
-            return JobManagerOptions.SchedulerType.Adaptive;
-        } else {
-            return configuration
-                    .getOptional(JobManagerOptions.SCHEDULER)
-                    .orElse(
-                            System.getProperties()
-                                            .containsKey("flink.tests.enable-adaptive-scheduler")
-                                    ? JobManagerOptions.SchedulerType.Adaptive
-                                    : (jobType == JobType.BATCH && isDynamicGraph
+        JobManagerOptions.SchedulerType schedulerType;
+        if (jobType == JobType.BATCH) {
+            schedulerType =
+                    configuration
+                            .getOptional(JobManagerOptions.SCHEDULER)
+                            .orElse(
+                                    isDynamicGraph
                                             ? JobManagerOptions.SchedulerType.AdaptiveBatch
-                                            : JobManagerOptions.SchedulerType.Default));
+                                            : JobManagerOptions.SchedulerType.Default);
+
+            if (schedulerType == JobManagerOptions.SchedulerType.Adaptive) {
+                LOG.info(
+                        "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to 'AdaptiveBatch'.");
+                schedulerType = JobManagerOptions.SchedulerType.AdaptiveBatch;
+            }
+        } else {
+            if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                    == SchedulerExecutionMode.REACTIVE) {
+                schedulerType = JobManagerOptions.SchedulerType.Adaptive;
+            } else {
+                schedulerType =
+                        configuration
+                                .getOptional(JobManagerOptions.SCHEDULER)
+                                .orElse(
+                                        System.getProperties()
+                                                        .containsKey(
+                                                                "flink.tests.enable-adaptive-scheduler")
+                                                ? JobManagerOptions.SchedulerType.Adaptive
+                                                : JobManagerOptions.SchedulerType.Default);
+            }
         }
+
+        if (schedulerType == JobManagerOptions.SchedulerType.Ng) {
+            LOG.warn(
+                    "Config value '{}' for option '{}' is deprecated, use '{}' instead.",
+                    JobManagerOptions.SchedulerType.Ng,
+                    JobManagerOptions.SCHEDULER.key(),
+                    JobManagerOptions.SchedulerType.Default);
+            // overwrite
+            schedulerType = JobManagerOptions.SchedulerType.Default;
+        }
+        return schedulerType;
     }
 
     @VisibleForTesting
