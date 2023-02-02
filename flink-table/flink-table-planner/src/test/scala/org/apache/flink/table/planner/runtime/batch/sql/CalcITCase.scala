@@ -1938,6 +1938,18 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       "SELECT IF(a = '' OR a IS NULL, 'a', 'b') FROM MyTable",
       Seq(row('a'), row('b'), row('a')))
+    checkResult(
+      "SELECT IF(a IN ('', ' ') OR a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('a')))
+    checkResult(
+      "SELECT IF(a IN ('', ' ') OR a IS NOT NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('a'), row('b')))
+    checkResult(
+      "SELECT IF(a NOT IN ('', ' ') OR a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('b'), row('a'), row('a')))
+    checkResult(
+      "SELECT IF(a NOT IN ('', ' ') OR a IS NOT NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('a'), row('b')))
   }
 
   @Test
