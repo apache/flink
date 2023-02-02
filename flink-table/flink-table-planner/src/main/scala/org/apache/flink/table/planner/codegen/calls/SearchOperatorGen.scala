@@ -96,7 +96,7 @@ object SearchOperatorGen {
            |boolean $nullTerm = true;
            |if (!${needle.nullTerm}) {
            |  $resultTerm = $negation$setTerm.contains(${needle.resultTerm});
-           |  $nullTerm = !$resultTerm && $setTerm.containsNull();
+           |  $nullTerm = false;
            |} else {
            |  $resultTerm = $setTerm.containsNull();
            |}
