@@ -399,6 +399,10 @@ class ResultPartitionTest {
         while (!isInBlockingBufferRequest(requestThread.getStackTrace())) {
             Thread.sleep(50);
         }
+        // there is an extreme case where the request thread recovers from blocking very
+        // quickly, resulting in a calculated back-pressure time is equal to 0. This is used to
+        // avoid this case.
+        Thread.sleep(5);
         // recycle the buffer
         buffer.recycleBuffer();
         requestThread.join();
