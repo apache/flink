@@ -105,12 +105,14 @@ The size of the buffer can be configured by setting `taskmanager.memory.segment-
 
 ### Input network buffers
 
-Buffers in the input channel are divided into exclusive and floating buffers.  Exclusive buffers can be used by only one particular channel.  A channel can request additional floating buffers from a buffer pool shared across all channels belonging to the given input gate. The remaining floating buffers are optional and are acquired only if there are enough resources available.
+The number of buffers in one pool calculated according to the above formula can be divided into two parts. The part below this configured value `taskmanager.network.memory.read-buffer.required-per-gate.max` is required. The excess part buffers, if any, is optional. A task will fail if the required buffers cannot be obtained in runtime. A task will not fail due to not obtaining optional buffers, but may suffer a performance reduction. If not explicitly configured, the default value is Integer.MAX_VALUE for streaming workloads, and 1000 for batch workloads.
+
+Generally, `taskmanager.network.memory.read-buffer.required-per-gate.max` need not configure, and the default value can fulfill most scenes. Setting the option to a lower value, at least 1, can avoid the "insufficient number of network buffers" exception as much as possible, but may reduce performance. Setting the option as Integer.MAX_VALUE to disable the required buffer limit, When disabled, more read buffers may be required, which is good for performance, but may lead to more easily throwing insufficient network buffers exceptions.
 
 In the initialization phase:
-- Flink will try to acquire the configured amount of exclusive buffers for each channel
-- all exclusive buffers must be fulfilled or the job will fail with an exception
-- a single floating buffer has to be allocated for Flink to be able to make progress
+- Get the effectively required buffers, determined by the min value between the number of buffers calculated according to the above formula and the configured required buffers by the option `taskmanager.network.memory.read-buffer.required-per-gate.max`.
+- When the total network buffers are less than the effectively required buffers, an exception will be thrown.
+- When the memory is sufficient, try to allocate the configured number of exclusive buffers to each channel. If the memory is insufficient, gradually reduce the number of exclusive buffers for each channel until all buffers are floating.
 
 ### Output network buffers
 
