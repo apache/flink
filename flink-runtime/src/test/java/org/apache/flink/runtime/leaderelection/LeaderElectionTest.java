@@ -192,7 +192,7 @@ public class LeaderElectionTest {
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() {
+        public LeaderElectionService createLeaderElectionService() throws Exception {
             return ZooKeeperUtils.createLeaderElectionService(
                     curatorFrameworkWrapper.asCuratorFramework());
         }

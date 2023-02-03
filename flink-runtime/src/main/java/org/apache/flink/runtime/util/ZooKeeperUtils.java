@@ -403,8 +403,8 @@ public class ZooKeeperUtils {
      * @param client The {@link CuratorFramework} ZooKeeper client to use
      * @return {@link DefaultLeaderElectionService} instance.
      */
-    public static DefaultLeaderElectionService createLeaderElectionService(
-            CuratorFramework client) {
+    public static DefaultLeaderElectionService createLeaderElectionService(CuratorFramework client)
+            throws Exception {
 
         return createLeaderElectionService(client, "");
     }
@@ -418,8 +418,12 @@ public class ZooKeeperUtils {
      * @return {@link DefaultLeaderElectionService} instance.
      */
     public static DefaultLeaderElectionService createLeaderElectionService(
-            final CuratorFramework client, final String path) {
-        return new DefaultLeaderElectionService(createLeaderElectionDriverFactory(client, path));
+            final CuratorFramework client, final String path) throws Exception {
+        final DefaultLeaderElectionService leaderElectionService =
+                new DefaultLeaderElectionService(createLeaderElectionDriverFactory(client, path));
+        leaderElectionService.startLeaderElectionBackend();
+
+        return leaderElectionService;
     }
 
     /**

@@ -80,7 +80,10 @@ public class TestingGenericLeaderContender implements LeaderContender {
     public static class Builder {
         private Consumer<UUID> grantLeadershipConsumer = ignoredSessionID -> {};
         private Runnable revokeLeadershipRunnable = () -> {};
-        private Consumer<Exception> handleErrorConsumer = ignoredError -> {};
+        private Consumer<Exception> handleErrorConsumer =
+                error -> {
+                    throw new AssertionError(error);
+                };
         private Supplier<String> getDescriptionSupplier = () -> "testing contender";
 
         private Builder() {}
