@@ -266,16 +266,20 @@ public class SessionContext {
     // Helpers
     // ------------------------------------------------------------------------------------------------------------------
 
-    public TableEnvironmentInternal createTableEnvironment() {
+    public TableEnvironmentInternal createTableEnvironment(Configuration executionConfig) {
         // checks the value of RUNTIME_MODE
         final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().withConfiguration(sessionConf).build();
+                EnvironmentSettings.newInstance()
+                        .withConfiguration(sessionConf)
+                        .withConfiguration(executionConfig)
+                        .build();
 
         StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
 
         TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.setRootConfiguration(defaultContext.getFlinkConfig());
         tableConfig.addConfiguration(sessionConf);
+        tableConfig.addConfiguration(executionConfig);
 
         final Executor executor = lookupExecutor(streamExecEnv, userClassloader);
         return createStreamTableEnvironment(
