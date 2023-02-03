@@ -18,28 +18,22 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraphGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
-import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.calcite.rel.RelNode;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collections;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /** Tests for {@link ResetTransformationProcessor}. */
 public class ResetTransformationProcessorTest extends TableTestBase {
@@ -78,7 +72,7 @@ public class ResetTransformationProcessorTest extends TableTestBase {
     @Test
     public void testResetTransformation() {
         String query = "SELECT * FROM Source1 WHERE a > 100";
-        ExecNodeGraph execNodeGraph = createExecNodeGraph(query);
+        ExecNodeGraph execNodeGraph = TableTestUtil.toExecNodeGraph(tEnv, query);
         execNodeGraph.getRootNodes().forEach(node -> node.translateToPlan(util.getPlanner()));
         assertAllTransformationsIsNotNull(execNodeGraph);
 
@@ -94,7 +88,7 @@ public class ResetTransformationProcessorTest extends TableTestBase {
         String query =
                 "SELECT Source1.a FROM Source1, Source2 "
                         + "WHERE Source1.a = Source2.a AND Source2.a = (SELECT Source2.a FROM Source2 WHERE b > 100)";
-        ExecNodeGraph execNodeGraph = createExecNodeGraph(query);
+        ExecNodeGraph execNodeGraph = TableTestUtil.toExecNodeGraph(tEnv, query);
 
         MultipleInputNodeCreationProcessor multipleInputNodeCreationProcessor =
                 new MultipleInputNodeCreationProcessor(false);
@@ -113,24 +107,16 @@ public class ResetTransformationProcessorTest extends TableTestBase {
         assertAllTransformationsIsNull(execNodeGraph);
     }
 
-    private ExecNodeGraph createExecNodeGraph(String query) {
-        Table table = tEnv.sqlQuery(query);
-        RelNode relNode = TableTestUtil.toRelNode(table);
-        FlinkPhysicalRel optimizedRel = (FlinkPhysicalRel) util.getPlanner().optimize(relNode);
-        ExecNodeGraphGenerator generator = new ExecNodeGraphGenerator();
-        return generator.generate(Collections.singletonList(optimizedRel), false);
-    }
-
     private void assertAllTransformationsIsNotNull(ExecNodeGraph execNodeGraph) {
         AbstractExecNodeExactlyOnceVisitor visitor =
                 new AbstractExecNodeExactlyOnceVisitor() {
                     @Override
                     protected void visitNode(ExecNode<?> node) {
-                        assertFalse(((ExecNodeBase<?>) node).isTransformationNull());
+                        assertNotNull(((ExecNodeBase<?>) node).getTransformation());
                         visitInputs(node);
                         if (node instanceof BatchExecMultipleInput) {
                             ExecNode<?> rootNode = ((BatchExecMultipleInput) node).getRootNode();
-                            assertFalse(((ExecNodeBase<?>) rootNode).isTransformationNull());
+                            assertNotNull(((ExecNodeBase<?>) node).getTransformation());
                             visitInputs(rootNode);
                         }
                     }
@@ -143,11 +129,11 @@ public class ResetTransformationProcessorTest extends TableTestBase {
                 new AbstractExecNodeExactlyOnceVisitor() {
                     @Override
                     protected void visitNode(ExecNode<?> node) {
-                        assertTrue(((ExecNodeBase<?>) node).isTransformationNull());
+                        assertNull(((ExecNodeBase<?>) node).getTransformation());
                         visitInputs(node);
                         if (node instanceof BatchExecMultipleInput) {
                             ExecNode<?> rootNode = ((BatchExecMultipleInput) node).getRootNode();
-                            assertTrue(((ExecNodeBase<?>) rootNode).isTransformationNull());
+                            assertNull(((ExecNodeBase<?>) node).getTransformation());
                             visitInputs(rootNode);
                         }
                     }

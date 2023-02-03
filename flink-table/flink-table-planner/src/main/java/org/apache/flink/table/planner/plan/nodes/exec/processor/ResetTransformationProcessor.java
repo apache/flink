@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 
 /**
@@ -39,13 +38,6 @@ public class ResetTransformationProcessor implements ExecNodeGraphProcessor {
                     protected void visitNode(ExecNode<?> node) {
                         ((ExecNodeBase<?>) node).resetTransformation();
                         visitInputs(node);
-                        // For BatchExecMultipleInput, we also need to reset transformation for
-                        // rootNode in BatchExecMultipleInput.
-                        if (node instanceof BatchExecMultipleInput) {
-                            ExecNode<?> rootNode = ((BatchExecMultipleInput) node).getRootNode();
-                            ((ExecNodeBase<?>) rootNode).resetTransformation();
-                            visitInputs(rootNode);
-                        }
                     }
                 };
         execGraph.getRootNodes().forEach(r -> r.accept(visitor));

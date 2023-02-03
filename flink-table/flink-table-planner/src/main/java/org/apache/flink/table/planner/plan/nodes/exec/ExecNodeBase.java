@@ -279,7 +279,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @VisibleForTesting
-    public boolean isTransformationNull() {
-        return this.transformation == null;
+    public Transformation<T> getTransformation() {
+        return this.transformation;
     }
 }
