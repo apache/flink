@@ -37,16 +37,17 @@ import java.util.UUID;
 public interface LeaderElectionService {
 
     /**
-     * Starts the leader election service. This method can only be called once.
+     * Registers the passed {@link LeaderContender} with this {@code LeaderElectionService}. This
+     * method can only be called once.
      *
      * @param contender LeaderContender which applies for the leadership
-     * @throws Exception
      */
     void start(LeaderContender contender) throws Exception;
 
     /**
-     * Stops the leader election service. Stopping the {@code LeaderElectionService} will trigger
-     * {@link LeaderContender#revokeLeadership()} if the service still holds the leadership.
+     * Ends the participation of the registered {@link LeaderContender} in the leader election
+     * process. This will trigger {@link LeaderContender#revokeLeadership()} if the service still
+     * holds the leadership.
      *
      * @throws Exception if an error occurs while stopping the {@code LeaderElectionService}.
      */

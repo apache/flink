@@ -125,14 +125,14 @@ public interface HighAvailabilityServices
      *
      * @return Leader election service for the resource manager leader election
      */
-    LeaderElectionService getResourceManagerLeaderElectionService();
+    LeaderElectionService getResourceManagerLeaderElectionService() throws Exception;
 
     /**
      * Gets the leader election service for the cluster's dispatcher.
      *
      * @return Leader election service for the dispatcher leader election
      */
-    LeaderElectionService getDispatcherLeaderElectionService();
+    LeaderElectionService getDispatcherLeaderElectionService() throws Exception;
 
     /**
      * Gets the leader election service for the given job.
@@ -140,7 +140,7 @@ public interface HighAvailabilityServices
      * @param jobID The identifier of the job running the election.
      * @return Leader election service for the job manager leader election
      */
-    LeaderElectionService getJobManagerLeaderElectionService(JobID jobID);
+    LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) throws Exception;
 
     /**
      * Gets the leader election service for the cluster's rest endpoint.
@@ -194,7 +194,7 @@ public interface HighAvailabilityServices
      *
      * @return the leader election service used by the cluster's rest endpoint
      */
-    default LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+    default LeaderElectionService getClusterRestEndpointLeaderElectionService() throws Exception {
         // for backwards compatibility we delegate to getWebMonitorLeaderElectionService
         // all implementations of this interface should override
         // getClusterRestEndpointLeaderElectionService, though

@@ -139,6 +139,7 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                 new ZooKeeperLeaderElectionDriverFactory(client, PATH);
         DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(leaderElectionDriverFactory);
+        leaderElectionService.startLeaderElectionBackend();
 
         try {
             final TestingConnectionStateListener connectionStateListener =
@@ -165,6 +166,7 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
             validationLogic.accept(connectionStateListener, contender);
         } finally {
             leaderElectionService.stop();
+            leaderElectionService.close();
             curatorFrameworkWrapper.close();
 
             if (problem == Problem.LOST_CONNECTION) {

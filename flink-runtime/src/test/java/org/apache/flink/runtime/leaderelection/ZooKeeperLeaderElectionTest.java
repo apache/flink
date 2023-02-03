@@ -220,6 +220,7 @@ class ZooKeeperLeaderElectionTest {
                                 "Stop leader election service of contender #{}.",
                                 numberSeenLeaders);
                         leaderElectionService[index].stop();
+                        leaderElectionService[index].close();
                         leaderElectionService[index] = null;
 
                         numberSeenLeaders++;
@@ -241,6 +242,7 @@ class ZooKeeperLeaderElectionTest {
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
                     electionService.stop();
+                    electionService.close();
                 }
             }
         }
@@ -302,6 +304,8 @@ class ZooKeeperLeaderElectionTest {
 
                     // stop leader election service = revoke leadership
                     leaderElectionService[index].stop();
+                    leaderElectionService[index].close();
+
                     // create new leader election service which takes part in the leader election
                     leaderElectionService[index] =
                             ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
@@ -324,6 +328,7 @@ class ZooKeeperLeaderElectionTest {
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
                     electionService.stop();
+                    electionService.close();
                 }
             }
         }

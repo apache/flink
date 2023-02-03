@@ -680,8 +680,9 @@ class JobMasterServiceLeadershipRunnerTest {
 
         // we need to use DefaultLeaderElectionService here because JobMasterServiceLeadershipRunner
         // in connection with the DefaultLeaderElectionService generates the nested locking
-        final LeaderElectionService defaultLeaderElectionService =
+        final DefaultLeaderElectionService defaultLeaderElectionService =
                 new DefaultLeaderElectionService(testingLeaderElectionDriverFactory);
+        defaultLeaderElectionService.startLeaderElectionBackend();
 
         // latch to detect when we reached the first synchronized section having a lock on the
         // JobMasterServiceProcess#stop side
@@ -772,7 +773,15 @@ class JobMasterServiceLeadershipRunnerTest {
             closeAsyncCalledTrigger.await();
 
             final CheckedThread grantLeadershipThread =
-                    createCheckedThread(currentLeaderDriver::isLeader);
+                    createCheckedThread(
+                            () -> {
+                                // DefaultLeaderElectionService enforces a proper event handling
+                                // order (i.e. no two grant or revoke events should appear after
+                                // each other). This requires the leadership to be revoked before
+                                // regaining leadership in this test.
+                                currentLeaderDriver.notLeader();
+                                currentLeaderDriver.isLeader();
+                            });
             grantLeadershipThread.start();
 
             // finalize ClassloaderLease release to trigger DefaultLeaderElectionService#stop
