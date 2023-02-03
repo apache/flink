@@ -25,12 +25,12 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.logical.LogicalCalc;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.rules.FilterCalcMergeRule;
-import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Extends calcite's FilterCalcMergeRule for streaming scenario, modification: does not merge the
@@ -49,16 +49,15 @@ public class FlinkFilterCalcMergeRule extends FilterCalcMergeRule {
         LogicalFilter filter = call.rel(0);
         LogicalCalc calc = call.rel(1);
 
-        List<RexNode> projectExprs = calc.getProgram().getExprList();
-        List<RexLocalRef> projects = calc.getProgram().getProjectList();
+        List<RexNode> expandProjects =
+                calc.getProgram().getProjectList().stream()
+                        .map(p -> calc.getProgram().expandLocalRef(p))
+                        .collect(Collectors.toList());
         InputRefVisitor inputRefVisitor = new InputRefVisitor();
         filter.getCondition().accept(inputRefVisitor);
         boolean existNonDeterministicRef =
                 Arrays.stream(inputRefVisitor.getFields())
-                        .anyMatch(
-                                i ->
-                                        !RexUtil.isDeterministic(
-                                                projectExprs.get(projects.get(i).getIndex())));
+                        .anyMatch(i -> !RexUtil.isDeterministic(expandProjects.get(i)));
 
         if (!existNonDeterministicRef) {
             super.onMatch(call);

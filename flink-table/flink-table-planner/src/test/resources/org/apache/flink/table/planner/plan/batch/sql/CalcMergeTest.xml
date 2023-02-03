@@ -92,6 +92,26 @@ Calc(select=[c], where=[(random_udf(a) > random_udf(b))])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalcMergeWithNonDeterministicExpr1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, a1 FROM (SELECT a, random_udf(a) AS a1 FROM MyTable) t WHERE a1 > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], a1=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a=[$0], a1=[random_udf($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, a1], where=[(a1 > 10)])
++- Calc(select=[a, random_udf(a) AS a1])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCalcMergeWithNonDeterministicExpr2">
     <Resource name="sql">
       <![CDATA[SELECT random_udf(a1) as a2 FROM (SELECT random_udf(a) as a1, b FROM MyTable) t WHERE b > 10]]>
@@ -111,22 +131,23 @@ Calc(select=[random_udf(random_udf(a)) AS a2], where=[(b > 10)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCalcMergeWithoutInnerNonDeterministicExpr">
+  <TestCase name="testCalcMergeWithNonDeterministicNestedExpr">
     <Resource name="sql">
-      <![CDATA[SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10]]>
+      <![CDATA[SELECT a, a1 FROM (SELECT a, substr(cast(random_udf(a) as varchar), 1, 2) AS a1 FROM MyTable) t WHERE a1 > '10']]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
-+- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
-   +- LogicalProject(a=[$0], a1=[random_udf($0)], c=[$2])
+LogicalProject(a=[$0], a1=[$1])
++- LogicalFilter(condition=[>($1, _UTF-16LE'10')])
+   +- LogicalProject(a=[$0], a1=[SUBSTR(CAST(random_udf($0)):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, c], where=[(CAST(c AS BIGINT) > 10)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, c], metadata=[]]], fields=[a, c])
+Calc(select=[a, a1], where=[(a1 > '10')])
++- Calc(select=[a, SUBSTR(CAST(random_udf(a) AS VARCHAR(2147483647)), 1, 2) AS a1])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
 ]]>
     </Resource>
   </TestCase>
@@ -150,23 +171,22 @@ Calc(select=[a, b], where=[(a = b)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCalcMergeWithNonDeterministicExpr1">
+  <TestCase name="testCalcMergeWithoutInnerNonDeterministicExpr">
     <Resource name="sql">
-      <![CDATA[SELECT a, a1 FROM (SELECT a, random_udf(a) AS a1 FROM MyTable) t WHERE a1 > 10]]>
+      <![CDATA[SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a1=[$1])
-+- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a=[$0], a1=[random_udf($0)])
+LogicalProject(a=[$0], c=[$2])
++- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
+   +- LogicalProject(a=[$0], a1=[random_udf($0)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, a1], where=[(a1 > 10)])
-+- Calc(select=[a, random_udf(a) AS a1])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
+Calc(select=[a, c], where=[(CAST(c AS BIGINT) > 10)])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, c], metadata=[]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>

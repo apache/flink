@@ -107,4 +107,10 @@ public abstract class CalcMergeTestBase extends TableTestBase {
         util.verifyExecPlan(
                 "SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10");
     }
+
+    @Test
+    public void testCalcMergeWithNonDeterministicNestedExpr() {
+        util.verifyExecPlan(
+                "SELECT a, a1 FROM (SELECT a, substr(cast(random_udf(a) as varchar), 1, 2) AS a1 FROM MyTable) t WHERE a1 > '10'");
+    }
 }
