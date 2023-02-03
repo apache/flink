@@ -347,8 +347,11 @@ GroupAggregate(..., changelogMode=[I,UA,D])
 ```
 
 **PLAN_ADVICE**
+{{< hint info >}}
+`PLAN_ADVICE` is supported since Flink version 1.17.
+{{< /hint >}}
 
-Specify `PLAN_ADVICE` will inform the optimizer to analyze the optimized physical plan to provide the potential risk warnings and optimization advice.
+Specify `PLAN_ADVICE` will inform the optimizer to analyze the optimized physical plan to provide the potential risk warnings and/or optimization advice.
 Meanwhile, it will change the title of "Optimized Physical Plan" to "Optimized Physical Plan with Advice" as the highlight.
 
 Plan advice is categorized by **Kind** and **Scope**.
@@ -364,8 +367,8 @@ Plan advice is categorized by **Kind** and **Scope**.
 | QUERY_LEVEL  | It provides advice from a global view, targeting the entire query |
 | NODE_LEVEL   | It provides advice to a specific rel node                         |
 
-Currently, Flink SQL provides the plan advice targeting the following issues
-- Data Skewness (see more details at [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation))
+Flink SQL provides the plan advice targeting the following issues
+- Data Skewness caused by Group Aggregation (see more details at [Group Aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}#group-aggregation) and [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation))
 - Non-deterministic Updates (*abbr.* NDU, see more details at [Determinism In Continuous Queries]({{< ref "docs/dev/table/concepts/determinism" >}}#3-determinism-in-streaming-processing))
 
 

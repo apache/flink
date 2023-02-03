@@ -353,6 +353,9 @@ GroupAggregate(..., changelogMode=[I,UA,D])
 ```
 
 **PLAN_ADVICE**
+{{< hint info >}}
+从 Flink 1.17 版本开始支持 `PLAN_ADVICE`。
+{{< /hint >}}
 
 指定 `PLAN_ADVICE` 将使得优化器（optimizer）分析优化后的物理执行计划并提供潜在的数据风险预警或性能调优建议。
 此时输出标题将会从 “Optimized Physical Plan” 变为 “Optimized Physical Plan with Advice” 作为提示。
@@ -370,12 +373,12 @@ GroupAggregate(..., changelogMode=[I,UA,D])
 | QUERY_LEVEL | 针对整个 SQL 的建议 |
 | NODE_LEVEL  | 针对单个物理节点的建议  |
 
-目前 Flink SQL 提供针对如下问题的建议
-- 数据倾斜（更多信息请参阅 [性能调优]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation)）
+`PLAN_ADVICE` 提供针对如下问题的建议
+- 分组聚合（Group Aggregation）时产生的数据倾斜（更多信息请参阅 [分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}}#group-aggregation) 和 [性能调优]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation)）
 - 非确定性更新（*abbr.* NDU，更多信息请参阅 [流上的确定性]({{< ref "docs/dev/table/concepts/determinism" >}}#3-determinism-in-streaming-processing)）
 
 
-若检测到 `GroupAggregate` 可以启用两阶段优化，优化器（optimizer）将会把建议 id 附在 `GroupAggregate` 节点内作为索引，在最后附上建议内容。
+若检测到分组聚合可以启用两阶段优化但未开启时，优化器（optimizer）将会把建议 id 附在 `GroupAggregate` 节点内作为索引，在最后附上建议内容。
 {{< tabs "Data Skewness" >}}
 
 {{< tab "SQL1" >}}
@@ -422,7 +425,7 @@ advice[1]: [ADVICE] You might want to enable local-global two-phase optimization
 {{< /tabs>}}
 
 
-若检测到 NDU 问题，优化器（optimizer）将会把建议内容附在最后。
+若检测到存在 NDU 问题风险时，优化器（optimizer）将会把建议内容附在最后。
 {{< tabs "Non-deterministic Updates" >}}
 
 {{< tab "SQL2" >}}
@@ -476,7 +479,7 @@ Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], 
 {{< /tabs>}}
 
 
-若未检测到问题检测到问题，优化器（optimizer）将会在计划最后附上 “No available advice” 作为提示。
+若未检测到问题，优化器（optimizer）将会在计划最后附上 “No available advice” 作为提示。
 {{< tabs "Default" >}}
 
 {{< tab "SQL3" >}}
