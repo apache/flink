@@ -79,6 +79,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -262,15 +263,24 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
     public static HybridPartitionDataConsumeConstraint
             getOrDecideHybridPartitionDataConsumeConstraint(
                     Configuration configuration, boolean enableSpeculativeExecution) {
-        final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
+        final boolean enableAutoParallelism =
+                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED);
+        HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
                 configuration
                         .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
                         .orElseGet(
                                 () -> {
                                     HybridPartitionDataConsumeConstraint defaultConstraint =
-                                            enableSpeculativeExecution
-                                                    ? ONLY_FINISHED_PRODUCERS
-                                                    : UNFINISHED_PRODUCERS;
+                                            enableAutoParallelism
+                                                    ?
+                                                    // If enable auto parallelism, only supports
+                                                    // ALL_PRODUCERS_FINISHED constrain as
+                                                    // consumer's parallelism is decided only when
+                                                    // all producer finished.
+                                                    ALL_PRODUCERS_FINISHED
+                                                    : (enableSpeculativeExecution
+                                                            ? ONLY_FINISHED_PRODUCERS
+                                                            : UNFINISHED_PRODUCERS);
                                     LOG.info(
                                             "Set {} to {} as it is not configured",
                                             JobManagerOptions
@@ -279,6 +289,15 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                             defaultConstraint.name());
                                     return defaultConstraint;
                                 });
+        if (enableAutoParallelism
+                && hybridPartitionDataConsumeConstraint != ALL_PRODUCERS_FINISHED) {
+            hybridPartitionDataConsumeConstraint = ALL_PRODUCERS_FINISHED;
+            LOG.info(
+                    "{} is overwritten to {} as auto parallelism is enabled.",
+                    JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT.key(),
+                    hybridPartitionDataConsumeConstraint.name());
+        }
+
         if (enableSpeculativeExecution) {
             Preconditions.checkState(
                     hybridPartitionDataConsumeConstraint != UNFINISHED_PRODUCERS,

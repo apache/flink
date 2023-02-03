@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
@@ -52,6 +53,17 @@ class AdaptiveBatchSchedulerFactoryTest {
         HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
                 getOrDecideHybridPartitionDataConsumeConstraint(new Configuration(), true);
         assertThat(hybridPartitionDataConsumeConstraint.isOnlyConsumeFinishedPartition()).isTrue();
+    }
+
+    @Test
+    void testAllProducerFinishedWillSetForAutoParallelismEnabled() {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT, UNFINISHED_PRODUCERS);
+        configuration.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, true);
+        HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
+                getOrDecideHybridPartitionDataConsumeConstraint(configuration, true);
+        assertThat(hybridPartitionDataConsumeConstraint).isEqualTo(ALL_PRODUCERS_FINISHED);
     }
 
     @Test
