@@ -66,7 +66,7 @@ If [SSL]({{< ref "docs/deployment/security/security-ssl" >}}) is enabled, the `f
 The memory usage of `mmap` is not accounted for by configured memory limits, but some resource frameworks like Yarn will track this memory usage and kill the container if memory exceeds some threshold.
 {{< /hint >}}
 
-`Hash Shuffle` works well for small scale jobs with SSD, but it also have some disadvantages:
+`Hash Shuffle` works well for small scale jobs with SSD, but it also has some disadvantages:
 
 1. If the job scale is large, it might create too many files, and it requires a large write buffer to write these files at the same time.
 2. On HDD, when multiple downstream tasks fetch their data simultaneously, it might incur the issue of random IO.

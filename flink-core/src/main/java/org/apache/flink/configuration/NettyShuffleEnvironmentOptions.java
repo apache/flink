@@ -180,57 +180,13 @@ public class NettyShuffleEnvironmentOptions {
                             "The maximum number of tpc connections between taskmanagers for data communication.");
 
     /**
-     * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
-     * channel). The minimum valid value that can be configured is 0. When 0 buffers-per-channel is
-     * configured, the exclusive network buffers used per downstream incoming channel will be 0, but
-     * for each upstream outgoing channel, max(1, configured value) will be used. In other words we
-     * ensure that, for performance reasons, there is at least one buffer per outgoing channel
-     * regardless of the configuration.
-     *
-     * <p>Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel
-     * serialization.
-     */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
-            key("taskmanager.network.memory.buffers-per-channel")
-                    .intType()
-                    .defaultValue(2)
-                    .withDescription(
-                            "Number of exclusive network buffers to use for each outgoing/incoming "
-                                    + "channel (subpartition/input channel) in the credit-based flow"
-                                    + " control model. It should be configured at least 2 for good "
-                                    + "performance. 1 buffer is for receiving in-flight data in the"
-                                    + " subpartition and 1 buffer is for parallel serialization. The"
-                                    + " minimum valid value that can be configured is 0. When 0 "
-                                    + "buffers-per-channel is configured, the exclusive network "
-                                    + "buffers used per downstream incoming channel will be 0, but "
-                                    + "for each upstream outgoing channel, max(1, configured value)"
-                                    + " will be used. In other words we ensure that, for performance"
-                                    + " reasons, there is at least one buffer per outgoing channel "
-                                    + "regardless of the configuration.");
-
-    /**
-     * Number of extra network buffers to use for each outgoing/incoming gate (result
-     * partition/input gate).
-     */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
-            key("taskmanager.network.memory.floating-buffers-per-gate")
-                    .intType()
-                    .defaultValue(8)
-                    .withDescription(
-                            "Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)."
-                                    + " In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels."
-                                    + " The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can"
-                                    + " help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be"
-                                    + " increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
-
-    /**
-     * Maximum number of network buffers to use for each outgoing/incoming gate (result
-     * partition/input gate), which contains all exclusive network buffers for all subpartitions and
-     * all floating buffers for the gate. The exclusive network buffers for one channel is
-     * configured by {@link #NETWORK_BUFFERS_PER_CHANNEL} and the floating buffers for one gate is
-     * configured by {@link #NETWORK_EXTRA_BUFFERS_PER_GATE}.
+     * The maximum number of network read buffers that are required by an input gate. (An input gate
+     * is responsible for reading data from all subtasks of an upstream task.) The number of buffers
+     * needed by an input gate is dynamically calculated in runtime, depending on various factors
+     * (e.g., the parallelism of the upstream task). Among the calculated number of needed buffers,
+     * the part below this configured value is required, while the excess part, if any, is optional.
+     * A task will fail if the required buffers cannot be obtained in runtime. A task will not fail
+     * due to not obtaining optional buffers, but may suffer a performance reduction.
      */
     @Experimental
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
@@ -253,6 +209,66 @@ public class NettyShuffleEnvironmentOptions {
                                     + " the default value is Integer.MAX_VALUE for streaming workloads,"
                                     + " and 1000 for batch workloads. If explicitly configured, the"
                                     + " configured value should be at least 1.");
+
+    /**
+     * Number of network buffers for each outgoing/incoming channel (subpartition/input channel).
+     * The minimum valid value for the option is 0. When the option is configured as 0, the
+     * exclusive network buffers used per downstream incoming channel will be 0, but for each
+     * upstream outgoing channel, max(1, configured value) will be used. In other words we ensure
+     * that, for performance reasons, at least one buffer is used per outgoing channel regardless of
+     * the configuration.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
+            key("taskmanager.network.memory.buffers-per-channel")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            String.format(
+                                    "Number of exclusive network buffers for each outgoing/incoming"
+                                            + " channel (subpartition/input channel) in the credit-based"
+                                            + " flow control model. For the outgoing channel(subpartition),"
+                                            + " this value is the effective exclusive buffers per channel."
+                                            + " For the incoming channel(input channel), this value"
+                                            + " is the max number of exclusive buffers per channel,"
+                                            + " the number of effective exclusive network buffers per"
+                                            + " channel is dynamically calculated from %s and the"
+                                            + " effective range is from 0 to the configured value."
+                                            + " The minimum valid value for the option is 0. When"
+                                            + " the option is configured as 0, the exclusive network"
+                                            + " buffers used by downstream incoming channel will be"
+                                            + " 0, but for each upstream outgoing channel, max(1,"
+                                            + " configured value) will be used. In other words, we"
+                                            + " ensure that, for performance reasons, at least one"
+                                            + " buffer is used per outgoing channel regardless of"
+                                            + " the configuration.",
+                                    NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE.key()));
+
+    /**
+     * Number of floating network buffers for each outgoing/incoming gate (result partition/input
+     * gate).
+     */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
+            key("taskmanager.network.memory.floating-buffers-per-gate")
+                    .intType()
+                    .defaultValue(8)
+                    .withDescription(
+                            String.format(
+                                    "Number of floating network buffers for each outgoing/incoming"
+                                            + " gate (result partition/input gate). In credit-based"
+                                            + " flow control mode, this indicates how many floating"
+                                            + " credits are shared among all the channels. The floating"
+                                            + " buffers can help relieve back-pressure caused by"
+                                            + " unbalanced data distribution among the subpartitions."
+                                            + " For the outgoing gate(result partition), this value"
+                                            + " is the effective floating buffers per gate. For the"
+                                            + " incoming gate(input gate), this value is a recommended"
+                                            + " number of floating buffers, the number of effective"
+                                            + " floating network buffers per gate is dynamically"
+                                            + " calculated from %s and the range of effective floating"
+                                            + " buffers is from 0 to (parallelism - 1).",
+                                    NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE.key()));
 
     /**
      * Minimum number of network buffers required per blocking result partition for sort-shuffle.
