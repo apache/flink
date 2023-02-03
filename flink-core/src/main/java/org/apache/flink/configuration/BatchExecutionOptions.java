@@ -114,7 +114,7 @@ public class BatchExecutionOptions {
 
     @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
     public static final ConfigOption<Boolean> SPECULATIVE_ENABLED =
-            key("execution.batch.adaptive.speculative.enabled")
+            key("execution.batch.speculative.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDeprecatedKeys("jobmanager.adaptive-batch-scheduler.speculative.enabled")
