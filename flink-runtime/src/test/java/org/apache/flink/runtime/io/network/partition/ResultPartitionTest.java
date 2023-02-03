@@ -43,6 +43,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
+import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -405,8 +406,14 @@ public class ResultPartitionTest {
         // wait until request thread start to run.
         syncLock.await();
 
-        Thread.sleep(100);
-
+        // wait until request buffer blocking.
+        while (!isInBlockingBufferRequest(requestThread.getStackTrace())) {
+            Thread.sleep(50);
+        }
+        // there is an extreme case where the request thread recovers from blocking very
+        // quickly, resulting in a calculated back-pressure time is equal to 0. This is used to
+        // avoid this case.
+        Thread.sleep(5);
         // recycle the buffer
         buffer.recycleBuffer();
         requestThread.join();
