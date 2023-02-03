@@ -126,6 +126,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -231,6 +232,27 @@ public class DispatcherTest extends AbstractDispatcherTest {
         haServices.getJobResultStore().markResultAsClean(jobGraph.getJobID());
 
         assertDuplicateJobSubmission();
+    }
+
+    @Test
+    public void testDuplicateJobSubmissionIsDetected() throws Exception {
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new TestingJobMasterServiceLeadershipRunnerFactory());
+
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        final CompletableFuture<Acknowledge> firstSubmission =
+                dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+        final CompletableFuture<Acknowledge> secondSubmission =
+                dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+
+        firstSubmission.join();
+        Assertions.assertThatExceptionOfType(CompletionException.class)
+                .isThrownBy(secondSubmission::join)
+                .withCauseInstanceOf(DuplicateJobSubmissionException.class);
     }
 
     private void assertDuplicateJobSubmission() throws Exception {
