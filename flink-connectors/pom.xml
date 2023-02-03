@@ -45,6 +45,7 @@ under the License.
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
 		<module>flink-connector-datagen</module>
+		<module>flink-connector-hybrid</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up

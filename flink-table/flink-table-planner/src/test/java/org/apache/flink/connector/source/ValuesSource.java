@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.SupportsSwitchedStartTimestamp;
 import org.apache.flink.connector.source.enumerator.NoOpEnumState;
 import org.apache.flink.connector.source.enumerator.NoOpEnumStateSerializer;
 import org.apache.flink.connector.source.enumerator.ValuesSourceEnumerator;
@@ -52,7 +53,9 @@ import java.util.stream.IntStream;
  * must be 1. RowData is not serializable and the parallelism of table source may not be 1, so we
  * introduce a new source for testing in table module.
  */
-public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnumState> {
+public class ValuesSource
+        implements Source<RowData, ValuesSourceSplit, NoOpEnumState>,
+                SupportsSwitchedStartTimestamp {
     private final TypeSerializer<RowData> serializer;
 
     private final List<byte[]> serializedElements;
@@ -117,4 +120,7 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
     public SimpleVersionedSerializer<NoOpEnumState> getEnumeratorCheckpointSerializer() {
         return new NoOpEnumStateSerializer();
     }
+
+    @Override
+    public void applySwitchedStartTimestamp(long startTimestamp) {}
 }

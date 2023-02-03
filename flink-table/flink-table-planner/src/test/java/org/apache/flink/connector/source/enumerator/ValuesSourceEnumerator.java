@@ -20,6 +20,7 @@ package org.apache.flink.connector.source.enumerator;
 
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.SupportsGetEndTimestamp;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.connector.source.split.ValuesSourceSplit;
 
@@ -34,7 +35,8 @@ import java.util.Queue;
  * A {@link SplitEnumerator} for {@link ValuesSource}. Simply takes the pre-split set of splits and
  * assigns it first-come-first-serve.
  */
-public class ValuesSourceEnumerator implements SplitEnumerator<ValuesSourceSplit, NoOpEnumState> {
+public class ValuesSourceEnumerator
+        implements SplitEnumerator<ValuesSourceSplit, NoOpEnumState>, SupportsGetEndTimestamp {
 
     private final SplitEnumeratorContext<ValuesSourceSplit> context;
     private final Queue<ValuesSourceSplit> remainingSplits;
@@ -78,4 +80,9 @@ public class ValuesSourceEnumerator implements SplitEnumerator<ValuesSourceSplit
 
     @Override
     public void close() throws IOException {}
+
+    @Override
+    public long getEndTimestamp() {
+        return 0;
+    }
 }

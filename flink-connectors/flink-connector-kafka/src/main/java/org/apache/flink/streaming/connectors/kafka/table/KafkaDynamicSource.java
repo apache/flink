@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
@@ -41,7 +42,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.format.DecodingFormat;
-import org.apache.flink.table.connector.source.DataStreamScanProvider;
+import org.apache.flink.table.connector.source.DataStreamScanSourceAbilityProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
@@ -249,7 +250,7 @@ public class KafkaDynamicSource
         final KafkaSource<RowData> kafkaSource =
                 createKafkaSource(keyDeserialization, valueDeserialization, producedTypeInfo);
 
-        return new DataStreamScanProvider() {
+        return new DataStreamScanSourceAbilityProvider<Source<RowData, ?, ?>>() {
             @Override
             public DataStream<RowData> produceDataStream(
                     ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
@@ -261,6 +262,11 @@ public class KafkaDynamicSource
                                 kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
                 providerContext.generateUid(KAFKA_TRANSFORMATION).ifPresent(sourceStream::uid);
                 return sourceStream;
+            }
+
+            @Override
+            public Source<RowData, ?, ?> createSource() {
+                return kafkaSource;
             }
 
             @Override
