@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
@@ -34,6 +35,7 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -94,14 +96,14 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     @Override
     public Optional<VertexParallelismWithSlotSharing> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
-        // TODO: This can waste slots if the max parallelism for slot sharing groups is not equal
-        final int slotsPerSlotSharingGroup =
-                freeSlots.size() / jobInformation.getSlotSharingGroups().size();
 
-        if (slotsPerSlotSharingGroup == 0) {
-            // => less slots than slot-sharing groups
+        // => less slots than slot-sharing groups
+        if (jobInformation.getSlotSharingGroups().size() > freeSlots.size()) {
             return Optional.empty();
         }
+
+        final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism =
+                determineSlotsPerSharingGroup(jobInformation, freeSlots.size());
 
         final Iterator<? extends SlotInfo> slotIterator = freeSlots.iterator();
 
@@ -115,7 +117,10 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                             .collect(Collectors.toList());
 
             final Map<JobVertexID, Integer> vertexParallelism =
-                    determineParallelism(containedJobVertices, slotsPerSlotSharingGroup);
+                    determineVertexParallelism(
+                            containedJobVertices,
+                            slotSharingGroupParallelism.get(
+                                    slotSharingGroup.getSlotSharingGroupId()));
 
             final Iterable<ExecutionSlotSharingGroup> sharedSlotToVertexAssignment =
                     createExecutionSlotSharingGroups(vertexParallelism);
@@ -133,7 +138,56 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         return Optional.of(new VertexParallelismWithSlotSharing(allVertexParallelism, assignments));
     }
 
-    private static Map<JobVertexID, Integer> determineParallelism(
+    /**
+     * Distributes free slots across the slot-sharing groups of the job. Slots are distributed as
+     * evenly as possible while taking the minimum parallelism of contained vertices into account.
+     */
+    private static Map<SlotSharingGroupId, Integer> determineSlotsPerSharingGroup(
+            JobInformation jobInformation, int freeSlots) {
+        int numUnassignedSlots = freeSlots;
+        int numUnassignedSlotSharingGroups = jobInformation.getSlotSharingGroups().size();
+
+        final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism = new HashMap<>();
+
+        for (Tuple2<SlotSharingGroup, Integer> slotSharingGroup :
+                sortSlotSharingGroupsByUpperParallelism(jobInformation)) {
+            final int groupParallelism =
+                    Math.min(
+                            slotSharingGroup.f1,
+                            numUnassignedSlots / numUnassignedSlotSharingGroups);
+
+            slotSharingGroupParallelism.put(
+                    slotSharingGroup.f0.getSlotSharingGroupId(), groupParallelism);
+
+            numUnassignedSlots -= groupParallelism;
+            numUnassignedSlotSharingGroups--;
+        }
+
+        return slotSharingGroupParallelism;
+    }
+
+    private static List<Tuple2<SlotSharingGroup, Integer>> sortSlotSharingGroupsByUpperParallelism(
+            JobInformation jobInformation) {
+
+        final List<Tuple2<SlotSharingGroup, Integer>> slotSharingGroupsSortedByParallelism =
+                new ArrayList<>();
+
+        for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
+            int maxParallelismInGroup = 1;
+            for (JobVertexID jobVertexId : slotSharingGroup.getJobVertexIds()) {
+                maxParallelismInGroup =
+                        Math.max(
+                                maxParallelismInGroup,
+                                jobInformation.getVertexInformation(jobVertexId).getParallelism());
+            }
+            slotSharingGroupsSortedByParallelism.add(
+                    Tuple2.of(slotSharingGroup, maxParallelismInGroup));
+        }
+        slotSharingGroupsSortedByParallelism.sort(Comparator.comparingInt(x -> x.f1));
+        return slotSharingGroupsSortedByParallelism;
+    }
+
+    private static Map<JobVertexID, Integer> determineVertexParallelism(
             Collection<JobInformation.VertexInformation> containedJobVertices, int availableSlots) {
         final Map<JobVertexID, Integer> vertexParallelism = new HashMap<>();
         for (JobInformation.VertexInformation jobVertex : containedJobVertices) {
