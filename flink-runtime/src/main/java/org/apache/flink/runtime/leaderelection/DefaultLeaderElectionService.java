@@ -110,7 +110,10 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
             running = true;
             this.contenderID = contenderID;
             leaderContender = contender;
-            LOG.info("Starting DefaultLeaderElectionService with {}.", leaderElectionDriver);
+            LOG.info(
+                    "Registering {} in LeaderElection backed by {}.",
+                    contenderID,
+                    leaderElectionDriver);
         }
     }
 
