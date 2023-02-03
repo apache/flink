@@ -33,6 +33,45 @@ Calc(select=[ARRAY('Hi', 'Hello', c) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalcMergeWithNonDeterministicExpr">
+    <Resource name="sql">
+      <![CDATA[SELECT a, a1 FROM (SELECT a, random_udf(b) AS a1 FROM MyTable) t WHERE a1 > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], a1=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a=[$0], a1=[random_udf($1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, a1], where=[(a1 > 10)])
++- Calc(select=[a, random_udf(b) AS a1])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeWithNonDeterministicExpr2">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM (SELECT a, b FROM MyTable) t WHERE random_udf(b) > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[>(random_udf($1), 10)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a], where=[>(random_udf(b), 10)])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCollationDeriveOnCalc">
     <Resource name="sql">
       <![CDATA[SELECT CAST(a AS INT), CAST(b AS VARCHAR) FROM (VALUES (3, 'c')) T(a,b)]]>
