@@ -22,7 +22,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -97,7 +96,6 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 
     private void assertChainableSource(String name, TableTestUtil util, boolean expected) {
         String sql = "SELECT * FROM " + name;
-        Table table = util.tableEnv().sqlQuery(sql);
         ExecNodeGraph execGraph = TableTestUtil.toExecNodeGraph(util.tableEnv(), sql);
         ExecNode<?> execNode = execGraph.getRootNodes().get(0);
         while (!execNode.getInputEdges().isEmpty()) {

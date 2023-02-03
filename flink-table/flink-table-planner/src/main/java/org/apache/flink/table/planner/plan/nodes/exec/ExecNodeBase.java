@@ -279,6 +279,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @VisibleForTesting
+    @JsonIgnore
     public Transformation<T> getTransformation() {
         return this.transformation;
     }
