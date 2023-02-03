@@ -680,8 +680,9 @@ class JobMasterServiceLeadershipRunnerTest {
 
         // we need to use DefaultLeaderElectionService here because JobMasterServiceLeadershipRunner
         // in connection with the DefaultLeaderElectionService generates the nested locking
-        final LeaderElectionService defaultLeaderElectionService =
+        final DefaultLeaderElectionService defaultLeaderElectionService =
                 new DefaultLeaderElectionService(testingLeaderElectionDriverFactory);
+        defaultLeaderElectionService.startLeaderElectionBackend();
 
         // latch to detect when we reached the first synchronized section having a lock on the
         // JobMasterServiceProcess#stop side

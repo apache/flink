@@ -241,6 +241,7 @@ class ZooKeeperLeaderElectionTest {
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
                     electionService.stop();
+                    electionService.close();
                 }
             }
         }
@@ -324,6 +325,7 @@ class ZooKeeperLeaderElectionTest {
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
                     electionService.stop();
+                    electionService.close();
                 }
             }
         }
