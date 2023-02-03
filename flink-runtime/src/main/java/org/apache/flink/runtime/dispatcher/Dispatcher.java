@@ -1520,13 +1520,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                     throwable));
                                 });
 
-        return jobManagerTerminationFuture.thenAcceptAsync(
+        return FutureUtils.thenAcceptAsyncIfNotDone(
+                jobManagerTerminationFuture,
+                getMainThreadExecutor(),
                 FunctionUtils.uncheckedConsumer(
                         (ignored) -> {
                             jobManagerRunnerTerminationFutures.remove(jobId);
                             action.accept(jobGraph);
-                        }),
-                getMainThreadExecutor());
+                        }));
     }
 
     @VisibleForTesting
