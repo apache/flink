@@ -26,8 +26,8 @@ under the License.
 
 # BlackHole SQL Connector
 
-{{< label "Sink" >}}
-{{< label "Sink" >}}
+{{< label "Sink: Bounded" >}}
+{{< label "Sink: UnBounded" >}}
 
 The BlackHole connector allows for swallowing all input records. It is designed for:
 
