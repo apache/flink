@@ -378,6 +378,17 @@ class CliClientITCase {
                 Result result = results.get(i);
                 String content =
                         TableTestUtil.replaceNodeIdInOperator(removeExecNodeId(result.content));
+
+                int removedChatNumber = result.content.length() - content.length();
+                String borderLineStart = "+-";
+                String columnStart = "|";
+                for (int j = 0; j < removedChatNumber; j++) {
+                    borderLineStart += "-";
+                    columnStart += " ";
+                }
+                content = content.replaceAll("\\" + borderLineStart, "+-");
+                content = content.replace(columnStart, "|");
+
                 out.append(content).append(result.highestTag.tag).append("\n");
             }
         }
