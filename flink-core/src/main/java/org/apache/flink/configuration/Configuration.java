@@ -700,10 +700,10 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     }
 
     /**
-     * Please check the java doc of {@link #getRawValueFromOption(ConfigOption)}. If no keys
-     * are found in {@link Configuration}, default value of the given option will return. Please
-     * make sure there will be at least one value available. Otherwise, a NPE will be thrown by
-     * Flink when the value is used.
+     * Please check the java doc of {@link #getRawValueFromOption(ConfigOption)}. If no keys are
+     * found in {@link Configuration}, default value of the given option will return. Please make
+     * sure there will be at least one value available. Otherwise, a NPE will be thrown by Flink
+     * when the value is used.
      *
      * @param option metadata of the option to read
      * @return the vaule of the given option
@@ -839,14 +839,13 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     /**
      * This method will do the following steps to get the value of a config option:
      *
-     * <p/>1. get the value from {@link Configuration}.
+     * <p>1. get the value from {@link Configuration}. <br>
+     * 2. if key is not found, try to get the value with fallback keys from {@link Configuration}
+     * <br>
+     * 3. if no fallback keys are found, return {@link Optional#empty()}.
      *
-     * <br/>2. if key is not found, try to get the value with fallback keys from {@link Configuration}
-     *
-     * <br/>3. if no fallback keys are found, return {@link Optional#empty()}.
-     * <p/>
-     * Current logic is not able to get the default value of the fallback key's ConfigOption, if the given ConfigOption has no
-     * default value.
+     * <p>Current logic is not able to get the default value of the fallback key's ConfigOption, if
+     * the given ConfigOption has no default value.
      *
      * @return the value of the configuration or {@link Optional#empty()}.
      */
