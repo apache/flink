@@ -876,6 +876,19 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testSubstringIndex(): Unit = {
+    testSqlApi("substring_index('www.apache.org', '2' , -4)", "www.apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , -3)", "www.apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , -2)", "apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , -1)", "org")
+    testSqlApi("substring_index('www.apache.org', '.' , 0)", "")
+    testSqlApi("substring_index('www.apache.org', '.' , 1)", "www")
+    testSqlApi("substring_index('www.apache.org', '.' , 2)", "www.apache")
+    testSqlApi("substring_index('www.apache.org', '.' , 3)", "www.apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , 4)", "www.apache.org")
+  }
+
+  @Test
   def testHashCode(): Unit = {
     testSqlApi("hash_code('abc')", "96354")
     testSqlApi("hash_code(f35)", "97")

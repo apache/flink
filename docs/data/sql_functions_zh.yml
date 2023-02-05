@@ -469,6 +469,12 @@ string:
     description: |
       通过分隔符 string2 拆分 string1，返回分隔后这组字符串的第 integer（从零开始）个字符串。如果整数为负，则返回 `NULL`。
       如果有任一参数为 `NULL`，则返回 `NULL`。
+  - sql: SUBSTRING_INDEX(string1, string2, integer1)
+    table: STRING1.substringIndex(STRING2, INTEGER1)
+    description: |
+      根据分隔符 string2 拆分 string1，然后返回分隔符出现次数之前 string1 的子字符串。
+      如果 count 为正，则返回最终分隔符左侧的所有内容（从左侧开始计数）。
+      如果 count 为负数，则返回最终分隔符右侧（从右侧开始计数）的所有内容。
   - sql: STR_TO_MAP(string1[, string2, string3])
     table: STRING1.strToMap([STRING2, STRING3])
     description: |
