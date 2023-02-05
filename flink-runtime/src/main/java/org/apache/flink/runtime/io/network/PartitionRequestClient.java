@@ -65,6 +65,13 @@ public interface PartitionRequestClient {
     void resumeConsumption(RemoteInputChannel inputChannel);
 
     /**
+     * Heartbeats to signal the netty client is still alive.
+     *
+     * @param inputChannel The remote input channel who is supposed to receive the heartbeat.
+     */
+    void HearbeatForConnection(RemoteInputChannel inputChannel);
+
+    /**
      * Acknowledges all user records are processed for this channel.
      *
      * @param inputChannel The input channel to resume data consumption.

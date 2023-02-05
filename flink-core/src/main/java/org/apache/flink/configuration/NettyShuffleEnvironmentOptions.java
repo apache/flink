@@ -474,6 +474,15 @@ public class NettyShuffleEnvironmentOptions {
                                     + " based on the platform. Note that the \"epoll\" mode can get better performance, less GC and have more advanced features which are"
                                     + " only available on modern Linux.");
 
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Long> NETWORK_IDLE_TIMEOUT_MILLISECONDS =
+            key("taskmanager.network.netty.idle-timeout-millisecond")
+                    .longType()
+                    .defaultValue(-1L)
+                    .withDescription(
+                            "The timeout millisecond for idle state handler to trigger warning for"
+                                    + "tcp connection heartbeat timeout.");
+
     // ------------------------------------------------------------------------
     //  Partition Request Options
     // ------------------------------------------------------------------------

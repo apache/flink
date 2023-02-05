@@ -42,6 +42,9 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundInvoker;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -61,6 +64,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * check FLINK-7845 for more information.
  */
 public abstract class NettyMessage {
+
+    private final Logger LOG = LoggerFactory.getLogger(NettyMessage.class);
 
     // ------------------------------------------------------------------------
     // Note: Every NettyMessage subtype needs to have a public 0-argument
@@ -239,6 +244,9 @@ public abstract class NettyMessage {
                         break;
                     case NewBufferSize.ID:
                         decodedMsg = NewBufferSize.readFrom(msg);
+                        break;
+                    case HeartBeat.ID:
+                        decodedMsg = HeartBeat.readFrom(msg);
                         break;
                     default:
                         throw new ProtocolException(
@@ -892,6 +900,38 @@ public abstract class NettyMessage {
         @Override
         public String toString() {
             return String.format("NewBufferSize(%s : %d)", receiverId, bufferSize);
+        }
+    }
+
+    static class HeartBeat extends NettyMessage {
+
+        private static final byte ID = 11;
+
+        final InputChannelID receiverId;
+
+        HeartBeat(InputChannelID receiverId) {
+            this.receiverId = receiverId;
+        }
+
+        @Override
+        void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
+                throws IOException {
+            writeToChannel(
+                    out,
+                    promise,
+                    allocator,
+                    receiverId::writeTo,
+                    ID,
+                    InputChannelID.getByteBufLength());
+        }
+
+        static HeartBeat readFrom(ByteBuf buffer) {
+            return new HeartBeat(InputChannelID.fromByteBuf(buffer));
+        }
+
+        @Override
+        public String toString() {
+            return "heartbeat";
         }
     }
 

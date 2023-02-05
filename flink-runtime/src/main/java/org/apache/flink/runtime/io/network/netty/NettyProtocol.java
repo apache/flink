@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.netty.idlehandle.ServerIdleCheckHandler;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -72,18 +73,26 @@ public class NettyProtocol {
      *
      * @return channel handlers
      */
-    public ChannelHandler[] getServerChannelHandlers() {
+    public ChannelHandler[] getServerChannelHandlers(Long idleTimeout) {
         PartitionRequestQueue queueOfPartitionQueues = new PartitionRequestQueue();
         PartitionRequestServerHandler serverHandler =
                 new PartitionRequestServerHandler(
                         partitionProvider, taskEventPublisher, queueOfPartitionQueues);
 
-        return new ChannelHandler[] {
-            messageEncoder,
-            new NettyMessage.NettyMessageDecoder(),
-            serverHandler,
-            queueOfPartitionQueues
-        };
+        return idleTimeout > 0 ?
+                new ChannelHandler[]{
+                        messageEncoder,
+                        new ServerIdleCheckHandler(idleTimeout),
+                        new NettyMessage.NettyMessageDecoder(),
+                        serverHandler,
+                        queueOfPartitionQueues
+                } :
+                new ChannelHandler[] {
+                    messageEncoder,
+                    new NettyMessage.NettyMessageDecoder(),
+                    serverHandler,
+                    queueOfPartitionQueues
+                };
     }
 
     /**
@@ -121,7 +130,7 @@ public class NettyProtocol {
     public ChannelHandler[] getClientChannelHandlers() {
         NetworkClientHandler networkClientHandler = new CreditBasedPartitionRequestClientHandler();
 
-        return new ChannelHandler[] {
+        return new ChannelHandler[]{
             messageEncoder,
             new NettyMessageClientDecoderDelegate(networkClientHandler),
             networkClientHandler

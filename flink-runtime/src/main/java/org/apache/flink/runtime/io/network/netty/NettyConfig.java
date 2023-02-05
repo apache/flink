@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.net.InetAddress;
+import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -129,6 +130,10 @@ public class NettyConfig {
         return config.getInteger(NettyShuffleEnvironmentOptions.SEND_RECEIVE_BUFFER_SIZE);
     }
 
+    public long getHealthCheckTimeOutMilliSecond() {
+        return config.getLong(NettyShuffleEnvironmentOptions.NETWORK_IDLE_TIMEOUT_MILLISECONDS);
+    }
+
     public TransportType getTransportType() {
         String transport = config.getString(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE);
 
@@ -174,7 +179,8 @@ public class NettyConfig {
                         + "number of client threads: %d (%s), "
                         + "server connect backlog: %d (%s), "
                         + "client connect timeout (sec): %d, "
-                        + "send/receive buffer size (bytes): %d (%s)]";
+                        + "send/receive buffer size (bytes): %d (%s), "
+                        + "tcp idle timeout millisecond: %d]";
 
         String def = "use Netty's default";
         String man = "manual";
@@ -194,6 +200,7 @@ public class NettyConfig {
                 getServerConnectBacklog() == 0 ? def : man,
                 getClientConnectTimeoutSeconds(),
                 getSendAndReceiveBufferSize(),
-                getSendAndReceiveBufferSize() == 0 ? def : man);
+                getSendAndReceiveBufferSize() == 0 ? def : man,
+                getHealthCheckTimeOutMilliSecond());
     }
 }

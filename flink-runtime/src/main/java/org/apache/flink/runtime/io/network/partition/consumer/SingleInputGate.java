@@ -275,6 +275,20 @@ public class SingleInputGate extends IndexedInputGate {
         setBufferPool(bufferPool);
 
         setupChannels();
+
+
+        new Thread(() -> {
+            while(true) {
+                try {
+                    Thread.sleep(10 * 1000);
+                    for (InputChannel inputChannel: inputChannels.values()) {
+                        inputChannel.HearbeatForConnection();
+                    }
+                } catch (InterruptedException e) {
+                    // continue
+                }
+            }
+        }).start();
     }
 
     @Override

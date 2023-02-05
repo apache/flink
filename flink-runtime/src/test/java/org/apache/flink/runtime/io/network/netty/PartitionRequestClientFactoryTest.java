@@ -331,7 +331,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 new NettyProtocol(null, null) {
 
                     @Override
-                    public ChannelHandler[] getServerChannelHandlers() {
+                    public ChannelHandler[] getServerChannelHandlers(Long idleTimeout) {
                         return new ChannelHandler[10];
                     }
 
