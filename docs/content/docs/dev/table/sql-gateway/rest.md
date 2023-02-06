@@ -94,7 +94,12 @@ Endpoint Options
 REST API
 ----------------
 
-[OpenAPI specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}})
+The available OpenAPI specification is as follows. The default version is v2.
+
+| Version                       | Description |
+| ----------- | ------- |
+| [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | Allow users to submit statements to the gateway and execute. |
+| [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | Supports SQL Client to connect to the gateway. |
 
 {{< hint warning >}}
 The OpenAPI specification is still experimental.
@@ -103,6 +108,11 @@ The OpenAPI specification is still experimental.
 #### API reference
 
 {{< tabs "f00ed142-b05f-44f0-bafc-799080c1d40d" >}}
+{{< tab "v2" >}}
+
+{{< generated/rest_v2_sql_gateway >}}
+
+{{< /tab >}}
 {{< tab "v1" >}}
 
 {{< generated/rest_v1_sql_gateway >}}
@@ -113,7 +123,9 @@ The OpenAPI specification is still experimental.
 Data Type Mapping
 ----------------
 
-Currently, REST endpoint uses JSON format to serialize the Table Objects. Please refer
-[JSON format]({{< ref "docs/connectors/table/formats/json#data-type-mapping" >}}) to the mappings.
+Currently, REST endpoint supports to serialize the `RowData` with query parameter `rowFormat`. REST endpoint uses JSON format to serialize 
+the Table Objects. Please refer [JSON format]({{< ref "docs/connectors/table/formats/json#data-type-mapping" >}}) to the mappings. 
+
+REST endpoint also supports to serialize the `RowData` with `PLAIN_TEXT` format that automatically cast all columns to the `String`.
 
 {{< top >}}
