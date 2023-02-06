@@ -61,8 +61,11 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
 
     @Override
     public void appendMeta(byte[] value) throws IOException {
-        Preconditions.checkState(!closed, "LogWriter is closed");
         LOG.trace("append metadata: {} bytes", value.length);
+        if (closed) {
+            LOG.warn("LogWriter is closed.");
+            return;
+        }
         changesByKeyGroup
                 .computeIfAbsent(META_KEY_GROUP, unused -> new TreeMap<>())
                 .put(sqn, value);
@@ -71,8 +74,11 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
 
     @Override
     public void append(int keyGroup, byte[] value) {
-        Preconditions.checkState(!closed, "LogWriter is closed");
         LOG.trace("append, keyGroup={}, {} bytes", keyGroup, value.length);
+        if (closed) {
+            LOG.warn("LogWriter is closed.");
+            return;
+        }
         changesByKeyGroup.computeIfAbsent(keyGroup, unused -> new TreeMap<>()).put(sqn, value);
         sqn = sqn.next();
     }
