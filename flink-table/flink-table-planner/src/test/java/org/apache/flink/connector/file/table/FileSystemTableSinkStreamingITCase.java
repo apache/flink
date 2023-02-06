@@ -21,11 +21,12 @@ package org.apache.flink.connector.file.table;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -39,12 +40,14 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test of the filesystem source in streaming mode. */
-public class FileSystemTableSinkStreamingITCase extends StreamingTestBase {
+public class FileSystemTableSinkStreamingITCase extends StreamingTestBaseV2 {
+
+    @TempDir private static File tempFolder;
 
     @Test
     public void testMonitorContinuously() throws Exception {
         // Create temp dir
-        File testPath = TEMPORARY_FOLDER.newFolder();
+        File testPath = tempFolder;
 
         // Write first csv file out
         Files.write(
@@ -54,21 +57,19 @@ public class FileSystemTableSinkStreamingITCase extends StreamingTestBase {
 
         Duration monitorInterval = Duration.ofSeconds(1);
 
-        tEnv().createTable(
-                        "my_streaming_table",
-                        TableDescriptor.forConnector("filesystem")
-                                .schema(Schema.newBuilder().column("data", DataTypes.INT()).build())
-                                .format("testcsv")
-                                .option(FileSystemConnectorOptions.PATH, testPath.getPath())
-                                .option(
-                                        FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL,
-                                        monitorInterval)
-                                .build());
+        tEnv.createTable(
+                "my_streaming_table",
+                TableDescriptor.forConnector("filesystem")
+                        .schema(Schema.newBuilder().column("data", DataTypes.INT()).build())
+                        .format("testcsv")
+                        .option(FileSystemConnectorOptions.PATH, testPath.getPath())
+                        .option(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL, monitorInterval)
+                        .build());
 
         List<Integer> actual = new ArrayList<>();
 
         try (CloseableIterator<Row> resultsIterator =
-                tEnv().sqlQuery("SELECT * FROM my_streaming_table").execute().collect()) {
+                tEnv.sqlQuery("SELECT * FROM my_streaming_table").execute().collect()) {
             // Iterate over the first 3 rows
             for (int i = 0; i < 3; i++) {
                 actual.add(resultsIterator.next().<Integer>getFieldAs(0));

@@ -28,7 +28,6 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
@@ -37,7 +36,6 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlExplainLevel;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.Comparator;
@@ -70,11 +68,6 @@ public class BatchTestBaseV2 extends AbstractTestBaseV2 {
         Planner planner = ((TableEnvironmentImpl) tEnv).getPlanner();
         env = ((PlannerBase) planner).getExecEnv();
         return tEnv;
-    }
-
-    @AfterEach
-    public void after() {
-        TestValuesTableFactory.clearAllData();
     }
 
     protected void checkResult(String query, List<Row> expectedResult, boolean isSorted) {

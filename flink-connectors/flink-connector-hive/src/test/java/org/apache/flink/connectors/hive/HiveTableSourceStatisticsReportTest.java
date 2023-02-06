@@ -82,7 +82,7 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     }
 
     @AfterEach
-    public void after() {
+    public void after() throws Exception {
         super.after();
         if (null != hiveCatalog) {
             hiveCatalog.close();

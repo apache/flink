@@ -59,7 +59,7 @@ public abstract class AbstractTestBaseV2 extends TestLogger {
     }
 
     @AfterEach
-    public void after() {
+    public void after() throws Exception {
         TestValuesTableFactory.clearAllData();
     }
 

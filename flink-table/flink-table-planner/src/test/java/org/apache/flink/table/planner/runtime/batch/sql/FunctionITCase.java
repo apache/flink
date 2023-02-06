@@ -20,38 +20,39 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for catalog and system functions in a table environment. */
-public class FunctionITCase extends BatchTestBase {
+public class FunctionITCase extends BatchTestBaseV2 {
 
     private static final Random random = new Random();
     private String udfClassName;
     private String jarPath;
 
-    @Before
-    @Override
+    @TempDir private static File tempFolder;
+
+    @BeforeEach
     public void before() throws Exception {
         super.before();
         udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50);
         jarPath =
                 UserClassLoaderJarTestUtils.createJarFile(
-                                TEMPORARY_FOLDER.newFolder(
-                                        String.format("test-jar-%s", UUID.randomUUID())),
+                                tempFolder,
                                 "test-classloader-udf.jar",
                                 udfClassName,
                                 String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
@@ -69,17 +70,17 @@ public class FunctionITCase extends BatchTestBase {
                 String.format(
                         "CREATE TEMPORARY SYSTEM FUNCTION f11 AS '%s' USING JAR '%s'",
                         udfClassName, jarPath);
-        tEnv().executeSql(ddl1);
-        tEnv().executeSql(ddl2);
+        tEnv.executeSql(ddl1);
+        tEnv.executeSql(ddl2);
 
-        List<String> functions = Arrays.asList(tEnv().listFunctions());
+        List<String> functions = Arrays.asList(tEnv.listFunctions());
         assertThat(functions).contains("f10");
         assertThat(functions).contains("f11");
 
-        tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f10");
-        tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f11");
+        tEnv.executeSql("DROP TEMPORARY SYSTEM FUNCTION f10");
+        tEnv.executeSql("DROP TEMPORARY SYSTEM FUNCTION f11");
 
-        functions = Arrays.asList(tEnv().listFunctions());
+        functions = Arrays.asList(tEnv.listFunctions());
         assertThat(functions).doesNotContain("f10");
         assertThat(functions).doesNotContain("f11");
     }
@@ -113,10 +114,10 @@ public class FunctionITCase extends BatchTestBase {
 
         String query = "select a, lowerUdf(b) from t1";
 
-        tEnv().executeSql(sourceDDL);
-        tEnv().executeSql(sinkDDL);
-        tEnv().executeSql(createFunctionDDL);
-        Table t2 = tEnv().sqlQuery(query);
+        tEnv.executeSql(sourceDDL);
+        tEnv.executeSql(sinkDDL);
+        tEnv.executeSql(createFunctionDDL);
+        Table t2 = tEnv.sqlQuery(query);
         t2.executeInsert("t2").await();
 
         List<Row> result = TestCollectionTableFactory.RESULT();
@@ -129,10 +130,10 @@ public class FunctionITCase extends BatchTestBase {
                         Row.of(2, "cdc"));
         assertThat(result).isEqualTo(expected);
 
-        tEnv().executeSql("drop table t1");
-        tEnv().executeSql("drop table t2");
+        tEnv.executeSql("drop table t1");
+        tEnv.executeSql("drop table t2");
 
         // delete the function
-        tEnv().executeSql(dropFunctionDDL);
+        tEnv.executeSql(dropFunctionDDL);
     }
 }

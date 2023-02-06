@@ -57,7 +57,7 @@ public class PrintConnectorITCase extends StreamingTestBaseV2 {
     }
 
     @AfterEach
-    public void after() {
+    public void after() throws Exception {
         super.after();
         if (System.out != originalSystemOut) {
             System.out.close();

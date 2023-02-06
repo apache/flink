@@ -20,73 +20,72 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.planner.runtime.stream.sql.CompactionITCaseBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
 /** Test sink file compaction of hive tables. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class HiveSinkCompactionITCase extends CompactionITCaseBase {
 
-    @Parameterized.Parameters(name = "format = {0}")
+    @Parameter public String format;
+
+    @Parameters(name = "format = {0}")
     public static Collection<String> parameters() {
         return Arrays.asList("sequencefile", "parquet");
     }
 
-    @Parameterized.Parameter public String format;
-
     private HiveCatalog hiveCatalog;
 
-    @Override
-    @Before
-    public void init() throws IOException {
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
         hiveCatalog = HiveTestUtils.createHiveCatalog();
-        tEnv().registerCatalog(hiveCatalog.getName(), hiveCatalog);
-        tEnv().useCatalog(hiveCatalog.getName());
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
 
         // avoid too large parallelism lead to scheduler dead lock in streaming mode
-        tEnv().getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
-
-        super.init();
+        tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
     }
 
-    @After
-    public void tearDown() throws TableNotExistException {
+    @AfterEach
+    public void after() throws Exception {
+        super.after();
         if (hiveCatalog != null) {
-            hiveCatalog.dropTable(new ObjectPath(tEnv().getCurrentDatabase(), "sink_table"), true);
+            hiveCatalog.dropTable(new ObjectPath(tEnv.getCurrentDatabase(), "sink_table"), true);
             hiveCatalog.close();
         }
     }
 
     private void create(String path, boolean part) {
-        tEnv().getConfig().setSqlDialect(SqlDialect.HIVE);
-        tEnv().executeSql(
-                        "CREATE TABLE sink_table (a int, b string"
-                                + (part ? "" : ",c string")
-                                + ") "
-                                + (part ? "partitioned by (c string) " : "")
-                                + " stored as "
-                                + format
-                                + " location '"
-                                + path
-                                + "'"
-                                + " TBLPROPERTIES ("
-                                + "'sink.partition-commit.policy.kind'='metastore,success-file',"
-                                + "'auto-compaction'='true',"
-                                + "'compaction.file-size' = '128MB',"
-                                + "'sink.rolling-policy.file-size' = '1b'"
-                                + ")");
-        tEnv().getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tEnv.executeSql(
+                "CREATE TABLE sink_table (a int, b string"
+                        + (part ? "" : ",c string")
+                        + ") "
+                        + (part ? "partitioned by (c string) " : "")
+                        + " stored as "
+                        + format
+                        + " location '"
+                        + path
+                        + "'"
+                        + " TBLPROPERTIES ("
+                        + "'sink.partition-commit.policy.kind'='metastore,success-file',"
+                        + "'auto-compaction'='true',"
+                        + "'compaction.file-size' = '128MB',"
+                        + "'sink.rolling-policy.file-size' = '1b'"
+                        + ")");
+        tEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
     }
 
     @Override

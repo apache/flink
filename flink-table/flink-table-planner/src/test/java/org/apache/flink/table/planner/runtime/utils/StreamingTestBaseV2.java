@@ -54,7 +54,7 @@ public class StreamingTestBaseV2 extends AbstractTestBaseV2 {
     }
 
     @AfterEach
-    public void after() {
+    public void after() throws Exception {
         StreamTestSink.clear();
         TestValuesTableFactory.clearAllData();
     }

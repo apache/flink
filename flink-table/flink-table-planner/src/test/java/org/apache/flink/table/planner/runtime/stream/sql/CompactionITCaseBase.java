@@ -19,46 +19,45 @@
 package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.streaming.api.scala.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import static java.time.Duration.ofSeconds;
 import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.COMPACTED_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 /** Streaming sink File Compaction ITCase base, test checkpoint. */
-public abstract class CompactionITCaseBase extends StreamingTestBase {
-
-    @Rule public Timeout timeoutPerTest = Timeout.seconds(90);
+public abstract class CompactionITCaseBase extends StreamingTestBaseV2 {
 
     private String resultPath;
-
     private List<Row> expectedRows;
 
-    @Before
-    public void init() throws IOException {
-        resultPath = tempFolder().newFolder().toURI().toString();
+    @TempDir private static java.nio.file.Path tmpDir;
 
-        env().setParallelism(3);
-        env().enableCheckpointing(100);
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
+        resultPath = tmpDir.toFile().getAbsolutePath();
+
+        env.setParallelism(3);
+        env.enableCheckpointing(100);
 
         List<Row> rows = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
@@ -71,19 +70,12 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
         this.expectedRows.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
 
         DataStream<Row> stream =
-                new DataStream<>(
-                                env().getJavaEnv()
-                                        .addSource(
-                                                new FiniteTestSource<>(rows),
-                                                new RowTypeInfo(
-                                                        new TypeInformation[] {
-                                                            Types.INT, Types.STRING, Types.STRING
-                                                        },
-                                                        new String[] {"a", "b", "c"})))
-                        .filter((FilterFunction<Row>) value -> true)
-                        .setParallelism(3); // to parallel tasks
+                env.addSource(
+                        new FiniteTestSource<>(rows),
+                        new RowTypeInfo(Types.INT, Types.STRING, Types.STRING));
+        stream.filter((FilterFunction<Row>) value -> true);
 
-        tEnv().createTemporaryView("my_table", stream);
+        tEnv.createTemporaryView("my_table", stream);
     }
 
     protected abstract String partitionField();
@@ -92,14 +84,16 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
 
     protected abstract void createPartitionTable(String path);
 
-    @Test
+    @TestTemplate
     public void testSingleParallelism() throws Exception {
         innerTestNonPartition(1);
+        assertTimeout(ofSeconds(90L), () -> Thread.sleep(500));
     }
 
-    @Test
+    @TestTemplate
     public void testNonPartition() throws Exception {
         innerTestNonPartition(3);
+        assertTimeout(ofSeconds(90L), () -> Thread.sleep(500));
     }
 
     public void innerTestNonPartition(int parallelism) throws Exception {
@@ -109,19 +103,19 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
                         "insert into sink_table /*+ OPTIONS('sink.parallelism' = '%d') */"
                                 + " select * from my_table",
                         parallelism);
-        tEnv().executeSql(sql).await();
+        tEnv.executeSql(sql).await();
 
-        assertIterator(tEnv().executeSql("select * from sink_table").collect());
+        assertIterator(tEnv.executeSql("select * from sink_table").collect());
 
         assertFiles(new File(URI.create(resultPath)).listFiles(), false);
     }
 
-    @Test
+    @TestTemplate
     public void testPartition() throws Exception {
         createPartitionTable(resultPath);
-        tEnv().executeSql("insert into sink_table select * from my_table").await();
+        tEnv.executeSql("insert into sink_table select * from my_table").await();
 
-        assertIterator(tEnv().executeSql("select * from sink_table").collect());
+        assertIterator(tEnv.executeSql("select * from sink_table").collect());
 
         File path = new File(URI.create(resultPath));
         assertThat(path.listFiles()).hasSize(10);
@@ -130,6 +124,8 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
             File partition = new File(path, partitionField() + "=" + i);
             assertFiles(partition.listFiles(), true);
         }
+
+        assertTimeout(ofSeconds(90L), () -> Thread.sleep(500));
     }
 
     private void assertIterator(CloseableIterator<Row> iterator) throws Exception {

@@ -30,18 +30,16 @@ public abstract class FileCompactionITCaseBase extends CompactionITCaseBase {
 
     @Override
     protected void createTable(String path) {
-        tEnv().executeSql(
-                        "CREATE TABLE sink_table (a int, b string, c string) with ("
-                                + options(path)
-                                + ")");
+        tEnv.executeSql(
+                "CREATE TABLE sink_table (a int, b string, c string) with (" + options(path) + ")");
     }
 
     @Override
     protected void createPartitionTable(String path) {
-        tEnv().executeSql(
-                        "CREATE TABLE sink_table (a int, b string, c string) partitioned by (b) with ("
-                                + options(path)
-                                + ")");
+        tEnv.executeSql(
+                "CREATE TABLE sink_table (a int, b string, c string) partitioned by (b) with ("
+                        + options(path)
+                        + ")");
     }
 
     private String options(String path) {

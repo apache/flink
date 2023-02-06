@@ -46,7 +46,7 @@ public class JoinReorderITCase extends JoinReorderITCaseBase {
     private StreamExecutionEnvironment env;
 
     @AfterEach
-    public void after() {
+    public void after() throws Exception {
         super.after();
         StreamTestSink.clear();
     }

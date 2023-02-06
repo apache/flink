@@ -89,7 +89,7 @@ public class CompactManagedTableITCase extends BatchTestBaseV2 {
     }
 
     @AfterEach
-    public void after() {
+    public void after() throws Exception {
         super.after();
         tEnv.executeSql("DROP TABLE MyTable");
         collectedElements.clear();

@@ -25,7 +25,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for user defined functions in the Table API. */
-public class FunctionITCase extends StreamingTestBase {
+public class FunctionITCase extends StreamingTestBaseV2 {
 
     @Test
     void testScalarFunction() throws Exception {
@@ -53,11 +53,11 @@ public class FunctionITCase extends StreamingTestBase {
         TestCollectionTableFactory.reset();
         TestCollectionTableFactory.initData(sourceData);
 
-        tEnv().executeSql(
-                        "CREATE TABLE TestTable(a INT, b BIGINT, c BIGINT) WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql(
+                "CREATE TABLE TestTable(a INT, b BIGINT, c BIGINT) WITH ('connector' = 'COLLECTION')");
 
         final Table table =
-                tEnv().from("TestTable")
+                tEnv.from("TestTable")
                         .select(
                                 $("a"),
                                 call(new SimpleScalarFunction(), $("a"), $("b")),
@@ -84,11 +84,11 @@ public class FunctionITCase extends StreamingTestBase {
         TestCollectionTableFactory.reset();
         TestCollectionTableFactory.initData(sourceData);
 
-        tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-        tEnv().executeSql(
-                        "CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql(
+                "CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
 
-        tEnv().from("SourceTable")
+        tEnv.from("SourceTable")
                 .joinLateral(call(new SimpleTableFunction(), $("s")).as("a", "b"))
                 .select($("a"), $("b"))
                 .executeInsert("SinkTable")
@@ -100,13 +100,13 @@ public class FunctionITCase extends StreamingTestBase {
     @Test
     void testLateralJoinWithScalarFunction() throws Exception {
         TestCollectionTableFactory.reset();
-        tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-        tEnv().executeSql(
-                        "CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql(
+                "CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
 
         assertThatThrownBy(
                         () -> {
-                            tEnv().from("SourceTable")
+                            tEnv.from("SourceTable")
                                     .joinLateral(
                                             call(new RowScalarFunction(), $("s")).as("a", "b"));
                         })
