@@ -27,6 +27,8 @@ if [ -z "$HERE" ] ; then
   exit 1
 fi
 
+sudo apt-get update
+
 source "${HERE}/../ci/controller_utils.sh"
 
 source ./tools/azure-pipelines/debug_files_utils.sh
