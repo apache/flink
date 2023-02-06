@@ -46,6 +46,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -323,16 +324,16 @@ class ApplicationDispatcherBootstrapTest {
     @Test
     void testApplicationIsStoppedWhenStoppingBootstrap() throws Exception {
         final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
-        final CompletableFuture<JobStatus> getJobStatusFuture = new CompletableFuture<>();
         final TestingDispatcherGateway.Builder dispatcherBuilder =
                 runningJobGatewayBuilder()
-                        .setRequestJobStatusFunction(ignoredJobId -> getJobStatusFuture)
                         .setClusterShutdownFunction(
                                 status -> {
                                     shutdownCalled.set(true);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 });
 
+        final ManuallyTriggeredScheduledExecutor manuallyTriggeredExecutor =
+                new ManuallyTriggeredScheduledExecutor();
         // we're "listening" on this to be completed to verify that the error handler is called.
         // In production, this will shut down the cluster with an exception.
         final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
@@ -340,7 +341,7 @@ class ApplicationDispatcherBootstrapTest {
                 createApplicationDispatcherBootstrap(
                         3,
                         dispatcherBuilder.build(),
-                        scheduledExecutor,
+                        manuallyTriggeredExecutor,
                         errorHandlerFuture::completeExceptionally);
 
         final CompletableFuture<Acknowledge> completionFuture =
@@ -350,12 +351,10 @@ class ApplicationDispatcherBootstrapTest {
 
         bootstrap.stop();
 
-        // EmbeddedExecutor calls getJobStatus after the job is submitted in a busy-waiting loop to
-        // wait for the job to pass the initialization phase. Only then, a JobClient is returned
-        // which finalizes the job submission. Completing the getJobStatusFuture after calling
-        // ApplicationDispatcherBootstrap#stop ensures that the applicationExecutionFuture doesn't
-        // complete before ApplicationDispatcherBootstrap#stop is called
-        getJobStatusFuture.complete(JobStatus.RUNNING);
+        // Triggers the scheduled ApplicationDispatcherBootstrap process after calling stop. This
+        // ensures that the bootstrap task isn't completed before the stop method is called which
+        // would prevent the stop call from cancelling the task's future.
+        manuallyTriggeredExecutor.triggerNonPeriodicScheduledTask();
 
         // we didn't call the error handler
         assertThat(errorHandlerFuture.isDone()).isFalse();
