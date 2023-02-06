@@ -1767,6 +1767,116 @@ class StreamingJobGraphGeneratorTest {
                 .isEqualTo(ResultPartitionType.HYBRID_FULL);
     }
 
+    @Test
+    void testHybridPartitionReuse() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        DataStream<Integer> source = env.fromElements(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+
+        DataStream<Integer> partition1 =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new RebalancePartitioner<>(),
+                                StreamExchangeMode.HYBRID_FULL));
+        DataStream<Integer> partition2 =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new RebalancePartitioner<>(),
+                                StreamExchangeMode.HYBRID_SELECTIVE));
+        DataStream<Integer> partition3 =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new RebalancePartitioner<>(),
+                                StreamExchangeMode.HYBRID_SELECTIVE));
+        DataStream<Integer> partition4 =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new RescalePartitioner<>(),
+                                StreamExchangeMode.HYBRID_FULL));
+        DataStream<Integer> partition5 =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new RescalePartitioner<>(),
+                                StreamExchangeMode.BATCH));
+        DataStream<Integer> partition7 =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new ForwardPartitioner<>(),
+                                StreamExchangeMode.HYBRID_FULL));
+        // these two vertices can reuse the same intermediate dataset
+        partition1.addSink(new DiscardingSink<>()).setParallelism(2).name("sink1");
+        partition2.addSink(new DiscardingSink<>()).setParallelism(2).name("sink2");
+
+        // this can not reuse the same intermediate dataset because of different parallelism
+        partition3.addSink(new DiscardingSink<>()).setParallelism(3);
+
+        // this can not reuse the same intermediate dataset because of different partitioner
+        partition4.addSink(new DiscardingSink<>()).setParallelism(2);
+
+        // this can not reuse the same intermediate dataset because of different result partition
+        // type
+        partition5.addSink(new DiscardingSink<>()).setParallelism(2);
+
+        SingleOutputStreamOperator<Integer> mapStream =
+                partition7.map(value -> value).setParallelism(1);
+        DataStream<Integer> mapPartition =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                mapStream.getTransformation(),
+                                new RescalePartitioner<>(),
+                                StreamExchangeMode.HYBRID_FULL));
+        mapPartition.addSink(new DiscardingSink<>()).name("sink3");
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertThat(vertices).hasSize(7);
+
+        JobVertex sourceVertex = vertices.get(0);
+        List<IntermediateDataSetID> producedDataSet =
+                sourceVertex.getProducedDataSets().stream()
+                        .map(IntermediateDataSet::getId)
+                        .collect(Collectors.toList());
+        assertThat(producedDataSet).hasSize(5);
+
+        JobVertex sinkVertex1 = checkNotNull(findJobVertexWithName(vertices, "sink1"));
+        JobVertex sinkVertex2 = checkNotNull(findJobVertexWithName(vertices, "sink2"));
+        JobVertex sinkVertex3 = checkNotNull(findJobVertexWithName(vertices, "sink3"));
+
+        assertThat(sinkVertex2.getInputs().get(0).getSource().getId())
+                .isEqualTo(sinkVertex1.getInputs().get(0).getSource().getId());
+        assertThat(sinkVertex3.getInputs().get(0).getSource().getId())
+                .isNotEqualTo(sinkVertex1.getInputs().get(0).getSource().getId());
+
+        StreamConfig streamConfig = new StreamConfig(sourceVertex.getConfiguration());
+        List<IntermediateDataSetID> nonChainedOutputs =
+                streamConfig.getOperatorNonChainedOutputs(getClass().getClassLoader()).stream()
+                        .map(NonChainedOutput::getDataSetId)
+                        .collect(Collectors.toList());
+        assertThat(nonChainedOutputs).hasSize(4);
+
+        List<IntermediateDataSetID> streamOutputsInOrder =
+                streamConfig.getVertexNonChainedOutputs(getClass().getClassLoader()).stream()
+                        .map(NonChainedOutput::getDataSetId)
+                        .collect(Collectors.toList());
+        assertThat(streamOutputsInOrder).hasSize(5);
+        assertThat(streamOutputsInOrder).isEqualTo(producedDataSet);
+    }
+
     /**
      * Tests that multiple downstream consumer vertices can reuse the same intermediate blocking
      * dataset if they have the same parallelism and partitioner.

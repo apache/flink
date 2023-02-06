@@ -757,6 +757,19 @@ public class StreamingJobGraphGenerator {
         }
     }
 
+    private void checkAndReplaceReusableHybridPartitionType(NonChainedOutput reusableOutput) {
+        if (reusableOutput.getPartitionType() == ResultPartitionType.HYBRID_SELECTIVE) {
+            // for can be reused hybrid output, it can be optimized to always use full
+            // spilling strategy to significantly reduce shuffle data writing cost.
+            reusableOutput.setPartitionType(ResultPartitionType.HYBRID_FULL);
+            LOG.info(
+                    "{} result partition has been replaced by {} result partition to support partition reuse,"
+                            + " which will reduce shuffle data writing cost.",
+                    reusableOutput.getPartitionType().name(),
+                    ResultPartitionType.HYBRID_FULL.name());
+        }
+    }
+
     private InputOutputFormatContainer getOrCreateFormatContainer(Integer startNodeId) {
         return chainedInputOutputFormats.computeIfAbsent(
                 startNodeId,
@@ -1053,11 +1066,6 @@ public class StreamingJobGraphGenerator {
                 opIntermediateOutputs.computeIfAbsent(vertexId, ignored -> new HashMap<>());
         for (StreamEdge consumerEdge : consumerEdges) {
             checkState(vertexId == consumerEdge.getSourceId(), "Vertex id must be the same.");
-            int consumerParallelism =
-                    streamGraph.getStreamNode(consumerEdge.getTargetId()).getParallelism();
-            int consumerMaxParallelism =
-                    streamGraph.getStreamNode(consumerEdge.getTargetId()).getMaxParallelism();
-            StreamPartitioner<?> partitioner = consumerEdge.getPartitioner();
             ResultPartitionType partitionType = getResultPartitionType(consumerEdge);
             IntermediateDataSetID dataSetId = new IntermediateDataSetID();
 
@@ -1070,7 +1078,7 @@ public class StreamingJobGraphGenerator {
 
             if (partitionType.isHybridResultPartition()) {
                 hasHybridResultPartition = true;
-                if (partitioner.isBroadcast()
+                if (consumerEdge.getPartitioner().isBroadcast()
                         && partitionType == ResultPartitionType.HYBRID_SELECTIVE) {
                     // for broadcast result partition, it can be optimized to always use full
                     // spilling strategy to significantly reduce shuffle data writing cost.
@@ -1083,6 +1091,55 @@ public class StreamingJobGraphGenerator {
                 }
             }
 
+            createOrReuseOutput(
+                    outputs,
+                    outputsConsumedByEdge,
+                    consumerEdge,
+                    isPersistentDataSet,
+                    dataSetId,
+                    partitionType);
+        }
+        return outputs;
+    }
+
+    private void createOrReuseOutput(
+            List<NonChainedOutput> outputs,
+            Map<StreamEdge, NonChainedOutput> outputsConsumedByEdge,
+            StreamEdge consumerEdge,
+            boolean isPersistentDataSet,
+            IntermediateDataSetID dataSetId,
+            ResultPartitionType partitionType) {
+        int consumerParallelism =
+                streamGraph.getStreamNode(consumerEdge.getTargetId()).getParallelism();
+        int consumerMaxParallelism =
+                streamGraph.getStreamNode(consumerEdge.getTargetId()).getMaxParallelism();
+        NonChainedOutput reusableOutput = null;
+        if (isPartitionTypeCanBeReuse(partitionType)) {
+            for (NonChainedOutput outputCandidate : outputsConsumedByEdge.values()) {
+                // Reusing the same output can improve performance. The target output can be reused
+                // if meeting the following conditions:
+                // 1. all is hybrid partition or are same re-consumable partition.
+                // 2. have the same partitioner, consumer parallelism, persistentDataSetId,
+                // outputTag.
+                if (allHybridOrSameReconsumablePartitionType(
+                                outputCandidate.getPartitionType(), partitionType)
+                        && consumerParallelism == outputCandidate.getConsumerParallelism()
+                        && consumerMaxParallelism == outputCandidate.getConsumerMaxParallelism()
+                        && Objects.equals(
+                                outputCandidate.getPersistentDataSetId(),
+                                consumerEdge.getIntermediateDatasetIdToProduce())
+                        && Objects.equals(
+                                outputCandidate.getOutputTag(), consumerEdge.getOutputTag())
+                        && Objects.equals(
+                                consumerEdge.getPartitioner(), outputCandidate.getPartitioner())) {
+                    reusableOutput = outputCandidate;
+                    outputsConsumedByEdge.put(consumerEdge, reusableOutput);
+                    checkAndReplaceReusableHybridPartitionType(reusableOutput);
+                    break;
+                }
+            }
+        }
+        if (reusableOutput == null) {
             NonChainedOutput output =
                     new NonChainedOutput(
                             consumerEdge.supportsUnalignedCheckpoints(),
@@ -1093,38 +1150,25 @@ public class StreamingJobGraphGenerator {
                             isPersistentDataSet,
                             dataSetId,
                             consumerEdge.getOutputTag(),
-                            partitioner,
+                            consumerEdge.getPartitioner(),
                             partitionType);
-            if (!partitionType.isReconsumable()) {
-                outputs.add(output);
-                outputsConsumedByEdge.put(consumerEdge, output);
-            } else {
-                NonChainedOutput reusableOutput = null;
-                for (NonChainedOutput outputCandidate : outputsConsumedByEdge.values()) {
-                    // the target output can be reused if they have the same partitioner and
-                    // consumer parallelism, reusing the same output can improve performance
-                    if (outputCandidate.getPartitionType().isReconsumable()
-                            && consumerParallelism == outputCandidate.getConsumerParallelism()
-                            && consumerMaxParallelism == outputCandidate.getConsumerMaxParallelism()
-                            && outputCandidate.getPartitionType() == partitionType
-                            && Objects.equals(
-                                    outputCandidate.getPersistentDataSetId(),
-                                    consumerEdge.getIntermediateDatasetIdToProduce())
-                            && Objects.equals(
-                                    outputCandidate.getOutputTag(), consumerEdge.getOutputTag())
-                            && Objects.equals(partitioner, outputCandidate.getPartitioner())) {
-                        reusableOutput = outputCandidate;
-                        outputsConsumedByEdge.put(consumerEdge, reusableOutput);
-                        break;
-                    }
-                }
-                if (reusableOutput == null) {
-                    outputs.add(output);
-                    outputsConsumedByEdge.put(consumerEdge, output);
-                }
-            }
+            outputs.add(output);
+            outputsConsumedByEdge.put(consumerEdge, output);
         }
-        return outputs;
+    }
+
+    private boolean isPartitionTypeCanBeReuse(ResultPartitionType partitionType) {
+        // for non-hybrid partition, partition reuse only works when its re-consumable.
+        // for hybrid selective partition, it still has the opportunity to be converted to
+        // hybrid full partition to support partition reuse.
+        return partitionType.isReconsumable() || partitionType.isHybridResultPartition();
+    }
+
+    private boolean allHybridOrSameReconsumablePartitionType(
+            ResultPartitionType partitionType1, ResultPartitionType partitionType2) {
+        return (partitionType1.isReconsumable() && partitionType1 == partitionType2)
+                || (partitionType1.isHybridResultPartition()
+                        && partitionType2.isHybridResultPartition());
     }
 
     private void tryConvertPartitionerForDynamicGraph(
