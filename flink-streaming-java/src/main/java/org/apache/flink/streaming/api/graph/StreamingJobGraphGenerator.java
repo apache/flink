@@ -1068,6 +1068,21 @@ public class StreamingJobGraphGenerator {
                 dataSetId = consumerEdge.getIntermediateDatasetIdToProduce();
             }
 
+            if (partitionType.isHybridResultPartition()) {
+                hasHybridResultPartition = true;
+                if (partitioner.isBroadcast()
+                        && partitionType == ResultPartitionType.HYBRID_SELECTIVE) {
+                    // for broadcast result partition, it can be optimized to always use full
+                    // spilling strategy to significantly reduce shuffle data writing cost.
+                    LOG.info(
+                            "{} result partition has been replaced by {} result partition to support "
+                                    + "broadcast optimization, which will reduce shuffle data writing cost.",
+                            partitionType.name(),
+                            ResultPartitionType.HYBRID_FULL.name());
+                    partitionType = ResultPartitionType.HYBRID_FULL;
+                }
+            }
+
             NonChainedOutput output =
                     new NonChainedOutput(
                             consumerEdge.supportsUnalignedCheckpoints(),
@@ -1178,11 +1193,6 @@ public class StreamingJobGraphGenerator {
 
         StreamPartitioner<?> partitioner = output.getPartitioner();
         ResultPartitionType resultPartitionType = output.getPartitionType();
-
-        if (resultPartitionType == ResultPartitionType.HYBRID_FULL
-                || resultPartitionType == ResultPartitionType.HYBRID_SELECTIVE) {
-            hasHybridResultPartition = true;
-        }
 
         checkBufferTimeout(resultPartitionType, edge);
 

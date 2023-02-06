@@ -103,6 +103,7 @@ import org.apache.flink.streaming.api.transformations.MultipleInputTransformatio
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
@@ -121,6 +122,8 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -1733,6 +1736,35 @@ class StreamingJobGraphGeneratorTest {
         assertThat(allVertices.get(0).getIntermediateDataSetIdsToConsume()).hasSize(1);
         assertThat(new AbstractID(allVertices.get(0).getIntermediateDataSetIdsToConsume().get(0)))
                 .isEqualTo(cacheTransformation.getDatasetId());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testHybridBroadcastEdgeAlwaysUseFullResultPartition(boolean isSelective) {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.disableOperatorChaining();
+
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> partitionAfterSourceDataStream =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                sourceDataStream.getTransformation(),
+                                new BroadcastPartitioner<>(),
+                                isSelective
+                                        ? StreamExchangeMode.HYBRID_SELECTIVE
+                                        : StreamExchangeMode.HYBRID_FULL));
+        partitionAfterSourceDataStream.addSink(new DiscardingSink<>());
+
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+        List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertThat(verticesSorted).hasSize(2);
+
+        JobVertex sourceAndMapVertex = verticesSorted.get(0);
+        assertThat(sourceAndMapVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.HYBRID_FULL);
     }
 
     /**
