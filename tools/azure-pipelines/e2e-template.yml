@@ -98,6 +98,18 @@ jobs:
 
         echo "Free up disk space"
         ./tools/azure-pipelines/free_disk_space.sh
+        
+        echo "Configure APT mirrors"
+        mirror_file_path="/etc/apt/mirrors.txt"
+        default_ubuntu_mirror_url="http://azure.archive.ubuntu.com/ubuntu/"
+        
+        # add Azure's Ubuntu mirror as a top-priority source
+        echo -e "${default_ubuntu_mirror_url}\tpriority:1" | sudo tee ${mirror_file_path}
+        
+        # use other mirrors as a fallback option
+        curl http://mirrors.ubuntu.com/mirrors.txt | sudo tee --append ${mirror_file_path}
+        sudo sed -i "s~${default_ubuntu_mirror_url}~mirror+file:${mirror_file_path}~" /etc/apt/sources.list
+        sudo apt-get update
 
         echo "Installing required software"
         sudo apt-get install -y bc libapr1
