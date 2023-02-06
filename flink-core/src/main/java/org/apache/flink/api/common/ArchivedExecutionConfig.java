@@ -81,6 +81,7 @@ public class ArchivedExecutionConfig implements Serializable {
                 maxParallelism,
                 parallelism,
                 objectReuseEnabled,
+                periodicMaterializeIntervalMillis,
                 globalJobParameters);
     }
 
@@ -91,6 +92,7 @@ public class ArchivedExecutionConfig implements Serializable {
             int maxParallelism,
             int parallelism,
             boolean objectReuseEnabled,
+            long periodicMaterializeIntervalMillis,
             Map<String, String> globalJobParameters) {
         this.executionMode = executionMode;
         this.jobType = jobType;
