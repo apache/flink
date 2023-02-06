@@ -322,7 +322,7 @@ that a sink can still work on common data structures and perform a conversion at
     </tr>
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsWritingMetadata.java" name="SupportsWritingMetadata" >}}</td>
-        <td>Enables to write metadata columns into a <code>DynamicTableSource</code>. A table sink is
+        <td>Enables to write metadata columns into a <code>DynamicTableSink</code>. A table sink is
         responsible for accepting requested metadata columns at the end of consumed rows and persist
         them. This includes potentially forwarding metadata columns to contained formats.</td>
     </tr>
