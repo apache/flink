@@ -215,6 +215,10 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsSourceWatermark.java" name="SupportsSourceWatermark" >}}</td>
         <td>支持使用 <code>ScanTableSource</code> 中提供的水印策略。当使用 <code>CREATE TABLE</code> DDL 时，<可以使用></可以使用> <code>SOURCE_WATERMARK()</code> 来告诉 planner 调用这个接口中的水印策略方法。</td>
     </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsRowLevelModificationScan.java" name="SupportsRowLevelModificationScan" >}}</td>
+        <td>支持将读数据的上下文 <code>RowLevelModificationScanContext</code> 从 <code>ScanTableSource</code> 传递给实现了 <code>SupportsRowLevelDelete</code>，<code>SupportsRowLevelUpdate</code> 的 sink 端。
+    </tr>
     </tbody>
 </table>
 

@@ -266,6 +266,11 @@ will be called with values for the given lookup keys during runtime.
         is a built-in marker function that will be detected by the planner and translated into a call
         to this interface if available.</td>
     </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsRowLevelModificationScan.java" name="SupportsRowLevelModificationScan" >}}</td>
+        <td>Enables to pass a scan context described by <code>RowLevelModificationScanContext</code> from <code>ScanTableSource</code> 
+        to sink which implements <code>SupportsRowLevelDelete</code>, <code>SupportsRowLevelUpdate</code>.
+    </tr>
     </tbody>
 </table>
 
