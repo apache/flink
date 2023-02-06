@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.gateway.service.context;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
@@ -71,19 +72,19 @@ class SessionContextTest {
         sessionContext.set(NAME.key(), "test");
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
-        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
-        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(128);
-        assertThat(getConfiguration().get(NAME)).isEqualTo("test");
-        assertThat(getConfiguration().get(OBJECT_REUSE)).isFalse();
+        assertThat(sessionContext.getSessionConf().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
+        assertThat(sessionContext.getSessionConf().get(MAX_PARALLELISM)).isEqualTo(128);
+        assertThat(sessionContext.getSessionConf().get(NAME)).isEqualTo("test");
+        assertThat(sessionContext.getSessionConf().get(OBJECT_REUSE)).isFalse();
 
         sessionContext.reset();
-        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("default");
-        assertThat(getConfiguration().get(NAME)).isNull();
+        assertThat(sessionContext.getSessionConf().get(TABLE_SQL_DIALECT)).isEqualTo("default");
+        assertThat(sessionContext.getSessionConf().get(NAME)).isNull();
         // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
-        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(16);
-        assertThat(getConfiguration().getOptional(NAME)).isEmpty();
+        assertThat(sessionContext.getSessionConf().get(MAX_PARALLELISM)).isEqualTo(16);
+        assertThat(sessionContext.getSessionConf().getOptional(NAME)).isEmpty();
         // The value of OBJECT_REUSE in origin configuration is true
-        assertThat(getConfiguration().get(OBJECT_REUSE)).isTrue();
+        assertThat(sessionContext.getSessionConf().get(OBJECT_REUSE)).isTrue();
     }
 
     @Test
@@ -97,22 +98,22 @@ class SessionContextTest {
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
 
-        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
-        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(128);
-        assertThat(getConfiguration().get(NAME)).isEqualTo("test");
-        assertThat(getConfiguration().get(OBJECT_REUSE)).isFalse();
+        assertThat(sessionContext.getSessionConf().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
+        assertThat(sessionContext.getSessionConf().get(MAX_PARALLELISM)).isEqualTo(128);
+        assertThat(sessionContext.getSessionConf().get(NAME)).isEqualTo("test");
+        assertThat(sessionContext.getSessionConf().get(OBJECT_REUSE)).isFalse();
 
         sessionContext.reset(TABLE_SQL_DIALECT.key());
-        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("default");
+        assertThat(sessionContext.getSessionConf().get(TABLE_SQL_DIALECT)).isEqualTo("default");
 
         sessionContext.reset(MAX_PARALLELISM.key());
-        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(16);
+        assertThat(sessionContext.getSessionConf().get(MAX_PARALLELISM)).isEqualTo(16);
 
         sessionContext.reset(NAME.key());
-        assertThat(getConfiguration().get(NAME)).isNull();
+        assertThat(sessionContext.getSessionConf().get(NAME)).isNull();
 
         sessionContext.reset(OBJECT_REUSE.key());
-        assertThat(getConfiguration().get(OBJECT_REUSE)).isTrue();
+        assertThat(sessionContext.getSessionConf().get(OBJECT_REUSE)).isTrue();
     }
 
     @Test
@@ -121,15 +122,19 @@ class SessionContextTest {
         sessionContext.set("aa", "11");
         sessionContext.set("bb", "22");
 
-        assertThat(sessionContext.getConfigMap().get("aa")).isEqualTo("11");
-        assertThat(sessionContext.getConfigMap().get("bb")).isEqualTo("22");
+        ConfigOption<String> aa = ConfigOptions.key("aa").stringType().defaultValue("11");
+        ConfigOption<String> bb = ConfigOptions.key("bb").stringType().defaultValue("22");
+
+        assertThat(sessionContext.getSessionConf())
+                .matches((conf) -> conf.contains(aa) && conf.contains(bb));
 
         sessionContext.reset("aa");
-        assertThat(sessionContext.getConfigMap().get("aa")).isNull();
-        assertThat(sessionContext.getConfigMap().get("bb")).isEqualTo("22");
+        assertThat(sessionContext.getSessionConf())
+                .matches((conf) -> !conf.containsKey("aa") && conf.contains(bb));
 
         sessionContext.reset("bb");
-        assertThat(sessionContext.getConfigMap().get("bb")).isNull();
+        assertThat(sessionContext.getSessionConf())
+                .matches((conf) -> !conf.containsKey("aa") && !conf.containsKey("bb"));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -146,9 +151,5 @@ class SessionContextTest {
                         .build();
         return SessionContext.create(
                 defaultContext, SessionHandle.create(), environment, EXECUTOR_SERVICE);
-    }
-
-    private ReadableConfig getConfiguration() {
-        return Configuration.fromMap(sessionContext.getConfigMap());
     }
 }
