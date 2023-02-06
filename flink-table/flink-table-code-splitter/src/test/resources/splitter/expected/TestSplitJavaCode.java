@@ -64,7 +64,7 @@ public class TestSplitJavaCode {
 
     void myFun1_split9(int a) {
         if (rewrite$18[0] > 0) {
-            myFun1_0_rewriteGroup5(a);
+            myFun1_0_0_rewriteGroup5(a);
         } else {
             rewrite$17[0][0] += 50;
             rewrite$17[0][1] += 100;
@@ -78,38 +78,38 @@ public class TestSplitJavaCode {
     }
 
 
-    void myFun1_0_rewriteGroup5(int a) {
-        myFun1_0_rewriteGroup5_split10(a);
+    void myFun1_0_0_rewriteGroup5(int a) {
+        myFun1_0_0_rewriteGroup5_split10(a);
 
-        myFun1_0_rewriteGroup5_split11(a);
+        myFun1_0_0_rewriteGroup5_split11(a);
 
     }
-    void myFun1_0_rewriteGroup5_split10(int a) {
+    void myFun1_0_0_rewriteGroup5_split10(int a) {
 
         rewrite$17[0][0] += 100;
     }
 
-    void myFun1_0_rewriteGroup5_split11(int a) {
+    void myFun1_0_0_rewriteGroup5_split11(int a) {
         if (rewrite$18[1] > 0) {
-            myFun1_0_rewriteGroup1_2_rewriteGroup4(a);
+            myFun1_0_0_rewriteGroup1_2_rewriteGroup4(a);
         } else {
             rewrite$17[0][1] += 50;
         }
     }
 
 
-    void myFun1_0_rewriteGroup1_2_rewriteGroup4(int a) {
-        myFun1_0_rewriteGroup1_2_rewriteGroup4_split12(a);
+    void myFun1_0_0_rewriteGroup1_2_rewriteGroup4(int a) {
+        myFun1_0_0_rewriteGroup1_2_rewriteGroup4_split12(a);
 
-        myFun1_0_rewriteGroup1_2_rewriteGroup4_split13(a);
+        myFun1_0_0_rewriteGroup1_2_rewriteGroup4_split13(a);
 
     }
-    void myFun1_0_rewriteGroup1_2_rewriteGroup4_split12(int a) {
+    void myFun1_0_0_rewriteGroup1_2_rewriteGroup4_split12(int a) {
 
         rewrite$17[0][1] += 100;
     }
 
-    void myFun1_0_rewriteGroup1_2_rewriteGroup4_split13(int a) {
+    void myFun1_0_0_rewriteGroup1_2_rewriteGroup4_split13(int a) {
         if (rewrite$18[2] > 0) {
             rewrite$17[0][2] += 100;
         } else {
