@@ -1755,7 +1755,8 @@ class StreamingJobGraphGeneratorTest {
         // this can not reuse the same intermediate dataset because of different partitioner
         source.broadcast().addSink(new DiscardingSink<>()).setParallelism(2);
 
-        // these two vertices can reuse the same intermediate dataset because of the pipelined edge
+        // these two vertices can not reuse the same intermediate dataset because of the pipelined
+        // edge
         source.forward().addSink(new DiscardingSink<>()).setParallelism(1).disableChaining();
         source.forward().addSink(new DiscardingSink<>()).setParallelism(1).disableChaining();
 
