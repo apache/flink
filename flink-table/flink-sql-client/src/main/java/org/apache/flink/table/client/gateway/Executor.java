@@ -21,8 +21,6 @@ package org.apache.flink.table.client.gateway;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 
-import javax.annotation.Nullable;
-
 import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -31,19 +29,10 @@ import java.util.List;
 public interface Executor extends Closeable {
 
     /** Create an {@link Executor} to execute commands. */
-    static Executor create(DefaultContext defaultContext, InetSocketAddress address) {
-        return new ExecutorImpl(defaultContext, address);
+    static Executor create(
+            DefaultContext defaultContext, InetSocketAddress address, String sessionId) {
+        return new ExecutorImpl(defaultContext, address, sessionId);
     }
-
-    /**
-     * Open a new session by using the given session id.
-     *
-     * @param sessionId session identifier
-     */
-    void openSession(@Nullable String sessionId);
-
-    /** Close the resources of session for given session id. */
-    void closeSession();
 
     /**
      * Configures session with statement.
@@ -52,7 +41,11 @@ public interface Executor extends Closeable {
      */
     void configureSession(String statement);
 
-    /** Get the configuration of the session. */
+    /**
+     * Get the configuration of the session.
+     *
+     * @return the session configuration.
+     */
     ReadableConfig getSessionConfig();
 
     /**

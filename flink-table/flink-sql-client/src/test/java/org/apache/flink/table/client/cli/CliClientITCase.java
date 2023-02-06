@@ -24,7 +24,6 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ExecutorImpl;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
@@ -221,16 +220,16 @@ class CliClientITCase {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
 
         try (final Executor executor =
-                        new ExecutorImpl(
+                        Executor.create(
                                 defaultContext,
                                 InetSocketAddress.createUnresolved(
                                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
+                                "test-session");
                 Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
                                 () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
-            executor.openSession("test-session");
             client.executeInInteractiveMode();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);
