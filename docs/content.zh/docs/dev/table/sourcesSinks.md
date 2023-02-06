@@ -274,6 +274,10 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsRowLevelDelete.java" name="SupportsRowLevelDelete" >}}</td>
         <td>支持 <code>DynamicTableSink</code> 根据行级别的变更来删除已有的数据。该接口的实现者需要告诉 Planner 如何产生这些行变更，并且需要消费这些行变更从而达到删除数据的目的。
     </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsRowLevelUpdate.java" name="SupportsRowLevelUpdate" >}}</td>
+        <td>支持 <code>DynamicTableSink</code> 根据行级别的变更来更新已有的数据。该接口的实现者需要告诉 Planner 如何产生这些行变更，并且需要消费这些行变更从而达到更新数据的目的。
+    </tr>
     </tbody>
 </table>
 
