@@ -76,6 +76,7 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.hamcrest.Matchers.either;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -723,8 +724,12 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
             leaderElectionDriver =
                     createAndInitLeaderElectionDriver(clientWithErrorHandler, electionEventHandler);
             assertThat(
+                    "We either expected the exception injected by this test or a connection loss due to an unstable connection which might be caused by a fsync operation taking too long (FLINK-30914).",
                     fatalErrorHandler.getErrorFuture().join(),
-                    FlinkMatchers.containsCause(testException));
+                    either(FlinkMatchers.containsCause(testException))
+                            .or(
+                                    FlinkMatchers.containsCause(
+                                            KeeperException.ConnectionLossException.class)));
         } finally {
             electionEventHandler.close();
 
