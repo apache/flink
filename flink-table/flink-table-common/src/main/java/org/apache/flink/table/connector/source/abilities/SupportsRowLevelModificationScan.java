@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
  *
  * <p>Note: This interface is optional for table sources to implement. For cases where the table
  * source neither needs to know the type of row-level modification nor propagate information to
- * sink, the table source does't need to implement this interface. See more details at {@link
+ * sink, the table source doesn't need to implement this interface. See more details at {@link
  * #applyRowLevelModificationScan(RowLevelModificationType, RowLevelModificationScanContext)}.
  */
 public interface SupportsRowLevelModificationScan {
