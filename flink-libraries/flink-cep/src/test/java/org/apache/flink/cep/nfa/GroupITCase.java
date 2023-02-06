@@ -887,4 +887,84 @@ public class GroupITCase extends TestLogger {
         assertEquals(1, nfaState.getPartialMatches().size());
         assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
     }
+
+    @Test
+    public void testGroupStartsWithOptionalPattern() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event a = new Event(40, "a", 1.0);
+        Event c = new Event(41, "c", 2.0);
+        Event d = new Event(42, "d", 3.0);
+
+        inputEvents.add(new StreamRecord<>(a, 1));
+        inputEvents.add(new StreamRecord<>(c, 2));
+        inputEvents.add(new StreamRecord<>(d, 3));
+
+        // a (b? c) d
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .next(
+                                Pattern.<Event>begin("middle1")
+                                        .where(
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b")))
+                                        .optional()
+                                        .next("middle2")
+                                        .where(
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("c"))))
+                        .next("d")
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        NFAState nfaState = nfa.createInitialNFAState();
+
+        NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+        final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
+
+        comparePatterns(
+                resultingPatterns, Lists.<List<Event>>newArrayList(Lists.newArrayList(a, c, d)));
+    }
+
+    @Test
+    public void testFollowedByOptionalGroupPattern() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event a = new Event(40, "a", 1.0);
+        Event d1 = new Event(41, "d", 2.0);
+        Event d2 = new Event(42, "d", 3.0);
+
+        inputEvents.add(new StreamRecord<>(a, 1));
+        inputEvents.add(new StreamRecord<>(d1, 2));
+        inputEvents.add(new StreamRecord<>(d2, 3));
+
+        // a (b? c) d
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .followedBy(
+                                Pattern.<Event>begin("middle1")
+                                        .where(
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b")))
+                                        .next("middle2")
+                                        .where(
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("c"))))
+                        .optional()
+                        .next("d")
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        NFAState nfaState = nfa.createInitialNFAState();
+
+        NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+        final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
+
+        comparePatterns(
+                resultingPatterns, Lists.<List<Event>>newArrayList(Lists.newArrayList(a, d1)));
+    }
 }
