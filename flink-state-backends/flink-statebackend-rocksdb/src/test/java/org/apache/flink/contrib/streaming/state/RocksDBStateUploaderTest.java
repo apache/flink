@@ -140,7 +140,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
         Map<StateHandleID, Path> filePaths =
                 generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
         CloseableRegistry tmpResourcesRegistry = new CloseableRegistry();
-        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(sstFileCount)) {
+        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(1)) {
             rocksDBStateUploader.uploadFilesToCheckpointFs(
                     filePaths,
                     checkpointStreamFactory,
