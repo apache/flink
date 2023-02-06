@@ -71,6 +71,10 @@ public class SqlConstraintValidator {
             Set<String> primaryKeyColumns =
                     Arrays.stream(constraint.getColumnNames()).collect(Collectors.toSet());
 
+            // rewrite primary key's nullability to false
+            // e.g. CREATE TABLE tbl (`a` STRING PRIMARY KEY NOT ENFORCED, ...) or
+            // CREATE TABLE tbl (`a` STRING, PRIMARY KEY(`a`) NOT ENFORCED) will change `a`
+            // to STRING NOT NULL
             for (SqlNode column : columnList) {
                 SqlTableColumn tableColumn = (SqlTableColumn) column;
                 if (tableColumn instanceof SqlTableColumn.SqlRegularColumn
@@ -84,7 +88,7 @@ public class SqlConstraintValidator {
         }
     }
 
-    /** Check table/column constraint. */
+    /** Check table constraint. */
     private static void validate(SqlTableConstraint constraint) throws SqlValidateException {
         if (constraint.isUnique()) {
             throw new SqlValidateException(
@@ -93,10 +97,9 @@ public class SqlConstraintValidator {
         if (constraint.isEnforced()) {
             throw new SqlValidateException(
                     constraint.getParserPosition(),
-                    "Flink doesn't support ENFORCED mode for "
-                            + "PRIMARY KEY constraint. ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
-                            + "Flink does not own the data therefore the only supported mode "
-                            + "is the NOT ENFORCED mode");
+                    "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. ENFORCED/NOT ENFORCED "
+                            + "controls if the constraint checks are performed on the incoming/outgoing data. "
+                            + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode");
         }
     }
 }

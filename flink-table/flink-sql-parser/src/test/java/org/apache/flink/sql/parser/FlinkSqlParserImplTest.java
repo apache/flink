@@ -1454,6 +1454,46 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateTableLikeWithConstraints() {
+        final String sql1 =
+                "create table source_table(\n"
+                        + "  a int primary key,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ")\n"
+                        + "LIKE parent_table";
+        sql(sql1)
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. ENFORCED/NOT ENFORCED "
+                                                + "controls if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
+
+        final String sql2 =
+                "create table source_table(\n"
+                        + "  a int primary key,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  primary key(a) not enforced\n"
+                        + ")\n"
+                        + "LIKE parent_table";
+
+        sql(sql2).node(new ValidationMatcher().fails("Duplicate primary key definition"));
+
+        final String sql3 =
+                "create table source_table(\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  unique (a)\n"
+                        + ")\n"
+                        + "LIKE parent_table";
+
+        sql(sql3).node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
+    }
+
+    @Test
     void testCreateTableWithLikeClause() {
         final String sql =
                 "create table source_table(\n"
@@ -2338,9 +2378,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
-                                                + "ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. ENFORCED/NOT ENFORCED controls "
+                                                + "if the constraint checks are performed on the incoming/outgoing data. "
                                                 + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
+
+        sql("CREATE TABLE t (PRIMARY KEY (col1), PRIMARY KEY (col2) NOT ENFORCED) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().fails("Duplicate primary key definition"));
+
+        sql("CREATE TABLE t (UNIQUE (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
     }
 
     @Test
